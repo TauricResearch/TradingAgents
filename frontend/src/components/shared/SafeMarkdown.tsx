@@ -1,42 +1,58 @@
 /**
- * G3 - Sanitized markdown renderer (minimal).
+ * Sanitized markdown renderer with two typographic modes.
  *
- * Server-side redaction (RunMeta.redaction_manifest) already strips sensitive
- * content from artifacts; this component is a defense-in-depth layer ensuring
- * any residual HTML in artifact text is rendered as inert text, never
- * executed as live markup.
+ * - "prose": parses markdown via react-markdown + remark-gfm, sanitized
+ *   through rehype-sanitize defaultSchema. For LLM-authored reports.
+ * - "data": byte-faithful preformatted monospace, no markdown parsing.
+ *   For machine payloads (JSON, prompts, raw vendor values).
  *
- * react-markdown + remark-gfm + rehype-sanitize integration is DEFERRED to H2
- * packaging: those deps are NOT in frontend/package.json today and the task
- * explicitly forbids modifying package.json. For G3 we escape &, <, > to HTML
- * entities and render in a <pre> with whitespace preserved. Markdown syntax
- * (headings, bold, code) is NOT parsed - content is shown verbatim as
- * preformatted escaped text. This is acceptable because the content is already
- * redacted server-side.
- *
- * Safety: the escaped string is assigned via dangerouslySetInnerHTML ONLY
- * after &, <, > have been converted to entities, so no substring can ever be
- * interpreted as a live HTML tag by the browser.
+ * Safety: sanitization happens in the HAST pipeline, not via pre-escaping
+ * the source string, so markdown stays parseable while embedded markup
+ * stays inert. Anchor hrefs are restricted to http/https in the component
+ * override without widening the sanitize schema.
  */
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 
 export interface SafeMarkdownProps {
   content: string;
+  mode?: "prose" | "data";
 }
 
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-export function SafeMarkdown({ content }: SafeMarkdownProps): JSX.Element {
-  const escaped = escapeHtml(content);
+function Anchor(props: React.AnchorHTMLAttributes<HTMLAnchorElement>): JSX.Element {
+  const { href, children, ...rest } = props;
+  if (!href || !/^https?:\/\//i.test(href)) {
+    return <>{children}</>;
+  }
   return (
-    <pre
-      className="safe-markdown"
-      style={{ whiteSpace: "pre-wrap" }}
-      dangerouslySetInnerHTML={{ __html: escaped }}
-    />
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      {...rest}
+    >
+      {children}
+    </a>
+  );
+}
+
+export function SafeMarkdown({ content, mode = "prose" }: SafeMarkdownProps): JSX.Element {
+  if (mode === "data") {
+    return <pre className="datablock">{content}</pre>;
+  }
+
+  return (
+    <div className="prose">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[[rehypeSanitize, defaultSchema]]}
+        components={{
+          a: Anchor,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }

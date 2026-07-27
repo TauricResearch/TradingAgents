@@ -218,15 +218,110 @@ describe("VendorProvenance", () => {
 // --- SafeMarkdown --------------------------------------------------------
 
 describe("SafeMarkdown", () => {
-  it("escapes HTML: <script> renders as escaped text, not executed", () => {
-    const content = "<script>alert(1)</script>";
-    const { container } = render(<SafeMarkdown content={content} />);
+  describe("prose mode (default)", () => {
+    it("renders headings as heading elements", () => {
+      const content = "# H1\n\n## H2\n\n### H3";
+      const { container } = render(<SafeMarkdown content={content} />);
+      expect(container.querySelector("h1")).not.toBeNull();
+      expect(container.querySelector("h2")).not.toBeNull();
+      expect(container.querySelector("h3")).not.toBeNull();
+      expect(container.querySelector("h1")?.textContent).toBe("H1");
+    });
 
-    // No live script element is created in the DOM.
-    expect(container.querySelector("script")).toBeNull();
-    // Angle brackets are escaped to entities in the serialized HTML.
-    expect(container.innerHTML).toContain("&lt;script&gt;");
-    // Visible text is the literal <script> source, not executed.
-    expect(container.textContent).toContain("<script>alert(1)</script>");
+    it("renders bullet and numbered lists", () => {
+      const content = "- item a\n- item b\n\n1. first\n2. second";
+      const { container } = render(<SafeMarkdown content={content} />);
+      const ul = container.querySelector("ul");
+      const ol = container.querySelector("ol");
+      expect(ul).not.toBeNull();
+      expect(ol).not.toBeNull();
+      expect(ul?.querySelectorAll("li").length).toBe(2);
+      expect(ol?.querySelectorAll("li").length).toBe(2);
+    });
+
+    it("renders GFM tables with alignment row consumed", () => {
+      const content = [
+        "| Name | Value |",
+        "| :--- | ----: |",
+        "| foo  |    42 |",
+        "| bar  |     7 |",
+      ].join("\n");
+      const { container } = render(<SafeMarkdown content={content} />);
+      const table = container.querySelector("table");
+      expect(table).not.toBeNull();
+      const ths = table?.querySelectorAll("th");
+      const tds = table?.querySelectorAll("td");
+      expect(ths?.length).toBe(2);
+      expect(tds?.length).toBe(4);
+      expect(ths?.[0]?.textContent).toBe("Name");
+      // Alignment row is consumed into th styling, not a data row.
+      expect(table?.querySelectorAll("tr").length).toBe(3); // header + 2 data
+    });
+
+    it("strips <script> tags via sanitization", () => {
+      const content = "hello <script>alert(1)</script> world";
+      const { container } = render(<SafeMarkdown content={content} />);
+      expect(container.querySelector("script")).toBeNull();
+      expect(container.textContent).toContain("hello");
+      expect(container.textContent).toContain("world");
+    });
+
+    it("strips event handler attributes", () => {
+      const content = '![x](y) onerror="alert(1)"';
+      const { container } = render(<SafeMarkdown content={content} />);
+      const img = container.querySelector("img");
+      expect(img).not.toBeNull();
+      expect(img?.hasAttribute("onerror")).toBe(false);
+    });
+
+    it("rejects javascript: href scheme", () => {
+      const content = '[click](javascript:alert(1))';
+      const { container } = render(<SafeMarkdown content={content} />);
+      const a = container.querySelector("a");
+      // Either the link is stripped entirely, or it renders without the href.
+      if (a) {
+        expect(a.getAttribute("href")).not.toMatch(/javascript/i);
+      }
+    });
+
+    it("allows http/https links with safe attributes", () => {
+      const content = "[ext](https://example.com/page)";
+      const { container } = render(<SafeMarkdown content={content} />);
+      const a = container.querySelector("a");
+      expect(a).not.toBeNull();
+      expect(a?.getAttribute("href")).toBe("https://example.com/page");
+      expect(a?.getAttribute("target")).toBe("_blank");
+      expect(a?.getAttribute("rel")).toContain("noopener");
+      expect(a?.getAttribute("rel")).toContain("noreferrer");
+    });
+
+    it("wraps output in .prose container", () => {
+      const { container } = render(<SafeMarkdown content="text" />);
+      expect(container.querySelector(".prose")).not.toBeNull();
+    });
+  });
+
+  describe("data mode", () => {
+    it("leaves markdown syntax literal — no headings, no bold", () => {
+      const content = "# Not a heading\n**not bold**";
+      const { container } = render(<SafeMarkdown content={content} mode="data" />);
+      expect(container.querySelector("h1")).toBeNull();
+      expect(container.querySelector("strong")).toBeNull();
+      expect(container.textContent).toContain("# Not a heading");
+      expect(container.textContent).toContain("**not bold**");
+    });
+
+    it("renders in a <pre> with .datablock class", () => {
+      const { container } = render(<SafeMarkdown content="{}" mode="data" />);
+      const pre = container.querySelector("pre.datablock");
+      expect(pre).not.toBeNull();
+      expect(pre?.textContent).toBe("{}");
+    });
+
+    it("preserves whitespace and line breaks", () => {
+      const content = "line 1\n  indented\nline 3";
+      const { container } = render(<SafeMarkdown content={content} mode="data" />);
+      expect(container.textContent).toBe(content);
+    });
   });
 });

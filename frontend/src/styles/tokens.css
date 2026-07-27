@@ -62,4 +62,13 @@
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC",
     "Noto Serif CJK SC", Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---- Prose type scale (for LLM-authored report bodies) ---- */
+  --prose-size: 14.5px;
+  --prose-line: 1.7;
+  --prose-measure: 68ch;
+  --prose-h1: 1.6rem;
+  --prose-h2: 1.3rem;
+  --prose-h3: 1.1rem;
+  --prose-code-size: 0.9em;
 }

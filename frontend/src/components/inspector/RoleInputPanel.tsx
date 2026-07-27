@@ -18,6 +18,7 @@ import { ROLE_REGISTRY } from "../../state/model";
 import { artifactsForTurn } from "../../state/selectors";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { useArtifact } from "../../hooks/useArtifact";
+import { SafeMarkdown } from "../shared/SafeMarkdown";
 import { ROLE_LABELS_ZH, stageColorClass } from "../../domain/roles";
 import { RoleIcon } from "../icons/RoleIcon";
 
@@ -140,9 +141,7 @@ function PromptBody({ content }: { content: string | null }): JSX.Element {
   if (content === null) {
     return <div className="placeholder">（无内容）</div>;
   }
-  // SafeMarkdown is not yet available in the codebase; render as plain
-  // preformatted text. Swap to <SafeMarkdown content={content} /> once landed.
-  return <pre className="tool-body">{content}</pre>;
+  return <SafeMarkdown content={content} mode="data" />;
 }
 
 function RawBody({

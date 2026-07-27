@@ -860,14 +860,91 @@ div.inspector {
   margin: 2px 0 14px;
 }
 
-.flow-row {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
+.workflow.flow-map {
+  position: relative;
 }
 
-.flow-row + .flow-row {
-  margin-top: 10px;
+.flow-stages {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.flow-stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.flow-stage.stage-active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.stage-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.stage-active .stage-label {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
+}
+
+.stage-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-start;
+}
+
+.node-wrapper {
+  width: 100%;
+}
+
+.node-wrapper .node {
+  width: 100%;
+}
+
+/* Edge overlay */
+.flow-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.edge-handoff {
+  stroke: var(--line-2);
+  stroke-dasharray: 4 3;
+}
+
+.edge-adversarial {
+  stroke: var(--line-2);
+  stroke-dasharray: 2 4;
+  opacity: 0.6;
+}
+
+.edge-convergence {
+  stroke: var(--accent);
+  opacity: 0.5;
 }
 
 .node {
@@ -1091,11 +1168,51 @@ div.inspector {
   color: var(--green);
 }
 
-.bubble p {
-  margin: 8px 0 0;
-  font-size: 13px;
+.bubble-body {
+  margin-top: 8px;
+}
+
+.bubble-body .prose {
+  font-size: 13.5px;
   line-height: 1.65;
   color: #3f444c;
+}
+
+.bubble-body .prose p:first-child {
+  margin-top: 0;
+}
+
+.bubble-body .prose p:last-child {
+  margin-bottom: 0;
+}
+
+.turn-body-placeholder {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--faint);
+  font-style: italic;
+}
+
+.turn-body-placeholder.error {
+  color: var(--red);
+  font-style: normal;
+}
+
+.expand-link {
+  margin-top: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.expand-link:hover {
+  color: var(--accent-strong);
 }
 
 .evidence {
@@ -1503,9 +1620,134 @@ td.input-ref {
   flex-shrink: 0;
 }
 
-/* Verbatim artifact / markdown bodies. */
-.safe-markdown {
-  font: 11px/1.6 var(--font-mono);
+/* Prose mode — typographic rendering of LLM-authored markdown reports. */
+.prose {
+  font-size: var(--prose-size);
+  line-height: var(--prose-line);
+  color: var(--text);
+  max-width: var(--prose-measure);
+  margin: 0;
+}
+
+.prose h1 {
+  font-size: var(--prose-h1);
+  font-weight: 700;
+  margin: 1.2em 0 0.6em;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.prose h2 {
+  font-size: var(--prose-h2);
+  font-weight: 650;
+  margin: 1.1em 0 0.5em;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.prose h3 {
+  font-size: var(--prose-h3);
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.prose p {
+  margin: 0.7em 0;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0.7em 0;
+  padding-left: 1.6em;
+}
+
+.prose li {
+  margin: 0.3em 0;
+}
+
+.prose blockquote {
+  margin: 0.8em 0;
+  padding: 0.4em 1em;
+  border-left: 3px solid var(--line-2);
+  color: var(--muted);
+  background: var(--panel-2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: var(--prose-code-size);
+  background: var(--panel-2);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.prose pre {
+  font-family: var(--font-mono);
+  font-size: var(--prose-code-size);
+  background: var(--panel-2);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0.8em 0;
+  line-height: 1.55;
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.8em 0;
+  font-size: 0.95em;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--panel-2);
+  font-weight: 600;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: var(--accent-strong);
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 1.2em 0;
+}
+
+.prose strong {
+  font-weight: 650;
+}
+
+/* Data mode — byte-faithful machine payloads (JSON, prompts, raw values). */
+.datablock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
   color: #3f444c;
   background: var(--panel-2);
   padding: 12px;
@@ -1513,4 +1755,5 @@ td.input-ref {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-x: auto;
 }

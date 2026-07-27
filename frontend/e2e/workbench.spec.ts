@@ -55,13 +55,13 @@ test.describe("workbench e2e", () => {
     await expect(page.locator(".history-item").first()).toContainText("已完成");
   });
 
-  test("timeline shows debate turns and lazy-loads a response on click", async ({ page }) => {
+  test("timeline shows response text without requiring a click", async ({ page }) => {
     await startRun(page);
     await waitForRunCompleted(page);
     await expect(page.getByText("辩论与决策时间线")).toBeVisible();
-    const bubble = page.locator(".bubble").first();
-    await bubble.click();
-    await expect(page.locator(".bubble").first()).not.toContainText("点击展开", { timeout: 5_000 });
+    await expect(page.getByText("市场行情偏强，成交量放大")).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   test("inspector shows role-input tabs and the run-input snapshot", async ({ page }) => {

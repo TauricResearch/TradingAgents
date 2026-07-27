@@ -2,18 +2,20 @@
  * G2 - Debate/verdict timeline.
  *
  * Renders the ordered turn transcript from the live workbench store. Each
- * turn's response text is lazy-loaded from the turn.output_ready artifact
- * (the JSON-serialized business_delta) via extractResponse. Candidate
+ * turn's response text is eagerly fetched from the turn.output_ready artifact
+ * (the JSON-serialized business_delta) via useTurnResponses. Candidate
  * (output_ready, not committed) vs committed (completed) turns are visually
  * distinguished by a gold 候选 tag prepended to the bubble-head.
+ *
+ * Turn bodies render as prose markdown via SafeMarkdown. Turns beyond the
+ * eager fetch window carry an excerpt and an expand control.
  */
-import { useState } from "react";
-import type { Turn } from "../../state/model";
+import { useMemo } from "react";
 import { ROLE_REGISTRY } from "../../state/model";
 import { turnTimeline } from "../../state/selectors";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
-import { readArtifactText } from "../../api/client";
-import { extractResponse } from "../../domain/responseExtractor";
+import { useTurnResponses } from "../../hooks/useTurnResponses";
+import { SafeMarkdown } from "../shared/SafeMarkdown";
 import { ROLE_LABELS_ZH } from "../../domain/roles";
 import { RoleIcon } from "../icons/RoleIcon";
 
@@ -21,13 +23,6 @@ export interface TimelineProps {
   filter: string;
   onTurnSelected: (turn_id: string) => void;
   onFilterChange?: (filter: string) => void;
-}
-
-interface LoadedResponse {
-  text: string | null;
-  badge: string | null;
-  loading: boolean;
-  error: string | null;
 }
 
 const FILTER_BUTTONS: ReadonlyArray<{ label: string; value: string }> = [
@@ -65,67 +60,17 @@ export function Timeline({
   const state = stream.state;
   const activeFilter = filter || "";
 
-  const [loaded, setLoaded] = useState<Record<string, LoadedResponse>>({});
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const turns = useMemo(
+    () => (state ? turnTimeline(state, activeFilter) : []),
+    [state, activeFilter],
+  );
 
-  async function fetchResponse(turn: Turn): Promise<void> {
-    if (!turn.artifact_id) return;
-    const runId = run_id;
-    if (runId === null) return;
-    const artifactId = turn.artifact_id;
-
-    setLoaded((prev) => ({
-      ...prev,
-      [turn.turn_id]: { text: null, badge: null, loading: true, error: null },
-    }));
-
-    try {
-      const raw = await readArtifactText(runId, artifactId);
-      const parsed: unknown = JSON.parse(raw);
-      const delta: Record<string, unknown> =
-        parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-          ? (parsed as Record<string, unknown>)
-          : {};
-      const { text, badge } = extractResponse(turn.actor_id, delta);
-      setLoaded((prev) => ({
-        ...prev,
-        [turn.turn_id]: { text, badge, loading: false, error: null },
-      }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setLoaded((prev) => ({
-        ...prev,
-        [turn.turn_id]: {
-          text: null,
-          badge: null,
-          loading: false,
-          error: message,
-        },
-      }));
-    }
-  }
-
-  function handleBubbleClick(turn: Turn): void {
-    onTurnSelected(turn.turn_id);
-    const isExpanded = expanded.has(turn.turn_id);
-    if (isExpanded) {
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        next.delete(turn.turn_id);
-        return next;
-      });
-    } else {
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        next.add(turn.turn_id);
-        return next;
-      });
-      const existing = loaded[turn.turn_id];
-      if (turn.artifact_id && !existing) {
-        void fetchResponse(turn);
-      }
-    }
-  }
+  const { responses, expand } = useTurnResponses({
+    run_id,
+    turns,
+    eagerWindow: 12,
+    excerptBudget: 800,
+  });
 
   const head = (
     <div className="timeline-head">
@@ -156,7 +101,6 @@ export function Timeline({
     );
   }
 
-  const turns = turnTimeline(state, activeFilter);
   const hasAnyTurns = Object.keys(state.turns).length > 0;
 
   return (
@@ -176,22 +120,42 @@ export function Timeline({
           const isCandidate = turn.status === "output_ready";
           const label = ROLE_LABELS_ZH[turn.actor_id] ?? turn.actor_id;
           const tag = tagTextFor(turn.actor_id, turn.turn_index);
-          const entry = loaded[turn.turn_id];
-          const isExpanded = expanded.has(turn.turn_id);
+          const entry = responses[turn.turn_id];
 
-          let responseContent: string;
+          let bodyContent: JSX.Element;
           if (!turn.artifact_id) {
-            responseContent = "（进行中）";
-          } else if (!isExpanded) {
-            responseContent = "点击展开";
+            bodyContent = (
+              <div className="turn-body-placeholder">（进行中）</div>
+            );
           } else if (entry?.loading) {
-            responseContent = "正在加载";
+            bodyContent = (
+              <div className="turn-body-placeholder">正在加载…</div>
+            );
           } else if (entry?.error) {
-            responseContent = `加载失败：${entry.error}`;
-          } else if (entry) {
-            responseContent = entry.text ?? "（无文本）";
+            bodyContent = (
+              <div className="turn-body-placeholder error">
+                加载失败：{entry.error}
+              </div>
+            );
+          } else if (entry?.text) {
+            bodyContent = (
+              <>
+                <SafeMarkdown content={entry.text} mode="prose" />
+                {!entry.fullyLoaded && entry.text.length >= 800 && (
+                  <button
+                    type="button"
+                    className="expand-link"
+                    onClick={() => expand(turn.turn_id)}
+                  >
+                    展开全文
+                  </button>
+                )}
+              </>
+            );
           } else {
-            responseContent = "正在加载";
+            bodyContent = (
+              <div className="turn-body-placeholder">（无文本）</div>
+            );
           }
 
           return (
@@ -205,7 +169,7 @@ export function Timeline({
               </div>
               <div
                 className={isManager ? "bubble manager" : "bubble"}
-                onClick={() => handleBubbleClick(turn)}
+                onClick={() => onTurnSelected(turn.turn_id)}
               >
                 <div className="bubble-head">
                   {isCandidate && (
@@ -230,7 +194,7 @@ export function Timeline({
                     </span>
                   )}
                 </div>
-                <p>{responseContent}</p>
+                <div className="bubble-body">{bodyContent}</div>
               </div>
             </article>
           );

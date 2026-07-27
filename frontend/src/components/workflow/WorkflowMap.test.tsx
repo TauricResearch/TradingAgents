@@ -1,14 +1,9 @@
 /**
  * G1 - WorkflowMap component tests.
  *
- * Mocks useWorkbenchStore to verify: 13-role cardinality with correct Chinese
- * labels (no-run -> all pending placeholders), icon_id uniqueness against
- * ROLE_ICON_PATHS, status-line rendering (completed / running+round / skipped
- * truthfulness), the "N / 13 已完成" progress note, and click -> onRoleSelected
- * wiring.
- *
- * ROLE_REGISTRY and ROLE_ICON_PATHS are imported from the real modules (pure
- * data); only the store hook is mocked.
+ * Mocks useWorkbenchStore to verify: 13-role cardinality across 6 stage
+ * containers, correct Chinese labels regardless of run state, stage-active
+ * highlighting, edge data validity, and click → onRoleSelected wiring.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -16,6 +11,7 @@ import { WorkflowMap } from "./WorkflowMap";
 import { ROLE_REGISTRY } from "../../state/model";
 import type { ReducerState, RoleCard, RoleStatus, RunMeta } from "../../state/model";
 import { ICON_COUNT, ROLE_ICON_PATHS } from "../icons/roleIconPaths";
+import { EDGES, STAGES } from "../../domain/roles";
 
 const mockStore = vi.hoisted(() => ({
   useWorkbenchStore: vi.fn(),
@@ -39,6 +35,15 @@ const ZH_LABELS: string[] = [
   "中性风险分析师",
   "保守风险分析师",
   "组合经理",
+];
+
+const STAGE_TITLES = [
+  "分析师团队",
+  "证据管理",
+  "多空研究",
+  "交易",
+  "风险管理",
+  "组合管理",
 ];
 
 function buildRole(
@@ -113,16 +118,23 @@ describe("WorkflowMap", () => {
     setStoreState(null);
   });
 
-  it("renders exactly 13 role nodes with correct Chinese labels (no-run -> all pending)", () => {
+  it("renders 6 stage containers with correct titles", () => {
+    setStoreState(null);
+    render(<WorkflowMap />);
+
+    for (const title of STAGE_TITLES) {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    }
+  });
+
+  it("renders exactly 13 role nodes with correct Chinese labels (no-run → all pending)", () => {
     setStoreState(null);
     render(<WorkflowMap />);
 
     for (const label of ZH_LABELS) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
-    // All 13 positions render as pending placeholders.
     expect(screen.getAllByText("待运行")).toHaveLength(13);
-    // No-run progress note.
     expect(screen.getByText("0 / 13 已完成")).toBeInTheDocument();
   });
 
@@ -150,7 +162,7 @@ describe("WorkflowMap", () => {
     expect(screen.getByText(/第 2 轮/)).toBeInTheDocument();
   });
 
-  it("renders '未选择' for a skipped role (truthful skipped status, not '待运行')", () => {
+  it("renders '未选择' for a skipped role and keeps pending for the rest", () => {
     setStoreState(
       buildState({
         "analyst.sentiment": buildRole("analyst.sentiment", "skipped"),
@@ -159,8 +171,6 @@ describe("WorkflowMap", () => {
     render(<WorkflowMap />);
 
     expect(screen.getByText("未选择")).toBeInTheDocument();
-    // The skipped node must NOT collapse to the pending placeholder text:
-    // exactly 12 of 13 nodes are pending, 1 is skipped.
     expect(screen.getAllByText("待运行")).toHaveLength(12);
   });
 
@@ -184,5 +194,36 @@ describe("WorkflowMap", () => {
 
     fireEvent.click(screen.getByText("市场分析师"));
     expect(onRoleSelected).toHaveBeenCalledWith("analyst.market");
+  });
+});
+
+describe("Edge table and stage definitions", () => {
+  it("every declared edge endpoint references a known role", () => {
+    const actorIds = new Set(ROLE_REGISTRY.map((r) => r.actor_id));
+    for (const edge of EDGES) {
+      expect(actorIds.has(edge.from)).toBe(true);
+      expect(actorIds.has(edge.to)).toBe(true);
+    }
+  });
+
+  it("every STAGE actor_id is in ROLE_REGISTRY", () => {
+    const actorIds = new Set(ROLE_REGISTRY.map((r) => r.actor_id));
+    for (const stage of STAGES) {
+      for (const actor_id of stage.actor_ids) {
+        expect(actorIds.has(actor_id)).toBe(true);
+      }
+    }
+  });
+
+  it("every ROLE_REGISTRY actor_id is in exactly one STAGE", () => {
+    const stageAssignments = new Map<string, number>();
+    for (const stage of STAGES) {
+      for (const actor_id of stage.actor_ids) {
+        stageAssignments.set(actor_id, (stageAssignments.get(actor_id) ?? 0) + 1);
+      }
+    }
+    for (const def of ROLE_REGISTRY) {
+      expect(stageAssignments.get(def.actor_id)).toBe(1);
+    }
   });
 });
