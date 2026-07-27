@@ -13,44 +13,43 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tradingagents.agents.researchers.bull_researcher import _build_bull_prompt
 from tradingagents.agents.researchers.bear_researcher import _build_bear_prompt
+from tradingagents.agents.researchers.bull_researcher import _build_bull_prompt
 from tradingagents.agents.risk_mgmt.aggressive_debator import _build_aggressive_prompt
 from tradingagents.agents.risk_mgmt.conservative_debator import _build_conservative_prompt
 from tradingagents.agents.risk_mgmt.neutral_debator import _build_neutral_prompt
 
-
 # --- Helpers -----------------------------------------------------------------
 
 def _base_prompt_kwargs(**overrides):
-    base = dict(
-        target_label="stock",
-        instrument_context="Ticker: TEST",
-        alignment_line="",
-        market_research_report="market ok",
-        sentiment_report="sentiment ok",
-        news_report="news ok",
-        fundamentals_label="Company fundamentals report",
-        fundamentals_report="fundamentals ok",
-        history="",
-        skill_prompt="",
-        language_instruction="",
-    )
+    base = {
+        "target_label": "stock",
+        "instrument_context": "Ticker: TEST",
+        "alignment_line": "",
+        "market_research_report": "market ok",
+        "sentiment_report": "sentiment ok",
+        "news_report": "news ok",
+        "fundamentals_label": "Company fundamentals report",
+        "fundamentals_report": "fundamentals ok",
+        "history": "",
+        "skill_prompt": "",
+        "language_instruction": "",
+    }
     base.update(overrides)
     return base
 
 
 def _base_risk_prompt_kwargs(**overrides):
-    base = dict(
-        trader_decision="BUY 100 shares",
-        instrument_context="Ticker: TEST",
-        market_research_report="market ok",
-        sentiment_report="sentiment ok",
-        news_report="news ok",
-        fundamentals_report="fundamentals ok",
-        history="",
-        language_instruction="",
-    )
+    base = {
+        "trader_decision": "BUY 100 shares",
+        "instrument_context": "Ticker: TEST",
+        "market_research_report": "market ok",
+        "sentiment_report": "sentiment ok",
+        "news_report": "news ok",
+        "fundamentals_report": "fundamentals ok",
+        "history": "",
+        "language_instruction": "",
+    }
     base.update(overrides)
     return base
 

@@ -26,7 +26,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import time
 from pathlib import Path
@@ -301,9 +300,6 @@ def main() -> int:
               flush=True)
 
         # Reports: canonical report tree published.
-        report_kinds = {
-            "1_analysts", "2_research", "3_trading", "4_risk", "5_portfolio"
-        }
         # The run directory is under ~/.tradingagents/web/runs/<run_id>/reports/
         run_root = Path.home() / ".tradingagents" / "web" / "runs" / run_id
         reports_dir = run_root / "reports"

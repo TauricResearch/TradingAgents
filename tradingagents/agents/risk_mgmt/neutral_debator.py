@@ -30,12 +30,12 @@ def _build_neutral_prompt(
     has_opponents = _has_any_opposing_response(aggressive_response, conservative_response)
 
     if not has_opponents:
-        task_intro = f"""Your task is to deliver the opening neutral-risk argument. Provide a balanced perspective weighing both potential benefits and risks. Draw from the available data to build a moderate, sustainable case.
+        task_intro = """Your task is to deliver the opening neutral-risk argument. Provide a balanced perspective weighing both potential benefits and risks. Draw from the available data to build a moderate, sustainable case.
 """
         history_section = ""
         opponent_section = ""
     else:
-        task_intro = f"""Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Advocate for a moderate, sustainable strategy. Respond directly to their points.
+        task_intro = """Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Advocate for a moderate, sustainable strategy. Respond directly to their points.
 """
         history_section = f"Conversation history:\n{history}\n"
         opponent_lines = []

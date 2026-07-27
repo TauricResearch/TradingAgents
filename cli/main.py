@@ -1288,7 +1288,19 @@ def _execute_analyze(
 
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]已清除 {n} 个 checkpoint。[/yellow]")
-    run_analysis(checkpoint=checkpoint, config_path=config)
+    try:
+        run_analysis(checkpoint=checkpoint, config_path=config)
+    except _NO_CONSOLE_ERRORS:
+        # A terminal with no console buffer cannot host interactive prompts.
+        # Emit one actionable plain-text line instead of a prompt_toolkit
+        # traceback; rich may not render in this failure mode (#1138).
+        typer.echo(
+            "Error: no Windows console available. The interactive CLI needs a real "
+            "console buffer — run it from Windows Terminal, PowerShell, or cmd.exe "
+            "rather than a piped or embedded terminal.",
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
 
 
 @app.callback(invoke_without_command=True)

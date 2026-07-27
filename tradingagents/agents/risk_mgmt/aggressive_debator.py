@@ -31,12 +31,12 @@ def _build_aggressive_prompt(
     has_opponents = _has_any_opposing_response(conservative_response, neutral_response)
 
     if not has_opponents:
-        task_intro = f"""Your task is to deliver the opening aggressive-risk argument. Champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. Draw from the available data to build your case.
+        task_intro = """Your task is to deliver the opening aggressive-risk argument. Champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. Draw from the available data to build your case.
 """
         history_section = ""
         opponent_section = ""
     else:
-        task_intro = f"""Your task is to actively champion high-reward, high-risk opportunities and challenge the conservative and neutral views. Respond directly to the points made by the conservative and neutral analysts, countering with data-driven rebuttals and persuasive reasoning. Highlight where their caution might miss critical opportunities or where their assumptions may be overly conservative.
+        task_intro = """Your task is to actively champion high-reward, high-risk opportunities and challenge the conservative and neutral views. Respond directly to the points made by the conservative and neutral analysts, countering with data-driven rebuttals and persuasive reasoning. Highlight where their caution might miss critical opportunities or where their assumptions may be overly conservative.
 """
         history_section = f"Conversation history:\n{history}\n"
         opponent_lines = []

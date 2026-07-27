@@ -87,12 +87,23 @@
 - Frontend Vitest: **13 files, 94 tests passed**.
 - Frontend production build: **321 modules transformed**.
 - Focused backend evidence/prompt/authorship suite: **49 passed**.
-- Full backend suite: **1,331 passed, 2 failed, 19 warnings, 68 subtests passed**.
-  The two unchanged historical failures are:
-  - `tests/test_cli_no_console.py::test_missing_console_prints_actionable_message`
-  - `tests/web/test_canonical_hashing.py::test_business_projection_selects_only_declared_agent_state_channels`
-- Deterministic Playwright browser suite: **9 passed (14.8s)** using the fake
-  runner, with no real LLM/provider call.
+- Focused CI-regression suite for Windows console handling, canonical hashing,
+  and debate authorship: **31 passed**.
+- Full backend suite in the authoritative Conda `tradingagents` environment
+  (Python 3.13.13): **1,333 passed, 19 warnings, 68 subtests passed**.
+- CI dependency installation now uses `.[dev,web]`, so the Python 3.10-3.13
+  matrix installs the canonical-JSON dependency required during collection.
+- Wheel packaging contains the SPA index/JavaScript assets, and the installed
+  wheel exposes working CLI help.
+- Deterministic Playwright browser suite: **9 passed (14.8s)** in the release
+  verification run using the fake runner, with no real LLM/provider call.
+- During the final CI-closure pass, the exact Playwright rerun was blocked before
+  assertions by the execution host (sandboxed Chromium Mach-port permission,
+  followed by an in-app-browser policy stop). A fresh deterministic browser run
+  still verified page load, 13/13 completion, all role labels, completed history,
+  automatic timeline response text, inspector-tab presence, 13 response bubbles,
+  13 completed role cards, configured-key status, and absence of secret names or
+  values. The only current `scripts/e2e_server.py` diff is a trailing newline.
 - Final committed frontend assets:
   - `tradingagents/web/static/assets/index-B0ahB111.js`: 388,038 bytes
   - `tradingagents/web/static/assets/index-02lLBz7O.css`: 26,634 bytes

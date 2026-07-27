@@ -44,10 +44,10 @@ Breaking changes within the 0.x line are called out explicitly.
 - Frontend: strict TypeScript passed; 94 Vitest tests passed; production build
   produced `index-B0ahB111.js` (388,038 bytes) and
   `index-02lLBz7O.css` (26,634 bytes).
-- Backend: 49 focused evidence/prompt/authorship tests passed. The full suite
-  reached 1,331 passed with two pre-existing baseline failures:
-  `test_missing_console_prints_actionable_message` and
-  `test_business_projection_selects_only_declared_agent_state_channels`.
+- Backend: 49 focused evidence/prompt/authorship tests passed; the focused
+  CI-regression suite passed 31 tests. The authoritative Conda `tradingagents`
+  run completed with 1,333 passed, 19 warnings, and 68 subtests. CI installs
+  `.[dev,web]` so canonical JSON support is present across Python 3.10-3.13.
 - Browser: 9 deterministic Playwright specs passed against the fake runner.
   This validates the local browser/SSE/static path without provider cost; it is
   not a real-provider or thin-coverage-ticker acceptance run.

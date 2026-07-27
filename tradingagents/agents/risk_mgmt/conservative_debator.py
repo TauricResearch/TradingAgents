@@ -30,12 +30,12 @@ def _build_conservative_prompt(
     has_opponents = _has_any_opposing_response(aggressive_response, neutral_response)
 
     if not has_opponents:
-        task_intro = f"""Your task is to deliver the opening conservative-risk argument. Prioritize stability, security, and risk mitigation, carefully assessing potential losses and market volatility. Draw from the available data to build your case.
+        task_intro = """Your task is to deliver the opening conservative-risk argument. Prioritize stability, security, and risk mitigation, carefully assessing potential losses and market volatility. Draw from the available data to build your case.
 """
         history_section = ""
         opponent_section = ""
     else:
-        task_intro = f"""Your task is to protect assets, minimize volatility, and counter the arguments of the Aggressive and Neutral Analysts. Point out where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, building a convincing case for a low-risk approach.
+        task_intro = """Your task is to protect assets, minimize volatility, and counter the arguments of the Aggressive and Neutral Analysts. Point out where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, building a convincing case for a low-risk approach.
 """
         history_section = f"Conversation history:\n{history}\n"
         opponent_lines = []

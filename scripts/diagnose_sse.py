@@ -77,7 +77,7 @@ async def main() -> None:
         latest = snap["latest_sequence"]
         status = snap["status"]
 
-        print(f"\n=== 诊断结果 ===")
+        print("\n=== 诊断结果 ===")
         print(f"SSE 收到 {len(seqs)} 个事件")
         print(f"first seq={seqs[0] if seqs else None}, last seq={seqs[-1] if seqs else None}")
         print(f"persist {latest} 个事件, run status={status}")
@@ -91,7 +91,7 @@ async def main() -> None:
         elif len(seqs) < latest:
             print(f"\n结论: broker 丢事件 {latest - len(seqs)} 个 -> 方案 C 对症")
         else:
-            print(f"\n异常: 收到 > persist?!")
+            print("\n异常: 收到 > persist?!")
 
 
 if __name__ == "__main__":
