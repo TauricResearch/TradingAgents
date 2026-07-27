@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click import unstyle
 from typer.testing import CliRunner
 
 from cli.main import MessageBuffer, app
@@ -31,17 +32,18 @@ def test_analysis_invocation_forwards_checkpoint_and_config_options(prefix):
 
 
 def test_root_help_keeps_legacy_options_and_lists_explicit_analyze():
-    # Rich help elides option columns on narrow non-interactive terminals.
-    # Fix the width so this compatibility check validates the declared help
-    # contract instead of the CI runner's ambient COLUMNS value.
+    # Rich help elides option columns on narrow non-interactive terminals and
+    # GitHub Actions may preserve ANSI styling in captured output. Normalize
+    # both so this checks the declared help contract rather than runner details.
     result = CliRunner().invoke(app, ["--help"], env={"COLUMNS": "120"})
+    plain_help = unstyle(result.output)
 
     assert result.exit_code == 0
-    assert "--checkpoint" in result.output
-    assert "--no-checkpoint" in result.output
-    assert "--config" in result.output
-    assert "--clear-checkpoints" in result.output
-    assert "analyze" in result.output
+    assert "--checkpoint" in plain_help
+    assert "--no-checkpoint" in plain_help
+    assert "--config" in plain_help
+    assert "--clear-checkpoints" in plain_help
+    assert "analyze" in plain_help
 
 
 def test_no_argument_root_invocation_uses_existing_defaults():
