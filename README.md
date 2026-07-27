@@ -289,6 +289,15 @@ config["temperature"] = 0.0
 
 What does not vary anymore: the analyzed company identity is resolved deterministically from the ticker before any agent runs, and the market analyst grounds exact price and indicator claims in a verified data snapshot. Earlier reports of "different companies" or fabricated price levels across runs are addressed by these two mechanisms.
 
+Saved reports include `run_manifest.json`. It records the requested as-of
+date, asset type, analyst set, model/provider IDs, configured data-vendor IDs,
+the safe subset of the effective configuration and its SHA-256, hashes of the
+instrument and memory context, and the final rating/output hash. This makes it
+possible to distinguish a changed configuration from changed model or live-data
+behavior when comparing runs. Vendor IDs describe the configured vendor chains;
+they do not prove which fallback served an individual tool call, so archive
+live inputs separately when exact replay is required.
+
 Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
 
 ## Contributing

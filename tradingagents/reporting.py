@@ -1,16 +1,24 @@
 """Reusable report-tree writer shared by the CLI and the programmatic API.
 
 Writes a run's per-section markdown (analysts, research, trading, risk,
-portfolio) plus a consolidated ``complete_report.md`` under ``save_path``. The
-CLI and ``TradingAgentsGraph.save_reports`` both call this, so a headless / API
-run produces the same on-disk report tree a CLI run does.
+portfolio) plus a consolidated ``complete_report.md`` and, when supplied, a
+``run_manifest.json`` under ``save_path``. The CLI and
+``TradingAgentsGraph.save_reports`` both call this, so a headless / API run
+produces the same on-disk report tree a CLI run does.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 
 
-def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
+def write_report_tree(
+    final_state: dict,
+    ticker: str,
+    save_path,
+    *,
+    run_manifest: dict | None = None,
+) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path."""
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
@@ -98,4 +106,9 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
+    if run_manifest is not None:
+        (save_path / "run_manifest.json").write_text(
+            json.dumps(run_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     return save_path / "complete_report.md"
