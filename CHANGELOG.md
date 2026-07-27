@@ -6,6 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Safe narrative rendering in the web workbench.** Added pinned
+  `react-markdown@9.1.0`, `remark-gfm@4.0.1`, and
+  `rehype-sanitize@6.0.0`. Reports and turn responses use sanitized prose
+  Markdown, while prompts and machine payloads remain literal data blocks.
+- **Six-stage workflow map.** The 13 roles are grouped into analysts, evidence,
+  research debate, trader, risk debate, and portfolio decision, with measured
+  SVG handoff/adversarial/convergence edges on wide layouts and a stage-grid
+  fallback on narrow layouts.
+- **Windowed turn-response loading.** Responses are fetched automatically with
+  request de-duplication, a four-request concurrency ceiling, bounded excerpts
+  outside the initial full-text window, and an explicit full-text expansion.
+
+### Changed
+
+- **Evidence degradation is now fail-open by default.**
+  `evidence_stop_on_fail` now defaults to `False`. Thin coverage, non-fatal data
+  warnings, unresolved profile names, and evidence-gate availability faults
+  resolve to `LOW_CONFIDENCE`; hard identity conflicts and fatal core-data
+  conditions remain `FAIL_STOP`. Research and Portfolio Manager prompts apply a
+  conviction cap for low-confidence evidence. Unexpected steward faults persist
+  only the exception class, not raw exception text. New environment overrides
+  are documented in `.env.example`.
+- **Debate prompts enforce single-speaker turns.** Research and risk debaters
+  now distinguish opening cases from rebuttals, omit empty opposing-argument
+  labels, avoid moderator framing, and keep speaker labels only in the composed
+  transcript used by compaction. Because this changes prompt behavior, the same
+  inputs and models may produce recommendation text different from historical
+  runs. Existing stored runs are not rewritten.
+
+### Verification
+
+- Frontend: strict TypeScript passed; 94 Vitest tests passed; production build
+  produced `index-B0ahB111.js` (388,038 bytes) and
+  `index-02lLBz7O.css` (26,634 bytes).
+- Backend: 49 focused evidence/prompt/authorship tests passed. The full suite
+  reached 1,331 passed with two pre-existing baseline failures:
+  `test_missing_console_prints_actionable_message` and
+  `test_business_projection_selects_only_declared_agent_state_channels`.
+- Browser: 9 deterministic Playwright specs passed against the fake runner.
+  This validates the local browser/SSE/static path without provider cost; it is
+  not a real-provider or thin-coverage-ticker acceptance run.
+
 ## [0.3.1] — 2026-07-05
 
 Correctness and stability patch: data look-ahead, graph-router crash-safety,

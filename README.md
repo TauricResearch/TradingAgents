@@ -221,8 +221,8 @@ You will see a screen where you can select your desired tickers, analysis date, 
 ### Local web workbench
 
 A localhost-only web UI that runs the real TradingAgents graph and visualizes
-the 13-role debate, tool/data calls, exact role inputs, and final reports in a
-browser. Additive to the CLI; shares the same execution path.
+the 13-role workflow, tool/data calls, exact role inputs, and final reports in a
+browser. It is additive to the CLI and shares the same execution path.
 
 ```bash
 pip install -e ".[web]"          # FastAPI/Uvicorn/RFC8785 + LangGraph floor (plus .[china] for A-share data)
@@ -230,19 +230,37 @@ tradingagents web                # open http://127.0.0.1:8000 (loopback only; --
 tradingagents inspect-preset path/to/preset.yaml  # validate YAML analyst order and fixed convergence roles
 ```
 
-Enter a ticker, date, analysts, depth, and provider/models, then watch the
-workflow map fill role-by-role, the debate timeline, and a per-role audit
-inspector. Only one analysis runs at a time; history persists across restarts.
+Enter a ticker, date, analysts, depth, and provider/models, then follow the six
+stage groups — analysts, evidence, research debate, trader, risk debate, and
+portfolio decision. Wide layouts draw typed handoff/adversarial/convergence
+edges between role nodes; narrow layouts retain the stage-grouped map without
+claiming geometry that cannot fit. Only one analysis runs at a time, and run
+history persists across restarts.
 
+- **Readable reports**: narrative artifacts and turn responses render sanitized
+  GitHub-flavored Markdown. Prompts and machine payloads stay byte-faithful in
+  a monospace data view.
+- **Response loading**: turn responses appear automatically. The initial window
+  loads full text; later turns load bounded excerpts and expose an explicit
+  full-text expansion control, with a four-request concurrency ceiling.
+- **Evidence semantics**: `PASS` proceeds normally, `LOW_CONFIDENCE` proceeds
+  with visible limitations and a downstream conviction cap, and hard identity
+  or fatal core-data conflicts remain `FAIL_STOP`. The default
+  `evidence_stop_on_fail` is `False`; see `.env.example` for overrides.
+- **Current inspector boundary**: the inspector still uses the existing tabbed
+  run/role structure. The planned flat four-section turn inspector and the
+  round/lane debate-script redesign are tracked as later phases in
+  `openspec/changes/workbench-debate-narrative-and-evidence-degradation/`.
 - **Where data lives**: each run is under `~/.tradingagents/web/runs/<run_id>/`
   (append-only `events.jsonl`, content-addressed artifacts, Markdown reports).
 - **Privacy**: the server binds `127.0.0.1` and never sends API-key values to
   the browser (only configured/missing status). Stock data, news, and prompts
-  still go to your chosen vendors/LLM - `localhost` means the page is not
-  public, not that queries stay local.
+  still go to your chosen vendors/LLM — `localhost` means the page is not
+  public, not that queries stay local. Evidence-gate faults persist only the
+  exception category, never raw exception text that may contain URLs or tokens.
 - **Editing the frontend** (only when changing `frontend/src`): the committed
   `tradingagents/web/static/` build ships in the wheel, so Node is not needed
-  at runtime. After a src change, rebuild and commit the drift:
+  at runtime. After a source change, rebuild and commit the drift:
   `npm --prefix frontend ci && npm --prefix frontend run build`.
 
 ### Markets and tickers
