@@ -95,7 +95,9 @@
   matrix installs the canonical-JSON dependency required during collection.
 - Production timestamp helpers and their tests use `datetime.timezone.utc`
   rather than the Python 3.11-only `datetime.UTC` alias, so collection remains
-  compatible with the declared Python 3.10 floor.
+  compatible with the declared Python 3.10 floor. SSE keepalive waits catch
+  `asyncio.TimeoutError`, which is not the built-in `TimeoutError` on Python
+  3.10, preserving timeout-as-keepalive behavior across the CI matrix.
 - Wheel packaging contains the SPA index/JavaScript assets, and the installed
   wheel exposes working CLI help.
 - Deterministic Playwright browser suite: **9 passed (14.8s)** in the release

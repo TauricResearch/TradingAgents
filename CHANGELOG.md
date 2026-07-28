@@ -38,9 +38,11 @@ Breaking changes within the 0.x line are called out explicitly.
   transcript used by compaction. Because this changes prompt behavior, the same
   inputs and models may produce recommendation text different from historical
   runs. Existing stored runs are not rewritten.
-- **Python 3.10 UTC compatibility.** Timestamp helpers and their contract tests
-  now use `datetime.timezone.utc` instead of the Python 3.11-only `datetime.UTC`
-  alias, preserving the declared Python 3.10-3.13 CI matrix.
+- **Python 3.10 runtime compatibility.** Timestamp helpers and their contract
+  tests now use `datetime.timezone.utc` instead of the Python 3.11-only
+  `datetime.UTC` alias. SSE keepalive waits catch `asyncio.TimeoutError`, which
+  remains distinct from the built-in `TimeoutError` on Python 3.10. Together
+  these preserve the declared Python 3.10-3.13 CI matrix.
 
 ### Verification
 
