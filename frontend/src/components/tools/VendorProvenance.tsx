@@ -1,5 +1,5 @@
 /**
- * G3 - Vendor data-call provenance panel for the 数据与工具 inspector tab.
+ * G3 - Vendor data-call provenance panel for the inspector evidence section.
  *
  * Lists all VendorCalls observed for the selected turn, sourced from the live
  * workbench store. Each .source-line entry shows the vendor (bold), method,

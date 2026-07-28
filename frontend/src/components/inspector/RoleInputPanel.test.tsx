@@ -1,283 +1,162 @@
-/**
- * G3 - RoleInputPanel component tests.
- *
- * Mocks useWorkbenchStore + readArtifactText. Covers: null-turn placeholder,
- * default 数据字段 tab with lazy-loaded data_snapshot content, Prompt tab
- * switching, empty-tab placeholder, and role-header Chinese label + icon.
- */
-import { vi, describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ArtifactRecord, ReducerState, RunMeta, Turn } from "../../state/model";
 import { RoleInputPanel } from "./RoleInputPanel";
-import type {
-  ArtifactRecord,
-  ReducerState,
-  RunMeta,
-  Turn,
-  TurnStatus,
-} from "../../state/model";
 
-// --- Mocks (hoisted so vi.mock factories can reference them) ---
+const mockStore = vi.hoisted(() => ({ useWorkbenchStore: vi.fn() }));
+const mockClient = vi.hoisted(() => ({ readArtifactText: vi.fn() }));
 
-const mockStore = vi.hoisted(() => ({
-  useWorkbenchStore: vi.fn(),
-}));
+vi.mock("../../state/WorkbenchStore", () => ({ useWorkbenchStore: mockStore.useWorkbenchStore }));
+vi.mock("../../api/client", () => ({ readArtifactText: mockClient.readArtifactText }));
 
-vi.mock("../../state/WorkbenchStore", () => ({
-  useWorkbenchStore: mockStore.useWorkbenchStore,
-}));
-
-const mockClient = vi.hoisted(() => ({
-  readArtifactText: vi.fn(),
-}));
-
-vi.mock("../../api/client", () => ({
-  readArtifactText: mockClient.readArtifactText,
-}));
-
-// --- Fixtures ---
-
-function buildTurn(
-  turn_id: string,
-  actor_id: string,
-  status: TurnStatus,
-): Turn {
+function meta(run_id = "inspector-run"): RunMeta {
   return {
-    turn_id,
-    role_instance_id: `test-run:${actor_id}`,
-    actor_id,
-    turn_index: 1,
-    status,
-    model_call_ids: [],
-    tool_call_ids: [],
-    vendor_call_ids: [],
+    run_id, status: "running", ticker: "600519.SS", asset_type: "stock",
+    analysis_date: "2026-07-28", selected_analysts: ["market"], research_depth: 3,
+    max_debate_rounds: 3, max_risk_discuss_rounds: 2, output_language: "zh",
+    llm_provider: "deepseek", quick_think_llm: "quick", deep_think_llm: "deep",
+    configured_keys: {}, checkpoint_enabled: true, created_at: "2026-07-28T00:00:00Z",
+    updated_at: "2026-07-28T00:00:00Z", latest_sequence: 10,
+    redaction_manifest: [], event_schema_version: 1,
   };
 }
 
-function buildArtifact(
-  artifact_id: string,
-  opts: {
-    kind?: string;
-    turn_id?: string;
-    input_capture_kinds?: string[];
-    content_sha256?: string;
-    locator?: string;
-  } = {},
-): ArtifactRecord {
+function artifact(artifact_id: string, kind: string, turn_id: string, input_capture_kinds: string[] = []): ArtifactRecord {
   return {
-    artifact_id,
-    kind: opts.kind ?? "data_snapshot",
-    media_type: "application/json",
-    content_sha256: opts.content_sha256 ?? "abc123def456",
-    byte_size: 100,
-    locator: opts.locator ?? "s3://bucket/key",
-    written_sequence: 1,
-    input_capture_kinds: opts.input_capture_kinds ?? ["data_snapshot"],
-    turn_id: opts.turn_id,
+    artifact_id, kind, media_type: kind === "response" ? "text/markdown" : "application/json",
+    content_sha256: `sha-${artifact_id}`, byte_size: 123, locator: `runs/${turn_id}/${artifact_id}`,
+    written_sequence: Number(artifact_id.replace(/\D/g, "")) || 1, input_capture_kinds, turn_id,
   };
 }
 
-function buildState(
-  turns: Turn[],
-  artifacts: ArtifactRecord[] = [],
-): ReducerState {
-  const meta: RunMeta = {
-    run_id: "test-run",
-    status: "running",
-    ticker: "600519.SS",
-    asset_type: "stock",
-    analysis_date: "2026-07-19",
-    selected_analysts: ["market", "social", "news", "fundamentals"],
-    research_depth: 3,
-    max_debate_rounds: 3,
-    max_risk_discuss_rounds: 3,
-    output_language: "zh",
-    llm_provider: "deepseek",
-    quick_think_llm: "deepseek-chat",
-    deep_think_llm: "deepseek-reasoner",
-    configured_keys: {},
-    checkpoint_enabled: false,
-    created_at: "2026-07-19T00:00:00Z",
-    updated_at: "2026-07-19T00:00:00Z",
-    latest_sequence: 0,
-    redaction_manifest: [],
-    event_schema_version: 1,
-  };
-  const turnsMap: Record<string, Turn> = {};
-  for (const t of turns) turnsMap[t.turn_id] = t;
-  const artifactsMap: Record<string, ArtifactRecord> = {};
-  for (const a of artifacts) artifactsMap[a.artifact_id] = a;
+function turn(overrides: Partial<Turn> = {}): Turn {
   return {
-    meta,
-    roles: {},
-    turns: turnsMap,
-    model_calls: {},
-    tool_calls: {},
-    vendor_calls: {},
-    artifacts: artifactsMap,
-    reports: [],
-    graph_tasks: {},
-    latest_graph_step: 0,
+    turn_id: "turn-1", role_instance_id: "inspector-run:researcher.bull",
+    actor_id: "researcher.bull", turn_index: 2, status: "completed", duration_ms: 0,
+    artifact_id: "output-1", model_call_ids: ["model-started", "model-completed"],
+    tool_call_ids: [], vendor_call_ids: [], ...overrides,
   };
 }
 
-function setStoreState(state: ReducerState | null): void {
-  mockStore.useWorkbenchStore.mockReturnValue({
-    run_id: state ? "test-run" : null,
-    selectRun: vi.fn(),
-    stream: {
-      state,
-      status: state ? "live" : "idle",
-      error: null,
-      close: vi.fn(),
+function state(currentTurn = turn(), artifacts: ArtifactRecord[] = []): ReducerState {
+  return {
+    meta: meta(), roles: {}, turns: { [currentTurn.turn_id]: currentTurn },
+    model_calls: {
+      "model-started": {
+        model_call_id: "model-started", turn_id: currentTurn.turn_id, graph_task_id: "task-1",
+        attempt_id: "attempt-1", provider: "old-provider", model: "old-model",
+        invocation_path: "old", status: "started", prompt_artifact_ids: [],
+      },
+      "model-completed": {
+        model_call_id: "model-completed", turn_id: currentTurn.turn_id, graph_task_id: "task-1",
+        attempt_id: "attempt-2", provider: "openai", model: "gpt-test",
+        invocation_path: "new", status: "completed", prompt_artifact_ids: ["prompt-1"],
+      },
     },
+    tool_calls: {}, vendor_calls: {},
+    artifacts: Object.fromEntries(artifacts.map((item) => [item.artifact_id, item])),
+    reports: [], graph_tasks: {}, latest_graph_step: 1,
+  };
+}
+
+function useStateFixture(value: ReducerState | null): void {
+  mockStore.useWorkbenchStore.mockReturnValue({
+    run_id: value?.meta.run_id ?? null, selectRun: vi.fn(),
+    stream: { state: value, status: value ? "live" : "idle", error: null, close: vi.fn() },
   });
 }
-
-// --- Tests ---
 
 describe("RoleInputPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockClient.readArtifactText.mockResolvedValue("{}");
-    setStoreState(null);
+    useStateFixture(null);
   });
 
-  it("renders placeholder when turn_id is null", () => {
-    setStoreState(buildState([]));
+  it("renders the audit-selection empty state", () => {
+    useStateFixture(state(turn({ artifact_id: undefined, model_call_ids: [] })));
     render(<RoleInputPanel turn_id={null} />);
-    expect(
-      screen.getByText("选择一个角色查看其实际输入"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("选择一个发言查看完整审计信息")).toBeInTheDocument();
   });
 
-  it("renders 数据字段 tab by default and lazy-loads data_snapshot content", async () => {
-    mockClient.readArtifactText.mockResolvedValue(
-      JSON.stringify({ cash: 82.1, revenue: 300 }),
-    );
-    const turn = buildTurn("t1", "analyst.market", "completed");
-    const artifact = buildArtifact("d1", {
-      kind: "data_snapshot",
-      turn_id: "t1",
-      input_capture_kinds: ["data_snapshot"],
-    });
-    setStoreState(buildState([turn], [artifact]));
-    render(<RoleInputPanel turn_id="t1" />);
+  it("renders the four fixed sections and only state_fields as evidence", async () => {
+    const artifacts = [
+      artifact("state-1", "state_snapshot", "turn-1", ["state_snapshot"]),
+      artifact("config-1", "config_snapshot", "turn-1", ["config_snapshot"]),
+      artifact("output-1", "response", "turn-1"),
+    ];
+    mockClient.readArtifactText.mockImplementation(async (_run: string, id: string) => ({
+      "state-1": JSON.stringify({
+        projection_version: 1, actor_id: "researcher.bull", node_id: "Bull Researcher",
+        state_fields: { market_report: "## Market report\nActual prose", investment_debate_state: { history: "prior debate" } },
+        effective_config_artifact_id: "config-1",
+      }),
+      "config-1": JSON.stringify({ values: { temperature: 0.2, output_language: "zh" } }),
+      "output-1": "## Bull conclusion\nBuy with caution.",
+    } as Record<string, string>)[id] ?? "{}");
+    useStateFixture(state(turn(), artifacts));
+    const { container } = render(<RoleInputPanel turn_id="turn-1" />);
 
-    expect(screen.getByText("数据字段")).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByText("82.1")).toBeInTheDocument();
-      expect(screen.getByText("300")).toBeInTheDocument();
-    });
-    expect(mockClient.readArtifactText).toHaveBeenCalledWith("test-run", "d1");
-  });
-
-  it("shows prompt_snapshot content when switching to Prompt tab", async () => {
-    mockClient.readArtifactText.mockResolvedValue("You are a market analyst.");
-    const turn = buildTurn("t1", "analyst.market", "completed");
-    const artifact = buildArtifact("p1", {
-      kind: "prompt_snapshot",
-      turn_id: "t1",
-      input_capture_kinds: ["prompt_snapshot"],
-    });
-    setStoreState(buildState([turn], [artifact]));
-    render(<RoleInputPanel turn_id="t1" />);
-
-    // Default 数据字段 tab has no matching artifacts.
-    expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("Prompt"));
-    await waitFor(() => {
-      expect(
-        screen.getByText("You are a market analyst."),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it("shows 该视图暂无数据 when a tab has no matching artifacts", () => {
-    const turn = buildTurn("t1", "analyst.market", "completed");
-    const artifact = buildArtifact("d2", {
-      kind: "data_snapshot",
-      turn_id: "t1",
-      input_capture_kinds: ["data_snapshot"],
-    });
-    setStoreState(buildState([turn], [artifact]));
-    render(<RoleInputPanel turn_id="t1" />);
-
-    // 数据字段 has an artifact; 配置 has none.
-    expect(screen.queryByText("该视图暂无数据")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("配置"));
-    expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
-  });
-
-  it("shows 上游资料 tab content from a state_snapshot artifact", async () => {
-    mockClient.readArtifactText.mockResolvedValue(
-      JSON.stringify({ market_report: "bullish", investment_debate_state: { count: 2 } }),
-    );
-    const turn = buildTurn("t1", "researcher.bull", "completed");
-    const artifact = buildArtifact("s1", {
-      kind: "state_snapshot",
-      turn_id: "t1",
-      input_capture_kinds: ["state_snapshot"],
-    });
-    setStoreState(buildState([turn], [artifact]));
-    render(<RoleInputPanel turn_id="t1" />);
-
-    // Default 数据字段 tab has no matching artifact.
-    expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("上游资料"));
-    await waitFor(() => {
-      expect(screen.getByText("market_report")).toBeInTheDocument();
-      expect(screen.getByText("investment_debate_state")).toBeInTheDocument();
-    });
-  });
-
-  it("shows 原始值 tab with vendor/sha256 lineage for data artifacts", async () => {
-    mockClient.readArtifactText.mockResolvedValue(JSON.stringify({ cash: 82.1 }));
-    const turn = buildTurn("t1", "analyst.fundamentals", "completed");
-    const artifact = buildArtifact("d1", {
-      kind: "data_snapshot",
-      turn_id: "t1",
-      input_capture_kinds: ["data_snapshot"],
-      content_sha256: "abc123def456",
-      locator: "data/d1.json",
-    });
-    setStoreState(buildState([turn], [artifact]));
-    render(<RoleInputPanel turn_id="t1" />);
-
-    // 原始值 tab shares data_snapshot artifacts but emphasizes lineage.
-    fireEvent.click(screen.getByText("原始值"));
-    await waitFor(() => {
-      // lineage shows the sha256 + locator
-      expect(screen.getByText(/abc123def456/)).toBeInTheDocument();
-    });
-  });
-
-  it("shows 配置 tab content from a config_snapshot artifact", async () => {
-    mockClient.readArtifactText.mockResolvedValue(
-      JSON.stringify({ llm_provider: "deepseek", checkpoint_enabled: false }),
-    );
-    const turn = buildTurn("t1", "evidence.steward", "completed");
-    const artifact = buildArtifact("c1", {
-      kind: "config_snapshot",
-      turn_id: "t1",
-      input_capture_kinds: ["config_snapshot"],
-    });
-    setStoreState(buildState([turn], [artifact]));
-    render(<RoleInputPanel turn_id="t1" />);
-
-    fireEvent.click(screen.getByText("配置"));
-    await waitFor(() => {
-      expect(screen.getByText("llm_provider")).toBeInTheDocument();
-      expect(screen.getByText("deepseek")).toBeInTheDocument();
-    });
-  });
-
-  it("shows the correct Chinese label and icon in role-header", () => {
-    const turn = buildTurn("t1", "researcher.bull", "completed");
-    setStoreState(buildState([turn]));
-    const { container } = render(<RoleInputPanel turn_id="t1" />);
-
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((node) => node.textContent);
+    expect(headings).toEqual(["角色与执行事实", "证据、数据与工具", "角色输出"]);
+    const sections = [...container.querySelectorAll(".inspector-section")];
+    expect(sections.map((node) => node.className)).toEqual([
+      "inspector-section inspector-identity",
+      "inspector-section inspector-evidence",
+      "inspector-section inspector-prompt",
+      "inspector-section inspector-output",
+    ]);
     expect(screen.getByText("多方研究员")).toBeInTheDocument();
-    expect(container.querySelector(".role-header svg")).toBeInTheDocument();
+    expect(screen.getByText("第 2 轮")).toBeInTheDocument();
+    expect(screen.getByText("已完成")).toBeInTheDocument();
+    expect(screen.getAllByText("不可用").length).toBeGreaterThan(0);
+    expect(screen.getByText("openai")).toBeInTheDocument();
+    expect(screen.getByText("gpt-test")).toBeInTheDocument();
+    expect(screen.getByText("未调用工具")).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByText("Actual prose")).toBeInTheDocument());
+    const parsedFields = screen.getByLabelText("解析后的字段值");
+    expect(within(parsedFields).getByText("market_report")).toBeInTheDocument();
+    expect(parsedFields).toHaveTextContent("prior debate");
+    for (const metadata of ["actor_id", "node_id", "projection_version", "effective_config_artifact_id"]) {
+      expect(within(parsedFields).queryByText(metadata)).not.toBeInTheDocument();
+    }
+    expect(await screen.findByText("0.2")).toBeInTheDocument();
+    expect(await screen.findByText("Buy with caution.")).toBeInTheDocument();
+    expect(container.querySelector(".output-artifact .prose")).not.toBeNull();
+    expect(screen.queryByText("数据字段")).not.toBeInTheDocument();
+    expect(screen.queryByText("原始值")).not.toBeInTheDocument();
+    expect(container.querySelector(".audit-tabs")).toBeNull();
+  });
+
+  it("expands tool details and lazy-loads prompt content only after disclosure opens", async () => {
+    const current = turn({ tool_call_ids: ["tool-1"], artifact_id: undefined });
+    const snapshot = artifact("state-2", "state_snapshot", "turn-1", ["state_snapshot"]);
+    const prompt = artifact("prompt-1", "prompt_snapshot", "turn-1", ["prompt_snapshot"]);
+    const value = state(current, [snapshot, prompt]);
+    value.tool_calls["tool-1"] = {
+      tool_call_id: "tool-1", turn_id: "turn-1", graph_task_id: "task-1", attempt_id: "attempt-2",
+      tool_name: "get_stock_data", arguments: { ticker: "600519.SS" }, status: "committed",
+      executions: [{ tool_execution_id: "exec-1", status: "completed" }],
+    };
+    mockClient.readArtifactText.mockImplementation(async (_run: string, id: string) =>
+      id === "state-2" ? JSON.stringify({ state_fields: { market_report: "ready" } }) : "SYSTEM: inspect evidence",
+    );
+    useStateFixture(value);
+    const { container } = render(<RoleInputPanel turn_id="turn-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /get_stock_data/ }));
+    expect(screen.getByText(/600519\.SS/)).toBeInTheDocument();
+    expect(screen.getAllByText("已完成").length).toBeGreaterThan(0);
+
+    const disclosure = container.querySelector("details.inspector-prompt") as HTMLDetailsElement;
+    expect(disclosure.open).toBe(false);
+    await waitFor(() => expect(mockClient.readArtifactText).toHaveBeenCalledWith("inspector-run", "state-2"));
+    expect(mockClient.readArtifactText).not.toHaveBeenCalledWith("inspector-run", "prompt-1");
+    fireEvent.click(within(disclosure).getByText("模型实际输入"));
+    expect(disclosure.open).toBe(true);
+    expect(await screen.findByText(/SYSTEM: inspect evidence/)).toBeInTheDocument();
+    expect(mockClient.readArtifactText).toHaveBeenCalledWith("inspector-run", "prompt-1");
+    expect(container.querySelector(".prompt-artifact .datablock")).not.toBeNull();
   });
 });

@@ -108,12 +108,6 @@ aside.inspector {
   border-left: 1px solid var(--line);
 }
 
-/* The Inspector component root also uses class .inspector — neutralize it so
-   the aside alone owns the column chrome (avoids double padding/background). */
-div.inspector {
-  min-width: 0;
-}
-
 .main {
   padding: 22px 26px 56px;
   overflow: auto;
@@ -1084,6 +1078,169 @@ div.inspector {
   border-color: var(--accent-line);
 }
 
+
+.debate-script {
+  display: grid;
+  gap: 16px;
+}
+
+.turn-card {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.turn-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.turn-card .bubble {
+  min-width: 0;
+}
+
+.debate-round {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 2px);
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+
+.round-separator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.round-separator span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.round-separator strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.debate-lanes {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.debate-lanes-research {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.debate-lanes-risk {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.debate-lane {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.debate-lane[data-lane="bear"] {
+  border-color: #ecd2cb;
+  background: color-mix(in srgb, var(--red-soft) 45%, var(--panel));
+}
+
+.debate-lane[data-lane="bull"] {
+  border-color: var(--green-line, #cfe1d6);
+  background: color-mix(in srgb, var(--green-soft) 38%, var(--panel));
+}
+
+.lane-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.turn-card-lane {
+  grid-template-columns: 30px minmax(0, 1fr);
+}
+
+.turn-card-lane .avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.turn-card[data-actor-id="researcher.bear"] .avatar {
+  color: var(--red);
+  background: var(--red-soft);
+  border-color: #ecd2cb;
+}
+
+.turn-card[data-team="risk"] .avatar {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.convergence-block {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: calc(var(--radius) + 2px);
+  background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+}
+
+.convergence-label {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.attribution-warning {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--amber);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--amber-soft);
+  color: #8a6a24;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 980px) {
+  .debate-lanes-risk {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .timeline-head,
+  .round-separator {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .debate-lanes-research {
+    grid-template-columns: 1fr;
+  }
+}
+
 .event {
   display: grid;
   grid-template-columns: 36px 1fr;
@@ -1230,41 +1387,312 @@ div.inspector {
    Inspector — audit panel
    ========================================================================== */
 
-.inspector-tabs {
-  display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: var(--sp-4);
+/* Run-scoped inputs and persisted outputs stay in the main reading column. */
+.run-disclosure {
+  margin: 14px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
 }
 
-.inspector-tabs button {
-  padding: 9px 10px;
-  margin-bottom: -1px;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 500;
+.run-disclosure > summary,
+.run-report > summary,
+.inspector-prompt > summary {
+  list-style: none;
   cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.inspector-tabs button:hover {
+.run-disclosure > summary::-webkit-details-marker,
+.run-report > summary::-webkit-details-marker,
+.inspector-prompt > summary::-webkit-details-marker {
+  display: none;
+}
+
+.run-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
   color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.inspector-tabs button.active {
+.run-disclosure > summary::before,
+.run-report > summary::before,
+.inspector-prompt > summary::before {
+  content: "+";
+  flex: 0 0 auto;
   color: var(--accent);
-  border-bottom-color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
-/* .snapshot wraps tab content — keep it an invisible container, not a box. */
-.snapshot {
+.run-disclosure[open] > summary::before,
+.run-report[open] > summary::before,
+.inspector-prompt[open] > summary::before {
+  content: "−";
+}
+
+.run-disclosure > summary:focus-visible,
+.run-report > summary:focus-visible,
+.inspector-prompt > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.run-disclosure-body {
+  display: grid;
+  gap: 20px;
+  padding: 0 14px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.run-disclosure-section {
+  min-width: 0;
+  padding-top: 16px;
+}
+
+.run-disclosure-section + .run-disclosure-section {
+  border-top: 1px solid var(--line);
+}
+
+.run-disclosure-section h3 {
+  margin: 0 0 8px;
+  font: 600 16px var(--font-serif);
+}
+
+.run-report > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.run-report > summary > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.run-report > summary > span > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.run-report > summary code,
+.artifact-index-table code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font: 10px/1.4 var(--font-mono);
+}
+
+.run-report > .prose,
+.run-report > .datablock {
+  max-width: none;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.artifact-index-table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.artifact-index-table th,
+.artifact-index-table td {
+  min-width: 88px;
+}
+
+.artifact-index-table th:last-child,
+.artifact-index-table td:last-child {
+  min-width: 220px;
+  overflow-wrap: anywhere;
+}
+
+/* The aside owns the right-column chrome; the component is content only. */
+.inspector-content,
+.turn-inspector {
+  min-width: 0;
+}
+
+.turn-inspector {
+  display: grid;
+  gap: 14px;
+}
+
+.inspector-empty {
+  padding: 16px 0;
+  line-height: 1.6;
+}
+
+.inspector-section {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.inspector-section-heading {
+  margin-bottom: 12px;
+}
+
+.inspector-section-heading h3,
+.inspector-prompt summary strong {
+  display: block;
+  margin: 3px 0 0;
+  color: var(--text);
+  font: 600 15px/1.35 var(--font-serif);
+}
+
+.inspector-subsection {
+  min-width: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.inspector-subsection:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+
+.inspector-subsection + .inspector-subsection {
+  margin-top: 14px;
+}
+
+.inspector-subsection h4 {
+  margin: 0 0 7px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.section-note {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.identity-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.identity-facts > div {
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
+
+.identity-facts dt {
+  color: var(--faint);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.identity-facts dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.evidence-field-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.evidence-field-index code {
+  max-width: 100%;
+  padding: 4px 7px;
+  overflow-wrap: anywhere;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 10px/1.4 var(--font-mono);
+}
+
+.evidence-field-values {
+  display: grid;
+}
+
+.evidence-field {
+  min-width: 0;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.evidence-field:last-child {
+  border-bottom: none;
+}
+
+.evidence-field h5 {
+  display: block;
+  margin: 0 0 7px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font: 10px/1.4 var(--font-mono);
+}
+
+.packet .evidence-field .prose,
+.packet .evidence-field .datablock,
+.packet > .prose,
+.packet > .datablock {
+  max-width: none;
+}
+
+.packet > .prose,
+.packet > .datablock {
+  padding: 12px;
+}
+
+.inspector-prompt {
   padding: 0;
-  background: transparent;
-  border: none;
+}
+
+.inspector-prompt > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+}
+
+.inspector-prompt > summary .placeholder {
+  text-align: right;
+}
+
+.inspector-prompt[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.inspector-section-body {
+  min-width: 0;
+  padding: 4px 14px 14px;
+}
+
+.lineage span:not(.eyebrow),
+.packet-head span,
+.role-sub {
+  overflow-wrap: anywhere;
 }
 
 .role-header {
@@ -1318,40 +1746,6 @@ div.inspector {
   color: var(--faint);
   font-size: 11px;
   margin-top: 3px;
-}
-
-/* Segmented control for the 5 audit views. */
-.audit-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  background: var(--panel-2);
-  border-radius: 9px;
-  margin-bottom: 12px;
-}
-
-.audit-tabs button {
-  flex: 1;
-  padding: 6px 4px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.audit-tabs button:hover {
-  color: var(--text);
-}
-
-.audit-tabs button.active {
-  background: var(--surface-input);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
 }
 
 /* Cards (artifact packets, tool calls, run input). */

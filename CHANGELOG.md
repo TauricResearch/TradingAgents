@@ -21,6 +21,16 @@ Breaking changes within the 0.x line are called out explicitly.
 - **Windowed turn-response loading.** Responses are fetched automatically with
   request de-duplication, a four-request concurrency ceiling, bounded excerpts
   outside the initial full-text window, and an explicit full-text expansion.
+- **Round-and-lane debate narrative.** Research and risk discussions are ordered
+  by turn index into configured rounds and opposed lanes, followed by full-width
+  judge convergence. Candidate output is labelled explicitly, redundant legacy
+  self-labels are suppressed, and historical foreign-speaker attribution is
+  visibly flagged instead of misassigned.
+- **Turn-scoped inspector and run disclosure.** The inspector now presents
+  Identity, Evidence, Prompt / LLM input, and Output in one fixed audit flow.
+  Prompt and report bodies lazy-load on disclosure; run input, published reports,
+  and the complete artifact index live under the active-run header. Zero or
+  missing duration values are displayed as unavailable, not as measured `0s`.
 
 ### Changed
 
@@ -46,16 +56,18 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Verification
 
-- Frontend: strict TypeScript passed; 94 Vitest tests passed; production build
-  produced `index-B0ahB111.js` (388,038 bytes) and
-  `index-02lLBz7O.css` (26,634 bytes).
+- Frontend: strict TypeScript passed; 106 Vitest tests passed across 17 files;
+  production build transformed 323 modules and produced
+  `index-QxTgIV19.js` (400,669 bytes) plus
+  `index-Dd5IBIzk.css` (32,632 bytes).
 - Backend: 49 focused evidence/prompt/authorship tests passed; the focused
   CI-regression suite passed 31 tests. The authoritative Conda `tradingagents`
   run completed with 1,333 passed, 19 warnings, and 68 subtests. CI installs
   `.[dev,web]` so canonical JSON support is present across Python 3.10-3.13.
-- Browser: 9 deterministic Playwright specs passed against the fake runner.
-  This validates the local browser/SSE/static path without provider cost; it is
-  not a real-provider or thin-coverage-ticker acceptance run.
+- Browser: 9 deterministic Playwright specs passed against the fake runner,
+  including the round/lane timeline, flat inspector, run disclosure, and
+  real-browser SVG edges. This validates the local browser/SSE/static path
+  without provider cost; it is not a real-provider or thin-coverage acceptance.
 
 ## [0.3.1] — 2026-07-05
 

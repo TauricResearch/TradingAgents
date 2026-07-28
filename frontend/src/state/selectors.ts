@@ -1,6 +1,7 @@
 /**
  * F2 - Pure derived views over ReducerState. No mutation, no side effects.
  */
+import { laneOf } from "../domain/roles";
 import { ROLE_REGISTRY } from "./model";
 import type {
   ApplicationStatus,
@@ -10,6 +11,57 @@ import type {
   RoleCard,
   Turn,
 } from "./model";
+
+export type DebateStage = "research" | "risk";
+
+export type DebateLaneId =
+  | "bull"
+  | "bear"
+  | "aggressive"
+  | "neutral"
+  | "conservative";
+
+export interface DebateLane {
+  id: DebateLaneId;
+  turns: Turn[];
+}
+
+export type DebateBlock =
+  | {
+      kind: "round";
+      stage: DebateStage;
+      index: number;
+      lanes: DebateLane[];
+    }
+  | { kind: "verdict"; turn: Turn }
+  | { kind: "linear"; turn: Turn };
+
+const ACTOR_ORDER = new Map(
+  ROLE_REGISTRY.map((role, index) => [role.actor_id, index]),
+);
+
+const LANE_ORDER: Record<DebateStage, readonly DebateLaneId[]> = {
+  research: ["bull", "bear"],
+  risk: ["aggressive", "neutral", "conservative"],
+};
+
+function compareTurns(left: Turn, right: Turn): number {
+  return (
+    left.turn_index - right.turn_index ||
+    (ACTOR_ORDER.get(left.actor_id) ?? Number.MAX_SAFE_INTEGER) -
+      (ACTOR_ORDER.get(right.actor_id) ?? Number.MAX_SAFE_INTEGER) ||
+    left.turn_id.localeCompare(right.turn_id)
+  );
+}
+
+function actorsForFilter(filter?: string): Set<string> | null {
+  if (!filter || filter === "all") return null;
+  return new Set(
+    ROLE_REGISTRY.filter((role) => role.team_id === filter).map(
+      (role) => role.actor_id,
+    ),
+  );
+}
 
 /** Roles present in state.roles, ordered by ROLE_REGISTRY. */
 export function roleList(state: ReducerState): RoleCard[] {
@@ -22,17 +74,99 @@ export function roleList(state: ReducerState): RoleCard[] {
 }
 
 /**
- * Turns in insertion order (JS string-key object order). If filter is a
- * team_id, keep only turns whose actor_id belongs to a role in that team;
- * 'all' or undefined returns every turn.
+ * Turns in deterministic turn/role order. If filter is a team_id, keep only
+ * turns whose actor_id belongs to a role in that team; 'all' or undefined
+ * returns every turn.
  */
 export function turnTimeline(state: ReducerState, filter?: string): Turn[] {
-  const turns = Object.values(state.turns);
-  if (!filter || filter === "all") return turns;
-  const actorsInTeam = new Set(
-    ROLE_REGISTRY.filter((r) => r.team_id === filter).map((r) => r.actor_id),
+  const actorsInTeam = actorsForFilter(filter);
+  return Object.values(state.turns)
+    .filter((turn) => !actorsInTeam || actorsInTeam.has(turn.actor_id))
+    .sort(compareTurns);
+}
+
+/**
+ * Project turns into the transcript's structural reading order.
+ *
+ * Debate roles are grouped by their recorded turn_index, never by event/object
+ * arrival order. Non-adversarial roles remain linear and judging roles become
+ * full-width verdict blocks after the rounds they resolve.
+ */
+export function debateScript(
+  state: ReducerState,
+  filter?: string,
+): DebateBlock[] {
+  const actorsInTeam = actorsForFilter(filter);
+  const turns = Object.values(state.turns).filter(
+    (turn) => !actorsInTeam || actorsInTeam.has(turn.actor_id),
   );
-  return turns.filter((t) => actorsInTeam.has(t.actor_id));
+  const linear: Turn[] = [];
+  const verdicts = new Map<DebateStage, Turn[]>();
+  const rounds: Record<DebateStage, Map<number, Map<DebateLaneId, Turn[]>>> = {
+    research: new Map(),
+    risk: new Map(),
+  };
+
+  for (const turn of turns) {
+    const assignment = laneOf(turn.actor_id);
+    if (!assignment) {
+      linear.push(turn);
+      continue;
+    }
+    if (assignment.lane === "judge") {
+      const stageVerdicts = verdicts.get(assignment.stage) ?? [];
+      stageVerdicts.push(turn);
+      verdicts.set(assignment.stage, stageVerdicts);
+      continue;
+    }
+
+    const stage = assignment.stage;
+    const lane = assignment.lane as DebateLaneId;
+    const byLane = rounds[stage].get(turn.turn_index) ?? new Map();
+    const laneTurns = byLane.get(lane) ?? [];
+    laneTurns.push(turn);
+    byLane.set(lane, laneTurns);
+    rounds[stage].set(turn.turn_index, byLane);
+  }
+
+  const blocks: DebateBlock[] = [];
+  const appendLinearForActors = (actorIds: readonly string[]) => {
+    const allowed = new Set(actorIds);
+    linear
+      .filter((turn) => allowed.has(turn.actor_id))
+      .sort(compareTurns)
+      .forEach((turn) => blocks.push({ kind: "linear", turn }));
+  };
+  const appendStage = (stage: DebateStage) => {
+    const stageRounds = [...rounds[stage].entries()].sort(
+      ([left], [right]) => left - right,
+    );
+    for (const [index, byLane] of stageRounds) {
+      const lanes: DebateLane[] = LANE_ORDER[stage].flatMap((lane) => {
+        const laneTurns = byLane.get(lane);
+        return laneTurns
+          ? [{ id: lane, turns: [...laneTurns].sort(compareTurns) }]
+          : [];
+      });
+      blocks.push({ kind: "round", stage, index, lanes });
+    }
+    (verdicts.get(stage) ?? [])
+      .sort(compareTurns)
+      .forEach((turn) => blocks.push({ kind: "verdict", turn }));
+  };
+
+  appendLinearForActors([
+    "analyst.market",
+    "analyst.sentiment",
+    "analyst.news",
+    "analyst.fundamentals",
+    "evidence.steward",
+  ]);
+  appendStage("research");
+  appendLinearForActors(["trader"]);
+  appendStage("risk");
+
+  return blocks;
 }
 
 export function currentRunStatus(state: ReducerState): ApplicationStatus {
@@ -53,10 +187,7 @@ export function isTerminal(state: ReducerState): boolean {
   );
 }
 
-/**
- * GAP: ArtifactRecord has no turn_ids link in model.ts, so we cannot join
- * artifacts back to a turn here. Returns [] until G3 adds the join.
- */
+/** Artifacts linked to the selected turn through input/report events. */
 export function artifactsForTurn(
   state: ReducerState,
   turn_id: string,

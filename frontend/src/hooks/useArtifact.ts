@@ -1,7 +1,7 @@
 /**
  * G3 - Lazy artifact content loader with an in-memory cache.
  *
- * Wraps readArtifactText so inspector tabs can pull artifact bodies on demand
+ * Wraps readArtifactText so inspector and run disclosures can pull artifacts on demand
  * without refetching on re-mount. The cache is module-level (cleared on page
  * reload) and keyed by `${run_id}:${artifact_id}`.
  */

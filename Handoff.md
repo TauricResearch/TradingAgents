@@ -88,7 +88,7 @@ thin-coverage ticker path.
 - The CLI already extracts agent messages, tool arguments, tool results, debate state, risk state, and data-vendor progress from the real graph stream.
 - The synchronous LangGraph stream must run in a worker thread so the web server event loop stays responsive.
 - A shared `AnalysisRunner`/event adapter should serve both CLI and Web paths to avoid creating a third execution implementation.
-- The authoritative interpreter is `/Users/david/miniconda3/bin/python` (Python 3.13.5) from a login shell; it provides pytest and LangGraph.
+- The current authoritative interpreter is `/Users/david/miniconda3/envs/tradingagents/bin/python` (Python 3.13.13); it provides pytest and LangGraph.
 - The focused pre-change legacy baseline passed with 41 tests. After Story A1, the expanded legacy matrix passed with 43 tests and the A1/relevant compatibility matrix passed with 97 tests.
 - Typer's prior single-command collapse made `tradingagents [OPTIONS]` work while README-documented `tradingagents analyze [OPTIONS]` failed. The callback/group boundary now supports both, so adding `web` will not silently break the legacy root invocation.
 - Configured selections previously omitted `asset_type` and used only A-share ticker normalization. They now use the canonical CLI normalizer and explicitly classify stock versus crypto.
@@ -155,13 +155,14 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Publish the completed Phase 1–4/3A slice to `david188888/TradingAgents:main`.
-2. Continue on `codex/workbench-debate-script-and-inspector` from the real merged
-   `origin/main` commit.
-3. Implement Phase 5 (round/lane debate script and historical-attribution guard).
-4. Implement Phase 6 (flat turn-scoped inspector and run-scope relocation).
-5. Re-run deterministic browser coverage, then separately request approval
-   before any real-provider/thin-coverage acceptance run that may incur cost.
+1. Review and publish the completed Phase 5/6 continuation from
+   `codex/workbench-debate-script-and-inspector` in the user-owned `origin`.
+2. Request explicit approval before any real two-round provider run or
+   thin-coverage acceptance that may incur cost or use credentials.
+3. After that acceptance evidence exists, compare pre-/post-3A run-store payloads
+   and decide whether the OpenSpec change is ready to sync/archive.
+4. Keep cleanup candidates until the closeout report has been reviewed and the
+   user explicitly confirms destructive cleanup.
 
 ## Notes
 

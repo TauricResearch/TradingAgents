@@ -18,7 +18,7 @@
 - [x] 1.9 Route the debate turn body through SafeMarkdown in prose mode, replacing `<p>{responseContent}</p>` in `Timeline.tsx`.
 - [x] 1.10 Add a `useTurnResponses` hook that fetches turn response text for a windowed set of turns with per-turn de-duplication and an excerpt budget, replacing the click-triggered `fetchResponse` in `Timeline.tsx`.
 - [x] 1.11 Replace the "点击展开" placeholder with an excerpt plus an expand control; keep an explicit in-progress indicator for turns with no artifact yet.
-- [ ] 1.12 Measure request volume for `useTurnResponses` against the longest historical run in `reports/`; adjust the window if it exceeds a reasonable concurrent-request ceiling.
+- [x] 1.12 Measure request volume for `useTurnResponses` against the longest historical run in `reports/`; adjust the window if it exceeds a reasonable concurrent-request ceiling.
 - [x] 1.13 Run typecheck + vitest, rebuild `tradingagents/web/static/` via `npm --prefix frontend run build`, and record the bundle-size delta against the 0.2 baseline.
 
 ## 2. Evidence gate verdict model (spec: evidence-confidence-degradation)
@@ -48,7 +48,7 @@
 - [x] 3.3 Add the equivalent instruction to the Portfolio Manager prompt lens.
 - [x] 3.4 Add a test asserting the confidence line actually reaches the manager prompt for a `LOW_CONFIDENCE` run.
 - [x] 3.5 Resolve the open question of whether the verdict must reach frontend turns other than the evidence steward's; if yes, route it through an existing projection field rather than a new event type.
-- [ ] 3.6 Surface the verdict as a badge on the evidence steward's turn (and the final decision if 3.5 requires it), sourced from the `evidence_status` field `responseExtractor` already reads.
+- [x] 3.6 Surface the verdict as a badge on the evidence steward's turn (and the final decision if 3.5 requires it), sourced from the `evidence_status` field `responseExtractor` already reads.
 - [ ] 3.7 Run a real minimum-depth analysis against a thin-coverage A-share ticker and confirm the run reaches a non-failed terminal status with the verdict visible.
 
 ## 3A. Debate turn authorship (spec: debate-turn-authorship)
@@ -84,42 +84,42 @@ its result is ready when the lanes are. Evidence: `findings-e2e.md` F6a–F6d.
 
 ## 5. Debate narrative — debate stage (spec: workbench-debate-narrative)
 
-- [ ] 5.0a Depends on phase 3A. Add a foreign-attribution guard to the debate stage: a turn body carrying an attribution naming another participant is not presented as the authoring role's own words, and is marked as containing foreign attribution rather than silently stripped. Required for historical runs, whose bodies are never rewritten (`findings-e2e.md` F6a).
-- [ ] 5.0b Suppress a turn body's redundant leading self-label so the lane does not print `Bear Analyst:` beneath the avatar that already names the role. Applies to every pre-3A run, where the label is doubled on both sides (`findings-e2e.md` F6b).
-- [ ] 5.0c Unit-test the guard against the real polluted payload (bull turn, `**Moderator:**` at offset 118, `**Bear Analyst:**` at 252, `**Bull Analyst:**` at 1282) and against a clean post-3A turn, asserting no marking on the clean one.
-- [ ] 5.0d The debate stage reads per-side bodies, not the composed `history`. `history` is compaction output and is clipped mid-sentence via the `bounded_tail` branch when the transcript holds `<= recent_turns` turns — observed at exactly 12000 chars in the verified run while `bull_history` (7375) and `bear_history` (8411) were untruncated (`findings-e2e.md` F6d). No compaction change is needed for rendering.
+- [x] 5.0a Depends on phase 3A. Add a foreign-attribution guard to the debate stage: a turn body carrying an attribution naming another participant is not presented as the authoring role's own words, and is marked as containing foreign attribution rather than silently stripped. Required for historical runs, whose bodies are never rewritten (`findings-e2e.md` F6a).
+- [x] 5.0b Suppress a turn body's redundant leading self-label so the lane does not print `Bear Analyst:` beneath the avatar that already names the role. Applies to every pre-3A run, where the label is doubled on both sides (`findings-e2e.md` F6b).
+- [x] 5.0c Unit-test the guard against the real polluted payload (bull turn, `**Moderator:**` at offset 118, `**Bear Analyst:**` at 252, `**Bull Analyst:**` at 1282) and against a clean post-3A turn, asserting no marking on the clean one.
+- [x] 5.0d The debate stage reads per-side bodies, not the composed `history`. `history` is compaction output and is clipped mid-sentence via the `bounded_tail` branch when the transcript holds `<= recent_turns` turns — observed at exactly 12000 chars in the verified run while `bull_history` (7375) and `bear_history` (8411) were untruncated (`findings-e2e.md` F6d). No compaction change is needed for rendering.
 - [x] 5.1 Add `laneOf(actor_id)` to the role domain, deriving lane assignment from the registry (two research lanes, three risk lanes, none for other roles).
-- [ ] 5.2 Add a `debateScript(state, filter)` selector to `frontend/src/state/selectors.ts` returning ordered `round` / `verdict` / `linear` blocks, grouping by `turn.turn_index` and never by arrival order.
-- [ ] 5.3 Unit-test `debateScript` for: two-round research debate, in-progress round 1 of 3, three-way risk round, judging turns as verdict blocks, and analyst turns as linear blocks.
-- [ ] 5.4 Rewrite `Timeline.tsx` as a renderer over `debateScript`: opposed lanes per round, explicit round boundaries, and rounds-elapsed against the stage's configured round budget.
-- [ ] 5.5 Render judging turns as full-width convergence elements terminating the round group they resolve, visually distinct from lane turns.
-- [ ] 5.6 Keep candidate-vs-committed turn distinction with an explicit candidate label.
-- [ ] 5.7 Add CSS for lanes, round separators, round-budget display, and the convergence element.
-- [ ] 5.8 Rewrite `Timeline.test.tsx` for round grouping, lane assignment, convergence rendering, candidate labelling, and eager body content.
-- [ ] 5.9 Verify turn selection from the debate stage and role selection from the map both drive inspector scope, and that selecting a role with no turns leaves scope unchanged.
-- [ ] 5.10 Run typecheck + vitest, rebuild the static bundle, and commit the static drift.
+- [x] 5.2 Add a `debateScript(state, filter)` selector to `frontend/src/state/selectors.ts` returning ordered `round` / `verdict` / `linear` blocks, grouping by `turn.turn_index` and never by arrival order.
+- [x] 5.3 Unit-test `debateScript` for: two-round research debate, in-progress round 1 of 3, three-way risk round, judging turns as verdict blocks, and analyst turns as linear blocks.
+- [x] 5.4 Rewrite `Timeline.tsx` as a renderer over `debateScript`: opposed lanes per round, explicit round boundaries, and rounds-elapsed against the stage's configured round budget.
+- [x] 5.5 Render judging turns as full-width convergence elements terminating the round group they resolve, visually distinct from lane turns.
+- [x] 5.6 Keep candidate-vs-committed turn distinction with an explicit candidate label.
+- [x] 5.7 Add CSS for lanes, round separators, round-budget display, and the convergence element.
+- [x] 5.8 Rewrite `Timeline.test.tsx` for round grouping, lane assignment, convergence rendering, candidate labelling, and eager body content.
+- [x] 5.9 Verify turn selection from the debate stage and role selection from the map both drive inspector scope, and that selecting a role with no turns leaves scope unchanged.
+- [x] 5.10 Run typecheck + vitest, rebuild the static bundle, and commit the static drift.
 
 ## 6. Turn inspector (spec: workbench-turn-inspector)
 
-- [ ] 6.1 Rewrite `Inspector.tsx` as four flat sections in fixed order — identity, evidence, prompt, output — with no tab strip and no nested tabs; identity always expanded, prompt collapsed by default.
-- [ ] 6.2 Build the identity section from run state: role display name, round, turn status, duration, and the producing model call's provider and model; render missing execution facts as explicitly unavailable rather than substituting defaults.
-- [ ] 6.2a Apply the same rule to the role-status table in `SwarmStatusCard`, which currently prints `0s` for all 13 roles because every `turn.completed` carries `duration_ms: 0` (`findings-e2e.md` F3). Decide separately whether the backend should record real durations — the UI must not present 0 as a measurement either way.
-- [ ] 6.3 Merge `RoleInputPanel`'s five sub-tabs plus the former `数据与工具` tab content into subsections of the evidence section: upstream state fields, resolved data fields, tool calls with status and outcome, vendor provenance (vendor, hash, locator), and effective config.
-- [ ] 6.3a Audit every inspector view's capture-kind filter against the kinds `tradingagents/observability/` actually emits; drop `input.data_snapshot`-filtered views (`数据字段`, `原始值`) since that kind has zero producers and zero occurrences across all 23 historical runs (`findings-e2e.md` F4). Decide whether vendor lineage moves onto the tool-call subsection or onto `state_snapshot`.
-- [ ] 6.3b Fix the upstream-material view to render the fields nested inside the capture envelope rather than the envelope's own top-level keys (`actor_id`, `effective_config_artifact_id`, `node_id`, `projection_version`, `state_fields`), and route long field values through the prose renderer (`findings-e2e.md` F5).
-- [ ] 6.3c Add a test asserting the upstream view of a real `state_snapshot` payload surfaces upstream report field names and not envelope metadata keys.
-- [ ] 6.3d Collapse the duplicated `.inspector` class applied to both the layout `aside` and the `Inspector` root `div` (`findings-e2e.md` F10).
-- [ ] 6.4 State explicitly when a turn issued no tool calls rather than omitting the subsection.
-- [ ] 6.5 Build the output section from the turn's response artifact, rendered in prose mode.
-- [ ] 6.6 Move `RunInputTab` and the full run artifact list out of the inspector into a run-header disclosure owned by `WorkbenchLayout`; decide drawer vs modal vs route at this point.
-- [ ] 6.6a Decide how the run-scoped artifact list should present roles that emit no `report.updated` event: the verified run lists only 6 of 13 role outputs (evidence, research manager, and the three risk roles are absent) (`findings-e2e.md` F9).
-- [ ] 6.7 Verify run-scoped surfaces remain stable across turn selection and that switching turns updates every inspector section with no residual content from the previous turn.
-- [ ] 6.8 Rewrite `Inspector` and `RoleInputPanel` tests for the flat-section structure, the merged evidence section, the identity facts, and the empty state.
-- [ ] 6.9 Run typecheck + vitest, rebuild the static bundle, and commit the static drift.
+- [x] 6.1 Rewrite `Inspector.tsx` as four flat sections in fixed order — identity, evidence, prompt, output — with no tab strip and no nested tabs; identity always expanded, prompt collapsed by default.
+- [x] 6.2 Build the identity section from run state: role display name, round, turn status, duration, and the producing model call's provider and model; render missing execution facts as explicitly unavailable rather than substituting defaults.
+- [x] 6.2a Apply the same rule to the role-status table in `SwarmStatusCard`, which currently prints `0s` for all 13 roles because every `turn.completed` carries `duration_ms: 0` (`findings-e2e.md` F3). Decide separately whether the backend should record real durations — the UI must not present 0 as a measurement either way.
+- [x] 6.3 Merge `RoleInputPanel`'s five sub-tabs plus the former `数据与工具` tab content into subsections of the evidence section: upstream state fields, resolved data fields, tool calls with status and outcome, vendor provenance (vendor, hash, locator), and effective config.
+- [x] 6.3a Audit every inspector view's capture-kind filter against the kinds `tradingagents/observability/` actually emits; drop `input.data_snapshot`-filtered views (`数据字段`, `原始值`) since that kind has zero producers and zero occurrences across all 23 historical runs (`findings-e2e.md` F4). Decide whether vendor lineage moves onto the tool-call subsection or onto `state_snapshot`.
+- [x] 6.3b Fix the upstream-material view to render the fields nested inside the capture envelope rather than the envelope's own top-level keys (`actor_id`, `effective_config_artifact_id`, `node_id`, `projection_version`, `state_fields`), and route long field values through the prose renderer (`findings-e2e.md` F5).
+- [x] 6.3c Add a test asserting the upstream view of a real `state_snapshot` payload surfaces upstream report field names and not envelope metadata keys.
+- [x] 6.3d Collapse the duplicated `.inspector` class applied to both the layout `aside` and the `Inspector` root `div` (`findings-e2e.md` F10).
+- [x] 6.4 State explicitly when a turn issued no tool calls rather than omitting the subsection.
+- [x] 6.5 Build the output section from the turn's response artifact, rendered in prose mode.
+- [x] 6.6 Move `RunInputTab` and the full run artifact list out of the inspector into a run-header disclosure owned by `WorkbenchLayout`; decide drawer vs modal vs route at this point.
+- [x] 6.6a Decide how the run-scoped artifact list should present roles that emit no `report.updated` event: the verified run lists only 6 of 13 role outputs (evidence, research manager, and the three risk roles are absent) (`findings-e2e.md` F9).
+- [x] 6.7 Verify run-scoped surfaces remain stable across turn selection and that switching turns updates every inspector section with no residual content from the previous turn.
+- [x] 6.8 Rewrite `Inspector` and `RoleInputPanel` tests for the flat-section structure, the merged evidence section, the identity facts, and the empty state.
+- [x] 6.9 Run typecheck + vitest, rebuild the static bundle, and commit the static drift.
 
 ## 7. Verification and closeout
 
-- [ ] 7.1 Update `frontend/e2e/workbench.spec.ts` for the new flow map, debate stage, and inspector; assert SVG edge presence in a real browser.
+- [x] 7.1 Update `frontend/e2e/workbench.spec.ts` for the new flow map, debate stage, and inspector; assert SVG edge presence in a real browser.
 - [x] 7.2 Run the full backend suite (`pytest`) and confirm no regression from the evidence changes.
 - [x] 7.3 Run `npm --prefix frontend run test:e2e` against `scripts/e2e_server.py`.
 - [ ] 7.4 Drive a real end-to-end run in the browser and confirm: prose reports readable, flow map edges live, rounds and lanes correct, inspector single-scope, and a thin-coverage ticker completing with a visible low-confidence verdict.

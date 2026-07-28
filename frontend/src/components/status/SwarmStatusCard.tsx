@@ -109,7 +109,12 @@ export function deriveSwarmProgress(state: ReducerState): SwarmProgress {
       ? durationLabel(lastUpdate - start)
       : "—";
   const completedDurations = orderedValues(state.turns)
-    .filter((turn) => turn.status === "completed" && turn.duration_ms !== undefined)
+    .filter(
+      (turn) =>
+        turn.status === "completed" &&
+        turn.duration_ms !== undefined &&
+        turn.duration_ms > 0,
+    )
     .map((turn) => turn.duration_ms as number);
   const averageDuration =
     completedDurations.length > 0
@@ -211,7 +216,7 @@ export function deriveWorkerRows(state: ReducerState): WorkerRow[] {
       status,
       tool_name: tool?.tool_name ?? null,
       duration_label:
-        completedTurn?.duration_ms !== undefined
+        completedTurn?.duration_ms !== undefined && completedTurn.duration_ms > 0
           ? durationLabel(completedTurn.duration_ms)
           : "-",
       round_label: round !== undefined ? `第 ${round} 轮` : null,

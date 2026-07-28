@@ -47,6 +47,8 @@ test.describe("workbench e2e", () => {
     for (const label of labels) {
       await expect(page.getByText(label).first()).toBeVisible();
     }
+    await expect(page.locator(".flow-edges")).toBeVisible();
+    expect(await page.locator(".flow-edges .edge").count()).toBeGreaterThan(0);
   });
 
   test("refreshes the history badge after a run completes", async ({ page }) => {
@@ -64,14 +66,28 @@ test.describe("workbench e2e", () => {
     });
   });
 
-  test("inspector shows role-input tabs and the run-input snapshot", async ({ page }) => {
+  test("inspector shows the fixed audit sequence and run disclosure", async ({ page }) => {
     await startRun(page);
     await waitForRunCompleted(page);
-    for (const tab of ["角色输入", "数据与工具", "产物", "本次输入"]) {
-      await expect(page.getByRole("button", { name: tab })).toBeVisible();
-    }
-    await page.getByRole("button", { name: "本次输入" }).click();
-    await expect(page.locator(".inspector .data-table").getByText(TICKER)).toBeVisible();
+
+    await expect(page.getByText("选择一个发言查看完整审计信息")).toBeVisible();
+    await page.locator(".bubble").first().click();
+
+    const inspector = page.locator(".inspector");
+    const sectionHeadings = inspector.locator(".inspector-section-heading h3");
+    await expect(sectionHeadings).toHaveText([
+      "角色与执行事实",
+      "证据、数据与工具",
+      "角色输出",
+    ]);
+    await expect(inspector.getByText("Prompt / LLM input")).toBeVisible();
+
+    await page.locator(".run-disclosure > summary").click();
+    const disclosure = page.locator(".run-disclosure");
+    await expect(disclosure.getByRole("heading", { name: "本次输入" })).toBeVisible();
+    await expect(disclosure.locator(".data-table").getByText(TICKER)).toBeVisible();
+    await expect(disclosure.getByRole("heading", { name: "已发布报告" })).toBeVisible();
+    await expect(disclosure.getByRole("heading", { name: "完整 Artifact 索引" })).toBeVisible();
   });
 
   test("refresh mid-run produces no missing roles and no duplicate timeline entries", async ({ page }) => {
@@ -94,16 +110,15 @@ test.describe("workbench e2e", () => {
     await expect(page.locator(".key-status .ok").first()).toBeVisible();
   });
 
-  test("G2: inspector tools tab renders vendor provenance and tool-call sections", async ({ page }) => {
+  test("G2: inspector renders provenance and explicit no-tool state", async ({ page }) => {
     await startRun(page);
     await waitForRunCompleted(page);
-    // Select a turn first so the tools tab has a turn_id to filter on.
     await page.locator(".bubble").first().click();
-    await page.getByRole("button", { name: "数据与工具" }).click();
-    // The tools tab now renders the VendorProvenance + tool-call sections
-    // (fake runner emits no tool/vendor calls, so placeholders are fine).
-    await expect(page.getByText("数据来源")).toBeVisible();
-    await expect(page.getByText("工具调用", { exact: true })).toBeVisible();
+
+    const inspector = page.locator(".inspector");
+    await expect(inspector.getByRole("heading", { name: "工具调用与结果" })).toBeVisible();
+    await expect(inspector.getByText("未调用工具", { exact: true })).toBeVisible();
+    await expect(inspector.getByRole("heading", { name: "数据供应商来源" })).toBeVisible();
   });
 
   test("G3: clicking a completed role card surfaces its turn in the inspector", async ({ page }) => {
@@ -111,7 +126,7 @@ test.describe("workbench e2e", () => {
     await waitForRunCompleted(page);
     // Click a completed role card in the workflow map.
     await page.locator(".node.done").first().click();
-    // Inspector should show the role-input tab with the role header.
+    // Inspector should show the selected role identity without a tab switch.
     await expect(page.locator(".role-header")).toBeVisible({ timeout: 5_000 });
   });
 

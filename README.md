@@ -247,10 +247,15 @@ history persists across restarts.
   with visible limitations and a downstream conviction cap, and hard identity
   or fatal core-data conflicts remain `FAIL_STOP`. The default
   `evidence_stop_on_fail` is `False`; see `.env.example` for overrides.
-- **Current inspector boundary**: the inspector still uses the existing tabbed
-  run/role structure. The planned flat four-section turn inspector and the
-  round/lane debate-script redesign are tracked as later phases in
-  `openspec/changes/workbench-debate-narrative-and-evidence-degradation/`.
+- **Debate narrative and audit scope**: research and risk debates render by
+  configured round in opposed lanes, with candidate labels and full-width judge
+  convergence. Historical bodies with foreign speaker attribution are visibly
+  marked rather than silently assigned to the selected role. Selecting a turn or
+  a workflow role scopes a fixed Identity → Evidence → Prompt / LLM input →
+  Output inspector; Prompt is collapsed and lazy-loaded by default.
+- **Run-level disclosure**: the active-run header exposes run input, reports
+  published through `report.updated`, and the complete artifact index without
+  mixing those run-scoped records into the selected-turn inspector.
 - **Where data lives**: each run is under `~/.tradingagents/web/runs/<run_id>/`
   (append-only `events.jsonl`, content-addressed artifacts, Markdown reports).
 - **Privacy**: the server binds `127.0.0.1` and never sends API-key values to

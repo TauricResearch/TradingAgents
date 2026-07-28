@@ -155,6 +155,10 @@ Be decisive and ground every conclusion in specific evidence from the analysts.
         return {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": final_trade_decision,
+            # Preserve the evidence verdict in this role's persisted delta so
+            # the final-decision turn can render the same machine-readable
+            # confidence badge as the evidence steward without a new event.
+            "evidence_status": evidence_status,
             "allowed_actions": [asdict(action) for action in allowed_actions],
             "clamp_events": [asdict(event) for event in clamp_events],
         }
