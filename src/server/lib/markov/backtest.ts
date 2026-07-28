@@ -12,10 +12,9 @@
  * available at T, not the full retrospective dataset.
  */
 
-import { buildTransitionMatrix, type TransitionMatrix } from "./matrix.js"
+import { buildTransitionMatrix } from "./matrix.js"
 import { computeSignal } from "./signal.js"
-import { classifyState, type MarketState } from "./state.js"
-import { findStationaryDistribution } from "./stationary.js"
+import type { MarketState } from "./state.js"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,17 +84,15 @@ export function walkForwardBacktest(
   dates: string[],
   config: WalkForwardConfig = {},
 ): WalkForwardResult {
-  const {
-    lookbackWindow,
-    neutralThreshold,
-    sizingDivisor,
-    verbose,
-  } = { ...DEFAULT_CONFIG, ...config }
+  const { lookbackWindow, neutralThreshold, sizingDivisor } = {
+    ...DEFAULT_CONFIG,
+    ...config,
+  }
 
   if (prices.length < lookbackWindow + 20) {
     throw new Error(
       `Insufficient history: need at least ${lookbackWindow + 20} prices ` +
-      `(${lookbackWindow} lookback + 20 state bars), got ${prices.length}`,
+        `(${lookbackWindow} lookback + 20 state bars), got ${prices.length}`,
     )
   }
 
@@ -163,7 +160,7 @@ export function walkForwardBacktest(
       const strategyReturn = positionSize * nextReturn
       strategyReturns.push(strategyReturn)
 
-      equity *= (1 + strategyReturn)
+      equity *= 1 + strategyReturn
       if (equity > peak) peak = equity
       const drawdown = (peak - equity) / peak
       if (drawdown > maxDrawdownValue) maxDrawdownValue = drawdown
@@ -179,43 +176,42 @@ export function walkForwardBacktest(
   const totalDays = strategyReturns.length
   const tradingDaysPerYear = 252
 
-  const meanReturn = totalDays > 0
-    ? strategyReturns.reduce((a, b) => a + b, 0) / totalDays
-    : 0
-  const variance = totalDays > 1
-    ? strategyReturns.reduce((a, b) => a + (b - meanReturn) ** 2, 0) / (totalDays - 1)
-    : 0
+  const meanReturn = totalDays > 0 ? strategyReturns.reduce((a, b) => a + b, 0) / totalDays : 0
+  const variance =
+    totalDays > 1
+      ? strategyReturns.reduce((a, b) => a + (b - meanReturn) ** 2, 0) / (totalDays - 1)
+      : 0
   const stdDev = Math.sqrt(variance)
-  const sharpe = stdDev > 0
-    ? (meanReturn / stdDev) * Math.sqrt(tradingDaysPerYear)
-    : 0
-  const annualReturn = totalDays > 0
-    ? (1 + meanReturn) ** tradingDaysPerYear - 1
-    : 0
+  const sharpe = stdDev > 0 ? (meanReturn / stdDev) * Math.sqrt(tradingDaysPerYear) : 0
+  const annualReturn = totalDays > 0 ? (1 + meanReturn) ** tradingDaysPerYear - 1 : 0
 
   const winRate = tradeDays > 0 ? winningDays / tradeDays : 0
 
   // Buy-and-hold comparison
-  const buyAndHoldReturn = totalDays > 0
-    ? (1 + (prices[prices.length - 1]! - prices[firstSignalIdx]!) / prices[firstSignalIdx]!) ** (tradingDaysPerYear / totalDays) - 1
-    : 0
+  const buyAndHoldReturn =
+    totalDays > 0
+      ? (1 + (prices[prices.length - 1]! - prices[firstSignalIdx]!) / prices[firstSignalIdx]!) **
+          (tradingDaysPerYear / totalDays) -
+        1
+      : 0
 
   // Cumulative returns
   const cumulativeReturns: number[] = []
   let cumEq = 1.0
   for (const r of strategyReturns) {
-    cumEq *= (1 + r)
+    cumEq *= 1 + r
     cumulativeReturns.push(cumEq)
   }
 
   const totalRegimes = regimeCounts.bull + regimeCounts.sideways + regimeCounts.bear
-  const regimeDistribution = totalRegimes > 0
-    ? {
-        bull: regimeCounts.bull / totalRegimes,
-        sideways: regimeCounts.sideways / totalRegimes,
-        bear: regimeCounts.bear / totalRegimes,
-      }
-    : { bull: 0, sideways: 0, bear: 0 }
+  const regimeDistribution =
+    totalRegimes > 0
+      ? {
+          bull: regimeCounts.bull / totalRegimes,
+          sideways: regimeCounts.sideways / totalRegimes,
+          bear: regimeCounts.bear / totalRegimes,
+        }
+      : { bull: 0, sideways: 0, bear: 0 }
 
   return {
     returns: strategyReturns,
@@ -252,8 +248,10 @@ function classifyStateFromReturn(cumulativeReturn: number): MarketState {
 export function testWalkForward(): boolean {
   let allPass = true
   const check = (name: string, cond: boolean) => {
-    if (!cond) { console.error(`  ✗ ${name}`); allPass = false }
-    else console.log(`  ✓ ${name}`)
+    if (!cond) {
+      console.error(`  ✗ ${name}`)
+      allPass = false
+    } else console.log(`  ✓ ${name}`)
   }
 
   console.log("\n=== Walk-Forward Backtest Tests ===\n")
@@ -262,7 +260,7 @@ export function testWalkForward(): boolean {
   const nprices = 600
   const prices: number[] = [100]
   for (let i = 1; i < nprices; i++) {
-    const shock = (Math.random() - 0.48) * 0.04  // Mean ~0.0008, std ~0.0116
+    const shock = (Math.random() - 0.48) * 0.04 // Mean ~0.0008, std ~0.0116
     prices.push(prices[i - 1]! * (1 + shock))
   }
 
@@ -286,8 +284,14 @@ export function testWalkForward(): boolean {
   check("Annual return is finite", isFinite(result.annualReturn))
   check("Trade count > 0", result.tradeCount > 0)
   check("Win rate in [0,1]", result.winRate >= 0 && result.winRate <= 1)
-  check("Regime distribution sums to 1",
-    Math.abs(result.regimeDistribution.bull + result.regimeDistribution.sideways + result.regimeDistribution.bear - 1.0) < 1e-10,
+  check(
+    "Regime distribution sums to 1",
+    Math.abs(
+      result.regimeDistribution.bull +
+        result.regimeDistribution.sideways +
+        result.regimeDistribution.bear -
+        1.0,
+    ) < 1e-10,
   )
   check("Start date before end date", result.startDate < result.endDate)
   check("Total days positive", result.totalDays > 0)
@@ -300,7 +304,9 @@ export function testWalkForward(): boolean {
   console.log(`    Buy&Hold: ${(result.buyAndHoldReturn * 100).toFixed(2)}%`)
   console.log(`    MaxDD: ${(result.maxDrawdown * 100).toFixed(2)}%`)
   console.log(`    WinRate: ${(result.winRate * 100).toFixed(1)}% (${result.tradeCount} trades)`)
-  console.log(`    Regimes: Bull ${(result.regimeDistribution.bull * 100).toFixed(0)}% Side ${(result.regimeDistribution.sideways * 100).toFixed(0)}% Bear ${(result.regimeDistribution.bear * 100).toFixed(0)}%`)
+  console.log(
+    `    Regimes: Bull ${(result.regimeDistribution.bull * 100).toFixed(0)}% Side ${(result.regimeDistribution.sideways * 100).toFixed(0)}% Bear ${(result.regimeDistribution.bear * 100).toFixed(0)}%`,
+  )
 
   // ── Boundary test: too few prices ──
   try {

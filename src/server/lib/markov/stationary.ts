@@ -12,13 +12,13 @@
  *     [P^T - I with last row replaced by [1,1,1]] × π = [0, 0, 1]^T
  */
 
-import { lusolve, matrix, type Matrix } from "mathjs"
-import { toMathjsMatrix, type TransitionMatrix } from "./matrix.js"
+import { lusolve, type Matrix, matrix } from "mathjs"
+import { type TransitionMatrix, toMathjsMatrix } from "./matrix.js"
 
 export interface StationaryDistribution {
-  bull: number     // long-run proportion of bull days
+  bull: number // long-run proportion of bull days
   sideways: number // long-run proportion of sideways days
-  bear: number     // long-run proportion of bear days
+  bear: number // long-run proportion of bear days
 }
 
 /**
@@ -35,8 +35,9 @@ export interface StationaryDistribution {
  *   - Result is normalized to sum to 1.0
  */
 export function findStationaryDistribution(m: TransitionMatrix): StationaryDistribution {
-  const P = toMathjsMatrix(m)           // 3×3
-  const I = matrix([                    // 3×3 identity
+  const P = toMathjsMatrix(m) // 3×3
+  const I = matrix([
+    // 3×3 identity
     [1, 0, 0],
     [0, 1, 0],
     [0, 0, 1],
@@ -50,21 +51,17 @@ export function findStationaryDistribution(m: TransitionMatrix): StationaryDistr
   const A: number[][] = [
     [A_raw.get([0, 0]), A_raw.get([0, 1]), A_raw.get([0, 2])],
     [A_raw.get([1, 0]), A_raw.get([1, 1]), A_raw.get([1, 2])],
-    [1, 1, 1],  // Σπᵢ = 1 constraint replaces last row
+    [1, 1, 1], // Σπᵢ = 1 constraint replaces last row
   ]
 
   const b = [0, 0, 1]
 
   try {
     const x = lusolve(matrix(A), matrix(b)) as Matrix
-    const raw = [
-      x.get([0, 0]) as number,
-      x.get([1, 0]) as number,
-      x.get([2, 0]) as number,
-    ]
+    const raw = [x.get([0, 0]) as number, x.get([1, 0]) as number, x.get([2, 0]) as number]
 
     // Check for NaN or non-finite results
-    if (raw.some(v => !isFinite(v))) {
+    if (raw.some((v) => !isFinite(v))) {
       return { bull: 1 / 3, sideways: 1 / 3, bear: 1 / 3 }
     }
 
@@ -95,14 +92,12 @@ export function findStationaryDistribution(m: TransitionMatrix): StationaryDistr
  * Note: if any row sums to zero (no transitions observed from that state),
  * the matrix is padded to uniform [1,1,1] / 3 for that row before solving.
  */
-export function stationaryFromCounts(
-  counts: [number, number, number][],
-): StationaryDistribution {
+export function stationaryFromCounts(counts: [number, number, number][]): StationaryDistribution {
   // Convert counts to probabilities, padding empty rows
-  const probs = counts.map(row => {
+  const probs = counts.map((row) => {
     const sum = row.reduce((a, b) => a + b, 0)
     if (sum === 0) return [1 / 3, 1 / 3, 1 / 3] as const
-    return row.map(c => c / sum) as [number, number, number]
+    return row.map((c) => c / sum) as [number, number, number]
   })
 
   return findStationaryDistribution({
@@ -159,17 +154,25 @@ function subtractMatrices(A: Matrix, B: Matrix): Matrix {
 export function testStationary(): boolean {
   let allPass = true
   const check = (name: string, cond: boolean) => {
-    if (!cond) { console.error(`  ✗ ${name}`); allPass = false }
-    else console.log(`  ✓ ${name}`)
+    if (!cond) {
+      console.error(`  ✗ ${name}`)
+      allPass = false
+    } else console.log(`  ✓ ${name}`)
   }
 
   console.log("\n=== Stationary Distribution Tests ===\n")
 
   // Test 1: All-bull chain — should converge to [1, 0, 0]
   const allBull: TransitionMatrix = {
-    bull_to_bull: 1, bull_to_sideways: 0, bull_to_bear: 0,
-    sideways_to_bull: 1, sideways_to_sideways: 0, sideways_to_bear: 0,
-    bear_to_bull: 1, bear_to_sideways: 0, bear_to_bear: 0,
+    bull_to_bull: 1,
+    bull_to_sideways: 0,
+    bull_to_bear: 0,
+    sideways_to_bull: 1,
+    sideways_to_sideways: 0,
+    sideways_to_bear: 0,
+    bear_to_bull: 1,
+    bear_to_sideways: 0,
+    bear_to_bear: 0,
   }
   const d1 = findStationaryDistribution(allBull)
   check("All-bull converges to bull=1.0", Math.abs(d1.bull - 1.0) < 1e-10)
@@ -179,35 +182,49 @@ export function testStationary(): boolean {
 
   // Test 2: Symmetric matrix — should converge to uniform [1/3, 1/3, 1/3]
   const symmetric: TransitionMatrix = {
-    bull_to_bull: 0.5, bull_to_sideways: 0.25, bull_to_bear: 0.25,
-    sideways_to_bull: 0.25, sideways_to_sideways: 0.5, sideways_to_bear: 0.25,
-    bear_to_bull: 0.25, bear_to_sideways: 0.25, bear_to_bear: 0.5,
+    bull_to_bull: 0.5,
+    bull_to_sideways: 0.25,
+    bull_to_bear: 0.25,
+    sideways_to_bull: 0.25,
+    sideways_to_sideways: 0.5,
+    sideways_to_bear: 0.25,
+    bear_to_bull: 0.25,
+    bear_to_sideways: 0.25,
+    bear_to_bear: 0.5,
   }
   const d2 = findStationaryDistribution(symmetric)
-  check("Symmetric bull ≈ 1/3", Math.abs(d2.bull - 1/3) < 1e-6)
-  check("Symmetric sideways ≈ 1/3", Math.abs(d2.sideways - 1/3) < 1e-6)
-  check("Symmetric bear ≈ 1/3", Math.abs(d2.bear - 1/3) < 1e-6)
+  check("Symmetric bull ≈ 1/3", Math.abs(d2.bull - 1 / 3) < 1e-6)
+  check("Symmetric sideways ≈ 1/3", Math.abs(d2.sideways - 1 / 3) < 1e-6)
+  check("Symmetric bear ≈ 1/3", Math.abs(d2.bear - 1 / 3) < 1e-6)
   check("Symmetric sums to 1.0", Math.abs(d2.bull + d2.sideways + d2.bear - 1.0) < 1e-10)
 
   // Test 3: Known matrix from Phase 1 tests
   // bull_to_bull=0.8, bull_to_bear=0.1 → bull dominates
   const known: TransitionMatrix = {
-    bull_to_bull: 0.8, bull_to_sideways: 0.1, bull_to_bear: 0.1,
-    sideways_to_bull: 0.2, sideways_to_sideways: 0.6, sideways_to_bear: 0.2,
-    bear_to_bull: 0.1, bear_to_sideways: 0.2, bear_to_bear: 0.7,
+    bull_to_bull: 0.8,
+    bull_to_sideways: 0.1,
+    bull_to_bear: 0.1,
+    sideways_to_bull: 0.2,
+    sideways_to_sideways: 0.6,
+    sideways_to_bear: 0.2,
+    bear_to_bull: 0.1,
+    bear_to_sideways: 0.2,
+    bear_to_bear: 0.7,
   }
   const d3 = findStationaryDistribution(known)
   check("Known: bull > bear (assertion)", d3.bull > d3.bear)
   check("Known: bull > sideways", d3.bull > d3.sideways)
   check("Known: bull is largest (0.421)", d3.bull > d3.bear && d3.bull > d3.sideways)
   check("Known sums to 1.0", Math.abs(d3.bull + d3.sideways + d3.bear - 1.0) < 1e-10)
-  console.log(`  Known stationary: bull=${d3.bull.toFixed(4)} sideways=${d3.sideways.toFixed(4)} bear=${d3.bear.toFixed(4)}`)
+  console.log(
+    `  Known stationary: bull=${d3.bull.toFixed(4)} sideways=${d3.sideways.toFixed(4)} bear=${d3.bear.toFixed(4)}`,
+  )
 
   // Test 4: stationaryFromCounts with valid counts
   const counts: [number, number, number][] = [
-    [80, 10, 10],  // bull → mostly bull
-    [20, 60, 20],  // sideways → mostly sideways
-    [10, 20, 70],  // bear → mostly bear
+    [80, 10, 10], // bull → mostly bull
+    [20, 60, 20], // sideways → mostly sideways
+    [10, 20, 70], // bear → mostly bear
   ]
   const d4 = stationaryFromCounts(counts)
   check("Counts: bull > bear", d4.bull > d4.bear)
@@ -216,7 +233,7 @@ export function testStationary(): boolean {
   // Test 5: stationaryFromCounts with zero row → uniform fallback
   const zeroRow: [number, number, number][] = [
     [80, 10, 10],
-    [0, 0, 0],     // no transitions from sideways
+    [0, 0, 0], // no transitions from sideways
     [10, 20, 70],
   ]
   const d5 = stationaryFromCounts(zeroRow)
@@ -225,9 +242,14 @@ export function testStationary(): boolean {
 
   // Test 6: Verify stationary distribution satisfies πP = π (eigenvalue check)
   const residual = (v: StationaryDistribution, m: TransitionMatrix) => {
-    const newBull = v.bull * m.bull_to_bull + v.sideways * m.sideways_to_bull + v.bear * m.bear_to_bull
-    const newSideways = v.bull * m.bull_to_sideways + v.sideways * m.sideways_to_sideways + v.bear * m.bear_to_sideways
-    const newBear = v.bull * m.bull_to_bear + v.sideways * m.sideways_to_bear + v.bear * m.bear_to_bear
+    const newBull =
+      v.bull * m.bull_to_bull + v.sideways * m.sideways_to_bull + v.bear * m.bear_to_bull
+    const newSideways =
+      v.bull * m.bull_to_sideways +
+      v.sideways * m.sideways_to_sideways +
+      v.bear * m.bear_to_sideways
+    const newBear =
+      v.bull * m.bull_to_bear + v.sideways * m.sideways_to_bear + v.bear * m.bear_to_bear
     return Math.max(
       Math.abs(newBull - v.bull),
       Math.abs(newSideways - v.sideways),

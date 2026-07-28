@@ -556,12 +556,14 @@ async function llmScanFile(file: string, content: string): Promise<Barnacle[]> {
           allFindings.push({
             ...f,
             lineStart: (f.lineStart ?? 1) + lineOffset,
-            lineEnd: (f.lineEnd ?? (f.lineStart ?? 1)) + lineOffset,
+            lineEnd: (f.lineEnd ?? f.lineStart ?? 1) + lineOffset,
           })
         }
       }
     } catch (err) {
-      console.warn(`  ⚠ LLM scan chunk ${start + 1}-${end} of ${file} failed: ${(err as Error).message?.slice(0, 80)}`)
+      console.warn(
+        `  ⚠ LLM scan chunk ${start + 1}-${end} of ${file} failed: ${(err as Error).message?.slice(0, 80)}`,
+      )
       // Continue with next chunk
     }
 
@@ -580,23 +582,23 @@ async function llmScanFile(file: string, content: string): Promise<Barnacle[]> {
   }
 
   return deduped.map((f, i) => ({
-      id: `LLM-${file.replace(/\//g, "-").replace(/\.md$/, "")}-${i + 1}`,
-      file,
-      lineStart: f.lineStart ?? 1,
-      lineEnd: f.lineEnd ?? f.lineStart ?? 1,
-      type: ["cross_doc_conflict", "chestertons_fence", "stale_metadata", "verbose_prose"].includes(
-        f.type,
-      )
-        ? (f.type as BarnacleType)
-        : "chestertons_fence",
-      severity: f.severity ?? "medium",
-      text: f.snippet?.slice(0, 200) ?? "",
-      justification: f.justification ?? "LLM-detected semantic barnacle",
-      suggestedFix: null, // semantic barnacles default to drydock
-      loadBearing: false, // LLM findings are NOT load-bearing — anomalyType drives escalation, not silent skip
-      llmDetected: true,
-      anomalyType: f.anomalyType,
-    }))
+    id: `LLM-${file.replace(/\//g, "-").replace(/\.md$/, "")}-${i + 1}`,
+    file,
+    lineStart: f.lineStart ?? 1,
+    lineEnd: f.lineEnd ?? f.lineStart ?? 1,
+    type: ["cross_doc_conflict", "chestertons_fence", "stale_metadata", "verbose_prose"].includes(
+      f.type,
+    )
+      ? (f.type as BarnacleType)
+      : "chestertons_fence",
+    severity: f.severity ?? "medium",
+    text: f.snippet?.slice(0, 200) ?? "",
+    justification: f.justification ?? "LLM-detected semantic barnacle",
+    suggestedFix: null, // semantic barnacles default to drydock
+    loadBearing: false, // LLM findings are NOT load-bearing — anomalyType drives escalation, not silent skip
+    llmDetected: true,
+    anomalyType: f.anomalyType,
+  }))
 }
 
 // ── Slim Phase ────────────────────────────────────────────────────────────────
