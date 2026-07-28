@@ -3,6 +3,32 @@
  */
 
 import {
+  testWalkForward,
+  type WalkForwardConfig,
+  type WalkForwardResult,
+  walkForwardBacktest,
+} from "./backtest.js"
+import {
+  type BayesianMatrixResult,
+  type BayesianSignal,
+  bayesianSignal,
+  bayesianTransitionMatrix,
+  countsFromStates,
+  testBayesian,
+} from "./bayesian.js"
+import {
+  compareRegimes,
+  fitHmm,
+  fitHmmFromPrices,
+  type HmmComparison,
+  type HmmFitOptions,
+  type HmmResult,
+  hmmIndexToState,
+  hmmMatrixToTransitionMatrix,
+  hmmSignalFromResult,
+  testHmm,
+} from "./hmm.js"
+import {
   buildTransitionMatrix,
   getNextStateProbabilities,
   getPersistence,
@@ -16,6 +42,8 @@ import {
   getLatestRegimeMatrix,
   getLatestRegimeState,
   getRegimeStates,
+  insertRegimeBacktest,
+  insertRegimeHmmModel,
   insertRegimeMatrix,
   insertRegimeStates,
   updateRegimeData,
@@ -39,27 +67,29 @@ import {
 } from "./state.js"
 import {
   findStationaryDistribution,
+  type StationaryDistribution,
   stationaryFromCounts,
   testStationary,
-  type StationaryDistribution,
 } from "./stationary.js"
-import {
-  testWalkForward,
-  walkForwardBacktest,
-  type WalkForwardConfig,
-  type WalkForwardResult,
-} from "./backtest.js"
 
 // Re-export all public API
 export {
+  type BayesianMatrixResult,
+  type BayesianSignal,
+  bayesianSignal,
+  bayesianTransitionMatrix,
   buildNDaySignal,
   buildRegimeSignal,
   buildTransitionMatrix,
   classifyState,
+  compareRegimes,
   computeCumulativeReturns,
   computeSignal,
+  countsFromStates,
   type DailyState,
   findStationaryDistribution,
+  fitHmm,
+  fitHmmFromPrices,
   generateStateStream,
   getCurrentState,
   getLatestRegimeMatrix,
@@ -67,6 +97,14 @@ export {
   getNextStateProbabilities,
   getPersistence,
   getRegimeStates,
+  type HmmComparison,
+  type HmmFitOptions,
+  type HmmResult,
+  hmmIndexToState,
+  hmmMatrixToTransitionMatrix,
+  hmmSignalFromResult,
+  insertRegimeBacktest,
+  insertRegimeHmmModel,
   insertRegimeMatrix,
   insertRegimeStates,
   type MarketState,
@@ -76,26 +114,33 @@ export {
   type RegimeSignal,
   runAllTests,
   type StateConfig,
+  type StationaryDistribution,
   signalToPositionSize,
   smokeTest,
-  type StationaryDistribution,
   stationaryFromCounts,
-  testStationary,
-  testWalkForward,
   type TransitionMatrix,
+  testBayesian,
+  testHmm,
+  testStationary,
   updateRegimeData,
   upsertRegimeState,
   validateMatrix,
-  walkForwardBacktest,
   type WalkForwardConfig,
   type WalkForwardResult,
+  walkForwardBacktest,
 }
 
 /**
- * Run unit tests for all modules.
+ * Run unit tests for all pure-TypeScript modules (state, matrix, signal,
+ * stationary, walk-forward, bayesian). Returns true iff every module passes.
+ *
+ * The HMM test (testHmm) is async and depends on the Python bridge + hmmlearn,
+ * so it is NOT invoked here — run it separately via `testHmm()`.
  */
-function runAllTests(): void {
+function runAllTests(): boolean {
   console.log("\n=== Markov Regime Detection Tests ===\n")
+
+  let allPass = true
 
   // State tests
   const stateTests = [
@@ -160,7 +205,21 @@ function runAllTests(): void {
   ]
   for (const [name, passed] of signalTests) console.log(`  ${passed ? "✓" : "✗"} ${name}`)
 
-  console.log("\n✓ All markov tests passed\n")
+  if (!stateTests.every(([, p]) => p)) allPass = false
+  if (!matrixTests.every(([, p]) => p)) allPass = false
+  if (!signalTests.every(([, p]) => p)) allPass = false
+
+  // Module-level test suites (each prints its own header and ✓/✗ lines)
+  if (!testStationary()) allPass = false
+  if (!testWalkForward()) allPass = false
+  if (!testBayesian()) allPass = false
+
+  if (allPass) {
+    console.log("\n✓ All markov tests passed\n")
+  } else {
+    console.log("\n✗ Some markov tests failed\n")
+  }
+  return allPass
 }
 
 /**

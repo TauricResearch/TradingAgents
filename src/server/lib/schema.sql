@@ -277,6 +277,47 @@ CREATE TABLE IF NOT EXISTS regime_matrices (
 CREATE INDEX IF NOT EXISTS idx_regime_matrices_ticker ON regime_matrices(ticker);
 CREATE INDEX IF NOT EXISTS idx_regime_matrices_date ON regime_matrices(as_of_date);
 
+-- Walk-forward backtest results (MARKOV-002-S02)
+-- One row per backtest run; persisted when `trading regime <t> --backtest --store`
+CREATE TABLE IF NOT EXISTS regime_backtests (
+    ticker           TEXT NOT NULL,
+    run_date         TEXT NOT NULL DEFAULT (datetime('now')),
+    lookback_window  INTEGER NOT NULL,
+    sharpe           REAL NOT NULL,
+    max_drawdown     REAL NOT NULL,
+    annual_return    REAL NOT NULL,
+    buy_and_hold     REAL NOT NULL,
+    trade_count      INTEGER NOT NULL,
+    win_rate         REAL NOT NULL,
+    bull_pct         REAL NOT NULL,
+    sideways_pct     REAL NOT NULL,
+    bear_pct         REAL NOT NULL,
+    total_days       INTEGER NOT NULL,
+    PRIMARY KEY (ticker, run_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_regime_backtests_ticker ON regime_backtests(ticker);
+
+-- HMM fitted models (MARKOV-002-S03)
+-- One row per HMM fit; persisted when `trading regime <t> --hmm --store`
+CREATE TABLE IF NOT EXISTS regime_hmm_models (
+    ticker               TEXT NOT NULL,
+    fit_date             TEXT NOT NULL DEFAULT (datetime('now')),
+    n_states             INTEGER NOT NULL DEFAULT 3,
+    log_likelihood       REAL NOT NULL,
+    converged            INTEGER NOT NULL DEFAULT 0,
+    bull_mean            REAL NOT NULL,
+    bull_vol             REAL NOT NULL,
+    sideways_mean        REAL NOT NULL,
+    sideways_vol         REAL NOT NULL,
+    bear_mean            REAL NOT NULL,
+    bear_vol             REAL NOT NULL,
+    transition_matrix_json TEXT NOT NULL,  -- JSON array of arrays (3×3)
+    PRIMARY KEY (ticker, fit_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_regime_hmm_models_ticker ON regime_hmm_models(ticker);
+
 -- Technical indicator readings per ticker per date (SCAN-001)
 -- Wide format: one row per ticker-date, all indicator values as columns
 -- Produced by computeSnapshot() from src/server/lib/indicators.ts

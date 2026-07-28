@@ -18,16 +18,23 @@ import { defineCommand } from "citty"
 import { DatabaseFactory } from "../../lib/db.ts"
 import { cfg } from "../../lib/settings.ts"
 import {
+  bayesianSignal,
+  bayesianTransitionMatrix,
   buildRegimeSignal,
   buildTransitionMatrix,
+  compareRegimes,
+  countsFromStates,
   findStationaryDistribution,
+  fitHmmFromPrices,
   generateStateStream,
   getPersistence,
+  hmmSignalFromResult,
+  insertRegimeBacktest,
+  insertRegimeHmmModel,
   nDayProbabilities,
   signalToPositionSize,
   updateRegimeData,
   walkForwardBacktest,
-  type WalkForwardResult,
 } from "../../server/lib/markov/index.ts"
 import { boxTable, gumStyle, isGumAvailable } from "../lib/gum-utils.ts"
 
@@ -126,6 +133,7 @@ interface RenderData {
   persistence: { bull: number; sideways: number; bear: number }
   forecast?: { days: number; bull: number; sideways: number; bear: number; signal: number }
   stationary?: { bull: number; sideways: number; bear: number }
+  confidence?: { probability: number; mean: number; ci: [number, number] }
   persisted: boolean
 }
 
@@ -240,6 +248,22 @@ function renderGum(data: RenderData): string {
     )
   }
 
+  // ── Signal Confidence (Bayesian) ──
+  if (data.confidence) {
+    const c = data.confidence
+    lines.push("")
+    lines.push(gumStyle("Signal Confidence (Bayesian P(signal > 0))", { bold: true }))
+    const confColor =
+      c.probability >= 0.8 ? "#00ff00" : c.probability >= 0.6 ? "#ffaa00" : "#ff4444"
+    lines.push(
+      [
+        `  P(signal > 0)  ${gumStyle(bar(c.probability, 16), { foreground: confColor })}  ${gumStyle(`${(c.probability * 100).toFixed(1)}%`, { bold: true, foreground: confColor })}`,
+        `  Signal mean    ${fmtSignal(c.mean)}`,
+        `  95% cred. int. [${c.ci[0].toFixed(4)}, ${c.ci[1].toFixed(4)}]`,
+      ].join("\n"),
+    )
+  }
+
   // ── Footer ──
   if (data.persisted) {
     lines.push(gumStyle("✓ persisted to DB", { foreground: "#00ff00", bold: true }))
@@ -326,15 +350,21 @@ function renderPlain(data: RenderData): string {
   if (data.stationary) {
     const s = data.stationary
     lines.push("Stationary Distribution (long-run π = πP):")
+    lines.push(`  ${green("Bull")} ${bar(s.bull, 16)} ${(s.bull * 100).toFixed(1)}%`)
+    lines.push(`  ${yellow("Side")} ${bar(s.sideways, 16)} ${(s.sideways * 100).toFixed(1)}%`)
+    lines.push(`  ${red("Bear")} ${bar(s.bear, 16)} ${(s.bear * 100).toFixed(1)}%`)
+    lines.push("")
+  }
+
+  if (data.confidence) {
+    const c = data.confidence
+    lines.push("Signal Confidence (Bayesian P(signal > 0)):")
+    const probStr = `${(c.probability * 100).toFixed(1)}%`
     lines.push(
-      `  ${green("Bull")} ${bar(s.bull, 16)} ${(s.bull * 100).toFixed(1)}%`,
+      `  P(signal > 0):  ${c.probability >= 0.6 ? green(probStr) : red(probStr)}  ${bar(c.probability, 16)}`,
     )
-    lines.push(
-      `  ${yellow("Side")} ${bar(s.sideways, 16)} ${(s.sideways * 100).toFixed(1)}%`,
-    )
-    lines.push(
-      `  ${red("Bear")} ${bar(s.bear, 16)} ${(s.bear * 100).toFixed(1)}%`,
-    )
+    lines.push(`  Signal mean:    ${fmtSignal(c.mean)}`)
+    lines.push(`  95% cred. int.: [${c.ci[0].toFixed(4)}, ${c.ci[1].toFixed(4)}]`)
     lines.push("")
   }
 
@@ -385,6 +415,22 @@ export const regimeCommand = defineCommand({
       type: "boolean",
       description: "Run walk-forward backtest (no data leakage)",
     },
+    "--bayesian": {
+      type: "boolean",
+      description: "Posterior transition matrix with Dirichlet shrinkage",
+    },
+    "--confidence": {
+      type: "boolean",
+      description: "Show P(signal > 0) — probability the signal direction is correct",
+    },
+    "--hmm": {
+      type: "boolean",
+      description: "Fit a Gaussian HMM and show data-driven regimes (Python bridge)",
+    },
+    "--compare": {
+      type: "boolean",
+      description: "Side-by-side: observable regimes vs HMM regimes",
+    },
   },
   run: async (ctx) => {
     const ticker = ctx.args.ticker as string
@@ -402,36 +448,298 @@ export const regimeCommand = defineCommand({
       // ── Backtest mode ─────────────────────────────────────────────────
       if (ctx.args.backtest) {
         const result = walkForwardBacktest(prices, dates, { verbose: false })
+        const persisted = !!ctx.args.store
+        if (persisted) {
+          insertRegimeBacktest(ticker, result)
+        }
 
         if (asJson) {
-          console.log(JSON.stringify({
-            ticker,
-            ...result,
-            regimeDistribution: result.regimeDistribution,
-          }, null, 2))
+          console.log(
+            JSON.stringify(
+              {
+                ticker,
+                ...result,
+                regimeDistribution: result.regimeDistribution,
+                persisted,
+              },
+              null,
+              2,
+            ),
+          )
           return
         }
 
         const lines: string[] = []
         lines.push(cyan(`\n=== Walk-Forward Backtest: ${ticker} ===\n`))
-        lines.push(`${"Period:".padEnd(20)} ${result.startDate} → ${result.endDate} (${result.totalDays} days)`)
-        lines.push(`${"Sharpe:".padEnd(20)} ${result.sharpe >= 0 ? green : red}${result.sharpe.toFixed(4)}`)
+        lines.push(
+          `${"Period:".padEnd(20)} ${result.startDate} → ${result.endDate} (${result.totalDays} days)`,
+        )
+        lines.push(
+          `${"Sharpe:".padEnd(20)} ${result.sharpe >= 0 ? green : red}${result.sharpe.toFixed(4)}`,
+        )
         lines.push(`${"Ann Return:".padEnd(20)} ${(result.annualReturn * 100).toFixed(2)}%`)
         lines.push(`${"Buy & Hold:".padEnd(20)} ${(result.buyAndHoldReturn * 100).toFixed(2)}%`)
-        lines.push(`${"Max Drawdown:".padEnd(20)} ${red((result.maxDrawdown * 100).toFixed(2) + "%")}`)
-        lines.push(`${"Win Rate:".padEnd(20)} ${(result.winRate * 100).toFixed(1)}% (${result.tradeCount} trades)`)
+        lines.push(
+          `${"Max Drawdown:".padEnd(20)} ${red(`${(result.maxDrawdown * 100).toFixed(2)}%`)}`,
+        )
+        lines.push(
+          `${"Win Rate:".padEnd(20)} ${(result.winRate * 100).toFixed(1)}% (${result.tradeCount} trades)`,
+        )
         lines.push("")
         lines.push("Regime Distribution:")
-        lines.push(`  ${green("Bull")} ${bar(result.regimeDistribution.bull, 16)} ${(result.regimeDistribution.bull * 100).toFixed(1)}%`)
-        lines.push(`  ${yellow("Side")} ${bar(result.regimeDistribution.sideways, 16)} ${(result.regimeDistribution.sideways * 100).toFixed(1)}%`)
-        lines.push(`  ${red("Bear")} ${bar(result.regimeDistribution.bear, 16)} ${(result.regimeDistribution.bear * 100).toFixed(1)}%`)
+        lines.push(
+          `  ${green("Bull")} ${bar(result.regimeDistribution.bull, 16)} ${(result.regimeDistribution.bull * 100).toFixed(1)}%`,
+        )
+        lines.push(
+          `  ${yellow("Side")} ${bar(result.regimeDistribution.sideways, 16)} ${(result.regimeDistribution.sideways * 100).toFixed(1)}%`,
+        )
+        lines.push(
+          `  ${red("Bear")} ${bar(result.regimeDistribution.bear, 16)} ${(result.regimeDistribution.bear * 100).toFixed(1)}%`,
+        )
 
         // Comparison summary
         const outperformance = result.annualReturn - result.buyAndHoldReturn
         if (outperformance > 0) {
-          lines.push(green(`\n  Strategy outperformed buy-and-hold by ${(outperformance * 100).toFixed(2)}%`))
+          lines.push(
+            green(
+              `\n  Strategy outperformed buy-and-hold by ${(outperformance * 100).toFixed(2)}%`,
+            ),
+          )
         } else {
-          lines.push(red(`\n  Strategy underperformed buy-and-hold by ${(Math.abs(outperformance) * 100).toFixed(2)}%`))
+          lines.push(
+            red(
+              `\n  Strategy underperformed buy-and-hold by ${(Math.abs(outperformance) * 100).toFixed(2)}%`,
+            ),
+          )
+        }
+        lines.push("")
+
+        if (useGum) {
+          console.log(gumStyle(lines.join("\n"), { padding: "1 2" }))
+        } else {
+          console.log(lines.join("\n"))
+        }
+        return
+      }
+
+      // ── Bayesian mode: posterior transition matrix with shrinkage ──────
+      if (ctx.args.bayesian) {
+        const bayStateStream = generateStateStream(ticker, prices, dates)
+        const bayStates = bayStateStream.map((s) => s.state)
+        const counts = countsFromStates(bayStates)
+        const bayes = bayesianTransitionMatrix(counts)
+        const bayCurrent = bayStates[bayStates.length - 1]!
+        const sig = bayesianSignal(counts, bayCurrent)
+
+        if (asJson) {
+          console.log(
+            JSON.stringify(
+              {
+                ticker,
+                currentState: bayCurrent,
+                priorAlphas: bayes.priorAlphas,
+                rowTotals: bayes.rowTotals,
+                posteriorMean: bayes.posteriorMean,
+                posteriorVariance: bayes.posteriorVariance,
+                effectiveSampleSize: bayes.effectiveSampleSize,
+                signal: sig,
+              },
+              null,
+              2,
+            ),
+          )
+          return
+        }
+
+        const pm = bayes.posteriorMean
+        const lines: string[] = []
+        lines.push(cyan(`\n=== Bayesian Transition Matrix: ${ticker} ===\n`))
+        lines.push(`${"Current state:".padEnd(20)} ${stateLabel(bayCurrent)}`)
+        lines.push(
+          `${"Prior:".padEnd(20)} Dirichlet(${bayes.priorAlphas.join(", ")})  (flat → shrinks thin rows toward uniform)`,
+        )
+        lines.push("")
+        lines.push("Posterior-mean transition matrix (Dirichlet shrinkage):")
+        lines.push(
+          boxTable(
+            ["", "Bull", "Sideways", "Bear"],
+            [
+              [
+                green("Bull"),
+                pm.bull_to_bull.toFixed(4),
+                pm.bull_to_sideways.toFixed(4),
+                pm.bull_to_bear.toFixed(4),
+              ],
+              [
+                yellow("Side"),
+                pm.sideways_to_bull.toFixed(4),
+                pm.sideways_to_sideways.toFixed(4),
+                pm.sideways_to_bear.toFixed(4),
+              ],
+              [
+                red("Bear"),
+                pm.bear_to_bull.toFixed(4),
+                pm.bear_to_sideways.toFixed(4),
+                pm.bear_to_bear.toFixed(4),
+              ],
+            ],
+          ),
+        )
+        lines.push("")
+        lines.push("Signal (posterior, from current state):")
+        lines.push(`  Signal mean        ${fmtSignal(sig.signalMean)}`)
+        lines.push(
+          `  P(signal > 0)      ${bar(sig.signalConfidence, 16)} ${(sig.signalConfidence * 100).toFixed(1)}%`,
+        )
+        lines.push(
+          `  95% cred. interval [${sig.credibleInterval[0].toFixed(4)}, ${sig.credibleInterval[1].toFixed(4)}]`,
+        )
+        lines.push(
+          `  Row observations   [${bayes.rowTotals.join(", ")}]  (bull/side/bear transitions observed)`,
+        )
+        lines.push("")
+
+        if (useGum) {
+          console.log(gumStyle(lines.join("\n"), { padding: "1 2" }))
+        } else {
+          console.log(lines.join("\n"))
+        }
+        return
+      }
+
+      // ── HMM mode: fit a Gaussian HMM via the Python bridge ─────────────
+      if (ctx.args.hmm) {
+        const fit = await fitHmmFromPrices(ticker, prices, dates)
+        if (!fit) {
+          const msg = {
+            error: `HMM bridge unavailable for ${ticker}`,
+            detail: "The Python bridge (scripts/py/markov_hmm.py) returned no result",
+            hint: "Install hmmlearn: uv sync (or pip install hmmlearn>=0.3.2)",
+          }
+          if (asJson) {
+            console.log(JSON.stringify(msg))
+          } else {
+            console.error(red(`Error: ${msg.error}`))
+            console.error(red(`  ${msg.hint}`))
+          }
+          process.exit(1)
+        }
+        const { result, labelDates } = fit
+        const currentDate = labelDates[labelDates.length - 1]!
+        const signal = hmmSignalFromResult(ticker, result, currentDate)
+        const persisted = !!ctx.args.store
+        if (persisted) insertRegimeHmmModel(ticker, result)
+
+        if (asJson) {
+          console.log(
+            JSON.stringify(
+              {
+                ticker,
+                date: currentDate,
+                ...result,
+                signal,
+                persisted,
+              },
+              null,
+              2,
+            ),
+          )
+          return
+        }
+
+        const lines: string[] = []
+        lines.push(cyan(`\n=== Hidden Markov Model: ${ticker} ===\n`))
+        lines.push(
+          `${"States:".padEnd(20)} ${result.stateMeans.length}  ·  log-likelihood ${result.logLikelihood.toFixed(2)}  ·  ${result.converged ? green("converged") : yellow("not converged")}`,
+        )
+        lines.push("")
+        lines.push("Learned regimes (sorted by mean return):")
+        lines.push(
+          `  ${green("Bull")}     mean ${(result.stateMeans[0]! * 100).toFixed(3)}%/day   vol ${(result.stateVols[0]! * 100).toFixed(3)}%/day`,
+        )
+        lines.push(
+          `  ${yellow("Side")}     mean ${(result.stateMeans[1]! * 100).toFixed(3)}%/day   vol ${(result.stateVols[1]! * 100).toFixed(3)}%/day`,
+        )
+        lines.push(
+          `  ${red("Bear")}     mean ${(result.stateMeans[2]! * 100).toFixed(3)}%/day   vol ${(result.stateVols[2]! * 100).toFixed(3)}%/day`,
+        )
+        lines.push("")
+        lines.push("Learned transition matrix:")
+        const tm = result.transitionMatrix
+        lines.push(
+          boxTable(
+            ["", "Bull", "Sideways", "Bear"],
+            [
+              [green("Bull"), tm[0]![0]!.toFixed(4), tm[0]![1]!.toFixed(4), tm[0]![2]!.toFixed(4)],
+              [yellow("Side"), tm[1]![0]!.toFixed(4), tm[1]![1]!.toFixed(4), tm[1]![2]!.toFixed(4)],
+              [red("Bear"), tm[2]![0]!.toFixed(4), tm[2]![1]!.toFixed(4), tm[2]![2]!.toFixed(4)],
+            ],
+          ),
+        )
+        lines.push("")
+        lines.push("Signal from HMM (current hidden state → next-day probabilities):")
+        lines.push(`  Current hidden state ${stateLabel(signal.currentState)}`)
+        lines.push(`  Signal ${fmtSignal(signal.signal)}  (${signal.signalDirection})`)
+        if (persisted) lines.push(green("\n✓ HMM model persisted to DB"))
+        lines.push("")
+
+        if (useGum) {
+          console.log(gumStyle(lines.join("\n"), { padding: "1 2" }))
+        } else {
+          console.log(lines.join("\n"))
+        }
+        return
+      }
+
+      // ── Compare mode: observable regimes vs HMM regimes ────────────────
+      if (ctx.args.compare) {
+        const cmp = await compareRegimes(ticker, prices, dates)
+        if (!cmp) {
+          const msg = {
+            error: `HMM bridge unavailable for ${ticker}`,
+            detail: "The Python bridge (scripts/py/markov_hmm.py) returned no result",
+            hint: "Install hmmlearn: uv sync (or pip install hmmlearn>=0.3.2)",
+          }
+          if (asJson) {
+            console.log(JSON.stringify(msg))
+          } else {
+            console.error(red(`Error: ${msg.error}`))
+          }
+          process.exit(1)
+        }
+
+        if (asJson) {
+          console.log(JSON.stringify(cmp, null, 2))
+          return
+        }
+
+        const od = cmp.observable.distribution
+        const hm = cmp.hmm.stateMeans
+        const hv = cmp.hmm.stateVols
+        const lines: string[] = []
+        lines.push(cyan(`\n=== Regime Comparison: ${ticker} ===\n`))
+        lines.push(
+          `${"Overlap:".padEnd(20)} ${cmp.comparedDays} days  ·  agreement ${(cmp.agreementPct * 100).toFixed(1)}%`,
+        )
+        lines.push("")
+        lines.push("Regime distribution — observable (±5% threshold) vs HMM (learned):")
+        lines.push(
+          `  ${green("Bull")}   observable ${(od.bull * 100).toFixed(1)}%   ·  HMM mean ${(hm[0]! * 100).toFixed(3)}%/day (vol ${(hv[0]! * 100).toFixed(3)}%)`,
+        )
+        lines.push(
+          `  ${yellow("Side")}   observable ${(od.sideways * 100).toFixed(1)}%   ·  HMM mean ${(hm[1]! * 100).toFixed(3)}%/day (vol ${(hv[1]! * 100).toFixed(3)}%)`,
+        )
+        lines.push(
+          `  ${red("Bear")}   observable ${(od.bear * 100).toFixed(1)}%   ·  HMM mean ${(hm[2]! * 100).toFixed(3)}%/day (vol ${(hv[2]! * 100).toFixed(3)}%)`,
+        )
+        lines.push("")
+        if (cmp.agreementPct < 0.6) {
+          lines.push(yellow("  HMM and threshold labels disagree on most days."))
+          lines.push(
+            yellow("  This is expected — they see different things (a finding, not a bug)."),
+          )
+        } else {
+          lines.push(green("  HMM and threshold labels broadly agree."))
         }
         lines.push("")
 
@@ -479,6 +787,10 @@ export const regimeCommand = defineCommand({
       const showStationary = (ctx.args.stationary as boolean) ?? false
       const station = showStationary ? findStationaryDistribution(matrix) : null
 
+      const showConfidence = (ctx.args.confidence as boolean) ?? false
+      const counts = showConfidence ? countsFromStates(states) : null
+      const bayesSig = counts ? bayesianSignal(counts, currentState) : null
+
       // ── Output ──────────────────────────────────────────────────────────
 
       if (asJson) {
@@ -500,6 +812,14 @@ export const regimeCommand = defineCommand({
         }
         if (station) {
           output.stationary = station
+        }
+        if (bayesSig) {
+          output.confidence = {
+            probability: bayesSig.signalConfidence,
+            mean: bayesSig.signalMean,
+            variance: bayesSig.signalVariance,
+            credibleInterval: bayesSig.credibleInterval,
+          }
         }
         if (fcast) {
           output.forecast = {
@@ -529,6 +849,13 @@ export const regimeCommand = defineCommand({
         matrix,
         persistence: pers,
         stationary: station ?? undefined,
+        confidence: bayesSig
+          ? {
+              probability: bayesSig.signalConfidence,
+              mean: bayesSig.signalMean,
+              ci: bayesSig.credibleInterval,
+            }
+          : undefined,
         persisted: !!ctx.args.store,
       }
 

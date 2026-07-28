@@ -6,6 +6,8 @@
  */
 
 import { DatabaseFactory } from "@lib/db"
+import type { WalkForwardResult } from "./backtest.js"
+import type { HmmResult } from "./hmm.js"
 import type { TransitionMatrix } from "./matrix.js"
 import { buildTransitionMatrix } from "./matrix.js"
 import { buildRegimeSignal, type RegimeSignal } from "./signal.js"
@@ -217,4 +219,68 @@ export function getLatestRegimeMatrix(
       bear_to_bear: parseFloat(String(row.bear_to_bear)),
     },
   }
+}
+
+// ── Walk-Forward Backtests (MARKOV-002-S02) ─────────────────────────────────
+
+/**
+ * Persist a walk-forward backtest result. One row per (ticker, run_date).
+ * REAL columns are stored as-is; callers read with parseFloat().
+ */
+export function insertRegimeBacktest(
+  ticker: string,
+  result: WalkForwardResult,
+  lookbackWindow: number = 252,
+): void {
+  const db = DatabaseFactory.get()
+  db.query(
+    `INSERT OR REPLACE INTO regime_backtests
+     (ticker, lookback_window, sharpe, max_drawdown, annual_return, buy_and_hold,
+      trade_count, win_rate, bull_pct, sideways_pct, bear_pct, total_days)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    ticker,
+    lookbackWindow,
+    result.sharpe,
+    result.maxDrawdown,
+    result.annualReturn,
+    result.buyAndHoldReturn,
+    result.tradeCount,
+    result.winRate,
+    result.regimeDistribution.bull,
+    result.regimeDistribution.sideways,
+    result.regimeDistribution.bear,
+    result.totalDays,
+  )
+}
+
+// ── HMM Fitted Models (MARKOV-002-S03) ───────────────────────────────────────
+
+/**
+ * Persist an HMM fit. The learned transition matrix is stored as JSON
+ * (array of arrays) in transition_matrix_json.
+ */
+export function insertRegimeHmmModel(ticker: string, hmm: HmmResult): void {
+  const db = DatabaseFactory.get()
+  const [bullMean, sidewaysMean, bearMean] = hmm.stateMeans
+  const [bullVol, sidewaysVol, bearVol] = hmm.stateVols
+  db.query(
+    `INSERT OR REPLACE INTO regime_hmm_models
+     (ticker, n_states, log_likelihood, converged,
+      bull_mean, bull_vol, sideways_mean, sideways_vol, bear_mean, bear_vol,
+      transition_matrix_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    ticker,
+    hmm.stateMeans.length,
+    hmm.logLikelihood,
+    hmm.converged ? 1 : 0,
+    bullMean!,
+    bullVol!,
+    sidewaysMean!,
+    sidewaysVol!,
+    bearMean!,
+    bearVol!,
+    JSON.stringify(hmm.transitionMatrix),
+  )
 }

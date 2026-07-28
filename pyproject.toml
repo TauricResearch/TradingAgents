@@ -32,6 +32,7 @@ dependencies = [
     "yfinance>=0.2.63",
     "statsmodels>=0.14.6",
     "scipy>=1.17.1",
+    "hmmlearn>=0.3.2",
 ]
 
 [dependency-groups]
