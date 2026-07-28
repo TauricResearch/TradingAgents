@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+.vscode
+.claude
+
 # Distribution / packaging
 .Python
 build/
@@ -206,6 +209,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+.playwright-MCP
 
 # Marimo
 marimo/_static/
