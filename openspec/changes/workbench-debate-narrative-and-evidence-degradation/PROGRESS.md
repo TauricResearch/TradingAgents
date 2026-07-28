@@ -1,10 +1,11 @@
 # Project Status: Workbench Debate Narrative & Evidence Degradation
 
-> Implementation branch: `feat/workbench-debate-narrative`
+> Delivered by [PR #2](https://github.com/david188888/TradingAgents/pull/2),
+> merged into `david188888/TradingAgents:main` as `73222cf5` on 2026-07-28.
 >
-> Planned continuation branch after merge: `codex/workbench-debate-script-and-inspector`
+> Current continuation branch: `codex/workbench-debate-script-and-inspector`
 >
-> Updated: 2026-07-27
+> Updated: 2026-07-28
 
 ## Scope status
 
@@ -18,7 +19,7 @@
 | 4. Workflow map | Implemented and verified | Six stage groups, typed measured SVG edges, narrow-layout fallback, live role state. |
 | 5. Debate stage | Not implemented | `laneOf()` exists, but round/lane script grouping, convergence blocks, and historical-attribution guard remain. |
 | 6. Turn inspector | Not implemented | Current tabbed inspector remains; flat identity/evidence/prompt/output sections remain. |
-| 7. Verification/closeout | Partial | Deterministic tests complete; real-provider/thin-coverage acceptance and historical run-store comparison remain. |
+| 7. Verification/closeout | Partial | Deterministic local tests and the Python 3.10-3.13 CI matrix are complete; real-provider/thin-coverage acceptance and historical run-store comparison remain. |
 
 ## Implemented behavior
 
@@ -91,6 +92,9 @@
   and debate authorship: **31 passed**.
 - Full backend suite in the authoritative Conda `tradingagents` environment
   (Python 3.13.13): **1,333 passed, 19 warnings, 68 subtests passed**.
+- GitHub Actions run `30323625615` passed all seven required jobs: tests on
+  Python 3.10, 3.11, 3.12, and 3.13; clean-install smoke; strict full-repo
+  Ruff; and the web Python/SPA/wheel-asset gate.
 - CI dependency installation now uses `.[dev,web]`, so the Python 3.10-3.13
   matrix installs the canonical-JSON dependency required during collection.
 - Production timestamp helpers and their tests use `datetime.timezone.utc`
