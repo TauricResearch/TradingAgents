@@ -141,6 +141,22 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "atlascloud": {
+        "quick": [
+            (
+                "DeepSeek V4 Pro via Atlas Cloud - OpenAI-compatible",
+                "deepseek-ai/deepseek-v4-pro",
+            ),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            (
+                "DeepSeek V4 Pro via Atlas Cloud - OpenAI-compatible",
+                "deepseek-ai/deepseek-v4-pro",
+            ),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # Qwen: same model IDs across global (dashscope-intl) and China
     # (dashscope) endpoints, so the two provider keys share one model list.
     "qwen": _QWEN_MODELS,
