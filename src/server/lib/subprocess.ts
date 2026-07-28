@@ -152,3 +152,65 @@ export async function runPythonJson<T = unknown>(
     return null
   }
 }
+
+/**
+ * Run a Python script that reads a JSON payload from stdin and emits one JSON
+ * object on stdout (request/response, not streaming). Used by bridges like
+ * scripts/py/markov_hmm.py. Returns the parsed JSON, or null on error.
+ *
+ * Mirrors runPython's timeout/SIGTERM behaviour but additionally writes
+ * `payload` (JSON-stringified) to the child's stdin and closes it.
+ */
+export function runPythonStdinJson<T = unknown>(
+  scriptPath: string,
+  payload: unknown,
+  opts: RunPythonOptions = {},
+): Promise<T | null> {
+  const timeout = opts.timeout ?? 30_000
+  const python = venvPython()
+  const projectRoot = dirname(dirname(dirname(import.meta.filename)))
+
+  return new Promise((resolve) => {
+    const child = spawn(python, [scriptPath], {
+      cwd: opts.cwd ?? projectRoot,
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: "1",
+        ...opts.env,
+      },
+    })
+
+    let stdout = ""
+    let timedOut = false
+
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill("SIGTERM")
+    }, timeout)
+
+    child.stdout?.on("data", (d: Buffer) => {
+      stdout += d.toString()
+    })
+    child.on("close", (code) => {
+      clearTimeout(timer)
+      const exitCode = timedOut ? 124 : (code ?? -1)
+      if (exitCode !== 0) {
+        resolve(null)
+        return
+      }
+      try {
+        resolve(JSON.parse(stdout.trim()) as T)
+      } catch {
+        resolve(null)
+      }
+    })
+    child.on("error", () => {
+      clearTimeout(timer)
+      resolve(null)
+    })
+
+    // Write the request payload and signal EOF so the script can respond.
+    child.stdin?.write(JSON.stringify(payload))
+    child.stdin?.end()
+  })
+}
