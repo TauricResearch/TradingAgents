@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import re
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -48,7 +48,7 @@ _UNSAFE_KEYS = frozenset(
 
 
 def _timestamp() -> str:
-    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def safe_value_sha256(value: Any) -> str | None:

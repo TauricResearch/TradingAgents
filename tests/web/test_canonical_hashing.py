@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Annotated
 
@@ -41,7 +41,7 @@ def test_canonical_value_freezes_unordered_special_and_declared_values():
         "set": {"beta", "alpha"},
         "bytes": b"\x00\xff",
         "date": date(2026, 7, 18),
-        "datetime": datetime(2026, 7, 18, 12, 30, tzinfo=UTC),
+        "datetime": datetime(2026, 7, 18, 12, 30, tzinfo=timezone.utc),
         "floats": [1.0, -0.0, float("nan"), float("inf"), float("-inf")],
         "enum": Rating.HOLD,
         "dataclass": Point(2, 3),
@@ -101,10 +101,12 @@ def test_business_projection_selects_only_declared_agent_state_channels():
         "canonical_company_profile",
         "clamp_events",
         "company_of_interest",
+        "context_compaction_facts",
         "evidence_ledger",
         "evidence_ledger_artifact_id",
         "evidence_report",
         "evidence_status",
+        "feature_contributions",
         "final_trade_decision",
         "fundamentals_report",
         "instrument_context",
@@ -112,6 +114,7 @@ def test_business_projection_selects_only_declared_agent_state_channels():
         "investment_plan",
         "market_report",
         "messages",
+        "methodology_reports",
         "news_report",
         "past_context",
         "portfolio_context",

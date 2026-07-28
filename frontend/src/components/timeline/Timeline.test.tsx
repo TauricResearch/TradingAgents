@@ -5,7 +5,7 @@
  * from the real module (pure function, no side effects).
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Timeline } from "./Timeline";
 import { extractResponse } from "../../domain/responseExtractor";
 import type { ReducerState, RunMeta, Turn, TurnStatus } from "../../state/model";
@@ -224,7 +224,7 @@ describe("Timeline", () => {
     expect(screen.getAllByText("候选")).toHaveLength(1);
   });
 
-  it("lazy-loads response text on bubble click", async () => {
+  it("eagerly loads response text for turns within the eager window", async () => {
     mockClient.readArtifactText.mockResolvedValue(
       JSON.stringify({ market_report: "price up" }),
     );
@@ -235,11 +235,72 @@ describe("Timeline", () => {
     );
     render(<Timeline filter="" onTurnSelected={vi.fn()} />);
 
-    expect(screen.getByText("点击展开")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("市场分析师"));
     await waitFor(() => {
       expect(screen.getByText("price up")).toBeInTheDocument();
     });
     expect(mockClient.readArtifactText).toHaveBeenCalledWith("test-run", "a1");
+  });
+
+  it("loads a thirteenth turn as an excerpt and expands it on demand", async () => {
+    const fullTail = `TURN13 ${"x".repeat(900)} FULL_END`;
+    mockClient.readArtifactText.mockImplementation(
+      async (_runId: string, artifactId: string) =>
+        JSON.stringify({
+          market_report: artifactId === "a13" ? fullTail : `body ${artifactId}`,
+        }),
+    );
+    const turns = Array.from({ length: 13 }, (_, index) =>
+      buildTurn(`t${index + 1}`, "analyst.market", "completed", {
+        artifact_id: `a${index + 1}`,
+      }),
+    );
+    setStoreState(buildState(turns));
+    render(<Timeline filter="" onTurnSelected={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(mockClient.readArtifactText).toHaveBeenCalledWith("test-run", "a13");
+      expect(screen.getByRole("button", { name: "展开全文" })).toBeInTheDocument();
+    });
+    expect(document.body.textContent).not.toContain("FULL_END");
+
+    fireEvent.click(screen.getByRole("button", { name: "展开全文" }));
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("FULL_END");
+    });
+    expect(
+      mockClient.readArtifactText.mock.calls.filter(
+        ([, artifactId]) => artifactId === "a13",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("renders markdown in turn bodies (headings, bold)", async () => {
+    mockClient.readArtifactText.mockResolvedValue(
+      JSON.stringify({ market_report: "# Header\n\n**bold text**" }),
+    );
+    setStoreState(
+      buildState([
+        buildTurn("t1", "analyst.market", "completed", { artifact_id: "a1" }),
+      ]),
+    );
+    render(<Timeline filter="" onTurnSelected={vi.fn()} />);
+
+    await waitFor(() => {
+      const heading = screen.getByRole("heading", { level: 1 });
+      expect(heading).toBeInTheDocument();
+      expect(heading.textContent).toBe("Header");
+    });
+    expect(screen.getByText("bold text")).toBeInTheDocument();
+  });
+
+  it("shows in-progress indicator for turns without artifacts", () => {
+    setStoreState(
+      buildState([
+        buildTurn("t1", "analyst.market", "started"),
+      ]),
+    );
+    render(<Timeline filter="" onTurnSelected={vi.fn()} />);
+    expect(screen.getByText("（进行中）")).toBeInTheDocument();
   });
 });

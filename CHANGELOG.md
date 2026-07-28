@@ -6,6 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Safe narrative rendering in the web workbench.** Added pinned
+  `react-markdown@9.1.0`, `remark-gfm@4.0.1`, and
+  `rehype-sanitize@6.0.0`. Reports and turn responses use sanitized prose
+  Markdown, while prompts and machine payloads remain literal data blocks.
+- **Six-stage workflow map.** The 13 roles are grouped into analysts, evidence,
+  research debate, trader, risk debate, and portfolio decision, with measured
+  SVG handoff/adversarial/convergence edges on wide layouts and a stage-grid
+  fallback on narrow layouts.
+- **Windowed turn-response loading.** Responses are fetched automatically with
+  request de-duplication, a four-request concurrency ceiling, bounded excerpts
+  outside the initial full-text window, and an explicit full-text expansion.
+
+### Changed
+
+- **Evidence degradation is now fail-open by default.**
+  `evidence_stop_on_fail` now defaults to `False`. Thin coverage, non-fatal data
+  warnings, unresolved profile names, and evidence-gate availability faults
+  resolve to `LOW_CONFIDENCE`; hard identity conflicts and fatal core-data
+  conditions remain `FAIL_STOP`. Research and Portfolio Manager prompts apply a
+  conviction cap for low-confidence evidence. Unexpected steward faults persist
+  only the exception class, not raw exception text. New environment overrides
+  are documented in `.env.example`.
+- **Debate prompts enforce single-speaker turns.** Research and risk debaters
+  now distinguish opening cases from rebuttals, omit empty opposing-argument
+  labels, avoid moderator framing, and keep speaker labels only in the composed
+  transcript used by compaction. Because this changes prompt behavior, the same
+  inputs and models may produce recommendation text different from historical
+  runs. Existing stored runs are not rewritten.
+- **Python 3.10 runtime compatibility.** Timestamp helpers and their contract
+  tests now use `datetime.timezone.utc` instead of the Python 3.11-only
+  `datetime.UTC` alias. SSE keepalive waits catch `asyncio.TimeoutError`, which
+  remains distinct from the built-in `TimeoutError` on Python 3.10. Together
+  these preserve the declared Python 3.10-3.13 CI matrix.
+
+### Verification
+
+- Frontend: strict TypeScript passed; 94 Vitest tests passed; production build
+  produced `index-B0ahB111.js` (388,038 bytes) and
+  `index-02lLBz7O.css` (26,634 bytes).
+- Backend: 49 focused evidence/prompt/authorship tests passed; the focused
+  CI-regression suite passed 31 tests. The authoritative Conda `tradingagents`
+  run completed with 1,333 passed, 19 warnings, and 68 subtests. CI installs
+  `.[dev,web]` so canonical JSON support is present across Python 3.10-3.13.
+- Browser: 9 deterministic Playwright specs passed against the fake runner.
+  This validates the local browser/SSE/static path without provider cost; it is
+  not a real-provider or thin-coverage-ticker acceptance run.
+
 ## [0.3.1] — 2026-07-05
 
 Correctness and stability patch: data look-ahead, graph-router crash-safety,

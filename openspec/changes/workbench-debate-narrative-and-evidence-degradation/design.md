@@ -59,8 +59,23 @@ static build.
 - Derive everything from existing reducer state and existing event contracts;
   avoid new backend event types unless the confidence verdict genuinely requires
   one.
+- Make one turn mean one speaker, so the transcript the UI renders is the
+  transcript the agents actually produced: rebuttals only when there is something
+  to rebut, attribution carried structurally, no invented participants.
 
 **Non-Goals:**
+
+- Adding a moderator role to the graph. The moderator the agents currently
+  address does not exist anywhere in the code; it is removed from the prose, not
+  created in the pipeline.
+- Rewriting, backfilling, or migrating recorded debate payloads. Historical turns
+  stay byte-identical and are handled by a rendering guard.
+- Changing the substance of the debate prompts. The analytical instruction sets
+  (growth/moat/indicators, risk/weakness/adverse evidence) are untouched; only
+  who speaks, and when a rebuttal is asked for, changes.
+- Changing `context_compaction.py`. Its transcript-splitting contract constrains
+  this change but is not modified by it; the mid-sentence `bounded_tail` clip on
+  short debates is documented, not fixed here.
 
 - Exposing evidence thresholds in the web request schema. `AnalysisRequest` and
   the `effective_config` whitelist in `web/api.py` stay as they are; env
@@ -245,14 +260,73 @@ introduces, and shipping the new verdict model on top of them would produce
 `LOW_CONFIDENCE` verdicts caused by a credential bug rather than by real
 scarcity.
 
+### D11. Single-speaker turns fixed at the source, with a rendering guard behind it
+
+F6 is in scope as agent-behavior work, not as a rendering workaround. Four
+decisions:
+
+**D11.1 — The rebuttal instruction becomes conditional.** The polluted turn is
+the debate's first round, where the opposing argument does not yet exist
+(`bear_history` empty, `current_response` empty) but the prompt still demands a
+rebuttal and still prints `Last bear argument:` with nothing after it. The prompt
+SHALL branch: on an opening turn it asks for an opening case only; on a
+subsequent turn it asks for a rebuttal and includes the opposing argument. The
+alternative — keeping one prompt and adding "do not invent the other side" — was
+rejected because it leaves a self-contradicting instruction in place and relies
+on the model resolving the contradiction the way we want.
+
+**D11.2 — The speaker label lives in exactly one place: the state envelope, not
+the body.** Today the code prepends `Bull Analyst: ` / `Bear Analyst: `
+(`bull_researcher.py:76`, `bear_researcher.py:73`, and `:54` in each of the three
+risk debators) *and* the model re-emits its own `**Bear Analyst:**` heading
+because the `history` it reads back is formatted as a labelled transcript. The
+turn body SHALL carry no speaker label; attribution is structural, held by the
+turn's `actor_id`, and rendered by the UI as an avatar and name. The
+transcript-shaped `history` string stays labelled — it is a prompt input that
+needs speaker attribution inline — so the label is added when composing
+`history`, not when storing the turn's own body.
+
+This split is not cosmetic. `context_compaction.py:20` splits the transcript on
+`^(?:Bull Analyst|Bear Analyst|Aggressive Analyst|Conservative Analyst|Neutral
+Analyst):` under `re.MULTILINE`; strip the labels from `history` and every
+transcript becomes one unsplittable turn, which forces the `bounded_tail` branch
+to clip mid-sentence on every run instead of dropping whole old turns. The label
+therefore leaves the stored body and stays in the composed transcript, and the
+compactor is left untouched.
+
+**D11.3 — No moderator is introduced.** Both researchers currently address a
+moderator and the research manager's verdict opens
+`### Moderator's Ruling & Action Plan`, but no moderator node exists in the role
+registry or the graph. Rather than adding one, the prompts SHALL stop staging a
+moderated panel: the debate is a direct exchange, and the judging role is the
+convergence point the flow map already draws. Adding a real moderator node was
+rejected as a pipeline change well beyond this change's scope.
+
+**D11.4 — The renderer still defends itself.** Prompt constraints are
+probabilistic; historical runs already in the store keep their polluted bodies
+forever. The debate stage SHALL therefore detect a foreign speaker attribution in
+a turn body and SHALL NOT present it as the authoring role's own words. Marking
+it visibly (rather than stripping silently) is the chosen behavior: silent
+stripping would hide a real agent defect from the person best placed to notice
+it, and this workbench exists to make agent behavior auditable.
+
+Historical data is not rewritten. The 2 polluted payloads of 35 stay as they are;
+the guard in D11.4 is what makes them readable.
+
 ### D10. Sequencing
 
 Rendering (D1, D2) first: it is independent, low-risk, and is the change the user
 feels immediately. Then the evidence backend (D6–D9), because it is what unblocks
-runs on thin-coverage tickers and it needs a real run to validate. Then the debate
-stage (D3, D4), the largest frontend piece. Then the inspector (D5). Rebuild and
-commit `tradingagents/web/static/` once per frontend-touching phase, not once at
-the end, so static drift stays reviewable.
+runs on thin-coverage tickers and it needs a real run to validate. Then
+single-speaker turns (D11), which is backend prompt work that must land before
+the lanes exist to expose it. Then the debate stage (D3, D4), the largest
+frontend piece. Then the inspector (D5). Rebuild and commit
+`tradingagents/web/static/` once per frontend-touching phase, not once at the
+end, so static drift stays reviewable.
+
+D11 lands before D3/D4 for a practical reason: a fresh run is needed to confirm
+turns are clean, and that run takes minutes, so starting it before the largest
+frontend piece means its result is ready when the lanes are.
 
 ## Risks / Trade-offs
 
@@ -280,6 +354,22 @@ the end, so static drift stays reviewable.
   hard stop, and `LOW_CONFIDENCE` is required to cap downstream conviction. The
   residual risk is that a judging role ignores the conviction ceiling; cover it
   with a test asserting the confidence line reaches the manager prompt.
+- [Changing debate prompts changes analytical output, not just formatting] →
+  Removing the moderated-panel framing and branching the rebuttal instruction
+  alters what the researchers write, so recommendation text will differ from
+  historical runs even on identical inputs. This is an accepted behavior change,
+  bounded by keeping the substantive instruction set (growth/moat/indicators for
+  bull, risk/weakness/adverse-evidence for bear) untouched and changing only who
+  speaks and when a rebuttal is requested. Verify on a fresh run that both sides
+  still produce a full argument and that the research manager still reaches a
+  rating.
+- [Stripping the code-side speaker prefix breaks consumers that parse it] →
+  `history`, `bull_history`, `bear_history` and any downstream prompt lens that
+  splits on `Bull Analyst:` / `Bear Analyst:` must be audited before the prefix
+  moves out of the turn body. Grep for the literal labels across
+  `tradingagents/agents/` and `tradingagents/observability/` first; keep the
+  labels in the composed `history` transcript so lenses that rely on them keep
+  working.
 - [Existing tests encode the current UI shape] → `Inspector`, `Timeline`,
   `WorkflowMap`, `RoleInputPanel`, `Controls`, `RunHistory` vitest suites and
   `e2e/workbench.spec.ts` will need rewriting, not just patching. Treat test
@@ -302,6 +392,15 @@ No data migration. Behavior migration in two parts:
    commit plus a rebuild; the backend and frontend phases are independently
    revertable because the confidence verdict travels through existing contract
    fields.
+
+## Resolved Questions
+
+- *Should the F6 debate-authorship defect be folded into this change or split into
+  its own?* Resolved by the user on 2026-07-25: folded in. It is now capability
+  `debate-turn-authorship` with its own implementation phase (3A), rather than a
+  prerequisite bullet hanging off the debate-stage phase. The reason it belongs
+  here is that the opposed-lane debate stage — the centrepiece of this change —
+  presumes one turn carries one speaker, and that presumption is currently false.
 
 ## Open Questions
 

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -92,7 +92,7 @@ def test_persisted_event_is_derived_from_draft_with_required_envelope():
     event = PersistedEvent.from_draft(
         draft,
         3,
-        datetime(2026, 7, 18, 12, 30, tzinfo=UTC),
+        datetime(2026, 7, 18, 12, 30, tzinfo=timezone.utc),
     )
 
     assert event.event_id == "run_1:3"

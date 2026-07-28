@@ -5,12 +5,14 @@
 <div align="center" style="line-height: 1;">
   <a href="https://arxiv.org/abs/2412.20138" target="_blank"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv"/></a>
   <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
-  <a href="./assets/wechat.png" target="_blank"><img alt="WeChat" src="https://img.shields.io/badge/WeChat-TauricResearch-brightgreen?logo=wechat&logoColor=white"/></a>
   <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
-  <br>
-  <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/Join_GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
+  <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
 </div>
-
+<br>
+<div align="center">
+  <a href="https://github.com/TauricResearch" target="_blank"><img alt="TradingAgents #1 Repository of the Day" src="https://trendshift.io/api/badge/repositories/16192" width="250" height="55"/></a>
+</div>
+<br>
 <div align="center">
   <!-- Keep these links. Translations will automatically update with the README. -->
   <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
@@ -39,24 +41,14 @@
 - [2026-01] **Trading-R1** [Technical Report](https://arxiv.org/abs/2509.11420) released, with [Terminal](https://github.com/TauricResearch/Trading-R1) expected to land soon.
 
 <div align="center">
-<a href="https://www.star-history.com/#TauricResearch/TradingAgents&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" />
-   <img alt="TradingAgents Star History" src="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" style="width: 80%; height: auto;" />
- </picture>
-</a>
+
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+
 </div>
 
 > 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
 >
 > So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
-
-<div align="center">
-
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
-
-</div>
 
 ## TradingAgents Framework
 
@@ -229,8 +221,8 @@ You will see a screen where you can select your desired tickers, analysis date, 
 ### Local web workbench
 
 A localhost-only web UI that runs the real TradingAgents graph and visualizes
-the 13-role debate, tool/data calls, exact role inputs, and final reports in a
-browser. Additive to the CLI; shares the same execution path.
+the 13-role workflow, tool/data calls, exact role inputs, and final reports in a
+browser. It is additive to the CLI and shares the same execution path.
 
 ```bash
 pip install -e ".[web]"          # FastAPI/Uvicorn/RFC8785 + LangGraph floor (plus .[china] for A-share data)
@@ -238,19 +230,37 @@ tradingagents web                # open http://127.0.0.1:8000 (loopback only; --
 tradingagents inspect-preset path/to/preset.yaml  # validate YAML analyst order and fixed convergence roles
 ```
 
-Enter a ticker, date, analysts, depth, and provider/models, then watch the
-workflow map fill role-by-role, the debate timeline, and a per-role audit
-inspector. Only one analysis runs at a time; history persists across restarts.
+Enter a ticker, date, analysts, depth, and provider/models, then follow the six
+stage groups — analysts, evidence, research debate, trader, risk debate, and
+portfolio decision. Wide layouts draw typed handoff/adversarial/convergence
+edges between role nodes; narrow layouts retain the stage-grouped map without
+claiming geometry that cannot fit. Only one analysis runs at a time, and run
+history persists across restarts.
 
+- **Readable reports**: narrative artifacts and turn responses render sanitized
+  GitHub-flavored Markdown. Prompts and machine payloads stay byte-faithful in
+  a monospace data view.
+- **Response loading**: turn responses appear automatically. The initial window
+  loads full text; later turns load bounded excerpts and expose an explicit
+  full-text expansion control, with a four-request concurrency ceiling.
+- **Evidence semantics**: `PASS` proceeds normally, `LOW_CONFIDENCE` proceeds
+  with visible limitations and a downstream conviction cap, and hard identity
+  or fatal core-data conflicts remain `FAIL_STOP`. The default
+  `evidence_stop_on_fail` is `False`; see `.env.example` for overrides.
+- **Current inspector boundary**: the inspector still uses the existing tabbed
+  run/role structure. The planned flat four-section turn inspector and the
+  round/lane debate-script redesign are tracked as later phases in
+  `openspec/changes/workbench-debate-narrative-and-evidence-degradation/`.
 - **Where data lives**: each run is under `~/.tradingagents/web/runs/<run_id>/`
   (append-only `events.jsonl`, content-addressed artifacts, Markdown reports).
 - **Privacy**: the server binds `127.0.0.1` and never sends API-key values to
   the browser (only configured/missing status). Stock data, news, and prompts
-  still go to your chosen vendors/LLM - `localhost` means the page is not
-  public, not that queries stay local.
+  still go to your chosen vendors/LLM — `localhost` means the page is not
+  public, not that queries stay local. Evidence-gate faults persist only the
+  exception category, never raw exception text that may contain URLs or tokens.
 - **Editing the frontend** (only when changing `frontend/src`): the committed
   `tradingagents/web/static/` build ships in the wheel, so Node is not needed
-  at runtime. After a src change, rebuild and commit the drift:
+  at runtime. After a source change, rebuild and commit the drift:
   `npm --prefix frontend ci && npm --prefix frontend run build`.
 
 ### Markets and tickers

@@ -100,7 +100,7 @@ class EventSubscription:
                         ),
                         timeout=wait_seconds,
                     )
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     return Keepalive()
             if self.queue:
                 return self.queue.popleft()

@@ -24,6 +24,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
 )
 from tradingagents.agents.utils.structured import (
+    NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,
 )
@@ -55,6 +56,12 @@ def create_portfolio_manager(llm):
         risk_signal_context = _render_risk_signal_context(risk_signals)
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+
+        evidence_status = state.get("evidence_status", "")
+        evidence_report = state.get("evidence_report", "")
+        evidence_confidence_line = _extract_evidence_confidence_line(evidence_report)
+        conviction_cap = _pm_conviction_cap_for_evidence(evidence_status, evidence_confidence_line)
+
         skill_trigger_text = build_skill_trigger_context(
             research_plan, trader_plan, risk_debate_state.get("history", "")
         )
@@ -89,6 +96,7 @@ def create_portfolio_manager(llm):
 - **Hold**: Maintain current position, no action needed
 - **Underweight**: Reduce exposure, take partial profits
 - **Sell**: Exit position or avoid entry
+{conviction_cap}
 
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
@@ -102,7 +110,9 @@ def create_portfolio_manager(llm):
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts.
+
+{NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 
         prompt += (
             "\nThe typed public risk signals above are the only risk-conviction input. "
@@ -276,3 +286,35 @@ def _append_measured_feature_contributions(decision: str, raw_contributions: obj
         for item in contributions
     )
     return decision + "\n" + "\n".join(lines)
+
+
+def _extract_evidence_confidence_line(evidence_report: str) -> str | None:
+    """Extract the 'Evidence confidence:' line from an evidence steward report."""
+    if not evidence_report:
+        return None
+    for line in evidence_report.splitlines():
+        if line.strip().startswith("Evidence confidence:"):
+            return line.strip()
+    return None
+
+
+def _pm_conviction_cap_for_evidence(
+    evidence_status: str, confidence_line: str | None
+) -> str:
+    """Return a prompt fragment capping final-decision conviction on weak evidence.
+
+    Mirrors the research-manager cap but speaks in the PM's vocabulary:
+    final rating capped at Overweight/Underweight, and confidence in the
+    typed decision must be reduced.
+    """
+    if evidence_status == "LOW_CONFIDENCE":
+        detail = confidence_line or "evidence below sufficiency thresholds"
+        return (
+            f"\n**Evidence Confidence Cap:** {detail}. Because upstream evidence "
+            "coverage is below the sufficiency threshold, you MUST cap your "
+            "rating at Overweight (bull-leaning) or Underweight (bear-leaning) "
+            "— do NOT issue Buy or Sell. Set your decision confidence to reflect "
+            "the weakened evidence base, and state explicitly in your rationale "
+            "that evidence confidence is LOW and the rating is capped accordingly.\n"
+        )
+    return ""

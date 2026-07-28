@@ -132,22 +132,98 @@ export const ROLE_LABELS_ZH: Record<string, string> = {
 // Icon color class
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Icon color class
+// ---------------------------------------------------------------------------
+
 /**
  * Returns the CSS modifier class for the .node-icon background/color.
  * Drives .node.bull / .node.bear / .node.risk in workbench.css.
- *
- * Maps by actor_id (NOT by StageId) because the "research" stage contains
- * both bull ('bull' / green) and bear ('bear' / red) plus manager (''),
- * which need distinct classes that a stage-level lookup cannot distinguish.
- *
- *   researcher.bull -> 'bull'
- *   researcher.bear -> 'bear'
- *   risk.*          -> 'risk'
- *   (everything else) -> ''
  */
 export function stageColorClass(actor_id: string): string {
   if (actor_id === "researcher.bull") return "bull";
   if (actor_id === "researcher.bear") return "bear";
   if (actor_id.startsWith("risk.")) return "risk";
   return "";
+}
+
+// ---------------------------------------------------------------------------
+// Edges
+// ---------------------------------------------------------------------------
+
+export type EdgeKind = "handoff" | "adversarial" | "convergence";
+
+export interface EdgeDef {
+  from: string;
+  to: string;
+  kind: EdgeKind;
+}
+
+/**
+ * Declarative edge table for the flow map.
+ *
+ * Kinds:
+ * - handoff: sequential stage transition between role nodes
+ * - adversarial: back-and-forth between opposing roles in a debate
+ * - convergence: debate roles flowing into their judge
+ *
+ * Endpoints reference actor_ids from ROLE_REGISTRY.
+ */
+export const EDGES: EdgeDef[] = [
+  // Stage handoffs — one representative node per stage pair
+  { from: "analyst.fundamentals", to: "evidence.steward", kind: "handoff" },
+  { from: "evidence.steward", to: "researcher.bull", kind: "handoff" },
+  { from: "manager.research", to: "trader", kind: "handoff" },
+  { from: "trader", to: "risk.aggressive", kind: "handoff" },
+
+  // Research debate — adversarial
+  { from: "researcher.bull", to: "researcher.bear", kind: "adversarial" },
+
+  // Research debate → convergence into judge
+  { from: "researcher.bull", to: "manager.research", kind: "convergence" },
+  { from: "researcher.bear", to: "manager.research", kind: "convergence" },
+
+  // Risk debate — three-way adversarial (simplified as a triangle)
+  { from: "risk.aggressive", to: "risk.conservative", kind: "adversarial" },
+  { from: "risk.conservative", to: "risk.neutral", kind: "adversarial" },
+  { from: "risk.neutral", to: "risk.aggressive", kind: "adversarial" },
+
+  // Risk debate → convergence into judge
+  { from: "risk.aggressive", to: "manager.portfolio", kind: "convergence" },
+  { from: "risk.conservative", to: "manager.portfolio", kind: "convergence" },
+  { from: "risk.neutral", to: "manager.portfolio", kind: "convergence" },
+];
+
+// ---------------------------------------------------------------------------
+// Lane assignment for debate stages
+// ---------------------------------------------------------------------------
+
+export type LaneAssignment =
+  | { stage: "research"; lane: "bull" | "bear" | "judge" }
+  | { stage: "risk"; lane: "aggressive" | "neutral" | "conservative" | "judge" }
+  | null;
+
+/**
+ * Map an actor_id to its lane within a debate stage.
+ * Returns null for non-adversarial roles (analysts, evidence, trader).
+ */
+export function laneOf(actor_id: string): LaneAssignment {
+  switch (actor_id) {
+    case "researcher.bull":
+      return { stage: "research", lane: "bull" };
+    case "researcher.bear":
+      return { stage: "research", lane: "bear" };
+    case "manager.research":
+      return { stage: "research", lane: "judge" };
+    case "risk.aggressive":
+      return { stage: "risk", lane: "aggressive" };
+    case "risk.neutral":
+      return { stage: "risk", lane: "neutral" };
+    case "risk.conservative":
+      return { stage: "risk", lane: "conservative" };
+    case "manager.portfolio":
+      return { stage: "risk", lane: "judge" };
+    default:
+      return null;
+  }
 }

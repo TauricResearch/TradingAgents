@@ -38,6 +38,7 @@ from .ticker_utils import (
 
 class EvidenceStatus(str, Enum):
     PASS = "PASS"
+    LOW_CONFIDENCE = "LOW_CONFIDENCE"
     NEEDS_ENRICHMENT = "NEEDS_ENRICHMENT"
     FAIL_STOP = "FAIL_STOP"
 
@@ -49,6 +50,21 @@ class EvidenceGateError(RuntimeError):
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 OFFICIAL_A_SHARE_DOMAINS = ("cninfo.com.cn", "szse.cn", "sse.com.cn", "bse.cn")
 WRONG_IDENTITY_HINTS: tuple[str, ...] = ("恒瑞医药", "安洁科技")
+
+
+def _configured_tavily_keys() -> tuple[str, ...]:
+    """Read Tavily API keys from env, matching tavily_news.py's convention.
+
+    Supports both ``TAVILY_API_KEYS`` (comma-separated, preferred) and
+    ``TAVILY_API_KEY`` (legacy single-key). Returns an empty tuple when
+    neither is set.
+    """
+    multi = os.getenv("TAVILY_API_KEYS", "")
+    values = [part.strip() for part in multi.split(",") if part.strip()]
+    legacy = os.getenv("TAVILY_API_KEY", "").strip()
+    if legacy:
+        values.append(legacy)
+    return tuple(dict.fromkeys(values))
 
 
 def _get_wrong_identity_hints() -> tuple[str, ...]:
@@ -106,10 +122,22 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
     ticker = normalize_ticker_symbol(str(state.get("company_of_interest") or ""))
     profile = _complete_profile(state.get("canonical_company_profile"), ticker)
     if is_a_share_ticker(ticker) and not profile.get("name"):
-        return _fail_or_return(
-            "无法解析 A 股 canonical company profile，不能安全进入后续讨论。",
+        assessment = {
+            "status": EvidenceStatus.LOW_CONFIDENCE,
+            "reasons": ["无法解析 A 股 canonical company profile，身份信息不完整"],
+            "items": [],
+            "company_count": 0,
+            "mixed_count": 0,
+            "weighted_company": 0.0,
+            "weighted_mixed": 0.0,
+            "low_coverage": False,
+            "limitations": ["unresolved_a_share_profile"],
+        }
+        return _low_confidence_with_ledger(
             profile,
+            assessment,
             trade_date=str(state.get("trade_date") or ""),
+            enrichment_rounds=0,
         )
 
     core_warning = _assert_no_core_data_warnings(state, profile)
@@ -131,6 +159,15 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
             assessment,
             trade_date=str(state.get("trade_date") or ""),
             enrichment_rounds=0,
+        )
+    if assessment["status"] == EvidenceStatus.FAIL_STOP:
+        reason = "; ".join(assessment.get("reasons", [])) or "证据门控未通过"
+        return _fail_or_return(
+            reason,
+            profile,
+            assessment=assessment,
+            trade_date=str(state.get("trade_date") or ""),
+            hard_fail=True,
         )
 
     max_rounds = int(cfg.get("evidence_max_enrichment_rounds", 3))
@@ -180,18 +217,48 @@ def evaluate_and_enrich_evidence(state: dict[str, Any]) -> dict[str, Any]:
         )
         return result
 
-    reason = (
-        f"Tavily 补充 {max_rounds} 轮后仍不足："
-        f"{'; '.join(enriched_assessment['reasons']) or '未获得可用新闻证据'}。"
-    )
-    return _fail_or_return(
-        reason,
+    if enriched_assessment["status"] == EvidenceStatus.FAIL_STOP:
+        reason = (
+            f"Tavily 补充 {max_rounds} 轮后仍为致命问题："
+            f"{'; '.join(enriched_assessment['reasons']) or '未知原因'}。"
+        )
+        return _fail_or_return(
+            reason,
+            profile,
+            assessment=enriched_assessment,
+            trade_date=str(state.get("trade_date") or ""),
+            enrichment_rounds=max_rounds,
+            direction_scores=direction_scores,
+            hard_fail=True,
+        )
+
+    # NEEDS_ENRICHMENT after enrichment rounds exhausted → LOW_CONFIDENCE
+    low_conf_assessment = {
+        **enriched_assessment,
+        "status": EvidenceStatus.LOW_CONFIDENCE,
+    }
+    evidence_report = _format_evidence_report(
         profile,
-        assessment=enriched_assessment,
+        low_conf_assessment,
+        enrichment_rounds=max_rounds,
+    )
+    result = _low_confidence_with_ledger(
+        profile,
+        low_conf_assessment,
         trade_date=str(state.get("trade_date") or ""),
         enrichment_rounds=max_rounds,
         direction_scores=direction_scores,
     )
+    result.update(
+        {
+            "canonical_company_profile": profile,
+            "evidence_report": evidence_report,
+            "news_report": _format_evidence_news_package(
+                profile, all_items, evidence_report
+            ),
+        }
+    )
+    return result
 
 
 def _pass_with_ledger(
@@ -205,6 +272,33 @@ def _pass_with_ledger(
     result = {
         "canonical_company_profile": profile,
         "evidence_status": EvidenceStatus.PASS.value,
+        "evidence_report": _format_evidence_report(
+            profile,
+            assessment,
+            enrichment_rounds=enrichment_rounds,
+        ),
+    }
+    return _with_ledger(
+        result,
+        profile=profile,
+        assessment=assessment,
+        trade_date=trade_date,
+        enrichment_rounds=enrichment_rounds,
+        direction_scores=direction_scores,
+    )
+
+
+def _low_confidence_with_ledger(
+    profile: dict[str, Any],
+    assessment: dict[str, Any],
+    *,
+    trade_date: str,
+    enrichment_rounds: int,
+    direction_scores: Mapping[str, float] | None = None,
+) -> dict[str, Any]:
+    result = {
+        "canonical_company_profile": profile,
+        "evidence_status": EvidenceStatus.LOW_CONFIDENCE.value,
         "evidence_report": _format_evidence_report(
             profile,
             assessment,
@@ -457,27 +551,55 @@ def _complete_profile(profile: Any, ticker: str) -> dict[str, Any]:
     return resolve_canonical_company_profile(ticker)
 
 
+FATAL_DATA_PATTERNS: tuple[str, ...] = (
+    "no usable financial statement",
+)
+
+DEGRADED_DATA_PATTERNS: tuple[str, ...] = (
+    "Supplemental source: unavailable",
+    "Warning: Yahoo Finance",
+    "暂未获取",
+    "未获取到完整",
+    "Data unavailable",
+)
+
+
 def _assert_no_core_data_warnings(
     state: dict[str, Any], profile: dict[str, Any]
 ) -> dict[str, Any] | None:
     text = "\n\n".join(
         str(state.get(key) or "") for key in ("market_report", "fundamentals_report")
     )
-    warning_patterns = (
-        "Supplemental source: unavailable",
-        "Warning: Yahoo Finance",
-        "暂未获取",
-        "未获取到完整",
-        "no usable financial statement",
-        "Data unavailable",
-    )
-    hits = [pattern for pattern in warning_patterns if pattern.lower() in text.lower()]
-    if hits:
+    fatal_hits = [p for p in FATAL_DATA_PATTERNS if p.lower() in text.lower()]
+    degraded_hits = [p for p in DEGRADED_DATA_PATTERNS if p.lower() in text.lower()]
+
+    if fatal_hits:
         return _fail_or_return(
-            "股票或财务核心数据覆盖不足，已触发证据门控：" + ", ".join(hits),
+            "核心财务数据缺失，已触发证据门控：" + ", ".join(fatal_hits),
             profile,
             trade_date=str(state.get("trade_date") or ""),
+            hard_fail=True,
         )
+
+    if degraded_hits:
+        assessment = {
+            "status": EvidenceStatus.LOW_CONFIDENCE,
+            "reasons": ["数据质量降级：" + ", ".join(degraded_hits)],
+            "items": [],
+            "company_count": 0,
+            "mixed_count": 0,
+            "weighted_company": 0.0,
+            "weighted_mixed": 0.0,
+            "low_coverage": False,
+            "limitations": degraded_hits,
+        }
+        return _low_confidence_with_ledger(
+            profile,
+            assessment,
+            trade_date=str(state.get("trade_date") or ""),
+            enrichment_rounds=0,
+        )
+
     return None
 
 
@@ -565,23 +687,41 @@ def _assess_news_items(items: list[dict[str, Any]], profile: dict[str, Any]) -> 
     weighted_mixed = _credibility_weighted_count(mixed)
 
     if weighted_company >= min_company:
-        return _assessment_pass(items, company_items, mixed, low_coverage=False)
+        return _assessment_pass(
+            items, company_items, mixed,
+            low_coverage=False,
+            weighted_company=weighted_company,
+            weighted_mixed=weighted_mixed,
+        )
     if weighted_mixed >= min_mixed and (company_items or official_items):
-        return _assessment_pass(items, company_items, mixed, low_coverage=True)
+        return _assessment_pass(
+            items, company_items, mixed,
+            low_coverage=True,
+            weighted_company=weighted_company,
+            weighted_mixed=weighted_mixed,
+        )
 
     reasons = []
     if not items:
         reasons.append("未找到可解析新闻条目")
-    if len(company_items) < min_company:
-        reasons.append(f"公司直相关新闻 {len(company_items)}/{min_company}")
-    if len(mixed) < min_mixed:
-        reasons.append(f"混合证据 {len(mixed)}/{min_mixed}")
+    if weighted_company < min_company:
+        reasons.append(
+            f"公司直相关新闻加权 {weighted_company:.1f}/{min_company} "
+            f"(原始 {len(company_items)} 条)"
+        )
+    if weighted_mixed < min_mixed:
+        reasons.append(
+            f"混合证据加权 {weighted_mixed:.1f}/{min_mixed} "
+            f"(原始 {len(mixed)} 条)"
+        )
     return {
         "status": EvidenceStatus.NEEDS_ENRICHMENT,
         "reasons": reasons,
         "items": items,
         "company_count": len(company_items),
         "mixed_count": len(mixed),
+        "weighted_company": weighted_company,
+        "weighted_mixed": weighted_mixed,
         "low_coverage": False,
     }
 
@@ -592,13 +732,21 @@ def _assessment_pass(
     mixed_items: list[dict[str, Any]],
     *,
     low_coverage: bool,
+    weighted_company: float | None = None,
+    weighted_mixed: float | None = None,
 ) -> dict[str, Any]:
+    if weighted_company is None:
+        weighted_company = _credibility_weighted_count(company_items)
+    if weighted_mixed is None:
+        weighted_mixed = _credibility_weighted_count(mixed_items)
     return {
         "status": EvidenceStatus.PASS,
         "reasons": [],
         "items": items,
         "company_count": len(company_items),
         "mixed_count": len(mixed_items),
+        "weighted_company": weighted_company,
+        "weighted_mixed": weighted_mixed,
         "low_coverage": low_coverage,
     }
 
@@ -609,9 +757,10 @@ def _run_tavily_enrichment(
     rounds: int,
     deadline: float,
 ) -> list[dict[str, Any]]:
-    api_key = os.getenv("TAVILY_API_KEY")
-    if not api_key:
+    api_keys = _configured_tavily_keys()
+    if not api_keys:
         return []
+    api_key = api_keys[0]
     queries = _build_enrichment_queries(profile)
     if not queries:
         return []
@@ -659,9 +808,10 @@ def _run_tavily_enrichment_with_queries(
     deadline: float,
 ) -> list[dict[str, Any]]:
     """Run Tavily enrichment with pre-built queries (e.g. from news advisor)."""
-    api_key = os.getenv("TAVILY_API_KEY")
-    if not api_key or not queries:
+    api_keys = _configured_tavily_keys()
+    if not api_keys or not queries:
         return []
+    api_key = api_keys[0]
 
     items: list[dict[str, Any]] = []
     for index, spec in enumerate(queries[:rounds], start=1):
@@ -859,6 +1009,11 @@ def _find_wrong_identity_hits(items: list[dict[str, Any]], profile: dict[str, An
     hints = _get_wrong_identity_hints()
     hits: set[str] = set()
 
+    # When the profile has no resolved name, name-based identity comparison has
+    # no basis — skip name conflict checks rather than trivially flagging every
+    # candidate as unrelated (which would reject correct evidence).
+    profile_has_name = bool(profile_names)
+
     for item in items:
         text = _item_text(item)
         item_codes = _explicit_stock_codes(text)
@@ -876,7 +1031,8 @@ def _find_wrong_identity_hits(items: list[dict[str, Any]], profile: dict[str, An
             ):
                 hits.add(name)
 
-        hits.update(_wrong_names_bound_to_profile_code(text, profile, profile_names))
+        if profile_has_name:
+            hits.update(_wrong_names_bound_to_profile_code(text, profile, profile_names))
     return hits
 
 
@@ -987,18 +1143,36 @@ def _format_evidence_report(
     *,
     enrichment_rounds: int,
 ) -> str:
-    status_line = "低覆盖通过" if assessment.get("low_coverage") else "通过"
-    return "\n".join(
-        [
-            "## Evidence Steward Report",
-            format_company_profile(profile),
-            f"Status: {status_line}",
-            f"Company evidence items: {assessment.get('company_count', 0)}",
-            f"Mixed evidence items after deduplication: {assessment.get('mixed_count', 0)}",
-            f"Tavily enrichment rounds used: {enrichment_rounds}",
-            "Deduplication: URL query strings and repeated titles are collapsed before downstream context injection.",
-        ]
-    )
+    status = assessment.get("status")
+    if status == EvidenceStatus.LOW_CONFIDENCE:
+        status_label = "低信心通过"
+    elif assessment.get("low_coverage"):
+        status_label = "低覆盖通过"
+    else:
+        status_label = "通过"
+
+    weighted_company = assessment.get("weighted_company", assessment.get("company_count", 0))
+    weighted_mixed = assessment.get("weighted_mixed", assessment.get("mixed_count", 0))
+    cfg = get_config()
+    min_company = int(cfg.get("news_min_company_items", 3))
+    min_mixed = int(cfg.get("news_min_mixed_items", 5))
+
+    lines = [
+        "## Evidence Steward Report",
+        format_company_profile(profile),
+        f"Status: {status_label}",
+        f"Evidence confidence: {status.value if hasattr(status, 'value') else status} "
+        f"(company {weighted_company:.1f}/{min_company}, mixed {weighted_mixed:.1f}/{min_mixed})",
+        f"Company evidence items: {assessment.get('company_count', 0)}",
+        f"Mixed evidence items after deduplication: {assessment.get('mixed_count', 0)}",
+        f"Tavily enrichment rounds used: {enrichment_rounds}",
+        "Deduplication: URL query strings and repeated titles are collapsed before downstream context injection.",
+    ]
+    if assessment.get("reasons"):
+        lines.append("Limitations:")
+        for reason in assessment["reasons"]:
+            lines.append(f"- {reason}")
+    return "\n".join(lines)
 
 
 def _format_evidence_news_package(
@@ -1083,6 +1257,7 @@ def _fail_or_return(
     trade_date: str = "",
     enrichment_rounds: int = 0,
     direction_scores: Mapping[str, float] | None = None,
+    hard_fail: bool = False,
 ) -> dict[str, Any]:
     cfg = get_config()
     report = "\n".join(
@@ -1110,6 +1285,6 @@ def _fail_or_return(
         enrichment_rounds=enrichment_rounds,
         direction_scores=direction_scores,
     )
-    if cfg.get("evidence_stop_on_fail", True):
+    if hard_fail or cfg.get("evidence_stop_on_fail", False):
         raise EvidenceGateError(f"{reason}\n\n{report}")
     return result

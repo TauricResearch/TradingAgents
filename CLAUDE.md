@@ -39,7 +39,7 @@ tradingagents web --port 8765 --open      # custom port + open the browser
 npm --prefix frontend run build          # rebuild frontend into tradingagents/web/static/ (run when src/ui changes)
 npm --prefix frontend run typecheck      # strict TS check (tsc -b --noEmit)
 npm --prefix frontend run test -- --run  # vitest unit tests
-npm --prefix frontend run test:e2e       # Playwright (python scripts/e2e_server.py must start; some specs skipped, see Handoff.md)
+npm --prefix frontend run test:e2e       # Playwright against scripts/e2e_server.py; deterministic fake runner, no provider calls
 ```
 
 ## Core Architecture
@@ -48,7 +48,7 @@ npm --prefix frontend run test:e2e       # Playwright (python scripts/e2e_server
 
 ```
 START → Analyst Team (sequential, configurable: market/social/news/fundamentals)
-  → Evidence Steward (assesses evidence quality; enriches via Tavily if thin)
+  → Evidence Steward (PASS / LOW_CONFIDENCE / FAIL_STOP; enriches via Tavily if thin)
   → Bull Researcher ↔ Bear Researcher (multi-round debate, judged by Research Manager)
   → Trader (produces transaction proposal)
   → Aggressive ↔ Conservative ↔ Neutral (risk management 3-way debate)
@@ -97,14 +97,14 @@ Data calls route through `tradingagents/dataflows/interface.py` → `route_to_ve
 
 1. **A-share support**: `tradingagents/dataflows/china_data.py` + `tradingagents/dataflows/mootdx_provider.py`; mootdx (TDX TCP 7709, no IP ban) is the primary A-share OHLCV source, tushare remains primary for fundamentals, akshare is fallback (yfinance is skipped — needs VPN, poor A-share coverage). A-share financial statements use Sina-based AKShare (`stock_financial_report_sina`, `stock_financial_abstract`) as reliable fallback when EastMoney endpoints are blocked. Local three-tier identity resolution (tushare -> akshare -> yfinance).
 2. **Tavily news**: `tradingagents/dataflows/tavily_news.py`, A-share query templates, topic fallback, domain/score filters
-3. **Evidence Steward**: `tradingagents/agents/evidence_steward.py` + `tradingagents/dataflows/evidence.py`, assesses evidence sufficiency before downstream debate, enriches via Tavily when thin/contradictory/identity-ambiguous
+3. **Evidence Steward**: `tradingagents/agents/evidence_steward.py` + `tradingagents/dataflows/evidence.py`, assesses evidence sufficiency before downstream debate and enriches via Tavily when thin/contradictory/identity-ambiguous. Terminal verdicts are `PASS`, `LOW_CONFIDENCE`, and `FAIL_STOP`; `evidence_stop_on_fail` defaults to `False`, but hard identity conflicts and fatal core-data conditions remain unconditional stops. `LOW_CONFIDENCE` reaches Research/Portfolio Manager prompts as a conviction cap. Unexpected steward faults persist only the exception category, never raw exception text.
 4. **News Advisor**: `tradingagents/dataflows/news_advisor.py`, LLM-driven (Agentic RAG reflection) coverage-gap analysis + targeted search
 5. **Credibility Scoring**: `tradingagents/dataflows/credibility.py`, news source credibility scoring
 6. **Cross-source Consistency**: `tradingagents/dataflows/consistency.py`, cross-source consistency detection
 7. **Market Data Validator**: `tradingagents/dataflows/market_data_validator.py`, deterministic snapshot to ground numeric claims (stops LLM confabulation of prices/indicators)
 8. **Symbol Normalization**: `tradingagents/dataflows/symbol_utils.py`, normalize commodity/forex/crypto/A-share tickers
 9. **Progress events**: `tradingagents/dataflows/progress.py`, lightweight data-call progress events surfaced in the Chinese CLI
-10. **Local web workbench**: `tradingagents web` (loopback-only) runs the real LangGraph and visualizes the 13-role debate via a React+TS+Vite SPA served by FastAPI (SSE). Frontend lives in `frontend/`; its committed build output is `tradingagents/web/static/` so an installed wheel serves without Node. Backend under `tradingagents/observability/` (events/roles/observer/projections) + `tradingagents/web/` (api/broker/manager/store) + `tradingagents/execution/runner.py`; detailed progress is in `Handoff.md`. Rebuild the frontend and commit the static drift whenever `frontend/src` changes.
+10. **Local web workbench**: `tradingagents web` (loopback-only) runs the real LangGraph via a React+TS+Vite SPA served by FastAPI (SSE). The current UI groups all 13 roles into six workflow stages, draws typed SVG edges when geometry is available, renders narrative artifacts through sanitized Markdown, and auto-loads turn responses with a bounded concurrency/window policy. The inspector remains the existing tabbed structure; the flat turn inspector and round/lane debate script are still pending in the active OpenSpec change. Frontend lives in `frontend/`; its committed build output is `tradingagents/web/static/` so an installed wheel serves without Node. Backend is under `tradingagents/observability/` + `tradingagents/web/` + `tradingagents/execution/runner.py`. Rebuild and commit static drift whenever `frontend/src` changes.
 11. **A-share data source overhaul**: mootdx (TDX TCP 7709, no IP ban) is the primary A-share OHLCV source; tencent (qt.gtimg.cn) provides realtime PE/PB/market-cap; specialty data (dragon-tiger/lockups/block-trades/shareholder-counts/limit-up/break-board/limit-down/prev-limit-up pools) uses EastMoney direct HTTP (datacenter/push2ex) via `china_specialty_em.py` with SSE/SZSE official backups; new capabilities: research reports (reportapi + THS consensus EPS), industry/concept boards, ETF option T-quotes/Greeks (Sina), market hot-list/concept-hits (THS+EastMoney). akshare retained only for macro + interactive Q&A. CLS telegraph revived with local signing (zero key).
 
 ## Design Principles
@@ -113,5 +113,5 @@ Data calls route through `tradingagents/dataflows/interface.py` → `route_to_ve
 - **Stop and ask when uncertain**: If anything is unclear or unconfirmed, pause and clarify before proceeding — never assume
 - **Single source of truth for config**: All configurable items must be managed through `default_config.py`'s `DEFAULT_CONFIG` dict + `_ENV_OVERRIDES` mapping
 - **Structured output**: Research Manager / Trader / Portfolio Manager use Pydantic schemas to constrain LLM output; `render_*` functions convert back to markdown for downstream consumers
-- **Fail-open on data**: Data fetch failures do not block the pipeline; after fallback chain exhaustion, a `NO_DATA_AVAILABLE` sentinel is returned so agents report unavailability rather than fabricating data
+- **Evidence-aware degradation**: ordinary provider gaps and thin coverage should remain explicit and continue as `LOW_CONFIDENCE`; hard identity conflicts and fatal core-data conditions remain `FAIL_STOP`. Never erase limitations or silently promote degraded evidence to `PASS`
 - **A-share-first identity resolution**: A-share tickers resolve identity via the local 3-tier chain (tushare -> akshare -> yfinance) in `resolve_canonical_company_profile()`; non-A-share tickers use upstream `resolve_instrument_identity()` (yfinance). The branch lives in `TradingAgentsGraph.resolve_instrument_context()`. Never bypass the local chain for A-shares - yfinance coverage is poor and often returns wrong/English names.

@@ -1,6 +1,6 @@
 # TradingAgents Local Web Handoff
 
-Last updated: 2026-07-23
+Last updated: 2026-07-27
 
 > 2026-07-23 现役补充：Workbench 已支持真实组合约束（合法动作集、数量 clamp 审计、
 > 快照恢复和前端输入）以及 YAML 分析师 preset（仅启停/排序四个分析师；其余九个
@@ -16,7 +16,30 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The user explicitly approved the corrected formal specification on 2026-07-18. The implementation plan is complete at `docs/superpowers/plans/2026-07-18-local-web-workbench-implementation.md`. Phases A, B, and C plus Stories D1, D2, D3, E1, E2, and E3 are implemented. The persistence boundary now covers redaction/canonical hashing, ticker-independent run directories, atomic snapshots, append-and-fsync events, restart history, traversal rejection, content-addressed artifacts, immutable retry-safe report revisions, and canonical report publication through a verified/fsynced temporary tree plus atomic rename. `RunStore` rejects `run.completed` unless `reports/complete_report.md` is already published. Observation separates stable logical turns from concrete LangGraph task invocations, durably correlates prompts, model attempts, logical tool requests, tool executions, retries, failures, and direct-call scopes, and rebuilds only committed or pending-apply tool requests after restart. All 13 roles now have exact code-audited state projections, Evidence Steward configuration drift protection, and observed role/tool/maintenance/input tasks that return checkpoint commit tokens. Vendor attempts preserve raw provider values where an adapter exposes them, keep adapter output distinct from normalized Agent input, record fallback lineage, and isolate news caching by analysis run. CLI, web, and programmatic execution converge on one successful-result-only `AnalysisRunner`. Checkpoint-enabled web runs are isolated by `run_id` and cannot open SQLite until the concrete durable fingerprint guard has persisted or strictly compared the actual resolved initial context, complete secret-free semantic configuration, runtime source/dependency identity, and schema versions. Checkpointed observed runs now use LangGraph `tasks`/`updates`/`checkpoints` streaming with synchronous durability, accept state only from a saver-verified checkpoint payload, reconcile the SQLite frontier against append-only candidates, resume with `None`, and promote state, tools, turns, roles, and report revisions only after the durable marker. Checkpoint-disabled observed runs use a values barrier and remain non-resumable. The local event broker now holds the shared per-run lock across append/fsync and publication, captures an atomic replay watermark, hands off to bounded loop-owned live queues without gaps or duplicates, isolates slow subscribers, emits only ephemeral keepalives, and closes terminal streams after their captured watermark without cancelling the underlying analysis. `SingleRunManager` now owns the one-active-run invariant, initializes all 13 role lifecycles, scopes and restores every process-global execution dependency, publishes immutable successful reports before terminal success, compensates open child lifecycles before cancel/failure/interruption, reconciles checkpoint state before startup interruption, supports new-run retry and same-run compatible resume, and writes terminal snapshot fields before terminal events. Resume authorization is frozen by a one-shot checkpoint guard before `run.resumed`; a missing checkpoint is rejected without mutating the stored run snapshot. The FastAPI boundary now exposes validated secret-free configuration, run commands/history, lazy run-scoped artifacts, persisted-envelope SSE with reconnect cursors, startup recovery, restrictive local asset headers, and SPA fallback that never captures unknown `/api/*` routes. Story E4 adds the loopback-only `tradingagents web` launcher, migrates CLI rendering onto the shared `AnalysisRunner` via a new `state_update_sink`, and preserves legacy root/`analyze` config, exit, and exception behavior. Story F1 scaffolds the React + TypeScript + Vite frontend building straight into the tracked `tradingagents/web/static` package, so `tradingagents web` serves a styled V2 three-column shell with no Node at runtime; the App shell only touches the real `/api/config` boundary and carries no fabricated role/event data. F2 typed contracts (`frontend/src/api/contracts.ts` + `frontend/src/state/model.ts`) are landed and programmatically audited against the backend event schema and the 13-role registry with zero drift. Story F2 implements the shared live/history event reducer (`runReducer.ts`), typed API client (`client.ts`), SSE `eventSource.ts`, the `useRunStream` hook, and the `WorkbenchStore` context; the core batch-replay-vs-one-by-one-live deep-equal invariant is covered by a reducer unit test, and `run.cancel_requested` was added to the typed event union (it was missing from the F2 type design). Story F3 adds the left-sidebar controls (ticker/date/analysts/depth/provider/models/language/checkpoint + key status + start/cancel) and the run history list, wired into the three-column V2 layout; provider->model linkage lives in the `useConfig` hook (switching provider resets quick/deep to that provider's first option), `/api/config` is the single authority, and the browser never receives secret values. Story G1 adds the 13-role workflow map in the center column: 3-row grid with custom inline SVG icons (ported verbatim from the V2 mockup), Chinese labels, per-role status (pending/running+round/completed/failed/cancelled/interrupted/skipped/not_reached), and a progress note; the map renders all 13 pending placeholders even before any run starts (design A) so the workflow structure is always visible. Story G2 adds the debate/verdict timeline in the center column: one item per turn_id with team/role filters, manager/portfolio verdicts highlighted, candidate (output_ready, not committed) output separated from committed turns, and per-turn response text lazy-loaded from the turn.output_ready artifact (the JSON-serialized business_delta) via a per-actor field extractor verified against AgentState. Story G3 completes the audit inspector: right column has four top-level tabs (角色输入/数据与工具/产物/本次输入) with the role-input tab exposing five audit views (数据字段/上游资料/Prompt/原始值/配置); artifact content is lazy-loaded via `useArtifact` with an in-memory cache, and the artifact->turn join (`ArtifactRecord.turn_id`) is populated by the reducer from `input.*` events and exposed via the new `artifactsForTurn` selector. Story G4 closes the spec §17.3 coverage gaps: per-run state isolation, invalid-transition tolerance, refresh recovery (snapshot seed + event-fold equivalence), abandoned task handling, terminal interruption, and the three remaining role-input audit tabs (上游资料/原始值/配置).
+The active OpenSpec change is
+`workbench-debate-narrative-and-evidence-degradation`. On
+`feat/workbench-debate-narrative`, Phases 1–4 and 3A are implemented:
+
+- sanitized prose Markdown plus literal data rendering;
+- windowed automatic turn-response loading;
+- `PASS` / `LOW_CONFIDENCE` / `FAIL_STOP` evidence semantics with downstream
+  conviction caps and exception-category-only fault persistence;
+- single-speaker research/risk debate prompts with conditional rebuttals;
+- a six-stage workflow map with typed SVG edges and a narrow-layout fallback.
+
+Phases 5 and 6 are deliberately not complete: the timeline has not yet been
+rewritten into round/lane debate-script blocks, and the inspector has not yet
+been flattened into identity/evidence/prompt/output sections. The authoritative
+task-level boundary is
+`openspec/changes/workbench-debate-narrative-and-evidence-degradation/PROGRESS.md`.
+
+Current no-cost verification: strict TypeScript passed, 94 Vitest tests passed,
+49 focused backend tests passed, and 9 deterministic Playwright specs passed.
+The full backend suite reached 1,331 passed with two known historical failures
+(`test_missing_console_prints_actionable_message` and
+`test_business_projection_selects_only_declared_agent_state_channels`). The
+browser run uses the fake runner and does not prove a real provider or a
+thin-coverage ticker path.
 
 ## Confirmed constraints
 
@@ -132,7 +155,13 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-The implementation plan (phases A-H) is complete plus the 2026-07-21 hardening pass. All stories landed: E4 (web launcher + CLI migration), F1-F3 (scaffold + reducer + controls), G1-G4 (workflow map + timeline + inspector + coverage), H1 (e2e integration tests), H2 (CI + release docs), H3 (real smoke + identity fix), and the 2026-07-21 bug/gap/test pass (broker instance fix, Bug 1 onClose reset, G1-G6, language narrowing, Playwright re-enabled). Potential future work: add Tushare paid-tier credentials for full A-share financial statements; deepen the audit inspector (candidate/abandoned frontier labels, tool-output artifact lazy-load once the backend payload carries an output_artifact_id); add retry/resume Playwright specs (needs fake runner support for interrupted+checkpoint); optimize `list_runs`/`read_artifact` if run count grows (current baseline 6.8ms/1.5ms for 20 runs).
+1. Publish the completed Phase 1–4/3A slice to `david188888/TradingAgents:main`.
+2. Continue on `codex/workbench-debate-script-and-inspector` from the real merged
+   `origin/main` commit.
+3. Implement Phase 5 (round/lane debate script and historical-attribution guard).
+4. Implement Phase 6 (flat turn-scoped inspector and run-scope relocation).
+5. Re-run deterministic browser coverage, then separately request approval
+   before any real-provider/thin-coverage acceptance run that may incur cost.
 
 ## Notes
 

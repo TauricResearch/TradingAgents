@@ -13,7 +13,10 @@
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-markdown": "9.1.0",
+    "rehype-sanitize": "6.0.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

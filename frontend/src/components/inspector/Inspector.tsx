@@ -14,6 +14,7 @@ import { useState } from "react";
 import type { ReducerState, Report } from "../../state/model";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { useArtifact } from "../../hooks/useArtifact";
+import { SafeMarkdown } from "../shared/SafeMarkdown";
 import { RoleInputPanel } from "./RoleInputPanel";
 import { ToolCallCard } from "../tools/ToolCallCard";
 import { VendorProvenance } from "../tools/VendorProvenance";
@@ -55,7 +56,7 @@ function ReportBody({
   if (content === null) {
     return <div className="placeholder">（无内容）</div>;
   }
-  return <pre className="tool-body">{content}</pre>;
+  return <SafeMarkdown content={content} mode="prose" />;
 }
 
 function ReportCard({
