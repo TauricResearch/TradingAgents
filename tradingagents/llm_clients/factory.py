@@ -1,4 +1,6 @@
 
+from typing import Any
+
 from .base_client import BaseLLMClient
 
 
@@ -6,7 +8,7 @@ def create_llm_client(
     provider: str,
     model: str,
     base_url: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> BaseLLMClient:
     """Create an LLM client for the specified provider.
 

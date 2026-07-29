@@ -1,3 +1,5 @@
+from typing import Any
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -10,8 +12,8 @@ from tradingagents.agents.utils.agent_utils import (
 )
 
 
-def create_news_analyst(llm):
-    def news_analyst_node(state):
+def create_news_analyst(llm: Any) -> Any:
+    def news_analyst_node(state: Any) -> dict[str, Any]:
         current_date = state["trade_date"]
         asset_type = state.get("asset_type", "stock")
         asset_label = "company" if asset_type == "stock" else "asset"

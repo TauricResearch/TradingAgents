@@ -44,7 +44,7 @@ from .signal_processing import SignalProcessor
 logger = logging.getLogger(__name__)
 
 
-def _coerce_max_retries(value):
+def _coerce_max_retries(value: Any) -> int:
     """Validate an ``llm_max_retries`` value to a non-negative int.
 
     Accepts an int or a numeric string (env vars arrive as strings). Rejects
@@ -67,11 +67,11 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=("market", "social", "news", "fundamentals"),
-        debug=False,
-        config: dict[str, Any] = None,
-        callbacks: list | None = None,
-    ):
+        selected_analysts: tuple[str, ...] = ("market", "social", "news", "fundamentals"),
+        debug: bool = False,
+        config: dict[str, Any] | None = None,
+        callbacks: list[Any] | None = None,
+    ) -> None:
         """Initialize the trading agents graph and components.
 
         Args:
@@ -138,9 +138,9 @@ class TradingAgentsGraph:
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
         # State tracking
-        self.curr_state = None
-        self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
+        self.curr_state: dict | None = None
+        self.ticker: str | None = None
+        self.log_states_dict: dict[str, Any] = {}  # date to full state dict
 
         # Graph-shape-affecting run choices, kept for the checkpoint signature.
         self.selected_analysts = tuple(selected_analysts)
@@ -359,7 +359,7 @@ class TradingAgentsGraph:
             f"asset={asset_type}",
         ])
 
-    def propagate(self, company_name, trade_date, asset_type: str = "stock"):
+    def propagate(self, company_name: str, trade_date: str, asset_type: str = "stock") -> tuple[dict, Any]:
         """Run the trading agents graph for a company on a specific date.
 
         ``asset_type`` selects between the stock pipeline (default) and the
@@ -401,7 +401,7 @@ class TradingAgentsGraph:
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def save_reports(self, final_state, ticker, save_path=None) -> Path:
+    def save_reports(self, final_state: dict, ticker: str, save_path: str | Path | None = None) -> Path:
         """Write the markdown report tree for a completed run, like the CLI does.
 
         Programmatic callers get the same on-disk reports the CLI produces. Pass
@@ -416,7 +416,7 @@ class TradingAgentsGraph:
             )
         return write_report_tree(final_state, ticker, save_path)
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
+    def _run_graph(self, company_name: str, trade_date: str, asset_type: str = "stock") -> tuple[dict, Any]:
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
@@ -481,7 +481,7 @@ class TradingAgentsGraph:
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
-    def _log_state(self, trade_date, final_state):
+    def _log_state(self, trade_date: str, final_state: dict) -> None:
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
@@ -523,6 +523,6 @@ class TradingAgentsGraph:
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
 
-    def process_signal(self, full_signal):
+    def process_signal(self, full_signal: str) -> Any:
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)

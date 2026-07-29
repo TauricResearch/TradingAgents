@@ -10,6 +10,8 @@ back gracefully to free-text generation.
 
 from __future__ import annotations
 
+from typing import Any
+
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
@@ -22,10 +24,10 @@ from tradingagents.agents.utils.structured import (
 )
 
 
-def create_portfolio_manager(llm):
+def create_portfolio_manager(llm: Any) -> Any:
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
-    def portfolio_manager_node(state) -> dict:
+    def portfolio_manager_node(state: Any) -> dict:
         instrument_context = get_instrument_context_from_state(state)
 
         history = state["risk_debate_state"]["history"]

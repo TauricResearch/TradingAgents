@@ -45,7 +45,7 @@ def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
     return df
 
 
-def _fmt(value) -> str:
+def _fmt(value: Any) -> str:
     if value is None or pd.isna(value):
         return "N/A"
     if isinstance(value, pd.Timestamp):

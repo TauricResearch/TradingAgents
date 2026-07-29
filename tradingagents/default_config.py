@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 
@@ -32,7 +33,7 @@ _BOOL_TRUE = ("true", "1", "yes", "on")
 _BOOL_FALSE = ("false", "0", "no", "off")
 
 
-def _coerce(value: str, reference):
+def _coerce(value: str, reference: Any) -> Any:
     """Coerce env-var string to the type of the existing default value.
 
     Invalid values raise ``ValueError`` rather than silently falling back to a
@@ -55,7 +56,7 @@ def _coerce(value: str, reference):
     return value
 
 
-def _apply_env_overrides(config: dict) -> dict:
+def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
     """Apply TRADINGAGENTS_* env vars to the config dict in-place."""
     for env_var, key in _ENV_OVERRIDES.items():
         raw = os.environ.get(env_var)

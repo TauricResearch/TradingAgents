@@ -69,7 +69,7 @@ def _extract_article_data(article: dict) -> dict:
         }
 
 
-def _in_news_window(pub_date, start_dt, end_dt) -> bool:
+def _in_news_window(pub_date: str | None, start_dt: datetime, end_dt: datetime) -> bool:
     """Whether an article belongs in the half-open window ``[start, end + 1 day)``.
 
     Every operand is normalized to UTC, and the upper bound is exclusive so an

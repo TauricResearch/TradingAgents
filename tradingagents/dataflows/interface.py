@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from .alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
@@ -165,7 +166,7 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
-def route_to_vendor(method: str, *args, **kwargs):
+def route_to_vendor(method: str, *args: Any, **kwargs: Any) -> Any:
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)

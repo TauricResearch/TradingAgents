@@ -76,7 +76,7 @@ def _clean_identity_value(value: Any) -> str | None:
 
 
 @functools.lru_cache(maxsize=256)
-def resolve_instrument_identity(ticker: str) -> dict:
+def resolve_instrument_identity(ticker: str) -> dict[str, str]:
     """Resolve deterministic identity metadata (company name, sector, …) for a ticker.
 
     This exists to stop the pipeline from hallucinating a *different* company
@@ -187,8 +187,8 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
     )
 
 
-def create_msg_delete():
-    def delete_messages(state):
+def create_msg_delete() -> callable:
+    def delete_messages(state: Any) -> dict[str, Any]:
         """Clear messages and add a context-anchored placeholder.
 
         The placeholder must not be a bare ``"Continue"``: some

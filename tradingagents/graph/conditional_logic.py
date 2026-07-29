@@ -6,12 +6,12 @@ from tradingagents.agents.utils.agent_states import AgentState
 class ConditionalLogic:
     """Handles conditional logic for determining graph flow."""
 
-    def __init__(self, max_debate_rounds=1, max_risk_discuss_rounds=1):
+    def __init__(self, max_debate_rounds: int = 1, max_risk_discuss_rounds: int = 1):
         """Initialize with configuration parameters."""
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
 
-    def should_continue_market(self, state: AgentState):
+    def should_continue_market(self, state: AgentState) -> str:
         """Determine if market analysis should continue."""
         messages = state["messages"]
         last_message = messages[-1]
@@ -19,7 +19,7 @@ class ConditionalLogic:
             return "tools_market"
         return "Msg Clear Market"
 
-    def should_continue_social(self, state: AgentState):
+    def should_continue_social(self, state: AgentState) -> str:
         """Determine if sentiment-analyst tool round should continue.
 
         Method name keeps the legacy ``social`` suffix to match the
@@ -33,7 +33,7 @@ class ConditionalLogic:
             return "tools_social"
         return "Msg Clear Sentiment"
 
-    def should_continue_news(self, state: AgentState):
+    def should_continue_news(self, state: AgentState) -> str:
         """Determine if news analysis should continue."""
         messages = state["messages"]
         last_message = messages[-1]
@@ -41,7 +41,7 @@ class ConditionalLogic:
             return "tools_news"
         return "Msg Clear News"
 
-    def should_continue_fundamentals(self, state: AgentState):
+    def should_continue_fundamentals(self, state: AgentState) -> str:
         """Determine if fundamentals analysis should continue."""
         messages = state["messages"]
         last_message = messages[-1]

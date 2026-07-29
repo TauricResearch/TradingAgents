@@ -73,7 +73,8 @@ class TradingMemoryLog:
         if not entries:
             return ""
 
-        same, cross = [], []
+        same: list[dict[str, Any]] = []
+        cross: list[dict[str, Any]] = []
         for e in reversed(entries):
             if len(same) >= n_same and len(cross) >= n_cross:
                 break
