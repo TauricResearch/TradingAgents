@@ -46,14 +46,14 @@ class NormalizedChatAnthropic(ChatAnthropic):
     downstream handling.
     """
 
-    def invoke(self, input, config=None, **kwargs):
+    def invoke(self, input: Any, config: Any = None, **kwargs: Any) -> Any:
         return normalize_content(super().invoke(input, config, **kwargs))
 
 
 class AnthropicClient(BaseLLMClient):
     """Client for Anthropic Claude models."""
 
-    def __init__(self, model: str, base_url: str | None = None, **kwargs):
+    def __init__(self, model: str, base_url: str | None = None, **kwargs: Any):
         super().__init__(model, base_url, **kwargs)
 
     def get_llm(self) -> Any:

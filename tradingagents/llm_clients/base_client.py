@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-def normalize_content(response):
+def normalize_content(response: Any) -> Any:
     """Normalize LLM response content to a plain string.
 
     Multiple providers (OpenAI Responses API, Google Gemini 3) return content
@@ -25,7 +25,7 @@ def normalize_content(response):
 class BaseLLMClient(ABC):
     """Abstract base class for LLM clients."""
 
-    def __init__(self, model: str, base_url: str | None = None, **kwargs):
+    def __init__(self, model: str, base_url: str | None = None, **kwargs: Any):
         self.model = model
         self.base_url = base_url
         self.kwargs = kwargs

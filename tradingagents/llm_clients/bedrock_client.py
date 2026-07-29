@@ -9,7 +9,7 @@ _DEFAULT_REGION = "us-west-2"
 _BEDROCK_CLASS = None
 
 
-def _bedrock_class():
+def _bedrock_class() -> type:
     """Lazily import langchain-aws (the optional ``[bedrock]`` extra) and return a
     ChatBedrockConverse subclass with normalized content output.
 
@@ -31,7 +31,7 @@ def _bedrock_class():
     class NormalizedChatBedrockConverse(ChatBedrockConverse):
         """ChatBedrockConverse with normalized (string) content output."""
 
-        def invoke(self, input, config=None, **kwargs):
+        def invoke(self, input: Any, config: Any = None, **kwargs: Any) -> Any:
             return normalize_content(super().invoke(input, config, **kwargs))
 
     _BEDROCK_CLASS = NormalizedChatBedrockConverse
