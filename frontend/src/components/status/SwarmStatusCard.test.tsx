@@ -133,6 +133,21 @@ describe("SwarmStatusCard", () => {
     expect(deriveSwarmProgress(state).eta_label).toBeNull();
   });
 
+  it("treats zero duration as unavailable for ETA and worker rows", () => {
+    const state = buildState();
+    state.turns.market = { ...state.turns.market, duration_ms: 0 };
+
+    expect(deriveSwarmProgress(state).eta_label).toBeNull();
+    expect(
+      deriveWorkerRows(state).find(
+        (row) => row.actor_id === "analyst.market",
+      )?.duration_label,
+    ).toBe("-");
+
+    render(<SwarmStatusCard state={state} streamStatus="live" />);
+    expect(screen.queryByText("0s")).not.toBeInTheDocument();
+  });
+
   it("renders real current worker, tool, output and source alignment", () => {
     render(<SwarmStatusCard state={buildState()} streamStatus="live" />);
 

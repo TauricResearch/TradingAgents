@@ -91,6 +91,7 @@ function emptyState(): ReducerState {
     created_at: "",
     updated_at: "",
     latest_sequence: 0,
+    degraded_data_sources: [],
     redaction_manifest: [],
     event_schema_version: 1,
   };
@@ -131,6 +132,9 @@ function seedFromSnapshot(s: RunSnapshotDTO): ReducerState {
     updated_at: s.updated_at,
     latest_sequence: 0,  // replay all events from 0 to rebuild state
     final_signal: s.final_signal,
+    final_report_artifact_id: s.final_report_artifact_id,
+    completed_at: s.completed_at,
+    degraded_data_sources: [...(s.degraded_data_sources ?? [])],
     summary: s.summary,
     error_category: s.error_category,
     error_message: s.error_message,
@@ -344,6 +348,16 @@ function applyRunTerminal(
   const meta: RunMeta = { ...state.meta, status };
   if ("summary" in p) meta.summary = asStrNull(p.summary);
   if ("final_signal" in p) meta.final_signal = asStrNull(p.final_signal);
+  if ("final_report_artifact_id" in p) {
+    meta.final_report_artifact_id = asStrNull(p.final_report_artifact_id);
+  }
+  if ("completed_at" in p) meta.completed_at = asStrNull(p.completed_at);
+  if (Array.isArray(p.degraded_data_sources)) {
+    meta.degraded_data_sources = p.degraded_data_sources.filter(
+      (value): value is Record<string, unknown> =>
+        value !== null && typeof value === "object" && !Array.isArray(value),
+    ) as unknown as NonNullable<RunMeta["degraded_data_sources"]>;
+  }
   if ("error_category" in p) meta.error_category = asStrNull(p.error_category);
   if ("error_message" in p) meta.error_message = asStrNull(p.error_message);
   return {
@@ -436,21 +450,31 @@ function applyTurnEvent(state: ReducerState, p: Record<string, unknown>): Reduce
     turn_id,
     role_instance_id,
     actor_id: actorIdFromRoleInstance(role_instance_id),
+    graph_task_id,
     turn_index: num(p.turn_index),
     status: "started",
     model_call_ids: [],
     tool_call_ids: [],
     vendor_call_ids: [],
   };
-  // Gap: Turn has no graph_task_id/graph_step field in model.ts; graph_task_id
-  // is used only for role linking below.
   let turn: Turn;
   switch (turn_status) {
     case "started":
-      turn = { ...base, status: "started", role_instance_id, turn_index: num(p.turn_index) };
+      turn = {
+        ...base,
+        status: "started",
+        role_instance_id,
+        graph_task_id,
+        turn_index: num(p.turn_index),
+      };
       break;
     case "output_ready":
-      turn = { ...base, status: "output_ready", artifact_id: str(p.artifact_id) };
+      turn = {
+        ...base,
+        status: "output_ready",
+        graph_task_id,
+        artifact_id: str(p.artifact_id),
+      };
       break;
     case "completed":
     case "failed":
@@ -459,6 +483,7 @@ function applyTurnEvent(state: ReducerState, p: Record<string, unknown>): Reduce
       turn = {
         ...base,
         status: turn_status as TurnStatus,
+        graph_task_id,
         reason: str(p.reason),
         duration_ms: optNum(p.duration_ms),
       };
@@ -467,6 +492,7 @@ function applyTurnEvent(state: ReducerState, p: Record<string, unknown>): Reduce
       turn = {
         ...base,
         status: "resumed",
+        graph_task_id,
         resumed_from_sequence: num(p.resumed_from_sequence),
       };
       break;
@@ -660,6 +686,10 @@ function applyDataCall(
     data_status: str(p.data_status),
     status,
     duration_ms: optNum(p.duration_ms) ?? existing?.duration_ms,
+    failure_code: str(p.failure_code) || existing?.failure_code,
+    fallback_chain: strArr(p.fallback_chain).length > 0
+      ? strArr(p.fallback_chain)
+      : existing?.fallback_chain,
     cache_hit_ids: existing?.cache_hit_ids ?? [],
   };
   const vendor_calls = { ...state.vendor_calls, [vendor_call_id]: vc };

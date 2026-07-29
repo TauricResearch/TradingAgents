@@ -57,6 +57,15 @@ class RunSnapshot:
     updated_at: str
     latest_sequence: int = 0
     final_signal: str | None = None
+    # Explicit canonical report locator for new completed runs.  Older runs
+    # deserialize with None and are handled by the frontend's unique-locator
+    # compatibility fallback.
+    final_report_artifact_id: str | None = None
+    # Timestamp of the terminal run.completed event, not the report file mtime.
+    completed_at: str | None = None
+    # Kept structurally present for new snapshots.  P2 fills normalized source
+    # degradation entries; P0 intentionally emits the empty tuple.
+    degraded_data_sources: tuple[dict[str, Any], ...] = ()
     summary: str | None = None
     error_category: str | None = None
     error_message: str | None = None
@@ -131,7 +140,12 @@ class RunSnapshot:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> RunSnapshot:
         copied = dict(value)
-        for field_name in ("selected_analysts", "artifacts", "redaction_manifest"):
+        for field_name in (
+            "selected_analysts",
+            "artifacts",
+            "redaction_manifest",
+            "degraded_data_sources",
+        ):
             copied[field_name] = tuple(copied.get(field_name, ()))
         return cls(**copied)
 
@@ -163,4 +177,3 @@ class RunSummary:
             final_signal=snapshot.final_signal,
             summary=snapshot.summary,
         )
-

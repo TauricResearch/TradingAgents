@@ -11,7 +11,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "rtk zsh -lic 'cd /Users/david/codespace/TradingAgents && python scripts/e2e_server.py'",
+    command: "rtk zsh -lc 'cd .. && \"${TRADINGAGENTS_PYTHON:-python}\" scripts/e2e_server.py'",
     port: 8771,
     reuseExistingServer: true,
     timeout: 60_000,

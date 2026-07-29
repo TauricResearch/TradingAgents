@@ -19,10 +19,11 @@ import { Controls } from "../controls/Controls";
 import { RunHistory } from "../history/RunHistory";
 import { WorkflowMap } from "../workflow/WorkflowMap";
 import { Timeline } from "../timeline/Timeline";
+import { ResearchDocument } from "../timeline/ResearchDocument";
 import { Inspector } from "../inspector/Inspector";
 import { SwarmStatusCard } from "../status/SwarmStatusCard";
 import { MarketChart } from "../market/MarketChart";
-import type { InspectorTab } from "../inspector/Inspector";
+import { RunDisclosure } from "./RunDisclosure";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { useRunHistory } from "../../hooks/useRunHistory";
 import { currentRunStatus } from "../../state/selectors";
@@ -40,7 +41,6 @@ export function WorkbenchLayout(): JSX.Element {
   const history = useRunHistory();
   const [timelineFilter, setTimelineFilter] = useState<string>("");
   const [selectedTurn, setSelectedTurn] = useState<string | null>(null);
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("role-input");
 
   // A run first appears in history as "running" after POST /api/runs. Refresh
   // once its SSE state reaches a terminal status so the sidebar does not keep
@@ -52,12 +52,11 @@ export function WorkbenchLayout(): JSX.Element {
   }, [history.refresh, state?.meta.run_id, state?.meta.status]);
 
   // G3: clicking a role card in the workflow map selects that role's latest
-  // turn and surfaces it in the Inspector's role-input tab.
+  // turn and surfaces it as the Inspector's active turn scope.
   const handleRoleSelected = (actor_id: string): void => {
     const turn_id = state?.roles[actor_id]?.latest_turn_id;
     if (turn_id) {
       setSelectedTurn(turn_id);
-      setInspectorTab("role-input");
     }
   };
 
@@ -95,6 +94,7 @@ export function WorkbenchLayout(): JSX.Element {
                   {currentRunStatus(state)} · #{state.meta.latest_sequence}
                 </span>
               </div>
+              <RunDisclosure state={state} />
               <SwarmStatusCard state={state} streamStatus={stream.status} />
               <MarketChart
                 run_id={state.meta.run_id}
@@ -102,6 +102,15 @@ export function WorkbenchLayout(): JSX.Element {
                 artifact_count={Object.keys(state.artifacts).length}
               />
               <WorkflowMap onRoleSelected={handleRoleSelected} />
+              <ResearchDocument
+                state={state}
+                run_id={state.meta.run_id}
+                onTurnSelected={setSelectedTurn}
+              />
+              <div className="research-phase-head transcript-heading">
+                <span>08</span>
+                <h2>完整辩论与审计记录</h2>
+              </div>
               <Timeline
                 filter={timelineFilter}
                 onTurnSelected={setSelectedTurn}
@@ -120,11 +129,7 @@ export function WorkbenchLayout(): JSX.Element {
         </main>
 
         <aside className="inspector">
-          <Inspector
-            selectedTurnId={selectedTurn}
-            activeTab={inspectorTab}
-            onTabChange={setInspectorTab}
-          />
+          <Inspector selectedTurnId={selectedTurn} />
         </aside>
       </div>
     </div>

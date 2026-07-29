@@ -55,8 +55,8 @@ function asString(value: unknown): string | null {
 /**
  * Walks the delta per the extraction map and returns { text, badge }.
  * - text: the role's current response/decision string.
- * - badge: optional secondary label (evidence_status for evidence.steward;
- *   risk_debate_state.judge_decision for manager.portfolio if present).
+ * - badge: optional evidence verdict from evidence_status for the evidence
+ *   steward and final portfolio decision.
  *
  * Returns { text: null, badge: null } if the field is absent or not a string.
  * Defensive: delta may be partial, nested objects may be missing.
@@ -72,10 +72,8 @@ export function extractResponse(
   const text = asString(readPath(delta, path));
 
   let badge: string | null = null;
-  if (actor_id === "evidence.steward") {
+  if (actor_id === "evidence.steward" || actor_id === "manager.portfolio") {
     badge = asString(readPath(delta, "evidence_status"));
-  } else if (actor_id === "manager.portfolio") {
-    badge = asString(readPath(delta, "risk_debate_state.judge_decision"));
   }
 
   return { text, badge };

@@ -1,5 +1,5 @@
 /**
- * G3 - Vendor data-call provenance panel for the 数据与工具 inspector tab.
+ * G3 - Vendor data-call provenance panel for the inspector evidence section.
  *
  * Lists all VendorCalls observed for the selected turn, sourced from the live
  * workbench store. Each .source-line entry shows the vendor (bold), method,
@@ -31,6 +31,14 @@ const VENDOR_STATUS_LABEL: Record<VendorStatus, string> = {
   failed: "失败",
   progress: "进行中",
   interrupted: "已中断",
+};
+
+const FAILURE_LABELS: Record<string, string> = {
+  network_unreachable: "网络不可达，已尝试备用源",
+  not_configured: "未配置访问凭证",
+  rate_limited: "请求受限",
+  no_market_data: "该源无可用数据",
+  vendor_error: "数据源调用失败",
 };
 
 export function VendorProvenance({
@@ -67,6 +75,16 @@ export function VendorProvenance({
                 <span className="vendor">{vc.vendor}</span>
                 <span className="method">{vc.method}</span>
                 <span className="stage">{vc.stage}</span>
+                {vc.status === "failed" && vc.failure_code && (
+                  <span className="failure-reason">
+                    {FAILURE_LABELS[vc.failure_code] ?? vc.failure_code}
+                  </span>
+                )}
+                {vc.fallback_chain && vc.fallback_chain.length > 1 && (
+                  <span className="fallback-chain">
+                    备用顺序：{vc.fallback_chain.join(" → ")}
+                  </span>
+                )}
                 {vc.duration_ms !== undefined && (
                   <span className="duration">{vc.duration_ms}ms</span>
                 )}

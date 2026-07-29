@@ -1,23 +1,25 @@
 /**
- * G2 - Debate/verdict timeline.
+ * Structured debate/verdict transcript.
  *
- * Renders the ordered turn transcript from the live workbench store. Each
- * turn's response text is eagerly fetched from the turn.output_ready artifact
- * (the JSON-serialized business_delta) via useTurnResponses. Candidate
- * (output_ready, not committed) vs committed (completed) turns are visually
- * distinguished by a gold 候选 tag prepended to the bubble-head.
- *
- * Turn bodies render as prose markdown via SafeMarkdown. Turns beyond the
- * eager fetch window carry an excerpt and an expand control.
+ * The selector owns narrative order; this component only renders linear turns,
+ * opposed debate rounds, and full-width convergence verdicts. Turn artifacts
+ * are loaded eagerly and historical multi-speaker payloads are guarded at the
+ * presentation boundary without rewriting immutable run data.
  */
 import { useMemo } from "react";
-import { ROLE_REGISTRY } from "../../state/model";
-import { turnTimeline } from "../../state/selectors";
-import { useWorkbenchStore } from "../../state/WorkbenchStore";
-import { useTurnResponses } from "../../hooks/useTurnResponses";
-import { SafeMarkdown } from "../shared/SafeMarkdown";
+import { guardDebateAttribution } from "../../domain/debateAttribution";
 import { ROLE_LABELS_ZH } from "../../domain/roles";
+import { useTurnResponses, type LoadedResponse } from "../../hooks/useTurnResponses";
+import { ROLE_REGISTRY, type Turn } from "../../state/model";
+import {
+  debateScript,
+  type DebateBlock,
+  type DebateLaneId,
+  type DebateStage,
+} from "../../state/selectors";
+import { useWorkbenchStore } from "../../state/WorkbenchStore";
 import { RoleIcon } from "../icons/RoleIcon";
+import { SafeMarkdown } from "../shared/SafeMarkdown";
 
 export interface TimelineProps {
   filter: string;
@@ -33,22 +35,145 @@ const FILTER_BUTTONS: ReadonlyArray<{ label: string; value: string }> = [
   { label: "裁决", value: "portfolio" },
 ];
 
+const LANE_LABELS: Record<DebateLaneId, string> = {
+  bull: "多方",
+  bear: "空方",
+  aggressive: "激进",
+  neutral: "中性",
+  conservative: "保守",
+};
+
+const STAGE_LABELS: Record<DebateStage, string> = {
+  research: "多空研究辩论",
+  risk: "风险观点辩论",
+};
+
 function roleDefFor(actor_id: string): { team_id: string; icon_id: string } {
-  const def = ROLE_REGISTRY.find((r) => r.actor_id === actor_id);
+  const def = ROLE_REGISTRY.find((role) => role.actor_id === actor_id);
   return {
     team_id: def?.team_id ?? "",
     icon_id: def?.icon_id ?? "",
   };
 }
 
-function tagTextFor(actor_id: string, turn_index: number): string {
-  if (actor_id === "manager.research" || actor_id === "manager.portfolio") {
+function tagTextFor(turn: Turn): string {
+  if (turn.actor_id === "manager.research" || turn.actor_id === "manager.portfolio") {
     return "裁决";
   }
-  if (actor_id === "evidence.steward") {
-    return "Gate";
+  if (turn.actor_id === "evidence.steward") return "Gate";
+  return `第 ${turn.turn_index} 轮`;
+}
+
+function flattenTurns(blocks: DebateBlock[]): Turn[] {
+  return blocks.flatMap((block) => {
+    if (block.kind === "round") {
+      return block.lanes.flatMap((lane) => lane.turns);
+    }
+    return [block.turn];
+  });
+}
+
+interface TurnCardProps {
+  turn: Turn;
+  response: LoadedResponse | undefined;
+  variant: "linear" | "lane" | "verdict";
+  guardBody?: boolean;
+  onSelect: (turn_id: string) => void;
+  onExpand: (turn_id: string) => void;
+}
+
+function TurnCard({
+  turn,
+  response,
+  variant,
+  guardBody = false,
+  onSelect,
+  onExpand,
+}: TurnCardProps): JSX.Element {
+  const { team_id, icon_id } = roleDefFor(turn.actor_id);
+  const isCandidate = turn.status === "output_ready";
+  const label = ROLE_LABELS_ZH[turn.actor_id] ?? turn.actor_id;
+  const guarded =
+    guardBody && response?.text
+      ? guardDebateAttribution(turn.actor_id, response.text)
+      : {
+          text: response?.text ?? null,
+          hasForeignAttribution: false,
+          foreignLabels: [] as string[],
+        };
+
+  let bodyContent: JSX.Element;
+  if (!turn.artifact_id) {
+    bodyContent = <div className="turn-body-placeholder">（进行中）</div>;
+  } else if (response?.loading) {
+    bodyContent = <div className="turn-body-placeholder">正在加载…</div>;
+  } else if (response?.error) {
+    bodyContent = (
+      <div className="turn-body-placeholder error">加载失败：{response.error}</div>
+    );
+  } else if (guarded.text) {
+    bodyContent = <SafeMarkdown content={guarded.text} mode="prose" />;
+  } else if (guarded.hasForeignAttribution) {
+    bodyContent = (
+      <div className="turn-body-placeholder">未找到可安全归属于当前角色的正文</div>
+    );
+  } else {
+    bodyContent = <div className="turn-body-placeholder">（无文本）</div>;
   }
-  return turn_index > 1 ? `第 ${turn_index} 轮` : "第 1 轮";
+
+  return (
+    <article
+      className={`turn-card turn-card-${variant}`}
+      data-team={team_id}
+      data-actor-id={turn.actor_id}
+      data-turn-status={turn.status}
+      onClick={() => onSelect(turn.turn_id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(turn.turn_id);
+        }
+      }}
+      tabIndex={0}
+      aria-label={`查看 ${label} 的回合详情`}
+    >
+      <div className="avatar">
+        <RoleIcon icon_id={icon_id} size={15} />
+      </div>
+      <div className={variant === "verdict" ? "bubble manager" : "bubble"}>
+        <div className="bubble-head">
+          {isCandidate && <span className="tag candidate">候选</span>}
+          <span>{label}</span>
+          <span className="tag">{tagTextFor(turn)}</span>
+          {response?.badge && (
+            <span className={turn.actor_id === "evidence.steward" ? "tag evidence" : "tag"}>
+              {response.badge}
+            </span>
+          )}
+        </div>
+        {guarded.hasForeignAttribution && (
+          <div className="attribution-warning" role="status">
+            历史正文包含其他发言者归属：{guarded.foreignLabels.join("、")}
+          </div>
+        )}
+        <div className="bubble-body">
+          {bodyContent}
+          {response?.text && !response.fullyLoaded && response.text.length >= 800 && (
+            <button
+              type="button"
+              className="expand-link"
+              onClick={(event) => {
+                event.stopPropagation();
+                onExpand(turn.turn_id);
+              }}
+            >
+              展开全文
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export function Timeline({
@@ -60,11 +185,11 @@ export function Timeline({
   const state = stream.state;
   const activeFilter = filter || "";
 
-  const turns = useMemo(
-    () => (state ? turnTimeline(state, activeFilter) : []),
+  const blocks = useMemo(
+    () => (state ? debateScript(state, activeFilter) : []),
     [state, activeFilter],
   );
-
+  const turns = useMemo(() => flattenTurns(blocks), [blocks]);
   const { responses, expand } = useTurnResponses({
     run_id,
     turns,
@@ -74,18 +199,20 @@ export function Timeline({
 
   const head = (
     <div className="timeline-head">
-      <span className="eyebrow">Live transcript</span>
-      <h2>辩论与决策时间线</h2>
+      <div>
+        <span className="eyebrow">Live transcript</span>
+        <h2>辩论与决策时间线</h2>
+      </div>
       <div className="filters">
-        {FILTER_BUTTONS.map((btn) => (
+        {FILTER_BUTTONS.map((button) => (
           <button
-            key={btn.value || "all"}
+            key={button.value || "all"}
             type="button"
-            className={activeFilter === btn.value ? "filter active" : "filter"}
-            aria-pressed={activeFilter === btn.value}
-            onClick={onFilterChange ? () => onFilterChange(btn.value) : undefined}
+            className={activeFilter === button.value ? "filter active" : "filter"}
+            aria-pressed={activeFilter === button.value}
+            onClick={onFilterChange ? () => onFilterChange(button.value) : undefined}
           >
-            {btn.label}
+            {button.label}
           </button>
         ))}
       </div>
@@ -106,99 +233,80 @@ export function Timeline({
   return (
     <section>
       {head}
-      {turns.length === 0 ? (
-        <div className="placeholder">
-          {hasAnyTurns ? "当前过滤无条目" : "等待事件流"}
-        </div>
+      {blocks.length === 0 ? (
+        <div className="placeholder">{hasAnyTurns ? "当前过滤无条目" : "等待事件流"}</div>
       ) : (
-        turns.map((turn) => {
-          const { team_id, icon_id } = roleDefFor(turn.actor_id);
-          const isManager =
-            turn.actor_id === "manager.research" ||
-            turn.actor_id === "manager.portfolio";
-          const isBear = turn.actor_id === "researcher.bear";
-          const isCandidate = turn.status === "output_ready";
-          const label = ROLE_LABELS_ZH[turn.actor_id] ?? turn.actor_id;
-          const tag = tagTextFor(turn.actor_id, turn.turn_index);
-          const entry = responses[turn.turn_id];
+        <div className="debate-script">
+          {blocks.map((block, blockIndex) => {
+            if (block.kind === "round") {
+              const budget =
+                block.stage === "research"
+                  ? state.meta.max_debate_rounds
+                  : state.meta.max_risk_discuss_rounds;
+              return (
+                <section
+                  key={`${block.stage}-round-${block.index}`}
+                  className={`debate-round debate-round-${block.stage}`}
+                  data-stage={block.stage}
+                  data-round={block.index}
+                >
+                  <div className="round-separator">
+                    <span>{STAGE_LABELS[block.stage]}</span>
+                    <strong>第 {block.index} 轮 / 计划 {budget} 轮</strong>
+                  </div>
+                  <div className={`debate-lanes debate-lanes-${block.stage}`}>
+                    {block.lanes.map((lane) => (
+                      <div key={lane.id} className="debate-lane" data-lane={lane.id}>
+                        <div className="lane-label">{LANE_LABELS[lane.id]}</div>
+                        {lane.turns.map((turn) => (
+                          <TurnCard
+                            key={turn.turn_id}
+                            turn={turn}
+                            response={responses[turn.turn_id]}
+                            variant="lane"
+                            guardBody
+                            onSelect={onTurnSelected}
+                            onExpand={expand}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            }
 
-          let bodyContent: JSX.Element;
-          if (!turn.artifact_id) {
-            bodyContent = (
-              <div className="turn-body-placeholder">（进行中）</div>
-            );
-          } else if (entry?.loading) {
-            bodyContent = (
-              <div className="turn-body-placeholder">正在加载…</div>
-            );
-          } else if (entry?.error) {
-            bodyContent = (
-              <div className="turn-body-placeholder error">
-                加载失败：{entry.error}
-              </div>
-            );
-          } else if (entry?.text) {
-            bodyContent = (
-              <>
-                <SafeMarkdown content={entry.text} mode="prose" />
-                {!entry.fullyLoaded && entry.text.length >= 800 && (
-                  <button
-                    type="button"
-                    className="expand-link"
-                    onClick={() => expand(turn.turn_id)}
-                  >
-                    展开全文
-                  </button>
-                )}
-              </>
-            );
-          } else {
-            bodyContent = (
-              <div className="turn-body-placeholder">（无文本）</div>
-            );
-          }
+            if (block.kind === "verdict") {
+              return (
+                <section
+                  key={block.turn.turn_id}
+                  className="convergence-block"
+                  aria-label="辩论收敛裁决"
+                >
+                  <div className="convergence-label">观点收敛</div>
+                  <TurnCard
+                    turn={block.turn}
+                    response={responses[block.turn.turn_id]}
+                    variant="verdict"
+                    onSelect={onTurnSelected}
+                    onExpand={expand}
+                  />
+                </section>
+              );
+            }
 
-          return (
-            <article
-              key={turn.turn_id}
-              className={isBear ? "event bear" : "event"}
-              data-team={team_id}
-            >
-              <div className="avatar">
-                <RoleIcon icon_id={icon_id} size={15} />
-              </div>
-              <div
-                className={isManager ? "bubble manager" : "bubble"}
-                onClick={() => onTurnSelected(turn.turn_id)}
-              >
-                <div className="bubble-head">
-                  {isCandidate && (
-                    <span
-                      className="tag candidate"
-                      style={{ color: "var(--gold)" }}
-                    >
-                      候选
-                    </span>
-                  )}
-                  <span>{label}</span>
-                  <span className="tag">{tag}</span>
-                  {entry?.badge && (
-                    <span
-                      className={
-                        turn.actor_id === "evidence.steward"
-                          ? "tag evidence"
-                          : "tag"
-                      }
-                    >
-                      {entry.badge}
-                    </span>
-                  )}
-                </div>
-                <div className="bubble-body">{bodyContent}</div>
-              </div>
-            </article>
-          );
-        })
+            return (
+              <TurnCard
+                key={`${block.turn.turn_id}-${blockIndex}`}
+                turn={block.turn}
+                response={responses[block.turn.turn_id]}
+                variant="linear"
+                onSelect={onTurnSelected}
+                onExpand={expand}
+              />
+            );
+          })}
+        </div>
       )}
     </section>
   );

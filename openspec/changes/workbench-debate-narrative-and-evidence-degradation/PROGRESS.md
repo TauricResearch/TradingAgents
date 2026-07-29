@@ -1,24 +1,24 @@
 # Project Status: Workbench Debate Narrative & Evidence Degradation
 
-> Implementation branch: `feat/workbench-debate-narrative`
+> Delivered through [PR #2](https://github.com/david188888/TradingAgents/pull/2),
+> merged into `david188888/TradingAgents:main` as `73222cf5` on 2026-07-28,
+> with Phase 5/6 continuation on `codex/workbench-debate-script-and-inspector`.
 >
-> Planned continuation branch after merge: `codex/workbench-debate-script-and-inspector`
->
-> Updated: 2026-07-27
+> Updated: 2026-07-28
 
 ## Scope status
 
 | Phase | Status | Verified boundary |
 |---|---|---|
-| 0. Pre-flight | Complete except historical-run request-volume measurement | User approved committing/publishing this dirty tree; baseline and prior findings were recorded. |
-| 1. Report rendering | Implemented and verified | Sanitized prose Markdown, literal data mode, windowed automatic response loading. |
-| 2. Evidence verdict model | Implemented and verified | `PASS`, `LOW_CONFIDENCE`, `FAIL_STOP`; hard identity/fatal core-data stops preserved. |
-| 3. Confidence propagation | Backend implemented and verified | Research/Portfolio prompts receive the low-confidence conviction cap. Final-decision UI badge remains Phase 5 work. |
-| 3A. Debate turn authorship | Implemented and verified without a paid run | Prompt builders and storage-label contracts are covered; historical artifacts are untouched. |
-| 4. Workflow map | Implemented and verified | Six stage groups, typed measured SVG edges, narrow-layout fallback, live role state. |
-| 5. Debate stage | Not implemented | `laneOf()` exists, but round/lane script grouping, convergence blocks, and historical-attribution guard remain. |
-| 6. Turn inspector | Not implemented | Current tabbed inspector remains; flat identity/evidence/prompt/output sections remain. |
-| 7. Verification/closeout | Partial | Deterministic tests complete; real-provider/thin-coverage acceptance and historical run-store comparison remain. |
+| 0. Pre-flight | Complete | User approved the publish/continuation workflow; baseline and prior findings were recorded. |
+| 1. Report rendering | Implemented and locally verified | Sanitized prose Markdown, literal data mode, bounded automatic response loading, and longest-run request volume are covered. |
+| 2. Evidence verdict model | Implemented and verified | `PASS`, `LOW_CONFIDENCE`, and `FAIL_STOP` are distinct; hard identity/fatal core-data stops are preserved. |
+| 3. Confidence propagation | Backend implemented and verified | Research/Portfolio prompts receive the low-confidence conviction cap. Evidence Steward and final Portfolio Manager turns expose verdict badges; real thin-coverage acceptance remains. |
+| 3A. Debate turn authorship | Implemented and unit-verified | Prompt/storage contracts are covered; a real post-3A two-round provider run remains intentionally unperformed. |
+| 4. Workflow map | Implemented and verified | Six stage groups, typed measured SVG edges, narrow-layout fallback, and live role state are covered. |
+| 5. Debate stage | Implemented and verified | Ordered round/lane scripts, convergence verdicts, candidate labels, round budgets, and historical foreign-attribution protection are covered by unit and browser tests. |
+| 6. Turn inspector | Implemented and verified | Flat turn-scoped identity/evidence/prompt/output sections and the run-header disclosure are covered by unit and browser tests. |
+| 7. Verification/closeout | Partial | Frontend gates and deterministic Playwright pass; real-provider/thin-coverage acceptance and historical run-store comparison remain. |
 
 ## Implemented behavior
 
@@ -29,12 +29,17 @@
 - `SafeMarkdown` has explicit `prose` and `data` modes. Prose uses the default
   sanitize schema plus an http/https-only anchor override; data remains literal
   inside a whitespace-preserving `<pre>`.
-- Report artifacts and turn bodies use prose mode; prompts/machine payloads use
-  data mode.
+- Report artifacts, turn bodies, inspector output, and long upstream state fields
+  use prose mode; prompts and machine payloads use data mode.
 - `useTurnResponses` loads the initial 12 artifact-backed turns in full. Later
   turns load 800-character excerpts, expose “展开全文”, and refetch the selected
   artifact in full. The queue is de-duplicated and capped at four concurrent
   requests; state and stale async results are isolated by `run_id`.
+- The 23-run local history was measured directly. The longest run,
+  `run_20260720T121943222472Z_78a2924a`, contains 1,093 events and 13 completed
+  artifact-backed turns, so initial loading issues at most 13 artifact requests,
+  never more than four concurrently: 12 full responses plus one excerpt. Expanding
+  that final turn adds at most one full refetch; no window adjustment is needed.
 
 ### Evidence degradation and confidence propagation
 
@@ -45,18 +50,20 @@
 - Wrong-identity conflicts and fatal core-data patterns remain unconditional
   `FAIL_STOP` outcomes.
 - `evidence_stop_on_fail` defaults to `False`.
-- Environment overrides now include
-  `TRADINGAGENTS_EVIDENCE_STOP_ON_FAIL`,
+- Environment overrides include `TRADINGAGENTS_EVIDENCE_STOP_ON_FAIL`,
   `TRADINGAGENTS_NEWS_MIN_COMPANY_ITEMS`,
   `TRADINGAGENTS_NEWS_MIN_MIXED_ITEMS`, and
   `TRADINGAGENTS_HALT_ON_MISSING_DATA`.
 - Research and Portfolio Manager prompts apply the existing conviction vocabulary
   as a ceiling when evidence is low-confidence.
-- Unexpected Evidence Steward exceptions persist only the exception class (for
-  example `RuntimeError`), not raw exception text that might contain a URL,
-  query parameter, or credential.
+- Evidence Steward and Portfolio Manager response artifacts persist the explicit
+  `evidence_status`; timeline badges read only that field. Historical Portfolio
+  artifacts without it show no badge rather than misusing the long-form
+  `risk_debate_state.judge_decision` report as a label.
+- Unexpected Evidence Steward exceptions persist only the exception class, not
+  raw exception text that might contain a URL, query parameter, or credential.
 
-### Debate authorship
+### Debate authorship and narrative
 
 - Opening turns request an opening case and omit empty opponent labels;
   subsequent turns request a rebuttal and include the opposing argument.
@@ -64,10 +71,16 @@
   moderator framing, and never fabricate dialogue for another participant.
 - Per-side turn bodies are unlabelled. The composed transcript retains structural
   speaker labels for `context_compaction.py`.
-- This changes prompt behavior, so identical inputs/models may produce text and
-  recommendations different from historical runs. Existing artifacts are not
-  rewritten; two known historical multi-speaker payloads remain for Phase 5's
-  rendering guard.
+- `debateScript()` sorts by `turn_index`, renders analysts as linear blocks,
+  research and risk roles in round/lane blocks, and judging roles as full-width
+  convergence verdicts.
+- Candidate turns, round separators, and elapsed/configured round budgets remain
+  explicit.
+- Historical turn bodies are never rewritten. Redundant leading self-labels are
+  suppressed at render time, while bodies that attribute speech to another
+  participant are visibly marked rather than silently presented as the selected
+  role’s own words. The debate stage reads per-side bodies, not compacted
+  `history`.
 
 ### Workflow map
 
@@ -78,62 +91,82 @@
   measurements.
 - Role and active-stage states are derived from the run state, including terminal
   handling that cannot leave a role falsely running.
+- Timeline turns and map roles with existing turns drive the same inspector
+  scope; selecting a role with no turn does not discard the current scope.
+
+### Turn inspector and run disclosure
+
+- The turn inspector has four fixed sections in order: Identity, Evidence,
+  Prompt / LLM input, and Output. Identity is always visible; Prompt is collapsed
+  by default and its artifact is fetched only when expanded.
+- Identity reports role, round, status, duration, provider, and model. Missing or
+  zero-duration execution facts are shown as unavailable rather than fabricated
+  measurements; the same duration rule applies to the swarm status table.
+- Evidence reads upstream fields only from `state_snapshot.state_fields`; envelope
+  metadata is not misrepresented as business input. The UI explicitly notes
+  that `input.data_snapshot` currently has no producer.
+- Tool calls include arguments, status, outcome, artifacts, hashes, and locators;
+  vendor provenance and effective configuration remain auditable. A turn with no
+  tool calls says so explicitly.
+- Output uses the sanitized prose renderer. Remounting by selected-turn key keeps
+  asynchronous content from a previous turn out of the new scope.
+- A disclosure beneath the active-run header owns run input, reports published by
+  `report.updated`, and the complete artifact index. Report bodies load only when
+  their individual disclosure is expanded, and the run-scoped surface remains
+  stable while turn selection changes.
 
 ## Verification evidence
 
-- `node v24.15.0`, `npm 11.12.1`, and `npx 11.12.1` are available when the NVM
-  path `/Users/david/.nvm/versions/node/v24.15.0/bin` is loaded.
+- Node tooling is available from
+  `/Users/david/.nvm/versions/node/v24.15.0/bin`: Node **24.15.0**, npm **11.12.1**,
+  and npx **11.12.1**.
+- Historical request-volume audit: **23 runs** inspected; longest run has **1,093
+  events**, **13** completed artifact-backed turns, and a **4-request** concurrency
+  ceiling. The configured 12-full + excerpt window remains bounded.
 - Frontend strict TypeScript: passed.
-- Frontend Vitest: **13 files, 94 tests passed**.
-- Frontend production build: **321 modules transformed**.
+- Frontend Vitest: **17 files, 106 tests passed**.
+- Frontend production build: **323 modules transformed**.
+- Deterministic Playwright: **9/9 passed (13.8s)** against
+  `scripts/e2e_server.py` using the Conda `tradingagents` Python and fake runner.
+  The final suite covers the flat inspector flow, run disclosure, tool/vendor
+  evidence, and real-browser SVG edge presence. No real LLM/provider was called.
+- Sandboxed Chromium first failed at macOS Mach-port bootstrap with permission
+  error 1100. Re-running the same suite outside that sandbox passed twice; the
+  final run includes the SVG-edge assertion, so this is a host-launch constraint,
+  not an unresolved application assertion.
 - Focused backend evidence/prompt/authorship suite: **49 passed**.
 - Focused CI-regression suite for Windows console handling, canonical hashing,
   and debate authorship: **31 passed**.
 - Full backend suite in the authoritative Conda `tradingagents` environment
   (Python 3.13.13): **1,333 passed, 19 warnings, 68 subtests passed**.
-- CI dependency installation now uses `.[dev,web]`, so the Python 3.10-3.13
-  matrix installs the canonical-JSON dependency required during collection.
-- Production timestamp helpers and their tests use `datetime.timezone.utc`
-  rather than the Python 3.11-only `datetime.UTC` alias, so collection remains
-  compatible with the declared Python 3.10 floor. SSE keepalive waits catch
-  `asyncio.TimeoutError`, which is not the built-in `TimeoutError` on Python
-  3.10, preserving timeout-as-keepalive behavior across the CI matrix.
-- Wheel packaging contains the SPA index/JavaScript assets, and the installed
-  wheel exposes working CLI help.
-- Deterministic Playwright browser suite: **9 passed (14.8s)** in the release
-  verification run using the fake runner, with no real LLM/provider call.
-- During the final CI-closure pass, the exact Playwright rerun was blocked before
-  assertions by the execution host (sandboxed Chromium Mach-port permission,
-  followed by an in-app-browser policy stop). A fresh deterministic browser run
-  still verified page load, 13/13 completion, all role labels, completed history,
-  automatic timeline response text, inspector-tab presence, 13 response bubbles,
-  13 completed role cards, configured-key status, and absence of secret names or
-  values. The only current `scripts/e2e_server.py` diff is a trailing newline.
-- Final committed frontend assets:
-  - `tradingagents/web/static/assets/index-B0ahB111.js`: 388,038 bytes
-  - `tradingagents/web/static/assets/index-02lLBz7O.css`: 26,634 bytes
-  - combined: 414,672 bytes versus the 243,344-byte committed baseline
-    (`+171,328` bytes, uncompressed).
+- GitHub Actions run `30323625615` passed all seven required jobs: tests on
+  Python 3.10, 3.11, 3.12, and 3.13; clean-install smoke; strict full-repo Ruff;
+  and the web Python/SPA/wheel-asset gate.
+- Current built frontend assets:
+  - `tradingagents/web/static/assets/index-QxTgIV19.js`: 400,669 bytes
+  - `tradingagents/web/static/assets/index-Dd5IBIzk.css`: 32,632 bytes
+  - combined assets: 433,301 bytes; +18,629 bytes versus the preceding
+    414,672-byte committed build and +189,957 bytes versus the 243,344-byte 0.2
+    baseline. A second fresh build produced identical SHA-256 checksums for the
+    JS, CSS, and `index.html`.
 
 ## Verification boundaries
 
 - The deterministic fake-runner E2E verifies the browser, SSE, store, artifact,
-  and static-build path, including the 13-role workflow and automatic response
-  display.
-- It does **not** verify a real provider, provider billing/authentication, a real
-  thin-coverage ticker reaching `LOW_CONFIDENCE`, post-3A model output, or the
-  Phase 5/6 designs.
-- No paid provider call was made for this release slice.
-- Isolated verification homes/run roots are intentionally retained until the
-  user approves cleanup after the release report.
+  static-build, debate narrative, inspector, run disclosure, and workflow-edge
+  paths without provider cost.
+- It does **not** verify provider billing/authentication, a real thin-coverage
+  ticker reaching `LOW_CONFIDENCE`, post-3A model output, a real two-round debate,
+  or pre-/post-3A historical run-store comparison.
+- No paid provider call was made for this continuation slice.
+- Cleanup candidates are retained until the user receives the closeout report and
+  explicitly confirms destructive cleanup, per the neat-freak contract.
 
 ## Remaining work
 
-1. Phase 5: implement `debateScript`, round/lane/convergence rendering, candidate
-   labels, and the historical foreign-attribution guard.
-2. Phase 6: replace the tabbed inspector with turn-scoped flat sections and move
-   run-scoped inputs/artifacts into a run-header surface.
-3. Run a real two-round post-3A analysis and a thin-coverage ticker acceptance
-   only after explicit approval for provider/data-source cost and credentials.
-4. Compare pre-3A and post-3A run-store payloads and complete the historical F6
-   scan.
+1. Run the real thin-coverage acceptance only with explicit provider/data-cost
+   approval (tasks 3.7 / 7.4).
+2. Run a real post-3A analysis with at least two debate rounds (task 3A.12), then
+   repeat the historical F6 scan and pre-/post-3A comparison (tasks 7.4a–7.4b).
+3. Archive/sync the OpenSpec change only after the remaining acceptance evidence
+   is complete or deliberately descoped.

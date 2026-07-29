@@ -143,12 +143,13 @@ describe("extractResponse", () => {
     expect(result).toEqual({ text: "sufficient evidence", badge: "Sufficient" });
   });
 
-  it("extracts judge_decision as badge for manager.portfolio", () => {
+  it("extracts evidence_status as badge for manager.portfolio", () => {
     const result = extractResponse("manager.portfolio", {
       final_trade_decision: "BUY",
-      risk_debate_state: { judge_decision: "Aggressive" },
+      evidence_status: "LOW_CONFIDENCE",
+      risk_debate_state: { judge_decision: "full final decision body" },
     });
-    expect(result).toEqual({ text: "BUY", badge: "Aggressive" });
+    expect(result).toEqual({ text: "BUY", badge: "LOW_CONFIDENCE" });
   });
 });
 
@@ -252,6 +253,7 @@ describe("Timeline", () => {
     const turns = Array.from({ length: 13 }, (_, index) =>
       buildTurn(`t${index + 1}`, "analyst.market", "completed", {
         artifact_id: `a${index + 1}`,
+        turn_index: index + 1,
       }),
     );
     setStoreState(buildState(turns));
@@ -303,4 +305,86 @@ describe("Timeline", () => {
     render(<Timeline filter="" onTurnSelected={vi.fn()} />);
     expect(screen.getByText("（进行中）")).toBeInTheDocument();
   });
+
+  it("groups research turns into opposed rounds with configured progress", () => {
+    setStoreState(
+      buildState([
+        buildTurn("bull-2", "researcher.bull", "started", { turn_index: 2 }),
+        buildTurn("bear-1", "researcher.bear", "completed", {
+          artifact_id: "bear-a1",
+          turn_index: 1,
+        }),
+        buildTurn("bull-1", "researcher.bull", "completed", {
+          artifact_id: "bull-a1",
+          turn_index: 1,
+        }),
+      ]),
+    );
+    const { container } = render(
+      <Timeline filter="research" onTurnSelected={vi.fn()} />,
+    );
+
+    const rounds = container.querySelectorAll('[data-stage="research"]');
+    expect(rounds).toHaveLength(2);
+    expect(screen.getByText("第 1 轮 / 计划 3 轮")).toBeInTheDocument();
+    expect(screen.getByText("第 2 轮 / 计划 3 轮")).toBeInTheDocument();
+    expect(rounds[0].querySelector('[data-lane="bull"]')).not.toBeNull();
+    expect(rounds[0].querySelector('[data-lane="bear"]')).not.toBeNull();
+  });
+
+  it("renders a three-way risk round and a full-width convergence verdict", () => {
+    setStoreState(
+      buildState([
+        buildTurn("aggressive", "risk.aggressive", "completed", { turn_index: 1 }),
+        buildTurn("neutral", "risk.neutral", "completed", { turn_index: 1 }),
+        buildTurn("conservative", "risk.conservative", "completed", { turn_index: 1 }),
+        buildTurn("verdict", "manager.portfolio", "completed", { artifact_id: "v1" }),
+      ]),
+    );
+    const { container } = render(<Timeline filter="" onTurnSelected={vi.fn()} />);
+
+    expect(container.querySelector('[data-lane="aggressive"]')).not.toBeNull();
+    expect(container.querySelector('[data-lane="neutral"]')).not.toBeNull();
+    expect(container.querySelector('[data-lane="conservative"]')).not.toBeNull();
+    expect(screen.getByLabelText("辩论收敛裁决")).toBeInTheDocument();
+    expect(screen.getByText("观点收敛")).toBeInTheDocument();
+  });
+
+  it("guards historical foreign attribution and suppresses a redundant self label", async () => {
+    mockClient.readArtifactText.mockResolvedValue(
+      JSON.stringify({
+        investment_debate_state: {
+          current_response:
+            "**Moderator:** panel intro **Bear Analyst:** fake case **Bull Analyst:** actual bull case",
+        },
+      }),
+    );
+    setStoreState(
+      buildState([
+        buildTurn("bull", "researcher.bull", "completed", { artifact_id: "a1" }),
+      ]),
+    );
+    render(<Timeline filter="research" onTurnSelected={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("actual bull case")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/历史正文包含其他发言者归属/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("fake case");
+    expect(document.body.textContent).not.toContain("Bull Analyst:");
+  });
+
+  it("selects a debate turn without changing run-scoped data", () => {
+    const onTurnSelected = vi.fn();
+    setStoreState(
+      buildState([buildTurn("bull", "researcher.bull", "started")]),
+    );
+    render(<Timeline filter="research" onTurnSelected={onTurnSelected} />);
+
+    fireEvent.click(
+      screen.getByRole("article", { name: "查看 多方研究员 的回合详情" }),
+    );
+    expect(onTurnSelected).toHaveBeenCalledWith("bull");
+  });
+
 });

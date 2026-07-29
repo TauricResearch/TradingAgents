@@ -241,9 +241,10 @@ def test_portfolio_manager_prompt_carries_low_confidence_cap():
             "Evidence confidence: LOW_CONFIDENCE (company 1.0/3, mixed 1.5/5)\n"
         ),
     }
-    create_portfolio_manager(llm)(state)
+    result = create_portfolio_manager(llm)(state)
     text = _prompt_text(captured["prompt"])
 
     assert "Evidence Confidence Cap:" in text
     assert "LOW_CONFIDENCE" in text
     assert "do NOT issue Buy or Sell" in text
+    assert result["evidence_status"] == "LOW_CONFIDENCE"

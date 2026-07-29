@@ -11,7 +11,7 @@ describe("App shell", () => {
     expect(screen.getByText(/● localhost/)).toBeInTheDocument();
     // The three persistent columns exist with their approved headings.
     expect(screen.getByRole("heading", { name: "分析输入" })).toBeInTheDocument();
-    // Right column is the G3 Inspector with its top-level audit tabs.
-    expect(screen.getByRole("button", { name: "角色输入" })).toBeInTheDocument();
+    // Right column starts with an explicit turn-selection audit empty state.
+    expect(screen.getByText("选择一个发言查看完整审计信息")).toBeInTheDocument();
   });
 });

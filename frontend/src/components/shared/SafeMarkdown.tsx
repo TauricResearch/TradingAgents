@@ -18,6 +18,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 export interface SafeMarkdownProps {
   content: string;
   mode?: "prose" | "data";
+  className?: string;
 }
 
 function Anchor(props: React.AnchorHTMLAttributes<HTMLAnchorElement>): JSX.Element {
@@ -37,13 +38,21 @@ function Anchor(props: React.AnchorHTMLAttributes<HTMLAnchorElement>): JSX.Eleme
   );
 }
 
-export function SafeMarkdown({ content, mode = "prose" }: SafeMarkdownProps): JSX.Element {
+export function SafeMarkdown({
+  content,
+  mode = "prose",
+  className,
+}: SafeMarkdownProps): JSX.Element {
   if (mode === "data") {
-    return <pre className="datablock">{content}</pre>;
+    return (
+      <pre className={["datablock", className].filter(Boolean).join(" ")}>
+        {content}
+      </pre>
+    );
   }
 
   return (
-    <div className="prose">
+    <div className={["prose", className].filter(Boolean).join(" ")}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeSanitize, defaultSchema]]}

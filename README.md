@@ -240,6 +240,19 @@ history persists across restarts.
 - **Readable reports**: narrative artifacts and turn responses render sanitized
   GitHub-flavored Markdown. Prompts and machine payloads stay byte-faithful in
   a monospace data view.
+- **Research-reading-first dossier**: the main column presents the committed
+  analyst reports, evidence decision, research debate, trader plan, risk debate,
+  portfolio verdict, and final report as one staged document. The existing
+  complete debate timeline remains immediately below it for turn-by-turn audit.
+- **Canonical final report integrity**: new completed runs publish exactly one
+  content-addressed `reports/complete_report.md` artifact and record its explicit
+  artifact ID and completion timestamp. Historical runs fall back only when that
+  locator is unique; missing or ambiguous candidates are shown as integrity
+  states instead of selecting arbitrary Markdown.
+- **Data degradation disclosure**: completed runs persist normalized degraded or
+  unavailable source summaries. The final-report surface displays a warning when
+  any source degraded, while detailed vendor attempts and reason codes remain
+  available in the run audit data.
 - **Response loading**: turn responses appear automatically. The initial window
   loads full text; later turns load bounded excerpts and expose an explicit
   full-text expansion control, with a four-request concurrency ceiling.
@@ -247,10 +260,15 @@ history persists across restarts.
   with visible limitations and a downstream conviction cap, and hard identity
   or fatal core-data conflicts remain `FAIL_STOP`. The default
   `evidence_stop_on_fail` is `False`; see `.env.example` for overrides.
-- **Current inspector boundary**: the inspector still uses the existing tabbed
-  run/role structure. The planned flat four-section turn inspector and the
-  round/lane debate-script redesign are tracked as later phases in
-  `openspec/changes/workbench-debate-narrative-and-evidence-degradation/`.
+- **Debate narrative and audit scope**: research and risk debates render by
+  configured round in opposed lanes, with candidate labels and full-width judge
+  convergence. Historical bodies with foreign speaker attribution are visibly
+  marked rather than silently assigned to the selected role. Selecting a turn or
+  a workflow role scopes a fixed Identity → Evidence → Prompt / LLM input →
+  Output inspector; Prompt is collapsed and lazy-loaded by default.
+- **Run-level disclosure**: the active-run header exposes run input, reports
+  published through `report.updated`, and the complete artifact index without
+  mixing those run-scoped records into the selected-turn inspector.
 - **Where data lives**: each run is under `~/.tradingagents/web/runs/<run_id>/`
   (append-only `events.jsonl`, content-addressed artifacts, Markdown reports).
 - **Privacy**: the server binds `127.0.0.1` and never sends API-key values to

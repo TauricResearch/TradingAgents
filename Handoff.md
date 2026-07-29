@@ -1,6 +1,6 @@
 # TradingAgents Local Web Handoff
 
-Last updated: 2026-07-27
+Last updated: 2026-07-29
 
 > 2026-07-23 现役补充：Workbench 已支持真实组合约束（合法动作集、数量 clamp 审计、
 > 快照恢复和前端输入）以及 YAML 分析师 preset（仅启停/排序四个分析师；其余九个
@@ -16,30 +16,37 @@ Build a localhost-only web application that starts from the terminal, accepts a 
 
 ## Current phase
 
-The active OpenSpec change is
-`workbench-debate-narrative-and-evidence-degradation`. On
-`feat/workbench-debate-narrative`, Phases 1–4 and 3A are implemented:
+The current integration branch is `codex/integrate-salvage-worktree-792e`.
+It semantically combines the newer debate-script/flat-Inspector implementation
+with the salvage branch's research-reading features without restoring the older
+tabbed or click-to-load UI.
 
-- sanitized prose Markdown plus literal data rendering;
-- windowed automatic turn-response loading;
-- `PASS` / `LOW_CONFIDENCE` / `FAIL_STOP` evidence semantics with downstream
-  conviction caps and exception-category-only fault persistence;
-- single-speaker research/risk debate prompts with conditional rebuttals;
-- a six-stage workflow map with typed SVG edges and a narrow-layout fallback.
+The workbench reading order is now:
 
-Phases 5 and 6 are deliberately not complete: the timeline has not yet been
-rewritten into round/lane debate-script blocks, and the inspector has not yet
-been flattened into identity/evidence/prompt/output sections. The authoritative
-task-level boundary is
-`openspec/changes/workbench-debate-narrative-and-evidence-degradation/PROGRESS.md`.
+1. run disclosure and status;
+2. market chart and workflow map;
+3. a staged research dossier covering analyst reports, evidence, debates,
+   trader plan, risk review, Portfolio Manager verdict, and final report;
+4. the existing complete debate and audit timeline;
+5. the fixed Identity -> Evidence -> Prompt / LLM input -> Output inspector.
 
-Current no-cost verification: strict TypeScript passed, 94 Vitest tests passed,
-49 focused backend tests passed, and 9 deterministic Playwright specs passed.
-The full backend suite reached 1,331 passed with two known historical failures
-(`test_missing_console_prints_actionable_message` and
-`test_business_projection_selects_only_declared_agent_state_channels`). The
-browser run uses the fake runner and does not prove a real provider or a
-thin-coverage ticker path.
+Successful runs must publish exactly one content-addressed
+`reports/complete_report.md`. The terminal snapshot/event records its explicit
+artifact ID, completion timestamp, and normalized degraded-data-source summaries.
+Historical runs may resolve the final report only through a unique canonical
+locator; missing or ambiguous candidates remain visible integrity states rather
+than being guessed. Report publication failures are terminalized under the
+`report_publication` error category.
+
+Merge validation on 2026-07-29 passed strict TypeScript, 112 Vitest tests in
+19 files, a 326-module production build, 10 deterministic Playwright specs,
+repository-wide Ruff, and the isolated-HOME full backend suite with 1,335 passed,
+19 warnings, and 68 subtests. GitHub Actions remains the authority for the full
+Python 3.10-3.13 compatibility matrix.
+
+No real provider call is part of this merge validation. The browser suite uses
+the deterministic fake runner, and any provider-cost or thin-coverage acceptance
+still requires explicit approval.
 
 ## Confirmed constraints
 
@@ -88,7 +95,7 @@ thin-coverage ticker path.
 - The CLI already extracts agent messages, tool arguments, tool results, debate state, risk state, and data-vendor progress from the real graph stream.
 - The synchronous LangGraph stream must run in a worker thread so the web server event loop stays responsive.
 - A shared `AnalysisRunner`/event adapter should serve both CLI and Web paths to avoid creating a third execution implementation.
-- The authoritative interpreter is `/Users/david/miniconda3/bin/python` (Python 3.13.5) from a login shell; it provides pytest and LangGraph.
+- The current authoritative interpreter is `/Users/david/miniconda3/envs/tradingagents/bin/python` (Python 3.13.13); it provides pytest and LangGraph.
 - The focused pre-change legacy baseline passed with 41 tests. After Story A1, the expanded legacy matrix passed with 43 tests and the A1/relevant compatibility matrix passed with 97 tests.
 - Typer's prior single-command collapse made `tradingagents [OPTIONS]` work while README-documented `tradingagents analyze [OPTIONS]` failed. The callback/group boundary now supports both, so adding `web` will not silently break the legacy root invocation.
 - Configured selections previously omitted `asset_type` and used only A-share ticker normalization. They now use the canonical CLI normalizer and explicitly classify stock versus crypto.
@@ -155,13 +162,15 @@ None. Material product and architecture decisions are approved. Pause only if im
 
 ## Next steps
 
-1. Publish the completed Phase 1–4/3A slice to `david188888/TradingAgents:main`.
-2. Continue on `codex/workbench-debate-script-and-inspector` from the real merged
-   `origin/main` commit.
-3. Implement Phase 5 (round/lane debate script and historical-attribution guard).
-4. Implement Phase 6 (flat turn-scoped inspector and run-scope relocation).
-5. Re-run deterministic browser coverage, then separately request approval
-   before any real-provider/thin-coverage acceptance run that may incur cost.
+1. Publish `codex/integrate-salvage-worktree-792e` only to the user-owned
+   `origin`, open a pull request against `main`, and merge only after every
+   required GitHub check is green.
+2. Request explicit approval before any real two-round provider run or
+   thin-coverage acceptance that may incur cost or use credentials.
+3. After that acceptance evidence exists, compare pre-/post-3A run-store payloads
+   and decide whether the OpenSpec change is ready to sync/archive.
+4. Keep cleanup candidates until the closeout report has been reviewed and the
+   user explicitly confirms destructive cleanup.
 
 ## Notes
 

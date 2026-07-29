@@ -1,5 +1,5 @@
 /**
- * G3 - Tool call card for the 数据与工具 inspector tab.
+ * G3 - Tool call card for the inspector evidence section.
  *
  * Renders a single LogicalToolCall with its logical status, arguments, and
  * execution history. The head is a clickable button that toggles the body
