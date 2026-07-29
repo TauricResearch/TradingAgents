@@ -28,14 +28,24 @@ _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 
 
 def _stocktwits_symbol(ticker: str) -> str:
-    """Map a crypto pair to StockTwits' ``<BASE>.X`` convention.
+    """Map Yahoo symbols to StockTwits' symbol conventions.
 
     StockTwits lists crypto as ``BTC.X`` (Yahoo's ``BTC-USD`` form 404s), so any
-    crypto symbol resolves to its base plus ``.X``; other symbols pass through
-    upper-cased.
+    crypto symbol resolves to its base plus ``.X``.  Indian equities use the
+    exchange names ``.NSE`` / ``.BSE`` on StockTwits rather than Yahoo's
+    abbreviated ``.NS`` / ``.BO`` suffixes.  Other symbols pass through
+    upper-cased unchanged.
     """
     base = crypto_base(ticker)
-    return f"{base}.X" if base else ticker.strip().upper()
+    if base:
+        return f"{base}.X"
+
+    symbol = ticker.strip().upper()
+    if symbol.endswith(".NS"):
+        return symbol[:-3] + ".NSE"
+    if symbol.endswith(".BO"):
+        return symbol[:-3] + ".BSE"
+    return symbol
 
 
 def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.0) -> str:

@@ -30,7 +30,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from .symbol_utils import crypto_base
+from .symbol_utils import crypto_base, india_equity_parts
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +47,41 @@ _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 # discussion. wallstreetbets has the most volume but most noise; stocks /
 # investing trend more measured. Caller can override.
 DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
+# NSE/BSE discussion is concentrated in India-specific communities.  Do not
+# mix these with the US defaults: a base ticker can collide with a US symbol.
+INDIA_SUBREDDITS = ("IndianStockMarket", "IndiaStocks", "StockMarketIndia")
 
 
-def _search_qs(ticker: str, limit: int) -> str:
+def _subreddits_for_ticker(ticker: str) -> tuple[str, ...]:
+    """Select market-aware default communities for ``ticker``."""
+    return INDIA_SUBREDDITS if india_equity_parts(ticker) else DEFAULT_SUBREDDITS
+
+
+def _clean_search_terms(
+    ticker: str,
+    search_terms: Iterable[str] | None,
+) -> tuple[str, ...]:
+    """Return safe, ordered search terms, preserving legacy ticker behavior."""
+    candidates = search_terms or (crypto_base(ticker) or ticker,)
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for term in candidates:
+        value = " ".join(str(term).replace('"', "").split())
+        key = value.casefold()
+        if value and key not in seen:
+            seen.add(key)
+            cleaned.append(value)
+    return tuple(cleaned)
+
+
+def _build_search_query(terms: Iterable[str]) -> str:
+    """Combine aliases into one Reddit query without multiplying requests."""
+    return " OR ".join(f'"{term}"' if " " in term else term for term in terms)
+
+
+def _search_qs(search_query: str, limit: int) -> str:
     return urlencode({
-        "q": ticker,
+        "q": search_query,
         "restrict_sr": "on",
         "sort": "new",
         "t": "week",  # last 7 days
@@ -190,10 +220,11 @@ def _fetch_subreddit(
 
 def fetch_reddit_posts(
     ticker: str,
-    subreddits: Iterable[str] = DEFAULT_SUBREDDITS,
+    subreddits: Iterable[str] | None = None,
     limit_per_sub: int = 5,
     timeout: float = 10.0,
     inter_request_delay: float = 1.0,
+    search_terms: Iterable[str] | None = None,
 ) -> str:
     """Fetch recent Reddit posts mentioning ``ticker`` across finance
     subreddits and return them as a formatted plaintext block.
@@ -201,23 +232,29 @@ def fetch_reddit_posts(
     ``inter_request_delay`` paces the (now RSS-only) per-subreddit requests to
     stay under Reddit's public per-IP rate limit; combined with the RSS-first
     path it makes 429s rare even when several analyses run back-to-back.
+
+    For NSE/BSE tickers, callers may provide market-aware aliases while the
+    default subreddit set automatically switches to India-focused communities.
+    Aliases are joined into a single ``OR`` query, so request volume is unchanged.
     """
-    # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
-    # ("BTC") so the query actually matches discussion instead of near-nothing.
-    ticker = crypto_base(ticker) or ticker
+    terms = _clean_search_terms(ticker, search_terms)
+    search_query = _build_search_query(terms)
+    search_label = ", ".join(terms)
+    selected_subreddits = tuple(subreddits) if subreddits is not None else _subreddits_for_ticker(ticker)
+
     blocks = []
     total_posts = 0
-    for i, sub in enumerate(subreddits):
+    for i, sub in enumerate(selected_subreddits):
         if i > 0:
             time.sleep(inter_request_delay)
-        posts = _fetch_subreddit(ticker, sub, limit_per_sub, timeout)
+        posts = _fetch_subreddit(search_query, sub, limit_per_sub, timeout)
         total_posts += len(posts)
         if not posts:
-            blocks.append(f"r/{sub}: <no posts found mentioning {ticker.upper()} in the past 7 days>")
+            blocks.append(f"r/{sub}: <no posts found matching {search_label} in the past 7 days>")
             continue
 
         via_rss = any(p.get("source") == "rss" for p in posts)
-        header = f"r/{sub} — {len(posts)} recent posts mentioning {ticker.upper()}"
+        header = f"r/{sub} — {len(posts)} recent posts matching {search_label}"
         header += " (via RSS feed; scores/comments unavailable):" if via_rss else ":"
         lines = [header]
         for p in posts:
@@ -244,7 +281,7 @@ def fetch_reddit_posts(
 
     if total_posts == 0:
         return (
-            f"<no Reddit posts found mentioning {ticker.upper()} across "
-            f"{', '.join(f'r/{s}' for s in subreddits)} in the past 7 days>"
+            f"<no Reddit posts found matching {search_label} across "
+            f"{', '.join(f'r/{s}' for s in selected_subreddits)} in the past 7 days>"
         )
     return "\n\n".join(blocks)
