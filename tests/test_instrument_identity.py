@@ -13,6 +13,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     resolve_instrument_identity,
 )
+from tradingagents.dataflows.symbol_utils import build_india_search_terms
 
 
 @pytest.mark.unit
@@ -36,6 +37,7 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
         self.assertEqual(identity["sector"], "Industrials")
         self.assertEqual(identity["industry"], "Building Products & Equipment")
         self.assertEqual(identity["exchange"], "PNK")
+        self.assertEqual(identity["short_name"], "TOTO")
 
     def test_falls_back_to_short_name(self):
         with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
@@ -63,6 +65,31 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
             second = resolve_instrument_identity("TOTDY")
         mock.assert_called_once()  # second call served from cache
         self.assertEqual(first, second)
+
+
+@pytest.mark.unit
+class IndiaSearchTermTests(unittest.TestCase):
+    def test_sbin_terms_include_alias_name_and_exchange(self):
+        terms = build_india_search_terms(
+            "SBIN.NS",
+            {"company_name": "State Bank of India"},
+        )
+        self.assertEqual(
+            terms,
+            ("SBIN", "SBI", "State Bank of India", "SBIN NSE"),
+        )
+
+    def test_reliance_terms_recover_ril_acronym(self):
+        terms = build_india_search_terms(
+            "RELIANCE.NS",
+            {"company_name": "Reliance Industries Limited"},
+        )
+        self.assertEqual(terms[0], "RELIANCE")
+        self.assertIn("RIL", terms)
+        self.assertIn("RELIANCE NSE", terms)
+
+    def test_non_indian_symbol_returns_no_override(self):
+        self.assertEqual(build_india_search_terms("AAPL", {"company_name": "Apple Inc."}), ())
 
 
 @pytest.mark.unit

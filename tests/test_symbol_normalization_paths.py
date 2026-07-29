@@ -73,3 +73,22 @@ def test_news_lookup_normalizes_symbol(monkeypatch):
     assert seen["symbol"] == "GC=F"   # news queried with the canonical symbol
     assert "XAUUSD" in out            # the user's ticker stays in the report
     assert "GC=F" in out              # provenance noted
+
+
+def test_news_lookup_preserves_nse_suffix(monkeypatch):
+    seen = {}
+
+    class FakeTicker:
+        def __init__(self, symbol):
+            seen["symbol"] = symbol
+
+        def get_news(self, count):
+            return []
+
+    monkeypatch.setattr(ynews.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(ynews, "yf_retry", lambda fn: fn())
+
+    out = ynews.get_news_yfinance("SBIN.NS", "2026-07-01", "2026-07-10")
+
+    assert seen["symbol"] == "SBIN.NS"
+    assert "SBIN.NS" in out

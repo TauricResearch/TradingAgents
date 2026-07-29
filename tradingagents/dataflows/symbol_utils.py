@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 
 # NoMarketDataError lives in the vendor-error taxonomy (errors.py); re-exported
 # here for the many call sites that import it alongside normalize_symbol.
@@ -78,6 +79,12 @@ _YAHOO_SAFE = re.compile(r"^[A-Za-z0-9._\-\^=]+$")
 # in any of these resolves to ``-USD`` (#982). Longest first so ``USDT``/``USDC``
 # match before the ``USD`` substring.
 _CRYPTO_QUOTES = ("USDT", "USDC", "USD")
+
+# Yahoo's exchange suffixes for Indian equities.  These are deliberately kept
+# separate from symbol normalization: market-data calls must retain the suffix,
+# while text-search sources need human-friendly aliases.
+_INDIA_EXCHANGE_SUFFIXES = {".NS": "NSE", ".BO": "BSE"}
+_ACRONYM_STOPWORDS = frozenset({"AND", "OF", "THE"})
 
 
 def crypto_base(raw: str) -> str | None:
@@ -136,6 +143,89 @@ def normalize_symbol(raw: str) -> str:
     if canonical != raw.strip().upper():
         logger.info("Resolved symbol %r to Yahoo symbol %r", raw, canonical)
     return canonical
+
+
+def india_equity_parts(raw: str) -> tuple[str, str] | None:
+    """Return ``(base_symbol, exchange)`` for Yahoo NSE/BSE equities.
+
+    Examples:
+        ``SBIN.NS`` -> ``("SBIN", "NSE")``
+        ``500325.BO`` -> ``("500325", "BSE")``
+
+    The full exchange-qualified ticker remains the canonical market-data
+    symbol; this helper is only for selecting text-search terms and sources.
+    """
+    canonical = normalize_symbol(raw)
+    if not isinstance(canonical, str):
+        return None
+    upper = canonical.strip().upper()
+    for suffix, exchange in _INDIA_EXCHANGE_SUFFIXES.items():
+        if upper.endswith(suffix) and len(upper) > len(suffix):
+            return upper[: -len(suffix)], exchange
+    return None
+
+
+def _company_acronym(name: str) -> str | None:
+    """Build a conservative company-name acronym for social search.
+
+    This recovers common India-market aliases without a hard-coded company
+    table, for example ``State Bank of India`` -> ``SBI`` and
+    ``Reliance Industries Limited`` -> ``RIL``.  Two-letter initials are
+    omitted because they are usually too noisy for social search.
+    """
+    words = re.findall(r"[A-Za-z0-9]+", name.upper())
+    initials = "".join(word[0] for word in words if word not in _ACRONYM_STOPWORDS)
+    return initials if 3 <= len(initials) <= 6 else None
+
+
+def build_india_search_terms(
+    ticker: str,
+    identity: Mapping[str, object] | None = None,
+) -> tuple[str, ...]:
+    """Build ordered, de-duplicated text-search aliases for NSE/BSE stocks.
+
+    Market-data callers continue to use the full Yahoo symbol.  Text-search
+    sources instead receive terms such as:
+
+    ``SBIN.NS`` -> ``SBIN``, ``SBI``, ``State Bank of India``, ``SBIN NSE``
+
+    Returns an empty tuple for non-Indian symbols so existing US, crypto, and
+    other international behavior remains unchanged.
+    """
+    parts = india_equity_parts(ticker)
+    if parts is None:
+        return ()
+
+    base_symbol, exchange = parts
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    def add(value: object) -> None:
+        if not isinstance(value, str):
+            return
+        cleaned = " ".join(value.split())
+        key = cleaned.casefold()
+        if cleaned and key not in seen:
+            seen.add(key)
+            terms.append(cleaned)
+
+    add(base_symbol)
+    if identity:
+        company_name = identity.get("company_name") or identity.get("name")
+        if isinstance(company_name, str):
+            add(_company_acronym(company_name))
+            add(company_name)
+        add(identity.get("short_name"))
+
+        aliases = identity.get("aliases")
+        if isinstance(aliases, str):
+            add(aliases)
+        elif isinstance(aliases, (list, tuple, set, frozenset)):
+            for alias in aliases:
+                add(alias)
+
+    add(f"{base_symbol} {exchange}")
+    return tuple(terms)
 
 
 def is_yahoo_safe(symbol: str) -> bool:
