@@ -1,7 +1,8 @@
 import logging
 import os
 import time
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Any
 
 import pandas as pd
 import yfinance as yf
@@ -26,7 +27,7 @@ MAX_OHLCV_STALE_DAYS = 10
 OHLCV_CACHE_TTL_SECONDS = 900
 
 
-def yf_retry(func, max_retries=3, base_delay=2.0):
+def yf_retry(func: Any, max_retries: int = 3, base_delay: float = 2.0) -> Any:
     """Execute a yfinance call with exponential backoff on rate limits.
 
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
@@ -128,7 +129,7 @@ def _assert_ohlcv_not_stale(
         )
 
 
-def _needs_same_day_refresh(data_file, curr_date_dt, today_date) -> bool:
+def _needs_same_day_refresh(data_file: str, curr_date_dt: datetime, today_date: datetime) -> bool:
     """Whether a cached frame must be refetched to reflect the requested day.
 
     The cache file is keyed per day, so without this a run started before the
@@ -245,7 +246,7 @@ class StockstatsUtils:
         curr_date: Annotated[
             str, "curr date for retrieving stock price data, YYYY-mm-dd"
         ],
-    ):
+    ) -> str:
         data = load_ohlcv(symbol, curr_date)
         df = wrap(data)
         df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")

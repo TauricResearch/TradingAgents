@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from io import StringIO
+from typing import Any
 
 import pandas as pd
 import requests
@@ -34,7 +35,7 @@ def get_api_key() -> str:
         )
     return api_key
 
-def format_datetime_for_api(date_input) -> str:
+def format_datetime_for_api(date_input: str | datetime) -> str:
     """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
     if isinstance(date_input, str):
         # If already in correct format, return as-is

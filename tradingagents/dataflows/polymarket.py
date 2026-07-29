@@ -12,6 +12,7 @@ outcomes (a "Yes" at 0.76 means the market prices a 76% chance).
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 import requests
 
@@ -34,7 +35,7 @@ def _request(path: str, params: dict) -> dict:
     return response.json()
 
 
-def _parse_json_list(value) -> list:
+def _parse_json_list(value: Any) -> list:
     """Gamma encodes ``outcomes``/``outcomePrices`` as JSON-string arrays."""
     if isinstance(value, list):
         return value

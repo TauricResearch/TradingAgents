@@ -1,6 +1,6 @@
 import re
 from datetime import date, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 import pandas as pd
 
@@ -48,12 +48,12 @@ def save_output(data: pd.DataFrame, tag: str, save_path: SavePathType = None) ->
         print(f"{tag} saved to {save_path}")
 
 
-def get_current_date():
+def get_current_date() -> str:
     return date.today().strftime("%Y-%m-%d")
 
 
-def decorate_all_methods(decorator):
-    def class_decorator(cls):
+def decorate_all_methods(decorator: Any) -> Any:
+    def class_decorator(cls: type) -> type:
         for attr_name, attr_value in cls.__dict__.items():
             if callable(attr_value):
                 setattr(cls, attr_name, decorator(attr_value))
@@ -62,7 +62,7 @@ def decorate_all_methods(decorator):
     return class_decorator
 
 
-def get_next_weekday(date):
+def get_next_weekday(date: datetime | str) -> datetime:
 
     if not isinstance(date, datetime):
         date = datetime.strptime(date, "%Y-%m-%d")

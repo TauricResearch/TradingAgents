@@ -1,7 +1,7 @@
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
 
 
-def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
+def get_news(ticker: str, start_date: str, end_date: str) -> dict[str, str] | str:
     """Returns live and historical market news & sentiment data from premier news outlets worldwide.
 
     Covers stocks, cryptocurrencies, forex, and topics like fiscal policy, mergers & acquisitions, IPOs.
@@ -23,7 +23,7 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_global_news(curr_date, look_back_days: int = 7, limit: int = 50) -> dict[str, str] | str:
+def get_global_news(curr_date: str, look_back_days: int = 7, limit: int = 50) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
