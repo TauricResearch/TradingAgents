@@ -1143,7 +1143,16 @@ def _is_recoverable_vendor_error(vendor: str, exc: Exception) -> bool:
     if CurlCffiRequestException:
         request_errors = (*request_errors, CurlCffiRequestException)
 
-    if vendor in {"alpha_vantage", "tavily", "yfinance"} and isinstance(exc, request_errors):
+    if vendor in {"alpha_vantage", "tavily", "yfinance", "fred"} and isinstance(exc, request_errors):
+        return True
+
+    # DNS failures, a blocked route, and socket timeouts are recoverable
+    # transport failures.  They must enter the ordered vendor chain rather
+    # than aborting an AAPL run merely because one overseas source is
+    # unreachable without a VPN.
+    if vendor in {"alpha_vantage", "tavily", "yfinance", "fred"} and isinstance(
+        exc, (ConnectionError, TimeoutError, OSError)
+    ):
         return True
 
     if isinstance(
@@ -1180,6 +1189,9 @@ def _is_transient_vendor_error(exc: Exception) -> bool:
             YFRateLimitError,
             TavilyUnavailableError,
             *request_errors,
+            ConnectionError,
+            TimeoutError,
+            OSError,
         ),
     )
 

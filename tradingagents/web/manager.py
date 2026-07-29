@@ -6,6 +6,7 @@ import threading
 from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import Any, Protocol
 
 from tradingagents.dataflows.config import config_scope
@@ -27,8 +28,9 @@ from tradingagents.observability.provenance import provenance_scope
 from tradingagents.observability.roles import ROLE_REGISTRY, role_instance_id
 
 from .broker import EventBroker
-from .reports import ReportArtifactWriter
-from .run_models import RunSnapshot
+from .degradations import summarize_data_degradations
+from .reports import ReportArtifactWriter, ReportPublicationError
+from .run_models import RunSnapshot, utc_timestamp
 from .store import RunStore
 
 TERMINAL_RUN_STATUSES = frozenset({"completed", "failed", "cancelled"})
@@ -336,6 +338,18 @@ class SingleRunManager:
                 {
                     "run_status": "running",
                     "retry_of": retry_of,
+                    "ticker": snapshot.ticker,
+                    "asset_type": snapshot.asset_type,
+                    "analysis_date": snapshot.analysis_date,
+                    "selected_analysts": list(snapshot.selected_analysts),
+                    "research_depth": snapshot.max_debate_rounds,
+                    "max_debate_rounds": snapshot.max_debate_rounds,
+                    "max_risk_discuss_rounds": snapshot.max_risk_discuss_rounds,
+                    "output_language": snapshot.output_language,
+                    "llm_provider": snapshot.llm_provider,
+                    "quick_think_llm": snapshot.quick_think_llm,
+                    "deep_think_llm": snapshot.deep_think_llm,
+                    "checkpoint_enabled": bool(config.get("checkpoint_enabled")),
                 },
                 status="running",
             )
@@ -501,6 +515,20 @@ class SingleRunManager:
             dict(result.final_state),
             request.ticker,
         )
+        complete_artifacts = [
+            artifact
+            for artifact in publication.artifacts
+            if artifact.locator == "reports/complete_report.md"
+        ]
+        if len(complete_artifacts) != 1:
+            raise ReportPublicationError(
+                "canonical publication must contain exactly one complete report artifact"
+            )
+        degraded_data_sources = summarize_data_degradations(
+            self.store.read_events(run_id)
+        )
+        completed_at = utc_timestamp()
+        terminal_timestamp = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
         artifact_ids: list[str] = []
         for artifact in publication.artifacts:
             artifact_ids.append(artifact.artifact_id)
@@ -536,8 +564,12 @@ class SingleRunManager:
                     "summary": "Analysis completed successfully.",
                     "final_signal": result.final_signal,
                     "report_artifact_ids": artifact_ids,
+                    "final_report_artifact_id": complete_artifacts[0].artifact_id,
+                    "completed_at": completed_at,
+                    "degraded_data_sources": degraded_data_sources,
                 },
                 status="completed",
+                timestamp=terminal_timestamp,
             )
         )
 
@@ -1214,6 +1246,8 @@ def _checkpoint_sequence(events: list[PersistedEvent]) -> int:
 def _error_category(error: BaseException | None) -> str:
     if error is None:
         return "unexpected_internal_failure"
+    if isinstance(error, ReportPublicationError):
+        return "report_publication_failed"
     name = type(error).__name__.lower()
     if "checkpoint" in name or "fingerprint" in name:
         return "checkpoint_incompatibility"

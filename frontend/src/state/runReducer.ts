@@ -91,6 +91,7 @@ function emptyState(): ReducerState {
     created_at: "",
     updated_at: "",
     latest_sequence: 0,
+    degraded_data_sources: [],
     redaction_manifest: [],
     event_schema_version: 1,
   };
@@ -131,6 +132,9 @@ function seedFromSnapshot(s: RunSnapshotDTO): ReducerState {
     updated_at: s.updated_at,
     latest_sequence: 0,  // replay all events from 0 to rebuild state
     final_signal: s.final_signal,
+    final_report_artifact_id: s.final_report_artifact_id,
+    completed_at: s.completed_at,
+    degraded_data_sources: [...(s.degraded_data_sources ?? [])],
     summary: s.summary,
     error_category: s.error_category,
     retry_of: s.retry_of,
@@ -307,23 +311,29 @@ function applyRunStarted(
   p: Record<string, unknown>,
 ): ReducerState {
   const run_id = event.run_id;
-  const selected_analysts = strArr(p.selected_analysts);
+  const payloadAnalysts = strArr(p.selected_analysts);
+  // Fall back to state.meta when the run.started payload omits a field.
+  // Older persisted runs (pre-2026-07-21) emitted run.started with only
+  // run_status+retry_of; the snapshot seed already carries these values,
+  // and replaying such an event must not blank them out.
+  const selected_analysts =
+    payloadAnalysts.length > 0 ? payloadAnalysts : state.meta.selected_analysts;
   const meta: RunMeta = {
     ...state.meta,
     run_id,
     status: "running",
-    ticker: str(p.ticker),
-    asset_type: str(p.asset_type, "stock") as AssetTypeLiteral,
-    analysis_date: str(p.analysis_date),
+    ticker: str(p.ticker, state.meta.ticker),
+    asset_type: (str(p.asset_type, state.meta.asset_type) || "stock") as AssetTypeLiteral,
+    analysis_date: str(p.analysis_date, state.meta.analysis_date),
     selected_analysts,
-    research_depth: num(p.research_depth, 1) as ResearchDepth,
-    max_debate_rounds: num(p.max_debate_rounds, 1),
-    max_risk_discuss_rounds: num(p.max_risk_discuss_rounds, 1),
-    output_language: str(p.output_language, "English"),
-    llm_provider: str(p.llm_provider),
-    quick_think_llm: str(p.quick_think_llm),
-    deep_think_llm: str(p.deep_think_llm),
-    checkpoint_enabled: bool(p.checkpoint_enabled),
+    research_depth: (num(p.research_depth, state.meta.research_depth) || 1) as ResearchDepth,
+    max_debate_rounds: num(p.max_debate_rounds, state.meta.max_debate_rounds),
+    max_risk_discuss_rounds: num(p.max_risk_discuss_rounds, state.meta.max_risk_discuss_rounds),
+    output_language: str(p.output_language, state.meta.output_language),
+    llm_provider: str(p.llm_provider, state.meta.llm_provider),
+    quick_think_llm: str(p.quick_think_llm, state.meta.quick_think_llm),
+    deep_think_llm: str(p.deep_think_llm, state.meta.deep_think_llm),
+    checkpoint_enabled: bool(p.checkpoint_enabled, state.meta.checkpoint_enabled),
     created_at: event.timestamp,
   };
   return { ...state, meta, roles: seedRoles(run_id, selected_analysts) };
@@ -337,6 +347,16 @@ function applyRunTerminal(
   const meta: RunMeta = { ...state.meta, status };
   if ("summary" in p) meta.summary = asStrNull(p.summary);
   if ("final_signal" in p) meta.final_signal = asStrNull(p.final_signal);
+  if ("final_report_artifact_id" in p) {
+    meta.final_report_artifact_id = asStrNull(p.final_report_artifact_id);
+  }
+  if ("completed_at" in p) meta.completed_at = asStrNull(p.completed_at);
+  if (Array.isArray(p.degraded_data_sources)) {
+    meta.degraded_data_sources = p.degraded_data_sources.filter(
+      (value): value is Record<string, unknown> =>
+        value !== null && typeof value === "object" && !Array.isArray(value),
+    ) as unknown as NonNullable<RunMeta["degraded_data_sources"]>;
+  }
   if ("error_category" in p) meta.error_category = asStrNull(p.error_category);
   return {
     ...state,
@@ -428,21 +448,31 @@ function applyTurnEvent(state: ReducerState, p: Record<string, unknown>): Reduce
     turn_id,
     role_instance_id,
     actor_id: actorIdFromRoleInstance(role_instance_id),
+    graph_task_id,
     turn_index: num(p.turn_index),
     status: "started",
     model_call_ids: [],
     tool_call_ids: [],
     vendor_call_ids: [],
   };
-  // Gap: Turn has no graph_task_id/graph_step field in model.ts; graph_task_id
-  // is used only for role linking below.
   let turn: Turn;
   switch (turn_status) {
     case "started":
-      turn = { ...base, status: "started", role_instance_id, turn_index: num(p.turn_index) };
+      turn = {
+        ...base,
+        status: "started",
+        role_instance_id,
+        graph_task_id,
+        turn_index: num(p.turn_index),
+      };
       break;
     case "output_ready":
-      turn = { ...base, status: "output_ready", artifact_id: str(p.artifact_id) };
+      turn = {
+        ...base,
+        status: "output_ready",
+        graph_task_id,
+        artifact_id: str(p.artifact_id),
+      };
       break;
     case "completed":
     case "failed":
@@ -451,6 +481,7 @@ function applyTurnEvent(state: ReducerState, p: Record<string, unknown>): Reduce
       turn = {
         ...base,
         status: turn_status as TurnStatus,
+        graph_task_id,
         reason: str(p.reason),
         duration_ms: optNum(p.duration_ms),
       };
@@ -459,6 +490,7 @@ function applyTurnEvent(state: ReducerState, p: Record<string, unknown>): Reduce
       turn = {
         ...base,
         status: "resumed",
+        graph_task_id,
         resumed_from_sequence: num(p.resumed_from_sequence),
       };
       break;
@@ -652,6 +684,10 @@ function applyDataCall(
     data_status: str(p.data_status),
     status,
     duration_ms: optNum(p.duration_ms) ?? existing?.duration_ms,
+    failure_code: str(p.failure_code) || existing?.failure_code,
+    fallback_chain: strArr(p.fallback_chain).length > 0
+      ? strArr(p.fallback_chain)
+      : existing?.fallback_chain,
     cache_hit_ids: existing?.cache_hit_ids ?? [],
   };
   const vendor_calls = { ...state.vendor_calls, [vendor_call_id]: vc };

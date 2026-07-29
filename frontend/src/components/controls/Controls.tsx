@@ -15,7 +15,12 @@ import type { ResearchDepth } from "../../api/contracts";
 
 const DEPTH_OPTIONS: ResearchDepth[] = [1, 3, 5];
 
-export function Controls(): JSX.Element {
+export interface ControlsProps {
+  /** Called after a new run is successfully created so the history list refreshes. */
+  refreshHistory?: () => Promise<void>;
+}
+
+export function Controls({ refreshHistory }: ControlsProps = {}): JSX.Element {
   const cfg = useConfig();
   const store = useWorkbenchStore();
   const [apiError, setApiError] = useState<string | null>(null);
@@ -34,6 +39,7 @@ export function Controls(): JSX.Element {
     createRun(req)
       .then((snap) => {
         store.selectRun(snap.run_id);
+        refreshHistory?.();
       })
       .catch((e: unknown) => {
         setApiError(e instanceof Error ? e.message : String(e));
@@ -45,9 +51,11 @@ export function Controls(): JSX.Element {
 
   function handleCancel(): void {
     if (store.run_id === null) return;
-    cancelRun(store.run_id).catch((e: unknown) => {
-      setApiError(e instanceof Error ? e.message : String(e));
-    });
+    cancelRun(store.run_id)
+      .then(() => refreshHistory?.())
+      .catch((e: unknown) => {
+        setApiError(e instanceof Error ? e.message : String(e));
+      });
   }
 
   const startDisabled =

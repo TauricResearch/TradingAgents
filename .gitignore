@@ -241,3 +241,7 @@ tradingagents.local.json
 tmp_run_*.py
 # Enterprise env file (secrets)
 .env.enterprise
+
+# Playwright / e2e artifacts
+frontend/test-results/
+.playwright-cli/

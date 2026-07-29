@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -32,6 +33,29 @@ def _store_and_run(tmp_path):
     snapshot = RunSnapshot.create(ticker="AAPL", analysis_date="2026-07-17")
     store.create_run(snapshot)
     return store, snapshot
+
+
+def _completed_draft(run_id, publication):
+    complete = [
+        artifact
+        for artifact in publication.artifacts
+        if artifact.locator == "reports/complete_report.md"
+    ]
+    assert len(complete) == 1
+    timestamp = datetime(2026, 7, 22, 9, 30, tzinfo=UTC)
+    return RunEventDraft(
+        run_id,
+        "run.completed",
+        {
+            "run_status": "completed",
+            "summary": "done",
+            "final_signal": "Hold",
+            "final_report_artifact_id": complete[0].artifact_id,
+            "completed_at": "2026-07-22T09:30:00.000Z",
+            "degraded_data_sources": [],
+        },
+        timestamp=timestamp,
+    )
 
 
 def test_partial_report_revisions_are_monotonic_content_addressed_and_immutable(tmp_path):
@@ -92,21 +116,31 @@ def test_final_publication_uses_canonical_tree_then_allows_completion(tmp_path):
     writer = ReportArtifactWriter(store)
 
     publication = writer.publish_final(snapshot.run_id, _state(), "AAPL")
-    completed = store.append_event(
-        RunEventDraft(
-            snapshot.run_id,
-            "run.completed",
-            {"run_status": "completed", "summary": "done"},
-        )
-    )
+    completed = store.append_event(_completed_draft(snapshot.run_id, publication))
 
     assert publication.complete_report.is_file()
     assert "Trading Analysis Report: AAPL" in publication.complete_report.read_text()
     assert (publication.reports_directory / "1_analysts/market.md").read_text() == "MKT"
     assert (publication.reports_directory / "5_portfolio/decision.md").read_text() == "PORTFOLIO"
     assert all(ref.locator.startswith("reports/") for ref in publication.artifacts)
+    complete_artifact = next(
+        artifact
+        for artifact in publication.artifacts
+        if artifact.locator == "reports/complete_report.md"
+    )
+    assert store.read_artifact(snapshot.run_id, complete_artifact.artifact_id) == (
+        publication.complete_report.read_bytes()
+    )
     assert completed.type == "run.completed"
-    assert store.read_snapshot(snapshot.run_id).status == "completed"
+    final_snapshot = store.read_snapshot(snapshot.run_id)
+    assert final_snapshot.status == "completed"
+    assert final_snapshot.final_report_artifact_id == next(
+        artifact.artifact_id
+        for artifact in publication.artifacts
+        if artifact.locator == "reports/complete_report.md"
+    )
+    assert final_snapshot.completed_at == completed.timestamp
+    assert final_snapshot.degraded_data_sources == ()
     with pytest.raises(ReportPublicationError, match="already published"):
         writer.publish_final(snapshot.run_id, _state(), "AAPL")
 

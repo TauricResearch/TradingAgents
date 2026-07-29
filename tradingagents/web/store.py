@@ -24,6 +24,7 @@ ARTIFACT_KIND_DIRECTORIES = {
     "prompt": "prompts",
     "tool-result": "tool-results",
     "report-revision": "report-revisions",
+    "report-final": "reports",
 }
 ARTIFACT_KIND_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,31}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -132,12 +133,24 @@ class RunStore:
     def append_event(self, draft: RunEventDraft) -> PersistedEvent:
         run_dir = self._run_dir(draft.run_id)
         with self.lock_for(draft.run_id):
-            if draft.type == "run.completed" and not (
-                run_dir / "reports" / "complete_report.md"
-            ).is_file():
-                raise RunStoreError(
-                    "run.completed requires an atomically published canonical report tree"
-                )
+            if draft.type == "run.completed":
+                complete_report = run_dir / "reports" / "complete_report.md"
+                final_report_artifact_id = draft.payload.get("final_report_artifact_id")
+                if not complete_report.is_file():
+                    raise RunStoreError(
+                        "run.completed requires an atomically published canonical report tree"
+                    )
+                expected_id = f"report-final:{hashlib.sha256(complete_report.read_bytes()).hexdigest()}"
+                if final_report_artifact_id != expected_id:
+                    raise RunStoreError(
+                        "run.completed requires the complete report artifact id"
+                    )
+                if not isinstance(draft.payload.get("degraded_data_sources"), list):
+                    raise RunStoreError(
+                        "run.completed requires degraded_data_sources as a list"
+                    )
+                if not isinstance(draft.payload.get("completed_at"), str):
+                    raise RunStoreError("run.completed requires completed_at")
             snapshot = self.read_snapshot(draft.run_id)
             sequence = max(snapshot.latest_sequence, self._last_event_sequence(run_dir)) + 1
             redacted_payload = redact_recursive(draft.payload)
@@ -147,7 +160,15 @@ class RunStore:
                     record.path for record in redacted_payload.manifest
                 ]
             safe_draft = replace(draft, payload=payload)
-            event = PersistedEvent.from_draft(safe_draft, sequence)
+            event = PersistedEvent.from_draft(
+                safe_draft,
+                sequence,
+                timestamp=safe_draft.timestamp,
+            )
+            if event.type == "run.completed" and payload.get("completed_at") != event.timestamp:
+                raise RunStoreError(
+                    "run.completed completed_at must match the terminal event timestamp"
+                )
             serialized = canonical_business_value(event.as_dict()).bytes + b"\n"
             event_file = run_dir / "events.jsonl"
             with event_file.open("ab", buffering=0) as handle:
@@ -164,6 +185,20 @@ class RunStore:
                 latest_sequence=sequence,
                 updated_at=event.timestamp,
             )
+            if event.type == "run.completed":
+                updated = replace(
+                    updated,
+                    final_signal=payload.get("final_signal")
+                    if isinstance(payload.get("final_signal"), str)
+                    else None,
+                    summary=payload.get("summary")
+                    if isinstance(payload.get("summary"), str)
+                    else None,
+                    error_category=None,
+                    final_report_artifact_id=str(payload["final_report_artifact_id"]),
+                    completed_at=event.timestamp,
+                    degraded_data_sources=tuple(payload["degraded_data_sources"]),
+                )
             self._write_snapshot_file(run_dir, updated)
             return event
 
@@ -273,7 +308,7 @@ class RunStore:
         artifact_dir = run_dir / directory_name
         if artifact_dir.parent.resolve() != run_dir.resolve():
             raise InvalidStorePath("artifact path escapes run directory")
-        if artifact_dir.is_dir() and kind == "report-revision":
+        if artifact_dir.is_dir() and kind in {"report-revision", "report-final"}:
             matches = list(artifact_dir.rglob(f"*-{digest}.md"))
         else:
             matches = list(artifact_dir.glob(f"{digest}.*")) if artifact_dir.is_dir() else []

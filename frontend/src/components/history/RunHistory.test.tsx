@@ -1,27 +1,23 @@
 /**
  * F3 - RunHistory component tests.
  *
- * Mocks listRuns and useWorkbenchStore to verify: render of a 3-run fixture
- * (completed/failed/running), click -> selectRun wiring, and the empty-list
- * placeholder. Runs render newest-first as returned by the backend.
+ * RunHistory is now a pure renderer receiving runs/loading/error as props
+ * (the fetch lives in WorkbenchLayout via useRunHistory). Verifies: render
+ * of a 3-run fixture (completed/failed/running), click -> selectRun wiring,
+ * empty-list placeholder, loading placeholder, and error display.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { RunSummaryDTO } from "../../api/contracts";
 
 const mockStore = vi.hoisted(() => ({
   useWorkbenchStore: vi.fn(),
 }));
 
-vi.mock("../../api/client", () => ({
-  listRuns: vi.fn(),
-}));
-
 vi.mock("../../state/WorkbenchStore", () => ({
   useWorkbenchStore: mockStore.useWorkbenchStore,
 }));
 
-import { listRuns } from "../../api/client";
 import { RunHistory } from "./RunHistory";
 
 const FIXTURES: RunSummaryDTO[] = [
@@ -63,10 +59,12 @@ const FIXTURES: RunSummaryDTO[] = [
   },
 ];
 
-function makeStore(overrides: Partial<{
-  run_id: string | null;
-  selectRun: ReturnType<typeof vi.fn>;
-}> = {}) {
+function makeStore(
+  overrides: Partial<{
+    run_id: string | null;
+    selectRun: ReturnType<typeof vi.fn>;
+  }> = {},
+) {
   return {
     run_id: null as string | null,
     selectRun: vi.fn(),
@@ -74,7 +72,6 @@ function makeStore(overrides: Partial<{
       state: null,
       status: "idle" as const,
       error: null,
-      close: vi.fn(),
     },
     ...overrides,
   };
@@ -86,15 +83,9 @@ describe("RunHistory", () => {
     mockStore.useWorkbenchStore.mockReturnValue(makeStore());
   });
 
-  it("renders runs from the mocked listRuns fixture", async () => {
-    vi.mocked(listRuns).mockResolvedValue(FIXTURES);
-    render(<RunHistory />);
+  it("renders runs from props (newest-first as provided)", () => {
+    render(<RunHistory runs={FIXTURES} loading={false} error={null} />);
 
-    await waitFor(() => {
-      expect(screen.getByText("600519.SS")).toBeInTheDocument();
-    });
-
-    // 3 history items, newest-first as returned by the backend.
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(3);
 
@@ -107,32 +98,39 @@ describe("RunHistory", () => {
     expect(screen.getByText(/运行中/)).toBeInTheDocument();
   });
 
-  it("calls selectRun with the run_id when an item is clicked", async () => {
-    vi.mocked(listRuns).mockResolvedValue(FIXTURES);
+  it("calls selectRun with the run_id when an item is clicked", () => {
     const selectRun = vi.fn();
     mockStore.useWorkbenchStore.mockReturnValue(makeStore({ selectRun }));
 
-    render(<RunHistory />);
-
-    await waitFor(() => {
-      expect(screen.getByText("600519.SS")).toBeInTheDocument();
-    });
+    render(<RunHistory runs={FIXTURES} loading={false} error={null} />);
 
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(3);
 
-    // Click the first (newest) item -> selectRun("run-1").
     fireEvent.click(items[0]);
     expect(selectRun).toHaveBeenCalledWith("run-1");
   });
 
-  it("renders the placeholder when there are no runs", async () => {
-    vi.mocked(listRuns).mockResolvedValue([]);
-    render(<RunHistory />);
-
-    await waitFor(() => {
-      expect(screen.getByText("暂无运行记录")).toBeInTheDocument();
-    });
+  it("renders the placeholder when there are no runs", () => {
+    render(<RunHistory runs={[]} loading={false} error={null} />);
+    expect(screen.getByText("暂无运行记录")).toBeInTheDocument();
     expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+  });
+
+  it("renders the loading placeholder while loading with no runs yet", () => {
+    render(<RunHistory runs={[]} loading={true} error={null} />);
+    expect(screen.getByText("加载中…")).toBeInTheDocument();
+  });
+
+  it("renders the error message when fetch failed", () => {
+    render(
+      <RunHistory
+        runs={[]}
+        loading={false}
+        error={new Error("network down")}
+      />,
+    );
+    expect(screen.getByText(/加载失败/)).toBeInTheDocument();
+    expect(screen.getByText(/network down/)).toBeInTheDocument();
   });
 });

@@ -2,8 +2,8 @@
  * G3 - RoleInputPanel component tests.
  *
  * Mocks useWorkbenchStore + readArtifactText. Covers: null-turn placeholder,
- * default 数据字段 tab with lazy-loaded data_snapshot content, Prompt tab
- * switching, empty-tab placeholder, and role-header Chinese label + icon.
+ * default upstream-input tab with lazy-loaded state_snapshot content, Prompt
+ * switching, conditional configuration, and role-header Chinese label + icon.
  */
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -150,20 +150,20 @@ describe("RoleInputPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders 数据字段 tab by default and lazy-loads data_snapshot content", async () => {
+  it("renders 上游资料 by default and lazy-loads state_snapshot content", async () => {
     mockClient.readArtifactText.mockResolvedValue(
       JSON.stringify({ cash: 82.1, revenue: 300 }),
     );
     const turn = buildTurn("t1", "analyst.market", "completed");
     const artifact = buildArtifact("d1", {
-      kind: "data_snapshot",
+      kind: "state_snapshot",
       turn_id: "t1",
-      input_capture_kinds: ["data_snapshot"],
+      input_capture_kinds: ["state_snapshot"],
     });
     setStoreState(buildState([turn], [artifact]));
     render(<RoleInputPanel turn_id="t1" />);
 
-    expect(screen.getByText("数据字段")).toBeInTheDocument();
+    expect(screen.getByText("上游资料")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("82.1")).toBeInTheDocument();
       expect(screen.getByText("300")).toBeInTheDocument();
@@ -182,7 +182,7 @@ describe("RoleInputPanel", () => {
     setStoreState(buildState([turn], [artifact]));
     render(<RoleInputPanel turn_id="t1" />);
 
-    // Default 数据字段 tab has no matching artifacts.
+    // Default 上游资料 tab has no matching artifacts.
     expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Prompt"));
@@ -193,7 +193,7 @@ describe("RoleInputPanel", () => {
     });
   });
 
-  it("shows 该视图暂无数据 when a tab has no matching artifacts", () => {
+  it("hides configuration when the selected turn has no config snapshot", () => {
     const turn = buildTurn("t1", "analyst.market", "completed");
     const artifact = buildArtifact("d2", {
       kind: "data_snapshot",
@@ -203,10 +203,10 @@ describe("RoleInputPanel", () => {
     setStoreState(buildState([turn], [artifact]));
     render(<RoleInputPanel turn_id="t1" />);
 
-    // 数据字段 has an artifact; 配置 has none.
-    expect(screen.queryByText("该视图暂无数据")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("配置"));
+    // data_snapshot is not a role-input capture in actual runs.  It must not
+    // create a permanent empty tab just because a synthetic artifact exists.
     expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
+    expect(screen.queryByText("配置")).not.toBeInTheDocument();
   });
 
   it("shows 上游资料 tab content from a state_snapshot artifact", async () => {
@@ -222,17 +222,14 @@ describe("RoleInputPanel", () => {
     setStoreState(buildState([turn], [artifact]));
     render(<RoleInputPanel turn_id="t1" />);
 
-    // Default 数据字段 tab has no matching artifact.
-    expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("上游资料"));
+    expect(screen.getByText("上游资料")).toHaveAttribute("aria-pressed", "true");
     await waitFor(() => {
       expect(screen.getByText("market_report")).toBeInTheDocument();
       expect(screen.getByText("investment_debate_state")).toBeInTheDocument();
     });
   });
 
-  it("shows 原始值 tab with vendor/sha256 lineage for data artifacts", async () => {
-    mockClient.readArtifactText.mockResolvedValue(JSON.stringify({ cash: 82.1 }));
+  it("does not expose an empty raw-data tab for data_snapshot artifacts", () => {
     const turn = buildTurn("t1", "analyst.fundamentals", "completed");
     const artifact = buildArtifact("d1", {
       kind: "data_snapshot",
@@ -244,12 +241,8 @@ describe("RoleInputPanel", () => {
     setStoreState(buildState([turn], [artifact]));
     render(<RoleInputPanel turn_id="t1" />);
 
-    // 原始值 tab shares data_snapshot artifacts but emphasizes lineage.
-    fireEvent.click(screen.getByText("原始值"));
-    await waitFor(() => {
-      // lineage shows the sha256 + locator
-      expect(screen.getByText(/abc123def456/)).toBeInTheDocument();
-    });
+    expect(screen.queryByText("原始值")).not.toBeInTheDocument();
+    expect(screen.getByText("该视图暂无数据")).toBeInTheDocument();
   });
 
   it("shows 配置 tab content from a config_snapshot artifact", async () => {

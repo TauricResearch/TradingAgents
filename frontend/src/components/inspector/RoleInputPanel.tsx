@@ -1,13 +1,11 @@
 /**
- * G3 - 5-tab audit view for a selected turn's actual inputs.
+ * G3 - contextual audit view for a selected turn's actual inputs.
  *
- * Renders the role header (icon + Chinese label + turn status) and a 5-tab
+ * Renders the role header (icon + Chinese label + turn status) and a compact
  * audit panel that lazy-loads artifact content per tab:
- *   数据字段  - data_snapshot artifacts as key/value tables
- *   上游资料  - state_snapshot artifacts as field-name cards
+ *   上游资料  - state_snapshot artifacts as the role's actual upstream fields
  *   Prompt    - prompt_snapshot artifacts as preformatted text
- *   原始值    - data_snapshot artifacts with vendor/sha256/locator lineage
- *   配置      - config_snapshot artifacts as key/value tables
+ *   配置      - config_snapshot artifacts when the role has one
  *
  * Artifacts are joined to the turn via ArtifactRecord.turn_id (populated by
  * the reducer from input.* events) and filtered through artifactsForTurn.
@@ -25,17 +23,13 @@ export interface RoleInputPanelProps {
   turn_id: string | null;
 }
 
-type AuditTab = "data" | "state" | "prompt" | "raw" | "config";
+type AuditTab = "state" | "prompt" | "config";
 
-const TABS: ReadonlyArray<{ id: AuditTab; label: string }> = [
-  { id: "data", label: "数据字段" },
+const BASE_TABS: ReadonlyArray<{ id: AuditTab; label: string }> = [
   { id: "state", label: "上游资料" },
   { id: "prompt", label: "Prompt" },
-  { id: "raw", label: "原始值" },
-  { id: "config", label: "配置" },
 ];
 
-const DATA_KIND = "data_snapshot";
 const STATE_KIND = "state_snapshot";
 const PROMPT_KIND = "prompt_snapshot";
 const CONFIG_KIND = "config_snapshot";
@@ -77,16 +71,6 @@ function flattenToRows(value: unknown): Array<[string, string]> {
   return rows;
 }
 
-/** Try to extract a vendor name from common payload field names. */
-function extractVendor(parsed: unknown): string | null {
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return null;
-  }
-  const obj = parsed as Record<string, unknown>;
-  const v = obj.vendor ?? obj.data_vendor ?? obj.source ?? obj.provider;
-  return typeof v === "string" ? v : null;
-}
-
 function KeyValueTable({ content }: { content: string | null }): JSX.Element {
   if (content === null) {
     return <div className="placeholder">（无内容）</div>;
@@ -109,100 +93,24 @@ function KeyValueTable({ content }: { content: string | null }): JSX.Element {
   );
 }
 
-function StateRefs({ content }: { content: string | null }): JSX.Element {
-  if (content === null) {
-    return <div className="placeholder">（无内容）</div>;
-  }
-  const parsed = parseJson(content);
-  if (
-    parsed === null ||
-    typeof parsed !== "object" ||
-    Array.isArray(parsed)
-  ) {
-    return <div className="placeholder">{content}</div>;
-  }
-  const fields = Object.keys(parsed as Record<string, unknown>);
-  if (fields.length === 0) {
-    return <div className="placeholder">（无字段）</div>;
-  }
-  return (
-    <div className="profile-grid">
-      {fields.map((f) => (
-        <div key={f} className="profile-cell input-ref">
-          {f}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function PromptBody({ content }: { content: string | null }): JSX.Element {
   if (content === null) {
     return <div className="placeholder">（无内容）</div>;
   }
-  // SafeMarkdown is not yet available in the codebase; render as plain
-  // preformatted text. Swap to <SafeMarkdown content={content} /> once landed.
+  // Prompt snapshots are raw model input, not a report: preserve exact
+  // whitespace instead of treating model-provided text as presentation markup.
   return <pre className="tool-body">{content}</pre>;
-}
-
-function RawBody({
-  content,
-  artifact,
-}: {
-  content: string | null;
-  artifact: ArtifactRecord;
-}): JSX.Element {
-  const parsed = content === null ? null : parseJson(content);
-  const vendor = extractVendor(parsed);
-  const rows = content === null ? [] : flattenToRows(parsed);
-  return (
-    <div>
-      <div className="lineage">
-        <div>
-          <span className="eyebrow">vendor</span>
-          <span>{vendor ?? "-"}</span>
-        </div>
-        <div>
-          <span className="eyebrow">sha256</span>
-          <span className="verified">
-            {truncateId(artifact.content_sha256, 16)}
-          </span>
-        </div>
-        <div>
-          <span className="eyebrow">locator</span>
-          <span>{artifact.locator}</span>
-        </div>
-      </div>
-      {rows.length > 0 && (
-        <table className="data-table">
-          <tbody>
-            {rows.map(([k, v]) => (
-              <tr key={k}>
-                <td className="input-ref">{k}</td>
-                <td>{v}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
 }
 
 function renderBody(
   variant: AuditTab,
   content: string | null,
-  artifact: ArtifactRecord,
 ): JSX.Element {
   switch (variant) {
-    case "data":
-      return <KeyValueTable content={content} />;
     case "state":
-      return <StateRefs content={content} />;
+      return <KeyValueTable content={content} />;
     case "prompt":
       return <PromptBody content={content} />;
-    case "raw":
-      return <RawBody content={content} artifact={artifact} />;
     case "config":
       return <KeyValueTable content={content} />;
     default:
@@ -214,10 +122,12 @@ function ArtifactCard({
   run_id,
   artifact,
   variant,
+  model_label,
 }: {
   run_id: string | null;
   artifact: ArtifactRecord;
   variant: AuditTab;
+  model_label?: string;
 }): JSX.Element {
   const { content, loading, error } = useArtifact(run_id, artifact.artifact_id);
 
@@ -227,7 +137,7 @@ function ArtifactCard({
   } else if (error !== null) {
     body = <div className="placeholder">加载失败：{error}</div>;
   } else {
-    body = renderBody(variant, content, artifact);
+    body = renderBody(variant, content);
   }
 
   return (
@@ -236,6 +146,7 @@ function ArtifactCard({
         <span className="eyebrow">{artifact.kind}</span>
         <span className="placeholder">{truncateId(artifact.artifact_id)}</span>
       </div>
+      {model_label && <div className="role-sub">{model_label}</div>}
       {body}
     </div>
   );
@@ -246,7 +157,7 @@ export function RoleInputPanel({
 }: RoleInputPanelProps): JSX.Element {
   const { stream, run_id } = useWorkbenchStore();
   const state = stream.state;
-  const [activeTab, setActiveTab] = useState<AuditTab>("data");
+  const [activeTab, setActiveTab] = useState<AuditTab>("state");
 
   if (
     turn_id === null ||
@@ -263,9 +174,6 @@ export function RoleInputPanel({
   const label = ROLE_LABELS_ZH[actor_id] ?? actor_id;
 
   const artifacts = artifactsForTurn(state, turn_id);
-  const dataArts = artifacts.filter((a) =>
-    a.input_capture_kinds.includes(DATA_KIND),
-  );
   const stateArts = artifacts.filter((a) =>
     a.input_capture_kinds.includes(STATE_KIND),
   );
@@ -275,15 +183,16 @@ export function RoleInputPanel({
   const configArts = artifacts.filter((a) =>
     a.input_capture_kinds.includes(CONFIG_KIND),
   );
+  const tabs = configArts.length > 0
+    ? [...BASE_TABS, { id: "config" as const, label: "配置" }]
+    : BASE_TABS;
 
   const activeArtifacts =
-    activeTab === "data" || activeTab === "raw"
-      ? dataArts
-      : activeTab === "state"
-        ? stateArts
-        : activeTab === "prompt"
-          ? promptArts
-          : configArts;
+    activeTab === "state"
+      ? stateArts
+      : activeTab === "prompt"
+        ? promptArts
+        : configArts;
 
   return (
     <>
@@ -300,7 +209,7 @@ export function RoleInputPanel({
       </div>
 
       <div className="audit-tabs">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -323,6 +232,11 @@ export function RoleInputPanel({
               run_id={run_id}
               artifact={art}
               variant={activeTab}
+              model_label={
+                art.model_call_id && state.model_calls[art.model_call_id]
+                  ? `${state.model_calls[art.model_call_id].provider} · ${state.model_calls[art.model_call_id].model}`
+                  : undefined
+              }
             />
           ))
         )}

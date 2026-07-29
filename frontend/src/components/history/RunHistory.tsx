@@ -11,7 +11,6 @@
  */
 import type { CSSProperties } from "react";
 import type { RunStatusLiteral, RunSummaryDTO } from "../../api/contracts";
-import { useRunHistory } from "../../hooks/useRunHistory";
 import { useWorkbenchStore } from "../../state/WorkbenchStore";
 
 interface StatusBadge {
@@ -35,8 +34,13 @@ const STATUS_BADGES: Record<RunStatusLiteral, StatusBadge> = {
   created: { className: "", color: "var(--muted)", label: "已创建", dot: false },
 };
 
-export function RunHistory(): JSX.Element {
-  const { runs, loading, error } = useRunHistory();
+export interface RunHistoryProps {
+  runs: RunSummaryDTO[];
+  loading: boolean;
+  error: Error | null;
+}
+
+export function RunHistory({ runs, loading, error }: RunHistoryProps): JSX.Element {
   const { run_id, selectRun } = useWorkbenchStore();
 
   return (

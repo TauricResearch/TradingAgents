@@ -1,7 +1,7 @@
 # TradingAgents 网页研究工作台优化设计
 
 > 日期：2026-07-22  
-> 状态：已与用户逐节确认，等待实现计划  
+> 状态：设计已确认；P0、P1 与 P2 的首个可验证切片已实施，仍待真实浏览器和关闭 VPN 验收  
 > 权威范围：网页端研究阅读、数据源降级、研究流程投影、最终报告与审计回溯  
 > 相关基线：docs/web-workbench-test-plan.md
 
@@ -19,6 +19,33 @@
 6. 在某个数据源不可用时自动切换来源，或以清晰的降级状态继续。
 
 本文档以当前仓库和一次真实 AAPL 运行作为证据基础，明确区分“已验证事实”“设计目标”和“待实现能力”。
+
+### 1.1 2026-07-22 实施状态（后续开发从这里开始）
+
+已实施且有代码验证的最小闭环：
+
+- 新 completed run 以 `final_report_artifact_id`、`completed_at` 和
+  `degraded_data_sources` 明确终态；Store 拒绝缺少 canonical
+  `reports/complete_report.md` 或 ID 不匹配的完成事件。
+- 中间栏改为阶段式 `ResearchDocument`，只展示已选择的分析师；多空与风险
+  发言严格按 `turn_index` 分轮。未 applied 的 candidate 不会作为正式结论
+  读取。
+- 完整报告和各分节报告使用受限、安全的 Markdown renderer。它不使用
+  `dangerouslySetInnerHTML`，只接受 `http/https` 链接。由于本次明确要求
+  不下载新依赖，当前实现是仓库内的白名单 renderer，而非新增第三方包。
+- 右侧审计栏删除没有真实事件来源的“数据字段/原始值”一级页签，只保留
+  实际持久化的上游资料、Prompt 和条件出现的配置；Prompt 会关联实际
+  provider 与 model。数据来源和工具仍在独立的“数据与工具”页签。
+- 右侧选择状态以 `run_id` 隔离：新建或切换历史运行时自动选择最新可审计
+  阶段；运行中优先当前发言角色；同一运行中一旦用户手动选择便不再抢焦点。
+- Router 将 FRED、Yahoo 等数据源的 DNS、路由、socket 和超时错误视为
+  可恢复运输故障，进入已有的有序 fallback chain；终态从 durable
+  `data.*` 事件汇总 `degraded`（备用源成功）或 `unavailable`（全部失败）。
+  摘要只含稳定错误 code，不携带密钥或底层异常文本。
+
+尚未实施或尚未验收的内容不能被误报为完成：最低行情预检、被动健康 TTL、
+完整报告中的确定性“数据可用性”附录、响应式审计抽屉、Playwright 真浏览器
+闭环，以及用户手动关闭 VPN 的真实 AAPL 运行。
 
 ## 2. 第一性原理
 

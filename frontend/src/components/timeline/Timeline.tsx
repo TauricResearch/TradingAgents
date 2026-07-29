@@ -147,7 +147,7 @@ export function Timeline({
     </div>
   );
 
-  if (state === null) {
+  if (run_id === null || !state || state.meta.run_id === "") {
     return (
       <section>
         {head}

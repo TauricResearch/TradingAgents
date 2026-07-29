@@ -63,3 +63,30 @@ export function artifactsForTurn(
 ): ArtifactRecord[] {
   return Object.values(state.artifacts).filter((a) => a.turn_id === turn_id);
 }
+
+export type FinalReportResolution =
+  | { status: "ready"; artifact_id: string; source: "explicit" | "legacy_locator" }
+  | { status: "missing" }
+  | { status: "ambiguous"; artifact_ids: string[] };
+
+/**
+ * Resolve the canonical complete report without guessing from arbitrary
+ * Markdown. New runs supply an explicit artifact id; historical runs only
+ * receive a compatibility fallback when exactly one canonical locator exists.
+ */
+export function finalReportResolution(state: ReducerState): FinalReportResolution {
+  const explicit = state.meta.final_report_artifact_id;
+  if (explicit) {
+    return { status: "ready", artifact_id: explicit, source: "explicit" };
+  }
+  const matches = Object.values(state.artifacts)
+    .filter((artifact) => artifact.locator === "reports/complete_report.md")
+    .map((artifact) => artifact.artifact_id);
+  if (matches.length === 1) {
+    return { status: "ready", artifact_id: matches[0], source: "legacy_locator" };
+  }
+  if (matches.length > 1) {
+    return { status: "ambiguous", artifact_ids: matches };
+  }
+  return { status: "missing" };
+}

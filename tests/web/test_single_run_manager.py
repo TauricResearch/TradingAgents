@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import threading
 from collections import deque
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -259,11 +261,23 @@ def _persisted_run(
         reports = run_dir / "reports"
         reports.mkdir()
         (reports / "complete_report.md").write_text("complete", encoding="utf-8")
+        timestamp = datetime(2026, 7, 22, 9, 30, tzinfo=UTC)
         store.append_event(
             RunEventDraft(
                 snapshot.run_id,
                 "run.completed",
-                {"run_status": "completed", "summary": "complete"},
+                {
+                    "run_status": "completed",
+                    "summary": "complete",
+                    "final_signal": "Hold",
+                    "final_report_artifact_id": (
+                        "report-final:"
+                        + hashlib.sha256(b"complete").hexdigest()
+                    ),
+                    "completed_at": "2026-07-22T09:30:00.000Z",
+                    "degraded_data_sources": [],
+                },
+                timestamp=timestamp,
             )
         )
     return store.read_snapshot(snapshot.run_id)

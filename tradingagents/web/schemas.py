@@ -14,15 +14,6 @@ from tradingagents.execution.models import ANALYST_WIRE_KEYS
 SUPPORTED_OUTPUT_LANGUAGES = (
     "English",
     "Chinese",
-    "Japanese",
-    "Korean",
-    "Hindi",
-    "Spanish",
-    "Portuguese",
-    "French",
-    "German",
-    "Arabic",
-    "Russian",
 )
 RESEARCH_DEPTHS = (1, 3, 5)
 TICKER_PATTERN = re.compile(r"^[A-Za-z0-9._\-^=]{1,32}$")

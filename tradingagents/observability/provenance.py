@@ -15,6 +15,11 @@ from typing import Any
 from tradingagents.observability.context import current_observation_context
 from tradingagents.observability.events import RunEventDraft
 from tradingagents.observability.redaction import redact_recursive
+from tradingagents.dataflows.errors import (
+    NoMarketDataError,
+    VendorNotConfiguredError,
+    VendorRateLimitError,
+)
 
 
 @dataclass(frozen=True)
@@ -146,6 +151,7 @@ class DataRequestObservation:
             ref,
             stage="vendor",
             data_status="failed",
+            failure_code=_failure_code(error),
             duration_ms=_duration_ms(ref.started_at),
             error_artifact_id=artifact.artifact_id,
             raw_artifact_ids=[item[0] for item in self._pending_raw.pop(ref.vendor_call_id, [])],
@@ -369,6 +375,23 @@ def _relationship_payload(context) -> dict[str, Any]:
 
 def _duration_ms(started_at: float) -> int:
     return max(0, round((time.monotonic() - started_at) * 1000))
+
+
+def _failure_code(error: BaseException | str) -> str:
+    """Expose a stable, non-secret reason category to the local UI.
+
+    The detailed provider exception remains in local logs; the event stream and
+    terminal summary carry only a small decision-oriented code.
+    """
+    if isinstance(error, VendorNotConfiguredError):
+        return "not_configured"
+    if isinstance(error, VendorRateLimitError) or type(error).__name__ == "YFRateLimitError":
+        return "rate_limited"
+    if isinstance(error, NoMarketDataError):
+        return "no_market_data"
+    if isinstance(error, (ConnectionError, TimeoutError, OSError)):
+        return "network_unreachable"
+    return "vendor_error"
 
 
 def _cache_key_sha256(cache_key: Any) -> str:

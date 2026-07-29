@@ -165,9 +165,24 @@ def create_app(
     recover_startup: bool = True,
 ) -> FastAPI:
     """Compose the HTTP layer without importing it from legacy CLI paths."""
-    selected_store = store or RunStore()
-    selected_broker = broker or EventBroker(selected_store)
-    selected_manager = manager or SingleRunManager(selected_store, selected_broker)
+    if manager is not None:
+        # Reuse the manager's broker so worker persist (manager.broker) and
+        # SSE subscribe (app.state.broker) share one _subscribers registry.
+        # A mismatch here silently drops every live event because persist
+        # never sees the subscriber registered on the other broker.
+        manager_broker = getattr(manager, "broker", None)
+        if broker is not None and manager_broker is not None and broker is not manager_broker:
+            raise ValueError(
+                "broker must match manager.broker when both are provided; "
+                "a mismatch silently drops all live SSE events"
+            )
+        selected_manager = manager
+        selected_store = store or getattr(manager, "store", None) or RunStore()
+        selected_broker = broker or manager_broker or EventBroker(selected_store)
+    else:
+        selected_store = store or RunStore()
+        selected_broker = broker or EventBroker(selected_store)
+        selected_manager = SingleRunManager(selected_store, selected_broker)
     selected_environment = os.environ if environment is None else environment
     assets_root = Path(static_dir or Path(__file__).with_name("static")).resolve()
 

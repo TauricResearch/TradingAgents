@@ -672,6 +672,359 @@ div.inspector {
   color: #3f444c;
 }
 
+/* Readable, safe Markdown for reports and role conclusions.  These styles are
+   intentionally document-like rather than chat-like: reports are research
+   material, not transient UI messages. */
+.markdown-document {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.markdown-document > :first-child {
+  margin-top: 0;
+}
+
+.markdown-document > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-document h1,
+.markdown-document h2,
+.markdown-document h3,
+.markdown-document h4,
+.markdown-document h5,
+.markdown-document h6 {
+  margin: 1.35em 0 0.55em;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-document h1 { font-size: 1.55em; }
+.markdown-document h2 { font-size: 1.3em; }
+.markdown-document h3 { font-size: 1.12em; }
+.markdown-document h4,
+.markdown-document h5,
+.markdown-document h6 { font-size: 1em; }
+
+.markdown-document p,
+.markdown-document ul,
+.markdown-document ol {
+  margin: 0.75em 0;
+}
+
+.markdown-document ul,
+.markdown-document ol {
+  padding-left: 1.35rem;
+}
+
+.markdown-document li + li {
+  margin-top: 0.25em;
+}
+
+.markdown-document blockquote {
+  margin: 0.9em 0;
+  padding: 0.15em 0 0.15em 1em;
+  border-left: 3px solid var(--accent-line);
+  color: var(--muted);
+}
+
+.markdown-document code {
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.markdown-document pre {
+  margin: 0.9em 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #f5f3ee;
+}
+
+.markdown-document pre code {
+  padding: 0;
+  background: transparent;
+  white-space: pre;
+}
+
+.markdown-document a {
+  color: var(--accent);
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 2px;
+}
+
+.markdown-document hr {
+  margin: 1.4em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.markdown-table-wrap {
+  margin: 0.9em 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.markdown-document table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.markdown-document th,
+.markdown-document td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-document th {
+  background: var(--panel-2);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.markdown-document tr:last-child td {
+  border-bottom: 0;
+}
+
+.final-report {
+  margin-top: 30px;
+  padding: 24px clamp(18px, 3vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.final-report-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.final-report h2 {
+  margin: 4px 0 0;
+  font: 600 23px var(--font-serif);
+  color: var(--text);
+}
+
+.final-signal {
+  padding: 5px 10px;
+  border: 1px solid var(--accent-line);
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.degradation-banner,
+.legacy-note {
+  margin: 0 0 16px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.degradation-banner {
+  border: 1px solid #e6d4a1;
+  background: var(--amber-soft);
+  color: #765b20;
+}
+
+.legacy-note {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.integrity-error {
+  border-color: #ecd2cb;
+  background: #fffaf8;
+}
+
+.integrity-error h2 {
+  color: var(--red);
+}
+
+/* ==========================================================================
+   Main — staged research dossier
+   ========================================================================== */
+
+.research-document {
+  margin-top: 22px;
+}
+
+.research-phase {
+  margin-top: 28px;
+}
+
+.research-phase-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.research-phase-head > span {
+  color: var(--faint);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 1px;
+}
+
+.research-phase-head h2 {
+  margin: 0;
+  font: 600 19px var(--font-serif);
+  color: var(--text);
+}
+
+.research-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.analysts-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.two-up {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.risk-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.research-entry {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-input);
+  box-shadow: var(--shadow-sm);
+}
+
+.research-entry.bull {
+  border-color: #cfe0d5;
+  background: #fbfdfb;
+}
+
+.research-entry.bear {
+  border-color: #ecd2cb;
+  background: #fffafa;
+}
+
+.research-entry.risk {
+  border-color: var(--accent-line);
+  background: #fbfcff;
+}
+
+.research-entry-head {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.research-entry-head:hover .research-entry-role {
+  color: var(--accent);
+}
+
+.research-entry-role {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.research-status,
+.round-label {
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.research-status {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.research-status.committed {
+  color: var(--green);
+}
+
+.round-label {
+  display: block;
+  margin-top: 3px;
+}
+
+.research-excerpt {
+  margin: 11px 0 0;
+  color: #3f444c;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.research-expand {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.research-markdown {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.entry-error {
+  margin: 10px 0 0;
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.debate-round + .debate-round {
+  margin-top: 14px;
+}
+
+.round-heading {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .evidence {
   margin-top: 10px;
   padding: 8px 11px;
@@ -1066,6 +1419,22 @@ td.input-ref {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 10px;
+  color: var(--faint);
+}
+
+.source-line .failure-reason,
+.source-line .fallback-chain {
+  flex-basis: 100%;
+  margin-left: 15px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.source-line .failure-reason {
+  color: var(--red);
+}
+
+.source-line .fallback-chain {
   color: var(--faint);
 }
 
