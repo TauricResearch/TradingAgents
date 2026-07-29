@@ -118,8 +118,14 @@ def fit_market_hmm(
             means_out.append(0.0)
             vols_out.append(0.0)
 
+    # Permute the transition matrix into the relabelled (bull/side/bear)
+    # ordering. sorted_states[new_idx] = old_idx, so indexing both axes by
+    # it reorders rows and columns together.
+    perm = sorted_states
+    transmat = best_model.transmat_[np.ix_(perm, perm)].tolist()
+
     return {
-        "transition_matrix": best_model.transmat_.tolist(),
+        "transition_matrix": transmat,
         "state_means": means_out,
         "state_vols": vols_out,
         "labeled_states": labeled.tolist(),

@@ -378,6 +378,29 @@ export async function testHmm(): Promise<boolean> {
   // ── Log-likelihood is finite (multi-start picked a real model) ──
   check("Log-likelihood is finite", Number.isFinite(result.logLikelihood))
 
+  // ── Regression: returned transmat must be in relabelled (bull/side/bear)
+  // ordering, not the HMM's original internal state ordering. Cross-check
+  // against the empirical transition matrix computed from labeled_states.
+  // A mismatch here means the Python bridge forgot to permute transmat by
+  // the state-sort permutation (the S03 bug).
+  const empTrans = empiricalTransitions(result.labeledStates)
+  let maxDiff = 0
+  let checkedRows = 0
+  for (let i = 0; i < 3; i++) {
+    // Only compare rows with enough observations for a stable empirical estimate
+    const rowTotal = result.labeledStates.filter((s) => s === i).length - 1
+    if (rowTotal < 10) continue
+    checkedRows++
+    for (let j = 0; j < 3; j++) {
+      const d = Math.abs(empTrans[i]![j]! - result.transitionMatrix[i]![j]!)
+      if (d > maxDiff) maxDiff = d
+    }
+  }
+  check(
+    `Transmat matches relabelled ordering (max diff ${maxDiff.toFixed(3)} over ${checkedRows} rows)`,
+    checkedRows > 0 && maxDiff < 0.15,
+  )
+
   console.log(
     `\n  HMM summary:  means=[${result.stateMeans.map((m) => m.toFixed(4)).join(", ")}]  ` +
       `vols=[${result.stateVols.map((v) => v.toFixed(4)).join(", ")}]  ` +
@@ -421,6 +444,26 @@ export async function testHmm(): Promise<boolean> {
     console.log("\n✗ Some tests failed\n")
   }
   return allPass
+}
+
+/**
+ * Empirical transition matrix from a sequence of state indices.
+ * Row i = transitions FROM state i, normalised to sum to 1.
+ * Rows with zero observations are left as all-zeros (caller must guard).
+ */
+function empiricalTransitions(states: number[]): number[][] {
+  const counts: number[][] = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+  ]
+  for (let i = 0; i < states.length - 1; i++) {
+    counts[states[i]!]![states[i + 1]!]!++
+  }
+  return counts.map((row) => {
+    const sum = row.reduce((a, b) => a + b, 0)
+    return sum > 0 ? row.map((c) => c / sum) : [0, 0, 0]
+  })
 }
 
 /** Small deterministic PRNG (mulberry32) for reproducible synthetic test data. */
