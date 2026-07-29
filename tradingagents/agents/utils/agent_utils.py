@@ -188,7 +188,7 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
 
 
 def create_msg_delete() -> callable:
-    def delete_messages(state):
+    def delete_messages(state: Any) -> dict[str, Any]:
         """Clear messages and add a context-anchored placeholder.
 
         The placeholder must not be a bare ``"Continue"``: some

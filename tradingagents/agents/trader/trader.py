@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+from typing import Any
 
 from langchain_core.messages import AIMessage
 
@@ -18,10 +19,10 @@ from tradingagents.agents.utils.structured import (
 )
 
 
-def create_trader(llm):
+def create_trader(llm: Any) -> Any:
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
 
-    def trader_node(state, name):
+    def trader_node(state: Any, name: str) -> dict[str, Any]:
         company_name = state["company_of_interest"]
         instrument_context = get_instrument_context_from_state(state)
         investment_plan = state["investment_plan"]

@@ -19,7 +19,7 @@ so that:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field, field_validator
 _NULLISH_FLOAT = {"", "none", "n/a", "na", "null", "nil", "-", "tbd", "unknown"}
 
 
-def _coerce_optional_float(value):
+def _coerce_optional_float(value: Any) -> Any:
     if isinstance(value, str) and value.strip().lower() in _NULLISH_FLOAT:
         return None
     return value
@@ -151,7 +151,7 @@ class TraderProposal(BaseModel):
 
     @field_validator("entry_price", "stop_loss", mode="before")
     @classmethod
-    def _nullish_float_to_none(cls, v):
+    def _nullish_float_to_none(cls, v: Any) -> Any:
         return _coerce_optional_float(v)
 
 
@@ -224,7 +224,7 @@ class PortfolioDecision(BaseModel):
 
     @field_validator("price_target", mode="before")
     @classmethod
-    def _nullish_float_to_none(cls, v):
+    def _nullish_float_to_none(cls, v: Any) -> Any:
         return _coerce_optional_float(v)
 
 

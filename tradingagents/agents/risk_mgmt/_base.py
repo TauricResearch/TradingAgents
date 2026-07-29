@@ -1,11 +1,13 @@
+from typing import Any
+
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
 
 
-def _create_debator(llm, role: str, prompt_template: str):
-    def node(state) -> dict:
+def _create_debator(llm: Any, role: str, prompt_template: str) -> Any:
+    def node(state: Any) -> dict:
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
 

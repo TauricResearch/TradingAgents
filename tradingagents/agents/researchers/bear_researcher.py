@@ -25,5 +25,5 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
 """
 
 
-def create_bear_researcher(llm: Any):
+def create_bear_researcher(llm: Any) -> Any:
     return _create_researcher(llm, "bear", BEAR_PROMPT)

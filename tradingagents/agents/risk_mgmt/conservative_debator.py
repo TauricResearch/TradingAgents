@@ -18,5 +18,5 @@ Here is the current conversation history: {history} Here is the last response fr
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting."""
 
 
-def create_conservative_debator(llm: Any):
+def create_conservative_debator(llm: Any) -> Any:
     return _create_debator(llm, "conservative", CONSERVATIVE_PROMPT)

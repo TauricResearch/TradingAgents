@@ -23,5 +23,5 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 """
 
 
-def create_bull_researcher(llm: Any):
+def create_bull_researcher(llm: Any) -> Any:
     return _create_researcher(llm, "bull", BULL_PROMPT)

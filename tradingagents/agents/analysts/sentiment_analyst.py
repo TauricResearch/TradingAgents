@@ -25,6 +25,7 @@ See: https://github.com/TauricResearch/TradingAgents/issues/796
 """
 
 from datetime import datetime, timedelta
+from typing import Any
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -48,7 +49,7 @@ def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
 
 
-def create_sentiment_analyst(llm):
+def create_sentiment_analyst(llm: Any) -> Any:
     """Create a sentiment analyst node for the trading graph.
 
     Pre-fetches news + StockTwits + Reddit data, injects them into the
@@ -58,7 +59,7 @@ def create_sentiment_analyst(llm):
     """
     structured_llm = bind_structured(llm, SentimentReport, "Sentiment Analyst")
 
-    def sentiment_analyst_node(state):
+    def sentiment_analyst_node(state: Any) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         end_date = state["trade_date"]
         start_date = _seven_days_back(end_date)
@@ -191,7 +192,7 @@ Fill the following fields:
 # ---------------------------------------------------------------------------
 # Backwards-compatibility shim
 # ---------------------------------------------------------------------------
-def create_social_media_analyst(llm):
+def create_social_media_analyst(llm: Any) -> Any:
     """Deprecated alias for :func:`create_sentiment_analyst`.
 
     Kept so existing code that imports ``create_social_media_analyst``

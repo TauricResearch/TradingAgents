@@ -1,11 +1,13 @@
+from typing import Any
+
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
 
 
-def _create_researcher(llm, role: str, prompt_template: str):
-    def node(state) -> dict:
+def _create_researcher(llm: Any, role: str, prompt_template: str) -> Any:
+    def node(state: Any) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
 
