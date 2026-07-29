@@ -1,3 +1,5 @@
+from typing import Any
+
 from ._base import _create_researcher
 
 BEAR_PROMPT = """You are a Bear Analyst making the case against investing in the {target_label}. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
@@ -23,5 +25,5 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
 """
 
 
-def create_bear_researcher(llm):
+def create_bear_researcher(llm: Any):
     return _create_researcher(llm, "bear", BEAR_PROMPT)

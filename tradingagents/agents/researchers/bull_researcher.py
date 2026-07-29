@@ -1,3 +1,5 @@
+from typing import Any
+
 from ._base import _create_researcher
 
 BULL_PROMPT = """You are a Bull Analyst advocating for investing in the {target_label}. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
@@ -21,5 +23,5 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 """
 
 
-def create_bull_researcher(llm):
+def create_bull_researcher(llm: Any):
     return _create_researcher(llm, "bull", BULL_PROMPT)
