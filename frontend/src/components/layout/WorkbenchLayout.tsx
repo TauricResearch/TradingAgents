@@ -19,6 +19,7 @@ import { Controls } from "../controls/Controls";
 import { RunHistory } from "../history/RunHistory";
 import { WorkflowMap } from "../workflow/WorkflowMap";
 import { Timeline } from "../timeline/Timeline";
+import { ResearchDocument } from "../timeline/ResearchDocument";
 import { Inspector } from "../inspector/Inspector";
 import { SwarmStatusCard } from "../status/SwarmStatusCard";
 import { MarketChart } from "../market/MarketChart";
@@ -101,6 +102,15 @@ export function WorkbenchLayout(): JSX.Element {
                 artifact_count={Object.keys(state.artifacts).length}
               />
               <WorkflowMap onRoleSelected={handleRoleSelected} />
+              <ResearchDocument
+                state={state}
+                run_id={state.meta.run_id}
+                onTurnSelected={setSelectedTurn}
+              />
+              <div className="research-phase-head transcript-heading">
+                <span>08</span>
+                <h2>完整辩论与审计记录</h2>
+              </div>
               <Timeline
                 filter={timelineFilter}
                 onTurnSelected={setSelectedTurn}

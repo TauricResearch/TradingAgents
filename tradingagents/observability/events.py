@@ -291,12 +291,17 @@ class RunEventDraft:
     status: str | None = None
     parent_event_id: str | None = None
     schema_version: int = EVENT_SCHEMA_VERSION
+    # Lifecycle owners can pin a terminal event timestamp so a snapshot field
+    # such as completed_at is byte-for-byte consistent with the event stream.
+    timestamp: datetime | None = None
 
     def __post_init__(self) -> None:
         _require_text(self.run_id, "run_id")
         _require_text(self.type, "type")
         if self.schema_version != EVENT_SCHEMA_VERSION:
             raise InvalidEvent(f"unsupported event schema version: {self.schema_version}")
+        if self.timestamp is not None and self.timestamp.tzinfo is None:
+            raise InvalidEvent("draft timestamp must be timezone-aware")
         validate_event_payload(self.type, self.payload)
 
 

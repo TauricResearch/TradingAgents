@@ -9,6 +9,7 @@
 import type {
   ArtifactMetadataDTO,
   AssetTypeLiteral,
+  DegradedSourceSummaryDTO,
   ObservationCommitV1DTO,
   ObservationTaskKind,
   ResearchDepth,
@@ -45,6 +46,8 @@ export interface Turn {
   turn_id: string;
   role_instance_id: string;
   actor_id: string;
+  /** Graph task that produced this turn, used to distinguish candidate output from applied output. */
+  graph_task_id?: string;
   turn_index: number;
   status: TurnStatus;
   /** artifact_id emitted by turn.output_ready, if produced. */
@@ -127,6 +130,9 @@ export interface VendorCall {
   data_status: DataStatus;
   status: "progress" | "completed" | "failed" | "interrupted";
   duration_ms?: number;
+  /** Stable backend reason category; detailed transport text stays local-only. */
+  failure_code?: string;
+  fallback_chain?: string[];
   /** cache_hit_ids that referenced this vendor call. */
   cache_hit_ids: string[];
 }
@@ -200,6 +206,10 @@ export interface RunMeta {
   updated_at: string;
   latest_sequence: number;
   final_signal?: string | null;
+  final_report_artifact_id?: string | null;
+  completed_at?: string | null;
+  /** Present on new snapshots; optional only to keep legacy test/history data readable. */
+  degraded_data_sources?: DegradedSourceSummaryDTO[];
   summary?: string | null;
   error_category?: string | null;
   error_message?: string | null;

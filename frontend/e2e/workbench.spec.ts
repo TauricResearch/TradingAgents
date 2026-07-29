@@ -61,9 +61,19 @@ test.describe("workbench e2e", () => {
     await startRun(page);
     await waitForRunCompleted(page);
     await expect(page.getByText("辩论与决策时间线")).toBeVisible();
-    await expect(page.getByText("市场行情偏强，成交量放大")).toBeVisible({
-      timeout: 5_000,
-    });
+    await expect(
+      page.locator(".debate-script").getByText("市场行情偏强，成交量放大"),
+    ).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("renders the staged research dossier and canonical final report", async ({ page }) => {
+    await startRun(page);
+    await waitForRunCompleted(page);
+
+    await expect(page.getByRole("heading", { name: "独立分析" })).toBeVisible();
+    await expect(page.getByText("完整辩论与审计记录")).toBeVisible();
+    await expect(page.getByText("最终完整结论")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("heading", { name: `${TICKER} 研究报告` })).toBeVisible();
   });
 
   test("inspector shows the fixed audit sequence and run disclosure", async ({ page }) => {

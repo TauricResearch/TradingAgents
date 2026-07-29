@@ -2151,3 +2151,248 @@ td.input-ref {
   word-break: break-word;
   overflow-x: auto;
 }
+
+
+/* ==========================================================================
+   Main — staged research dossier and canonical final report
+   ========================================================================== */
+
+.final-report {
+  margin-top: 30px;
+  padding: 24px clamp(18px, 3vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.final-report-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.final-report h2 {
+  margin: 4px 0 0;
+  font: 600 23px var(--font-serif);
+  color: var(--text);
+}
+
+.final-signal {
+  padding: 5px 10px;
+  border: 1px solid var(--accent-line);
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.degradation-banner,
+.legacy-note {
+  margin: 0 0 16px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.degradation-banner {
+  border: 1px solid #e6d4a1;
+  background: var(--amber-soft);
+  color: #765b20;
+}
+
+.legacy-note {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.integrity-error {
+  border-color: #ecd2cb;
+  background: #fffaf8;
+}
+
+.integrity-error h2 {
+  color: var(--red);
+}
+
+.research-document {
+  margin-top: 22px;
+}
+
+.research-phase {
+  margin-top: 28px;
+}
+
+.research-phase-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.transcript-heading {
+  margin-top: 30px;
+}
+
+.research-phase-head > span {
+  color: var(--faint);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 1px;
+}
+
+.research-phase-head h2 {
+  margin: 0;
+  font: 600 19px var(--font-serif);
+  color: var(--text);
+}
+
+.research-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.analysts-grid,
+.two-up {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.risk-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.research-entry {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-input);
+  box-shadow: var(--shadow-sm);
+}
+
+.research-entry.bull {
+  border-color: #cfe0d5;
+  background: #fbfdfb;
+}
+
+.research-entry.bear {
+  border-color: #ecd2cb;
+  background: #fffafa;
+}
+
+.research-entry.risk {
+  border-color: var(--accent-line);
+  background: #fbfcff;
+}
+
+.research-entry-head {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.research-entry-head:hover .research-entry-role {
+  color: var(--accent);
+}
+
+.research-entry-role {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.research-status,
+.round-label {
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.research-status {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.research-status.committed {
+  color: var(--green);
+}
+
+.round-label {
+  display: block;
+  margin-top: 3px;
+}
+
+.research-excerpt {
+  margin: 11px 0 0;
+  color: #3f444c;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.research-expand {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.research-markdown {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.entry-error {
+  margin: 10px 0 0;
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.research-document .debate-round + .debate-round {
+  margin-top: 14px;
+}
+
+.research-document .round-heading {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .risk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .analysts-grid,
+  .two-up {
+    grid-template-columns: 1fr;
+  }
+
+  .final-report-head {
+    flex-direction: column;
+  }
+}

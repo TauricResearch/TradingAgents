@@ -186,6 +186,12 @@ export interface RunSnapshotDTO {
   updated_at: string;
   latest_sequence: number;
   final_signal?: string | null;
+  /** Explicit for new completed runs; absent only on legacy snapshots. */
+  final_report_artifact_id?: string | null;
+  /** Terminal run.completed event time for new completed runs. */
+  completed_at?: string | null;
+  /** P0 preserves the contract shape; P2 populates normalized entries. */
+  degraded_data_sources?: DegradedSourceSummaryDTO[];
   summary?: string | null;
   error_category?: string | null;
   error_message?: string | null;
@@ -200,6 +206,15 @@ export interface RunSnapshotDTO {
   event_schema_version: number;
   /** Opaque server-defined metadata bag. */
   metadata: Record<string, unknown>;
+}
+
+export interface DegradedSourceSummaryDTO {
+  capability: string;
+  status: "degraded" | "unavailable";
+  attempted_vendors: string[];
+  selected_vendors: string[];
+  reasons: Array<{ vendor: string; code: string }>;
+  affected_sections: string[];
 }
 
 export interface RunSummaryDTO {
@@ -345,6 +360,10 @@ export interface RunCancelRequestedPayload {
 export interface RunTerminalPayload {
   run_status: RunStatusLiteral;
   summary?: string | null;
+  final_signal?: string | null;
+  final_report_artifact_id?: string | null;
+  completed_at?: string | null;
+  degraded_data_sources?: DegradedSourceSummaryDTO[];
 }
 
 export interface RunInterruptedPayload {
@@ -602,6 +621,9 @@ export interface DataCallPayloadBase {
   vendor: string;
   stage: string;
   data_status: string;
+  /** Stable non-secret category for failed vendor calls. */
+  failure_code?: string;
+  fallback_chain?: string[];
 }
 
 export interface DataProgressPayload extends DataCallPayloadBase {}

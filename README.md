@@ -240,6 +240,19 @@ history persists across restarts.
 - **Readable reports**: narrative artifacts and turn responses render sanitized
   GitHub-flavored Markdown. Prompts and machine payloads stay byte-faithful in
   a monospace data view.
+- **Research-reading-first dossier**: the main column presents the committed
+  analyst reports, evidence decision, research debate, trader plan, risk debate,
+  portfolio verdict, and final report as one staged document. The existing
+  complete debate timeline remains immediately below it for turn-by-turn audit.
+- **Canonical final report integrity**: new completed runs publish exactly one
+  content-addressed `reports/complete_report.md` artifact and record its explicit
+  artifact ID and completion timestamp. Historical runs fall back only when that
+  locator is unique; missing or ambiguous candidates are shown as integrity
+  states instead of selecting arbitrary Markdown.
+- **Data degradation disclosure**: completed runs persist normalized degraded or
+  unavailable source summaries. The final-report surface displays a warning when
+  any source degraded, while detailed vendor attempts and reason codes remain
+  available in the run audit data.
 - **Response loading**: turn responses appear automatically. The initial window
   loads full text; later turns load bounded excerpts and expose an explicit
   full-text expansion control, with a four-request concurrency ceiling.
