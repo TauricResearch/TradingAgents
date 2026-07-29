@@ -11,7 +11,7 @@ from tradingagents.agents.utils.agent_states import (
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(self, max_recur_limit: int = 100):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
 
