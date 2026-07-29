@@ -3,15 +3,16 @@ TradingAgents Streamlit App — Web-Interface für das Multi-Agent-Trading-Frame
 Deployed auf trading-agents.markb.de
 """
 
-import streamlit as st
 import datetime
 import sys
 from pathlib import Path
 
+import streamlit as st
+
 sys.path.insert(0, "/opt/data/trading-agents")
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 
 st.set_page_config(
@@ -406,7 +407,7 @@ elif start_analysis:
     status_container = st.empty()
 
     try:
-        status_container.info(f"Starte TradingAgentsGraph...")
+        status_container.info("Starte TradingAgentsGraph...")
         ta = TradingAgentsGraph(debug=False, config=config)
         progress_bar.progress(10, text="Sammle Marktdaten & führe Analyse durch...")
 
