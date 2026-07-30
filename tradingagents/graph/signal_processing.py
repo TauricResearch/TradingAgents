@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.agents.utils.rating import RATING_REVIEW, extract_rating
 
 
 class SignalProcessor:
@@ -27,5 +27,12 @@ class SignalProcessor:
         self.quick_thinking_llm = quick_thinking_llm
 
     def process_signal(self, full_signal: str) -> str:
-        """Return one of Buy / Overweight / Hold / Underweight / Sell."""
-        return parse_rating(full_signal)
+        """Return one of Buy / Overweight / Hold / Underweight / Sell.
+
+        When the decision text carries no parseable rating, return
+        :data:`~tradingagents.agents.utils.rating.RATING_REVIEW` rather than a
+        silent ``Hold`` — so a parse failure is visible to downstream consumers
+        instead of masquerading as a genuine neutral call.
+        """
+        rating = extract_rating(full_signal)
+        return rating if rating is not None else RATING_REVIEW
