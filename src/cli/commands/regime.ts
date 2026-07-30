@@ -475,7 +475,7 @@ export const regimeCommand = defineCommand({
           `${"Period:".padEnd(20)} ${result.startDate} → ${result.endDate} (${result.totalDays} days)`,
         )
         lines.push(
-          `${"Sharpe:".padEnd(20)} ${result.sharpe >= 0 ? green : red}${result.sharpe.toFixed(4)}`,
+          `${"Sharpe:".padEnd(20)} ${result.sharpe >= 0 ? green(result.sharpe.toFixed(4)) : red(result.sharpe.toFixed(4))}`,
         )
         lines.push(`${"Ann Return:".padEnd(20)} ${(result.annualReturn * 100).toFixed(2)}%`)
         lines.push(`${"Buy & Hold:".padEnd(20)} ${(result.buyAndHoldReturn * 100).toFixed(2)}%`)
