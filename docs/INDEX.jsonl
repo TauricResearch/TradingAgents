@@ -10,6 +10,7 @@
 {"file":"context-window-management.md","date":"2026-05-12","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"data-sources.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"diagrams/README.md","date":"2026-05-08","status":"active","summary":"Diagram generation pipeline: DOT to SVG/PNG via graphviz","meta":{"type":"reference","topic":"diagrams"}}
+{"file":"Following Institutional Money Flow - A Beginner's Guide to Stock Selection.md","date":"2026-06-02","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"great_rotation_research_report-1.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"help.md","date":"2026-05-06","status":"active","summary":"Quick reference for common commands and workflows","meta":{"type":"reference","topic":"commands"}}
 {"file":"Hormuz Bottleneck_ Recovery Stock Analysis.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -27,6 +28,7 @@
 {"file":"MCP-AUDIT-2026-05-29.md","date":"2026-05-29","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"meyka-insider-tracker.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"momentum-trading-with-eodhd.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"PI-SETUP.md","date":"2026-06-02","type":"doc","summary":"Pi coding agent setup: extensions (defuddle, herdr, silo-sandbox), packages, playbooks, RTK, tools","meta":{}}
 {"file":"portfolio-snapshot-2026-05-07.md","date":"2026-05-07","status":"active","summary":"Real portfolio holdings and account balances as of 2026-05-07","meta":{"type":"snapshot","topic":"portfolio"}}
 {"file":"prospects/felix-prehn-picks-2026-05-15.md","date":"2026-05-20","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"prospects/great-rotation-2026-05-14.md","date":"2026-05-20","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -48,4 +50,3 @@
 {"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
 {"file":"time-benchmark-takeaways.md","date":"2026-05-15","status":"active","summary":"TIME benchmark key takeaways: TSFM rankings, pattern-level evaluation methodology (STL features), actionable for WATCH-001 screening enrichment","meta":{"topic":"tsfm","tags":["time-series","forecasting","benchmark","WATCH-001"]}}
 {"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}
-{"file":"PI-SETUP.md","date":"2026-06-02","type":"doc","summary":"Pi coding agent setup: extensions (defuddle, herdr, silo-sandbox), packages, playbooks, RTK, tools","meta":{}}
