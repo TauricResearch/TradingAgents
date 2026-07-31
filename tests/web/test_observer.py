@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from uuid import UUID
 
+import pandas as pd
 import pytest
 from langchain_core.callbacks import CallbackManager
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -122,7 +123,9 @@ def test_retries_get_new_attempt_ids_without_new_turn(tmp_path):
             )
         observer.on_llm_error(RuntimeError("retry"), run_id=call_id)
 
-    failures = [event for event in store.read_events(snapshot.run_id) if event.type == "model.failed"]
+    failures = [
+        event for event in store.read_events(snapshot.run_id) if event.type == "model.failed"
+    ]
     assert len(failures) == 2
     assert {event.payload["turn_id"] for event in failures} == {ref.turn_id}
     assert len({event.payload["attempt_id"] for event in failures}) == 2
@@ -278,11 +281,14 @@ def test_direct_call_scope_uses_the_existing_role_turn(tmp_path):
         turn_index=1,
     )
 
-    with observer.invocation_scope(
-        ref,
-        graph_task_id="task-evidence",
-        graph_step=4,
-    ), observer.direct_call_scope("fundamentals.get_balance_sheet") as context:
+    with (
+        observer.invocation_scope(
+            ref,
+            graph_task_id="task-evidence",
+            graph_step=4,
+        ),
+        observer.direct_call_scope("fundamentals.get_balance_sheet") as context,
+    ):
         assert context.turn_id == ref.turn_id
         assert context.graph_task_id == "task-evidence"
         assert context.invocation_path == "direct:fundamentals.get_balance_sheet"
@@ -339,9 +345,11 @@ def test_same_logical_turn_tracks_each_graph_reentry_task(tmp_path):
     assert requested.payload["graph_task_id"] == "task-role-1"
     assert executed.payload["graph_task_id"] == "task-tool-2"
     assert model.payload["graph_task_id"] == "task-role-3"
-    assert {requested.payload["turn_id"], executed.payload["turn_id"], model.payload["turn_id"]} == {
-        ref.turn_id
-    }
+    assert {
+        requested.payload["turn_id"],
+        executed.payload["turn_id"],
+        model.payload["turn_id"],
+    } == {ref.turn_id}
 
 
 def test_llm_usage_reads_ai_message_usage_metadata(tmp_path):
@@ -428,6 +436,21 @@ def test_restart_only_restores_applied_or_pending_tool_requests(tmp_path):
     assert restarted.tool_turn_ref("call-pending").turn_id == ref.turn_id
     with pytest.raises(KeyError):
         restarted.tool_turn_ref("call-candidate")
+
+
+def test_observer_persists_dataframe_artifact_and_wraps_unknown_cells(tmp_path):
+    store, snapshot, observer = _observer(tmp_path)
+    frame = pd.DataFrame({"close": [1512.5], "api_key": ["fake-secret"]})
+
+    artifact = observer.store_artifact("data", frame)
+
+    assert store.read_artifact(snapshot.run_id, artifact.artifact_id)
+    assert any(
+        event.type == "artifact.written" and event.payload["artifact_id"] == artifact.artifact_id
+        for event in store.read_events(snapshot.run_id)
+    )
+    with pytest.raises(ObservationPersistenceError, match="unable to persist"):
+        observer.store_artifact("data", pd.DataFrame({"payload": [object()]}))
 
 
 def test_callback_manager_propagates_unattributed_assertion(tmp_path):

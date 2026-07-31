@@ -1,6 +1,9 @@
+import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
+import pandas as pd
 import pytest
 
 from tradingagents.observability.events import RunEventDraft
@@ -27,8 +30,10 @@ def _snapshot(*, run_id=None, ticker="AAPL", captured=None, metadata=None):
         metadata=metadata or {},
     )
     if captured is not None:
-        timestamp = captured.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace(
-            "+00:00", "Z"
+        timestamp = (
+            captured.astimezone(timezone.utc)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
         )
         snapshot = snapshot.evolve(created_at=timestamp, updated_at=timestamp)
     return snapshot
@@ -108,9 +113,7 @@ def test_concurrent_appends_allocate_one_contiguous_sequence(tmp_path):
 def test_snapshot_cannot_move_behind_durable_event_log(tmp_path):
     store = RunStore(tmp_path)
     snapshot = store.create_run(_snapshot())
-    store.append_event(
-        RunEventDraft(snapshot.run_id, "run.started", {"run_status": "running"})
-    )
+    store.append_event(RunEventDraft(snapshot.run_id, "run.started", {"run_status": "running"}))
 
     with pytest.raises(RunStoreError, match="cannot decrease"):
         store.write_snapshot_atomic(snapshot)
@@ -141,15 +144,43 @@ def test_content_addressed_artifacts_deduplicate_and_remain_inside_run(tmp_path)
     second = store.store_artifact(snapshot.run_id, kind="data", value=value)
 
     assert first == second
-    assert store.read_artifact(snapshot.run_id, first.artifact_id) == (
-        tmp_path / snapshot.run_id / first.locator
-    ).read_bytes()
+    assert (
+        store.read_artifact(snapshot.run_id, first.artifact_id)
+        == (tmp_path / snapshot.run_id / first.locator).read_bytes()
+    )
     assert b"fake-key" not in store.read_artifact(snapshot.run_id, first.artifact_id)
     assert len(list((tmp_path / snapshot.run_id / "data").iterdir())) == 1
     with pytest.raises(InvalidStorePath):
         store.read_artifact(snapshot.run_id, "../data:bad")
     with pytest.raises(RunNotFound):
         store.read_artifact(snapshot.run_id, f"data:{'a' * 64}")
+
+
+def test_dataframe_artifact_is_redacted_content_addressed_and_readable(tmp_path):
+    store = RunStore(tmp_path)
+    snapshot = store.create_run(_snapshot())
+    frame = pd.DataFrame(
+        {"close": [1500.0, 1512.5], "api_key": ["secret-a", "secret-b"]},
+        index=pd.Index(["2026-07-28", "2026-07-29"], name="trade_date"),
+    )
+
+    artifact = store.store_artifact(snapshot.run_id, kind="data", value=frame)
+    content = store.read_artifact(snapshot.run_id, artifact.artifact_id)
+    payload = json.loads(content)
+
+    assert hashlib.sha256(content).hexdigest() == artifact.content_sha256
+    assert artifact.artifact_id == f"data:{artifact.content_sha256}"
+    assert artifact.locator == f"data/{artifact.content_sha256}.json"
+    assert payload["$tradingagents:dataframe"]["index"] == [
+        "2026-07-28",
+        "2026-07-29",
+    ]
+    assert payload["$tradingagents:dataframe"]["data"] == [
+        [1500.0, "[REDACTED]"],
+        [1512.5, "[REDACTED]"],
+    ]
+    assert b"secret-a" not in content
+    assert b"secret-b" not in content
 
 
 def test_unknown_directories_and_files_do_not_become_history(tmp_path):

@@ -3,6 +3,7 @@ from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Annotated
 
+import pandas as pd
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from typing_extensions import TypedDict
@@ -64,7 +65,10 @@ def test_langchain_messages_and_tool_calls_have_stable_hashes():
         ToolMessage(content="close=210", tool_call_id="call-1", id="tool-1"),
     ]
 
-    assert canonical_sha256(messages) == "82a80ca5bded148602b449fcdb0194ea4c4654cce4a3bd60f6029837f7cc0716"
+    assert (
+        canonical_sha256(messages)
+        == "82a80ca5bded148602b449fcdb0194ea4c4654cce4a3bd60f6029837f7cc0716"
+    )
 
 
 def test_redaction_happens_before_hashing():
@@ -75,6 +79,83 @@ def test_redaction_happens_before_hashing():
     assert first.redaction.redacted is True
     assert b"first" not in first.bytes
     assert b"second" not in second.bytes
+
+
+def test_dataframe_canonicalization_preserves_table_order_index_and_missing_values():
+    frame = pd.DataFrame(
+        {
+            "symbol": ["600519.SS", "920176.BJ"],
+            "api_key": ["first-secret", "second-secret"],
+            "nullable": pd.array([7, pd.NA], dtype="Int64"),
+            "observed_at": [pd.Timestamp("2026-07-29T08:00:00Z"), pd.NaT],
+            "ratio": [1.5, float("nan")],
+        },
+        index=pd.Index([101, 103], name="source_row"),
+    )
+
+    canonical = canonical_business_value(frame)
+    payload = canonical.value["$tradingagents:dataframe"]
+
+    assert canonical.bytes == canonical_business_value(frame.copy()).bytes
+    assert payload["version"] == 1
+    assert payload["columns"] == [
+        "symbol",
+        "api_key",
+        "nullable",
+        "observed_at",
+        "ratio",
+    ]
+    assert payload["index"] == [101, 103]
+    assert payload["index_names"] == ["source_row"]
+    assert payload["data"][0] == [
+        "600519.SS",
+        "[REDACTED]",
+        7,
+        "$tradingagents:datetime:2026-07-29T08:00:00+00:00",
+        1.5,
+    ]
+    assert payload["data"][1] == [
+        "920176.BJ",
+        "[REDACTED]",
+        "$tradingagents:missing:pd-na",
+        "$tradingagents:missing:nat",
+        "$tradingagents:float:nan",
+    ]
+    assert [record.path for record in canonical.redaction.manifest] == ["dataframe.api_key"]
+    assert b"first-secret" not in canonical.bytes
+    assert b"second-secret" not in canonical.bytes
+
+    assert canonical.sha256 != canonical_business_value(frame.iloc[::-1]).sha256
+    assert (
+        canonical.sha256
+        != canonical_business_value(
+            frame[["api_key", "symbol", "nullable", "observed_at", "ratio"]]
+        ).sha256
+    )
+
+
+def test_empty_dataframe_and_datetime_index_have_stable_shape_metadata():
+    frame = pd.DataFrame(
+        columns=pd.Index(["symbol", "close"], name="field"),
+        index=pd.DatetimeIndex([], name="observed_at", tz="UTC"),
+    )
+
+    canonical = canonical_business_value(frame)
+    payload = canonical.value["$tradingagents:dataframe"]
+
+    assert payload["columns"] == ["symbol", "close"]
+    assert payload["column_names"] == ["field"]
+    assert payload["index"] == []
+    assert payload["index_names"] == ["observed_at"]
+    assert payload["data"] == []
+    assert canonical.bytes == canonical_business_value(frame.copy()).bytes
+
+
+def test_dataframe_unknown_object_cells_remain_fail_closed():
+    frame = pd.DataFrame({"payload": [object()]})
+
+    with pytest.raises(UnsupportedCanonicalValue, match="unsupported canonical value"):
+        canonical_business_value(frame)
 
 
 def test_business_projection_selects_only_declared_agent_state_channels():
@@ -185,11 +266,7 @@ def test_parallel_observation_commit_reducer_preserves_tokens_and_rejects_confli
     with pytest.raises(ValueError, match="conflicting observation commit"):
         merge_observation_commits(
             {"task-1": first_value},
-            {
-                "task-1": ObservationCommitV1(
-                    1, 1, HASH, "input", "task-1", 1, HASH
-                ).as_dict()
-            },
+            {"task-1": ObservationCommitV1(1, 1, HASH, "input", "task-1", 1, HASH).as_dict()},
         )
 
 

@@ -8,7 +8,7 @@ import math
 import types
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, is_dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from enum import Enum
 from typing import Annotated, Any, get_args, get_origin, get_type_hints
 
@@ -35,6 +35,27 @@ def _tag(kind: str, value: str) -> str:
 def _convert(value: Any) -> Any:
     if value is None or isinstance(value, (str, bool, int)):
         return value
+
+    value_type = type(value)
+    if value_type.__module__.startswith("pandas."):
+        if value_type.__name__ == "NAType":
+            return _tag("missing", "pd-na")
+        if value_type.__name__ == "NaTType":
+            return _tag("missing", "nat")
+        if value_type.__name__ == "Timedelta":
+            return _tag("timedelta", value.isoformat())
+
+    is_numpy_scalar = any(
+        base.__module__ == "numpy" and base.__name__ == "generic" for base in value_type.__mro__
+    )
+    if is_numpy_scalar:
+        if value_type.__name__ in {"datetime64", "timedelta64"}:
+            rendered = str(value)
+            if rendered == "NaT":
+                return _tag("missing", "nat")
+            return _tag(value_type.__name__, rendered)
+        return _convert(value.item())
+
     if isinstance(value, float):
         if math.isnan(value):
             return _tag("float", "nan")
@@ -50,6 +71,11 @@ def _convert(value: Any) -> Any:
         return _tag("date", value.isoformat())
     if isinstance(value, time):
         return _tag("time", value.isoformat())
+    if isinstance(value, timedelta):
+        return _tag(
+            "timedelta",
+            f"{value.days}:{value.seconds}:{value.microseconds}",
+        )
     if isinstance(value, Enum):
         return _convert(value.value)
     if is_dataclass(value) and not isinstance(value, type):
@@ -119,9 +145,11 @@ def _normalized_type_description(annotation: Any) -> str:
     if origin is Annotated:
         return _normalized_type_description(get_args(annotation)[0])
     if origin in (types.UnionType,):
-        return "union[" + ",".join(
-            _normalized_type_description(arg) for arg in get_args(annotation)
-        ) + "]"
+        return (
+            "union["
+            + ",".join(_normalized_type_description(arg) for arg in get_args(annotation))
+            + "]"
+        )
     if origin is not None:
         name = getattr(origin, "__qualname__", str(origin).replace("typing.", ""))
         args = get_args(annotation)
@@ -150,9 +178,7 @@ class ApplicationStateSchema:
 
 def derive_application_state_schema(state_type: type) -> ApplicationStateSchema:
     hints = get_type_hints(state_type, include_extras=True)
-    application_fields = tuple(
-        sorted(name for name in hints if name != RESERVED_OBSERVATION_FIELD)
-    )
+    application_fields = tuple(sorted(name for name in hints if name != RESERVED_OBSERVATION_FIELD))
     document = {
         "projection_version": BUSINESS_PROJECTION_VERSION,
         "fields": [
@@ -186,7 +212,11 @@ class BusinessStateProjectionV1:
         channel_values: Mapping[str, Any],
     ) -> BusinessStateProjectionV1:
         return cls(
-            {name: channel_values[name] for name in APPLICATION_STATE_FIELDS if name in channel_values}
+            {
+                name: channel_values[name]
+                for name in APPLICATION_STATE_FIELDS
+                if name in channel_values
+            }
         )
 
     @property
@@ -214,7 +244,4 @@ def business_delta_sha256(delta: Mapping[str, Any]) -> str:
 def pending_writes_touch_business_state(
     pending_writes: list[tuple[str, str, Any]] | tuple[tuple[str, str, Any], ...],
 ) -> bool:
-    return any(
-        len(write) >= 2 and write[1] in APPLICATION_STATE_FIELDS
-        for write in pending_writes
-    )
+    return any(len(write) >= 2 and write[1] in APPLICATION_STATE_FIELDS for write in pending_writes)

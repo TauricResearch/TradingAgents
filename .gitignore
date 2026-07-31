@@ -248,3 +248,6 @@ tmp_run_*.py
 frontend/test-results/
 .playwright-cli/
 .playwright-mcp/
+
+# Local e2e / run-store artifacts
+output/

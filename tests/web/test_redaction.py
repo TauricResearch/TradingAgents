@@ -1,3 +1,5 @@
+import pandas as pd
+
 from tradingagents.observability.canonical import canonical_sha256
 from tradingagents.observability.redaction import (
     REDACTED_VALUE,
@@ -127,3 +129,69 @@ def test_fingerprint_removal_ignores_secret_presence_but_keeps_semantic_tokens()
     assert canonical_sha256(first.value) == canonical_sha256(second.value)
     assert canonical_sha256(second.value) != canonical_sha256(third.value)
     assert second.manifest[0].path == "model.api_key"
+
+
+def test_dataframe_redaction_is_idempotent_and_recurses_into_cells_and_attrs():
+    frame = pd.DataFrame(
+        {
+            "payload": [{"access_token": "cell-secret", "value": 7}],
+            "api_key": ["column-secret"],
+        },
+        index=pd.Index([11], name="source_row"),
+    )
+    frame.attrs["authorization"] = "attr-secret"
+
+    first = redact_recursive(frame)
+    second = redact_recursive(first.value)
+    payload = first.value["$tradingagents:dataframe"]
+
+    assert payload["data"] == [[{"access_token": REDACTED_VALUE, "value": 7}, REDACTED_VALUE]]
+    assert payload["attrs"] == {"authorization": REDACTED_VALUE}
+    assert second.value == first.value
+    assert second.manifest == first.manifest
+    assert [record.path for record in first.manifest] == [
+        "dataframe.api_key",
+        "dataframe.attrs.authorization",
+        "dataframe.payload.0.access_token",
+    ]
+    assert all(
+        secret not in repr(first.value)
+        for secret in ("cell-secret", "column-secret", "attr-secret")
+    )
+
+
+def test_dataframe_fingerprint_removal_drops_sensitive_columns_without_row_shift():
+    with_secret = pd.DataFrame(
+        {
+            "symbol": ["600519.SS", "920176.BJ"],
+            "api_key": ["first-secret", "second-secret"],
+            "close": [1500.0, 12.5],
+        },
+        index=pd.Index([101, 103], name="source_row"),
+    )
+    without_secret = with_secret.drop(columns=["api_key"])
+
+    stripped = remove_credentials_recursive(with_secret)
+    baseline = remove_credentials_recursive(without_secret)
+    payload = stripped.value["$tradingagents:dataframe"]
+
+    assert payload["columns"] == ["symbol", "close"]
+    assert payload["index"] == [101, 103]
+    assert payload["data"] == [["600519.SS", 1500.0], ["920176.BJ", 12.5]]
+    assert [record.path for record in stripped.manifest] == ["dataframe.api_key"]
+    assert canonical_sha256(stripped.value) == canonical_sha256(baseline.value)
+
+
+def test_dataframe_multiindex_secret_column_is_redacted():
+    columns = pd.MultiIndex.from_tuples(
+        [("market", "close"), ("auth", "api_key")],
+        names=["domain", "field"],
+    )
+    frame = pd.DataFrame([[1500.0, "multi-secret"]], columns=columns)
+
+    result = redact_recursive(frame)
+    payload = result.value["$tradingagents:dataframe"]
+
+    assert payload["data"] == [[1500.0, REDACTED_VALUE]]
+    assert [record.path for record in result.manifest] == ["dataframe.auth.api_key"]
+    assert "multi-secret" not in repr(result.value)

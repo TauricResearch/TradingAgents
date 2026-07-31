@@ -10,6 +10,8 @@ from typing import Any
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV
 
 REDACTED_VALUE = "[REDACTED]"
+DATAFRAME_TAG = "$tradingagents:dataframe"
+DATAFRAME_SERIALIZER_VERSION = 1
 EXACT_CREDENTIAL_LEAVES = frozenset(
     {
         "authorization",
@@ -43,11 +45,7 @@ def split_normalized_key(raw_key: str) -> tuple[str, ...]:
 
 
 def provider_credential_leaves() -> frozenset[str]:
-    return frozenset(
-        normalize_key_segment(name)
-        for name in PROVIDER_API_KEY_ENV.values()
-        if name
-    )
+    return frozenset(normalize_key_segment(name) for name in PROVIDER_API_KEY_ENV.values() if name)
 
 
 def is_secret_leaf(
@@ -55,8 +53,10 @@ def is_secret_leaf(
     additional_credential_names: tuple[str, ...] | frozenset[str] = (),
 ) -> bool:
     normalized = normalize_key_segment(leaf)
-    exact = EXACT_CREDENTIAL_LEAVES | provider_credential_leaves() | frozenset(
-        normalize_key_segment(name) for name in additional_credential_names
+    exact = (
+        EXACT_CREDENTIAL_LEAVES
+        | provider_credential_leaves()
+        | frozenset(normalize_key_segment(name) for name in additional_credential_names)
     )
     return normalized in exact or normalized.endswith(SECRET_SUFFIXES)
 
@@ -75,6 +75,73 @@ class RedactionResult:
     @property
     def redacted(self) -> bool:
         return bool(self.manifest)
+
+
+def _is_pandas_dataframe(value: Any) -> bool:
+    """Recognize pandas DataFrame instances without importing pandas eagerly."""
+    return any(
+        (base.__module__ == "pandas" or base.__module__.startswith("pandas."))
+        and base.__name__ == "DataFrame"
+        for base in type(value).__mro__
+    )
+
+
+def _dataframe_payload(value: Any) -> dict[str, Any]:
+    """Project a DataFrame into the versioned observation-table contract."""
+    return {
+        "version": DATAFRAME_SERIALIZER_VERSION,
+        "columns": list(value.columns),
+        "column_names": list(value.columns.names),
+        "index": list(value.index),
+        "index_names": list(value.index.names),
+        "data": [list(row) for row in value.itertuples(index=False, name=None)],
+        "attrs": dict(value.attrs),
+    }
+
+
+def _is_dataframe_envelope(value: Any) -> bool:
+    return (
+        isinstance(value, Mapping)
+        and set(value) == {DATAFRAME_TAG}
+        and isinstance(value[DATAFRAME_TAG], Mapping)
+        and value[DATAFRAME_TAG].get("version") == DATAFRAME_SERIALIZER_VERSION
+    )
+
+
+def _dataframe_column_path(
+    path: tuple[str, ...],
+    column: Any,
+    position: int,
+    additional_credential_names: tuple[str, ...] | frozenset[str] = (),
+) -> tuple[tuple[str, ...], str | None]:
+    if isinstance(column, str):
+        segments = split_normalized_key(column)
+        column_path = (*path, "dataframe", *segments)
+    elif isinstance(column, tuple):
+        string_segments = tuple(
+            segment
+            for level in column
+            if isinstance(level, str)
+            for segment in split_normalized_key(level)
+        )
+        column_path = (
+            (*path, "dataframe", *string_segments)
+            if len(string_segments) == len(column)
+            else (*path, "dataframe", f"column_{position}", *string_segments)
+        )
+        segments = string_segments
+    else:
+        return (*path, "dataframe", f"column_{position}"), None
+
+    secret_leaf = next(
+        (
+            segment
+            for segment in reversed(segments)
+            if is_secret_leaf(segment, additional_credential_names)
+        ),
+        None,
+    )
+    return column_path, secret_leaf
 
 
 def _declared_mapping(value: Any) -> Any:
@@ -101,8 +168,47 @@ def redact_recursive(
     """Redact credential-valued mapping leaves and return a normalized manifest."""
     records: list[RedactionRecord] = []
 
+    def visit_dataframe(payload: Mapping[str, Any], path: tuple[str, ...]) -> Any:
+        columns = list(payload.get("columns", ()))
+        data = list(payload.get("data", ()))
+        transformed_rows = []
+        for row_index, row in enumerate(data):
+            row_values = list(row)
+            transformed_row = []
+            for column_index, child in enumerate(row_values):
+                column = columns[column_index] if column_index < len(columns) else column_index
+                child_path, leaf = _dataframe_column_path(
+                    path, column, column_index, additional_credential_names
+                )
+                if leaf is not None:
+                    records.append(RedactionRecord(".".join(child_path), leaf))
+                    transformed_row.append(REDACTED_VALUE)
+                else:
+                    transformed_row.append(visit(child, (*child_path, str(row_index))))
+            transformed_rows.append(transformed_row)
+
+        return {
+            "version": payload.get("version"),
+            "columns": visit(columns, (*path, "dataframe", "columns")),
+            "column_names": visit(
+                list(payload.get("column_names", ())),
+                (*path, "dataframe", "column_names"),
+            ),
+            "index": visit(list(payload.get("index", ())), (*path, "dataframe", "index")),
+            "index_names": visit(
+                list(payload.get("index_names", ())),
+                (*path, "dataframe", "index_names"),
+            ),
+            "data": transformed_rows,
+            "attrs": visit(dict(payload.get("attrs", {})), (*path, "dataframe", "attrs")),
+        }
+
     def visit(current: Any, path: tuple[str, ...]) -> Any:
+        if _is_pandas_dataframe(current):
+            current = {DATAFRAME_TAG: _dataframe_payload(current)}
         current = _declared_mapping(current)
+        if _is_dataframe_envelope(current):
+            return {DATAFRAME_TAG: visit_dataframe(current[DATAFRAME_TAG], path)}
         if isinstance(current, Mapping):
             output = {}
             for raw_key, child in current.items():
@@ -111,9 +217,7 @@ def redact_recursive(
                     child_path = (*path, *normalized_segments)
                     leaf = normalized_segments[-1]
                     if is_secret_leaf(leaf, additional_credential_names):
-                        records.append(
-                            RedactionRecord(".".join(child_path), leaf)
-                        )
+                        records.append(RedactionRecord(".".join(child_path), leaf))
                         output[raw_key] = REDACTED_VALUE
                         continue
                 else:
@@ -123,9 +227,7 @@ def redact_recursive(
         if isinstance(current, list):
             return [visit(child, (*path, str(index))) for index, child in enumerate(current)]
         if isinstance(current, tuple):
-            return tuple(
-                visit(child, (*path, str(index))) for index, child in enumerate(current)
-            )
+            return tuple(visit(child, (*path, str(index))) for index, child in enumerate(current))
         if isinstance(current, set):
             return {visit(child, path) for child in current}
         if isinstance(current, frozenset):
@@ -150,8 +252,54 @@ def remove_credentials_recursive(
     """Remove credential-named mapping leaves for resume fingerprinting."""
     records: list[RedactionRecord] = []
 
+    def visit_dataframe(payload: Mapping[str, Any], path: tuple[str, ...]) -> Any:
+        columns = list(payload.get("columns", ()))
+        kept_positions = []
+        for position, column in enumerate(columns):
+            column_path, leaf = _dataframe_column_path(
+                path, column, position, additional_credential_names
+            )
+            if leaf is not None:
+                records.append(RedactionRecord(".".join(column_path), leaf))
+            else:
+                kept_positions.append(position)
+
+        transformed_rows = []
+        for row_index, row in enumerate(payload.get("data", ())):
+            row_values = list(row)
+            transformed_row = []
+            for position in kept_positions:
+                if position >= len(row_values):
+                    continue
+                column_path, _leaf = _dataframe_column_path(path, columns[position], position)
+                transformed_row.append(visit(row_values[position], (*column_path, str(row_index))))
+            transformed_rows.append(transformed_row)
+
+        return {
+            "version": payload.get("version"),
+            "columns": visit(
+                [columns[position] for position in kept_positions],
+                (*path, "dataframe", "columns"),
+            ),
+            "column_names": visit(
+                list(payload.get("column_names", ())),
+                (*path, "dataframe", "column_names"),
+            ),
+            "index": visit(list(payload.get("index", ())), (*path, "dataframe", "index")),
+            "index_names": visit(
+                list(payload.get("index_names", ())),
+                (*path, "dataframe", "index_names"),
+            ),
+            "data": transformed_rows,
+            "attrs": visit(dict(payload.get("attrs", {})), (*path, "dataframe", "attrs")),
+        }
+
     def visit(current: Any, path: tuple[str, ...]) -> Any:
+        if _is_pandas_dataframe(current):
+            current = {DATAFRAME_TAG: _dataframe_payload(current)}
         current = _declared_mapping(current)
+        if _is_dataframe_envelope(current):
+            return {DATAFRAME_TAG: visit_dataframe(current[DATAFRAME_TAG], path)}
         if isinstance(current, Mapping):
             output = {}
             for raw_key, child in current.items():
@@ -169,9 +317,7 @@ def remove_credentials_recursive(
         if isinstance(current, list):
             return [visit(child, (*path, str(index))) for index, child in enumerate(current)]
         if isinstance(current, tuple):
-            return tuple(
-                visit(child, (*path, str(index))) for index, child in enumerate(current)
-            )
+            return tuple(visit(child, (*path, str(index))) for index, child in enumerate(current))
         return current
 
     stripped = visit(value, ())

@@ -50,13 +50,17 @@ class ConditionalLogic:
         return "Msg Clear Fundamentals"
 
     def should_continue_debate(self, state: AgentState) -> str:
-        """Determine if debate should continue."""
+        """Route the next research turn from the number of completed turns.
 
-        if (
-            state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+        Speaker identity is structural graph state, not model-authored prose.  A
+        response body may intentionally omit a leading ``Bull``/``Bear`` label,
+        so content inspection cannot safely determine the next participant.
+        """
+
+        completed_turns = state["investment_debate_state"]["count"]
+        if completed_turns >= 2 * self.max_debate_rounds:
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
+        if completed_turns % 2 == 1:
             return "Bear Researcher"
         return "Bull Researcher"
 
