@@ -711,7 +711,10 @@ def get_user_selections():
             "Gemini thinking mode", "Step 8: Thinking Mode",
             "Configure Gemini thinking mode", ask_gemini_thinking_config,
         )
-    elif provider_lower == "openai":
+    elif provider_lower in ("openai", "openai_codex"):
+        # Same branch set as TradingAgentsGraph._get_provider_kwargs: the Codex
+        # endpoint serves the same GPT-5 family and accepts reasoning.effort, so
+        # leaving it out here would forward a knob the CLI never offers.
         reasoning_effort = thinking_value_or_prompt(
             "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
             "Reasoning effort", "Step 8: Reasoning Effort",

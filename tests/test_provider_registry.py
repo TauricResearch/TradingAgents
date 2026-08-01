@@ -6,6 +6,7 @@ import pytest
 
 from tradingagents.llm_clients.openai_client import (
     OPENAI_COMPATIBLE_PROVIDERS,
+    CodexChatOpenAI,
     DeepSeekChatOpenAI,
     MinimaxChatOpenAI,
     NormalizedChatOpenAI,
@@ -26,6 +27,7 @@ def test_registry_membership():
 @pytest.mark.unit
 @pytest.mark.parametrize("provider,base_url,chat_class,responses", [
     ("openai", None, NormalizedChatOpenAI, True),
+    ("openai_codex", "https://chatgpt.com/backend-api/codex", CodexChatOpenAI, True),
     ("xai", "https://api.x.ai/v1", NormalizedChatOpenAI, False),
     ("deepseek", "https://api.deepseek.com", DeepSeekChatOpenAI, False),
     ("qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", NormalizedChatOpenAI, False),

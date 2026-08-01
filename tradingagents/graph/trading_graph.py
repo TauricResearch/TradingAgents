@@ -160,7 +160,9 @@ class TradingAgentsGraph:
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
 
-        elif provider == "openai":
+        # openai_codex serves the same GPT-5 family over the ChatGPT-subscription
+        # endpoint, which accepts reasoning.effort just as the API does.
+        elif provider in ("openai", "openai_codex"):
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
