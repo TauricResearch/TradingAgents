@@ -109,7 +109,15 @@ _BY_ID: dict[str, ModelCapabilities] = {
 
 # Forward-compat patterns. New ``deepseek-v5-*`` / ``deepseek-reasoner-*``
 # or ``MiniMax-M3*`` variants inherit the thinking-mode quirks automatically.
+#
+# OpenRouter hosts DeepSeek models under a ``deepseek/`` prefix (e.g.
+# ``deepseek/deepseek-v4-flash``). Without this pattern they fell through to
+# the generic caps, which force a ``tool_choice`` function dict — something
+# DeepSeek's thinking models answer with a very slow response (~49s vs ~4s
+# for the same call with tool_choice suppressed). Matching the prefix gives
+# them the same DeepSeek handling as native ``deepseek``-provider models.
 _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
+    (re.compile(r"^deepseek/"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
