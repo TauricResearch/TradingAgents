@@ -1,0 +1,9 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stock-tracker",
+      "url": "http://localhost:8080"
+    }
+  ]
+}

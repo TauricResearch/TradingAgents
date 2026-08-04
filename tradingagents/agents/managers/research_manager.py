@@ -51,6 +51,13 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
             prompt,
             render_research_plan,
             "Research Manager",
+            schema=ResearchPlan,
+            instructions=(
+                "As the Research Manager and debate facilitator, critically "
+                "evaluate the bull/bear debate and deliver a clear, actionable "
+                "investment plan with a recommendation, rationale, and strategic actions."
+                + get_language_instruction()
+            ),
         )
 
         new_investment_debate_state = {

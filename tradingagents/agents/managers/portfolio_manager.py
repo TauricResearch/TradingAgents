@@ -72,6 +72,13 @@ Be decisive and ground every conclusion in specific evidence from the analysts.
             prompt,
             render_pm_decision,
             "Portfolio Manager",
+            schema=PortfolioDecision,
+            instructions=(
+                "As the Portfolio Manager, synthesize the risk analysts' debate "
+                "and deliver the final trading decision with a rating, executive "
+                "summary, investment thesis, optional price target, and time horizon."
+                + get_language_instruction()
+            ),
         )
 
         new_risk_debate_state = {
