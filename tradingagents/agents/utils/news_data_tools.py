@@ -2,7 +2,13 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.dataflows.config import mask_data_symbol, resolve_data_symbol
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.media_history import (
+    collected_media_enabled,
+    get_collected_global_news,
+    get_collected_ticker_news,
+)
 
 
 @tool
@@ -21,7 +27,12 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
-    return route_to_vendor("get_news", ticker, start_date, end_date)
+    real_ticker = resolve_data_symbol(ticker)
+    if collected_media_enabled():
+        result = get_collected_ticker_news(real_ticker, start_date, end_date)
+    else:
+        result = route_to_vendor("get_news", real_ticker, start_date, end_date)
+    return mask_data_symbol(result, ticker, real_ticker)
 
 @tool
 def get_global_news(
@@ -43,6 +54,8 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
+    if collected_media_enabled():
+        return get_collected_global_news(curr_date, look_back_days, limit)
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool

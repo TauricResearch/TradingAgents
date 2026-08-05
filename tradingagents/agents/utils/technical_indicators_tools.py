@@ -2,6 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.dataflows.config import mask_data_symbol, resolve_data_symbol
 from tradingagents.dataflows.interface import route_to_vendor
 
 
@@ -26,10 +27,14 @@ def get_indicators(
     # LLMs sometimes pass multiple indicators as a comma-separated string;
     # split and process each individually.
     indicators = [i.strip().lower() for i in indicator.split(",") if i.strip()]
+    real_symbol = resolve_data_symbol(symbol)
     results = []
     for ind in indicators:
         try:
-            results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
+            result = route_to_vendor(
+                "get_indicators", real_symbol, ind, curr_date, look_back_days
+            )
+            results.append(mask_data_symbol(result, symbol, real_symbol))
         except ValueError as e:
             results.append(str(e))
     return "\n\n".join(results)

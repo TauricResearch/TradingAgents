@@ -6,7 +6,7 @@ import unittest
 import pytest
 
 import tradingagents.default_config as default_config
-from tradingagents.dataflows.config import get_config, set_config
+from tradingagents.dataflows.config import get_config, resolve_data_symbol, set_config
 
 
 @pytest.mark.unit
@@ -59,3 +59,13 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         fresh = get_config()
         self.assertEqual(fresh["tool_vendors"]["get_stock_data"], "alpha_vantage")
         self.assertEqual(fresh["tool_vendors"]["get_news"], "alpha_vantage")
+
+    def test_research_aliases_are_replaced_between_experiments(self):
+        set_config({"research_symbol_aliases": {"ASSET_001": "NVDA"}})
+        self.assertEqual(resolve_data_symbol("asset_001"), "NVDA")
+        with self.assertRaisesRegex(ValueError, "not an allowed research alias"):
+            resolve_data_symbol("NVDA")
+
+        set_config({"research_symbol_aliases": {}})
+
+        self.assertEqual(resolve_data_symbol("ASSET_001"), "ASSET_001")

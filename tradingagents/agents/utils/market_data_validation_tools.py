@@ -2,6 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.dataflows.config import mask_data_symbol, resolve_data_symbol
 from tradingagents.dataflows.market_data_validator import build_verified_market_snapshot
 
 
@@ -20,4 +21,6 @@ def get_verified_market_snapshot(
     price levels, Bollinger bands, RSI, MACD, moving averages, support /
     resistance, or historical comparisons, and treat it as the source of truth.
     """
-    return build_verified_market_snapshot(symbol, curr_date, look_back_days)
+    real_symbol = resolve_data_symbol(symbol)
+    result = build_verified_market_snapshot(real_symbol, curr_date, look_back_days)
+    return mask_data_symbol(result, symbol, real_symbol)

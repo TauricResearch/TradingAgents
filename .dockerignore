@@ -1,6 +1,9 @@
 .git
 .venv
 .env
+.context
+.pytest_cache
+.ruff_cache
 .claude
 .idea
 .vscode

@@ -44,9 +44,19 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Networked media store and NYSE calendar for the cloud poller.
+poller = [
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.1",
+    "exchange-calendars>=4.5",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-poller = "tradingagents.poller:main"
+tradingagents-backtest = "tradingagents.backtest:main"
+tradingagents-walkforward = "tradingagents.walkforward:main"
+tradingagents-paper = "tradingagents.paper_trading:main"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]

@@ -18,6 +18,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    "TRADINGAGENTS_COLLECTED_MEDIA_ENABLED": "collected_media_enabled",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
@@ -103,6 +104,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
+    # Backtest mode disables the adaptive memory/reflection loop. Resolving a
+    # historical decision with returns visible today would leak its future into
+    # the next simulated decision.
+    "backtest_mode": False,
+    # Optional LLM-visible alias -> real vendor symbol mapping for ticker-mask
+    # negative controls. Empty in all ordinary live and historical runs.
+    "research_symbol_aliases": {},
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
@@ -116,6 +124,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
     "global_news_article_limit": 10,      # max articles for global/macro news
     "global_news_lookback_days": 7,       # macro news lookback window
+    "global_news_novelty_lookback_days": 30,  # older context used only for novelty scoring
+    # Research mode that permits broad global narratives but no ticker-specific
+    # news or social-media inputs. Market-price tools remain available.
+    "global_topics_only": False,
+    # When enabled, historical analyst runs read the poller's captured database
+    # instead of today's live social/news feeds. This is required for a
+    # reproducible, look-ahead-safe sentiment backtest.
+    "collected_media_enabled": bool(
+        os.getenv("MEDIA_DB_URL") or os.getenv("DATABASE_URL")
+    ),
+    "media_db_url": os.getenv("MEDIA_DB_URL") or os.getenv("DATABASE_URL"),
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [
@@ -125,6 +144,36 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
     ],
+    # Shared macro themes captured by the cloud poller. These are intentionally
+    # broad rather than ticker-specific and can also ground historical runs.
+    "macro_themes": {
+        "rates": {
+            "queries": ["Federal Reserve interest rate decision", "inflation CPI outlook"],
+            "prediction_topics": ["Fed rate cut", "recession"],
+        },
+        "trade": {
+            "queries": [
+                "global policy trade sanctions supply chains markets",
+                "geopolitical conflict diplomacy global markets",
+            ],
+            "prediction_topics": ["tariffs", "US China trade"],
+        },
+        "companies": {
+            "queries": ["corporate earnings guidance mergers layoffs IPO"],
+            "prediction_topics": [],
+        },
+        "technology": {
+            "queries": [
+                "technology product launches AI research industry developments",
+                "semiconductors data centers technology investment",
+            ],
+            "prediction_topics": ["AI bubble", "chip export ban"],
+        },
+        "energy": {
+            "queries": ["oil prices OPEC energy commodities"],
+            "prediction_topics": ["oil price", "OPEC"],
+        },
+    },
     # Data vendor configuration
     # Category-level configuration (default for all tools in category).
     # The configured value is the exact vendor chain — requests are NOT silently

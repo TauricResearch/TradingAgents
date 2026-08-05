@@ -65,6 +65,24 @@ def _is_forward_looking(market: dict, now: datetime) -> bool:
     )
 
 
+def iter_forward_markets(topic: str, limit: int = 20) -> list[dict]:
+    """Return structured, volume-sorted forward-looking markets for a topic."""
+    try:
+        data = _request("public-search", {"q": topic, "limit_per_type": max(limit, 20)})
+    except requests.RequestException as exc:
+        logger.warning("Polymarket search failed for %r: %s", topic, exc)
+        return []
+    now = datetime.now(timezone.utc)
+    candidates = [
+        market
+        for event in data.get("events", [])
+        for market in event.get("markets", [])
+        if _is_forward_looking(market, now)
+    ]
+    candidates.sort(key=lambda market: market.get("volumeNum") or 0, reverse=True)
+    return candidates[:limit]
+
+
 def get_prediction_markets(topic: str, limit: int | None = None) -> str:
     """Return live prediction-market probabilities for an event topic.
 

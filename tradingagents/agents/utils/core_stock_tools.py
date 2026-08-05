@@ -2,6 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.dataflows.config import mask_data_symbol, resolve_data_symbol
 from tradingagents.dataflows.interface import route_to_vendor
 
 
@@ -21,4 +22,6 @@ def get_stock_data(
     Returns:
         str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
     """
-    return route_to_vendor("get_stock_data", symbol, start_date, end_date)
+    real_symbol = resolve_data_symbol(symbol)
+    result = route_to_vendor("get_stock_data", real_symbol, start_date, end_date)
+    return mask_data_symbol(result, symbol, real_symbol)

@@ -869,3 +869,42 @@ class TestLegacyRemoval:
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"
         assert entries[0]["pending"] is True
+
+    def test_backtest_mode_does_not_read_or_write_adaptive_memory(self, tmp_path):
+        """Known future returns must never enter a historical graph sequence."""
+        import functools
+
+        fake_state = {
+            "final_trade_decision": "Rating: Hold",
+            "company_of_interest": "NVDA", "trade_date": "2026-01-10",
+            "market_report": "", "sentiment_report": "", "news_report": "",
+            "fundamentals_report": "",
+            "investment_debate_state": {
+                "bull_history": "", "bear_history": "", "history": "",
+                "current_response": "", "judge_decision": "",
+            },
+            "investment_plan": "", "trader_investment_plan": "",
+            "risk_debate_state": {
+                "aggressive_history": "", "conservative_history": "",
+                "neutral_history": "", "history": "", "judge_decision": "",
+                "current_aggressive_response": "", "current_conservative_response": "",
+                "current_neutral_response": "", "count": 1, "latest_speaker": "",
+            },
+        }
+        mock_graph = MagicMock()
+        mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
+        mock_graph.log_states_dict = {}
+        mock_graph.debug = False
+        mock_graph.config = {"results_dir": str(tmp_path), "backtest_mode": True}
+        mock_graph.graph.invoke.return_value = fake_state
+        mock_graph.propagator.create_initial_state.return_value = fake_state
+        mock_graph.propagator.get_graph_args.return_value = {}
+        mock_graph.signal_processor.process_signal.return_value = "Hold"
+        mock_graph._run_graph = functools.partial(TradingAgentsGraph._run_graph, mock_graph)
+
+        TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
+
+        mock_graph._resolve_pending_entries.assert_not_called()
+        mock_graph.resolve_instrument_context.assert_not_called()
+        assert mock_graph.memory_log.load_entries() == []
+        assert mock_graph.propagator.create_initial_state.call_args.kwargs["past_context"] == ""

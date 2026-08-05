@@ -261,13 +261,137 @@ ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
 
+## Captured-media backtests
+
+Use the poller's historical database to run a bounded, resumable signal study:
+
+```bash
+# Inspect the LLM-call schedule first (no model calls).
+tradingagents-backtest --tickers NVDA --start 2026-07-01 --end 2026-07-01 --dry-run
+
+# Run one synchronized four-asset portfolio decision (four LLM graph runs).
+tradingagents-backtest \
+  --tickers NVDA,MSFT,AMZN,META \
+  --start 2026-07-01 \
+  --end 2026-07-01 \
+  --db "$MEDIA_DB_URL" \
+  --max-runs 4 \
+  --portfolio-mode long-only \
+  --gross-limit 1.0 \
+  --max-weight 0.35 \
+  --cost-bps 5 \
+  --slippage-bps 5 \
+  --output results/first-portfolio.jsonl
+```
+
+Historical mode uses only news/social rows whose publication and fetch times
+were known by that session's after-close cutoff. It enters at the next trading
+session's open. Adaptive decision memory, current company metadata,
+fundamentals, revised macro series, insider data, and live prediction markets
+are disabled because they are not point-in-time safe. Cached decisions are
+keyed by model/prompt code and a hash of the eligible media window, so changed
+code or backfilled data cannot silently reuse an old signal.
+
+The portfolio simulator synchronizes the full ticker cross-section, maps the
+five-tier ratings to constrained weights, carries cash, marks positions
+open-to-open, rebalances at the next open, and models turnover, commissions,
+slippage, short borrow, gross/net exposure, drawdown, volatility, Sharpe, and a
+benchmark equity curve. It writes append-only signal JSONL, a portfolio JSON
+summary, and a daily equity/weight CSV. ``--replicates`` averages several
+independent LLM ratings per ticker/date to reduce sampling noise.
+
+The portfolio JSON also includes research diagnostics: benchmark-beta and
+residual-alpha attribution, cross-sectional rank IC, equal-weight and trailing
+price-momentum baselines under the identical cost model, and a deterministic
+within-date ticker-permutation placebo. Use ``--placebo-trials 0`` only for a
+quick smoke run. ``--identity-control ticker-mask`` runs a stronger negative
+control in which the LLM sees stable identifiers such as ``ASSET_001`` while
+tools resolve the real ticker internally. This masks ticker labels but cannot
+reliably remove issuer names appearing inside historical article prose.
+
+Global media presented to the news analyst is clustered at read time into
+near-duplicate narratives and ranked by novelty, independent-source diversity,
+and cross-family confirmation. Raw database rows remain immutable. Reporting,
+retail-social, and public-social sources retain separate labels so social
+attention is not silently averaged into news sentiment.
+
+This removes mechanical look-ahead paths, but cannot erase knowledge already
+encoded in an LLM checkpoint or survivorship bias in a present-day ticker list.
+Use a model frozen before the evaluation period plus a point-in-time universe
+when available; continuous forward paper trading remains the definitive test.
+
+### Walk-forward experiments
+
+The walk-forward runner reserves a rolling training span, applies an embargo at
+least as long as the longest holding/outcome horizon, and evaluates only
+non-overlapping out-of-sample folds. By default it also locks the final 20
+sessions away from every research fold, preceded by a horizon-sized purge gap
+so research-fold outcomes cannot spill into the holdout. The strategy does not fit on
+the training span; it is recorded so future parameter selection cannot
+accidentally contaminate reported evaluation results.
+
+```bash
+tradingagents-walkforward \
+  --tickers NVDA,MSFT,AMZN,META \
+  --start 2026-07-01 \
+  --end 2026-12-31 \
+  --db "$MEDIA_DB_URL" \
+  --train-sessions 60 \
+  --evaluation-sessions 20 \
+  --holding-sessions 5 \
+  --holdout-sessions 20 \
+  --max-runs-per-fold 80 \
+  --output-dir results/walk-forward-core \
+  --dry-run
+```
+
+Remove ``--dry-run`` only after reviewing the graph-call count. Each fold is
+resumable and writes its own signal, portfolio, and equity artifacts. The final
+``summary.json`` compounds fold results and reports explicit promotion gates:
+minimum completed folds, positive-excess fold fraction, compounded excess
+return, and worst-fold drawdown. The manifest records the effective prediction
+horizon, embargo, and locked holdout boundaries. Deliberately evaluating that
+holdout should be a separate, one-time promotion decision rather than another
+tuning loop.
+
+### Forward paper portfolio
+
+Install the cloud-storage/calendar dependencies with
+``pip install '.[poller]'``. A paper cycle first marks every due open using
+previously frozen weights, then records the new complete cross-section. Run it
+at 00:05 UTC, after the captured-media cutoff and before the next NYSE open:
+
+```bash
+tradingagents-paper cycle \
+  --run-id forward-core-v1 \
+  --tickers NVDA,MSFT,AMZN,META \
+  --db "$MEDIA_DB_URL" \
+  --portfolio-mode long-only \
+  --max-weight 0.35
+
+tradingagents-paper status --run-id forward-core-v1 --db "$MEDIA_DB_URL"
+```
+
+The database ledger is append-only: universe/config changes, duplicate daily
+decisions, duplicate entry dates, and rewritten price marks are rejected.
+Decision rows include their data and model/code fingerprints. The entire
+cross-section and target weights commit atomically only after every model call
+succeeds. Open prices are captured once and never revised.
+
+For unattended collection, ``tradingagents-paper daemon`` runs the idempotent
+cycle daily at 00:05 UTC. ``Dockerfile.paper`` and ``fly.paper.toml`` define a
+separate 1 GB Fly worker so model execution cannot disrupt the 256 MB media
+collector. Set ``DATABASE_URL`` and the model-provider API key as Fly secrets
+before launching it; the example configuration deliberately contains no
+credentials.
+
 ## Reproducibility
 
 TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
 
 Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-5.x family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
 
-Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
+Live data moves. News, StockTwits, and Reddit return different content as time passes, so an ordinary run today sees different inputs than a run last week even for the same historical trade date. Use the captured-media backtest mode above when a reproducible point-in-time social/news window is required.
 
 To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `TRADINGAGENTS_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. The current curated models are reasoning-first and largely ignore temperature, so for tighter reproducibility use a non-reasoning model, which you can set explicitly via the Custom model ID option.
 

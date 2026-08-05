@@ -1,0 +1,42 @@
+# Fly.io deployment for the media poller — an always-on worker (no public
+# service) that polls hourly and writes to managed Postgres.
+#
+# Deploy: see the "Fly.io" section of docs/poller-deployment.md.
+#   - app name must be globally unique: change `app` below or let `fly launch` pick one
+#   - secrets (DB URL, source tokens) are set with `fly secrets set`, NOT here
+#   - data lives in Supabase, so this machine is stateless (no Fly volume)
+
+app = "tradagent"
+primary_region = "iad"          # match your Supabase project's region (e.g. us-east-1 -> iad)
+
+[build]
+  dockerfile = "Dockerfile.poller"
+
+# Non-secret config. Tickers/interval are safe to commit; credentials are not —
+# set MEDIA_DB_URL / X_BEARER_TOKEN / TRUTHSOCIAL_TOKEN via `fly secrets set`.
+[env]
+  # X searches are discovered from ranked general news + live trends, never a
+  # ticker/entity watchlist. Three daily searches cap reads at 30 posts/day.
+  MEDIA_POLLER_SOURCES = "x"
+  MEDIA_POLLER_INTERVAL = "3600"
+  # Global events are not bounded by US exchange hours. X still has its own
+  # daily cursor, so around-the-clock macro collection does not increase X use.
+  MEDIA_POLLER_TRADING_HOURS = "false"
+  MEDIA_POLLER_X_INTERVAL = "86400"
+  MEDIA_POLLER_X_TOPICS = "3"
+  MEDIA_POLLER_X_LIMIT = "10"
+  # Separate collector process watches the paper worker's DB heartbeat.
+  PAPER_HEARTBEAT_MAX_AGE = "93600"
+
+# Restart the worker if it crashes; a clean SIGTERM during deploy won't loop.
+# dedup on (source, external_id) makes a re-poll after restart harmless.
+[[restart]]
+  policy = "on-failure"
+  max_retries = 10
+
+# Smallest machine is ample: the poller's import surface is ~30 MB RSS and it is
+# network-bound, idle most of the hour. Bump memory only if you add many tickers.
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

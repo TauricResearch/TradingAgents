@@ -1,0 +1,29 @@
+# Separate paper-trading worker. DATABASE_URL and the model-provider API key
+# must be Fly secrets; never place credentials in this file.
+app = "tradagent-paper"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.paper"
+
+[env]
+  PAPER_RUN_ID = "forward-core-v2"
+  PAPER_TICKERS = "NVDA,MSFT,AMZN,META"
+  PAPER_BENCHMARK = "SPY"
+  PAPER_ANALYSTS = "market,news"
+  PAPER_GLOBAL_TOPICS_ONLY = "true"
+  # Retry transient provider/data failures through nearly the full pre-open
+  # window. Exhaustion crashes the process so Fly records/restarts the failure.
+  PAPER_RETRY_ATTEMPTS = "27"
+  PAPER_RETRY_SECONDS = "1800"
+  PAPER_REPLICATES = "1"
+  PAPER_PORTFOLIO_MODE = "long-only"
+
+[[restart]]
+  policy = "on-failure"
+  max_retries = 10
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
