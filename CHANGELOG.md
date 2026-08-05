@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Schwab market-data vendor (opt-in).** New `schwab` data vendor for OHLCV
+  (`core_stock_apis`) and technical indicators (`technical_indicators`), covering
+  US equities/ETFs only. Uses a `token.json` produced by any schwab-py login
+  (no in-app OAuth login) via schwab-py's `client_from_token_file` (refresh-only,
+  never a browser login), pulls an explicit 5-year daily window, and disk-caches
+  per symbol. Install with `pip install ".[schwab]"`. Defaults are unchanged
+  (yfinance); enable by setting `data_vendors` for both categories to
+  `"schwab,yfinance"`. Symbols outside `^[A-Z]{1,5}$` and unconfigured/failed
+  Schwab calls fall back to yfinance. Prices are raw (unadjusted); see the README
+  note on cross-source consistency with the yfinance-adjusted reflection and
+  verified-snapshot paths.
+- **Shared indicator renderer.** `stockstats_utils.render_indicator_window`
+  computes a per-day indicator window from an already-prepared OHLCV frame,
+  shared by the yfinance and Schwab indicator paths (the yfinance per-day
+  fallback is preserved).
+
 ## [0.3.1] — 2026-07-05
 
 Correctness and stability patch: data look-ahead, graph-router crash-safety,

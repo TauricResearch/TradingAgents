@@ -151,6 +151,10 @@ For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill i
 
 For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-4-8-v1:0`.
 
+For Schwab Market Data (optional, opt-in), install the extra with `pip install ".[schwab]"`. It provides OHLCV prices and technical indicators for **US equities and ETFs only** and authenticates with a `token.json` produced by **any schwab-py login** — set `SCHWAB_APP_KEY` / `SCHWAB_APP_SECRET` (your Schwab developer app credentials) and, if the token is not in the default location, `SCHWAB_TOKEN_PATH` (also accepts `SCHWAB_NATIVE_TOKEN_PATH`). Any tool built on schwab-py can generate this token (for example [schwab-marketdata-mcp](https://github.com/kevinkda/schwab-marketdata-mcp)'s `auth login_flow`, but it is only one such source and is not required). TradingAgents itself does not implement a login flow; it uses schwab-py's `client_from_token_file` (refresh-only). Enable Schwab by setting the data vendor for both price and indicator categories, e.g. `config["data_vendors"]["core_stock_apis"] = "schwab,yfinance"` and `config["data_vendors"]["technical_indicators"] = "schwab,yfinance"` (yfinance stays as automatic fallback). When Schwab is not configured or a symbol is out of scope, requests transparently fall back to yfinance.
+
+> **Note on price basis and cross-source consistency.** Schwab returns **raw (unadjusted)** prices, whereas yfinance uses `auto_adjust=True` (split/dividend-adjusted). Keep `core_stock_apis` and `technical_indicators` on the **same** source so an agent report's price CSV and its indicators share one basis. Also note the reflection/alpha and the verified-snapshot data paths are hard-wired to yfinance regardless of this setting: for tickers with recent splits/dividends, the agent's Schwab raw prices can diverge from those yfinance-adjusted paths, so Schwab is best suited to names without pending corporate actions.
+
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
@@ -178,6 +182,8 @@ TradingAgents works with any market Yahoo Finance covers, using the exchange-suf
 - India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
 - Crypto: `BTC-USD`, `ETH-USD`
+
+The optional Schwab vendor covers **US equities and ETFs only** (plain-letter tickers such as `AAPL`, `SPY`). Any other market, class/preferred share (`BRK.B`, `BRK-A`), index (`^GSPC`), forex (`EURUSD=X`), or crypto automatically routes to yfinance.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
