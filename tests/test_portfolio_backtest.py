@@ -8,6 +8,7 @@ from tradingagents.portfolio_backtest import (
     baseline_portfolios,
     beta_attribution,
     cross_sectional_rank_ic,
+    optimize_forecast_weights,
     permutation_placebo,
     simulate_portfolio,
     target_weights,
@@ -47,6 +48,26 @@ def test_market_neutral_remains_neutral_when_one_side_hits_position_caps():
     )
     assert sum(weights.values()) == pytest.approx(0.0)
     assert weights == pytest.approx({"A": 0.25, "B": -0.125, "C": -0.125})
+
+
+@pytest.mark.unit
+def test_position_aware_optimizer_makes_hold_mean_maintain():
+    forecasts = [
+        {"ticker": "A", "expected_excess_return_bps": 0, "probability_positive": 0.5,
+         "confidence": 0.8, "abstain": False},
+        {"ticker": "B", "expected_excess_return_bps": -100, "probability_positive": 0.2,
+         "confidence": 1.0, "abstain": False},
+        {"ticker": "C", "expected_excess_return_bps": 100, "probability_positive": 0.8,
+         "confidence": 1.0, "abstain": False},
+    ]
+    result = optimize_forecast_weights(
+        forecasts, current_weights={"A": 0.2, "B": 0.2, "C": 0.0},
+        sectors={"A": "one", "B": "two", "C": "three"},
+        max_weight=0.5, max_sector_weight=0.5,
+    )
+    assert result.weights["A"] == pytest.approx(0.2)
+    assert result.weights["B"] == 0.0
+    assert result.weights["C"] > 0.0
 
 
 @pytest.mark.unit

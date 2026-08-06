@@ -117,6 +117,14 @@ def test_signal_manifest_includes_effective_decision_config(monkeypatch):
 
 
 @pytest.mark.unit
+def test_operational_build_change_does_not_fork_signal_identity(monkeypatch):
+    args = SimpleNamespace(db="postgresql://u:p@db.example/research")
+    initial = backtest._signal_manifest(args, ("market", "news"))
+    changed = {**initial, "build_id": "different-container"}
+    assert backtest._signal_fingerprint(changed) == backtest._signal_fingerprint(initial)
+
+
+@pytest.mark.unit
 def test_database_identity_ignores_rotated_credentials():
     first = backtest._database_identity("postgresql+psycopg://old:one@db.example:5432/research")
     rotated = backtest._database_identity("postgresql+psycopg://new:two@db.example:5432/research")

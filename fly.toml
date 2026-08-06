@@ -4,19 +4,32 @@
 # Deploy: see the "Fly.io" section of docs/poller-deployment.md.
 #   - app name must be globally unique: change `app` below or let `fly launch` pick one
 #   - secrets (DB URL, source tokens) are set with `fly secrets set`, NOT here
-#   - data lives in Supabase, so this machine is stateless (no Fly volume)
+#   - data lives in Fly Managed Postgres via MEDIA_DB_URL; this worker is stateless
+#     and needs no Fly volume
 
 app = "tradagent"
-primary_region = "iad"          # match your Supabase project's region (e.g. us-east-1 -> iad)
+primary_region = "iad"          # keep close to the Fly MPG primary region
 
 [build]
   dockerfile = "Dockerfile.poller"
 
-# Non-secret config. Tickers/interval are safe to commit; credentials are not —
+[processes]
+  # Exact frozen global-news/X collector. It validates its content-addressed
+  # component before any database or provider access.
+  app = "--formal-collector"
+
+# Non-secret config. Topic policy/intervals are safe to commit; credentials are not —
 # set MEDIA_DB_URL / X_BEARER_TOKEN / TRUTHSOCIAL_TOKEN via `fly secrets set`.
 [env]
-  # X searches are discovered from ranked general news + live trends, never a
-  # ticker/entity watchlist. Three daily searches cap reads at 30 posts/day.
+  # Production schema changes are an explicit, paused-runtime operation.  The
+  # collector identity must never acquire DDL authority or migrate on boot.
+  MEDIA_AUTO_MIGRATE = "false"
+  # Deploy paused. Enabling this starts preregistration evidence collection;
+  # collection intentionally does not depend on formal trial authorization.
+  MEDIA_COLLECTION_ENABLED = "false"
+  # X searches are discovered from ranked general news + two frozen geographic
+  # trend requests, never a ticker/entity watchlist. Three daily searches cap
+  # post reads at 30/day; both paid request classes use separate DB budgets.
   MEDIA_POLLER_SOURCES = "x"
   MEDIA_POLLER_INTERVAL = "3600"
   # Global events are not bounded by US exchange hours. X still has its own

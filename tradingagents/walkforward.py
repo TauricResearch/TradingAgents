@@ -408,7 +408,7 @@ def main(argv: list[str] | None = None) -> None:
         aliases if args.identity_control == "ticker-mask" else {},
     )
     expected_fold_manifest = {
-        "signal_fingerprint": backtest._fingerprint(signal_manifest),
+        "signal_fingerprint": backtest._signal_fingerprint(signal_manifest),
         "tickers": tickers,
         "benchmark": args.benchmark,
         "mode": args.portfolio_mode,

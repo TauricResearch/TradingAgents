@@ -179,7 +179,7 @@ def _fingerprint(payload: dict) -> str:
 
 
 def _decision_code_fingerprint() -> str:
-    """Hash the installed strategy package so any decision edit invalidates cache."""
+    """Hash the installed package as a build identity (including operations)."""
     package = Path(__file__).resolve().parent
     # This is intentionally conservative: changing a vendor adapter, config
     # default, model client, parser, prompt, or portfolio helper creates a new
@@ -190,6 +190,26 @@ def _decision_code_fingerprint() -> str:
         digest.update(str(path.relative_to(package)).encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()[:16]
+
+
+def _strategy_code_fingerprint() -> str:
+    """Hash only modules capable of changing economic decision semantics."""
+    package = Path(__file__).resolve().parent
+    roots = [package / "agents", package / "graph"]
+    paths = [package / "portfolio_backtest.py", package / "dataflows" / "media_features.py",
+             package / "dataflows" / "media_history.py"]
+    for root in roots:
+        paths.extend(root.rglob("*.py"))
+    digest = hashlib.sha256()
+    for path in sorted(set(paths)):
+        digest.update(str(path.relative_to(package)).encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:16]
+
+
+def _signal_fingerprint(manifest: dict) -> str:
+    """Economic identity intentionally excludes the operational build ID."""
+    return _fingerprint({key: value for key, value in manifest.items() if key != "build_id"})
 
 
 def _database_identity(url: str | None) -> str:
@@ -219,7 +239,8 @@ def _signal_manifest(
     database_id = _database_identity(args.db)
     return {
         "schema_version": BACKTEST_SCHEMA_VERSION,
-        "decision_code_id": _decision_code_fingerprint(),
+        "protocol_code_id": _strategy_code_fingerprint(),
+        "build_id": _decision_code_fingerprint(),
         "analysts": list(analysts),
         "llm_provider": DEFAULT_CONFIG["llm_provider"],
         "quick_model": DEFAULT_CONFIG["quick_think_llm"],
@@ -381,7 +402,7 @@ def main(argv: list[str] | None = None) -> None:
         analysts,
         visible_symbols if args.identity_control == "ticker-mask" else {},
     )
-    signal_fingerprint = _fingerprint(manifest)
+    signal_fingerprint = _signal_fingerprint(manifest)
     price_buffer_sessions = max(args.holding_sessions, args.tail_sessions)
     benchmark_prices = _load_prices(
         args.benchmark, args.start, args.end, price_buffer_sessions

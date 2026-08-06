@@ -1,0 +1,35 @@
+# Outcome-bearing formal price-capture worker. This app must receive only the
+# paper-marker PostgreSQL URL. In particular, it must not receive an LLM API
+# credential. It is deployed paused until durable release authorization exists.
+app = "tradagent-paper-marker"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.paper"
+
+[processes]
+  app = "marker-daemon"
+
+[env]
+  MEDIA_AUTO_MIGRATE = "false"
+  PAPER_AUTO_MIGRATE = "false"
+  PAPER_RUN_ID = "global-event-v2-confirmatory-001"
+  PAPER_ENGINE = "formal-global-v2"
+  PAPER_MARKS_ENABLED = "false"
+  PAPER_TICKERS = "AAPL,MSFT,NVDA,AMZN,GOOGL,META,JPM,BRK-B,XOM,CVX,LLY,UNH,WMT,HD,PG,CAT,GE,NEE,BA,LIN"
+  PAPER_BENCHMARK = "SPY"
+  PAPER_RETRY_ATTEMPTS = "3"
+  PAPER_RETRY_SECONDS = "300"
+  PAPER_PORTFOLIO_MODE = "long-only"
+  PAPER_TRADING_COST_BPS = "5"
+  PAPER_SLIPPAGE_BPS = "5"
+  PAPER_ANNUAL_BORROW_BPS = "0"
+
+[[restart]]
+  policy = "on-failure"
+  max_retries = 10
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

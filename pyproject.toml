@@ -19,6 +19,7 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=2.0.0",
     "pandas>=2.3.0",
     "parsel>=1.10.0",
+    "pydantic>=2.10,<3",
     "python-dotenv>=1.0.0",
     "pytz>=2025.2",
     "questionary>=2.1.0",
@@ -57,6 +58,7 @@ tradingagents-poller = "tradingagents.poller:main"
 tradingagents-backtest = "tradingagents.backtest:main"
 tradingagents-walkforward = "tradingagents.walkforward:main"
 tradingagents-paper = "tradingagents.paper_trading:main"
+tradingagents-ops = "tradingagents.ops_cli:main"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]

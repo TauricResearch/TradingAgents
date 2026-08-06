@@ -378,12 +378,16 @@ Decision rows include their data and model/code fingerprints. The entire
 cross-section and target weights commit atomically only after every model call
 succeeds. Open prices are captured once and never revised.
 
-For unattended collection, ``tradingagents-paper daemon`` runs the idempotent
-cycle daily at 00:05 UTC. ``Dockerfile.paper`` and ``fly.paper.toml`` define a
-separate 1 GB Fly worker so model execution cannot disrupt the 256 MB media
-collector. Set ``DATABASE_URL`` and the model-provider API key as Fly secrets
-before launching it; the example configuration deliberately contains no
-credentials.
+For an ordinary non-formal local run, ``tradingagents-paper daemon`` runs the
+idempotent cycle daily at 00:05 UTC. The governed cloud experiment does not use
+that combined process: ``fly.toml``, ``fly.paper.decision.toml``, and
+``fly.paper.marker.toml`` deploy separate collector, outcome-blind decision,
+and price-marker apps with distinct database identities. Use ``MEDIA_DB_URL``
+(never the legacy ``DATABASE_URL``); install a model key only on the decision
+app, and never on the collector or marker. All three deploy paused and require
+durable release authorization before paper decisions or marks can run. See
+[`docs/production-runbook.md`](docs/production-runbook.md) for the exact release
+and activation sequence.
 
 ## Reproducibility
 

@@ -44,6 +44,18 @@ class PortfolioResult:
     equity: list[dict]
 
 
+@dataclass(frozen=True)
+class OptimizationResult:
+    """Auditable output from the deterministic, position-aware allocator."""
+
+    weights: dict[str, float]
+    turnover: float
+    cash_weight: float
+    active_forecasts: list[str]
+    abstentions: list[str]
+    binding_constraints: list[str]
+
+
 def rating_score(action: str) -> float:
     try:
         return RATING_SCORES[action.strip().lower()]
@@ -149,6 +161,127 @@ def target_weights(
                 ticker: weight * matched / short_total for ticker, weight in shorts.items()
             }
     return {ticker: longs.get(ticker, 0.0) - shorts.get(ticker, 0.0) for ticker in clean}
+
+
+def _project_long_only(
+    weights: dict[str, float], *, sectors: dict[str, str], gross_limit: float,
+    max_weight: float, max_sector_weight: float,
+) -> tuple[dict[str, float], list[str]]:
+    """Project non-negative weights onto position, sector, and gross caps."""
+    projected = {ticker: max(0.0, min(max_weight, float(weight))) for ticker, weight in weights.items()}
+    binding = []
+    if any(float(weights[ticker]) > max_weight for ticker in weights):
+        binding.append("max_weight")
+    by_sector: dict[str, list[str]] = {}
+    for ticker in projected:
+        by_sector.setdefault(sectors.get(ticker, "unknown"), []).append(ticker)
+    for sector, tickers in by_sector.items():
+        total = sum(projected[ticker] for ticker in tickers)
+        if total > max_sector_weight:
+            scale = max_sector_weight / total
+            for ticker in tickers:
+                projected[ticker] *= scale
+            binding.append(f"sector:{sector}")
+    gross = sum(projected.values())
+    if gross > gross_limit:
+        scale = gross_limit / gross
+        projected = {ticker: weight * scale for ticker, weight in projected.items()}
+        binding.append("gross_limit")
+    return projected, sorted(set(binding))
+
+
+def optimize_forecast_weights(
+    forecasts: list[dict],
+    *,
+    current_weights: dict[str, float],
+    sectors: dict[str, str],
+    gross_limit: float = 1.0,
+    max_weight: float = 0.10,
+    max_sector_weight: float = 0.30,
+    turnover_hurdle_bps: float = 10.0,
+    minimum_trade_weight: float = 0.005,
+) -> OptimizationResult:
+    """Convert fixed-horizon forecasts to targets without redefining Hold.
+
+    Forecasts inside the round-trip-cost hurdle preserve the current position.
+    Strong negative forecasts close a long; strong positive forecasts compete
+    for capital by confidence-weighted expected excess return. The final pass is
+    deterministic and enforces all registered constraints.
+    """
+    if gross_limit <= 0 or not 0 < max_weight <= gross_limit:
+        raise ValueError("invalid gross or position limit")
+    if not 0 < max_sector_weight <= gross_limit:
+        raise ValueError("invalid sector limit")
+    if min(turnover_hurdle_bps, minimum_trade_weight) < 0:
+        raise ValueError("turnover hurdle and minimum trade must be non-negative")
+    tickers = sorted(current_weights)
+    by_ticker = {str(row["ticker"]).upper(): row for row in forecasts}
+    if set(by_ticker) != set(tickers) or len(forecasts) != len(tickers):
+        raise ValueError("forecast and current-weight cross-sections must match exactly")
+    current, current_bindings = _project_long_only(
+        current_weights,
+        sectors=sectors,
+        gross_limit=gross_limit,
+        max_weight=max_weight,
+        max_sector_weight=max_sector_weight,
+    )
+    conviction = {}
+    abstentions = []
+    preserve = set()
+    close = set()
+    for ticker in tickers:
+        row = by_ticker[ticker]
+        if row.get("abstain"):
+            abstentions.append(ticker)
+            preserve.add(ticker)
+            continue
+        edge = float(row["expected_excess_return_bps"])
+        confidence = max(0.0, min(1.0, float(row["confidence"])))
+        probability = max(0.0, min(1.0, float(row["probability_positive"])))
+        signed_edge = edge * confidence * (0.5 + abs(probability - 0.5))
+        if abs(signed_edge) <= turnover_hurdle_bps:
+            preserve.add(ticker)
+        elif signed_edge < -turnover_hurdle_bps:
+            close.add(ticker)
+        else:
+            conviction[ticker] = signed_edge
+
+    # Preserved positions are funded first. Remaining capital is allocated by
+    # conviction; this makes a no-edge/abstain forecast mean maintain, not sell.
+    desired = {ticker: current.get(ticker, 0.0) if ticker in preserve else 0.0 for ticker in tickers}
+    reserved = sum(desired.values())
+    budget = max(0.0, gross_limit - reserved)
+    proposed = _allocate_capped(conviction, budget, max_weight)
+    for ticker, weight in proposed.items():
+        desired[ticker] = weight
+    for ticker in close:
+        desired[ticker] = 0.0
+    projected, bindings = _project_long_only(
+        desired,
+        sectors=sectors,
+        gross_limit=gross_limit,
+        max_weight=max_weight,
+        max_sector_weight=max_sector_weight,
+    )
+    for ticker in tickers:
+        if abs(projected[ticker] - current[ticker]) < minimum_trade_weight:
+            projected[ticker] = current[ticker]
+    projected, final_bindings = _project_long_only(
+        projected,
+        sectors=sectors,
+        gross_limit=gross_limit,
+        max_weight=max_weight,
+        max_sector_weight=max_sector_weight,
+    )
+    turnover = sum(abs(projected[ticker] - current[ticker]) for ticker in tickers)
+    return OptimizationResult(
+        weights=projected,
+        turnover=turnover,
+        cash_weight=max(0.0, 1.0 - sum(projected.values())),
+        active_forecasts=sorted(conviction),
+        abstentions=sorted(abstentions),
+        binding_constraints=sorted(set(current_bindings + bindings + final_bindings)),
+    )
 
 
 def _date_rows(frame: pd.DataFrame) -> dict[str, pd.Series]:

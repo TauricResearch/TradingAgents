@@ -1,5 +1,7 @@
-# Separate paper-trading worker. DATABASE_URL and the model-provider API key
-# must be Fly secrets; never place credentials in this file.
+# RETIRED combined paper worker. Do not deploy this configuration for the
+# formal trial. Use fly.paper.decision.toml and fly.paper.marker.toml with their
+# distinct least-privilege database identities. This file remains only for an
+# explicit, paused legacy rollback audit.
 app = "tradagent-paper"
 primary_region = "iad"
 
@@ -7,15 +9,37 @@ primary_region = "iad"
   dockerfile = "Dockerfile.paper"
 
 [env]
-  PAPER_RUN_ID = "forward-core-v2"
-  PAPER_TICKERS = "NVDA,MSFT,AMZN,META"
+  # Production schema changes are applied by the separate admin identity while
+  # both runtimes are paused; neither worker may migrate during startup.
+  MEDIA_AUTO_MIGRATE = "false"
+  PAPER_AUTO_MIGRATE = "false"
+  PAPER_RUN_ID = "global-event-v2-confirmatory-001"
+  PAPER_ENGINE = "formal-global-v2"
+  # Fail closed after deployment. Enable only after collector receipts,
+  # DB restore, staging replay, and least-privilege checks pass.
+  PAPER_DECISIONS_ENABLED = "false"
+  PAPER_MARKS_ENABLED = "false"
+  PAPER_TICKERS = "AAPL,MSFT,NVDA,AMZN,GOOGL,META,JPM,BRK-B,XOM,CVX,LLY,UNH,WMT,HD,PG,CAT,GE,NEE,BA,LIN"
   PAPER_BENCHMARK = "SPY"
-  PAPER_ANALYSTS = "market,news"
+  PAPER_ANALYSTS = "news"
   PAPER_GLOBAL_TOPICS_ONLY = "true"
-  # Retry transient provider/data failures through nearly the full pre-open
-  # window. Exhaustion crashes the process so Fly records/restarts the failure.
-  PAPER_RETRY_ATTEMPTS = "27"
-  PAPER_RETRY_SECONDS = "1800"
+  # Mirrors the collector cadence used by the formal cutoff-cycle receipt gate.
+  MEDIA_POLLER_INTERVAL = "3600"
+  # Both requested and provider-returned model identities must be explicit.
+  # Formal call reservations persist in the append-only governed budget ledger.
+  PAPER_LLM_MODEL_ALLOWLIST = "openai:gpt-5.4-mini,openai:gpt-5.4-mini-2026-03-17"
+  PAPER_LLM_MAX_CALLS_PER_DECISION = "3"
+  PAPER_LLM_MAX_CALLS_PER_UTC_DAY = "3"
+  PAPER_LLM_MAX_PROMPT_BYTES = "160000"
+  PAPER_LLM_MAX_COMPLETION_TOKENS = "8000"
+  PAPER_LLM_TIMEOUT_SECONDS = "180"
+  TRADINGAGENTS_OPENAI_REASONING_EFFORT = "low"
+  TRADINGAGENTS_LLM_MAX_RETRIES = "0"
+  # Outer retries apply only before any model reservation. After a reservation,
+  # the same decision is never retried; a failed decision becomes an ITT
+  # carry-forward interval. Durable counters survive deploys and crash loops.
+  PAPER_RETRY_ATTEMPTS = "3"
+  PAPER_RETRY_SECONDS = "300"
   PAPER_REPLICATES = "1"
   PAPER_PORTFOLIO_MODE = "long-only"
 

@@ -1,5 +1,7 @@
 import os
 
+from tradingagents.research_protocol import GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES
+
 _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 
 # Single source of truth for env-var → config-key overrides. To expose
@@ -148,29 +150,27 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # broad rather than ticker-specific and can also ground historical runs.
     "macro_themes": {
         "rates": {
-            "queries": ["Federal Reserve interest rate decision", "inflation CPI outlook"],
+            "queries": list(GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES["rates"]),
             "prediction_topics": ["Fed rate cut", "recession"],
         },
         "trade": {
-            "queries": [
-                "global policy trade sanctions supply chains markets",
-                "geopolitical conflict diplomacy global markets",
-            ],
+            "queries": list(GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES["trade"]),
             "prediction_topics": ["tariffs", "US China trade"],
         },
+        "politics": {
+            "queries": list(GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES["politics"]),
+            "prediction_topics": ["election", "government shutdown"],
+        },
         "companies": {
-            "queries": ["corporate earnings guidance mergers layoffs IPO"],
+            "queries": list(GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES["companies"]),
             "prediction_topics": [],
         },
         "technology": {
-            "queries": [
-                "technology product launches AI research industry developments",
-                "semiconductors data centers technology investment",
-            ],
+            "queries": list(GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES["technology"]),
             "prediction_topics": ["AI bubble", "chip export ban"],
         },
         "energy": {
-            "queries": ["oil prices OPEC energy commodities"],
+            "queries": list(GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES["energy"]),
             "prediction_topics": ["oil price", "OPEC"],
         },
     },

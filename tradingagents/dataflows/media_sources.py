@@ -29,7 +29,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from urllib.error import HTTPError
-from urllib.parse import quote, urlencode
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
@@ -52,21 +52,37 @@ _YAHOO_NEWS_RSS = (
 _GOOGLE_NEWS_RSS = (
     "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
 )
-_GOOGLE_TOP_NEWS_RSS = {
-    "general": "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
-    "business": (
+_GOOGLE_TOP_NEWS_RSS = (
+    ("general", "US", "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en"),
+    ("business", "US", (
         "https://news.google.com/rss/headlines/section/topic/BUSINESS"
         "?hl=en-US&gl=US&ceid=US:en"
-    ),
-    "technology": (
+    )),
+    ("technology", "US", (
         "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY"
         "?hl=en-US&gl=US&ceid=US:en"
-    ),
-    "world": (
+    )),
+    ("world", "US", (
         "https://news.google.com/rss/headlines/section/topic/WORLD"
         "?hl=en-US&gl=US&ceid=US:en"
-    ),
-}
+    )),
+    ("world", "GB", (
+        "https://news.google.com/rss/headlines/section/topic/WORLD"
+        "?hl=en-GB&gl=GB&ceid=GB:en"
+    )),
+    ("world", "IN", (
+        "https://news.google.com/rss/headlines/section/topic/WORLD"
+        "?hl=en-IN&gl=IN&ceid=IN:en"
+    )),
+    ("world", "SG", (
+        "https://news.google.com/rss/headlines/section/topic/WORLD"
+        "?hl=en-SG&gl=SG&ceid=SG:en"
+    )),
+    ("world", "AU", (
+        "https://news.google.com/rss/headlines/section/topic/WORLD"
+        "?hl=en-AU&gl=AU&ceid=AU:en"
+    )),
+)
 
 # Bare short symbols are ordinary words/letters, so a Google News query like
 # ``C stock`` can return Alphabet class-C stories instead of Citigroup. These
@@ -101,6 +117,16 @@ _CORPORATE_SOURCE_MARKERS = (
     "business wire", "globenewswire", "official blog", "press release", "pr newswire",
     "newsroom", "accesswire", "ein presswire",
 )
+_EDITORIAL_SOURCE_MARKERS = (
+    "associated press", "ap news", "ars technica", "axios", "bbc", "bloomberg",
+    "cnbc", "cnn", "financial times", "forbes", "fortune", "guardian", "marketwatch",
+    "new york times", "nikkei", "reuters", "techcrunch", "the verge", "wall street journal",
+    "washington post", "wired",
+)
+_FIRST_PARTY_HEADLINE = re.compile(
+    r"^\s*(?:announcing|introducing|meet\b|our\b|today[, :]+we\b|we\b)",
+    re.IGNORECASE,
+)
 
 # Sources that run without a key. 'x' is added by the poller only when a token
 # is present (see media poller's source resolution).
@@ -134,18 +160,98 @@ def _strip_html(text: str | None) -> str:
     return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", text)).split())
 
 
+_TRACKING_QUERY_KEYS = frozenset({
+    "fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src",
+})
+
+
+def normalize_public_url(value: str | None) -> str | None:
+    """Return a deterministic, credential-free HTTP(S) URL for provenance."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = urlsplit(value.strip())
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+            return None
+        if parsed.username is not None or parsed.password is not None:
+            return None
+        host = parsed.hostname.encode("idna").decode("ascii").lower().rstrip(".")
+        port = parsed.port
+    except (UnicodeError, ValueError):
+        return None
+    default_port = (parsed.scheme.lower() == "http" and port == 80) or (
+        parsed.scheme.lower() == "https" and port == 443
+    )
+    netloc = host if port is None or default_port else f"{host}:{port}"
+    query = urlencode(sorted(
+        (key, item)
+        for key, item in parse_qsl(parsed.query, keep_blank_values=True)
+        if not key.lower().startswith("utm_") and key.lower() not in _TRACKING_QUERY_KEYS
+    ))
+    return urlunsplit((
+        parsed.scheme.lower(), netloc, parsed.path or "/", query, "",
+    ))
+
+
+def publisher_domain(source_url: str | None) -> str | None:
+    """Extract a normalized publisher hostname from an RSS ``source`` URL."""
+    normalized = normalize_public_url(source_url)
+    if not normalized:
+        return None
+    host = urlsplit(normalized).hostname
+    if not host:
+        return None
+    return host[4:] if host.startswith("www.") else host
+
+
+def _google_news_provenance(item) -> dict:
+    """Capture article and publisher provenance exposed by Google News RSS."""
+    link_el = item.find("link")
+    source_el = item.find("source")
+    metadata = {
+        "article_url": normalize_public_url(
+            link_el.text if link_el is not None else None
+        ),
+        "publisher_domain": publisher_domain(
+            source_el.get("url") if source_el is not None else None
+        ),
+    }
+    return {key: value for key, value in metadata.items() if value is not None}
+
+
 def looks_company_authored(publisher: str | None, title: str | None) -> bool:
-    """Heuristically reject press releases and first-party newsroom stories."""
+    """Heuristically reject releases and first-person corporate posts.
+
+    Google News appends the publisher to nearly every title, so a trailing
+    ``- Publisher`` alone is not evidence of corporate authorship.  First-party
+    language is only used for non-editorial publishers, preserving independent
+    coverage with headlines such as ``Introducing ... - The Verge``.
+    """
     publisher_text = (publisher or "").strip().lower()
     if not publisher_text:
         return False
     if any(marker in publisher_text for marker in _CORPORATE_SOURCE_MARKERS):
         return True
     publisher_key = " ".join(re.findall(r"[a-z0-9]+", publisher_text))
-    headline = re.sub(r"\s+-\s+[^-]{2,80}$", "", title or "").lower()
-    title_key = " ".join(re.findall(r"[a-z0-9]+", headline))
+    headline = re.sub(r"\s+-\s+[^-]{2,80}$", "", title or "").strip().lower()
+    title_tokens = re.findall(r"[a-z0-9]+", headline)
+    publisher_tokens = publisher_key.split()
+    publisher_named = any(
+        title_tokens[index:index + len(publisher_tokens)] == publisher_tokens
+        for index in range(len(title_tokens) - len(publisher_tokens) + 1)
+    ) if publisher_tokens else False
+    publisher_is_editorial = any(
+        marker in publisher_text for marker in _EDITORIAL_SOURCE_MARKERS
+    ) or bool(re.search(r"\b(news|newspaper|journal|times)\b", publisher_text))
     return bool(
-        publisher_key and len(publisher_key.split()) <= 3 and publisher_key in title_key
+        publisher_key
+        and len(publisher_tokens) <= 3
+        and not publisher_is_editorial
+        and publisher_named
+    ) or bool(
+        publisher_key
+        and not publisher_is_editorial
+        and _FIRST_PARTY_HEADLINE.match(headline)
     )
 
 
@@ -161,13 +267,51 @@ def _get_json(url: str, headers: dict, timeout: float):
 
 def _row(source: str, ext_id: str, ticker: str, now: float, *,
          author=None, sentiment=None, subreddit=None,
-         created_utc=None, title=None, body="") -> dict:
-    return {
+         created_utc=None, title=None, body="", metadata=None) -> dict:
+    row = {
         "source": source, "external_id": ext_id, "ticker": ticker.upper(),
         "subreddit": subreddit, "author": author, "sentiment": sentiment,
         "created_utc": created_utc, "title": title, "body": body,
         "fetched_utc": now,
     }
+    if metadata:
+        row["metadata"] = metadata
+    return row
+
+
+def _automation_risk(user: dict, now: float) -> float:
+    metrics = user.get("public_metrics")
+    created = _iso_to_epoch(user.get("created_at"))
+    required = ("followers_count", "following_count", "tweet_count")
+    if (
+        not isinstance(metrics, dict)
+        or not isinstance(user.get("username"), str)
+        or not user["username"].strip()
+        or created is None
+        or created <= 0
+        or created > now
+        or any(
+            isinstance(metrics.get(key), bool)
+            or not isinstance(metrics.get(key), int)
+            or metrics[key] < 0
+            for key in required
+        )
+    ):
+        return 1.0
+    age_days = (now - created) / 86400
+    followers = metrics["followers_count"]
+    following = metrics["following_count"]
+    tweets = metrics["tweet_count"]
+    risk = 0.0
+    if age_days < 30:
+        risk += 0.4
+    if followers < 10 and following > 100:
+        risk += 0.3
+    if age_days < 180 and tweets > 10_000:
+        risk += 0.2
+    if not user.get("username"):
+        risk += 0.2
+    return min(1.0, risk)
 
 
 def fetch_stocktwits(ticker: str, now: float, limit: int = 30,
@@ -299,16 +443,16 @@ def fetch_x(ticker: str, now: float, limit: int = 50,
 def _fetch_x_search(query: str, label: str, now: float, limit: int,
                     timeout: float, sort_order: str) -> list[dict]:
     """Run one bounded X recent-search query and return media-store rows."""
-    token = os.environ.get("X_BEARER_TOKEN")
+    token = (os.environ.get("X_BEARER_TOKEN") or "").strip()
     if not token:
-        return []
+        raise RuntimeError("X bearer token is not configured")
     qs = urlencode({
         "query": f"({query}) lang:en -is:retweet -is:reply",
         "max_results": min(max(limit, 10), 100),
         "sort_order": sort_order,
-        "tweet.fields": "created_at,author_id",
+        "tweet.fields": "created_at,author_id,public_metrics,possibly_sensitive,referenced_tweets",
         "expansions": "author_id",
-        "user.fields": "username,verified_type",
+        "user.fields": "username,verified_type,created_at,public_metrics",
     })
     data = _get_json(_X_SEARCH.format(qs=qs),
                      {"Authorization": f"Bearer {token}", "Accept": "application/json"},
@@ -327,6 +471,24 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
         if tid is None:
             continue
         user = users.get(str(t.get("author_id")), {})
+        author_id = str(t.get("author_id") or "").strip()
+        account_created_utc = _iso_to_epoch(user.get("created_at"))
+        author_metrics = user.get("public_metrics")
+        automation_signals_complete = bool(
+            author_id
+            and str(user.get("id") or "").strip() == author_id
+            and isinstance(user.get("username"), str)
+            and user["username"].strip()
+            and account_created_utc is not None
+            and 0 < account_created_utc <= now
+            and isinstance(author_metrics, dict)
+            and all(
+                isinstance(author_metrics.get(key), int)
+                and not isinstance(author_metrics.get(key), bool)
+                and author_metrics[key] >= 0
+                for key in ("followers_count", "following_count", "tweet_count")
+            )
+        )
         # Official business accounts are announcements, not public sentiment.
         if user.get("verified_type") == "business":
             continue
@@ -335,6 +497,19 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
             author=user.get("username") or t.get("author_id"),
             created_utc=_iso_to_epoch(t.get("created_at")),
             body=(t.get("text") or "").strip(),
+            metadata={
+                "evidence_role": "unverified_public_reaction",
+                "author_id": author_id or None,
+                "author_username": user.get("username"),
+                "account_created_utc": account_created_utc,
+                "automation_signals_complete": automation_signals_complete,
+                "verified_type": user.get("verified_type"),
+                "engagement": t.get("public_metrics") or {},
+                "author_metrics": author_metrics or {},
+                "automation_risk": _automation_risk(user, now),
+                "possibly_sensitive": bool(t.get("possibly_sensitive")),
+                "referenced_tweets": t.get("referenced_tweets") or [],
+            },
         ))
     return rows
 
@@ -365,9 +540,9 @@ def fetch_x_trends(woeid: int, limit: int = 30,
     ranked news headlines before spending a recent-search request, which keeps
     entertainment/sports trends from consuming the small news budget.
     """
-    token = os.environ.get("X_BEARER_TOKEN")
+    token = (os.environ.get("X_BEARER_TOKEN") or "").strip()
     if not token:
-        return []
+        raise RuntimeError("X bearer token is not configured")
     qs = urlencode({
         "max_trends": min(max(limit, 1), 50),
         "trend.fields": "trend_name,tweet_count",
@@ -377,6 +552,8 @@ def fetch_x_trends(woeid: int, limit: int = 30,
         {"Authorization": f"Bearer {token}", "Accept": "application/json"},
         timeout,
     )
+    if data is None:
+        raise RuntimeError("X trend request failed; cursor was not advanced")
     trends = data.get("data", []) if isinstance(data, dict) else []
     return [
         {
@@ -398,14 +575,20 @@ def fetch_top_news_headlines(limit_per_feed: int = 12,
     cross-category appearance is a useful importance signal to the selector.
     """
     headlines = []
-    for category, url in _GOOGLE_TOP_NEWS_RSS.items():
+    observed_feed_count = 0
+    failed_feed_count = 0
+    for category, region, url in _GOOGLE_TOP_NEWS_RSS:
         req = Request(url, headers={"User-Agent": _UA})
         try:
             with urlopen(req, timeout=timeout) as resp:
                 root = ET.fromstring(resp.read())
         except (OSError, http.client.HTTPException, ET.ParseError, HTTPError) as exc:
-            logger.warning("Top-news RSS fetch failed (%s): %s", category, exc)
+            failed_feed_count += 1
+            logger.warning(
+                "Top-news RSS fetch failed (%s:%s)", category, type(exc).__name__
+            )
             continue
+        observed_feed_count += 1
         for rank, item in enumerate(root.iter("item")):
             if rank >= limit_per_feed:
                 break
@@ -428,9 +611,17 @@ def fetch_top_news_headlines(limit_per_feed: int = 12,
                     date_el.text if date_el is not None else None
                 ),
                 "publisher": ((source_el.text if source_el is not None else "") or "").strip(),
+                "metadata": _google_news_provenance(item),
                 "category": category,
+                "region": region,
                 "rank": rank,
             })
+    if failed_feed_count:
+        raise RuntimeError(
+            "top-news discovery feed set was incomplete; absence was not observed"
+        )
+    if observed_feed_count == 0:  # defensive: the frozen registry itself cannot be empty
+        raise RuntimeError("top-news discovery has no configured feeds")
     return headlines
 
 
@@ -498,7 +689,7 @@ SELECTABLE_SOURCES = tuple(FETCHERS)
 # them as they happen, exactly like the social sources.
 # --------------------------------------------------------------------------- #
 def fetch_global_news(query: str, now: float, theme: str,
-                      timeout: float = 10.0) -> list[dict]:
+                      timeout: float = 10.0, limit: int = 25) -> list[dict]:
     """Global/macro headlines for a free-text ``query`` (Google News RSS).
 
     Stored in the shared ``media_posts`` table under ``source='globalnews'`` and
@@ -511,10 +702,14 @@ def fetch_global_news(query: str, now: float, theme: str,
         with urlopen(req, timeout=timeout) as resp:
             root = ET.fromstring(resp.read())
     except (OSError, http.client.HTTPException, ET.ParseError, HTTPError) as exc:
-        logger.warning("Global news fetch failed (%s): %s", query, exc)
-        return []
+        logger.warning("Global news fetch failed (%s)", type(exc).__name__)
+        raise RuntimeError("global-news request failed; cursor was not advanced") from exc
     rows = []
-    for item in root.iter("item"):
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise ValueError("global-news result limit must be a positive integer")
+    for index, item in enumerate(root.iter("item")):
+        if index >= limit:
+            break
         guid_el = item.find("guid")
         link_el = item.find("link")
         title_el = item.find("title")
@@ -527,14 +722,13 @@ def fetch_global_news(query: str, now: float, theme: str,
             continue
         publisher = ((source_el.text if source_el is not None else "") or "").strip()
         title = (title_el.text if title_el is not None else "") or ""
-        if looks_company_authored(publisher, title):
-            continue
         rows.append(_row(
             "globalnews", ext_id, f"@{theme}", now,
             author=publisher or None,
             created_utc=_rfc822_to_epoch(date_el.text if date_el is not None else None),
             title=title,
             body=_strip_html(desc_el.text if desc_el is not None else ""),
+            metadata=_google_news_provenance(item),
         ))
     return rows
 
