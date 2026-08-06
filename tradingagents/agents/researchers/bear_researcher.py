@@ -10,8 +10,12 @@ def create_bear_researcher(llm):
         history = investment_debate_state.get("history", "")
         bear_history = investment_debate_state.get("bear_history", "")
 
-        current_response = investment_debate_state.get("current_response", "")
-        last_bull_argument = current_response or "No bull argument has been presented yet. Build the opening bear case from the available evidence without attributing claims to the bull side."
+        initial_bull_arg = (
+            "No bull argument has been presented yet. Build the opening bear case from the "
+            "available evidence without attributing claims to the bull side."
+        )
+        current_response = investment_debate_state.get("current_response", initial_bull_arg)
+        last_bull_argument = current_response
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
