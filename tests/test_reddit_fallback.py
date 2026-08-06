@@ -192,6 +192,31 @@ class TestFormatterHandlesRssPosts:
         assert "via RSS" not in out
 
 
+_XXE_ATOM = """\
+<?xml version="1.0"?>
+<!DOCTYPE feed [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry><title>&xxe;</title></entry>
+</feed>
+"""
+
+
+@pytest.mark.unit
+class TestXxeSecurity:
+    """defusedxml must block XXE payloads without crashing the pipeline."""
+
+    def test_xxe_payload_rejected_gracefully(self):
+        with patch.object(reddit, "urlopen", return_value=_resp(lambda: _XXE_ATOM.encode())):
+            result = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        assert result == []
+
+    def test_dtd_payload_rejected_gracefully(self):
+        dtd_xml = b"<?xml version='1.0'?><!DOCTYPE feed []><feed/>"
+        with patch.object(reddit, "urlopen", return_value=_resp(lambda: dtd_xml)):
+            result = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        assert result == []
+
+
 @pytest.mark.unit
 class TestCryptoSearchTerm:
     """A crypto pair (BTC-USD) barely matches Reddit text; search the base (#1113)."""
