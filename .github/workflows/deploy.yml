@@ -1,0 +1,26 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      service_name:
+        required: true
+        type: string
+        description: "Docker-Compose service name"
+      port:
+        required: true
+        type: string
+        description: "Service port"
+
+jobs:
+  deploy:
+    uses: mark-baumann/infrastruktur-deployment/.github/workflows/build-deploy.yml@master
+    with:
+      service_name: ${{ inputs.service_name || 'handels-agenten' }}
+      port: ${{ inputs.port || '8503' }}
+      app_file: "app/streamlit_app.py"
+    secrets: inherit
