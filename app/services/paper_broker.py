@@ -166,6 +166,16 @@ async def _paper_buy(
         vol = await asyncio.to_thread(daily_volatility_pct_sync, symbol)
         stop = round(price * (1 - default_stop_pct(vol) / 100), 4)
 
+    # With an index core, uncommitted capital is invested rather than idle, so
+    # a signal must free its own funding first. Selling only the shortfall
+    # keeps the rest of the book in the benchmark.
+    from app.services.broker_rules import BUY_ALLOCATION
+    from app.services.core_holding import ensure_cash
+
+    target_pct = BUY_ALLOCATION.get(category, BUY_ALLOCATION["satellite"]).get(rating, 0.0)
+    if target_pct > 0:
+        await ensure_cash("strategic", equity * target_pct)
+
     async with session_factory()() as session, session.begin():
         repo = PortfolioRepository(session)
         account = await repo.get_account()
@@ -307,6 +317,60 @@ def _batch_prices_sync(symbols: list[str]) -> dict[str, float]:
     return prices
 
 
+async def _ratchet_trailing_stops(
+    snapshot: list[tuple], prices: dict[str, float]
+) -> list[tuple]:
+    """Raise trailing stops toward the high-water mark. Never lowers a stop.
+
+    Rule-driven positions carry a trailing stop rather than a fixed one. A
+    fixed volatility stop fights a trend rule — it fires on ordinary noise
+    long before the trend actually breaks, so every exit realises a loss.
+    Over Jul-Aug 2026 the tactical book closed two trades for two losses and
+    re-entered both symbols *higher* within days.
+
+    Ratcheting the stop upward as price advances keeps the downside guard
+    while letting a winner run, which is what makes a profitable exit
+    possible at all. The stop only ever moves up: a position that has run
+    and pulled back exits at its protected level, not at entry.
+    """
+    settings = get_settings()
+    if not settings.tactical_trailing_stop_enabled:
+        return snapshot
+
+    trail = settings.tactical_trail_pct / 100.0
+    updates: dict[int, float] = {}
+    for pos_id, account_type, symbol, stop, _target in snapshot:
+        if account_type != "tactical":
+            continue
+        price = prices.get(symbol)
+        if price is None:
+            continue
+        candidate = round(price * (1 - trail), 4)
+        if stop is None or candidate > stop:
+            updates[pos_id] = candidate
+
+    if not updates:
+        return snapshot
+
+    async with session_factory()() as session, session.begin():
+        repo = PortfolioRepository(session)
+        for pos_id, new_stop in updates.items():
+            position = await repo.get_position_by_id(pos_id)
+            if position is not None:
+                logger.info(
+                    "Trailing stop %s: %s -> %.2f",
+                    position.symbol,
+                    f"{position.stop_loss:.2f}" if position.stop_loss else "none",
+                    new_stop,
+                )
+                position.stop_loss = new_stop
+
+    return [
+        (pid, at, sym, updates.get(pid, stop), tgt)
+        for pid, at, sym, stop, tgt in snapshot
+    ]
+
+
 async def check_stops() -> list[str]:
     """Reflex layer (no LLM cost): watch every open position's stop and target.
 
@@ -331,6 +395,10 @@ async def check_stops() -> list[str]:
     prices = await asyncio.to_thread(
         _batch_prices_sync, sorted({s[2] for s in snapshot})
     )
+
+    # Ratchet trailing stops up before testing breaches, so a winner that ran
+    # today is protected at its new level rather than at its entry level.
+    snapshot = await _ratchet_trailing_stops(snapshot, prices)
 
     live_ids = set()
     notifier = Notifier(get_settings())

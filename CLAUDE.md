@@ -45,4 +45,16 @@ services, DB access in repositories, routes thin.
   actionable rating (Buy/Sell/Over-/Underweight) promotes it back to daily. Nothing is
   auto-deleted — history feeds the engine's self-reflection loop.
 - **Paper trading**: when verifying "did it work?", compare against the recorded baseline
-  in the DB rather than re-deriving prices.
+  in the DB rather than re-deriving prices. Compare books and benchmark over the **same
+  window** (`equity_snapshots` may start later than the account), count only **closed**
+  forward-return windows, and report **effective** sample size — overlapping windows on
+  correlated names are not independent observations.
+- **Idle cash is an unfunded short against SPY.** The index core (`app/services/core_holding.py`)
+  sweeps uncommitted capital into `CORE_ETF` so its resting state is market return, not zero.
+  Core positions are marked `note="core"`, are never stopped out, and are sold only to fund a
+  satellite signal. This is an accounting fix, not a forecast — it needs no edge to be correct.
+- **Nine alpha routes were tested and failed** (Aug 2026): per-ticker strategy selection,
+  timing rules vs an exposure-matched cash blend, cross-sectional price ML and fundamental ML
+  on point-in-time universes, cross-asset/dual momentum, LLM signals, VLM chart reading,
+  Kronos, and OpenBB. Each had a working control. Before proposing a tenth, read the verdicts
+  — and always include a random-feature control and an exposure-matched benchmark.

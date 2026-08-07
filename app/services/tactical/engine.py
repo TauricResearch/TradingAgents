@@ -16,7 +16,7 @@ circuit breaker that blocks new entries (exits always allowed).
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import get_settings
 from app.domain import Market
@@ -58,8 +58,19 @@ async def _tactical_buy(symbol: str, rule: str) -> str | None:
     if price is None or equity is None:
         return None
     settings = get_settings()
-    vol = await asyncio.to_thread(daily_volatility_pct_sync, symbol)
-    stop = round(price * (1 - default_stop_pct(vol) / 100), 4)
+    # A trend rule needs a WIDER stop than a volatility stop gives it. The
+    # fixed 2.5x-vol stop fired on noise long before the trend broke, so both
+    # 2026 stop-outs (AMZN, LLY) were re-entered higher days later and the
+    # book closed two trades for two losses. The trailing stop starts wide and
+    # ratchets up with price, which is what lets an exit land in profit.
+    if settings.tactical_trailing_stop_enabled:
+        stop = round(price * (1 - settings.tactical_trail_pct / 100), 4)
+    else:
+        vol = await asyncio.to_thread(daily_volatility_pct_sync, symbol)
+        stop = round(price * (1 - default_stop_pct(vol) / 100), 4)
+
+    from app.services.core_holding import ensure_cash
+    await ensure_cash("tactical", equity * settings.tactical_size_pct)
 
     async with session_factory()() as session, session.begin():
         repo = PortfolioRepository(session)
@@ -85,6 +96,32 @@ async def _tactical_buy(symbol: str, rule: str) -> str | None:
             reason=f"tactical {rule}",
         ))
     return f"bought {quantity:.4f} {symbol} @ {price:,.2f} (≈${alloc:,.0f})"
+
+
+async def _in_cooldown(symbol: str, days: int) -> bool:
+    """True when this symbol was sold from the tactical book within ``days``.
+
+    Without this the rule re-buys whatever the stop just sold: in Jul 2026
+    both AMZN and LLY were stopped out and re-entered within days at HIGHER
+    prices, turning noise into realised losses on the round trip.
+    """
+    if days <= 0:
+        return False
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with session_factory()() as session:
+        trades = await PortfolioRepository(session).list_trades(
+            limit=500, account_type="tactical"
+        )
+    for trade in trades:
+        if trade.symbol != symbol or trade.side != "sell" or trade.executed_at is None:
+            continue
+        # Timestamps are stored naive UTC (see CLAUDE.md); make them aware to compare.
+        executed = trade.executed_at
+        if executed.tzinfo is None:
+            executed = executed.replace(tzinfo=timezone.utc)
+        if executed >= cutoff:
+            return True
+    return False
 
 
 async def run_tactical() -> list[str]:
@@ -133,6 +170,9 @@ async def run_tactical() -> list[str]:
 
         if signal == 1 and symbol not in held:
             if block_entries or len(held) >= settings.tactical_max_positions:
+                continue
+            if await _in_cooldown(symbol, settings.tactical_reentry_cooldown_days):
+                logger.info("Tactical entry for %s suppressed: re-entry cooldown", symbol)
                 continue
             summary = await _tactical_buy(symbol, rule)
             if summary:

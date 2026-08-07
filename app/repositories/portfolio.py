@@ -69,9 +69,14 @@ class PortfolioRepository:
         await self._session.flush()
         return trade
 
-    async def list_trades(self, limit: int = 100) -> list[Trade]:
+    async def list_trades(
+        self, limit: int = 100, account_type: str | None = None
+    ) -> list[Trade]:
+        query = select(Trade)
+        if account_type is not None:
+            query = query.where(Trade.account_type == account_type)
         result = await self._session.execute(
-            select(Trade).order_by(Trade.executed_at.desc()).limit(limit)
+            query.order_by(Trade.executed_at.desc()).limit(limit)
         )
         return list(result.scalars())
 

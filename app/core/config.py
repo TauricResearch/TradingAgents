@@ -59,16 +59,47 @@ class AssistantSettings(BaseSettings):
     # existing accounts.
     paper_starting_cash: float = Field(default=10_000.0, gt=0)
 
+    # --- Index core (capital deployment) ---
+    # Against an SPY benchmark, idle cash is an unfunded short: every dollar
+    # not invested loses the equity risk premium. Both books measurably
+    # suffered from this — strategic ran ~90% cash and tactical ~48% over
+    # Jul-Aug 2026, and both trailed SPY despite decent picks. Sweeping idle
+    # cash into the benchmark needs NO forecasting edge to be correct; a
+    # replay of the recorded signals put it at +2.24pp over five weeks.
+    # Satellite signals sell core to fund themselves and return proceeds on
+    # exit, so the default state of any uncommitted dollar is "market return"
+    # rather than zero.
+    core_enabled: bool = True
+    core_etf: str = "SPY"
+    # Cash kept uninvested so satellite entries never fail for want of
+    # settlement headroom. 5% of a $10k book is $500 — roughly one position.
+    core_cash_buffer_pct: float = Field(default=5.0, ge=0.0, le=50.0)
+    # Skip core trades below this notional; churning $20 lots just pays costs.
+    core_min_trade_usd: float = Field(default=100.0, gt=0)
+
     # --- Tactical layer (rule-based, no LLM) ---
     # DISABLED by default: the shipped 10-year backtest showed every rule in
     # the library losing to buy-and-hold risk-adjusted on the core universe
-    # (see scripts/backtest_tactical.py). Set TACTICAL_RULE=trend_following
-    # only as a deliberate drawdown-defense choice — it historically halved
-    # drawdowns at the cost of return. Never enabled silently.
+    # (see scripts/backtest_tactical.py). A wider 2026 re-test on 63 tickers
+    # over 20 years was harsher still — against an EXPOSURE-MATCHED static
+    # cash blend (same average exposure, zero timing skill) trend_following
+    # was 1.6pp worse on drawdown and 2.19pp worse on CAGR, so even its
+    # crash-protection claim did not survive the right control.
     tactical_rule: str = ""
     tactical_size_pct: float = Field(default=0.10, gt=0, le=0.25)
     tactical_max_positions: int = Field(default=8, ge=1, le=20)
     tactical_daily_loss_cap_pct: float = Field(default=3.0, gt=0)
+    # Trailing stop for rule-driven positions. A FIXED volatility stop fights
+    # a trend rule: it fires on noise long before the trend breaks, so every
+    # exit lands at a loss. Both 2026 stop-outs (AMZN, LLY) were re-entered
+    # higher days later, and the tactical book closed 2 trades for 2 losses.
+    # A ratcheting stop keeps the downside guard while letting winners run,
+    # which is what makes a profitable exit possible at all.
+    tactical_trailing_stop_enabled: bool = True
+    tactical_trail_pct: float = Field(default=12.0, gt=0, le=50.0)
+    # Bar a symbol from re-entry for this many days after an exit, so the
+    # rule cannot immediately buy back what the stop just sold.
+    tactical_reentry_cooldown_days: int = Field(default=5, ge=0)
 
     # --- Watchlist rotation ---
     # After this many consecutive Hold ratings a ticker drops from daily to

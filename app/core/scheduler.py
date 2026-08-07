@@ -19,6 +19,7 @@ from app.core.config import get_settings
 from app.domain import Market
 from app.models.base import session_factory
 from app.repositories.schedule import ScheduleRepository
+from app.services.core_holding import sweep_all_books
 from app.services.paper_broker import check_stops
 from app.services.pipeline import run_slot
 from app.services.screener import run_screener
@@ -66,6 +67,21 @@ def build_scheduler() -> AsyncIOScheduler:
                     timezone=pytz.timezone("America/New_York")),
         id="tactical",
         name="tactical rule pass",
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=1800,
+    )
+    # Index-core sweep: park idle cash in the benchmark before the close, so
+    # uncommitted capital earns the equity risk premium instead of nothing.
+    # Runs before the equity snapshot so the scoreboard reflects the swept
+    # book. No LLM cost and no forecasting — it is an accounting fix for the
+    # measured root cause of both books trailing SPY (90.1% / 47.7% cash).
+    scheduler.add_job(
+        sweep_all_books,
+        CronTrigger(day_of_week="mon-fri", hour=15, minute=55,
+                    timezone=pytz.timezone("America/New_York")),
+        id="core_sweep",
+        name="index-core cash sweep",
         coalesce=True,
         max_instances=1,
         misfire_grace_time=1800,
