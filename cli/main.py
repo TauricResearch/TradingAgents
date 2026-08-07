@@ -1,3 +1,4 @@
+import copy
 import datetime
 import os
 import sys
@@ -36,6 +37,7 @@ from cli.utils import (
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
+    select_data_vendor,
     select_deep_thinking_agent,
     select_llm_provider,
     select_research_depth,
@@ -621,6 +623,24 @@ def get_user_selections():
         )
         selected_research_depth = select_research_depth()
 
+    # Step 5b: Data vendor (prices + technical indicators). Skipped when set via
+    # TRADINGAGENTS_DATA_VENDOR — same env-precedence rule as the other steps.
+    # The single choice is applied to BOTH categories so prices and indicators
+    # share one source (see README cross-source note).
+    if os.environ.get("TRADINGAGENTS_DATA_VENDOR"):
+        selected_data_vendor = DEFAULT_CONFIG["data_vendors"]["core_stock_apis"]
+        console.print(
+            f"[green]✓ Data vendor from environment:[/green] {selected_data_vendor}"
+        )
+    else:
+        console.print(
+            create_question_box(
+                "Step 5b: Data Vendor",
+                "Select the source for prices and technical indicators",
+            )
+        )
+        selected_data_vendor = select_data_vendor()
+
     # Step 6: LLM Provider (skipped when set via TRADINGAGENTS_LLM_PROVIDER).
     # The backend URL comes from TRADINGAGENTS_LLM_BACKEND_URL when set,
     # otherwise the provider's default endpoint — the same value the menu
@@ -730,6 +750,7 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
+        "data_vendor": selected_data_vendor,
         "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
@@ -989,6 +1010,15 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    # Data vendor sets both the price + indicator categories, but an explicit
+    # env override (TRADINGAGENTS_DATA_VENDOR) wins over the interactive
+    # selection — leave the env-applied value on DEFAULT_CONFIG in place.
+    # Deep-copy the nested dict first: DEFAULT_CONFIG.copy() is shallow, so
+    # mutating config["data_vendors"] in place would corrupt the module default.
+    if not os.environ.get("TRADINGAGENTS_DATA_VENDOR") and selections.get("data_vendor"):
+        config["data_vendors"] = copy.deepcopy(config["data_vendors"])
+        config["data_vendors"]["core_stock_apis"] = selections["data_vendor"]
+        config["data_vendors"]["technical_indicators"] = selections["data_vendor"]
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
@@ -1001,11 +1031,93 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
+def _print_effective_config(config: dict) -> None:
+    """Print a one-glance summary of the configuration this run will actually use.
+
+    Surfaces provider/models/backend and, for Bedrock, the resolved region and
+    auth mode (bearer token vs AWS profile/credential chain) — the values that
+    are otherwise resolved deep inside the client and invisible at startup
+    (#1103). Also annotates which settings were sourced from a TRADINGAGENTS_*
+    env var, so a stale shell export overriding an edited .env is obvious (#977).
+    """
+    def _src(env_var: str) -> str:
+        return f" [dim](from env {env_var})[/dim]" if os.environ.get(env_var) else ""
+
+    vendors = config.get("data_vendors", {})
+    lines = [
+        f"[bold]LLM provider:[/bold] {config.get('llm_provider')}"
+        f"{_src('TRADINGAGENTS_LLM_PROVIDER')}",
+        f"[bold]Deep model:[/bold] {config.get('deep_think_llm')}",
+        f"[bold]Quick model:[/bold] {config.get('quick_think_llm')}",
+        f"[bold]Backend URL:[/bold] {config.get('backend_url') or 'provider default'}",
+        f"[bold]Core stock data:[/bold] {vendors.get('core_stock_apis')}"
+        f"{_src('TRADINGAGENTS_DATA_VENDOR')}",
+        f"[bold]Technical indicators:[/bold] {vendors.get('technical_indicators')}"
+        f"{_src('TRADINGAGENTS_DATA_VENDOR')}",
+    ]
+
+    if str(config.get("llm_provider", "")).lower() == "bedrock":
+        region = (
+            os.environ.get("AWS_REGION")
+            or os.environ.get("AWS_DEFAULT_REGION")
+            or "us-west-2 (default)"
+        )
+        if os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
+            auth = "bearer token (AWS_BEARER_TOKEN_BEDROCK)"
+        elif os.environ.get("AWS_PROFILE"):
+            auth = f"AWS profile ({os.environ['AWS_PROFILE']})"
+        else:
+            auth = "AWS credential chain"
+        lines.append(f"[bold]Bedrock region:[/bold] {region}")
+        lines.append(f"[bold]Bedrock auth:[/bold] {auth}")
+
+    console.print(
+        Panel("\n".join(lines), title="Effective configuration", border_style="cyan")
+    )
+
+
+def _print_data_source_provenance() -> None:
+    """Show which vendor actually served core stock data and indicators.
+
+    Reads the in-process provenance record populated by ``route_to_vendor``.
+    This makes a silent fallback (e.g. a Schwab primary skipped because it is
+    unconfigured/rate-limited, so yfinance served instead) visible, answering
+    the recurring "am I actually using Schwab?" question (#988).
+    """
+    from tradingagents.dataflows.interface import get_last_served_vendors
+
+    served = get_last_served_vendors()
+    labels = {
+        "get_stock_data": "Core stock data (OHLCV)",
+        "get_indicators": "Technical indicators",
+    }
+    lines: list[str] = []
+    for method, label in labels.items():
+        record = served.get(method)
+        if not record:
+            continue
+        vendor = record.get("vendor")
+        skipped = record.get("skipped") or ()
+        if skipped:
+            lines.append(
+                f"[yellow]{label}:[/yellow] served by [bold]{vendor}[/bold] "
+                f"(fallback — skipped: {', '.join(skipped)})"
+            )
+        else:
+            lines.append(f"[green]{label}:[/green] served by [bold]{vendor}[/bold]")
+    if lines:
+        console.print(
+            Panel("\n".join(lines), title="Data source", border_style="cyan")
+        )
+
+
 def run_analysis(checkpoint: bool | None = None):
     # First get all user selections
     selections = get_user_selections()
 
     config = _build_run_config(selections, checkpoint)
+
+    _print_effective_config(config)
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1256,6 +1368,8 @@ def run_analysis(checkpoint: bool | None = None):
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
+
+    _print_data_source_provenance()
 
     # Prompt to save report
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()

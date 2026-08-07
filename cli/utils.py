@@ -196,6 +196,51 @@ def select_research_depth() -> int:
     return choice
 
 
+def select_data_vendor() -> str:
+    """Select the price + technical-indicator data source (interactive).
+
+    Returns a comma-separated vendor chain (e.g. ``"schwab,yfinance"``) applied
+    to BOTH the ``core_stock_apis`` and ``technical_indicators`` categories so
+    prices and indicators share one basis. yfinance is the keyless default;
+    Schwab covers US equities/ETFs only and needs credentials, so it lists
+    yfinance as an automatic fallback.
+    """
+    VENDOR_OPTIONS = [
+        ("yfinance (default) - keyless, global coverage", "yfinance"),
+        (
+            "schwab,yfinance - Schwab first (US stocks/ETFs, needs credentials), "
+            "yfinance fallback",
+            "schwab,yfinance",
+        ),
+        (
+            "alpha_vantage,yfinance - Alpha Vantage first (needs ALPHA_VANTAGE_API_KEY), "
+            "yfinance fallback",
+            "alpha_vantage,yfinance",
+        ),
+    ]
+
+    choice = questionary.select(
+        "Select Your [Data Vendor] (prices + technical indicators):",
+        choices=[
+            questionary.Choice(display, value=value) for display, value in VENDOR_OPTIONS
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:yellow noinherit"),
+                ("highlighted", "fg:yellow noinherit"),
+                ("pointer", "fg:yellow noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No data vendor selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
+
+
 # Mainstream OpenRouter chat-LLM provider namespaces. We surface the newest
 # models from these rather than the universal-newest, which is dominated by
 # niche/experimental releases. These are the general-purpose chat providers;

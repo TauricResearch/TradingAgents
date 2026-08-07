@@ -59,6 +59,7 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m, "select_data_vendor", return_value="yfinance"), \
              mock.patch.object(m, "ensure_api_key") as ensure_key, \
              mock.patch.object(m, "select_llm_provider") as prompt_provider, \
              mock.patch.object(m, "ask_output_language") as prompt_lang, \
@@ -102,6 +103,7 @@ class TestResearchDepthSkippedFromEnv(unittest.TestCase):
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth") as prompt_depth, \
+             mock.patch.object(m, "select_data_vendor", return_value="yfinance"), \
              mock.patch.object(m, "ensure_api_key"), \
              mock.patch.object(m, "select_llm_provider", return_value=("openai", None)), \
              mock.patch.object(m, "ask_output_language", return_value="English"), \
@@ -132,6 +134,7 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m, "select_data_vendor", return_value="yfinance"), \
              mock.patch.object(m, "ensure_api_key"), \
              mock.patch.object(m, "select_llm_provider", return_value=("openai", None)), \
              mock.patch.object(m, "ask_output_language", return_value="English"), \
@@ -143,6 +146,41 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
         # The reasoning-effort prompt is skipped; the value comes from env config.
         prompt_effort.assert_not_called()
         self.assertEqual(sel["openai_reasoning_effort"], "high")
+
+
+@pytest.mark.unit
+class TestDataVendorSkippedFromEnv(unittest.TestCase):
+    def test_data_vendor_env_skips_prompt(self):
+        import cli.main as m
+
+        env = {"TRADINGAGENTS_DATA_VENDOR": "schwab,yfinance"}
+        fake_cfg = dict(m.DEFAULT_CONFIG)
+        # Mirror what the env overlay does on DEFAULT_CONFIG: both categories
+        # carry the env-selected vendor chain.
+        fake_cfg["data_vendors"] = dict(fake_cfg["data_vendors"])
+        fake_cfg["data_vendors"]["core_stock_apis"] = "schwab,yfinance"
+        fake_cfg["data_vendors"]["technical_indicators"] = "schwab,yfinance"
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
+             mock.patch.object(m, "fetch_announcements", return_value=None), \
+             mock.patch.object(m, "display_announcements"), \
+             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
+             mock.patch.object(m, "select_analysts", return_value=[]), \
+             mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m, "select_data_vendor") as prompt_vendor, \
+             mock.patch.object(m, "ensure_api_key"), \
+             mock.patch.object(m, "select_llm_provider", return_value=("openai", None)), \
+             mock.patch.object(m, "ask_output_language", return_value="English"), \
+             mock.patch.object(m, "select_shallow_thinking_agent", return_value="gpt-5.4-mini"), \
+             mock.patch.object(m, "select_deep_thinking_agent", return_value="gpt-5.5"), \
+             mock.patch.object(m, "ask_openai_reasoning_effort", return_value=None):
+            sel = m.get_user_selections()
+
+        # The data-vendor prompt is skipped; the value comes from the env config.
+        prompt_vendor.assert_not_called()
+        self.assertEqual(sel["data_vendor"], "schwab,yfinance")
 
 
 if __name__ == "__main__":

@@ -119,5 +119,10 @@ def build_verified_market_snapshot(
         "claim historical validation, support/resistance bounces, or exact "
         "percentage moves unless directly supported by tool output with concrete "
         "dates and prices.",
+        "",
+        "_Basis: prices are yfinance split/dividend-adjusted. If your core price "
+        "tool uses an unadjusted vendor (e.g. Schwab raw prices), small level "
+        "differences on tickers with recent splits/dividends are expected and "
+        "are not a data error._",
     ]
     return "\n".join(lines)

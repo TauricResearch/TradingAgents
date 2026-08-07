@@ -248,6 +248,33 @@ class TradingAgentsGraph:
                 return benchmark
         return benchmark_map.get("", "SPY")
 
+    def _price_basis_caveat(self) -> str:
+        """Return a note if the agent priced on a non-yfinance (raw) basis.
+
+        Realized returns for reflection are computed from yfinance
+        ``auto_adjust=True`` (split/dividend-adjusted) closes — the correct
+        basis for a raw/alpha outcome. But the agent may have *decided* using a
+        different vendor whose prices are unadjusted (e.g. Schwab returns raw
+        prices). On a ticker that had a split or large dividend inside the
+        holding window, the two bases diverge, so the stored reflection could
+        otherwise silently attribute an adjustment artifact to the thesis
+        (#poisoned-memory). We surface the basis difference in the stored text
+        so future agents re-reading the log can discount it, rather than
+        treating a raw-vs-adjusted gap as a real signal. Returns "" when the
+        core price vendor is yfinance or the resilient default chain.
+        """
+        vendor = str(
+            self.config.get("data_vendors", {}).get("core_stock_apis", "default")
+        )
+        primary = vendor.split(",")[0].strip().lower()
+        if primary in ("", "default", "yfinance"):
+            return ""
+        return (
+            f" [Note: outcome measured on yfinance split/dividend-adjusted "
+            f"prices, but this decision was priced on '{primary}' (unadjusted) "
+            f"data; discount any raw-vs-adjusted gap on split/dividend events.]"
+        )
+
     def _fetch_returns(
         self, ticker: str, trade_date: str, holding_days: int = 5,
         benchmark: str = "SPY",
@@ -308,6 +335,7 @@ class TradingAgentsGraph:
             return
 
         benchmark = self._resolve_benchmark(ticker)
+        basis_caveat = self._price_basis_caveat()
         updates = []
         for entry in pending:
             raw, alpha, days = self._fetch_returns(
@@ -321,6 +349,11 @@ class TradingAgentsGraph:
                 alpha_return=alpha,
                 benchmark_name=benchmark,
             )
+            # Append the cross-source basis caveat (if any) so the stored,
+            # re-injected reflection can't silently pass off a raw-vs-adjusted
+            # artifact as a real lesson.
+            if basis_caveat:
+                reflection = f"{reflection}{basis_caveat}"
             updates.append({
                 "ticker": ticker,
                 "trade_date": entry["date"],

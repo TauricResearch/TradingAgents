@@ -44,6 +44,14 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Schwab Market Data vendor (OHLCV + technical indicators, US equities/ETFs,
+# opt-in). schwab-py provides a synchronous Client (client_from_token_file token
+# refresh + get_price_history + PriceHistory enums; the underlying HTTP client is
+# httpx, not requests). Optional so the core install stays lean and the schwab
+# modules import schwab-py lazily: pip install "tradingagents[schwab]".
+schwab = [
+    "schwab-py>=1.5.1,<1.6",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

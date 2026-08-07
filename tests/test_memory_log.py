@@ -656,6 +656,8 @@ class TestDeferredReflection:
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
+        # yfinance-basis run: no cross-source caveat appended.
+        mock_graph._price_basis_caveat = MagicMock(return_value="")
         TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
         assert log.get_pending_entries() == []
         entries = log.load_entries()
@@ -664,6 +666,24 @@ class TestDeferredReflection:
         assert entries[0]["reflection"] == "Momentum confirmed."
         assert "+5.0%" in entries[0]["raw"]
         assert "+2.0%" in entries[0]["alpha"]
+
+    def test_resolve_appends_cross_source_basis_caveat(self, tmp_path):
+        """When the core price vendor is not yfinance, the stored reflection gets
+        the raw-vs-adjusted basis caveat appended so it can't silently poison the
+        memory log with an adjustment artifact."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
+        mock_reflector = MagicMock()
+        mock_reflector.reflect_on_final_decision.return_value = "Momentum confirmed."
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.memory_log = log
+        mock_graph.reflector = mock_reflector
+        mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
+        caveat = " [Note: outcome measured on yfinance ...; priced on 'schwab'.]"
+        mock_graph._price_basis_caveat = MagicMock(return_value=caveat)
+        TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
+        entries = log.load_entries()
+        assert entries[0]["reflection"] == f"Momentum confirmed.{caveat}"
 
 
 # ---------------------------------------------------------------------------
