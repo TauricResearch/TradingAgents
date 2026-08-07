@@ -47,12 +47,21 @@ def _release_inputs(monkeypatch):
         }
         for role in IMAGE_ROLES
     }
+    runtime_commands = {
+        "collector": ["--formal-collector"],
+        "paper_decision": ["decision-daemon"],
+        "paper_marker": ["marker-daemon"],
+    }
     machine_inventories = {
         role: [
             {
                 "id": f"machine-{role}",
                 "state": "started",
-                "config": {"image": images[role]["image_ref"]},
+                "config": {
+                    "image": images[role]["image_ref"],
+                    "init": {"cmd": runtime_commands[role]},
+                    "metadata": {"fly_process_group": "app"},
+                },
                 "image_ref": {"digest": images[role]["image_digest"]},
             }
         ]
@@ -171,6 +180,67 @@ def test_machine_inventory_rejects_swapped_or_foreign_role_app(monkeypatch):
     )
 
     with pytest.raises(formal_release.FormalReleaseError, match="runtime role"):
+        formal_release.build_formal_release_plan(**inputs)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("role", "expected_command"),
+    [
+        ("collector", ["--formal-collector"]),
+        ("paper_decision", ["decision-daemon"]),
+        ("paper_marker", ["marker-daemon"]),
+    ],
+)
+def test_machine_inventory_binds_each_role_to_exact_runtime_command(
+    monkeypatch, role, expected_command
+):
+    inputs = _release_inputs(monkeypatch)
+    machine = inputs["machine_inventories"][role][0]
+    assert machine["config"]["init"]["cmd"] == expected_command
+    machine["config"]["init"]["cmd"] = ["sleep", "infinity"]
+
+    with pytest.raises(formal_release.FormalReleaseError, match="runtime command"):
+        formal_release.build_formal_release_plan(**inputs)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda config: config.pop("init"),
+        lambda config: config["init"].pop("cmd"),
+        lambda config: config["init"].update({"cmd": "--formal-collector"}),
+        lambda config: config["init"].update({"cmd": ["--formal-collector", "--once"]}),
+        lambda config: config["init"].update({"exec": ["sleep", "infinity"]}),
+        lambda config: config["init"].update({"entrypoint": ["/bin/sh"]}),
+        lambda config: config.update({"processes": [{"exec": ["sleep", "infinity"]}]}),
+    ],
+)
+def test_machine_inventory_rejects_missing_malformed_or_overridden_command(
+    monkeypatch, mutation
+):
+    inputs = _release_inputs(monkeypatch)
+    mutation(inputs["machine_inventories"]["collector"][0]["config"])
+
+    with pytest.raises(formal_release.FormalReleaseError, match="command|config.init"):
+        formal_release.build_formal_release_plan(**inputs)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "metadata",
+    [None, {}, {"fly_process_group": "worker"}],
+)
+def test_machine_inventory_requires_exact_fly_process_group(monkeypatch, metadata):
+    inputs = _release_inputs(monkeypatch)
+    config = inputs["machine_inventories"]["collector"][0]["config"]
+    if metadata is None:
+        config.pop("metadata")
+    else:
+        config["metadata"] = metadata
+
+    with pytest.raises(formal_release.FormalReleaseError, match="metadata|process group"):
         formal_release.build_formal_release_plan(**inputs)
 
 

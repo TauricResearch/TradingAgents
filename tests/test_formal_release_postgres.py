@@ -219,12 +219,21 @@ def _release_inputs(collector_rehearsal: dict[str, Any]) -> dict[str, Any]:
         }
         for role in IMAGE_ROLES
     }
+    runtime_commands = {
+        "collector": ["--formal-collector"],
+        "paper_decision": ["decision-daemon"],
+        "paper_marker": ["marker-daemon"],
+    }
     machine_inventories = {
         role: [
             {
                 "id": f"release-postgres-{role}",
                 "state": "started",
-                "config": {"image": images[role]["image_ref"]},
+                "config": {
+                    "image": images[role]["image_ref"],
+                    "init": {"cmd": runtime_commands[role]},
+                    "metadata": {"fly_process_group": "app"},
+                },
                 "image_ref": {"digest": images[role]["image_digest"]},
             }
         ]

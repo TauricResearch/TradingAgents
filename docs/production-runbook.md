@@ -240,7 +240,8 @@ fly machines list -a tradagent-paper-marker --json \
 ```
 
 Keep `.context/release` out of version control. The release planner rejects a
-non-deployment image tag, a partial digest, a mismatched app, or anything other
+non-deployment image tag, a partial digest, a mismatched app, a missing or
+different role command/process group, a command override, or anything other
 than one current Machine per app. Do not edit generated JSON.
 
 ## 5. Run the final-image collector rehearsal

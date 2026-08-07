@@ -67,6 +67,12 @@ _EXPECTED_FLY_APPS = {
     "paper_decision": "tradagent-paper-decision",
     "paper_marker": "tradagent-paper-marker",
 }
+_EXPECTED_FLY_COMMANDS = {
+    "collector": ("--formal-collector",),
+    "paper_decision": ("decision-daemon",),
+    "paper_marker": ("marker-daemon",),
+}
+_EXPECTED_FLY_PROCESS_GROUP = "app"
 _RUNTIME_MATERIAL_KEYS = frozenset({"component_configuration", "preflight_payload"})
 _BOOTSTRAP_RESULT_KEYS = frozenset(
     {
@@ -203,8 +209,9 @@ def image_attestation_from_machine_inventory(value: Any, *, expected_role: str) 
     """Project one exact Fly machine-list inventory into an image attestation.
 
     Destroyed historical entries are ignored. Exactly one current Machine must
-    remain, and its deployment tag and registry-provided full digest are the
-    only control-plane fields used as release authority.
+    remain. Its exact runtime command, managed process group, deployment tag,
+    and registry-provided full digest are the only control-plane fields used as
+    release authority.
     """
 
     if expected_role not in IMAGE_ROLES:
@@ -225,6 +232,36 @@ def image_attestation_from_machine_inventory(value: Any, *, expected_role: str) 
         )
     machine = current[0]
     config = _object(machine.get("config"), "Fly Machine config")
+    init = _object(config.get("init"), "Fly Machine config.init")
+    command = init.get("cmd")
+    if isinstance(command, (str, bytes)) or not isinstance(command, Sequence):
+        raise FormalReleaseError("Fly Machine runtime command is missing or malformed")
+    if any(not isinstance(argument, str) for argument in command):
+        raise FormalReleaseError("Fly Machine runtime command is missing or malformed")
+    if tuple(command) != _EXPECTED_FLY_COMMANDS[expected_role]:
+        raise FormalReleaseError("Fly Machine runtime command differs from its runtime role")
+    for override_name in ("exec", "entrypoint"):
+        override = init.get(override_name)
+        if override is None:
+            continue
+        if (
+            isinstance(override, (str, bytes))
+            or not isinstance(override, Sequence)
+            or len(override) != 0
+        ):
+            raise FormalReleaseError(
+                f"Fly Machine config.init.{override_name} overrides its runtime command"
+            )
+    processes = config.get("processes")
+    if processes is not None and (
+        isinstance(processes, (str, bytes))
+        or not isinstance(processes, Sequence)
+        or len(processes) != 0
+    ):
+        raise FormalReleaseError("Fly Machine config.processes overrides its runtime command")
+    metadata = _object(config.get("metadata"), "Fly Machine config.metadata")
+    if metadata.get("fly_process_group") != _EXPECTED_FLY_PROCESS_GROUP:
+        raise FormalReleaseError("Fly Machine process group differs from its runtime role")
     image_ref_document = _object(machine.get("image_ref"), "Fly Machine image_ref")
     deployment_ref = config.get("image")
     digest = image_ref_document.get("digest")
