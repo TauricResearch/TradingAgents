@@ -3,9 +3,11 @@
 
 The caller authenticates both the current candidate and a saved baseline tuple.
 This helper acquires a bounded Machine lease, revalidates the current Machine and
-single-Machine topology, submits one digest-pinned update, and verifies the exact
-result with fresh GETs before releasing the lease. It never retries the mutating
-request or prints API response bodies, credentials, identifiers, or file paths.
+single-Machine topology, submits one update, and verifies the exact result with
+fresh GETs before releasing the lease. Updates are digest-pinned except for the
+explicit one-time legacy deployment-tag bridge described below. It never retries
+the mutating request or prints API response bodies, credentials, identifiers, or
+file paths.
 """
 
 from __future__ import annotations
@@ -67,6 +69,7 @@ _ROLLBACK_TO_DIGEST = f"{_ROLLBACK_PREFIX}to_image_digest"
 _ROLLBACK_TO_CONFIG = f"{_ROLLBACK_PREFIX}to_config_fingerprint"
 _ROLLBACK_PARENT = f"{_ROLLBACK_PREFIX}parent_lineage_sha256"
 _ROLLBACK_BASELINE_STATUS = f"{_ROLLBACK_PREFIX}baseline_status_sha256"
+_ROLLBACK_IMAGE_MODE = f"{_ROLLBACK_PREFIX}image_reference_mode"
 
 _ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{8,128}")
 _RELEASE_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,128}")
@@ -74,6 +77,11 @@ _DIGEST_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 _FINGERPRINT_PATTERN = re.compile(r"[0-9a-f]{64}")
 _VERSION_PATTERN = re.compile(r"[1-9][0-9]*")
 _LINEAGE_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)")
+_LEGACY_DEPLOYMENT_IMAGE_PATTERN = re.compile(
+    r"registry\.fly\.io/"
+    r"(?P<app>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
+    r":deployment-[0-9A-HJKMNP-TV-Z]{26}"
+)
 
 
 class FencedRollbackError(RuntimeError):
@@ -359,6 +367,44 @@ def _pin_image(image: str, digest: str) -> str:
     return f"{image}@{digest}"
 
 
+def _rollback_image(
+    args: argparse.Namespace,
+    baseline_config: dict[str, Any],
+) -> tuple[str, str]:
+    """Select the authenticated image reference used for one rollback.
+
+    The pre-health baseline currently in production predates digest-aware
+    ``FLY_IMAGE_REF`` parsing. Only the explicit legacy flag may restore that
+    already-running Fly-generated deployment tag without adding ``@sha256``.
+    The saved Machine digest is still checked after the update under the lease.
+    Every other rollback remains digest-pinned.
+    """
+    legacy = _LEGACY_DEPLOYMENT_IMAGE_PATTERN.fullmatch(args.baseline_image)
+    restart = baseline_config["restart"]
+    env = baseline_config["env"]
+    max_retries = restart.get("max_retries")
+    legacy_pre_health_contract = (
+        restart.get("policy") == "on-failure"
+        and not isinstance(max_retries, bool)
+        and isinstance(max_retries, int)
+        and 1 <= max_retries <= 100
+        and "MEDIA_HEALTH_PORT" not in env
+        and not baseline_config.get("checks")
+        and not baseline_config.get("services")
+    )
+    if (
+        args.allow_legacy_baseline_on_failure
+        and legacy is not None
+        and legacy.group("app") == args.app
+        and legacy_pre_health_contract
+    ):
+        return args.baseline_image, "legacy-bare-deployment-tag"
+    return (
+        _pin_image(args.baseline_image, args.baseline_digest),
+        "digest-pinned",
+    )
+
+
 def _validate_args(args: argparse.Namespace) -> str:
     token = (os.environ.get("FLY_API_TOKEN") or "").strip()
     if not token or len(token) > 4096 or any(character.isspace() for character in token):
@@ -497,9 +543,11 @@ def _prepare_baseline(
     parent_hash = _sha256_json(prior_lineage) if prior_lineage else "0" * 64
     baseline_status_hash = hashlib.sha256(raw_status).hexdigest()
     timestamp = _recorded_at(captured_at)
+    rollback_image, image_reference_mode = _rollback_image(args, previous_config)
     lineage_seed = {
         "schema_version": "1",
         "recorded_at": timestamp,
+        "image_reference_mode": image_reference_mode,
         "baseline_status_sha256": baseline_status_hash,
         "parent_lineage_sha256": parent_hash,
         "from": {
@@ -538,9 +586,10 @@ def _prepare_baseline(
             _ROLLBACK_TO_CONFIG: args.baseline_config_fingerprint,
             _ROLLBACK_PARENT: parent_hash,
             _ROLLBACK_BASELINE_STATUS: baseline_status_hash,
+            _ROLLBACK_IMAGE_MODE: image_reference_mode,
         }
     )
-    previous_config["image"] = _pin_image(args.baseline_image, args.baseline_digest)
+    previous_config["image"] = rollback_image
     return previous_config
 
 

@@ -35,6 +35,10 @@ for value_name in timeout_seconds poll_seconds rollback_timeout_seconds; do
     exit 64
   fi
 done
+if (( rollback_timeout_seconds < 3 )); then
+  echo "COLLECTOR_ROLLBACK_TIMEOUT_SECONDS must be at least 3" >&2
+  exit 64
+fi
 
 allow_unmerged=${COLLECTOR_DEPLOY_ALLOW_UNMERGED:-false}
 case $allow_unmerged in
@@ -268,6 +272,70 @@ target_release_version=
 target_rollback_from_version=0
 target_rollback_to_version=0
 target_config_fingerprint=
+legacy_bare_baseline=false
+baseline_health_passes=false
+
+validate_runtime_image_identity() {
+  local image_ref=$1
+  local image_digest=${2:-}
+  local expected_revision=${3:-}
+  python3 - "$app" "$image_ref" "$image_digest" "$expected_revision" \
+    >/dev/null 2>&1 <<'PY'
+import re
+import sys
+
+from tradingagents.research_protocol import runtime_build_manifest
+
+app, image_ref, image_digest, expected_revision = sys.argv[1:]
+if image_digest:
+    if re.fullmatch(r"sha256:[0-9a-f]{64}", image_digest) is None:
+        raise SystemExit(1)
+    if "@" in image_ref:
+        if not image_ref.endswith("@" + image_digest):
+            raise SystemExit(1)
+    else:
+        image_ref += "@" + image_digest
+
+tag_ref = image_ref.partition("@")[0]
+embedded_revision = ""
+marker = ":git-"
+if marker in tag_ref:
+    embedded_revision = tag_ref.partition(marker)[2][:40]
+revision = expected_revision or embedded_revision
+env = {
+    "FLY_APP_NAME": app,
+    "FLY_MACHINE_ID": "deploy-preflight",
+    "FLY_IMAGE_REF": image_ref,
+}
+if revision:
+    env["GIT_REVISION"] = revision
+manifest = runtime_build_manifest(env)
+if (
+    manifest is None
+    or manifest.get("schema_version") != 1
+    or manifest.get("platform") != "fly"
+    or manifest.get("app_name") != app
+    or manifest.get("image_ref") != image_ref
+    or (expected_revision and manifest.get("git_revision") != expected_revision)
+):
+    raise SystemExit(1)
+PY
+}
+
+# Keep the deployer's content-addressed image tag and the runtime's authenticated
+# build-identity parser in one fail-closed contract. This executes before any Fly
+# mutation, so a future tag-format change cannot strand a release command or
+# replace the existing worker.
+if ! validate_runtime_image_identity "$target_image" "" "$revision"; then
+  echo "collector deploy image tag is incompatible with runtime build identity" >&2
+  exit 65
+fi
+
+if ! validate_runtime_image_identity \
+  "$target_image" "sha256:$(printf '0%.0s' {1..64})" "$revision"; then
+  echo "collector deploy digest pin is incompatible with runtime build identity" >&2
+  exit 65
+fi
 
 run_mutating_command() {
   local mutation_status
@@ -374,9 +442,57 @@ acquire_remote_deploy_lock() {
   fi
 }
 
+run_bounded_command() {
+  local command_timeout=$1
+  shift
+  python3 - "$command_timeout" "$@" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+
+try:
+    timeout = int(sys.argv[1])
+except (TypeError, ValueError):
+    raise SystemExit(64)
+if timeout < 1 or len(sys.argv) < 3:
+    raise SystemExit(64)
+
+process = subprocess.Popen(
+    sys.argv[2:],
+    stdin=subprocess.DEVNULL,
+    start_new_session=True,
+)
+try:
+    status = process.wait(timeout=timeout)
+except subprocess.TimeoutExpired:
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+    raise SystemExit(124)
+raise SystemExit(status if status >= 0 else 128 - status)
+PY
+}
+
 capture_status() {
   local output_file=$1
   fly status -a "$app" --json > "$output_file"
+}
+
+capture_status_bounded() {
+  local output_file=$1
+  local command_timeout=$2
+  run_bounded_command "$command_timeout" \
+    fly status -a "$app" --json > "$output_file"
 }
 
 started_app_machine_summary() {
@@ -683,15 +799,117 @@ target_alert_delivers() {
     -C "tradingagents-poller --test-alert" >/dev/null
 }
 
+legacy_baseline_contract_matches() {
+  python3 - "$previous_status" "$previous_id" "$previous_image" \
+    "$previous_digest" <<'PY'
+import json
+import sys
+
+path, expected_id, expected_image, expected_digest = sys.argv[1:]
+with open(path, encoding="utf-8") as handle:
+    payload = json.load(handle)
+machines = payload.get("Machines") or []
+if len(machines) != 1 or not isinstance(machines[0], dict):
+    raise SystemExit(1)
+machine = machines[0]
+config = machine.get("config") or {}
+metadata = config.get("metadata") or {}
+env = config.get("env") or {}
+restart = config.get("restart") or {}
+digest = (machine.get("image_ref") or {}).get("digest")
+process_group = metadata.get("fly_process_group") or env.get("FLY_PROCESS_GROUP")
+max_retries = restart.get("max_retries")
+legacy_restart = (
+    restart.get("policy") == "on-failure"
+    and not isinstance(max_retries, bool)
+    and isinstance(max_retries, int)
+    and 1 <= max_retries <= 100
+)
+identity_matches = (
+    machine.get("id") == expected_id
+    and machine.get("state") == "started"
+    and config.get("image") == expected_image
+    and digest == expected_digest
+)
+pre_health_contract = (
+    process_group == "app"
+    and legacy_restart
+    and "MEDIA_HEALTH_PORT" not in env
+    and not config.get("checks")
+    and not config.get("services")
+)
+raise SystemExit(0 if identity_matches and pre_health_contract else 1)
+PY
+}
+
+legacy_baseline_runtime_responds() {
+  local command_timeout=${1:-$rollback_timeout_seconds}
+  local probe_command
+  probe_command='python -c "import os, sys; '
+  probe_command+="from tradingagents.research_protocol import build_identity; "
+  probe_command+="from tradingagents.dataflows.media_store import open_store; "
+  probe_command+="image_ok = os.environ.get('FLY_IMAGE_REF') == '$previous_image'; "
+  probe_command+="value = build_identity(); build_ok = value.startswith('build_'); "
+  probe_command+="store = open_store(auto_migrate=False); "
+  probe_command+="heartbeat = store.get_meta('poller:last_success_utc'); "
+  probe_command+="database_ok = store.dialect == 'postgresql' and not isinstance(heartbeat, bool) and isinstance(heartbeat, (int, float)) and heartbeat > 0; "
+  probe_command+='store.close(); sys.exit(0 if image_ok and build_ok and database_ok else 1)"'
+  run_bounded_command "$command_timeout" \
+    fly ssh console -a "$app" --machine "$previous_id" --pty=false \
+      -C "$probe_command"
+}
+
+legacy_restored_status_matches() {
+  [[ $machine_id == "$previous_id" \
+    && $machine_instance =~ ^[A-Za-z0-9_-]{8,128}$ \
+    && $machine_instance != "$previous_instance" \
+    && $machine_instance != "$target_instance" \
+    && $machine_image == "$previous_image" \
+    && $machine_digest == "$previous_digest" \
+    && $machine_release == "$previous_release" \
+    && $machine_release_version == "$previous_release_version" \
+    && $machine_rollback_from_version == "$target_release_version" \
+    && $machine_rollback_to_version == "$previous_release_version" \
+    && $machine_config_fingerprint == "$previous_config_fingerprint" ]]
+}
+
 verify_rollback() {
-  local deadline=$((SECONDS + rollback_timeout_seconds))
+  # Reset Bash's monotonic counter here so the configured deadline receives
+  # its full interval instead of the remainder of a tick.
+  SECONDS=0
+  local deadline=$rollback_timeout_seconds
+  local legacy_observed=false
+  local legacy_instance= remaining sleep_for
   while (( SECONDS < deadline )); do
-    if capture_status "$current_status" 2>/dev/null \
+    remaining=$((deadline - SECONDS))
+    if capture_status_bounded "$current_status" "$remaining" 2>/dev/null \
       && read_started_app_machine "$current_status" \
       && [[ $machine_digest == "$previous_digest" ]] \
-      && [[ $machine_config_fingerprint == "$previous_config_fingerprint" ]]; then
-      echo "previous collector image and configuration restored"
-      return 0
+      && [[ $machine_config_fingerprint == "$previous_config_fingerprint" ]] \
+      && (( SECONDS < deadline )); then
+      if [[ $legacy_bare_baseline == true ]]; then
+        remaining=$((deadline - SECONDS))
+        if ! legacy_restored_status_matches \
+          || (( remaining < 1 )) \
+          || ! legacy_baseline_runtime_responds "$remaining" >/dev/null 2>&1 \
+          || (( SECONDS >= deadline )); then
+          legacy_observed=false
+          legacy_instance=
+        elif [[ $legacy_observed == true \
+          && $machine_instance == "$legacy_instance" ]]; then
+          echo "previous collector image and configuration restored"
+          return 0
+        else
+          legacy_observed=true
+          legacy_instance=$machine_instance
+        fi
+      else
+        echo "previous collector image and configuration restored"
+        return 0
+      fi
+    else
+      legacy_observed=false
+      legacy_instance=
     fi
     remaining=$((deadline - SECONDS))
     (( remaining > 0 )) || break
@@ -766,7 +984,7 @@ rollback_if_owned() {
     --baseline-release "$previous_release" \
     --baseline-release-version "$previous_release_version" \
     --baseline-config-fingerprint "$previous_config_fingerprint")
-  if [[ $allow_unhealthy_baseline == true ]]; then
+  if [[ $legacy_bare_baseline == true ]]; then
     rollback_command+=(--allow-legacy-baseline-on-failure)
   fi
   rollback_command+=(--previous-status "$previous_status")
@@ -884,13 +1102,38 @@ previous_rollback_from_version=$machine_rollback_from_version
 previous_rollback_to_version=$machine_rollback_to_version
 previous_config_fingerprint=$machine_config_fingerprint
 
-if ! machine_check_passes "$previous_id"; then
-  if [[ $allow_unhealthy_baseline != true ]]; then
-    echo "collector deploy requires a passing baseline collector_health check" >&2
-    echo "use COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE=true only for one reviewed break-glass repair" >&2
+if machine_check_passes "$previous_id"; then
+  baseline_health_passes=true
+elif [[ $allow_unhealthy_baseline != true ]]; then
+  echo "collector deploy requires a passing baseline collector_health check" >&2
+  echo "use COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE=true only for one reviewed break-glass repair" >&2
+  exit 69
+else
+  echo "WARNING: break-glass deployment from a baseline without a passing collector_health check; rollback can restore that baseline but cannot certify it healthy" >&2
+fi
+
+# A normal fenced rollback submits the saved tag pinned to its immutable digest.
+# The sole bare-tag bridge additionally requires the authenticated pre-health
+# config and a missing health signal. A future deployment-tag baseline therefore
+# stays digest-pinned even if an operator accidentally reuses the break-glass flag.
+if [[ $allow_unhealthy_baseline == true \
+  && $baseline_health_passes == false \
+  && $previous_image =~ ^registry\.fly\.io/${app}:deployment-[0-9A-HJKMNP-TV-Z]{26}$ ]] \
+  && legacy_baseline_contract_matches; then
+  legacy_bare_baseline=true
+  if ! validate_runtime_image_identity "$previous_image"; then
+    echo "collector legacy rollback image is incompatible with runtime build identity" >&2
+    exit 65
+  fi
+  if ! legacy_baseline_runtime_responds "$rollback_timeout_seconds" \
+    >/dev/null 2>&1; then
+    echo "collector legacy rollback runtime probe failed before deployment" >&2
     exit 69
   fi
-  echo "WARNING: break-glass deployment from a baseline without a passing collector_health check; rollback can restore that baseline but cannot certify it healthy" >&2
+  echo "WARNING: one-time legacy rollback will use the exact saved deployment tag and verify its resolved digest" >&2
+elif ! validate_runtime_image_identity "$previous_image" "$previous_digest"; then
+  echo "collector rollback image is incompatible with runtime build identity" >&2
+  exit 65
 fi
 
 # Close the review-to-deploy race against the authenticated remote, after the

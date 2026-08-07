@@ -821,10 +821,12 @@ GLOBAL_EVENT_V2_PROTOCOL_ID = content_id(GLOBAL_EVENT_V2_PROTOCOL, prefix="proto
 _FLY_DEPLOYMENT_IMAGE_REF = re.compile(
     r"registry\.fly\.io/(?P<app>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
     r":deployment-(?P<deployment>[0-9A-HJKMNP-TV-Z]{26})"
+    r"(?:@sha256:(?P<digest>[0-9a-f]{64}))?"
 )
 _FLY_GIT_IMAGE_REF = re.compile(
     r"registry\.fly\.io/(?P<app>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
-    r":git-(?P<revision>[0-9a-f]{40})"
+    r":git-(?P<revision>[0-9a-f]{40})(?:-(?P<nonce>[0-9a-f]{32}))?"
+    r"(?:@sha256:(?P<digest>[0-9a-f]{64}))?"
 )
 _EXPLICIT_BUILD_MATERIAL = re.compile(
     r"(?:sha256:[0-9a-f]{64}|[0-9a-f]{40}|[0-9a-f]{64}|build_[0-9a-f]{24})"
@@ -836,10 +838,12 @@ def runtime_build_manifest(env: Mapping[str, str] | None = None) -> dict | None:
 
     Fly's runtime-provided image reference wins whenever any Fly identity is
     present. Default ``deployment-<ULID>`` tags remain valid for historical
-    images. Reviewed collector releases use ``git-<SHA>`` and must independently
-    carry the exact same lowercase SHA in ``GIT_REVISION``. A generic
-    ``TRADINGAGENTS_BUILD_ID`` can therefore never mask the platform image
-    actually running the worker.
+    images. Reviewed collector releases use ``git-<SHA>-<random nonce>`` (with
+    the earlier ``git-<SHA>`` form retained for rollback compatibility) and
+    must independently carry the exact same lowercase SHA in ``GIT_REVISION``.
+    Either accepted tag may carry the exact lowercase ``@sha256:<digest>`` pin
+    used by fenced rollback. A generic ``TRADINGAGENTS_BUILD_ID`` can therefore
+    never mask the platform image actually running the worker.
     """
     values = os.environ if env is None else env
     image_ref = (values.get("FLY_IMAGE_REF") or "").strip()

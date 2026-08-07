@@ -6,6 +6,7 @@ import concurrent.futures
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import textwrap
@@ -225,8 +226,14 @@ def value(flag):
 def machine(kind):
     if kind in {"previous", "previous-mutated-config"}:
         machine_id = "machine-old"
-        instance_id = "instance-old-000"
-        image = "registry.fly.io/tradagent:deployment-previous"
+        rolled_back = (state_dir / "rollback-helper-calls.jsonl").exists()
+        instance_id = "instance-rollback-038" if rolled_back else "instance-old-000"
+        image = (
+            "registry.fly.io/tradagent:"
+            "deployment-01KZAD8T2KXJJJXAM2JJW8E447"
+        )
+        if scenario == "invalid_baseline_image":
+            image = "registry.fly.io/tradagent:latest"
         digest = "sha256:" + "1" * 64
         release = "release-old"
         release_version = "33"
@@ -237,7 +244,11 @@ def machine(kind):
         }
         if kind == "previous-mutated-config":
             env["CONCURRENT_CONFIG"] = "true"
-        restart = {"policy": "on-failure", "max_retries": 10}
+        restart = (
+            {"policy": "always"}
+            if scenario == "nonlegacy_deployment_baseline"
+            else {"policy": "on-failure", "max_retries": 10}
+        )
     elif kind in {"target", "target-new-release", "target-mutated-config"}:
         machine_id = "machine-old"
         instance_id = (
@@ -287,6 +298,11 @@ def machine(kind):
         "fly_release_id": release,
         "fly_release_version": release_version,
     }
+    if kind in {"previous", "previous-mutated-config"} and rolled_back:
+        metadata.update({
+            "tradingagents_fenced_rollback_from_release_version": "36",
+            "tradingagents_fenced_rollback_to_release_version": "33",
+        })
     if scenario == "baseline_after_fenced_rollback" and kind in {
         "previous", "target",
     }:
@@ -347,6 +363,20 @@ if args and args[0] == "status":
     else:
         kind = phase
     machines = [] if phase == "empty" else [machine(kind)]
+    rolled_back = (
+        phase == "previous"
+        and (state_dir / "rollback-helper-calls.jsonl").exists()
+    )
+    if rolled_back and scenario == "legacy_status_hang":
+        time.sleep(30)
+    if rolled_back and scenario in {"legacy_status_gap", "legacy_tuple_change"}:
+        counter_path = state_dir / "legacy-rollback-status-count"
+        count = int(counter_path.read_text()) if counter_path.exists() else 0
+        counter_path.write_text(str(count + 1))
+        if scenario == "legacy_status_gap" and count == 1:
+            machines = []
+        elif scenario == "legacy_tuple_change" and count > 0:
+            machines[0]["instance_id"] = "instance-rollback-039"
     print(json.dumps({"Machines": machines}))
     raise SystemExit(0)
 if args and args[0] == "releases":
@@ -403,13 +433,24 @@ if args and args[0] == "deploy":
         os.kill(os.getppid(), signal.SIGTERM)
         time.sleep(30)
         raise SystemExit(143)
-    if scenario == "deploy_failure_changed":
+    if scenario in {
+        "deploy_failure_changed", "legacy_deploy_failure_changed",
+        "legacy_probe_failure", "legacy_probe_hang", "legacy_status_hang",
+        "legacy_status_gap", "legacy_tuple_change",
+        "nonlegacy_deployment_baseline",
+    }:
         raise SystemExit(1)
     raise SystemExit(0)
 if args[:2] == ["checks", "list"]:
     baseline_status = (
         "critical"
-        if scenario in {"baseline_unhealthy", "legacy_baseline_health_timeout"}
+        if scenario in {
+            "baseline_unhealthy", "legacy_baseline_health_timeout",
+            "legacy_deploy_failure_changed", "legacy_probe_failure",
+            "legacy_probe_hang", "legacy_probe_preflight_failure",
+            "legacy_status_gap", "legacy_status_hang", "legacy_tuple_change",
+            "nonlegacy_deployment_baseline",
+        }
         else "passing"
     )
     checks = {
@@ -446,6 +487,20 @@ if args[:2] == ["ssh", "console"]:
         raise SystemExit(1)
     if scenario == "alert_failure" and "--test-alert" in command:
         raise SystemExit(1)
+    if "poller:last_success_utc" in command:
+        probe_count_path = state_dir / "legacy-probe-count"
+        probe_count = (
+            int(probe_count_path.read_text())
+            if probe_count_path.exists()
+            else 0
+        )
+        probe_count_path.write_text(str(probe_count + 1))
+        if scenario == "legacy_probe_preflight_failure" or (
+            scenario == "legacy_probe_failure" and probe_count > 0
+        ):
+            raise SystemExit(1)
+        if scenario == "legacy_probe_hang" and probe_count > 0:
+            time.sleep(30)
     raise SystemExit(0)
 
 print("unexpected fake fly invocation", args, file=sys.stderr)
@@ -473,6 +528,11 @@ def fake_deploy_env(tmp_path):
 
         args = sys.argv[1:]
         state_dir = pathlib.Path(os.environ["FAKE_STATE_DIR"])
+        if args and args[0] == "-" and os.environ.get(
+            "FAKE_RUNTIME_IDENTITY_FAILURE"
+        ) == "true":
+            sys.stdin.read()
+            raise SystemExit(1)
         if args and pathlib.Path(args[0]).name == "fenced_machine_rollback.py":
             with (state_dir / "rollback-helper-calls.jsonl").open(
                 "a", encoding="utf-8"
@@ -500,7 +560,7 @@ def fake_deploy_env(tmp_path):
         "REAL_PYTHON": sys.executable,
         "COLLECTOR_HEALTH_TIMEOUT_SECONDS": "1",
         "COLLECTOR_HEALTH_POLL_SECONDS": "1",
-        "COLLECTOR_ROLLBACK_TIMEOUT_SECONDS": "1",
+        "COLLECTOR_ROLLBACK_TIMEOUT_SECONDS": "3",
         "COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE": "false",
     }
     return env, state_dir
@@ -651,6 +711,7 @@ def test_fenced_rollback_lineage_allows_the_next_serial_deploy(fake_deploy_env):
 def test_primary_deploy_failure_uses_one_fenced_machine_rollback(fake_deploy_env):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = "deploy_failure_changed"
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "4"
 
     result = _run(env)
 
@@ -670,7 +731,7 @@ def test_primary_deploy_failure_uses_one_fenced_machine_rollback(fake_deploy_env
     assert helper[helper.index("--baseline-machine-id") + 1] == "machine-old"
     assert helper[helper.index("--baseline-instance") + 1] == "instance-old-000"
     assert helper[helper.index("--baseline-image") + 1].endswith(
-        ":deployment-previous"
+        ":deployment-01KZAD8T2KXJJJXAM2JJW8E447"
     )
     assert helper[helper.index("--baseline-digest") + 1] == "sha256:" + "1" * 64
     assert helper[helper.index("--baseline-release") + 1] == "release-old"
@@ -683,6 +744,205 @@ def test_primary_deploy_failure_uses_one_fenced_machine_rollback(fake_deploy_env
         "status.previous.json"
     )
     assert "test-fly-token-never-render" not in json.dumps(helper_calls)
+
+
+@pytest.mark.unit
+def test_one_time_legacy_rollback_requires_stable_runtime_probes(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "legacy_deploy_failure_changed"
+    env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "4"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert "previous collector image and configuration restored" in result.stdout
+    helper = _rollback_helper_calls(state_dir)[0]
+    assert helper.count("--allow-legacy-baseline-on-failure") == 1
+    probe_calls = [
+        call
+        for call in _calls(state_dir)
+        if call[:2] == ["ssh", "console"]
+        and "poller:last_success_utc" in call[call.index("-C") + 1]
+    ]
+    assert len(probe_calls) == 3
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+def test_break_glass_flag_does_not_unpin_a_nonlegacy_deployment_baseline(
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "nonlegacy_deployment_baseline"
+    env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "4"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert "previous collector image and configuration restored" in result.stdout
+    helper = _rollback_helper_calls(state_dir)[0]
+    assert "--allow-legacy-baseline-on-failure" not in helper
+    assert not any(
+        "poller:last_success_utc" in call[call.index("-C") + 1]
+        for call in _calls(state_dir)
+        if call[:2] == ["ssh", "console"]
+    )
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("scenario", ["legacy_status_gap", "legacy_tuple_change"])
+def test_legacy_rollback_requires_consecutive_bound_observations(
+    scenario, fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = scenario
+    env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "6"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert "previous collector image and configuration restored" in result.stdout
+    probe_calls = [
+        call
+        for call in _calls(state_dir)
+        if call[:2] == ["ssh", "console"]
+        and "poller:last_success_utc" in call[call.index("-C") + 1]
+    ]
+    # One pre-mutation probe plus three post-rollback probes. A status gap
+    # resets stability, and an instance change starts a new bound observation.
+    assert len(probe_calls) == 4
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+def test_failed_legacy_runtime_probe_preserves_remote_lock(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "legacy_probe_failure"
+    env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "3"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert "was not restored" in result.stderr
+    assert (state_dir / "remote-lock").read_text() == "c" * 40
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("scenario", ["legacy_probe_hang", "legacy_status_hang"])
+def test_hung_legacy_rollback_observation_is_bounded_and_preserves_lock(
+    scenario, fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = scenario
+    env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "3"
+    started = time.monotonic()
+
+    result = _run(env)
+
+    elapsed = time.monotonic() - started
+    assert result.returncode == 1
+    # Completing within the test harness's 10-second subprocess bound proves
+    # the fake 30-second child was killed; keep margin for loaded CI hosts.
+    assert elapsed < 9
+    assert "was not restored" in result.stderr
+    assert (state_dir / "remote-lock").read_text() == "c" * 40
+
+
+@pytest.mark.unit
+def test_legacy_runtime_probe_must_pass_before_fly_mutation(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "legacy_probe_preflight_failure"
+    env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
+
+    result = _run(env)
+
+    assert result.returncode == 69
+    assert "runtime probe failed before deployment" in result.stderr
+    assert _deploy_calls(state_dir) == []
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+def test_legacy_runtime_probe_conditions_survive_python_optimization(
+    fake_deploy_env, tmp_path,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "legacy_probe_preflight_failure"
+    env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
+
+    result = _run(env)
+
+    assert result.returncode == 69
+    probe_call = next(
+        call
+        for call in _calls(state_dir)
+        if call[:2] == ["ssh", "console"]
+        and "poller:last_success_utc" in call[call.index("-C") + 1]
+    )
+    interpreter, flag, code = shlex.split(probe_call[probe_call.index("-C") + 1])
+    assert (interpreter, flag) == ("python", "-c")
+
+    package = tmp_path / "probe" / "tradingagents"
+    (package / "dataflows").mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "research_protocol.py").write_text(
+        "def build_identity():\n    return 'build_' + 'a' * 24\n",
+        encoding="utf-8",
+    )
+    (package / "dataflows" / "__init__.py").write_text("", encoding="utf-8")
+    (package / "dataflows" / "media_store.py").write_text(
+        textwrap.dedent(
+            """\
+            import os
+
+            class Store:
+                dialect = os.environ.get("PROBE_DIALECT", "postgresql")
+
+                def get_meta(self, _key):
+                    return float(os.environ.get("PROBE_HEARTBEAT", "1"))
+
+                def close(self):
+                    return None
+
+            def open_store(*, auto_migrate):
+                if auto_migrate:
+                    raise RuntimeError("probe must not migrate")
+                return Store()
+            """
+        ),
+        encoding="utf-8",
+    )
+    probe_env = {
+        **os.environ,
+        "PYTHONPATH": str(tmp_path / "probe"),
+        "FLY_IMAGE_REF": (
+            "registry.fly.io/tradagent:"
+            "deployment-01KZAD8T2KXJJJXAM2JJW8E447"
+        ),
+        "PROBE_HEARTBEAT": "1",
+    }
+
+    def run_probe(**overrides):
+        return subprocess.run(
+            [sys.executable, "-O", "-c", code],
+            cwd=tmp_path,
+            env={**probe_env, **overrides},
+            text=True,
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+
+    assert run_probe().returncode == 0
+    assert run_probe(FLY_IMAGE_REF="registry.fly.io/tradagent:wrong").returncode == 1
+    assert run_probe(PROBE_HEARTBEAT="0").returncode == 1
+    assert run_probe(PROBE_DIALECT="sqlite").returncode == 1
 
 
 @pytest.mark.unit
@@ -758,6 +1018,7 @@ def test_unbound_empty_state_after_deploy_failure_refuses_rollback(fake_deploy_e
 def test_unverified_target_rolls_back(scenario, fake_deploy_env):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "4"
 
     result = _run(env)
 
@@ -787,6 +1048,19 @@ def test_superseding_release_is_never_rolled_back(scenario, fake_deploy_env):
     assert len(_deploy_calls(state_dir)) == 1
     assert "superseded" in result.stderr
     assert "refusing to roll back a newer release" in result.stderr
+
+
+@pytest.mark.unit
+def test_runtime_incompatible_baseline_pin_fails_before_deploy(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "invalid_baseline_image"
+
+    result = _run(env)
+
+    assert result.returncode == 65
+    assert _deploy_calls(state_dir) == []
+    assert "rollback image is incompatible" in result.stderr
+    assert not (state_dir / "remote-lock").exists()
 
 
 @pytest.mark.unit
@@ -926,6 +1200,7 @@ def test_alert_failure_preserves_revision_verified_release(fake_deploy_env):
 def test_signal_after_remote_mutation_runs_controlled_rollback(fake_deploy_env):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = "signal"
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "4"
 
     result = _run(env)
 
@@ -968,6 +1243,32 @@ def test_deploy_target_must_match_checked_in_app(fake_deploy_env):
     assert result.returncode == 64
     assert "must exactly match fly.toml app" in result.stderr
     assert not (state_dir / "calls.jsonl").exists()
+
+
+@pytest.mark.unit
+def test_rollback_timeout_rejects_an_unusable_subprocess_budget(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "2"
+
+    result = _run(env)
+
+    assert result.returncode == 64
+    assert "must be at least 3" in result.stderr
+    assert not (state_dir / "calls.jsonl").exists()
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+def test_runtime_image_preflight_fails_before_fly_or_remote_lock(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["FAKE_RUNTIME_IDENTITY_FAILURE"] = "true"
+
+    result = _run(env)
+
+    assert result.returncode == 65
+    assert "image tag is incompatible" in result.stderr
+    assert not (state_dir / "calls.jsonl").exists()
+    assert not (state_dir / "remote-lock").exists()
 
 
 @pytest.mark.unit

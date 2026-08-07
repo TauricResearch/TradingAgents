@@ -10,15 +10,18 @@ from tradingagents.research_protocol import (
 
 _DEPLOYMENT = "01KZAD8T2KXJJJXAM2JJW8E447"
 _REVISION = "a" * 40
+_NONCE = "b" * 32
+_DIGEST = "c" * 64
 
 
 @pytest.mark.unit
-def test_fly_runtime_image_cannot_be_masked_by_generic_build_override():
+@pytest.mark.parametrize("suffix", ["", f"@sha256:{_DIGEST}"])
+def test_fly_runtime_image_cannot_be_masked_by_generic_build_override(suffix):
     env = {
         "FLY_APP_NAME": "tradagent-paper",
         "FLY_MACHINE_ID": "080d229a942408",
         "FLY_IMAGE_REF": (
-            f"registry.fly.io/tradagent-paper:deployment-{_DEPLOYMENT}"
+            f"registry.fly.io/tradagent-paper:deployment-{_DEPLOYMENT}{suffix}"
         ),
         "TRADINGAGENTS_BUILD_ID": "build_" + "f" * 24,
         "GIT_REVISION": "e" * 40,
@@ -30,15 +33,28 @@ def test_fly_runtime_image_cannot_be_masked_by_generic_build_override():
         "schema_version": 1,
         "platform": "fly",
         "app_name": "tradagent-paper",
-        "image_ref": f"registry.fly.io/tradagent-paper:deployment-{_DEPLOYMENT}",
+        "image_ref": (
+            f"registry.fly.io/tradagent-paper:deployment-{_DEPLOYMENT}{suffix}"
+        ),
         "deployment_id": _DEPLOYMENT,
     }
     assert content_id(manifest, prefix="build_").startswith("build_")
 
 
 @pytest.mark.unit
-def test_fly_git_image_requires_and_records_the_exact_embedded_revision(monkeypatch):
-    image_ref = f"registry.fly.io/tradagent:git-{_REVISION}"
+@pytest.mark.parametrize(
+    "suffix",
+    [
+        "",
+        f"-{_NONCE}",
+        f"@sha256:{_DIGEST}",
+        f"-{_NONCE}@sha256:{_DIGEST}",
+    ],
+)
+def test_fly_git_image_requires_and_records_the_exact_embedded_revision(
+    monkeypatch, suffix,
+):
+    image_ref = f"registry.fly.io/tradagent:git-{_REVISION}{suffix}"
     env = {
         "FLY_APP_NAME": "tradagent",
         "FLY_MACHINE_ID": "080d229a942408",
@@ -116,6 +132,43 @@ def test_fly_git_image_fails_closed_without_its_exact_lowercase_revision(revisio
             "FLY_APP_NAME": "tradagent",
             "FLY_IMAGE_REF": f"registry.fly.io/tradagent:git-{_REVISION.upper()}",
             "GIT_REVISION": _REVISION,
+        },
+        {
+            "FLY_APP_NAME": "tradagent",
+            "FLY_IMAGE_REF": (
+                f"registry.fly.io/tradagent:git-{_REVISION}-{_NONCE[:-1]}"
+            ),
+            "GIT_REVISION": _REVISION,
+        },
+        {
+            "FLY_APP_NAME": "tradagent",
+            "FLY_IMAGE_REF": (
+                f"registry.fly.io/tradagent:git-{_REVISION}-{_NONCE.upper()}"
+            ),
+            "GIT_REVISION": _REVISION,
+        },
+        {
+            "FLY_APP_NAME": "tradagent",
+            "FLY_IMAGE_REF": (
+                f"registry.fly.io/tradagent:git-{_REVISION}-{_NONCE}"
+                f"@sha256:{_DIGEST[:-1]}"
+            ),
+            "GIT_REVISION": _REVISION,
+        },
+        {
+            "FLY_APP_NAME": "tradagent",
+            "FLY_IMAGE_REF": (
+                f"registry.fly.io/tradagent:git-{_REVISION}-{_NONCE}"
+                f"@sha256:{_DIGEST.upper()}"
+            ),
+            "GIT_REVISION": _REVISION,
+        },
+        {
+            "FLY_APP_NAME": "tradagent-paper",
+            "FLY_IMAGE_REF": (
+                f"registry.fly.io/tradagent-paper:deployment-{_DEPLOYMENT}"
+                f"@sha512:{_DIGEST}"
+            ),
         },
     ],
 )

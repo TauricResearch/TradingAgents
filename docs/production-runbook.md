@@ -128,6 +128,24 @@ intervening good release. If explicit lease release fails, the helper fails and
 the Git mutex is preserved until an operator waits for lease expiry and
 reconciles state. No token, identifier, file path, or API response body is logged.
 
+The sole exception is the explicit first transition from the legacy
+`deployment-<ULID>` baseline. That image predates digest-aware runtime identity
+parsing, so the one-command break-glass flag restores its exact saved bare tag
+instead of changing its `FLY_IMAGE_REF`. This is restricted to a Fly-generated
+deployment tag for the same app, the saved bounded `on-failure` restart policy,
+the absence of health-port/check/service configuration, and a missing live health
+signal. The leased post-update reads must still resolve that tag to the saved
+digest and reproduce the exact config and one-Machine topology; the wrapper also
+requires two stable observations plus a successful read-only
+build-identity/database-heartbeat probe before releasing its Git mutex. Status
+and SSH probes are killed at the remaining rollback deadline, and late results
+cannot count as success. That same runtime probe must pass on the live legacy
+baseline before any Fly mutation. After a health-enabled image becomes the
+baseline, the exception is disabled and all rollbacks are digest-pinned even if
+the old break-glass environment variable is accidentally reused.
+`COLLECTOR_ROLLBACK_TIMEOUT_SECONDS` defaults to 90 and rejects values below 3,
+which cannot reliably cover even one authenticated status round trip.
+
 A same-commit deployment or configuration-only update from another host is
 treated as superseding this attempt and is never rolled back.
 An empty, multi-Machine, or otherwise unbound state after an interrupted immediate
@@ -332,8 +350,10 @@ COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE=true \
 
 The wrapper logs a prominent warning. Do not export or persist this variable, and
 do not use it after the health-enabled collector is active. Under break-glass the
-wrapper can restore the exact baseline image/configuration, but it cannot certify
-that baseline as healthy.
+wrapper can restore the exact baseline image/configuration and prove its process
+can authenticate its build and read the existing database heartbeat, but the
+legacy image has no continuous health check and therefore cannot be certified to
+the normal production standard.
 
 ## Rotate credentials
 

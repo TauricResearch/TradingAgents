@@ -70,7 +70,12 @@ class _FlyAPI:
         self.current["image_ref"]["digest"] = "sha256:" + "3" * 64
 
     def _apply(self, body: dict):
-        pinned_digest = body["config"]["image"].rsplit("@", 1)[1]
+        image = body["config"]["image"]
+        pinned_digest = (
+            image.rsplit("@", 1)[1]
+            if "@" in image
+            else "sha256:" + "1" * 64
+        )
         self.update_count += 1
         self.current = {
             **self.current,
@@ -170,7 +175,10 @@ class _FlyAPI:
         assert kind == "machine-post"
         self.post_count += 1
         assert body["current_version"] == "instance-target-036"
-        assert body["config"]["image"].endswith("@sha256:" + "1" * 64)
+        assert body["config"]["image"] == (
+            "registry.fly.io/tradagent:"
+            "deployment-01KZAD8T2KXJJJXAM2JJW8E447"
+        ) or body["config"]["image"].endswith("@sha256:" + "1" * 64)
         if self.scenario == "race_before_update":
             self._newer()
         if body["current_version"] != self.current["instance_id"]:
@@ -242,7 +250,10 @@ def rollback_case(tmp_path, monkeypatch):
         "incomplete_config": None,
         "image_ref": {"digest": "sha256:" + "1" * 64},
         "config": {
-            "image": "registry.fly.io/tradagent:baseline",
+            "image": (
+                "registry.fly.io/tradagent:"
+                "deployment-01KZAD8T2KXJJJXAM2JJW8E447"
+            ),
             "metadata": {
                 "fly_process_group": "app",
                 "fly_release_id": "release-baseline",
@@ -390,6 +401,7 @@ def test_exact_digest_pinned_rollback_is_verified_before_release(rollback_case):
         fenced._ROLLBACK_TO_DIGEST: baseline["image_ref"]["digest"],
         fenced._ROLLBACK_TO_CONFIG: args.baseline_config_fingerprint,
         fenced._ROLLBACK_PARENT: "0" * 64,
+        fenced._ROLLBACK_IMAGE_MODE: "digest-pinned",
     }
     for key, value in expected_lineage.items():
         assert metadata[key] == value
@@ -558,6 +570,7 @@ def test_explicit_legacy_flag_allows_only_authenticated_on_failure_baseline(
         "policy": "on-failure",
         "max_retries": 10,
     }
+    baseline["config"]["env"].pop("MEDIA_HEALTH_PORT")
     args.baseline_config_fingerprint = fenced._config_fingerprint(baseline["config"])
     args.allow_legacy_baseline_on_failure = True
     _rewrite_status(args, [baseline])
@@ -566,11 +579,63 @@ def test_explicit_legacy_flag_allows_only_authenticated_on_failure_baseline(
     _run(args, api)
 
     update = next(call["body"] for call in api.calls if call["kind"] == "machine-post")
+    assert update["config"]["image"] == baseline["config"]["image"]
     assert update["config"]["restart"] == {
         "policy": "on-failure",
         "max_retries": 10,
     }
+    assert update["config"]["metadata"][fenced._ROLLBACK_IMAGE_MODE] == (
+        "legacy-bare-deployment-tag"
+    )
     assert api.current["config"]["restart"] == update["config"]["restart"]
+
+
+@pytest.mark.unit
+def test_legacy_flag_keeps_health_enabled_deployment_image_digest_pinned(
+    rollback_case,
+):
+    args, target, baseline = rollback_case
+    args.allow_legacy_baseline_on_failure = True
+    api = _FlyAPI(target)
+
+    _run(args, api)
+
+    update = next(call["body"] for call in api.calls if call["kind"] == "machine-post")
+    assert update["config"]["image"] == (
+        baseline["config"]["image"] + "@" + baseline["image_ref"]["digest"]
+    )
+    assert update["config"]["metadata"][fenced._ROLLBACK_IMAGE_MODE] == (
+        "digest-pinned"
+    )
+
+
+@pytest.mark.unit
+def test_legacy_flag_does_not_unpin_non_deployment_image(rollback_case):
+    args, target, baseline = rollback_case
+    baseline = _clone(baseline)
+    baseline["config"]["image"] = (
+        "registry.fly.io/tradagent:git-" + "a" * 40 + "-" + "b" * 32
+    )
+    baseline["config"]["restart"] = {
+        "policy": "on-failure",
+        "max_retries": 10,
+    }
+    baseline["config"]["env"].pop("MEDIA_HEALTH_PORT")
+    args.baseline_image = baseline["config"]["image"]
+    args.baseline_config_fingerprint = fenced._config_fingerprint(baseline["config"])
+    args.allow_legacy_baseline_on_failure = True
+    _rewrite_status(args, [baseline])
+    api = _FlyAPI(target)
+
+    _run(args, api)
+
+    update = next(call["body"] for call in api.calls if call["kind"] == "machine-post")
+    assert update["config"]["image"] == (
+        baseline["config"]["image"] + "@" + baseline["image_ref"]["digest"]
+    )
+    assert update["config"]["metadata"][fenced._ROLLBACK_IMAGE_MODE] == (
+        "digest-pinned"
+    )
 
 
 @pytest.mark.unit
