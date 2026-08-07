@@ -11,6 +11,15 @@ def create_bull_researcher(llm):
         bull_history = investment_debate_state.get("bull_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
+        # The bull opens the debate, so on the first turn there is no bear
+        # argument to rebut. Handing the model an empty "Last bear argument:"
+        # makes it invent one and argue against it (#1176), so state the
+        # absence explicitly instead — same guard the risk debators carry.
+        last_bear_argument = (
+            f"Last bear argument: {current_response}"
+            if current_response
+            else "There are no responses from the bear analyst yet; present your own argument based on the available data."
+        )
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
@@ -40,7 +49,7 @@ Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
 Conversation history of the debate: {history}
-Last bear argument: {current_response}
+{last_bear_argument}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
 """ + get_language_instruction()
 

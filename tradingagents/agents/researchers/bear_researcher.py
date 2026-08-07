@@ -11,6 +11,15 @@ def create_bear_researcher(llm):
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
+        # Empty when the bear speaks first (a reversed debate order, or a state
+        # built without a prior bull turn). Handing the model an empty "Last
+        # bull argument:" makes it invent one and argue against it (#1176), so
+        # state the absence explicitly instead.
+        last_bull_argument = (
+            f"Last bull argument: {current_response}"
+            if current_response
+            else "There are no responses from the bull analyst yet; present your own argument based on the available data."
+        )
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
@@ -42,7 +51,7 @@ Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
 Conversation history of the debate: {history}
-Last bull argument: {current_response}
+{last_bull_argument}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the {target_label}.
 """ + get_language_instruction()
 
