@@ -16,6 +16,17 @@
     --baseline: #c3c2b7;
     --border: rgba(11,11,11,0.10);
     --series-1: #2a78d6;
+    /* Six-book categorical ramp. Validated with the dataviz palette checker
+       against both surfaces: lightness band, chroma floor, CVD separation
+       (worst adjacent dE 12.5 deutan), normal-vision floor 16.8, and 3:1
+       contrast all PASS. Assigned to a book by identity and never cycled or
+       reordered — a filter that hides a book must not repaint the others. */
+    --book-strategic:  #2a78d6;
+    --book-tactical:   #c2570a;
+    --book-core_spy:   #00998c;
+    --book-core_trend: #8a5cd6;
+    --book-core_2x:    #c2417f;
+    --book-core_jepi:  #7a8f0e;
     --good: #0ca30c;
     --warning: #fab219;
     --serious: #ec835a;
@@ -195,6 +206,35 @@
   .quota-note { color: var(--muted); font-size: 12px; margin-top: 10px; }
 
   /* Portfolio */
+  /* Scoreboard: six books compared on several measures at once. A table is the
+     right form here — tiles put each book on its own island and make the one
+     question that matters ("which beats the control?") impossible to read. */
+  /* #tiles is a grid for the old tile layout; the scoreboard is one wide block,
+     so opt out of the grid or the caveat becomes a column beside the table and
+     clips the sparklines. */
+  .tiles.board { display: block; }
+  table.scoreboard { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  table.scoreboard td:first-child { min-width: 210px; }
+  table.scoreboard th { font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em; text-align: right;
+    padding: 6px 10px; border-bottom: 1px solid var(--grid); }
+  table.scoreboard th:first-child, table.scoreboard td:first-child { text-align: left; }
+  table.scoreboard td { padding: 9px 10px; border-bottom: 1px solid var(--grid);
+    text-align: right; font-variant-numeric: tabular-nums; }
+  table.scoreboard tbody tr:hover { background: var(--page); }
+  /* 8px swatch carries identity beside the name — never colour alone. */
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+    margin-right: 7px; vertical-align: baseline; }
+  .book-name { font-weight: 600; }
+  .book-desc { font-size: 11px; color: var(--muted); font-weight: 400; }
+  tr.control td { background: color-mix(in srgb, var(--page) 70%, transparent); }
+  tr.control .book-name::after { content: " · control"; color: var(--muted);
+    font-weight: 400; font-size: 11px; }
+  .lead { font-size: 11px; color: var(--muted); }
+  td.vs-control { font-weight: 600; }
+  .caveat { font-size: 11.5px; color: var(--muted); padding: 8px 10px;
+    border-left: 2px solid var(--warning); background: var(--page);
+    border-radius: 0 6px 6px 0; margin-bottom: 14px; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: var(--page); }
   .tile .k { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
@@ -273,7 +313,7 @@
 
 <div class="page" id="page-portfolio">
   <section>
-    <h2>Scoreboard <span class="sub">— strategic (LLM signals) vs tactical (rules) vs just buying SPY; the August verdict lives here</span></h2>
+    <h2>Scoreboard <span class="sub">— six books, same capital, same day. Every arm is scored against <b>core_spy</b>, the passive control</span></h2>
     <div class="tiles" id="tiles"></div>
 
     <div class="subhead">🧠 Strategic positions <span class="sub">(LLM signals, auto-traded at live prices)</span></div>
@@ -854,10 +894,11 @@ function sparkline(points, colorVar) {
     `${i ? "L" : "M"}${(pad + (i / (values.length - 1)) * (W - 2 * pad)).toFixed(1)},` +
     `${(pad + (1 - (v - lo) / span) * (H - 2 * pad)).toFixed(1)}`).join("");
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <path d="${path}" fill="none" stroke="var(${colorVar})" stroke-width="1.5"/></svg>`;
+    <path d="${path}" fill="none" stroke="var(${colorVar})" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
-let equityHistory = { strategic: [], tactical: [] };
+let equityHistory = {};
 
 async function loadPortfolio() {
   let pf;
@@ -886,29 +927,61 @@ async function loadPortfolio() {
            ` · ${b.winning_trades}/${b.closed_trades} closed trades won</div>`;
   };
 
-  const bookTile = (b, emoji, colorVar) => `
-    <div class="tile"><div class="k">${emoji} ${esc(b.label)} book${b.enabled ? "" : " · <i>off</i>"}</div>
-      <div class="v ${cls(b.return_pct)}">${fmtRet(b.return_pct)}</div>
-      <div class="s">${usd(b.equity_usd)} equity · ${b.positions.length} pos</div>
-      ${deploy(b)}${realised(b)}
-      ${sparkline(equityHistory[b.label], colorVar)}</div>`;
+  // The control is core_spy: passive 100% SPY. Every active arm exists to beat
+  // it, so each row is scored against it rather than against zero — a book that
+  // made money in a rising market has proved nothing on its own.
+  const control = pf.books.find(b => b.label === "core_spy");
+  const ctrlRet = control?.return_pct ?? bench;
 
-  const strategic = pf.books.find(b => b.label === "strategic");
-  const tactical = pf.books.find(b => b.label === "tactical");
+  const row = (b) => {
+    const vs = (b.return_pct != null && ctrlRet != null) ? b.return_pct - ctrlRet : null;
+    const isControl = b.label === "core_spy";
+    const inv = b.invested_pct == null ? "—"
+      : `<span${b.invested_pct < 70 ? ' style="color:var(--critical)"' : ""}>${b.invested_pct.toFixed(0)}%</span>`;
+    const rp = b.closed_trades
+      ? `<span class="${cls(b.realised_pnl_usd)}">${b.realised_pnl_usd >= 0 ? "+" : "−"}$${Math.abs(b.realised_pnl_usd).toFixed(0)}</span>` +
+        `<div class="lead">${b.winning_trades}/${b.closed_trades} won</div>`
+      : `<span class="lead">no closed trades</span>`;
+    return `<tr class="${isControl ? "control" : ""}">
+      <td><span class="swatch" style="background:var(--book-${b.label})"></span>
+        <span class="book-name">${esc(b.label)}</span>${b.enabled ? "" : ' <i class="lead">off</i>'}
+        <div class="book-desc">${esc(b.description || "")}</div></td>
+      <td class="tier">${esc(b.core_etf)}</td>
+      <td class="${cls(b.return_pct)}"><b>${fmtRet(b.return_pct)}</b></td>
+      <td class="vs-control ${isControl ? "" : cls(vs)}">${isControl ? "—" : fmtRet(vs)}</td>
+      <td>${usd(b.equity_usd)}</td>
+      <td>${inv}</td>
+      <td>${rp}</td>
+      <td style="width:110px">${sparkline(equityHistory[b.label], `--book-${b.label}`)}</td>
+    </tr>`;
+  };
+
   const coreNote = !pf.core_enabled
-    ? `<div class="s" style="color:var(--bad)">off — idle cash earns 0% against an SPY benchmark</div>`
+    ? `<b style="color:var(--critical)">Index core is OFF</b> — idle cash earns 0% against an SPY benchmark, which is an unfunded short against your own benchmark.`
     : pf.core_defensive
-      ? `<div class="s" style="color:var(--bad)">DEFENSIVE — ${esc(pf.core_etf)} below its trend, core in cash</div>`
-      : `<div class="s">idle cash rests in ${esc(pf.core_etf)}${pf.core_trend_filter ? " · trend filter on" : ""}</div>`;
+      ? `<b style="color:var(--critical)">DEFENSIVE</b> — ${esc(pf.core_etf)} is below its ${"200"}-day average, so the trend-filtered core is sitting in cash.`
+      : `Idle cash rests in <b>${esc(pf.core_etf)}</b>${pf.core_trend_filter ? " · trend filter armed" : ""}.`;
+
+  $("tiles").className = "tiles board";
   $("tiles").innerHTML =
-    (strategic ? bookTile(strategic, "🧠", "--series-1") : "") +
-    (tactical ? bookTile(tactical, "⚡", "--good") : "") +
-    `<div class="tile"><div class="k">📊 SPY benchmark</div>
-      <div class="v ${cls(bench)}">${fmtRet(bench)}</div>
-      <div class="s">same period — the bar both books must beat</div></div>` +
-    `<div class="tile"><div class="k">🏦 index core</div>
-      <div class="v">${pf.core_enabled ? esc(pf.core_etf) : "—"}</div>
-      ${coreNote}</div>`;
+    `<table class="scoreboard">
+      <thead><tr>
+        <th>book</th><th>core</th><th>return</th><th>vs control</th>
+        <th>equity</th><th>invested</th><th>realised</th><th>equity curve</th>
+      </tr></thead>
+      <tbody>
+        ${pf.books.map(row).join("")}
+        <tr><td><span class="swatch" style="background:var(--muted)"></span>
+          <span class="book-name">SPY</span>
+          <div class="book-desc">benchmark since the books opened</div></td>
+          <td class="tier">SPY</td>
+          <td class="${cls(bench)}"><b>${fmtRet(bench)}</b></td>
+          <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <div class="caveat">${coreNote} One month of data cannot separate skill from
+      luck — the spread on a $10k book is roughly ±$500 of market noise, so read
+      <b>vs control</b>, not the raw return.</div>`;
 
   $("paperBody").innerHTML = pf.paper_positions.length ? pf.paper_positions.map(p => `
     <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
