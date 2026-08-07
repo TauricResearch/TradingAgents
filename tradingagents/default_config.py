@@ -31,6 +31,65 @@ _ENV_OVERRIDES = {
 _BOOL_TRUE = ("true", "1", "yes", "on")
 _BOOL_FALSE = ("false", "0", "no", "off")
 
+# Env var for choosing the price/indicator data source without editing code or
+# using the CLI. It is handled separately from _ENV_OVERRIDES because
+# ``data_vendors`` is a nested dict, not a top-level scalar key: the single
+# value is written to BOTH the price and indicator categories, so an agent's
+# price CSV and its indicators share one basis (see README cross-source note).
+_DATA_VENDOR_ENV_VAR = "TRADINGAGENTS_DATA_VENDOR"
+
+# Categories the env var / CLI choice applies to (kept in lock-step on purpose).
+_DATA_VENDOR_CATEGORIES = ("core_stock_apis", "technical_indicators")
+
+# Vendors valid for the price + indicator categories. Mirrors the schwab /
+# alpha_vantage / yfinance implementations registered in
+# ``dataflows.interface.VENDOR_METHODS`` for get_stock_data / get_indicators;
+# duplicated here (rather than imported) to avoid a config → interface import
+# cycle. "default" (use all available vendors) is also accepted.
+_DATA_VENDOR_VALID = ("yfinance", "alpha_vantage", "schwab", "default")
+
+
+def _parse_data_vendor(raw: str) -> str:
+    """Validate a ``TRADINGAGENTS_DATA_VENDOR`` value and return it normalized.
+
+    Accepts a comma-separated ordered vendor chain (e.g. ``"schwab,yfinance"``).
+    Each vendor must be one of :data:`_DATA_VENDOR_VALID`; an empty entry or an
+    unknown name raises ``ValueError`` so a typo fails loudly at startup instead
+    of silently misconfiguring an unattended run.
+    """
+    vendors = [v.strip() for v in raw.split(",")]
+    if not vendors or any(v == "" for v in vendors):
+        raise ValueError(
+            "expected a comma-separated vendor list (e.g. 'schwab,yfinance'), "
+            f"got {raw!r}"
+        )
+    invalid = [v for v in vendors if v not in _DATA_VENDOR_VALID]
+    if invalid:
+        raise ValueError(
+            f"unknown vendor(s) {invalid}; valid options are "
+            f"{list(_DATA_VENDOR_VALID)}"
+        )
+    return ",".join(vendors)
+
+
+def _apply_data_vendor_override(config: dict) -> dict:
+    """Apply ``TRADINGAGENTS_DATA_VENDOR`` to the price + indicator categories.
+
+    Opt-in: when the var is unset/empty the existing per-category defaults
+    (yfinance) are left untouched.
+    """
+    raw = os.environ.get(_DATA_VENDOR_ENV_VAR)
+    if raw is None or raw == "":
+        return config
+    try:
+        value = _parse_data_vendor(raw)
+    except ValueError as exc:
+        raise ValueError(f"Invalid value for {_DATA_VENDOR_ENV_VAR}: {exc}") from exc
+    vendors = config.setdefault("data_vendors", {})
+    for category in _DATA_VENDOR_CATEGORIES:
+        vendors[category] = value
+    return config
+
 
 def _coerce(value: str, reference):
     """Coerce env-var string to the type of the existing default value.
@@ -65,6 +124,7 @@ def _apply_env_overrides(config: dict) -> dict:
             config[key] = _coerce(raw, config.get(key))
         except ValueError as exc:
             raise ValueError(f"Invalid value for {env_var}: {exc}") from exc
+    _apply_data_vendor_override(config)
     return config
 
 

@@ -10,6 +10,15 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Added
 
+- **Data vendor selection via env var / CLI.** New `TRADINGAGENTS_DATA_VENDOR`
+  environment variable picks the source for prices (`core_stock_apis`) and
+  technical indicators (`technical_indicators`) without editing code — a
+  comma-separated ordered fallback chain (e.g. `schwab,yfinance`) applied to
+  both categories at once so they share one basis. The CLI adds a matching
+  interactive "Data Vendor" step, skipped (with a `✓ ... from environment`
+  notice) when the env var is set, mirroring the LLM provider / research-depth
+  steps. Opt-in: unset leaves the yfinance defaults unchanged; invalid vendor
+  names fail loudly at startup.
 - **Schwab market-data vendor (opt-in).** New `schwab` data vendor for OHLCV
   (`core_stock_apis`) and technical indicators (`technical_indicators`), covering
   US equities/ETFs only. Uses a `token.json` produced by any schwab-py login

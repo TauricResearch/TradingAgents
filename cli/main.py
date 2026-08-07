@@ -1,3 +1,4 @@
+import copy
 import datetime
 import os
 import sys
@@ -36,6 +37,7 @@ from cli.utils import (
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
+    select_data_vendor,
     select_deep_thinking_agent,
     select_llm_provider,
     select_research_depth,
@@ -621,6 +623,24 @@ def get_user_selections():
         )
         selected_research_depth = select_research_depth()
 
+    # Step 5b: Data vendor (prices + technical indicators). Skipped when set via
+    # TRADINGAGENTS_DATA_VENDOR — same env-precedence rule as the other steps.
+    # The single choice is applied to BOTH categories so prices and indicators
+    # share one source (see README cross-source note).
+    if os.environ.get("TRADINGAGENTS_DATA_VENDOR"):
+        selected_data_vendor = DEFAULT_CONFIG["data_vendors"]["core_stock_apis"]
+        console.print(
+            f"[green]✓ Data vendor from environment:[/green] {selected_data_vendor}"
+        )
+    else:
+        console.print(
+            create_question_box(
+                "Step 5b: Data Vendor",
+                "Select the source for prices and technical indicators",
+            )
+        )
+        selected_data_vendor = select_data_vendor()
+
     # Step 6: LLM Provider (skipped when set via TRADINGAGENTS_LLM_PROVIDER).
     # The backend URL comes from TRADINGAGENTS_LLM_BACKEND_URL when set,
     # otherwise the provider's default endpoint — the same value the menu
@@ -730,6 +750,7 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
+        "data_vendor": selected_data_vendor,
         "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
@@ -989,6 +1010,15 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    # Data vendor sets both the price + indicator categories, but an explicit
+    # env override (TRADINGAGENTS_DATA_VENDOR) wins over the interactive
+    # selection — leave the env-applied value on DEFAULT_CONFIG in place.
+    # Deep-copy the nested dict first: DEFAULT_CONFIG.copy() is shallow, so
+    # mutating config["data_vendors"] in place would corrupt the module default.
+    if not os.environ.get("TRADINGAGENTS_DATA_VENDOR") and selections.get("data_vendor"):
+        config["data_vendors"] = copy.deepcopy(config["data_vendors"])
+        config["data_vendors"]["core_stock_apis"] = selections["data_vendor"]
+        config["data_vendors"]["technical_indicators"] = selections["data_vendor"]
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
