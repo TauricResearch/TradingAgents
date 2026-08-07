@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate deploy wrapper syntax
-        run: bash -n scripts/deploy_collector.sh
+        run: bash -n scripts/deploy_collector.sh scripts/unlock_collector_deploy.sh
       - name: Build the exact production Dockerfile
         run: |
           set -euo pipefail
@@ -92,7 +92,9 @@ jobs:
 
   postgres-collector:
     name: PostgreSQL 16 collector contracts
-    runs-on: ubuntu-latest
+    # PgBouncer is installed from this runner image; pin the OS so its major
+    # pooler behavior cannot change merely because `ubuntu-latest` advances.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -110,10 +112,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install PostgreSQL client and test dependencies
+      - name: Install PostgreSQL, PgBouncer, and test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          sudo apt-get install --yes postgresql-client pgbouncer
+          # The package may start its stock service. The contract test owns one
+          # isolated, unprivileged instance with an explicit transaction-pool
+          # configuration instead.
+          sudo systemctl stop pgbouncer
           python -m pip install --upgrade pip
           pip install -e ".[dev,poller]"
       - name: Build collector schema and run PostgreSQL contracts
@@ -125,18 +131,84 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/prepare_collector_postgres.sh ta_collector
+          # Exercise the primary connection through PgBouncer transaction mode,
+          # while the singleton advisory lease uses PostgreSQL directly. This
+          # mirrors Fly MPG and catches startup/session assumptions that a direct
+          # PostgreSQL-only test cannot expose.
+          pgbouncer_dir="${RUNNER_TEMP}/tradingagents-pgbouncer"
+          mkdir -p "$pgbouncer_dir"
+          printf '%s\n' '"tradingagents-ingest-v2" ""' \
+            > "$pgbouncer_dir/userlist.txt"
+          printf '%s\n' \
+            '[databases]' \
+            'ta_collector = host=127.0.0.1 port=5432 dbname=ta_collector' \
+            '' \
+            '[pgbouncer]' \
+            'listen_addr = 127.0.0.1' \
+            'listen_port = 6432' \
+            'unix_socket_dir =' \
+            'auth_type = trust' \
+            "auth_file = $pgbouncer_dir/userlist.txt" \
+            'pool_mode = transaction' \
+            'default_pool_size = 1' \
+            'max_prepared_statements = 0' \
+            'ignore_startup_parameters = extra_float_digits' \
+            'log_connections = 0' \
+            'log_disconnections = 0' \
+            'log_stats = 0' \
+            > "$pgbouncer_dir/pgbouncer.ini"
+          pgbouncer "$pgbouncer_dir/pgbouncer.ini" \
+            > "$pgbouncer_dir/pgbouncer.log" 2>&1 &
+          pgbouncer_pid=$!
+          cleanup_pgbouncer() {
+            exit_code=$?
+            trap - EXIT
+            if kill -0 "$pgbouncer_pid" 2>/dev/null; then
+              kill "$pgbouncer_pid" 2>/dev/null || true
+              wait "$pgbouncer_pid" 2>/dev/null || true
+            elif (( exit_code == 0 )); then
+              echo "PgBouncer exited before the contract step completed" >&2
+              exit_code=1
+            fi
+            if (( exit_code != 0 )); then
+              sed -n '1,200p' "$pgbouncer_dir/pgbouncer.log" >&2
+            fi
+            exit "$exit_code"
+          }
+          trap cleanup_pgbouncer EXIT
+          for attempt in {1..20}; do
+            if ! kill -0 "$pgbouncer_pid" 2>/dev/null; then
+              echo "PgBouncer exited during startup" >&2
+              exit 1
+            fi
+            if pg_isready -h 127.0.0.1 -p 6432 \
+              -U tradingagents-ingest-v2 -d ta_collector >/dev/null; then
+              break
+            fi
+            if (( attempt == 20 )); then
+              echo "PgBouncer did not become ready" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Two independent Psycopg clients repeatedly transact against one
+          # backend. This fails deterministically if named prepare is re-enabled.
           TRADINGAGENTS_TEST_POSTGRES_URL="postgresql+psycopg://tradingagents-ingest-v2@${PGHOST}:${PGPORT}/ta_collector" \
+          TRADINGAGENTS_TEST_POSTGRES_POOL_URL="postgresql+psycopg://tradingagents-ingest-v2@127.0.0.1:6432/ta_collector" \
             pytest -q -m integration tests/test_server_observed_evidence_migration.py \
               tests/test_collection_cycles.py
+
           # Exercise preflight through the exact packaged image, not the host's
-          # editable install. Linux host networking reaches the PostgreSQL
-          # service published above without putting credentials in the image.
+          # editable install. Linux host networking reaches both local ports
+          # without putting credentials in the image.
           docker build \
             --build-arg "GIT_REVISION=${GITHUB_SHA}" \
             --file Dockerfile.poller \
             --tag tradingagents-poller-postgres-ci .
           docker run --rm --network host \
-            --env MEDIA_DB_URL="postgresql+psycopg://tradingagents-ingest-v2@${PGHOST}:${PGPORT}/ta_collector" \
+            --env MEDIA_DB_URL="postgresql+psycopg://tradingagents-ingest-v2@127.0.0.1:6432/ta_collector" \
+            --env MEDIA_DB_DIRECT_URL="postgresql+psycopg://tradingagents-ingest-v2@127.0.0.1:5432/ta_collector" \
             --env MEDIA_AUTO_MIGRATE=false \
             --env MEDIA_COLLECTION_ENABLED=true \
             --env MEDIA_REQUIRE_ALERT_WEBHOOK=false \

@@ -6,6 +6,10 @@ import importlib
 
 import pytest
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Model .* is not in the known model list.*:RuntimeWarning"
+)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def _resync_reloaded_modules():

@@ -12,6 +12,8 @@ FLY_CONFIG = ROOT / "fly.toml"
 DOCKERFILE = ROOT / "Dockerfile.poller"
 DOCKERIGNORE = ROOT / ".dockerignore"
 DEPLOY_SCRIPT = ROOT / "scripts" / "deploy_collector.sh"
+ROLLBACK_HELPER = ROOT / "scripts" / "fenced_machine_rollback.py"
+PYPROJECT = ROOT / "pyproject.toml"
 
 
 def _table(text: str, name: str) -> str:
@@ -83,6 +85,10 @@ def test_fly_worker_restart_and_image_entrypoint_contract():
 
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
     assert 'ENTRYPOINT ["tradingagents-poller"]' in dockerfile
+    assert (
+        'tradingagents-poller = "tradingagents.poller:_main_entrypoint"'
+        in PYPROJECT.read_text(encoding="utf-8")
+    )
     assert 'LABEL org.opencontainers.image.revision="${GIT_REVISION}"' in dockerfile
     assert 'ENV GIT_REVISION="${GIT_REVISION}"' in dockerfile
     assert "/opt/tradingagents/REVISION" in dockerfile
@@ -97,8 +103,14 @@ def test_fly_worker_restart_and_image_entrypoint_contract():
     assert "collector_health" in deploy_script
     assert "fly config save" in deploy_script
     assert '-c "$previous_config"' in deploy_script
-    assert '--image "$previous_image"' in deploy_script
-    assert "--skip-release-command" in deploy_script
+    assert 'scripts/fenced_machine_rollback.py' in deploy_script
+    assert '--baseline-image "$previous_image"' in deploy_script
+    assert '--baseline-digest "$previous_digest"' in deploy_script
+    assert '--baseline-config-fingerprint "$previous_config_fingerprint"' in deploy_script
+    rollback_helper = ROLLBACK_HELPER.read_text(encoding="utf-8")
+    assert '"current_version": args.expected_instance' in rollback_helper
+    assert 'headers["fly-machine-lease-nonce"] = lease_nonce' in rollback_helper
+    assert "_validate_restored_machine" in rollback_helper
 
 
 @pytest.mark.unit

@@ -44,7 +44,7 @@ from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
-from tradingagents import global_research
+from tradingagents import global_research, operations
 from tradingagents.collector_health import (
     CollectorHealthState,
     start_collector_health_server,
@@ -99,7 +99,7 @@ _GLOBAL_ONLY_X_INTERVAL_SECONDS = int(
 # Filled with the content-derived value after the V2 surface was finalized.
 # Any content-addressed helper change must deliberately update this ID; bump the
 # policy version as well when the economic collection policy itself changes.
-_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_d8193e226517a021c3c19861"
+_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_f6aaca9c1014887d9e78da82"
 
 # Coverage alerts are operational state, separate from the immutable evidence
 # ledger. Repeated identical incidents get one notification plus a daily reminder;
@@ -108,6 +108,23 @@ _COVERAGE_ALERT_STATE_KEY = "poller:coverage_alert_unhealthy"
 _COVERAGE_ALERT_LAST_UTC_KEY = "poller:coverage_alert_last_utc"
 _COVERAGE_ALERT_FINGERPRINT_KEY = "poller:coverage_alert_fingerprint"
 _COVERAGE_ALERT_REMINDER_SECONDS = 24 * 60 * 60
+
+# Fatal runtime failures are retried in-process so Fly cannot turn a transient
+# database or lease incident into an unbounded restart/webhook storm. The health
+# endpoint remains fail-closed until a complete cycle succeeds.
+_RUNTIME_RETRY_INITIAL_SECONDS = 5.0
+_RUNTIME_RETRY_MAX_SECONDS = 300.0
+_RUNTIME_ALERT_MIN_INTERVAL_SECONDS = 60 * 60
+_RUNTIME_ALERT_REMINDER_SECONDS = 24 * 60 * 60
+_RUNTIME_FAILURE_STAGES = frozenset({
+    "daemon_startup",
+    "health_listener",
+    "store_startup",
+    "lease_acquisition",
+    "lease_contended",
+    "cycle",
+    "lease_lost",
+})
 
 
 # Topic discovery is deliberately entity-agnostic. It starts from ranked news
@@ -258,6 +275,135 @@ def _exception_kind(exc: BaseException) -> str:
     """Return a bounded class label; exception messages can contain credentials."""
     name = type(exc).__name__
     return name if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name) else "Exception"
+
+
+def _runtime_failure_type(value: object) -> str:
+    """Return only a bounded identifier supplied by trusted runtime machinery."""
+    return (
+        value
+        if isinstance(value, str)
+        and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", value)
+        else "Exception"
+    )
+
+
+class _CollectorRuntimeFailure(RuntimeError):
+    """Sanitized handoff from a failed daemon session to its supervisor."""
+
+    def __init__(self, stage: str, error_type: str):
+        self.stage = stage if stage in _RUNTIME_FAILURE_STAGES else "cycle"
+        self.error_type = _runtime_failure_type(error_type)
+        message = (
+            "collector singleton lease lost"
+            if self.stage == "lease_lost"
+            else f"collector cycle failed ({self.error_type})"
+        )
+        super().__init__(message)
+
+
+def _collector_retry_delay(consecutive_failures: int) -> float:
+    """Return deterministic bounded exponential daemon retry delay."""
+    if (
+        isinstance(consecutive_failures, bool)
+        or not isinstance(consecutive_failures, int)
+        or consecutive_failures < 1
+    ):
+        raise ValueError("collector retry count must be a positive integer")
+    exponent = min(int(consecutive_failures) - 1, 30)
+    return min(
+        _RUNTIME_RETRY_MAX_SECONDS,
+        _RUNTIME_RETRY_INITIAL_SECONDS * (2 ** exponent),
+    )
+
+
+class _CollectorRuntimeIncident:
+    """Deduplicate one in-process unhealthy transition plus daily reminders."""
+
+    def __init__(self, *, clock=None, alert=None):
+        self._clock = time.monotonic if clock is None else clock
+        self._alert = emit_alert if alert is None else alert
+        self._active: tuple[str, str] | None = None
+        self._last_alerted: tuple[str, str] | None = None
+        self._last_alert_monotonic: float | None = None
+
+    @property
+    def active(self) -> bool:
+        return self._active is not None
+
+    def mark_failure(
+        self, *, stage: str, error_type: str, retry_delay_seconds: float,
+    ) -> bool:
+        safe_stage = stage if stage in _RUNTIME_FAILURE_STAGES else "cycle"
+        safe_error_type = _runtime_failure_type(error_type)
+        observed = float(self._clock())
+        next_incident = (safe_stage, safe_error_type)
+        first_transition = self._active is None
+        self._active = next_incident
+        since_last_alert = (
+            None
+            if self._last_alert_monotonic is None
+            else observed - self._last_alert_monotonic
+        )
+        reminder_due = (
+            self._last_alerted == next_incident
+            and since_last_alert is not None
+            and since_last_alert >= _RUNTIME_ALERT_REMINDER_SECONDS
+        )
+        changed_transition_due = (
+            self._last_alerted != next_incident
+            and since_last_alert is not None
+            and since_last_alert >= _RUNTIME_ALERT_MIN_INTERVAL_SECONDS
+        )
+        if not first_transition and not changed_transition_due and not reminder_due:
+            return False
+        try:
+            self._alert(
+                "collector",
+                "runtime_unhealthy",
+                severity="critical",
+                details={
+                    "schema_version": 1,
+                    "failure_stage": safe_stage,
+                    "failure_type": safe_error_type,
+                    "retry_delay_seconds": float(retry_delay_seconds),
+                    "reminder": reminder_due,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 - supervision must survive alert bugs
+            logger.error(
+                "Collector runtime alert handler failed (%s)",
+                _exception_kind(exc),
+            )
+        # Bound attempts even while the webhook is unavailable. Retrying on
+        # every exponential-backoff turn would recreate the alert storm this
+        # supervisor exists to prevent.
+        self._last_alerted = next_incident
+        self._last_alert_monotonic = observed
+        return True
+
+    def mark_recovered(self) -> None:
+        if self._active is None:
+            return
+        prior_stage, prior_error_type = self._active
+        self._active = None
+        self._last_alerted = None
+        self._last_alert_monotonic = None
+        try:
+            self._alert(
+                "collector",
+                "runtime_recovered",
+                severity="info",
+                details={
+                    "schema_version": 1,
+                    "prior_failure_stage": prior_stage,
+                    "prior_failure_type": prior_error_type,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 - supervision must survive alert bugs
+            logger.error(
+                "Collector recovery alert handler failed (%s)",
+                _exception_kind(exc),
+            )
 
 
 def _sanitized_coverage_alert_details(coverage: dict) -> dict:
@@ -421,6 +567,13 @@ def collector_semantics_manifest() -> dict:
         "globalnews_cycle_orchestration": poll_macro_once,
         "cycle_coverage_contract": _check_cycle_query_coverage,
         "collector_cycle_orchestration": run_cycle,
+        "collector_daemon_sleep": _sleep,
+        "collector_signal_handlers": _install_collector_signal_handlers,
+        "collector_runtime_failure": _CollectorRuntimeFailure,
+        "collector_runtime_failure_type": _runtime_failure_type,
+        "collector_retry_delay": _collector_retry_delay,
+        "collector_runtime_incident": _CollectorRuntimeIncident,
+        "collector_daemon_loop": poll_forever,
         "collection_cycle_spec": media_store.collection_cycle_spec,
         "collection_cycle_manifest": media_store._collection_cycle_manifest,
         "collection_cycle_item_replay": media_store._verified_cycle_item_rows,
@@ -470,6 +623,12 @@ def collector_semantics_manifest() -> dict:
             media_store._advisory_lock_is_held_statement
         ),
         "postgres_store_initialization": media_store.SqlAlchemyMediaStore.__init__,
+        "postgres_column_type_family": (
+            media_store._collector_postgres_type_family
+        ),
+        "postgres_column_contract_authentication": (
+            media_store._collector_postgres_column_contract_valid
+        ),
         "postgres_connect_args": media_store._postgres_connect_args,
         "postgres_transaction_hook_install": (
             media_store._install_postgres_transaction_settings
@@ -488,6 +647,9 @@ def collector_semantics_manifest() -> dict:
         ),
         "postgres_acquire_collector_lease": (
             media_store.SqlAlchemyMediaStore.acquire_collector_lease
+        ),
+        "postgres_collector_runtime_preflight": (
+            media_store.SqlAlchemyMediaStore.collector_runtime_preflight
         ),
         "postgres_media_store": media_store.SqlAlchemyMediaStore.store,
         "postgres_atomic_media_store": (
@@ -515,6 +677,14 @@ def collector_semantics_manifest() -> dict:
         ),
         "postgres_cycle_read": media_store.SqlAlchemyMediaStore.collection_cycle,
         "postgres_server_clock": media_store.SqlAlchemyMediaStore.server_observed_utc,
+        "collector_attempt_cleanup": _close_collector_attempt,
+        "collector_daemon_supervisor": _run_supervised_daemon,
+        "collector_preflight": _run_preflight,
+        "collector_main": main,
+        "collector_executable_boundary": _main_entrypoint,
+        "operations_alert_text_redaction": operations._redact_text,
+        "operations_alert_structure_redaction": operations.redact_sensitive,
+        "operations_alert_delivery": operations.emit_alert,
     }
     sources = {
         name: hashlib.sha256(inspect.getsource(component).encode("utf-8")).hexdigest()
@@ -522,7 +692,7 @@ def collector_semantics_manifest() -> dict:
     }
     evidence = GLOBAL_EVENT_V2_PROTOCOL["evidence"]
     manifest = {
-        "schema_version": 4,
+        "schema_version": 6,
         "policy": _GLOBAL_ONLY_COLLECTOR_POLICY,
         "components": sources,
         "semantic_values": {
@@ -578,6 +748,9 @@ def collector_semantics_manifest() -> dict:
                 "top_news_feeds": media_sources._GOOGLE_TOP_NEWS_RSS,
             },
             "postgres_connection_contract": {
+                "prepare_threshold": media_store._postgres_connect_args()[
+                    "prepare_threshold"
+                ],
                 "transaction_settings": list(
                     media_store._POSTGRES_TRANSACTION_SETTINGS
                 ),
@@ -593,6 +766,56 @@ def collector_semantics_manifest() -> dict:
                     media_store._FLY_MPG_DIRECT_HOST.pattern
                 ),
                 "local_postgres_hosts": sorted(media_store._LOCAL_POSTGRES_HOSTS),
+            },
+            "postgres_schema_contract": {
+                "check_constraint_definition_hashes": {
+                    f"{table}.{constraint}": sorted(hashes)
+                    for (table, constraint), hashes in sorted(
+                        media_store._COLLECTOR_CHECK_CONSTRAINT_HASHES.items()
+                    )
+                },
+                "column_type_families": {
+                    family: [
+                        {"type_oid": oid, "type_modifier": modifier}
+                        for oid, modifier in sorted(members)
+                    ]
+                    for family, members in sorted(
+                        media_store._COLLECTOR_POSTGRES_TYPE_FAMILIES.items()
+                    )
+                },
+                "column_metadata": {
+                    "nullability": "exact-model-match",
+                    "server_defaults": "forbidden",
+                    "collation": "built-in-type-default",
+                    "identity": "forbidden",
+                    "generated": "forbidden",
+                },
+            },
+            "runtime_supervision": {
+                "retry_initial_seconds": _RUNTIME_RETRY_INITIAL_SECONDS,
+                "retry_max_seconds": _RUNTIME_RETRY_MAX_SECONDS,
+                "alert_min_interval_seconds": (
+                    _RUNTIME_ALERT_MIN_INTERVAL_SECONDS
+                ),
+                "alert_reminder_seconds": _RUNTIME_ALERT_REMINDER_SECONDS,
+                "failure_stages": sorted(_RUNTIME_FAILURE_STAGES),
+                "retry_scope": "daemon-only",
+                "teardown_before_retry": True,
+                "recovery_boundary": "completed-cycle",
+            },
+            "release_preflight_alert_probe": {
+                "required_when_webhook_required": True,
+                "event": "release_preflight_probe",
+                "schema_version": 1,
+            },
+            "operations_alert_redaction_policy": {
+                "sensitive_key_parts": list(operations._SENSITIVE_KEY_PARTS),
+                "url_pattern": operations._URL.pattern,
+                "url_pattern_flags": int(operations._URL.flags),
+                "bearer_pattern": operations._BEARER.pattern,
+                "bearer_pattern_flags": int(operations._BEARER.flags),
+                "api_key_pattern": operations._API_KEY.pattern,
+                "api_key_pattern_flags": int(operations._API_KEY.flags),
             },
             "discovery_categories": list(_DISCOVERY_CATEGORIES),
             "query_stopwords": sorted(_QUERY_STOPWORDS),
@@ -1941,13 +2164,8 @@ def _sleep(seconds: float, stop: dict, *, lease_guard=None) -> None:
         slept += duration
 
 
-def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
-                 macro_themes: dict, clock: TradingClock | None = None,
-                 x_enabled: bool = False, x_interval: int = 86400,
-                 x_limit: int = 10, x_topic_limit: int = 3,
-                 *, health_state: CollectorHealthState | None = None,
-                 lease_guard=None) -> None:
-    stop = {"flag": False}
+def _install_collector_signal_handlers(stop: dict) -> None:
+    """Install one signal-responsive stop flag shared by every retry attempt."""
 
     def _handle(signum, _frame):
         logger.info("Received signal %s — finishing current cycle then exiting.", signum)
@@ -1956,6 +2174,18 @@ def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
     signal.signal(signal.SIGINT, _handle)
     signal.signal(signal.SIGTERM, _handle)
 
+
+def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
+                 macro_themes: dict, clock: TradingClock | None = None,
+                 x_enabled: bool = False, x_interval: int = 86400,
+                 x_limit: int = 10, x_topic_limit: int = 3,
+                 *, health_state: CollectorHealthState | None = None,
+                 lease_guard=None, stop: dict | None = None,
+                 on_cycle_success=None) -> None:
+    if stop is None:
+        stop = {"flag": False}
+        _install_collector_signal_handlers(stop)
+
     x_label = (f" + X discovery (up to {x_topic_limit} topics) every {x_interval}s"
                if x_enabled else "")
     logger.info("Polling %s [%s]%s%s every %ds%s. Ctrl-C / SIGTERM to stop.",
@@ -1963,14 +2193,19 @@ def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
                 " + macro" if macro_themes else "", x_label, interval,
                 " during extended trading hours" if clock else "")
     while not stop["flag"]:
-        if clock is not None and not clock.is_polling_time():
-            wake = clock.next_open()
-            wait = max(60.0, (wake - datetime.now(timezone.utc)).total_seconds())
-            logger.info("Outside trading hours — sleeping until %s",
-                        wake.strftime("%Y-%m-%d %H:%M UTC"))
-            _sleep(wait, stop, lease_guard=lease_guard)
-            continue
         try:
+            if clock is not None and not clock.is_polling_time():
+                wake = clock.next_open()
+                wait = max(
+                    60.0,
+                    (wake - datetime.now(timezone.utc)).total_seconds(),
+                )
+                logger.info(
+                    "Outside trading hours — sleeping until %s",
+                    wake.strftime("%Y-%m-%d %H:%M UTC"),
+                )
+                _sleep(wait, stop, lease_guard=lease_guard)
+                continue
             if lease_guard is not None:
                 lease_guard.assert_held()
             coverage = run_cycle(
@@ -1987,40 +2222,33 @@ def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
                 lease_guard.assert_held()
             if health_state is not None:
                 health_state.mark_cycle(coverage, completed_utc=time.time())
+            if coverage.get("complete") is True and on_cycle_success is not None:
+                on_cycle_success()
+            _sleep(interval, stop, lease_guard=lease_guard)
         except Exception as exc:  # noqa: BLE001 - sanitize before terminating
             error_kind = _exception_kind(exc)
             lease_lost = bool(
                 lease_guard is not None
                 and not bool(getattr(lease_guard, "is_held", False))
             )
-            if health_state is not None and not lease_lost:
-                health_state.mark_failure(error_kind)
-            logger.error(
-                "%s failed fatally (%s); process will restart",
-                "Collector lease" if lease_lost else "Poll cycle",
-                error_kind,
-            )
+            failure_type = "CollectorLeaseLost" if lease_lost else error_kind
+            if health_state is not None:
+                health_state.mark_failure(failure_type)
             if not lease_lost:
-                emit_alert(
-                    "collector", "cycle_failed", details={"error_type": error_kind}
-                )
-            try:
-                store.set_meta("poller:last_failure_utc", datetime.now(timezone.utc).timestamp())
-            except Exception as heartbeat_exc:  # noqa: BLE001
-                logger.error(
-                    "Could not record poller failure heartbeat (%s)",
-                    _exception_kind(heartbeat_exc),
-                )
-            # Provider availability failures are converted into explicit
-            # incomplete coverage inside their slot orchestrators. Reaching
-            # this boundary means a database, schema, invariant, or programming
-            # failure. Sleeping forever would leave a permanently unhealthy
-            # Machine alive because Fly health checks are observational only.
-            failure = "collector singleton lease lost" if lease_lost else (
-                f"collector cycle failed ({error_kind})"
-            )
-            raise RuntimeError(failure) from None
-        _sleep(interval, stop, lease_guard=lease_guard)
+                try:
+                    store.set_meta(
+                        "poller:last_failure_utc",
+                        datetime.now(timezone.utc).timestamp(),
+                    )
+                except Exception as heartbeat_exc:  # noqa: BLE001
+                    logger.info(
+                        "Poller failure heartbeat unavailable (%s)",
+                        _exception_kind(heartbeat_exc),
+                    )
+            raise _CollectorRuntimeFailure(
+                "lease_lost" if lease_lost else "cycle",
+                failure_type,
+            ) from None
     logger.info("Stopped.")
 
 
@@ -2231,7 +2459,8 @@ def _build_parser(env: Mapping[str, str] | None = None) -> argparse.ArgumentPars
         action="store_true",
         help=(
             "Validate production configuration, schema, and least-privilege DB access "
-            "without provider calls or durable writes"
+            "without provider calls or database writes; when required, send one "
+            "sanitized webhook delivery probe"
         ),
     )
     p.add_argument(
@@ -2310,7 +2539,7 @@ def _run_preflight(
     args: argparse.Namespace,
     env: Mapping[str, str],
 ) -> None:
-    """Run the non-mutating production release gate and print sanitized JSON."""
+    """Run the database-read-only release gate and optional webhook probe."""
     if (env.get("MEDIA_AUTO_MIGRATE") or "").strip().lower() not in {
         "0", "false", "no", "off",
     }:
@@ -2349,15 +2578,33 @@ def _run_preflight(
                 canonical_json(preflight),
             )
             raise RuntimeError("collector database contract is not ready")
+        collector_build_id = build_identity()
+        alert_probe_delivered = False
+        if webhook_required:
+            alert_probe_delivered = bool(emit_alert(
+                "collector",
+                "release_preflight_probe",
+                severity="info",
+                details={
+                    "schema_version": 1,
+                    "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
+                    "collector_semantics_id": semantics_id,
+                    "collector_build_id": collector_build_id,
+                    "database_contract_ready": True,
+                },
+            ))
+            if not alert_probe_delivered:
+                raise RuntimeError("collector alert preflight probe was not delivered")
         print(canonical_json({
-            "schema_version": 1,
+            "schema_version": 2,
             "status": "ok",
             "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
             "collector_semantics_id": semantics_id,
-            "collector_build_id": build_identity(),
+            "collector_build_id": collector_build_id,
             "database_contract": preflight,
             "health_port": args.health_port,
             "alert_webhook_required": webhook_required,
+            "alert_probe_delivered": alert_probe_delivered,
         }))
     except Exception as exc:  # noqa: BLE001 - never render a DSN or DB error string
         parser.error(f"collector preflight failed ({_exception_kind(exc)})")
@@ -2366,21 +2613,161 @@ def _run_preflight(
             store.close()
 
 
-def _wait_as_duplicate_worker() -> None:
-    """Stay passive without a restart/webhook storm until Fly stops this Machine."""
+def _close_collector_attempt(store, lease_guard) -> None:
+    """Best-effort cleanup before a supervised store/lease reacquisition."""
+    if store is not None and hasattr(store, "_collector_lease_guard"):
+        del store._collector_lease_guard
+    if lease_guard is not None:
+        try:
+            lease_guard.close()
+        except Exception as exc:  # noqa: BLE001 - keep the supervisor alive
+            logger.info("Collector lease cleanup failed (%s)", _exception_kind(exc))
+    if store is not None:
+        try:
+            store.close()
+        except Exception as exc:  # noqa: BLE001 - keep the supervisor alive
+            logger.info("Collector store cleanup failed (%s)", _exception_kind(exc))
+
+
+def _run_supervised_daemon(
+    *,
+    db_url: str | None,
+    direct_url: str | None,
+    tickers: list[str],
+    sources: list[str],
+    interval: int,
+    macro_themes: dict,
+    global_only: bool,
+    trading_hours: bool,
+    x_enabled: bool,
+    x_interval: int,
+    x_limit: int,
+    x_topic_limit: int,
+    health_state: CollectorHealthState | None,
+    health_port: int | None,
+) -> None:
+    """Supervise daemon attempts without restarting or duplicating collection."""
     stop = {"flag": False}
+    _install_collector_signal_handlers(stop)
+    incident = _CollectorRuntimeIncident()
+    consecutive_failures = 0
+    health_server = None
+    clock = None
+    try:
+        while not stop["flag"]:
+            store = None
+            collector_lease = None
+            failure = None
+            failure_stage = "health_listener"
+            try:
+                if health_state is not None and health_server is None:
+                    if health_port is None:
+                        raise RuntimeError("health listener port is unavailable")
+                    health_server = start_collector_health_server(
+                        health_state, port=health_port
+                    )
+                    logger.info(
+                        "Private collector health listener started on port %d",
+                        health_port,
+                    )
 
-    def _handle(signum, _frame):
-        logger.info("Passive duplicate received signal %s; exiting", signum)
-        stop["flag"] = True
+                failure_stage = "daemon_startup"
+                if trading_hours and clock is None:
+                    clock = TradingClock()
 
-    signal.signal(signal.SIGINT, _handle)
-    signal.signal(signal.SIGTERM, _handle)
-    logger.error(
-        "Duplicate collector is passive; no provider or database writes will run"
-    )
-    while not stop["flag"]:
-        time.sleep(5.0)
+                failure_stage = "store_startup"
+                store = open_store(db_url)
+
+                if global_only and getattr(store, "dialect", None) == "postgresql":
+                    failure_stage = "lease_acquisition"
+
+                    def _on_collector_lease_loss(_failure_type: str) -> None:
+                        if health_state is not None:
+                            health_state.mark_failure("CollectorLeaseLost")
+
+                    collector_lease = store.acquire_collector_lease(
+                        direct_url=direct_url,
+                        on_loss=_on_collector_lease_loss,
+                    )
+                    if collector_lease is None:
+                        raise _CollectorRuntimeFailure(
+                            "lease_contended", "DuplicateCollectorWorker"
+                        )
+                    store._collector_lease_guard = collector_lease
+                    logger.info("PostgreSQL singleton collector lease acquired")
+
+                store_label = _store_log_label(db_url)
+                logger.info(
+                    "Store: %s · news themes: %d · news cadence: %ds · X cadence: %ds",
+                    store_label,
+                    len(macro_themes),
+                    interval,
+                    x_interval,
+                )
+
+                def _on_cycle_success() -> None:
+                    nonlocal consecutive_failures
+                    consecutive_failures = 0
+                    incident.mark_recovered()
+
+                failure_stage = "cycle"
+                poll_forever(
+                    store,
+                    tickers,
+                    sources,
+                    interval,
+                    macro_themes,
+                    clock,
+                    x_enabled=x_enabled,
+                    x_interval=x_interval,
+                    x_limit=x_limit,
+                    x_topic_limit=x_topic_limit,
+                    health_state=health_state,
+                    lease_guard=collector_lease,
+                    stop=stop,
+                    on_cycle_success=_on_cycle_success,
+                )
+            except _CollectorRuntimeFailure as exc:
+                failure = exc
+            except Exception as exc:  # noqa: BLE001 - sanitize and retry daemon only
+                failure = _CollectorRuntimeFailure(
+                    failure_stage, _exception_kind(exc)
+                )
+            finally:
+                _close_collector_attempt(store, collector_lease)
+
+            if stop["flag"]:
+                break
+            if failure is None:
+                failure = _CollectorRuntimeFailure(
+                    "cycle", "UnexpectedDaemonReturn"
+                )
+            consecutive_failures += 1
+            retry_delay = _collector_retry_delay(consecutive_failures)
+            if health_state is not None:
+                health_state.mark_failure(failure.error_type)
+            transition_or_reminder = incident.mark_failure(
+                stage=failure.stage,
+                error_type=failure.error_type,
+                retry_delay_seconds=retry_delay,
+            )
+            log = logger.error if transition_or_reminder else logger.info
+            log(
+                "Collector runtime unhealthy at %s (%s); retrying in %.0fs",
+                failure.stage,
+                failure.error_type,
+                retry_delay,
+            )
+            _sleep(retry_delay, stop)
+    finally:
+        if health_server is not None:
+            try:
+                health_server.close()
+            except Exception as exc:  # noqa: BLE001 - sanitize shutdown failures
+                logger.info(
+                    "Collector health listener cleanup failed (%s)",
+                    _exception_kind(exc),
+                )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -2474,100 +2861,100 @@ def main(argv: list[str] | None = None) -> None:
         _run_preflight(p, args, env)
         return
 
-    store = open_store(args.db)
-    health_server = None
-    health_state = None
-    collector_lease = None
-    try:
-        if not args.once and args.health_port is not None:
-            if not 1 <= args.health_port <= 65535:
-                p.error("--health-port must be between 1 and 65535")
-            static_query_slots = _expected_query_slots(
-                tickers, ticker_sources, macro_themes
-            )
-            health_state = CollectorHealthState(
-                max_age_seconds=_collector_max_age_seconds(),
-                expected_query_slot_ids={
-                    _query_slot_id(provider, query_key)
-                    for provider, query_key in static_query_slots
-                },
-                build_revision=(env.get("GIT_REVISION") or "").strip() or None,
-                machine_id=(env.get("FLY_MACHINE_ID") or "").strip() or None,
-            )
-            health_server = start_collector_health_server(
-                health_state, port=args.health_port
-            )
-            logger.info(
-                "Private collector health listener started on port %d",
-                args.health_port,
-            )
+    direct_url = (env.get("MEDIA_DB_DIRECT_URL") or "").strip() or None
+    if args.once:
+        # One-shot (cron/manual) remains fail-fast. A scheduler can decide when
+        # to invoke it again; hiding its failure in a daemon loop would make the
+        # command's exit status dishonest.
+        store = open_store(args.db)
+        collector_lease = None
+        try:
+            if args.global_only and getattr(store, "dialect", None) == "postgresql":
 
-        def _on_collector_lease_loss(failure_type: str) -> None:
-            logger.error("PostgreSQL singleton collector lease was lost")
-            if health_state is not None:
-                health_state.mark_failure("CollectorLeaseLost")
-            emit_alert(
-                "collector",
-                "singleton_lease_lost",
-                severity="critical",
-                details={
-                    "singleton_enforced": True,
-                    "failure_type": failure_type,
-                },
-            )
+                def _on_one_shot_lease_loss(failure_type: str) -> None:
+                    emit_alert(
+                        "collector",
+                        "singleton_lease_lost",
+                        severity="critical",
+                        details={
+                            "singleton_enforced": True,
+                            "failure_type": _runtime_failure_type(failure_type),
+                        },
+                    )
 
-        if args.global_only and getattr(store, "dialect", None) == "postgresql":
-            collector_lease = store.acquire_collector_lease(
-                direct_url=(env.get("MEDIA_DB_DIRECT_URL") or "").strip() or None,
-                on_loss=_on_collector_lease_loss,
-            )
-            if collector_lease is None:
-                if health_state is not None:
-                    health_state.mark_failure("DuplicateCollectorWorker")
-                emit_alert(
-                    "collector",
-                    "duplicate_worker_blocked",
-                    severity="warning",
-                    details={"singleton_enforced": True},
+                collector_lease = store.acquire_collector_lease(
+                    direct_url=direct_url,
+                    on_loss=_on_one_shot_lease_loss,
                 )
-                if args.once:
+                if collector_lease is None:
                     raise RuntimeError(
                         "another global collector owns the singleton lease"
                     )
-                _wait_as_duplicate_worker()
-                return
-            store._collector_lease_guard = collector_lease
-            logger.info("PostgreSQL singleton collector lease acquired")
-        store_label = _store_log_label(args.db)
-        logger.info(
-            "Store: %s · news themes: %d · news cadence: %ds · X cadence: %ds",
-            store_label,
-            len(macro_themes),
-            args.interval,
-            args.x_interval,
-        )
+                store._collector_lease_guard = collector_lease
+            logger.info(
+                "Store: %s · news themes: %d · news cadence: %ds · X cadence: %ds",
+                _store_log_label(args.db),
+                len(macro_themes),
+                args.interval,
+                args.x_interval,
+            )
+            run_cycle(
+                store,
+                tickers,
+                ticker_sources,
+                macro_themes,
+                x_enabled,
+                x_interval=args.x_interval,
+                x_limit=args.x_limit,
+                x_topic_limit=args.x_topics,
+                force_x=True,
+            )
+        finally:
+            _close_collector_attempt(store, collector_lease)
+        return
 
-        if args.once:
-            # One-shot (cron/manual) always polls — gating is the daemon's job;
-            # schedule cron during trading hours externally if desired.
-            run_cycle(store, tickers, ticker_sources, macro_themes, x_enabled,
-                      x_interval=args.x_interval, x_limit=args.x_limit,
-                      x_topic_limit=args.x_topics, force_x=True)
-        else:
-            clock = TradingClock() if args.trading_hours else None
-            poll_forever(store, tickers, ticker_sources, args.interval, macro_themes, clock,
-                         x_enabled=x_enabled, x_interval=args.x_interval,
-                         x_limit=args.x_limit, x_topic_limit=args.x_topics,
-                         health_state=health_state, lease_guard=collector_lease)
-    finally:
-        if hasattr(store, "_collector_lease_guard"):
-            del store._collector_lease_guard
-        if health_server is not None:
-            health_server.close()
-        if collector_lease is not None:
-            collector_lease.close()
-        store.close()
+    health_state = None
+    if args.health_port is not None:
+        if not 1 <= args.health_port <= 65535:
+            p.error("--health-port must be between 1 and 65535")
+        static_query_slots = _expected_query_slots(
+            tickers, ticker_sources, macro_themes
+        )
+        health_state = CollectorHealthState(
+            max_age_seconds=_collector_max_age_seconds(),
+            expected_query_slot_ids={
+                _query_slot_id(provider, query_key)
+                for provider, query_key in static_query_slots
+            },
+            build_revision=(env.get("GIT_REVISION") or "").strip() or None,
+            machine_id=(env.get("FLY_MACHINE_ID") or "").strip() or None,
+        )
+    _run_supervised_daemon(
+        db_url=args.db,
+        direct_url=direct_url,
+        tickers=tickers,
+        sources=ticker_sources,
+        interval=args.interval,
+        macro_themes=macro_themes,
+        global_only=args.global_only,
+        trading_hours=args.trading_hours,
+        x_enabled=x_enabled,
+        x_interval=args.x_interval,
+        x_limit=args.x_limit,
+        x_topic_limit=args.x_topics,
+        health_state=health_state,
+        health_port=args.health_port,
+    )
+
+
+def _main_entrypoint() -> None:
+    """Exit nonzero without printing credential-bearing exception details."""
+    try:
+        main()
+    except Exception as exc:  # noqa: BLE001 - sanitize the executable boundary
+        logger.critical("Collector exited (%s)", _exception_kind(exc))
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
-    main()
+    _main_entrypoint()

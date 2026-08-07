@@ -15,7 +15,8 @@ primary_region = "iad"          # keep close to the Fly MPG primary region
 
 [deploy]
   # The image ENTRYPOINT remains tradingagents-poller, so this replaces only
-  # its CMD. The read-only preflight must pass before Fly updates the worker.
+  # its CMD. The database-read-only preflight and sanitized webhook probe must
+  # pass before Fly updates the worker.
   release_command = "--global-only --preflight"
   release_command_timeout = "2m"
   # Stop the sole old worker before starting the new one. This avoids a rolling

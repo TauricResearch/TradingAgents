@@ -70,12 +70,14 @@ fly logs -a tradagent
 The deploy wrapper refuses a dirty worktree, embeds the exact commit, waits for
 the new process to complete its own healthy cycle, and verifies that the passing
 check belongs to the sole started Machine running that exact revision. Before it
-changes Fly, it saves the deployed image and configuration together. A failed or
-interrupted rollout restores both, including when the legacy image does not know
-the new release command or health endpoint. It refuses to roll back if another
-release has superseded its candidate. Fly uses an immediate one-worker handoff
-rather than overlapping collectors; a PostgreSQL advisory lease independently
-blocks an accidental second worker or manual one-shot from calling providers.
+changes Fly, it saves the deployed image and configuration together and requires
+the baseline Machine's `collector_health` check to pass. A failed or interrupted
+rollout restores both only while exact ownership of the candidate remains
+provable. A legacy Machine without that check requires the narrowly scoped,
+one-invocation break-glass procedure below; its snapshot is restorable but is not
+represented as healthy. Fly uses an immediate one-worker handoff rather than
+overlapping collectors; a PostgreSQL advisory lease independently blocks an
+accidental second worker or manual one-shot from calling providers.
 
 By default the wrapper deploys only the exact commit currently advertised by the
 authenticated `origin/main` remote branch; it never trusts a possibly stale local
@@ -86,18 +88,100 @@ transport output, which can contain credentials. A different configured target
 uses `COLLECTOR_DEPLOY_TARGET_REF=<remote>/<branch>`. An explicitly reviewed
 emergency rollout from another ref must opt in with
 `COLLECTOR_DEPLOY_ALLOW_UNMERGED=true`; do not make that setting persistent. The
-wrapper also takes a local per-app lock, while the release-identity checks prevent
-a concurrent deploy from another host from being mistaken for, or rolled back by,
-this one.
+wrapper also takes a local per-app lock and atomically creates
+`refs/heads/tradingagents-deploy-lock/<app>` on the shared writable Git remote.
+The default lock remote is `fork`; set
+`COLLECTOR_DEPLOY_LOCK_REMOTE=<remote>` only when every deployment host uses that
+same repository. The alias is accepted only when its one expanded,
+credential-free push URL resolves to the checked-in canonical identity
+`github.com/clarkipeng/tradingagents`; the wrapper then uses that captured URL
+for both reads and writes. Fetch/push splits, multiple push URLs, embedded HTTPS
+credentials, or a different fork fail before Fly is read. This remote lock is
+held from before the rollback snapshot
+until forward verification or fenced rollback completes. Creation is
+non-forced, ownership is reauthenticated around Fly mutations, and cleanup uses
+an exact `--force-with-lease`, so one process cannot delete another process's
+lock. Git transport output is suppressed because remote URLs can contain
+credentials, inherited Git tracing is disabled, and a lost Git acknowledgement
+is reconciled from the exact server ref. Every attempt receives a random,
+non-secret image-tag suffix while the embedded `GIT_REVISION` remains the exact
+reviewed SHA. After the candidate appears, success and rollback ownership require
+its exact nonce-tag, Machine ID, immutable instance ID, digest, Fly release ID,
+release version, rollback lineage, and configuration fingerprint. Release
+history must also prove that the candidate's nearest prior complete release is
+the saved baseline (or the exact release most recently restored by this fenced
+wrapper) before either success or rollback.
+
+Rollback does not start a second unguarded `fly deploy`. The helper acquires
+Fly's exclusive lease on the exact candidate Machine, requires the lease version
+and two independent API views to reproduce the authenticated tuple and sole,
+complete, stateless Machine topology. It authenticates the full saved baseline,
+pins its image by digest, records a hashed from/to lineage, and submits the full
+config exactly once with both the lease nonce and candidate `instance_id` as
+`current_version`. It then keeps the bounded ten-minute lease while fresh GETs
+prove the new instance, digest-pinned config, started state, healthy host, and
+one-Machine topology. Lost update responses are reconciled with reads and never
+retried. A release that lands before the lease changes that version; a release
+attempted after acquisition cannot update the leased Machine. Either case fails
+closed or serializes after the rollback, so this attempt cannot erase an
+intervening good release. If explicit lease release fails, the helper fails and
+the Git mutex is preserved until an operator waits for lease expiry and
+reconciles state. No token, identifier, file path, or API response body is logged.
+
+A same-commit deployment or configuration-only update from another host is
+treated as superseding this attempt and is never rolled back.
+An empty, multi-Machine, or otherwise unbound state after an interrupted immediate
+handoff is also ambiguous: the wrapper fails closed and refuses automatic rollback
+instead of risking replacement of another actor's release.
+
+All production releases must use this wrapper. The remote ref serializes wrapper
+deployments across hosts, but Git cannot prevent a raw `fly deploy`, direct
+Machines API call, or force-update of the lock ref by an administrator. The
+Machine tuple, release-history checks, health verification, and rollback lease
+still detect those cases and fail closed; they do not make unsupported mutation
+paths safe.
+
+Once `fly deploy` has been invoked, the lock is releasable only after the wrapper
+authenticates a healthy exact forward state or an exact completed fenced
+rollback. A failed CLI acknowledgement followed by a temporarily unchanged
+Machine is not terminal—the server operation may still land—so the wrapper
+leaves the lock in place for manual reconciliation. It does the same after an
+unverifiable or failed rollback and after a signal interrupts a mutating child.
+
+An ungraceful host crash intentionally leaves its remote lock in place. Never
+auto-expire or force-delete it. First prove there is no deploy process and no Fly
+mutation in progress, then read the one exact ref and conditionally delete only
+the SHA you inspected through the checked-in recovery helper:
+
+```bash
+scripts/unlock_collector_deploy.sh inspect tradagent
+# Copy the exact remote owner SHA printed above only after Fly reconciliation.
+scripts/unlock_collector_deploy.sh release tradagent <exact-owner-sha>
+```
+
+The helper validates the same single canonical push URL as the deploy wrapper,
+uses it for both read and exact-CAS delete, suppresses Git transport/tracing, and
+reconciles a lost delete acknowledgement. A crash also leaves the local
+`$TMPDIR/tradingagents-tradagent.deploy.lock`; the helper accepts only its exact
+one-file owner record, refuses a live PID, and removes a verified dead local lock
+without recursive deletion. If either command reports malformed state, a live
+PID, or a changed owner, stop: the lock is not yours to remove.
+
+Current `fly releases --json` output is finite. If enough intervening failed
+attempts push the baseline outside that history window, predecessor proof fails
+closed and automatic rollback is intentionally unavailable; do not bypass it.
 
 The image build rejects any missing or non-full-lowercase Git SHA, so a raw
 `fly deploy` cannot create an untraceable production image. It records the
 accepted value in OCI metadata and
 `/opt/tradingagents/REVISION`. Before Fly replaces the running worker, its
 temporary release Machine automatically runs `--global-only --preflight`. That
-read-only command validates the frozen collector configuration, database schema,
-and restricted runtime role without calling a provider or writing a receipt. Any
-nonzero result stops the deployment before the persistent worker changes. A
+database-read-only command validates the frozen collector configuration,
+database schema, and restricted runtime role without calling a provider or
+writing a receipt. Because production requires the webhook, it also sends one
+sanitized `release_preflight_probe` and fails unless the destination confirms
+delivery. Any nonzero result stops the deployment before the persistent worker
+changes. A
 failed release still advances Fly's release history, so the app-level version can
 name the failed attempt while the sole started Machine correctly remains on the
 last complete release. Verify the running Machine image/release, not only the
@@ -105,24 +189,45 @@ app-level version, when investigating a stopped rollout.
 
 Provider responses are byte-bounded and schema-validated. Malformed X error
 envelopes and non-RSS HTML cannot masquerade as valid empty observations.
-Only transient Google transport failures receive bounded retries; schema or
-database failures do not refetch, and a per-cycle circuit breaker limits a broad
-Google outage to two failed query slots. PostgreSQL metadata writes are atomic,
+Only transient Google transport failures receive immediate bounded retries, and
+a per-cycle circuit breaker limits a broad Google outage to two failed query
+slots. After any daemon-level database failure, the next supervised attempt may
+request free editorial-news slots again; stable item IDs deduplicate stored
+evidence. Paid X calls are separately protected by durable per-request budgets
+and the exact daily-cycle identity, so a retry cannot silently spend twice.
+PostgreSQL metadata writes are atomic,
 transaction-local timeouts prevent a row lock from hanging the worker
 indefinitely, and a 30-second direct-session heartbeat terminates collection
 after a lost singleton lock. The ordinary database engine uses only
-PgBouncer-compatible network startup parameters; every transaction applies
-fixed `SET LOCAL` timeouts and the pinned search path, so settings cannot leak to
-the next pooled client. The session-affine direct engine separately retains its
-startup read-only fail-safe. Preflight proves session affinity and cross-session
-advisory exclusion; an unknown database host fails closed unless
+PgBouncer-compatible network startup parameters and explicitly disables
+psycopg named prepared statements; every transaction applies fixed `SET LOCAL`
+timeouts and the pinned search path, so statement names or settings cannot leak
+to the next transaction-pooled client. The session-affine direct engine
+separately retains its startup read-only fail-safe. Preflight proves session
+affinity and cross-session advisory exclusion; an unknown database host fails
+closed unless
 `MEDIA_DB_DIRECT_URL` is configured. These rules are pinned as collector policy
-v2 (`collector_d8193e226517a021c3c19861`) under protocol
-`protocol_e4102248d1b5a3e54342de01`. Only the exact historical identity pairs in
+v2 (`collector_f6aaca9c1014887d9e78da82`) under protocol
+`protocol_b4c36948d856e9a82e7167bb`. Only the exact historical identity pairs in
 the protocol compatibility list remain readable, including the currently
 deployed `collector_fa2421d5a25636de4f035323` lineage. A candidate that failed
 before producing live evidence is not made compatible merely because Fly
 created a failed release record.
+
+The schema gate authenticates all 75 collector columns, including exact
+nullability and the absence of server defaults, identity/generated expressions,
+bounded strings, domains, or alternate collations. Historical `TEXT` and fresh
+unbounded `VARCHAR` columns are treated as one type family, but each essential
+`CHECK` constraint must still match an explicitly approved hash. Only the four
+representation-sensitive checks allow both hashes produced by reparsing the
+reviewed migrations against those types. Do not approve a new hash merely
+because PostgreSQL preserved a different expression tree through an `ALTER
+TYPE`; restore the reviewed migration definition and rerun preflight.
+
+CI recreates this contract on PostgreSQL 16 and routes two independent psycopg
+clients through a real PgBouncer transaction pool with one backend and named
+prepared statements disabled. It also runs the packaged collector image through
+the pool while keeping the advisory-lock connection direct, matching production.
 
 If release preflight rejects the database, its log projection contains only a
 fixed failure stage and exception-type vocabulary, never the DSN or database
@@ -138,9 +243,16 @@ reports whether the current process has produced complete coverage; it cannot be
 satisfied solely by a previous image's recent receipts. The port is not a public
 API. A hashed static-slot manifest prevents malformed empty coverage from
 passing, and an incomplete current-day X cycle stays unhealthy during later
-hourly news cycles. Look for a passing `collector_health` check, a complete
-global collection cycle, and no repeated restart loop. The deploy wrapper also
-tests the alert path
+hourly news cycles. A daemon runtime failure keeps the process alive but
+unhealthy, closes the store and any singleton lease, and reacquires both before
+another provider call. Retries use signal-responsive exponential backoff from 5
+seconds to a 300-second cap. Identical incidents emit one transition alert plus
+at most one daily reminder; changed failure stages/types are coalesced to at
+most one transition alert per hour, and recovery is reported only after a
+complete cycle. CLI validation and `--once` remain fail-fast. Look for a passing
+`collector_health` check, a
+complete global collection cycle, and no repeated restart loop. The deploy
+wrapper also tests the alert path
 from inside the exact running Machine before it reports success. You can repeat
 that non-provider test independently after a webhook rotation:
 
@@ -208,6 +320,20 @@ fly scale count 1 -a tradagent
 fly status -a tradagent
 scripts/deploy_collector.sh tradagent
 ```
+
+For the single transition from a legacy baseline that has no
+`collector_health` check, review its exact image and configuration snapshot first,
+then apply the override to that command only:
+
+```bash
+COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE=true \
+  scripts/deploy_collector.sh tradagent
+```
+
+The wrapper logs a prominent warning. Do not export or persist this variable, and
+do not use it after the health-enabled collector is active. Under break-glass the
+wrapper can restore the exact baseline image/configuration, but it cannot certify
+that baseline as healthy.
 
 ## Rotate credentials
 
@@ -310,7 +436,8 @@ a forward migration, then explain which snapshots are affected.
 - collector-only tests and migration checks pass;
 - database backup and restore procedure has been exercised;
 - Fly image and configuration match the reviewed commit;
-- the automatic read-only release preflight succeeds;
+- the automatic database-read-only release preflight succeeds and its sanitized
+  webhook probe arrives;
 - `collector_health` is passing for the new Machine;
 - the image revision label and `/opt/tradingagents/REVISION` match the commit;
 - only the collector runtime has data-source secrets;

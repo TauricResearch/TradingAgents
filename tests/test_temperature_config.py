@@ -10,6 +10,10 @@ import pytest
 
 from tradingagents.llm_clients.factory import create_llm_client
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Model .* is not in the known model list.*:RuntimeWarning"
+)
+
 
 @pytest.mark.unit
 class TestTemperatureForwarding:

@@ -4,7 +4,7 @@ import logging
 
 import pytest
 
-from tradingagents import poller
+from tradingagents import operations, poller
 from tradingagents.dataflows import media_store
 from tradingagents.dataflows.media_sources import (
     ProviderResponseError,
@@ -1394,13 +1394,15 @@ def test_collector_x_audit_reports_exact_cycle_request_counts():
 def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_parts():
     manifest = poller.collector_semantics_manifest()
 
-    assert manifest["schema_version"] == 4
+    assert manifest["schema_version"] == 6
     assert manifest["policy"] == "global-only-editorial-and-trend-reaction-v2"
-    assert manifest["collector_semantics_id"] == "collector_d8193e226517a021c3c19861"
+    assert manifest["collector_semantics_id"] == "collector_f6aaca9c1014887d9e78da82"
     assert {
         "postgres_collector_lease",
         "postgres_advisory_lock_held",
         "postgres_store_initialization",
+        "postgres_column_type_family",
+        "postgres_column_contract_authentication",
         "postgres_connect_args",
         "postgres_transaction_hook_install",
         "postgres_transaction_hook_apply",
@@ -1408,8 +1410,25 @@ def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_pa
         "postgres_collector_direct_engine",
         "postgres_session_affine_connection",
         "postgres_acquire_collector_lease",
+        "postgres_collector_runtime_preflight",
+        "collector_daemon_sleep",
+        "collector_signal_handlers",
+        "collector_runtime_failure",
+        "collector_runtime_failure_type",
+        "collector_retry_delay",
+        "collector_runtime_incident",
+        "collector_daemon_loop",
+        "collector_attempt_cleanup",
+        "collector_daemon_supervisor",
+        "collector_preflight",
+        "collector_main",
+        "collector_executable_boundary",
+        "operations_alert_text_redaction",
+        "operations_alert_structure_redaction",
+        "operations_alert_delivery",
     } <= manifest["components"].keys()
     assert manifest["semantic_values"]["postgres_connection_contract"] == {
+        "prepare_threshold": None,
         "transaction_settings": list(
             media_store._POSTGRES_TRANSACTION_SETTINGS
         ),
@@ -1421,6 +1440,54 @@ def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_pa
         "fly_mpg_pool_host_pattern": media_store._FLY_MPG_POOL_HOST.pattern,
         "fly_mpg_direct_host_pattern": media_store._FLY_MPG_DIRECT_HOST.pattern,
         "local_postgres_hosts": sorted(media_store._LOCAL_POSTGRES_HOSTS),
+    }
+    assert manifest["semantic_values"]["postgres_schema_contract"] == {
+        "check_constraint_definition_hashes": {
+            f"{table}.{constraint}": sorted(hashes)
+            for (table, constraint), hashes in sorted(
+                media_store._COLLECTOR_CHECK_CONSTRAINT_HASHES.items()
+            )
+        },
+        "column_type_families": {
+            family: [
+                {"type_oid": oid, "type_modifier": modifier}
+                for oid, modifier in sorted(members)
+            ]
+            for family, members in sorted(
+                media_store._COLLECTOR_POSTGRES_TYPE_FAMILIES.items()
+            )
+        },
+        "column_metadata": {
+            "nullability": "exact-model-match",
+            "server_defaults": "forbidden",
+            "collation": "built-in-type-default",
+            "identity": "forbidden",
+            "generated": "forbidden",
+        },
+    }
+    assert manifest["semantic_values"]["runtime_supervision"] == {
+        "retry_initial_seconds": 5.0,
+        "retry_max_seconds": 300.0,
+        "alert_min_interval_seconds": 3600,
+        "alert_reminder_seconds": 86400,
+        "failure_stages": sorted(poller._RUNTIME_FAILURE_STAGES),
+        "retry_scope": "daemon-only",
+        "teardown_before_retry": True,
+        "recovery_boundary": "completed-cycle",
+    }
+    assert manifest["semantic_values"]["release_preflight_alert_probe"] == {
+        "required_when_webhook_required": True,
+        "event": "release_preflight_probe",
+        "schema_version": 1,
+    }
+    assert manifest["semantic_values"]["operations_alert_redaction_policy"] == {
+        "sensitive_key_parts": list(operations._SENSITIVE_KEY_PARTS),
+        "url_pattern": operations._URL.pattern,
+        "url_pattern_flags": int(operations._URL.flags),
+        "bearer_pattern": operations._BEARER.pattern,
+        "bearer_pattern_flags": int(operations._BEARER.flags),
+        "api_key_pattern": operations._API_KEY.pattern,
+        "api_key_pattern_flags": int(operations._API_KEY.flags),
     }
     assert manifest["semantic_values"]["collection_scope"] == {
         "ticker_watchlist": False,
@@ -1525,6 +1592,14 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
         },
     )
     monkeypatch.setattr(poller, "build_identity", lambda: "build_" + "a" * 24)
+    alerts = []
+
+    def fake_alert(component, event, **kwargs):
+        calls.append("alert")
+        alerts.append((component, event, kwargs))
+        return True
+
+    monkeypatch.setattr(poller, "emit_alert", fake_alert)
     for provider_name in (
         "fetch_global_news", "fetch_x_topic", "fetch_x_trends",
     ):
@@ -1546,15 +1621,107 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
     ])
 
     payload = json.loads(capsys.readouterr().out)
+    assert payload["schema_version"] == 2
     assert payload["status"] == "ok"
     assert payload["database_contract"]["ready"] is True
     assert payload["alert_webhook_required"] is True
-    assert calls == ["open", "preflight", "close"]
+    assert payload["alert_probe_delivered"] is True
+    assert calls == ["open", "preflight", "alert", "close"]
+    assert alerts == [(
+        "collector",
+        "release_preflight_probe",
+        {
+            "severity": "info",
+            "details": {
+                "schema_version": 1,
+                "protocol_id": poller.GLOBAL_EVENT_V2_PROTOCOL_ID,
+                "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL[
+                    "evidence"
+                ]["expected_collector_semantics_id"],
+                "collector_build_id": "build_" + "a" * 24,
+                "database_contract_ready": True,
+            },
+        },
+    )]
     rendered = json.dumps(payload)
     assert secret_db not in rendered
     assert secret_direct_db not in rendered
     assert secret_webhook not in rendered
     assert "x-secret-token" not in rendered
+
+
+@pytest.mark.unit
+def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
+    monkeypatch, capsys,
+):
+    secret_db = "postgresql+psycopg://collector:secret@db.internal/evidence"
+    calls = []
+
+    class Store:
+        def collector_runtime_preflight(self, *, direct_url=None):
+            assert direct_url is None
+            calls.append("preflight")
+            return {"contract_version": 3, "ready": True}
+
+        def close(self):
+            calls.append("close")
+
+    monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
+    monkeypatch.setenv("MEDIA_AUTO_MIGRATE", "false")
+    monkeypatch.setenv("MEDIA_REQUIRE_ALERT_WEBHOOK", "true")
+    monkeypatch.setenv(
+        "TRADINGAGENTS_ALERT_WEBHOOK_URL",
+        "https://hooks.example.invalid/private-token",
+    )
+    monkeypatch.setenv("X_BEARER_TOKEN", "x-secret-token")
+    monkeypatch.delenv("MEDIA_DB_DIRECT_URL", raising=False)
+    monkeypatch.setattr(
+        poller,
+        "collector_semantics_manifest",
+        lambda: {
+            "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+                "expected_collector_semantics_id"
+            ]
+        },
+    )
+    monkeypatch.setattr(poller, "build_identity", lambda: "build_" + "b" * 24)
+    monkeypatch.setattr(
+        poller,
+        "open_store",
+        lambda *_args, **_kwargs: calls.append("open") or Store(),
+    )
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *_args, **_kwargs: calls.append("alert") or False,
+    )
+    for provider_name in (
+        "fetch_global_news", "fetch_x_topic", "fetch_x_trends",
+    ):
+        monkeypatch.setattr(
+            poller,
+            provider_name,
+            lambda *_args, **_kwargs: pytest.fail("preflight called a provider"),
+        )
+
+    with pytest.raises(SystemExit):
+        poller.main([
+            "--global-only",
+            "--preflight",
+            "--sources", "x",
+            "--no-trading-hours",
+            "--interval", "3600",
+            "--x-interval", "86400",
+            "--health-port", "5500",
+            "--db", secret_db,
+        ])
+
+    captured = capsys.readouterr()
+    assert calls == ["open", "preflight", "alert", "close"]
+    assert captured.out == ""
+    assert "collector preflight failed (RuntimeError)" in captured.err
+    assert secret_db not in captured.err
+    assert "secret" not in captured.err
 
 
 @pytest.mark.unit
@@ -1595,25 +1762,158 @@ def test_preflight_failure_never_renders_database_exception_text(monkeypatch, ca
 
 
 @pytest.mark.unit
-def test_duplicate_daemon_stays_passive_without_restart_alert_storm(monkeypatch):
-    expected_direct = "postgresql+psycopg://collector:secret@direct.db/evidence"
-    observed = {"waited": 0, "closed": 0, "alerts": []}
+def test_runtime_retry_backoff_is_exponential_and_capped():
+    assert [poller._collector_retry_delay(attempt) for attempt in range(1, 10)] == [
+        5.0,
+        10.0,
+        20.0,
+        40.0,
+        80.0,
+        160.0,
+        300.0,
+        300.0,
+        300.0,
+    ]
+    assert poller._collector_retry_delay(1_000_000) == 300.0
+    for invalid in (True, 0, -1, 1.5):
+        with pytest.raises(ValueError, match="positive integer"):
+            poller._collector_retry_delay(invalid)
 
-    class Store:
-        dialect = "postgresql"
 
-        def acquire_collector_lease(self, *, direct_url=None, on_loss=None):
-            assert direct_url == expected_direct
-            assert callable(on_loss)
-            return None
+@pytest.mark.unit
+def test_incomplete_cycle_cannot_report_runtime_recovery(monkeypatch):
+    stop = {"flag": False}
+    observed = {"health": [], "recoveries": 0}
+    incomplete = {
+        "complete": False,
+        "missing_query_slots": [{"provider": "globalnews", "query_key": "slot"}],
+        "query_slots": [],
+    }
 
+    class Health:
+        def mark_cycle(self, coverage, *, completed_utc):
+            assert completed_utc > 0
+            observed["health"].append(coverage)
+
+    def incomplete_cycle(*_args, **_kwargs):
+        stop["flag"] = True
+        return incomplete
+
+    def mark_recovery():
+        observed["recoveries"] += 1
+
+    monkeypatch.setattr(poller, "run_cycle", incomplete_cycle)
+
+    poller.poll_forever(
+        object(), [], [], 3600, {},
+        health_state=Health(),
+        stop=stop,
+        on_cycle_success=mark_recovery,
+    )
+
+    assert observed == {"health": [incomplete], "recoveries": 0}
+
+
+@pytest.mark.unit
+def test_runtime_incident_dedupes_repeats_alerts_changes_and_clears_on_recovery():
+    now = {"value": 100.0}
+    alerts = []
+    incident = poller._CollectorRuntimeIncident(
+        clock=lambda: now["value"],
+        alert=lambda component, event, **kwargs: alerts.append(
+            (component, event, kwargs)
+        ) or True,
+    )
+
+    assert incident.mark_failure(
+        stage="store_startup", error_type="OperationalError",
+        retry_delay_seconds=5.0,
+    ) is True
+    now["value"] += 1
+    assert incident.mark_failure(
+        stage="store_startup", error_type="OperationalError",
+        retry_delay_seconds=10.0,
+    ) is False
+    now["value"] += 1
+    assert incident.mark_failure(
+        stage="lease_acquisition", error_type="OperationalError",
+        retry_delay_seconds=20.0,
+    ) is False
+    now["value"] += poller._RUNTIME_ALERT_MIN_INTERVAL_SECONDS
+    assert incident.mark_failure(
+        stage="lease_acquisition", error_type="OperationalError",
+        retry_delay_seconds=40.0,
+    ) is True
+    now["value"] += poller._RUNTIME_ALERT_REMINDER_SECONDS
+    assert incident.mark_failure(
+        stage="lease_acquisition", error_type="OperationalError",
+        retry_delay_seconds=80.0,
+    ) is True
+    assert incident.active is True
+
+    incident.mark_recovered()
+    assert incident.active is False
+    now["value"] += 1
+    assert incident.mark_failure(
+        stage="cycle", error_type="RuntimeError", retry_delay_seconds=5.0,
+    ) is True
+
+    assert [event for _, event, _ in alerts] == [
+        "runtime_unhealthy",
+        "runtime_unhealthy",
+        "runtime_unhealthy",
+        "runtime_recovered",
+        "runtime_unhealthy",
+    ]
+    unhealthy = [kwargs["details"] for _, event, kwargs in alerts
+                 if event == "runtime_unhealthy"]
+    assert [details["reminder"] for details in unhealthy] == [
+        False, False, True, False,
+    ]
+
+
+@pytest.mark.unit
+def test_daemon_startup_failures_stay_in_process_unhealthy_and_deduped(
+    monkeypatch, caplog,
+):
+    secret = "postgresql://collector:private-password@db.internal/evidence"
+    observed = {
+        "attempts": 0,
+        "alerts": [],
+        "delays": [],
+        "health_state": None,
+        "health_closed": 0,
+    }
+    handlers = {}
+
+    class HealthServer:
         def close(self):
-            observed["closed"] += 1
+            observed["health_closed"] += 1
+
+    def start_health(state, *, port):
+        assert port == 5500
+        observed["health_state"] = state
+        return HealthServer()
+
+    def fail_store(_url):
+        observed["attempts"] += 1
+        raise RuntimeError(secret)
+
+    def fake_sleep(seconds, stop, **_kwargs):
+        observed["delays"].append(seconds)
+        if len(observed["delays"]) == 4:
+            handlers[poller.signal.SIGTERM](poller.signal.SIGTERM, None)
 
     monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
-    monkeypatch.setenv("MEDIA_DB_DIRECT_URL", expected_direct)
     monkeypatch.setenv("X_BEARER_TOKEN", "configured")
-    monkeypatch.setattr(poller, "open_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(poller, "open_store", fail_store)
+    monkeypatch.setattr(poller, "start_collector_health_server", start_health)
+    monkeypatch.setattr(poller, "_sleep", fake_sleep)
+    monkeypatch.setattr(
+        poller.signal,
+        "signal",
+        lambda signum, handler: handlers.__setitem__(signum, handler),
+    )
     monkeypatch.setattr(
         poller,
         "emit_alert",
@@ -1621,10 +1921,84 @@ def test_duplicate_daemon_stays_passive_without_restart_alert_storm(monkeypatch)
             (component, event, kwargs)
         ) or True,
     )
+
+    with caplog.at_level(logging.INFO):
+        poller.main([
+            "--global-only",
+            "--sources", "x",
+            "--no-trading-hours",
+            "--interval", "3600",
+            "--x-interval", "86400",
+            "--health-port", "5500",
+            "--db", secret,
+        ])
+
+    assert observed["attempts"] == 4
+    assert observed["delays"] == [5.0, 10.0, 20.0, 40.0]
+    assert observed["health_closed"] == 1
+    assert [event for _, event, _ in observed["alerts"]] == [
+        "runtime_unhealthy"
+    ]
+    state = observed["health_state"]
+    assert state is not None
+    status, payload = state.snapshot(monotonic_now=100.0)
+    assert status == 503
+    assert payload["reason"] == "cycle_failed"
+    assert payload["failure_type"] == "RuntimeError"
+    rendered = caplog.text + json.dumps(observed["alerts"])
+    assert secret not in rendered
+    assert "private-password" not in rendered
+    assert "Traceback" not in rendered
+
+
+@pytest.mark.unit
+def test_daemon_supervises_startup_value_error_and_recovers(monkeypatch):
+    observed = {
+        "attempts": 0,
+        "closed": 0,
+        "cycles": 0,
+        "alerts": [],
+        "delays": [],
+    }
+    handlers = {}
+
+    class Store:
+        dialect = "sqlite"
+
+        def close(self):
+            observed["closed"] += 1
+
+    def open_after_invalid_runtime_value(_url):
+        observed["attempts"] += 1
+        if observed["attempts"] == 1:
+            raise ValueError("rotated runtime topology is temporarily invalid")
+        return Store()
+
+    def successful_cycle(*_args, **_kwargs):
+        observed["cycles"] += 1
+        handlers[poller.signal.SIGTERM](poller.signal.SIGTERM, None)
+        return {"complete": True, "missing_query_slots": [], "query_slots": []}
+
+    def fake_sleep(seconds, stop, **_kwargs):
+        if not stop["flag"]:
+            observed["delays"].append(seconds)
+
+    monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
+    monkeypatch.setenv("X_BEARER_TOKEN", "configured")
+    monkeypatch.setattr(poller, "open_store", open_after_invalid_runtime_value)
+    monkeypatch.setattr(poller, "run_cycle", successful_cycle)
+    monkeypatch.setattr(poller, "_sleep", fake_sleep)
+    monkeypatch.setattr(
+        poller.signal,
+        "signal",
+        lambda signum, handler: handlers.__setitem__(signum, handler),
+    )
     monkeypatch.setattr(
         poller,
-        "_wait_as_duplicate_worker",
-        lambda: observed.__setitem__("waited", observed["waited"] + 1),
+        "emit_alert",
+        lambda component, event, **kwargs: observed["alerts"].append(
+            (component, event, kwargs)
+        ) or True,
     )
 
     poller.main([
@@ -1636,11 +2010,360 @@ def test_duplicate_daemon_stays_passive_without_restart_alert_storm(monkeypatch)
         "--db", "postgresql+psycopg://collector:secret@pool/evidence",
     ])
 
-    assert observed["waited"] == 1
+    assert observed["attempts"] == 2
     assert observed["closed"] == 1
+    assert observed["cycles"] == 1
+    assert observed["delays"] == [5.0]
     assert [event for _, event, _ in observed["alerts"]] == [
-        "duplicate_worker_blocked"
+        "runtime_unhealthy",
+        "runtime_recovered",
     ]
+    assert observed["alerts"][0][2]["details"] == {
+        "schema_version": 1,
+        "failure_stage": "store_startup",
+        "failure_type": "ValueError",
+        "retry_delay_seconds": 5.0,
+        "reminder": False,
+    }
+
+
+@pytest.mark.unit
+def test_supervisor_tears_down_failed_cycle_and_alerts_recovery(monkeypatch, caplog):
+    secret = "postgresql://collector:cycle-secret@db.internal/evidence"
+    observed = {
+        "stores": 0,
+        "closed": 0,
+        "cycles": 0,
+        "heartbeats": 0,
+        "alerts": [],
+        "delays": [],
+    }
+    handlers = {}
+
+    class Store:
+        dialect = "sqlite"
+
+        def __init__(self):
+            observed["stores"] += 1
+
+        def set_meta(self, key, _value):
+            assert key == "poller:last_failure_utc"
+            observed["heartbeats"] += 1
+
+        def close(self):
+            observed["closed"] += 1
+
+    def cycle(*_args, **_kwargs):
+        observed["cycles"] += 1
+        if observed["cycles"] < 3:
+            raise RuntimeError(secret)
+        handlers[poller.signal.SIGTERM](poller.signal.SIGTERM, None)
+        return {"complete": True, "missing_query_slots": [], "query_slots": []}
+
+    def fake_sleep(seconds, stop, **_kwargs):
+        if not stop["flag"]:
+            observed["delays"].append(seconds)
+
+    monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
+    monkeypatch.setenv("X_BEARER_TOKEN", "configured")
+    monkeypatch.setattr(poller, "open_store", lambda _url: Store())
+    monkeypatch.setattr(poller, "run_cycle", cycle)
+    monkeypatch.setattr(poller, "_sleep", fake_sleep)
+    monkeypatch.setattr(
+        poller.signal,
+        "signal",
+        lambda signum, handler: handlers.__setitem__(signum, handler),
+    )
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda component, event, **kwargs: observed["alerts"].append(
+            (component, event, kwargs)
+        ) or True,
+    )
+
+    with caplog.at_level(logging.INFO):
+        poller.main([
+            "--global-only",
+            "--sources", "x",
+            "--no-trading-hours",
+            "--interval", "3600",
+            "--x-interval", "86400",
+            "--db", secret,
+        ])
+
+    assert observed["stores"] == observed["closed"] == 3
+    assert observed["cycles"] == 3
+    assert observed["heartbeats"] == 2
+    assert observed["delays"] == [5.0, 10.0]
+    assert [event for _, event, _ in observed["alerts"]] == [
+        "runtime_unhealthy",
+        "runtime_recovered",
+    ]
+    rendered = caplog.text + json.dumps(observed["alerts"])
+    assert secret not in rendered
+    assert "cycle-secret" not in rendered
+    assert "Traceback" not in rendered
+
+
+@pytest.mark.unit
+def test_one_shot_failure_remains_fail_fast(monkeypatch):
+    secret = "postgresql://collector:one-shot-secret@db.internal/evidence"
+    monkeypatch.setenv("X_BEARER_TOKEN", "configured")
+    monkeypatch.setattr(
+        poller,
+        "open_store",
+        lambda _url: (_ for _ in ()).throw(RuntimeError(secret)),
+    )
+    monkeypatch.setattr(
+        poller,
+        "_run_supervised_daemon",
+        lambda **_kwargs: pytest.fail("one-shot entered daemon supervision"),
+    )
+
+    with pytest.raises(RuntimeError, match="one-shot-secret"):
+        poller.main([
+            "--global-only",
+            "--once",
+            "--sources", "x",
+            "--no-trading-hours",
+            "--interval", "3600",
+            "--x-interval", "86400",
+            "--db", secret,
+        ])
+
+
+@pytest.mark.unit
+def test_executable_boundary_exits_without_traceback_or_secret(monkeypatch, caplog):
+    secret = "postgresql://collector:entrypoint-secret@db.internal/evidence"
+    monkeypatch.setattr(
+        poller,
+        "main",
+        lambda: (_ for _ in ()).throw(RuntimeError(secret)),
+    )
+
+    with caplog.at_level(logging.CRITICAL), pytest.raises(SystemExit) as stopped:
+        poller._main_entrypoint()
+
+    assert stopped.value.code == 1
+    assert "Collector exited (RuntimeError)" in caplog.text
+    assert secret not in caplog.text
+    assert "entrypoint-secret" not in caplog.text
+    assert "Traceback" not in caplog.text
+
+
+@pytest.mark.unit
+def test_executable_boundary_does_not_swallow_parser_exit(monkeypatch, caplog):
+    monkeypatch.setattr(
+        poller,
+        "main",
+        lambda: (_ for _ in ()).throw(SystemExit(2)),
+    )
+
+    with pytest.raises(SystemExit) as stopped:
+        poller._main_entrypoint()
+
+    assert stopped.value.code == 2
+    assert "Collector exited" not in caplog.text
+
+
+@pytest.mark.unit
+def test_duplicate_daemon_retries_without_fetching_until_lease_is_held(monkeypatch):
+    expected_direct = "postgresql+psycopg://collector:secret@direct.db/evidence"
+    observed = {
+        "attempts": 0,
+        "closed": 0,
+        "lease_closed": 0,
+        "fetches": 0,
+        "alerts": [],
+        "delays": [],
+    }
+    handlers = {}
+
+    class Lease:
+        is_held = True
+
+        def assert_held(self):
+            assert self.is_held
+
+        def close(self):
+            observed["lease_closed"] += 1
+
+    class Store:
+        dialect = "postgresql"
+
+        def __init__(self):
+            observed["attempts"] += 1
+            self.attempt = observed["attempts"]
+
+        def acquire_collector_lease(self, *, direct_url=None, on_loss=None):
+            assert direct_url == expected_direct
+            assert callable(on_loss)
+            return Lease() if self.attempt == 3 else None
+
+        def close(self):
+            observed["closed"] += 1
+
+    def run_once_with_lease(store, *_args, **_kwargs):
+        observed["fetches"] += 1
+        assert store.attempt == 3
+        assert isinstance(store._collector_lease_guard, Lease)
+        handlers[poller.signal.SIGTERM](poller.signal.SIGTERM, None)
+        return {"complete": True, "missing_query_slots": [], "query_slots": []}
+
+    def fake_sleep(seconds, stop, **_kwargs):
+        if not stop["flag"]:
+            observed["delays"].append(seconds)
+
+    monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
+    monkeypatch.setenv("MEDIA_DB_DIRECT_URL", expected_direct)
+    monkeypatch.setenv("X_BEARER_TOKEN", "configured")
+    monkeypatch.setattr(poller, "open_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(poller, "run_cycle", run_once_with_lease)
+    monkeypatch.setattr(poller, "_sleep", fake_sleep)
+    monkeypatch.setattr(
+        poller.signal,
+        "signal",
+        lambda signum, handler: handlers.__setitem__(signum, handler),
+    )
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda component, event, **kwargs: observed["alerts"].append(
+            (component, event, kwargs)
+        ) or True,
+    )
+
+    poller.main([
+        "--global-only",
+        "--sources", "x",
+        "--no-trading-hours",
+        "--interval", "3600",
+        "--x-interval", "86400",
+        "--db", "postgresql+psycopg://collector:secret@pool/evidence",
+    ])
+
+    assert observed["attempts"] == 3
+    assert observed["closed"] == 3
+    assert observed["lease_closed"] == 1
+    assert observed["fetches"] == 1
+    assert observed["delays"] == [5.0, 10.0]
+    assert [event for _, event, _ in observed["alerts"]] == [
+        "runtime_unhealthy",
+        "runtime_recovered",
+    ]
+
+
+@pytest.mark.unit
+def test_lost_lease_is_torn_down_and_reacquired_before_next_fetch(
+    monkeypatch, caplog,
+):
+    secret = "postgresql://collector:lease-secret@direct.db/evidence"
+    expected_direct = (
+        "postgresql+psycopg://collector:secret@direct.db/evidence"
+    )
+    observed = {
+        "stores": 0,
+        "closed": 0,
+        "lease_closed": 0,
+        "fetches": 0,
+        "alerts": [],
+        "delays": [],
+    }
+    handlers = {}
+
+    class Lease:
+        def __init__(self, *, lose_on_first_guard):
+            self.is_held = True
+            self.lose_on_first_guard = lose_on_first_guard
+
+        def assert_held(self):
+            if self.lose_on_first_guard:
+                self.lose_on_first_guard = False
+                self.is_held = False
+                raise RuntimeError(secret)
+            assert self.is_held
+
+        def close(self):
+            observed["lease_closed"] += 1
+
+    class Store:
+        dialect = "postgresql"
+
+        def __init__(self):
+            observed["stores"] += 1
+            self.attempt = observed["stores"]
+
+        def acquire_collector_lease(self, *, direct_url=None, on_loss=None):
+            assert direct_url == expected_direct
+            assert callable(on_loss)
+            return Lease(lose_on_first_guard=self.attempt == 1)
+
+        def set_meta(self, *_args, **_kwargs):
+            pytest.fail("a lost lease must not write a failure heartbeat")
+
+        def close(self):
+            observed["closed"] += 1
+
+    def run_only_after_reacquisition(store, *_args, **_kwargs):
+        observed["fetches"] += 1
+        assert store.attempt == 2
+        assert store._collector_lease_guard.is_held
+        handlers[poller.signal.SIGTERM](poller.signal.SIGTERM, None)
+        return {"complete": True, "missing_query_slots": [], "query_slots": []}
+
+    def fake_sleep(seconds, stop, **_kwargs):
+        if not stop["flag"]:
+            observed["delays"].append(seconds)
+
+    monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
+    monkeypatch.setenv("MEDIA_DB_DIRECT_URL", expected_direct)
+    monkeypatch.setenv("X_BEARER_TOKEN", "configured")
+    monkeypatch.setattr(poller, "open_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(poller, "run_cycle", run_only_after_reacquisition)
+    monkeypatch.setattr(poller, "_sleep", fake_sleep)
+    monkeypatch.setattr(
+        poller.signal,
+        "signal",
+        lambda signum, handler: handlers.__setitem__(signum, handler),
+    )
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda component, event, **kwargs: observed["alerts"].append(
+            (component, event, kwargs)
+        ) or True,
+    )
+
+    with caplog.at_level(logging.INFO):
+        poller.main([
+            "--global-only",
+            "--sources", "x",
+            "--no-trading-hours",
+            "--interval", "3600",
+            "--x-interval", "86400",
+            "--db", "postgresql+psycopg://collector:secret@pool/evidence",
+        ])
+
+    assert observed["stores"] == observed["closed"] == 2
+    assert observed["lease_closed"] == 2
+    assert observed["fetches"] == 1
+    assert observed["delays"] == [5.0]
+    assert [event for _, event, _ in observed["alerts"]] == [
+        "runtime_unhealthy",
+        "runtime_recovered",
+    ]
+    assert (
+        observed["alerts"][0][2]["details"]["failure_stage"] == "lease_lost"
+    )
+    assert (
+        observed["alerts"][0][2]["details"]["failure_type"]
+        == "CollectorLeaseLost"
+    )
+    rendered = caplog.text + json.dumps(observed["alerts"])
+    assert secret not in rendered
+    assert "lease-secret" not in rendered
+    assert "Traceback" not in rendered
 
 
 @pytest.mark.unit

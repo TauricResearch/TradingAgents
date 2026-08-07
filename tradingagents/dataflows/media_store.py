@@ -232,18 +232,82 @@ _COLLECTOR_NOT_VALID_CONSTRAINTS = frozenset({
 })
 _COLLECTOR_CHECK_CONSTRAINT_HASHES = {
     ("collection_cycles", "collection_cycles_server_observation_shape"):
-        "10edb2266b9cb3fd0b95b9b3c65047d6a7f079714cb3ba1e9c8633f78f28612d",
+        frozenset({
+            # SQLAlchemy-created unbounded VARCHAR columns.
+            "10edb2266b9cb3fd0b95b9b3c65047d6a7f079714cb3ba1e9c8633f78f28612d",
+            # Migration-created TEXT columns. PostgreSQL renders otherwise
+            # identical string casts differently for the two base types.
+            "5a7d186cbedb49381bbd640248bc8995ba879b17b3272fc16c10f73b381f5cb5",
+        }),
     ("collection_cycles", "collection_cycles_terminal_shape"):
-        "a10c6d5b9ab0c2bd5a0049d01d99b8196d3180e843b8786fd6d8a63276aeec0f",
+        frozenset({
+            "a10c6d5b9ab0c2bd5a0049d01d99b8196d3180e843b8786fd6d8a63276aeec0f",
+            "5f7ed45574b1478a90542be46737165e889ee1b26d5a71fc06982d93b338ef2d",
+        }),
     ("collection_cycle_slots", "collection_cycle_slots_fields_valid"):
-        "a9539e59e23a965d7e4cd7766543a8c65a243b1b3df19c86b5f20e35464d681b",
+        frozenset({
+            "a9539e59e23a965d7e4cd7766543a8c65a243b1b3df19c86b5f20e35464d681b",
+            "c5bf085bba9e3cabf3c608711a145d626f03583a40e2fc95b53a5dd88eff429c",
+        }),
     ("fetch_runs", "fetch_runs_formal_eligible_content_lineage"):
-        "cce57858327c1a555793cb56a548abe914cd2fb7085b367e7f84178a3e4bfb14",
+        frozenset({
+            "cce57858327c1a555793cb56a548abe914cd2fb7085b367e7f84178a3e4bfb14",
+        }),
     ("fetch_runs", "fetch_runs_server_observation_shape"):
-        "d4a50f6846927101030e26dd4e4dc339245b127356a7dd4043d0ca0fc3d32d5e",
+        frozenset({
+            "d4a50f6846927101030e26dd4e4dc339245b127356a7dd4043d0ca0fc3d32d5e",
+            "6888a83094963c822b6eaaae750a7dc442a5ab1292f8b74e9cf93798d1e1c2a1",
+        }),
     ("fetch_runs", "fetch_runs_terminal_receipt_coherence"):
-        "fec7f88bbbacf42f911e29a97640b6c19d5110a30fd151671074fb66035ecd98",
+        frozenset({
+            "fec7f88bbbacf42f911e29a97640b6c19d5110a30fd151671074fb66035ecd98",
+        }),
 }
+
+# Exact built-in PostgreSQL OIDs are stable catalog identifiers. Matching OIDs
+# (rather than rendered names or coercible SQL types) rejects domains and custom
+# types. TEXT and unbounded VARCHAR are one semantic family because the
+# historical migrations and fresh SQLAlchemy schema use those representations
+# interchangeably. Bounded VARCHAR is rejected by its nonnegative typmod.
+_COLLECTOR_POSTGRES_TYPE_FAMILIES = {
+    "unbounded_text": frozenset({(25, -1), (1043, -1)}),
+    "float8": frozenset({(701, -1)}),
+    "int4": frozenset({(23, -1)}),
+    "bool": frozenset({(16, -1)}),
+}
+
+
+def _collector_postgres_type_family(column_type) -> str:
+    """Map a trusted SQLAlchemy model type to its PostgreSQL type family."""
+    visit_name = getattr(column_type, "__visit_name__", None)
+    if visit_name in {"string", "text"}:
+        if getattr(column_type, "length", None) is not None:
+            raise ValueError("collector string columns must be unbounded")
+        return "unbounded_text"
+    family = {
+        "double": "float8",
+        "integer": "int4",
+        "boolean": "bool",
+    }.get(visit_name)
+    if family is None:
+        raise ValueError("unsupported collector PostgreSQL column type")
+    return family
+
+
+def _collector_postgres_column_contract_valid(column, actual: dict) -> bool:
+    """Authenticate one live column against the trusted collector model."""
+    family = _collector_postgres_type_family(column.type)
+    expected_types = _COLLECTOR_POSTGRES_TYPE_FAMILIES[family]
+    return (
+        (int(actual["type_oid"]), int(actual["type_modifier"]))
+        in expected_types
+        and bool(actual["default_collation"])
+        and bool(actual["not_null"]) == (not bool(column.nullable))
+        and column.server_default is None
+        and not bool(actual["has_default"])
+        and actual["identity_kind"] == ""
+        and actual["generated_kind"] == ""
+    )
 
 
 def _safe_exception_kind(exc: BaseException) -> str:
@@ -317,6 +381,7 @@ def _collector_preflight_contract_failure_stage(report: dict) -> str:
         "search_path_valid",
         "relation_resolution_valid",
         "tables_selectable",
+        "column_contracts_valid",
         "privileges_valid",
         "role_attributes_valid",
         "integrity_triggers_valid",
@@ -336,6 +401,11 @@ def _collector_preflight_contract_failure_stage(report: dict) -> str:
 
 def _postgres_connect_args(*, read_only: bool = False) -> dict:
     args = {
+        # Transaction-pooled PgBouncer can hand a later transaction to a
+        # backend where psycopg's automatically named prepared statement does
+        # not exist (or where the same generated name already exists). Keep
+        # ordinary pooled traffic on the unnamed protocol path.
+        "prepare_threshold": None,
         "connect_timeout": 10,
         "keepalives": 1,
         "keepalives_idle": 60,
@@ -3921,7 +3991,7 @@ class SqlAlchemyMediaStore:
             ): 7,
         }
         report = {
-            "contract_version": 2,
+            "contract_version": 3,
             "postgresql": True,
             "connected": False,
             "database_clock_valid": False,
@@ -3931,6 +4001,7 @@ class SqlAlchemyMediaStore:
             "exact_column_table_count": 0,
             "required_column_count": sum(len(table.columns) for table in collector_tables),
             "selectable_column_count": 0,
+            "authenticated_column_count": 0,
             "required_select_count": 0,
             "required_insert_count": 0,
             "required_update_count": 0,
@@ -3956,6 +4027,7 @@ class SqlAlchemyMediaStore:
             "session_affinity_valid": False,
             "advisory_lock_valid": False,
             "tables_selectable": False,
+            "column_contracts_valid": False,
             "privileges_valid": False,
             "role_attributes_valid": False,
             "integrity_triggers_valid": False,
@@ -3999,21 +4071,45 @@ class SqlAlchemyMediaStore:
                     }).scalar_one())
                     report["resolved_relation_count"] += int(resolved)
 
-                    actual_columns = tuple(conn.execute(text(
-                        "SELECT attribute.attname "
+                    actual_column_rows = conn.execute(text(
+                        "SELECT attribute.attname, "
+                        "attribute.atttypid::BIGINT AS type_oid, "
+                        "attribute.atttypmod AS type_modifier, "
+                        "attribute.attnotnull AS not_null, "
+                        "attribute.atthasdef AS has_default, "
+                        "attribute.attidentity AS identity_kind, "
+                        "attribute.attgenerated AS generated_kind, "
+                        "attribute.attcollation = type_record.typcollation "
+                        "AS default_collation "
                         "FROM pg_catalog.pg_attribute AS attribute "
+                        "JOIN pg_catalog.pg_type AS type_record "
+                        "ON type_record.oid = attribute.atttypid "
                         "WHERE attribute.attrelid = "
                         "pg_catalog.to_regclass(CAST(:relation AS TEXT)) "
                         "AND attribute.attnum > 0 AND NOT attribute.attisdropped "
                         "ORDER BY attribute.attnum"
                     ), {
                         "relation": f"public.{table.name}",
-                    }).scalars())
+                    }).mappings().all()
+                    actual_columns = tuple(
+                        row["attname"] for row in actual_column_rows
+                    )
                     expected_columns = tuple(column.name for column in columns)
                     report["exact_column_table_count"] += int(
                         len(actual_columns) == len(expected_columns)
                         and set(actual_columns) == set(expected_columns)
                     )
+                    actual_by_name = {
+                        row["attname"]: row for row in actual_column_rows
+                    }
+                    for column in columns:
+                        actual = actual_by_name.get(column.name)
+                        report["authenticated_column_count"] += int(
+                            actual is not None
+                            and _collector_postgres_column_contract_valid(
+                                column, actual
+                            )
+                        )
 
                     privileges = conn.execute(text(
                         "SELECT "
@@ -4221,8 +4317,8 @@ class SqlAlchemyMediaStore:
                     if expected_type == "c":
                         type_and_keys_valid = type_and_keys_valid and (
                             row["definition_hash"]
-                            == _COLLECTOR_CHECK_CONSTRAINT_HASHES.get(
-                                constraint_key
+                            in _COLLECTOR_CHECK_CONSTRAINT_HASHES.get(
+                                constraint_key, frozenset()
                             )
                         )
                     report["active_constraint_count"] += int(type_and_keys_valid)
@@ -4311,6 +4407,10 @@ class SqlAlchemyMediaStore:
         report["relation_resolution_valid"] = (
             report["resolved_relation_count"] == report["required_table_count"]
         )
+        report["column_contracts_valid"] = (
+            report["authenticated_column_count"]
+            == report["required_column_count"]
+        )
         report["privileges_valid"] = (
             report["required_select_count"] == report["required_table_count"]
             and report["required_insert_count"] == report["required_table_count"]
@@ -4344,6 +4444,7 @@ class SqlAlchemyMediaStore:
             report["search_path_valid"],
             report["relation_resolution_valid"],
             report["tables_selectable"],
+            report["column_contracts_valid"],
             report["privileges_valid"],
             report["role_attributes_valid"],
             report["integrity_triggers_valid"],

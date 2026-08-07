@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from tradingagents.dataflows import media_store as media_store_module
 from tradingagents.dataflows.media_store import (
     SqlAlchemyMediaStore,
     SqliteMediaStore,
@@ -17,6 +18,22 @@ from tradingagents.dataflows.media_store import (
 )
 
 _MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
+_CHECK_RENDERING_COLUMNS = {
+    "collection_cycles": (
+        "status",
+        "manifest_id",
+        "manifest_json",
+        "collector_build_id",
+    ),
+    "collection_cycle_slots": ("provider", "query_key"),
+    "fetch_runs": ("collector_build_id",),
+}
+_DUAL_RENDERING_CONSTRAINTS = {
+    ("collection_cycles", "collection_cycles_server_observation_shape"),
+    ("collection_cycles", "collection_cycles_terminal_shape"),
+    ("collection_cycle_slots", "collection_cycle_slots_fields_valid"),
+    ("fetch_runs", "fetch_runs_server_observation_shape"),
+}
 
 
 def _migration_admin_dsn(url: str) -> str:
@@ -37,6 +54,81 @@ def _run_collector_migration(url: str, migration: str) -> None:
             (_MIGRATIONS / migration).read_text(encoding="utf-8"),
             prepare=False,
         )
+
+
+def _drop_dual_rendering_constraints(conn) -> None:
+    from psycopg import sql
+
+    for table, constraint in _DUAL_RENDERING_CONSTRAINTS:
+        conn.execute(sql.SQL(
+            "ALTER TABLE public.{} DROP CONSTRAINT IF EXISTS {}"
+        ).format(sql.Identifier(table), sql.Identifier(constraint)))
+
+
+def _set_check_rendering_column_types(conn, type_names: dict) -> None:
+    from psycopg import sql
+
+    allowed = {"text": sql.SQL("TEXT"), "character varying": sql.SQL("VARCHAR")}
+    for table, columns in _CHECK_RENDERING_COLUMNS.items():
+        for column in columns:
+            type_name = type_names[(table, column)]
+            if type_name not in allowed:
+                raise AssertionError(f"unexpected fixture type: {type_name}")
+            conn.execute(sql.SQL(
+                "ALTER TABLE public.{} ALTER COLUMN {} TYPE {}"
+            ).format(
+                sql.Identifier(table),
+                sql.Identifier(column),
+                allowed[type_name],
+            ))
+
+
+def _check_rendering_column_types(conn) -> dict:
+    rows = conn.execute(
+        "SELECT relation.relname, attribute.attname, type_record.typname "
+        "FROM pg_catalog.pg_attribute AS attribute "
+        "JOIN pg_catalog.pg_class AS relation "
+        "ON relation.oid = attribute.attrelid "
+        "JOIN pg_catalog.pg_namespace AS namespace "
+        "ON namespace.oid = relation.relnamespace "
+        "JOIN pg_catalog.pg_type AS type_record "
+        "ON type_record.oid = attribute.atttypid "
+        "WHERE namespace.nspname = 'public' "
+        "AND (relation.relname, attribute.attname) IN ("
+        "('collection_cycles', 'status'), "
+        "('collection_cycles', 'manifest_id'), "
+        "('collection_cycles', 'manifest_json'), "
+        "('collection_cycles', 'collector_build_id'), "
+        "('collection_cycle_slots', 'provider'), "
+        "('collection_cycle_slots', 'query_key'), "
+        "('fetch_runs', 'collector_build_id'))"
+    ).fetchall()
+    type_name = {"text": "text", "varchar": "character varying"}
+    return {
+        (table, column): type_name[postgres_type]
+        for table, column, postgres_type in rows
+    }
+
+
+def _dual_check_constraint_hashes(conn) -> dict:
+    rows = conn.execute(
+        "SELECT relation.relname, constraint_record.conname, "
+        "pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to("
+        "pg_catalog.regexp_replace(pg_catalog.btrim("
+        "pg_catalog.pg_get_constraintdef(constraint_record.oid, false), "
+        "E' \\n\\r\\t'), E'[ \\t]+\\n', E'\\n', 'g'), "
+        "'UTF8')), 'hex') "
+        "FROM pg_catalog.pg_constraint AS constraint_record "
+        "JOIN pg_catalog.pg_class AS relation "
+        "ON relation.oid = constraint_record.conrelid "
+        "JOIN pg_catalog.pg_namespace AS namespace "
+        "ON namespace.oid = relation.relnamespace "
+        "WHERE namespace.nspname = 'public' "
+        "AND constraint_record.conname = ANY(%s) "
+        "ORDER BY relation.relname, constraint_record.conname",
+        ([constraint for _, constraint in _DUAL_RENDERING_CONSTRAINTS],),
+    ).fetchall()
+    return {(table, constraint): digest for table, constraint, digest in rows}
 
 
 def _spec(*, static=None, dynamic=2):
@@ -345,6 +437,36 @@ def test_postgres_cycle_binding_locks_only_mutable_cycle_parent(tmp_path):
 
 
 @pytest.mark.integration
+def test_pgbouncer_transaction_pool_disables_named_prepared_statements():
+    """Two psycopg clients must safely share one transaction-pooled backend."""
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_POOL_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_POOL_URL is not configured")
+
+    from sqlalchemy import text
+
+    clients = []
+    statement = text("SELECT CAST(:probe_value AS INTEGER)")
+    try:
+        clients.append(SqlAlchemyMediaStore(url, auto_migrate=False))
+        clients.append(SqlAlchemyMediaStore(url, auto_migrate=False))
+        # psycopg's default threshold is five executions. Alternating seven
+        # committed transactions per independent frontend deterministically
+        # crosses that threshold while PgBouncer reuses its sole backend.
+        for sequence in range(7):
+            for client_number, client in enumerate(clients):
+                expected = sequence * len(clients) + client_number
+                with client.engine.connect() as conn:
+                    assert conn.execute(
+                        statement, {"probe_value": expected}
+                    ).scalar_one() == expected
+                    conn.commit()
+    finally:
+        for client in clients:
+            client.close()
+
+
+@pytest.mark.integration
 def test_postgres_ingest_role_can_start_cycle_bound_fetches():
     """Regression: immutable slots need SELECT, not accidental row-lock authority."""
     url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
@@ -511,7 +633,7 @@ def test_postgres_ingest_role_passes_read_only_runtime_preflight():
         store.close()
 
     assert after == before
-    assert report["contract_version"] == 2
+    assert report["contract_version"] == 3
     assert report["postgresql"] is True
     assert report["connected"] is True
     assert report["database_clock_valid"] is True
@@ -523,6 +645,7 @@ def test_postgres_ingest_role_passes_read_only_runtime_preflight():
         len(table.columns) for table in collector_tables
     )
     assert report["selectable_column_count"] == report["required_column_count"]
+    assert report["authenticated_column_count"] == report["required_column_count"]
     assert report["required_select_count"] == len(collector_tables)
     assert report["required_insert_count"] == len(collector_tables)
     assert report["required_update_count"] == 3
@@ -546,6 +669,7 @@ def test_postgres_ingest_role_passes_read_only_runtime_preflight():
     assert report["session_affinity_valid"] is True
     assert report["advisory_lock_valid"] is True
     assert report["tables_selectable"] is True
+    assert report["column_contracts_valid"] is True
     assert report["privileges_valid"] is True
     assert report["role_attributes_valid"] is True
     assert report["integrity_triggers_valid"] is True
@@ -561,6 +685,119 @@ def test_postgres_ingest_role_passes_read_only_runtime_preflight():
     )
     assert url not in repr(report)
     assert "tradingagents-ingest-v2" not in repr(report)
+
+
+@pytest.mark.integration
+def test_postgres_preflight_accepts_checks_reparsed_from_migrations_on_text():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+    if not os.getenv("PG_SUPERUSER"):
+        pytest.skip("migration administrator is not configured")
+
+    import psycopg
+
+    expected_text_hashes = {
+        ("collection_cycles", "collection_cycles_server_observation_shape"):
+            "5a7d186cbedb49381bbd640248bc8995ba879b17b3272fc16c10f73b381f5cb5",
+        ("collection_cycles", "collection_cycles_terminal_shape"):
+            "5f7ed45574b1478a90542be46737165e889ee1b26d5a71fc06982d93b338ef2d",
+        ("collection_cycle_slots", "collection_cycle_slots_fields_valid"):
+            "c5bf085bba9e3cabf3c608711a145d626f03583a40e2fc95b53a5dd88eff429c",
+        ("fetch_runs", "fetch_runs_server_observation_shape"):
+            "6888a83094963c822b6eaaae750a7dc442a5ab1292f8b74e9cf93798d1e1c2a1",
+    }
+    assert all(
+        digest in media_store_module._COLLECTOR_CHECK_CONSTRAINT_HASHES[key]
+        for key, digest in expected_text_hashes.items()
+    )
+    admin_dsn = _migration_admin_dsn(url)
+    original_types = None
+    report = None
+    try:
+        with psycopg.connect(admin_dsn, autocommit=True) as admin:
+            original_types = _check_rendering_column_types(admin)
+            assert set(original_types) == {
+                (table, column)
+                for table, columns in _CHECK_RENDERING_COLUMNS.items()
+                for column in columns
+            }
+            _drop_dual_rendering_constraints(admin)
+            _set_check_rendering_column_types(
+                admin, dict.fromkeys(original_types, "text")
+            )
+        # The production migrations, rather than hand-copied CHECK text in the
+        # test, reparse the predicates against the legacy TEXT representation.
+        _run_collector_migration(url, "007_collection_cycles.sql")
+        _run_collector_migration(url, "009_server_observed_evidence.sql")
+        with psycopg.connect(admin_dsn, autocommit=True) as admin:
+            assert _dual_check_constraint_hashes(admin) == expected_text_hashes
+        store = SqlAlchemyMediaStore(url, auto_migrate=False)
+        try:
+            report = store.collector_runtime_preflight(direct_url=url)
+        finally:
+            store.close()
+    finally:
+        if original_types is not None:
+            with psycopg.connect(admin_dsn, autocommit=True) as admin:
+                _drop_dual_rendering_constraints(admin)
+                _set_check_rendering_column_types(admin, original_types)
+            _run_collector_migration(url, "007_collection_cycles.sql")
+            _run_collector_migration(url, "009_server_observed_evidence.sql")
+
+    assert report is not None
+    assert report["authenticated_column_count"] == 75
+    assert report["column_contracts_valid"] is True
+    assert report["active_constraint_count"] == report["required_constraint_count"]
+    assert report["constraints_valid"] is True
+    assert report["ready"] is True
+
+
+@pytest.mark.integration
+def test_postgres_preflight_rejects_bounded_string_type():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+    if not os.getenv("PG_SUPERUSER"):
+        pytest.skip("migration administrator is not configured")
+
+    import psycopg
+    from psycopg import sql
+
+    report = None
+    with psycopg.connect(_migration_admin_dsn(url), autocommit=True) as admin:
+        row = admin.execute(
+            "SELECT type_record.typname, attribute.atttypmod "
+            "FROM pg_catalog.pg_attribute AS attribute "
+            "JOIN pg_catalog.pg_type AS type_record "
+            "ON type_record.oid = attribute.atttypid "
+            "WHERE attribute.attrelid = 'public.media_posts'::regclass "
+            "AND attribute.attname = 'author'"
+        ).fetchone()
+        assert row is not None and row[0] in {"text", "varchar"} and row[1] == -1
+        original_type = "TEXT" if row[0] == "text" else "VARCHAR"
+        admin.execute(
+            "ALTER TABLE public.media_posts ALTER COLUMN author TYPE VARCHAR(64)"
+        )
+    try:
+        store = SqlAlchemyMediaStore(url, auto_migrate=False)
+        try:
+            report = store.collector_runtime_preflight(direct_url=url)
+        finally:
+            store.close()
+    finally:
+        with psycopg.connect(_migration_admin_dsn(url), autocommit=True) as admin:
+            admin.execute(sql.SQL(
+                "ALTER TABLE public.media_posts ALTER COLUMN author TYPE {}"
+            ).format(sql.SQL(original_type)))
+
+    assert report is not None
+    assert report["authenticated_column_count"] == 74
+    assert report["column_contracts_valid"] is False
+    assert report["tables_selectable"] is True
+    assert report["ready"] is False
+    assert report["failure_stage"] == "primary_contract"
+    assert report["failure_type"] == "ContractMismatch"
 
 
 @pytest.mark.integration

@@ -10,6 +10,12 @@ import pytest
 
 from tradingagents.llm_clients import anthropic_client as mod
 
+# These capability tests deliberately exercise synthetic, legacy, and future
+# model IDs. The warning behavior itself has a dedicated validation test.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Model .* is not in the known model list.*:RuntimeWarning"
+)
+
 
 def _capture_kwargs(monkeypatch):
     captured: dict = {}

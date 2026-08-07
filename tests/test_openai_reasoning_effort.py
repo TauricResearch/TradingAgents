@@ -12,6 +12,10 @@ from tradingagents.llm_clients.openai_client import (
     _supports_reasoning_effort,
 )
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:Model .* is not in the known model list.*:RuntimeWarning"
+)
+
 
 @pytest.mark.parametrize(
     "model,expected",

@@ -54,7 +54,7 @@ poller = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
-tradingagents-poller = "tradingagents.poller:main"
+tradingagents-poller = "tradingagents.poller:_main_entrypoint"
 tradingagents-backtest = "tradingagents.backtest:main"
 tradingagents-walkforward = "tradingagents.walkforward:main"
 tradingagents-research = "tradingagents.research.cli:main"

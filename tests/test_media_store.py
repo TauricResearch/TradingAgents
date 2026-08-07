@@ -6,6 +6,7 @@ by the routing test and exercised live against a real DB.
 """
 import json
 import threading
+from collections import Counter
 from datetime import datetime, timezone
 
 import pytest
@@ -1056,6 +1057,7 @@ def test_postgres_pooled_engine_uses_transaction_local_settings(monkeypatch):
     try:
         connect_args = observed["engine_options"]["connect_args"]
         assert connect_args == {
+            "prepare_threshold": None,
             "connect_timeout": 10,
             "keepalives": 1,
             "keepalives_idle": 60,
@@ -1096,6 +1098,8 @@ def test_postgres_direct_engine_retains_read_only_startup_fail_safe():
     pooled = media_store_module._postgres_connect_args()
     direct = media_store_module._postgres_connect_args(read_only=True)
 
+    assert pooled["prepare_threshold"] is None
+    assert direct["prepare_threshold"] is None
     assert "options" not in pooled
     assert "default_transaction_read_only=on" in direct["options"]
     assert "search_path=pg_catalog,public" in direct["options"]
@@ -1171,6 +1175,96 @@ def test_collector_runtime_preflight_rejects_non_postgres(tmp_path):
     try:
         with pytest.raises(ValueError, match="requires PostgreSQL"):
             store.collector_runtime_preflight()
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+def test_collector_check_hashes_allow_only_reviewed_type_renderings():
+    hashes = media_store_module._COLLECTOR_CHECK_CONSTRAINT_HASHES
+    dual_renderings = {
+        ("collection_cycles", "collection_cycles_server_observation_shape"),
+        ("collection_cycles", "collection_cycles_terminal_shape"),
+        ("collection_cycle_slots", "collection_cycle_slots_fields_valid"),
+        ("fetch_runs", "fetch_runs_server_observation_shape"),
+    }
+
+    assert set(hashes) == {
+        key for key, value in media_store_module._COLLECTOR_CONSTRAINT_CONTRACTS.items()
+        if value[0] == "c"
+    }
+    assert all(
+        len(approved) == (2 if key in dual_renderings else 1)
+        for key, approved in hashes.items()
+    )
+    assert all(
+        len(digest) == 64 and set(digest) <= set("0123456789abcdef")
+        for approved in hashes.values()
+        for digest in approved
+    )
+
+
+@pytest.mark.unit
+def test_collector_column_contract_covers_all_columns_and_fails_closed(tmp_path):
+    store = SqlAlchemyMediaStore(
+        f"sqlite+pysqlite:///{tmp_path / 'column-contract.db'}"
+    )
+    tables = (
+        store.table,
+        store.labels,
+        store.observations,
+        store.odds,
+        store.state,
+        store.cycles,
+        store.cycle_slots,
+        store.fetches,
+        store.fetch_items_table,
+    )
+    try:
+        columns = [column for table in tables for column in table.columns]
+        families = Counter(
+            media_store_module._collector_postgres_type_family(column.type)
+            for column in columns
+        )
+        assert len(columns) == 75
+        assert families == {
+            "unbounded_text": 48,
+            "float8": 23,
+            "int4": 3,
+            "bool": 1,
+        }
+        assert all(column.server_default is None for column in columns)
+
+        column = store.table.c.author
+        valid = {
+            "type_oid": 25,
+            "type_modifier": -1,
+            "default_collation": True,
+            "not_null": False,
+            "has_default": False,
+            "identity_kind": "",
+            "generated_kind": "",
+        }
+        assert media_store_module._collector_postgres_column_contract_valid(
+            column, valid
+        )
+        assert media_store_module._collector_postgres_column_contract_valid(
+            column, {**valid, "type_oid": 1043}
+        )
+
+        invalid_mutations = (
+            {"type_oid": 999_999},       # domain or custom type
+            {"type_modifier": 68},       # bounded VARCHAR(64)
+            {"default_collation": False},
+            {"not_null": True},
+            {"has_default": True},
+            {"identity_kind": "d"},
+            {"generated_kind": "s"},
+        )
+        for mutation in invalid_mutations:
+            assert not media_store_module._collector_postgres_column_contract_valid(
+                column, {**valid, **mutation}
+            )
     finally:
         store.close()
 
