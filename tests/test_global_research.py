@@ -469,6 +469,21 @@ def test_company_authored_rows_are_removed_at_formal_boundary_for_every_source()
 
 
 @pytest.mark.unit
+def test_contentless_editorial_row_cannot_satisfy_formal_news_minimum():
+    for contentless in (
+        {**_rows()[0], "title": "", "body": "   "},
+        {**_rows()[0], "external_id": "punctuation", "title": "---", "body": "\u200b"},
+    ):
+        assert prepare_evidence([contentless]) == []
+        champion, without_reaction, public_reaction = partition_formal_evidence(
+            [contentless]
+        )
+        assert champion == []
+        assert without_reaction == []
+        assert public_reaction == []
+
+
+@pytest.mark.unit
 def test_formal_news_fails_closed_on_unknown_or_mismatched_publisher_domain():
     labels = _rows()[0]["labels"]
     rows = [
@@ -1255,7 +1270,7 @@ def test_non_abstention_must_be_grounded_nonzero_and_sign_consistent(forecast_pa
 @pytest.mark.unit
 def test_content_ids_are_canonical():
     assert content_id({"a": 1, "b": 2}) == content_id({"b": 2, "a": 1})
-    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_1b393c51cbc64acb34fa4014"
+    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_7e7f9ab78d55400fee355863"
 
 
 @pytest.mark.unit

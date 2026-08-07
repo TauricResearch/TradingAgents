@@ -1,18 +1,17 @@
-.git
-.venv
-.env
-.context
-.pytest_cache
-.ruff_cache
-.claude
-.idea
-.vscode
-.DS_Store
-__pycache__
-*.egg-info
-build
-dist
-results
-eval_results
-Dockerfile
-docker-compose.yml
+# Deny the workspace by default. Local deploys use a remote builder, so an
+# ignored credential or research artifact must never enter the build context.
+**
+
+# Docker needs its selected recipe even though application COPY instructions do
+# not. The remaining root files are the complete poller build metadata.
+!Dockerfile.poller
+!constraints-poller.txt
+!pyproject.toml
+!README.md
+
+# The wheel contains Python package sources plus the one declared CLI asset.
+# BuildKit can traverse these negated globs without admitting other descendants,
+# so bytecode, local data, and future credential file types stay denied.
+!tradingagents/**/*.py
+!cli/**/*.py
+!cli/static/welcome.txt

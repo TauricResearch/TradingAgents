@@ -19,13 +19,18 @@ the collector app.
 The Fly app in `fly.toml` is currently named `tradagent`. It needs:
 
 - `MEDIA_DB_URL`: a restricted collector-runtime Postgres DSN;
+- `MEDIA_DB_DIRECT_URL`: an optional direct/session-affine DSN override for the
+  singleton lease (a Fly MPG `pgbouncer.<cluster>.flympg.net` URL derives its
+  matching private `direct.<cluster>.flympg.net` endpoint automatically);
 - `X_BEARER_TOKEN`: the X API bearer token; and
-- `TRADINGAGENTS_ALERT_WEBHOOK_URL`: an optional but strongly recommended alert
-  destination.
+- `TRADINGAGENTS_ALERT_WEBHOOK_URL`: the required production alert destination.
 
 `fly.toml` fixes the non-secret policy: broad global mode, hourly editorial-news
 cycles, one bounded X cycle per day, no ticker watchlist, no US-hours gate, and
-no runtime schema migration. This repository's checked-in value is `true`
+no runtime schema migration. It also fixes the private health listener to port
+`5500`, and requires the production alert webhook during preflight; no Fly
+service publishes the health port to the internet. This repository's checked-in
+collection value is `true`
 because `tradagent` is the already-approved collector. In a fresh fork or new
 app, set it to `false` through setup and focused verification so a first deploy
 cannot collect accidentally.
@@ -48,14 +53,68 @@ tests and database preparation pass, change `MEDIA_COLLECTION_ENABLED` to `true`
 in `fly.toml`, review that exact diff, and commit it. From that clean commit:
 
 ```bash
-fly config validate -c fly.toml
-fly deploy -a tradagent
+scripts/deploy_collector.sh tradagent
 fly status -a tradagent
+fly checks list -a tradagent
 fly logs -a tradagent
 ```
 
-Look for a complete global collection cycle and no repeated crash loop. Then test
-the alert path from inside the running image:
+The deploy wrapper refuses a dirty worktree, embeds the exact commit, waits for
+the new process to complete its own healthy cycle, and verifies that the passing
+check belongs to the sole started Machine running that exact revision. Before it
+changes Fly, it saves the deployed image and configuration together. A failed or
+interrupted rollout restores both, including when the legacy image does not know
+the new release command or health endpoint. It refuses to roll back if another
+release has superseded its candidate. Fly uses an immediate one-worker handoff
+rather than overlapping collectors; a PostgreSQL advisory lease independently
+blocks an accidental second worker or manual one-shot from calling providers.
+
+By default the wrapper deploys only the exact commit currently advertised by the
+authenticated `origin/main` remote branch; it never trusts a possibly stale local
+remote-tracking ref. It resolves that exact remote branch before Fly inspection
+and again immediately after the rollback snapshot, before deployment. An
+unavailable, malformed, or changed remote fails closed without printing remote
+transport output, which can contain credentials. A different configured target
+uses `COLLECTOR_DEPLOY_TARGET_REF=<remote>/<branch>`. An explicitly reviewed
+emergency rollout from another ref must opt in with
+`COLLECTOR_DEPLOY_ALLOW_UNMERGED=true`; do not make that setting persistent. The
+wrapper also takes a local per-app lock, while the release-identity checks prevent
+a concurrent deploy from another host from being mistaken for, or rolled back by,
+this one.
+
+The image build rejects any missing or non-full-lowercase Git SHA, so a raw
+`fly deploy` cannot create an untraceable production image. It records the
+accepted value in OCI metadata and
+`/opt/tradingagents/REVISION`. Before Fly replaces the running worker, its
+temporary release Machine automatically runs `--global-only --preflight`. That
+read-only command validates the frozen collector configuration, database schema,
+and restricted runtime role without calling a provider or writing a receipt. Any
+nonzero result stops the deployment.
+
+Provider responses are byte-bounded and schema-validated. Malformed X error
+envelopes and non-RSS HTML cannot masquerade as valid empty observations.
+Only transient Google transport failures receive bounded retries; schema or
+database failures do not refetch, and a per-cycle circuit breaker limits a broad
+Google outage to two failed query slots. PostgreSQL metadata writes are atomic,
+session timeouts prevent a row lock from hanging the worker indefinitely, and a
+30-second direct-session heartbeat terminates collection after a lost singleton
+lock. Preflight proves session affinity and cross-session advisory exclusion; an
+unknown database host fails closed unless `MEDIA_DB_DIRECT_URL` is configured.
+These rules are pinned as collector policy v2
+(`collector_8ec4d89bc22ca934e079d6ce`) under protocol
+`protocol_7e7f9ab78d55400fee355863`; the protocol retains the prior v1 identity
+as compatible historical lineage rather than rewriting old receipts.
+
+After activation, Fly checks `/healthz` over its private network. The endpoint
+reports whether the current process has produced complete coverage; it cannot be
+satisfied solely by a previous image's recent receipts. The port is not a public
+API. A hashed static-slot manifest prevents malformed empty coverage from
+passing, and an incomplete current-day X cycle stays unhealthy during later
+hourly news cycles. Look for a passing `collector_health` check, a complete
+global collection cycle, and no repeated restart loop. The deploy wrapper also
+tests the alert path
+from inside the exact running Machine before it reports success. You can repeat
+that non-provider test independently after a webhook rotation:
 
 ```bash
 fly ssh console -a tradagent -C "tradingagents-poller --test-alert"
@@ -94,6 +153,8 @@ fly secrets list -a tradagent
 
 Absence of an alert is not proof of health. Review cycle receipts and heartbeat
 freshness periodically, and test alert delivery after rotating the webhook.
+The private Fly check covers a running but unhealthy process; an independent
+monitor is still required to notify you if Fly or the whole app is unreachable.
 
 ## Pause safely
 
@@ -104,18 +165,20 @@ fly scale count 0 -a tradagent
 fly status -a tradagent
 ```
 
-For a durable pause, change `MEDIA_COLLECTION_ENABLED` back to `false` in a
-reviewed configuration commit before any later deploy or resume.
+The worker uses Fly's `always` restart policy, so killing its process is not a
+pause mechanism. Scaling the process group to zero remains authoritative.
 
 Back up Postgres before changing schema. Apply migrations with a dedicated schema
 administrator, never `MEDIA_DB_URL`; follow [`migrations/README.md`](../migrations/README.md).
-After a restore test or migration check succeeds, review and commit the switch
-back to `true`, deploy that commit, and restore the machine count if necessary:
+The deploy wrapper intentionally requires one known-good started Machine so it
+can prove and restore the rollback state. After a restore test or migration check
+succeeds, restart the previously deployed Machine, verify it is stable, and then
+deploy the reviewed commit through the wrapper:
 
 ```bash
-fly deploy -a tradagent
 fly scale count 1 -a tradagent
-fly logs -a tradagent
+fly status -a tradagent
+scripts/deploy_collector.sh tradagent
 ```
 
 ## Rotate credentials
@@ -133,6 +196,12 @@ verify a real subsequent receipt. For X:
 For the webhook, run `--test-alert` after rotation. For the database credential,
 pause first, rotate the restricted runtime role, update the secret, resume, and
 verify both a completed write cycle and a read-only audit.
+
+An image/configuration rollback cannot restore a previous Fly secret value: Fly
+does not reveal it to the wrapper. During every credential rotation, keep the old
+credential valid and recoverable in the password manager until the new one has a
+real runtime success. If verification fails, re-import the old value before
+revoking anything; redeploying the old image alone is not a secret rollback.
 
 ## Offline research workflow
 
@@ -213,6 +282,9 @@ a forward migration, then explain which snapshots are affected.
 - collector-only tests and migration checks pass;
 - database backup and restore procedure has been exercised;
 - Fly image and configuration match the reviewed commit;
+- the automatic read-only release preflight succeeds;
+- `collector_health` is passing for the new Machine;
+- the image revision label and `/opt/tradingagents/REVISION` match the commit;
 - only the collector runtime has data-source secrets;
 - no runtime role can migrate schema;
 - collection receipts and heartbeat are current;

@@ -11,6 +11,13 @@ from tradingagents.dataflows.media_sources import _row
 from tradingagents.dataflows.media_store import SqliteMediaStore
 
 
+@pytest.fixture(autouse=True)
+def _freeze_canonical_collector_semantics_before_adapter_stubs():
+    """Keep semantic identity independent of per-test provider monkeypatch order."""
+    poller.collector_semantics_manifest.cache_clear()
+    poller.collector_semantics_manifest()
+
+
 @pytest.mark.unit
 def test_x_topic_query_is_public_relevant_and_minimum_sized(monkeypatch):
     captured = {}
@@ -66,12 +73,40 @@ def test_x_topic_excludes_official_business_accounts(monkeypatch):
     def fake_get_json(url, headers, timeout):
         return {
             "data": [
-                {"id": "company-post", "author_id": "1", "text": "Announcement"},
-                {"id": "person-post", "author_id": "2", "text": "My reaction"},
+                {
+                    "id": "company-post", "author_id": "1", "text": "Announcement",
+                    "created_at": "2026-07-22T12:00:00Z",
+                    "public_metrics": {
+                        "like_count": 1, "reply_count": 0,
+                        "retweet_count": 0, "quote_count": 0,
+                    },
+                },
+                {
+                    "id": "person-post", "author_id": "2", "text": "My reaction",
+                    "created_at": "2026-07-22T12:00:00Z",
+                    "public_metrics": {
+                        "like_count": 1, "reply_count": 0,
+                        "retweet_count": 0, "quote_count": 0,
+                    },
+                },
             ],
             "includes": {"users": [
-                {"id": "1", "username": "officialco", "verified_type": "business"},
-                {"id": "2", "username": "publicvoice", "verified_type": "none"},
+                {
+                    "id": "1", "username": "officialco", "verified_type": "business",
+                    "created_at": "2020-01-01T00:00:00Z",
+                    "public_metrics": {
+                        "followers_count": 100, "following_count": 20,
+                        "tweet_count": 500,
+                    },
+                },
+                {
+                    "id": "2", "username": "publicvoice", "verified_type": "none",
+                    "created_at": "2020-01-01T00:00:00Z",
+                    "public_metrics": {
+                        "followers_count": 100, "following_count": 20,
+                        "tweet_count": 500,
+                    },
+                },
             ]},
         }
 
@@ -85,7 +120,7 @@ def test_x_topic_excludes_official_business_accounts(monkeypatch):
 
 
 @pytest.mark.unit
-def test_x_missing_account_creation_is_explicitly_incomplete_and_high_risk(monkeypatch):
+def test_x_missing_requested_account_creation_fails_provider_contract(monkeypatch):
     def fake_get_json(url, headers, timeout):
         return {
             "data": [{
@@ -109,13 +144,12 @@ def test_x_missing_account_creation_is_explicitly_incomplete_and_high_risk(monke
     monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
     monkeypatch.setattr(media_sources, "_get_json", fake_get_json)
 
-    row = media_sources.fetch_x_topic(
-        "trend_world", "major event", 1_800_000_000.0
-    )[0]
-    assert row["metadata"]["author_id"] == "202"
-    assert row["metadata"]["account_created_utc"] is None
-    assert row["metadata"]["automation_signals_complete"] is False
-    assert row["metadata"]["automation_risk"] == 1.0
+    with pytest.raises(
+        media_sources.ProviderResponseError, match="expanded author schema"
+    ):
+        media_sources.fetch_x_topic(
+            "trend_world", "major event", 1_800_000_000.0
+        )
 
 
 @pytest.mark.unit
@@ -290,6 +324,8 @@ def test_x_discovery_cycle_has_independent_daily_clock(tmp_path, monkeypatch):
     assert len(cycle_ids) == 1
     cycle = store.collection_cycle(cycle_ids.pop())
     assert cycle["status"] == "complete"
+    assert poller._x_daily_requirement_state(store, 100.0, 3) == "complete"
+    assert poller._x_daily_requirement_state(store, 86400.0, 3) == "missing"
     assert cycle["manifest_valid"] is True
     assert {
         row["status"] for row in cycle["manifest"]["slot_receipts"]
@@ -555,7 +591,9 @@ def test_x_cycle_manifest_distinguishes_failed_trend_and_empty_search(
     monkeypatch.setattr(
         poller,
         "fetch_x_trends",
-        lambda woeid: (_ for _ in ()).throw(RuntimeError("unavailable"))
+        lambda woeid: (_ for _ in ()).throw(
+            poller.ProviderTransientError("unavailable")
+        )
         if woeid == 1 else [{"name": "Global event"}],
     )
     monkeypatch.setattr(
@@ -573,40 +611,106 @@ def test_x_cycle_manifest_distinguishes_failed_trend_and_empty_search(
     }
     assert cycle["status"] == "incomplete"
     assert outcomes[("xtrend", "woeid:1")] == "failed"
-    assert outcomes[("xtrend", "woeid:23424977")] == "success"
-    assert outcomes[("trendnews", "ranked-global-discovery")] == "success"
-    assert outcomes[("x", topic["query"])] == "empty"
+    assert outcomes[("xtrend", "woeid:23424977")] == "missing"
+    assert outcomes[("trendnews", "ranked-global-discovery")] == "missing"
+    assert all(provider != "x" for provider, _ in outcomes)
+    assert poller._x_daily_requirement_state(store, 100.0, 3) == "incomplete"
+
+    alerts = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda component, event, **kwargs: alerts.append(
+            (component, event, kwargs)
+        ) or True,
+    )
+    coverage = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+    )
+    assert coverage["complete"] is False
+    assert coverage["missing_query_slots"] == []
+    assert coverage["periodic_requirements"] == {"x_daily": "incomplete"}
+    assert coverage["missing_periodic_requirements"] == ["x_daily"]
+    assert alerts[0][1] == "query_slot_coverage_incomplete"
+    assert alerts[0][2]["details"]["missing_x_daily_requirement"] is True
     store.close()
 
 
 @pytest.mark.unit
-def test_any_frozen_discovery_feed_failure_makes_x_cycle_incomplete(
+def test_discovery_feed_failure_never_starts_or_spends_paid_x_cycle(
     tmp_path, monkeypatch,
 ):
     store = SqliteMediaStore(tmp_path / "x-news-partial.db")
     monkeypatch.setattr(poller.time, "time", lambda: 100.0)
-    monkeypatch.setattr(poller, "fetch_x_trends", lambda _: [])
+    monkeypatch.setattr(
+        poller,
+        "fetch_x_trends",
+        lambda _: pytest.fail("free discovery must be validated before paid X"),
+    )
     monkeypatch.setattr(
         poller,
         "fetch_top_news_headlines",
         lambda: (_ for _ in ()).throw(
-            RuntimeError("top-news discovery feed set was incomplete")
+            poller.ProviderTransientError("top-news discovery feed set was incomplete")
         ),
     )
 
     slots = poller.poll_x_topics_once(store, now=100.0, limit=10, max_topics=3)
 
     cycle_id = poller._x_collection_cycle_spec(100.0, 3)["collection_cycle_id"]
-    cycle = store.collection_cycle(cycle_id)
-    outcomes = {
-        (row["provider"], row["query_key"]): row["status"]
-        for row in cycle["manifest"]["slot_receipts"]
+    assert store.collection_cycle(cycle_id) is None
+    assert store.fetch_runs(limit=100) == []
+    assert store.daily_cost_units("xtrend", 0.0, 1000.0) == 0.0
+    assert set(slots) == {
+        ("xtrend", "woeid:1"),
+        ("xtrend", "woeid:23424977"),
+        ("trendnews", "ranked-global-discovery"),
     }
-    assert cycle["status"] == "incomplete"
-    assert outcomes[("trendnews", "ranked-global-discovery")] == "failed"
-    assert outcomes[("xtrend", "woeid:1")] == "empty"
-    assert outcomes[("xtrend", "woeid:23424977")] == "empty"
     assert all(provider != "x" for provider, _ in slots)
+
+    alerts = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda component, event, **kwargs: alerts.append(
+            (component, event, kwargs)
+        ) or True,
+    )
+    coverage = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+    assert coverage["complete"] is False
+    assert coverage["periodic_requirements"] == {"x_daily": "missing"}
+    assert coverage["missing_periodic_requirements"] == ["x_daily"]
+    assert alerts[0][2]["details"] == {
+        "expected_query_slot_count": 0,
+        "missing_query_slot_count": 0,
+        "missing_periodic_requirement_count": 1,
+        "missing_x_daily_requirement": True,
+        "x_daily_state": "missing",
+        "missing_source_group_count": 0,
+        "reason_counts": {},
+        "slots": [],
+        "slots_truncated": 0,
+    }
+    poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+    assert len(alerts) == 1
     store.close()
 
 

@@ -14,7 +14,10 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from tradingagents.dataflows.media_sources import looks_company_authored
+from tradingagents.dataflows.media_sources import (
+    _has_meaningful_text,
+    looks_company_authored,
+)
 from tradingagents.evidence_lineage import (
     evidence_id as _evidence_id,
     raw_content_id as _raw_content_id,
@@ -604,6 +607,10 @@ def formal_evidence_ineligibility_reason(
     if is_company_authored_evidence(row):
         return "company_authored"
     if source == "globalnews":
+        title = row.get("title")
+        body = row.get("body")
+        if not any(_has_meaningful_text(value) for value in (title, body)):
+            return "missing_news_content"
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
         domain = str(metadata.get("publisher_domain") or "").strip()
         if not domain:

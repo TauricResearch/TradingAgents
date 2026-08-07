@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from tradingagents.dataflows import media_store as media_store_module
 from tradingagents.dataflows.media_store import (
     SqlAlchemyMediaStore,
     SqliteMediaStore,
@@ -127,6 +128,15 @@ def store(tmp_path):
     s = SqliteMediaStore(tmp_path / "media.db")
     yield s
     s.close()
+
+
+@pytest.mark.unit
+def test_sqlite_server_observed_utc_uses_database_clock(store, monkeypatch):
+    monkeypatch.setattr(
+        media_store_module, "_sqlite_server_observed_utc", lambda _conn: 1234.5
+    )
+
+    assert store.server_observed_utc() == 1234.5
 
 
 @pytest.mark.unit
@@ -1021,6 +1031,101 @@ def test_sqlalchemy_store_reports_insert_count_with_conflict_ignore(tmp_path):
     try:
         assert store.store(rows) == 2
         assert store.store(rows) == 0
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+def test_sqlalchemy_meta_set_inserts_and_overwrites(tmp_path):
+    store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'meta-sa.db'}")
+    try:
+        assert store.engine.pool._recycle == 540
+        assert store.get_meta("collector:state") is None
+        store.set_meta("collector:state", 1.0)
+        assert store.get_meta("collector:state") == 1.0
+        store.set_meta("collector:state", 2.0)
+        assert store.get_meta("collector:state") == 2.0
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+def test_fly_mpg_direct_url_is_derived_without_changing_credentials_or_query():
+    store = object.__new__(SqlAlchemyMediaStore)
+    store._database_url = (
+        "postgresql+psycopg://collector:p%40ss@"
+        "pgbouncer.cluster-123.flympg.net:5432/evidence?sslmode=require"
+    )
+
+    resolved = store._collector_direct_database_url()
+
+    assert resolved.host == "direct.cluster-123.flympg.net"
+    assert resolved.username == "collector"
+    assert resolved.password == "p@ss"
+    assert resolved.port == 5432
+    assert resolved.database == "evidence"
+    assert dict(resolved.query) == {"sslmode": "require"}
+
+
+@pytest.mark.unit
+def test_collector_direct_url_fails_closed_for_unknown_or_pooled_override():
+    store = object.__new__(SqlAlchemyMediaStore)
+    store._database_url = "postgresql+psycopg://collector@db.example/evidence"
+
+    with pytest.raises(ValueError, match="MEDIA_DB_DIRECT_URL"):
+        store._collector_direct_database_url()
+    with pytest.raises(ValueError, match="must not use a Fly MPG pooler"):
+        store._collector_direct_database_url(
+            "postgresql://collector@pgbouncer.cluster-123.flympg.net/evidence"
+        )
+
+    explicit = store._collector_direct_database_url(
+        "postgresql://collector@direct-db.example/evidence"
+    )
+    assert explicit.host == "direct-db.example"
+
+
+@pytest.mark.unit
+def test_collector_runtime_preflight_rejects_non_postgres(tmp_path):
+    store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'preflight-sa.db'}")
+    try:
+        with pytest.raises(ValueError, match="requires PostgreSQL"):
+            store.collector_runtime_preflight()
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+def test_collector_runtime_preflight_failure_projection_is_sanitized(tmp_path):
+    store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'failed-preflight.db'}")
+    real_engine = store.engine
+    sensitive = "postgresql://collector:secret@example.invalid/database"
+
+    class BrokenEngine:
+        @staticmethod
+        def connect():
+            raise RuntimeError(sensitive)
+
+    store.dialect = "postgresql"
+    store.engine = BrokenEngine()
+    try:
+        report = store.collector_runtime_preflight()
+    finally:
+        real_engine.dispose()
+
+    assert report["postgresql"] is True
+    assert report["connected"] is False
+    assert report["ready"] is False
+    assert sensitive not in repr(report)
+    assert all(isinstance(value, (bool, int)) for value in report.values())
+
+
+@pytest.mark.unit
+def test_sqlalchemy_server_observed_utc_uses_database_clock(tmp_path, monkeypatch):
+    store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'server-clock.db'}")
+    try:
+        monkeypatch.setattr(store, "_server_observed_utc", lambda _conn: 5678.25)
+        assert store.server_observed_utc() == 5678.25
     finally:
         store.close()
 

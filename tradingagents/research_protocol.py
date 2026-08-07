@@ -121,20 +121,60 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
             "globalnews_exception_retry_policy": {
                 "max_attempts_per_query_cycle": 3,
                 "delays_seconds": [1.0, 4.0],
-                "retry_on": "exception_only",
+                "retry_on": "provider_transient_exception_only",
                 "empty_response": "terminal_observed_empty_without_retry",
                 "receipt_policy": "one_append_only_fetch_receipt_per_attempt",
             },
+            "globalnews_cycle_circuit_breaker": {
+                "failed_query_slots_before_open": 2,
+                "scope": "one_hourly_collection_cycle",
+                "open_action": "skip_remaining_slots_and_report_missing_coverage",
+            },
+            "provider_response_validation": {
+                "transient_http_statuses": [408, 429, "500-599"],
+                "permanent_http_statuses": "all other HTTP error responses",
+                "x_recent_search_explicit_zero": (
+                    "data=[] or omitted data with integer meta.result_count=0"
+                ),
+                "x_nonempty_data": (
+                    "every returned item must satisfy its endpoint field contract; "
+                    "nonempty malformed data can never normalize to observed zero"
+                ),
+                "x_trends_empty": (
+                    "invalid because the ranked-trends endpoint documents at least one item"
+                ),
+                "globalnews_empty": (
+                    "contract-valid RSS 2.0 channel metadata with no direct item elements"
+                ),
+                "globalnews_nonempty": (
+                    "items must be direct channel children; every consumed item requires "
+                    "provider ID, article URL, a title with at "
+                    "least one Unicode letter or number, timezone-aware publication time, "
+                    "publisher, and publisher domain"
+                ),
+                "topnews_empty": (
+                    "invalid for every ranked feed; the complete frozen feed set must return "
+                    "at least one contract-valid item per feed"
+                ),
+            },
             "allowed_observed_empty_providers": [
-                "polymarket", "trendnews", "x", "xtrend",
+                "polymarket", "trendnews", "x",
             ],
         },
-        "expected_collector_semantics_id": "collector_fa2421d5a25636de4f035323",
-        # The earlier collector used the same economic query/filter policy but
-        # hashed now-retired release-rehearsal helpers into its build identity.
-        # Keep that exact pair readable so already-captured evidence is not
-        # discarded; no other protocol/collector combination is accepted.
+        "expected_collector_semantics_id": "collector_8ec4d89bc22ca934e079d6ce",
+        # Earlier collectors used the same economic experiment but predated
+        # stricter operational/provider contracts. Keep only their exact pairs
+        # readable so already-captured, item-lineage-verified evidence is not
+        # discarded; the current formal boundary still rejects malformed rows.
         "compatible_collector_identities": [
+            {
+                "protocol_id": "protocol_1b393c51cbc64acb34fa4014",
+                "collector_semantics_id": "collector_fa2421d5a25636de4f035323",
+                "reason": (
+                    "pre-provider-contract collector retained only when its exact "
+                    "immutable receipt and per-item lineage verifies"
+                ),
+            },
             {
                 "protocol_id": "protocol_485a418d45d44de9c0f45a94",
                 "collector_semantics_id": "collector_cf5b90da1cd4d7db969389ee",
@@ -201,7 +241,7 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
             ),
         },
         "formal_input_policy_version": (
-            "source-stratified-independent-editorial-v5-clean-x-ablation"
+            "source-stratified-independent-editorial-v6-nonempty-news-content"
         ),
         "source_caps": {"globalnews": 80, "x": 20},
         "total_cap": 100,
@@ -782,6 +822,10 @@ _FLY_DEPLOYMENT_IMAGE_REF = re.compile(
     r"registry\.fly\.io/(?P<app>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
     r":deployment-(?P<deployment>[0-9A-HJKMNP-TV-Z]{26})"
 )
+_FLY_GIT_IMAGE_REF = re.compile(
+    r"registry\.fly\.io/(?P<app>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
+    r":git-(?P<revision>[0-9a-f]{40})"
+)
 _EXPLICIT_BUILD_MATERIAL = re.compile(
     r"(?:sha256:[0-9a-f]{64}|[0-9a-f]{40}|[0-9a-f]{64}|build_[0-9a-f]{24})"
 )
@@ -790,26 +834,47 @@ _EXPLICIT_BUILD_MATERIAL = re.compile(
 def runtime_build_manifest(env: Mapping[str, str] | None = None) -> dict | None:
     """Authenticate production build material without a caller-selected override.
 
-    Fly's runtime-provided deployment image reference wins whenever any Fly
-    identity is present. A generic ``TRADINGAGENTS_BUILD_ID`` can therefore
-    never mask the platform image actually running the worker.
+    Fly's runtime-provided image reference wins whenever any Fly identity is
+    present. Default ``deployment-<ULID>`` tags remain valid for historical
+    images. Reviewed collector releases use ``git-<SHA>`` and must independently
+    carry the exact same lowercase SHA in ``GIT_REVISION``. A generic
+    ``TRADINGAGENTS_BUILD_ID`` can therefore never mask the platform image
+    actually running the worker.
     """
     values = os.environ if env is None else env
     image_ref = (values.get("FLY_IMAGE_REF") or "").strip()
     app_name = (values.get("FLY_APP_NAME") or "").strip()
     fly_present = bool(image_ref or app_name or (values.get("FLY_MACHINE_ID") or "").strip())
     if fly_present:
-        match = _FLY_DEPLOYMENT_IMAGE_REF.fullmatch(image_ref)
-        if match is None or not app_name or match.group("app") != app_name:
+        deployment_match = _FLY_DEPLOYMENT_IMAGE_REF.fullmatch(image_ref)
+        if deployment_match is not None and deployment_match.group("app") == app_name:
+            return {
+                "schema_version": 1,
+                "platform": "fly",
+                "app_name": app_name,
+                "image_ref": image_ref,
+                "deployment_id": deployment_match.group("deployment"),
+            }
+
+        git_match = _FLY_GIT_IMAGE_REF.fullmatch(image_ref)
+        if git_match is None or not app_name or git_match.group("app") != app_name:
             raise ValueError(
                 "Fly build identity requires the runtime deployment image for FLY_APP_NAME"
+            )
+        revision = (values.get("GIT_REVISION") or "").strip()
+        if (
+            re.fullmatch(r"[0-9a-f]{40}", revision) is None
+            or revision != git_match.group("revision")
+        ):
+            raise ValueError(
+                "Fly Git image identity requires its exact lowercase GIT_REVISION"
             )
         return {
             "schema_version": 1,
             "platform": "fly",
             "app_name": app_name,
             "image_ref": image_ref,
-            "deployment_id": match.group("deployment"),
+            "git_revision": revision,
         }
 
     explicit = (values.get("TRADINGAGENTS_BUILD_ID") or "").strip()

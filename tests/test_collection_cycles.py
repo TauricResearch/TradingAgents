@@ -2,8 +2,11 @@
 
 import os
 import sqlite3
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 
@@ -12,6 +15,28 @@ from tradingagents.dataflows.media_store import (
     SqliteMediaStore,
     collection_cycle_spec,
 )
+
+_MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
+
+
+def _migration_admin_dsn(url: str) -> str:
+    from sqlalchemy.engine import make_url
+
+    return make_url(url).set(
+        drivername="postgresql",
+        username="schema_admin",
+        password=None,
+    ).render_as_string(hide_password=False)
+
+
+def _run_collector_migration(url: str, migration: str) -> None:
+    import psycopg
+
+    with psycopg.connect(_migration_admin_dsn(url), autocommit=True) as conn:
+        conn.execute(
+            (_MIGRATIONS / migration).read_text(encoding="utf-8"),
+            prepare=False,
+        )
 
 
 def _spec(*, static=None, dynamic=2):
@@ -381,3 +406,323 @@ def test_postgres_ingest_role_can_start_cycle_bound_fetches():
         assert cycle["status"] == "incomplete"
     finally:
         store.close()
+
+
+@pytest.mark.integration
+def test_postgres_meta_first_write_is_atomic_under_concurrency():
+    """Concurrent first writes must upsert instead of racing two INSERTs."""
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+
+    worker_count = 12
+    barrier = threading.Barrier(worker_count)
+    key = f"integration-meta-race-{uuid.uuid4().hex}"
+
+    def write(value: int) -> None:
+        worker = SqlAlchemyMediaStore(url, auto_migrate=False)
+        try:
+            barrier.wait(timeout=10)
+            worker.set_meta(key, float(value))
+        finally:
+            worker.close()
+
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        list(executor.map(write, range(worker_count)))
+
+    verifier = SqlAlchemyMediaStore(url, auto_migrate=False)
+    try:
+        assert verifier.get_meta(key) in {
+            float(value) for value in range(worker_count)
+        }
+    finally:
+        verifier.close()
+
+
+@pytest.mark.integration
+def test_postgres_ingest_role_passes_read_only_runtime_preflight():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+
+    from sqlalchemy import func, select
+
+    store = SqlAlchemyMediaStore(url, auto_migrate=False)
+    collector_tables = (
+        store.table,
+        store.labels,
+        store.observations,
+        store.odds,
+        store.state,
+        store.cycles,
+        store.cycle_slots,
+        store.fetches,
+        store.fetch_items_table,
+    )
+
+    def row_counts() -> dict[str, int]:
+        with store.engine.connect() as conn:
+            return {
+                table.name: int(conn.execute(
+                    select(func.count()).select_from(table)
+                ).scalar_one())
+                for table in collector_tables
+            }
+
+    try:
+        before = row_counts()
+        report = store.collector_runtime_preflight()
+        after = row_counts()
+    finally:
+        store.close()
+
+    assert after == before
+    assert report["contract_version"] == 2
+    assert report["postgresql"] is True
+    assert report["connected"] is True
+    assert report["database_clock_valid"] is True
+    assert report["required_table_count"] == len(collector_tables)
+    assert report["selectable_table_count"] == len(collector_tables)
+    assert report["resolved_relation_count"] == len(collector_tables)
+    assert report["exact_column_table_count"] == len(collector_tables)
+    assert report["required_column_count"] == sum(
+        len(table.columns) for table in collector_tables
+    )
+    assert report["selectable_column_count"] == report["required_column_count"]
+    assert report["required_select_count"] == len(collector_tables)
+    assert report["required_insert_count"] == len(collector_tables)
+    assert report["required_update_count"] == 3
+    assert report["forbidden_update_count"] == 0
+    assert report["forbidden_delete_count"] == 0
+    assert report["forbidden_truncate_count"] == 0
+    assert report["schema_create_count"] == 0
+    assert report["database_create_violation_count"] == 0
+    assert report["row_security_violation_count"] == 0
+    assert report["role_attribute_violation_count"] == 0
+    assert report["required_trigger_count"] == 6
+    assert report["active_trigger_count"] == 6
+    assert report["required_function_contract_count"] == 7
+    assert report["authenticated_function_contract_count"] == 7
+    assert report["active_constraint_count"] == report["required_constraint_count"]
+    assert report["active_index_count"] == report["required_index_count"] == 1
+    assert report["search_path_valid"] is True
+    assert report["relation_resolution_valid"] is True
+    assert report["cycle_parent_lock_authority_valid"] is True
+    assert report["direct_endpoint_resolved"] is True
+    assert report["session_affinity_valid"] is True
+    assert report["advisory_lock_valid"] is True
+    assert report["tables_selectable"] is True
+    assert report["privileges_valid"] is True
+    assert report["role_attributes_valid"] is True
+    assert report["integrity_triggers_valid"] is True
+    assert report["function_contracts_valid"] is True
+    assert report["constraints_valid"] is True
+    assert report["indexes_valid"] is True
+    assert report["ready"] is True
+    assert all(isinstance(value, (bool, int)) for value in report.values())
+    assert url not in repr(report)
+    assert "tradingagents-ingest-v2" not in repr(report)
+
+
+@pytest.mark.integration
+def test_postgres_collector_singleton_lease_blocks_overlap_and_releases():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+
+    owner = SqlAlchemyMediaStore(url, auto_migrate=False)
+    contender = SqlAlchemyMediaStore(url, auto_migrate=False)
+    first_lease = None
+    second_lease = None
+    try:
+        first_lease = owner.acquire_collector_lease(direct_url=url)
+        assert first_lease is not None
+        assert first_lease.is_held is True
+        first_lease.assert_held()
+        assert contender.acquire_collector_lease(direct_url=url) is None
+
+        first_lease.close()
+        first_lease = None
+        second_lease = contender.acquire_collector_lease(direct_url=url)
+        assert second_lease is not None
+    finally:
+        if first_lease is not None:
+            first_lease.close()
+        if second_lease is not None:
+            second_lease.close()
+        owner.close()
+        contender.close()
+
+
+@pytest.mark.integration
+def test_postgres_preflight_rejects_pre_009_function_contracts_and_recovers():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+    if not os.getenv("PG_SUPERUSER"):
+        pytest.skip("migration administrator is not configured")
+
+    stale_report = None
+    try:
+        _run_collector_migration(url, "006_atomic_fetch_lineage.sql")
+        _run_collector_migration(url, "007_collection_cycles.sql")
+        stale = SqlAlchemyMediaStore(url, auto_migrate=False)
+        try:
+            stale_report = stale.collector_runtime_preflight(direct_url=url)
+        finally:
+            stale.close()
+    finally:
+        _run_collector_migration(url, "009_server_observed_evidence.sql")
+
+    assert stale_report is not None
+    assert stale_report["authenticated_function_contract_count"] == 4
+    assert stale_report["required_function_contract_count"] == 7
+    assert stale_report["function_contracts_valid"] is False
+    assert stale_report["ready"] is False
+
+    restored = SqlAlchemyMediaStore(url, auto_migrate=False)
+    try:
+        restored_report = restored.collector_runtime_preflight(direct_url=url)
+    finally:
+        restored.close()
+    assert restored_report["function_contracts_valid"] is True
+    assert restored_report["ready"] is True
+
+
+@pytest.mark.integration
+def test_postgres_preflight_rejects_database_create_authority():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    superuser = os.getenv("PG_SUPERUSER")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+    if not superuser:
+        pytest.skip("PostgreSQL superuser is not configured")
+
+    import psycopg
+    from psycopg import sql
+    from sqlalchemy.engine import make_url
+
+    parsed = make_url(url)
+    admin_dsn = parsed.set(
+        drivername="postgresql",
+        username=superuser,
+        password=None,
+    ).render_as_string(hide_password=False)
+    role = "tradingagents-ingest-v2"
+    database = parsed.database
+    assert database is not None
+    with psycopg.connect(admin_dsn, autocommit=True) as admin:
+        admin.execute(sql.SQL("GRANT CREATE ON DATABASE {} TO {}").format(
+            sql.Identifier(database), sql.Identifier(role),
+        ))
+    try:
+        store = SqlAlchemyMediaStore(url, auto_migrate=False)
+        try:
+            report = store.collector_runtime_preflight(direct_url=url)
+        finally:
+            store.close()
+    finally:
+        with psycopg.connect(admin_dsn, autocommit=True) as admin:
+            admin.execute(sql.SQL("REVOKE CREATE ON DATABASE {} FROM {}").format(
+                sql.Identifier(database), sql.Identifier(role),
+            ))
+
+    assert report["database_create_violation_count"] == 1
+    assert report["privileges_valid"] is False
+    assert report["ready"] is False
+
+
+@pytest.mark.integration
+def test_postgres_preflight_rejects_weakened_same_name_check_constraint():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+    if not os.getenv("PG_SUPERUSER"):
+        pytest.skip("migration administrator is not configured")
+
+    import psycopg
+
+    report = None
+    try:
+        with psycopg.connect(
+            _migration_admin_dsn(url), autocommit=True,
+        ) as admin:
+            admin.execute(
+                "ALTER TABLE public.fetch_runs DROP CONSTRAINT "
+                "fetch_runs_server_observation_shape; "
+                "ALTER TABLE public.fetch_runs ADD CONSTRAINT "
+                "fetch_runs_server_observation_shape CHECK (true)",
+                prepare=False,
+            )
+        store = SqlAlchemyMediaStore(url, auto_migrate=False)
+        try:
+            report = store.collector_runtime_preflight(direct_url=url)
+        finally:
+            store.close()
+    finally:
+        _run_collector_migration(url, "009_server_observed_evidence.sql")
+
+    assert report is not None
+    assert report["active_constraint_count"] == (
+        report["required_constraint_count"] - 1
+    )
+    assert report["constraints_valid"] is False
+    assert report["ready"] is False
+
+
+@pytest.mark.integration
+def test_postgres_lease_detects_backend_loss_and_cleanup_does_not_raise():
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    superuser = os.getenv("PG_SUPERUSER")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+    if not superuser:
+        pytest.skip("PostgreSQL superuser is not configured")
+
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import make_url
+
+    admin_url = make_url(url).set(username=superuser, password=None)
+    admin = create_engine(admin_url)
+    owner = SqlAlchemyMediaStore(url, auto_migrate=False)
+    contender = SqlAlchemyMediaStore(url, auto_migrate=False)
+    loss_types = []
+    first_lease = None
+    second_lease = None
+    try:
+        first_lease = owner.acquire_collector_lease(
+            direct_url=url,
+            heartbeat_interval_seconds=0.05,
+            on_loss=loss_types.append,
+        )
+        assert first_lease is not None
+        with admin.begin() as conn:
+            assert conn.execute(text(
+                "SELECT pg_catalog.pg_terminate_backend(:backend_pid)"
+            ), {"backend_pid": first_lease._backend_pid}).scalar_one() is True
+
+        assert first_lease.wait_until_lost(5.0) is True
+        assert first_lease.is_held is False
+        with pytest.raises(RuntimeError, match="no longer held"):
+            first_lease.assert_held()
+        assert loss_types == ["OperationalError"]
+
+        # Cleanup of an already-dead direct connection is explicitly non-raising.
+        first_lease.close()
+        first_lease = None
+        _ = owner.get_meta("poller:last_cycle_utc")
+
+        second_lease = contender.acquire_collector_lease(
+            direct_url=url,
+            heartbeat_interval_seconds=0.05,
+        )
+        assert second_lease is not None
+        second_lease.assert_held()
+    finally:
+        if first_lease is not None:
+            first_lease.close()
+        if second_lease is not None:
+            second_lease.close()
+        owner.close()
+        contender.close()
+        admin.dispose()

@@ -26,8 +26,10 @@ import math
 import os
 import re
 import sqlite3
+import threading
 import time
 import uuid
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -84,6 +86,344 @@ _IMMUTABLE_NEWS_PROVENANCE_FIELDS = (
     "content_vintage_id",
     "content_vintage_schema_version",
 )
+# One session-level PostgreSQL advisory lock prevents accidental scale-out or a
+# manual one-shot from issuing provider requests beside the production daemon.
+_COLLECTOR_ADVISORY_LOCK_ID = int.from_bytes(
+    hashlib.sha256(b"tradingagents:global-collector:v1").digest()[:8], "big"
+) & ((1 << 63) - 1)
+_COLLECTOR_PREFLIGHT_ADVISORY_LOCK_ID = int.from_bytes(
+    hashlib.sha256(b"tradingagents:global-collector:preflight:v1").digest()[:8],
+    "big",
+) & ((1 << 63) - 1)
+_COLLECTOR_LEASE_HEARTBEAT_SECONDS = 30.0
+_POSTGRES_POOL_RECYCLE_SECONDS = 540
+_FLY_MPG_POOL_HOST = re.compile(
+    r"pgbouncer\.(?P<cluster>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.flympg\.net"
+)
+_FLY_MPG_DIRECT_HOST = re.compile(
+    r"direct\.(?P<cluster>[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.flympg\.net"
+)
+_LOCAL_POSTGRES_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+# Every digest is copied from, and statically checked against, the normalized
+# pg_proc.prosrc body in migrations 006/007/009.  Preflight verifies both the
+# independently stored comment and the live body hash so renaming a stale or
+# altered function cannot satisfy the contract.
+_COLLECTOR_FUNCTION_CONTRACTS = {
+    "public.canonical_jsonb_text(jsonb)": (
+        "tradingagents.canonical-jsonb-text.v1;"
+        "normalized-prosrc-sha256="
+        "5d530ed30c769012e3ec4cc7650ae6f276ea0019ddaf8d13f2c4d165f6e7c78f",
+        "5d530ed30c769012e3ec4cc7650ae6f276ea0019ddaf8d13f2c4d165f6e7c78f",
+        "i",
+    ),
+    "public.enforce_fetch_run_lifecycle()": (
+        "tradingagents.fetch-run-lifecycle.v3;"
+        "normalized-prosrc-sha256="
+        "e69793ca6965e8ddccd178088b0506c178f369a88d2d501b05d0ca7d9e2e2b84",
+        "e69793ca6965e8ddccd178088b0506c178f369a88d2d501b05d0ca7d9e2e2b84",
+        "v",
+    ),
+    "public.enforce_fetch_run_item_lifecycle()": (
+        "tradingagents.fetch-run-item-lifecycle.v1;"
+        "normalized-prosrc-sha256="
+        "3b09b817e4945f2fe39b831a7695ad2c8ee0acd7e19084ed1ff31ee7b2d989fa",
+        "3b09b817e4945f2fe39b831a7695ad2c8ee0acd7e19084ed1ff31ee7b2d989fa",
+        "v",
+    ),
+    "public.enforce_fetch_run_content_completion()": (
+        "tradingagents.fetch-run-content-completion.v1;"
+        "normalized-prosrc-sha256="
+        "26e4ec999f2e0a92b95e2d5c0dfa93373a40ebf2c0301a309afa6fa32f616514",
+        "26e4ec999f2e0a92b95e2d5c0dfa93373a40ebf2c0301a309afa6fa32f616514",
+        "v",
+    ),
+    "public.enforce_collection_cycle_lifecycle()": (
+        "tradingagents.collection-cycle-lifecycle.v2;"
+        "normalized-prosrc-sha256="
+        "ba161044134abafec2cc38b27ee790d1772a8ac68857d54158f1237a79c7cab8",
+        "ba161044134abafec2cc38b27ee790d1772a8ac68857d54158f1237a79c7cab8",
+        "v",
+    ),
+    "public.enforce_collection_cycle_slot_lifecycle()": (
+        "tradingagents.collection-cycle-slot-lifecycle.v1;"
+        "normalized-prosrc-sha256="
+        "e64e3c6c91b954edc370fae0db4d2b6f585935c134389f8a7f3d1e4f578dfce4",
+        "e64e3c6c91b954edc370fae0db4d2b6f585935c134389f8a7f3d1e4f578dfce4",
+        "v",
+    ),
+    "public.enforce_fetch_run_cycle_binding()": (
+        "tradingagents.fetch-run-cycle-binding.v2;"
+        "normalized-prosrc-sha256="
+        "d340d1423c67392398e9d949c0494304db608acaeb5d3f3e6275540f11cb5c1c",
+        "d340d1423c67392398e9d949c0494304db608acaeb5d3f3e6275540f11cb5c1c",
+        "v",
+    ),
+}
+
+# Constraint definitions whose structure is essential to deduplication and
+# parent/lineage integrity. Every CHECK body is hash-pinned below; primary,
+# unique, and foreign keys are matched by exact ordered columns/targets.
+_COLLECTOR_CONSTRAINT_CONTRACTS = {
+    ("media_posts", "media_posts_pkey"): ("p", ("source", "external_id"), None, ()),
+    ("media_labels", "media_labels_pkey"): (
+        "p", ("source", "external_id", "label"), None, (),
+    ),
+    ("media_observations", "media_observations_pkey"): (
+        "p", ("source", "external_id", "observed_utc"), None, (),
+    ),
+    ("macro_odds", "macro_odds_pkey"): (
+        "p", ("market_id", "captured_utc"), None, (),
+    ),
+    ("poll_state", "poll_state_pkey"): ("p", ("key",), None, ()),
+    ("collection_cycles", "collection_cycles_pkey"): (
+        "p", ("collection_cycle_id",), None, (),
+    ),
+    ("collection_cycle_slots", "collection_cycle_slots_pkey"): (
+        "p", ("collection_cycle_id", "provider", "query_key"), None, (),
+    ),
+    ("fetch_runs", "fetch_runs_pkey"): ("p", ("fetch_run_id",), None, ()),
+    ("fetch_run_items", "fetch_run_items_pkey"): (
+        "p", ("fetch_run_id", "source", "external_id"), None, (),
+    ),
+    ("fetch_runs", "fetch_runs_cycle_slot_unique"): (
+        "u", ("collection_cycle_id", "provider", "query_key"), None, (),
+    ),
+    ("fetch_run_items", "fetch_run_items_run_raw_unique"): (
+        "u", ("fetch_run_id", "raw_content_id"), None, (),
+    ),
+    ("collection_cycle_slots", "collection_cycle_slots_cycle_fk"): (
+        "f", ("collection_cycle_id",), "collection_cycles",
+        ("collection_cycle_id",),
+    ),
+    ("fetch_runs", "fetch_runs_collection_cycle_fk"): (
+        "f", ("collection_cycle_id",), "collection_cycles",
+        ("collection_cycle_id",),
+    ),
+    ("fetch_run_items", "fetch_run_items_run_fk"): (
+        "f", ("fetch_run_id",), "fetch_runs", ("fetch_run_id",),
+    ),
+    ("fetch_run_items", "fetch_run_items_media_fk"): (
+        "f", ("source", "external_id"), "media_posts",
+        ("source", "external_id"),
+    ),
+    ("fetch_runs", "fetch_runs_terminal_receipt_coherence"): (
+        "c", None, None, (),
+    ),
+    ("fetch_runs", "fetch_runs_formal_eligible_content_lineage"): (
+        "c", None, None, (),
+    ),
+    ("fetch_runs", "fetch_runs_server_observation_shape"): (
+        "c", None, None, (),
+    ),
+    ("collection_cycles", "collection_cycles_terminal_shape"): (
+        "c", None, None, (),
+    ),
+    ("collection_cycles", "collection_cycles_server_observation_shape"): (
+        "c", None, None, (),
+    ),
+    ("collection_cycle_slots", "collection_cycle_slots_fields_valid"): (
+        "c", None, None, (),
+    ),
+}
+_COLLECTOR_NOT_VALID_CONSTRAINTS = frozenset({
+    ("fetch_runs", "fetch_runs_terminal_receipt_coherence"),
+    ("fetch_runs", "fetch_runs_formal_eligible_content_lineage"),
+})
+_COLLECTOR_CHECK_CONSTRAINT_HASHES = {
+    ("collection_cycles", "collection_cycles_server_observation_shape"):
+        "10edb2266b9cb3fd0b95b9b3c65047d6a7f079714cb3ba1e9c8633f78f28612d",
+    ("collection_cycles", "collection_cycles_terminal_shape"):
+        "a10c6d5b9ab0c2bd5a0049d01d99b8196d3180e843b8786fd6d8a63276aeec0f",
+    ("collection_cycle_slots", "collection_cycle_slots_fields_valid"):
+        "a9539e59e23a965d7e4cd7766543a8c65a243b1b3df19c86b5f20e35464d681b",
+    ("fetch_runs", "fetch_runs_formal_eligible_content_lineage"):
+        "cce57858327c1a555793cb56a548abe914cd2fb7085b367e7f84178a3e4bfb14",
+    ("fetch_runs", "fetch_runs_server_observation_shape"):
+        "d4a50f6846927101030e26dd4e4dc339245b127356a7dd4043d0ca0fc3d32d5e",
+    ("fetch_runs", "fetch_runs_terminal_receipt_coherence"):
+        "fec7f88bbbacf42f911e29a97640b6c19d5110a30fd151671074fb66035ecd98",
+}
+
+
+def _safe_exception_kind(exc: BaseException) -> str:
+    kind = type(exc).__name__
+    return kind if kind.isidentifier() and len(kind) <= 64 else "Exception"
+
+
+def _postgres_connect_args(*, read_only: bool = False) -> dict:
+    options = (
+        "-c lock_timeout=5000 "
+        "-c statement_timeout=60000 "
+        "-c idle_in_transaction_session_timeout=60000 "
+        "-c search_path=pg_catalog,public"
+    )
+    if read_only:
+        options += " -c default_transaction_read_only=on"
+    return {
+        "connect_timeout": 10,
+        "keepalives": 1,
+        "keepalives_idle": 60,
+        "keepalives_interval": 10,
+        "keepalives_count": 3,
+        "tcp_user_timeout": 30000,
+        "options": options,
+    }
+
+
+def _advisory_lock_is_held_statement():
+    from sqlalchemy import text
+
+    return text(
+        "SELECT pg_catalog.pg_backend_pid() AS backend_pid, "
+        "EXISTS (SELECT 1 FROM pg_catalog.pg_locks AS held "
+        "WHERE held.locktype = 'advisory' AND held.granted "
+        "AND held.pid = pg_catalog.pg_backend_pid() "
+        "AND held.objsubid = 1 "
+        "AND held.classid::BIGINT * 4294967296 + held.objid::BIGINT = :lock_id) "
+        "AS lock_held"
+    )
+
+
+class _PostgresCollectorLease:
+    """A monitored session-level advisory lock on a dedicated direct engine."""
+
+    def __init__(
+        self,
+        connection,
+        engine,
+        lock_id: int,
+        backend_pid: int,
+        *,
+        heartbeat_interval_seconds: float,
+        on_loss=None,
+    ):
+        self._connection = connection
+        self._engine = engine
+        self._lock_id = lock_id
+        self._backend_pid = backend_pid
+        self._heartbeat_interval_seconds = heartbeat_interval_seconds
+        self._on_loss = on_loss
+        self._io_lock = threading.Lock()
+        self._state_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._lost = threading.Event()
+        self._closed = False
+        self._failure_type: str | None = None
+        self._thread = threading.Thread(
+            target=self._heartbeat_loop,
+            name="collector-lease-heartbeat",
+            daemon=True,
+        )
+        self._thread.start()
+
+    @property
+    def is_held(self) -> bool:
+        with self._state_lock:
+            return not self._closed and not self._lost.is_set()
+
+    @property
+    def failure_type(self) -> str | None:
+        with self._state_lock:
+            return self._failure_type
+
+    def wait_until_lost(self, timeout: float | None = None) -> bool:
+        return self._lost.wait(timeout)
+
+    def assert_held(self) -> None:
+        if not self.is_held:
+            raise RuntimeError("collector singleton lease is no longer held")
+
+    def _mark_lost(self, failure_type: str) -> None:
+        callback = None
+        with self._state_lock:
+            if self._closed or self._lost.is_set():
+                return
+            self._failure_type = (
+                failure_type
+                if failure_type.isidentifier() and len(failure_type) <= 64
+                else "Exception"
+            )
+            self._lost.set()
+            callback = self._on_loss
+        if callback is not None:
+            try:
+                callback(self._failure_type)
+            except Exception as exc:  # noqa: BLE001 - callback cannot kill monitor
+                logger.error(
+                    "Collector lease loss callback failed (%s)",
+                    _safe_exception_kind(exc),
+                )
+
+    def _heartbeat_loop(self) -> None:
+        while not self._stop.wait(self._heartbeat_interval_seconds):
+            try:
+                with self._io_lock:
+                    connection = self._connection
+                    if connection is None:
+                        return
+                    row = connection.execute(
+                        _advisory_lock_is_held_statement(),
+                        {"lock_id": self._lock_id},
+                    ).mappings().one()
+                    connection.commit()
+                if (
+                    int(row["backend_pid"]) != self._backend_pid
+                    or not bool(row["lock_held"])
+                ):
+                    self._mark_lost("CollectorLeaseOwnershipLost")
+                    return
+            except Exception as exc:  # noqa: BLE001 - convert to sanitized state
+                self._mark_lost(_safe_exception_kind(exc))
+                return
+
+    def close(self) -> None:
+        with self._state_lock:
+            if self._closed:
+                return
+            self._closed = True
+        self._stop.set()
+        if self._thread is not threading.current_thread():
+            self._thread.join(timeout=5.0)
+
+        from sqlalchemy import text
+
+        with self._io_lock:
+            connection, self._connection = self._connection, None
+            engine, self._engine = self._engine, None
+            if connection is not None:
+                try:
+                    if not self._lost.is_set():
+                        unlocked = bool(connection.execute(
+                            text("SELECT pg_catalog.pg_advisory_unlock(:lock_id)"),
+                            {"lock_id": self._lock_id},
+                        ).scalar_one())
+                        connection.commit()
+                        if not unlocked:
+                            logger.warning(
+                                "Collector singleton lease was absent during cleanup"
+                            )
+                except Exception as exc:  # noqa: BLE001 - teardown is best effort
+                    logger.warning(
+                        "Could not release collector singleton lease (%s)",
+                        _safe_exception_kind(exc),
+                    )
+                finally:
+                    try:
+                        connection.close()
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning(
+                            "Could not close collector lease connection (%s)",
+                            _safe_exception_kind(exc),
+                        )
+            if engine is not None:
+                try:
+                    engine.dispose()
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "Could not dispose collector lease engine (%s)",
+                        _safe_exception_kind(exc),
+                    )
 
 
 def _validated_collection_cycle_id(value: str | None) -> str | None:
@@ -1951,6 +2291,10 @@ class SqliteMediaStore:
             "FROM macro_odds GROUP BY theme ORDER BY theme"
         ).fetchall()
 
+    def server_observed_utc(self) -> float:
+        """Read the database clock used to bound one collector coverage cycle."""
+        return _sqlite_server_observed_utc(self.conn)
+
     def get_meta(self, key: str) -> float | None:
         row = self.conn.execute(
             "SELECT value FROM poll_state WHERE key = ?", (key,)
@@ -2677,12 +3021,26 @@ class SqlAlchemyMediaStore:
                 "Install the optional extra: pip install 'tradingagents[poller]'"
             ) from exc
 
-        self.engine = create_engine(url, pool_pre_ping=True)
+        engine_options = {
+            "pool_pre_ping": True,
+            # Fly's proxy can terminate ten-minute-old connections during a
+            # deployment drain. Recycle ordinary pooled connections before it.
+            "pool_recycle": _POSTGRES_POOL_RECYCLE_SECONDS,
+            "pool_timeout": 10,
+        }
+        if url.startswith(("postgresql://", "postgresql+")):
+            # Bound every database wait so the only collector cannot hang
+            # forever behind a dropped connection or an administrative row lock.
+            engine_options["connect_args"] = _postgres_connect_args()
+        self._database_url = url
+        self.engine = create_engine(url, **engine_options)
         self.dialect = self.engine.dialect.name
         if self.dialect not in ("postgresql", "sqlite"):
             logger.warning("media store: dedup-on-conflict is verified for postgresql/"
                            "sqlite; %r may behave differently.", self.dialect)
-        md = MetaData()
+        # PostgreSQL relations are schema-qualified at compile time. The pinned
+        # search path remains a defense-in-depth check, not a routing mechanism.
+        md = MetaData(schema="public" if self.dialect == "postgresql" else None)
         self.table = Table(
             "media_posts", md,
             Column("source", String, primary_key=True),
@@ -3195,6 +3553,11 @@ class SqlAlchemyMediaStore:
                 .group_by(o.c.theme).order_by(o.c.theme)
             ).all()]
 
+    def server_observed_utc(self) -> float:
+        """Read the database clock used to bound one collector coverage cycle."""
+        with self.engine.connect() as conn:
+            return self._server_observed_utc(conn)
+
     def get_meta(self, key: str) -> float | None:
         from sqlalchemy import select
         with self.engine.connect() as conn:
@@ -3204,13 +3567,699 @@ class SqlAlchemyMediaStore:
         return row[0] if row else None
 
     def set_meta(self, key: str, value: float) -> None:
-        from sqlalchemy import update
+        if self.dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert
+        else:
+            from sqlalchemy.dialects.sqlite import insert
+
+        statement = insert(self.state).values(key=key, value=value)
+        statement = statement.on_conflict_do_update(
+            index_elements=[self.state.c.key],
+            set_={"value": statement.excluded.value},
+        )
         with self.engine.begin() as conn:
-            res = conn.execute(
-                update(self.state).where(self.state.c.key == key).values(value=value)
+            conn.execute(statement)
+
+    def _collector_direct_database_url(self, direct_url: str | None = None):
+        """Resolve a session-affine URL without ever rendering its credentials."""
+        from sqlalchemy.engine import make_url
+
+        if direct_url is not None and direct_url.strip():
+            candidate = make_url(_normalize_pg_url(direct_url.strip()))
+            if candidate.get_backend_name() != "postgresql":
+                raise ValueError("collector direct database URL must use PostgreSQL")
+            host = (candidate.host or "").lower().rstrip(".")
+            if _FLY_MPG_POOL_HOST.fullmatch(host):
+                raise ValueError(
+                    "MEDIA_DB_DIRECT_URL must not use a Fly MPG pooler hostname"
+                )
+            return candidate
+
+        candidate = make_url(self._database_url)
+        if candidate.get_backend_name() != "postgresql":
+            raise ValueError("collector singleton lease requires PostgreSQL")
+        host = (candidate.host or "").lower().rstrip(".")
+        pooled_match = _FLY_MPG_POOL_HOST.fullmatch(host)
+        if pooled_match is not None:
+            return candidate.set(
+                host=f"direct.{pooled_match.group('cluster')}.flympg.net"
             )
-            if res.rowcount == 0:
-                conn.execute(self.state.insert().values(key=key, value=value))
+        if _FLY_MPG_DIRECT_HOST.fullmatch(host) or host in _LOCAL_POSTGRES_HOSTS:
+            return candidate
+        raise ValueError(
+            "collector lease needs MEDIA_DB_DIRECT_URL for this database host"
+        )
+
+    def _collector_direct_engine(self, direct_url: str | None = None):
+        from sqlalchemy import create_engine
+
+        resolved = self._collector_direct_database_url(direct_url)
+        return create_engine(
+            resolved,
+            pool_pre_ping=True,
+            pool_recycle=_POSTGRES_POOL_RECYCLE_SECONDS,
+            pool_timeout=10,
+            pool_size=2,
+            max_overflow=0,
+            connect_args=_postgres_connect_args(read_only=True),
+        )
+
+    @staticmethod
+    def _session_affine_connection(engine):
+        """Return one proven session-affine connection, or ``None``.
+
+        Holding a transaction on a second client forces a transaction-pooling
+        proxy to assign the first client another PostgreSQL backend. A direct or
+        session-pooled endpoint keeps both backend PIDs stable.
+        """
+        from sqlalchemy import text
+
+        primary = None
+        secondary = None
+        try:
+            primary = engine.connect()
+            first_pid = int(primary.execute(text(
+                "SELECT pg_catalog.pg_backend_pid()"
+            )).scalar_one())
+            primary.commit()
+
+            secondary = engine.connect()
+            second_pid = int(secondary.execute(text(
+                "SELECT pg_catalog.pg_backend_pid()"
+            )).scalar_one())
+            final_pid = int(primary.execute(text(
+                "SELECT pg_catalog.pg_backend_pid()"
+            )).scalar_one())
+            primary.commit()
+            if first_pid != final_pid or first_pid == second_pid:
+                primary.close()
+                primary = None
+                return None
+            return primary
+        except Exception:
+            if primary is not None:
+                primary.close()
+            return None
+        finally:
+            if secondary is not None:
+                secondary.close()
+
+    @staticmethod
+    def _advisory_lock_contract_valid(primary, engine) -> bool:
+        """Prove cross-session exclusion with an isolated, non-durable test lock."""
+        from sqlalchemy import text
+
+        contender = None
+        primary_acquired = False
+        try:
+            primary_acquired = bool(primary.execute(text(
+                "SELECT pg_catalog.pg_try_advisory_lock(:lock_id)"
+            ), {"lock_id": _COLLECTOR_PREFLIGHT_ADVISORY_LOCK_ID}).scalar_one())
+            primary.commit()
+            if not primary_acquired:
+                return False
+
+            contender = engine.connect()
+            contender_acquired = bool(contender.execute(text(
+                "SELECT pg_catalog.pg_try_advisory_lock(:lock_id)"
+            ), {"lock_id": _COLLECTOR_PREFLIGHT_ADVISORY_LOCK_ID}).scalar_one())
+            if contender_acquired:
+                # A re-entrant acquisition proves that both logical clients
+                # reached one server session. Release every count before exit.
+                for _ in range(3):
+                    if not bool(contender.execute(text(
+                        "SELECT pg_catalog.pg_advisory_unlock(:lock_id)"
+                    ), {
+                        "lock_id": _COLLECTOR_PREFLIGHT_ADVISORY_LOCK_ID,
+                    }).scalar_one()):
+                        break
+                contender.commit()
+                primary_acquired = False
+                return False
+            contender.commit()
+
+            held = primary.execute(
+                _advisory_lock_is_held_statement(),
+                {"lock_id": _COLLECTOR_PREFLIGHT_ADVISORY_LOCK_ID},
+            ).mappings().one()
+            primary.commit()
+            return bool(held["lock_held"])
+        except Exception:
+            return False
+        finally:
+            if contender is not None:
+                contender.close()
+            if primary_acquired:
+                try:
+                    primary.execute(text(
+                        "SELECT pg_catalog.pg_advisory_unlock(:lock_id)"
+                    ), {
+                        "lock_id": _COLLECTOR_PREFLIGHT_ADVISORY_LOCK_ID,
+                    })
+                    primary.commit()
+                except Exception:  # noqa: BLE001 - the probe must fail closed
+                    pass
+
+    def acquire_collector_lease(
+        self,
+        *,
+        direct_url: str | None = None,
+        heartbeat_interval_seconds: float = _COLLECTOR_LEASE_HEARTBEAT_SECONDS,
+        on_loss=None,
+    ) -> _PostgresCollectorLease | None:
+        """Acquire and monitor the production singleton on a direct PG session."""
+        if self.dialect != "postgresql":
+            raise ValueError("collector singleton lease requires PostgreSQL")
+        if (
+            not math.isfinite(heartbeat_interval_seconds)
+            or not 0 < heartbeat_interval_seconds <= 60
+        ):
+            raise ValueError("collector lease heartbeat must be in (0, 60] seconds")
+        from sqlalchemy import text
+
+        lease_engine = self._collector_direct_engine(direct_url)
+        connection = self._session_affine_connection(lease_engine)
+        if connection is None:
+            lease_engine.dispose()
+            raise RuntimeError(
+                "collector singleton lease requires a session-affine direct connection"
+            )
+        try:
+            acquired = bool(connection.execute(
+                text("SELECT pg_catalog.pg_try_advisory_lock(:lock_id)"),
+                {"lock_id": _COLLECTOR_ADVISORY_LOCK_ID},
+            ).scalar_one())
+            backend_pid = int(connection.execute(text(
+                "SELECT pg_catalog.pg_backend_pid()"
+            )).scalar_one())
+            # End SQLAlchemy's implicit transaction. PostgreSQL session locks
+            # remain held until explicit unlock or connection teardown.
+            connection.commit()
+            if not acquired:
+                connection.close()
+                lease_engine.dispose()
+                return None
+            return _PostgresCollectorLease(
+                connection,
+                lease_engine,
+                _COLLECTOR_ADVISORY_LOCK_ID,
+                backend_pid,
+                heartbeat_interval_seconds=float(heartbeat_interval_seconds),
+                on_loss=on_loss,
+            )
+        except Exception:
+            connection.close()
+            lease_engine.dispose()
+            raise
+
+    def collector_runtime_preflight(
+        self, *, direct_url: str | None = None,
+    ) -> dict:
+        """Verify the restricted PostgreSQL collector contract without writing.
+
+        The projection is deliberately limited to fixed booleans and counts. It
+        never returns connection details, role names, SQL text, or database error
+        messages, so callers can safely include it in an operational report.
+        """
+        if self.dialect != "postgresql":
+            raise ValueError("collector runtime preflight requires PostgreSQL")
+
+        from sqlalchemy import select, text
+
+        collector_tables = (
+            self.table,
+            self.labels,
+            self.observations,
+            self.odds,
+            self.state,
+            self.cycles,
+            self.cycle_slots,
+            self.fetches,
+            self.fetch_items_table,
+        )
+        mutable_table_names = frozenset({
+            "fetch_runs", "poll_state", "collection_cycles",
+        })
+        required_triggers = {
+            (
+                "immutable_fetch_runs",
+                "fetch_runs",
+                "enforce_fetch_run_lifecycle",
+            ): 31,
+            (
+                "immutable_fetch_run_items",
+                "fetch_run_items",
+                "enforce_fetch_run_item_lifecycle",
+            ): 31,
+            (
+                "validate_fetch_run_content_completion",
+                "fetch_runs",
+                "enforce_fetch_run_content_completion",
+            ): 19,
+            (
+                "immutable_collection_cycles",
+                "collection_cycles",
+                "enforce_collection_cycle_lifecycle",
+            ): 31,
+            (
+                "immutable_collection_cycle_slots",
+                "collection_cycle_slots",
+                "enforce_collection_cycle_slot_lifecycle",
+            ): 31,
+            (
+                "validate_fetch_run_cycle_binding",
+                "fetch_runs",
+                "enforce_fetch_run_cycle_binding",
+            ): 7,
+        }
+        report = {
+            "contract_version": 2,
+            "postgresql": True,
+            "connected": False,
+            "database_clock_valid": False,
+            "required_table_count": len(collector_tables),
+            "selectable_table_count": 0,
+            "resolved_relation_count": 0,
+            "exact_column_table_count": 0,
+            "required_column_count": sum(len(table.columns) for table in collector_tables),
+            "selectable_column_count": 0,
+            "required_select_count": 0,
+            "required_insert_count": 0,
+            "required_update_count": 0,
+            "forbidden_update_count": 0,
+            "forbidden_delete_count": 0,
+            "forbidden_truncate_count": 0,
+            "schema_create_count": 0,
+            "database_create_violation_count": 0,
+            "row_security_violation_count": 0,
+            "role_attribute_violation_count": 0,
+            "required_trigger_count": len(required_triggers),
+            "active_trigger_count": 0,
+            "required_function_contract_count": len(_COLLECTOR_FUNCTION_CONTRACTS),
+            "authenticated_function_contract_count": 0,
+            "required_constraint_count": len(_COLLECTOR_CONSTRAINT_CONTRACTS),
+            "active_constraint_count": 0,
+            "required_index_count": 1,
+            "active_index_count": 0,
+            "search_path_valid": False,
+            "relation_resolution_valid": False,
+            "cycle_parent_lock_authority_valid": False,
+            "direct_endpoint_resolved": False,
+            "session_affinity_valid": False,
+            "advisory_lock_valid": False,
+            "tables_selectable": False,
+            "privileges_valid": False,
+            "role_attributes_valid": False,
+            "integrity_triggers_valid": False,
+            "function_contracts_valid": False,
+            "constraints_valid": False,
+            "indexes_valid": False,
+            "ready": False,
+        }
+        direct_engine = None
+        direct_connection = None
+        try:
+            with self.engine.connect() as conn:
+                # This transaction makes the no-write preflight promise a
+                # database-enforced property, not just a code-review claim.
+                conn.execute(text("SET TRANSACTION READ ONLY"))
+                report["connected"] = True
+                database_clock = self._server_observed_utc(conn)
+                report["database_clock_valid"] = math.isfinite(database_clock)
+                report["search_path_valid"] = bool(conn.execute(text(
+                    "SELECT pg_catalog.current_schemas(false)::TEXT[] = "
+                    "ARRAY['pg_catalog','public']::TEXT[]"
+                )).scalar_one())
+
+                for table in collector_tables:
+                    columns = tuple(table.columns)
+                    conn.execute(select(*columns).limit(0))
+                    report["selectable_table_count"] += 1
+                    report["selectable_column_count"] += len(columns)
+
+                    resolved = bool(conn.execute(text(
+                        "SELECT pg_catalog.to_regclass(CAST(:unqualified AS TEXT))::OID "
+                        "IS NOT DISTINCT FROM "
+                        "pg_catalog.to_regclass(CAST(:qualified AS TEXT))::OID"
+                    ), {
+                        "unqualified": table.name,
+                        "qualified": f"public.{table.name}",
+                    }).scalar_one())
+                    report["resolved_relation_count"] += int(resolved)
+
+                    actual_columns = tuple(conn.execute(text(
+                        "SELECT attribute.attname "
+                        "FROM pg_catalog.pg_attribute AS attribute "
+                        "WHERE attribute.attrelid = "
+                        "pg_catalog.to_regclass(CAST(:relation AS TEXT)) "
+                        "AND attribute.attnum > 0 AND NOT attribute.attisdropped "
+                        "ORDER BY attribute.attnum"
+                    ), {
+                        "relation": f"public.{table.name}",
+                    }).scalars())
+                    expected_columns = tuple(column.name for column in columns)
+                    report["exact_column_table_count"] += int(
+                        len(actual_columns) == len(expected_columns)
+                        and set(actual_columns) == set(expected_columns)
+                    )
+
+                    privileges = conn.execute(text(
+                        "SELECT "
+                        "pg_catalog.has_table_privilege(current_user, "
+                        "CAST(:relation AS TEXT), 'SELECT') AS can_select, "
+                        "pg_catalog.has_table_privilege(current_user, "
+                        "CAST(:relation AS TEXT), 'INSERT') AS can_insert, "
+                        "pg_catalog.has_table_privilege(current_user, "
+                        "CAST(:relation AS TEXT), 'UPDATE') AS can_update"
+                    ), {"relation": f"public.{table.name}"}).mappings().one()
+                    report["required_select_count"] += int(
+                        bool(privileges["can_select"])
+                    )
+                    report["required_insert_count"] += int(
+                        bool(privileges["can_insert"])
+                    )
+                    if table.name in mutable_table_names:
+                        report["required_update_count"] += int(
+                            bool(privileges["can_update"])
+                        )
+
+                forbidden = conn.execute(text(
+                    "SELECT "
+                    "pg_catalog.count(*) FILTER (WHERE "
+                    "pg_catalog.has_table_privilege(current_user, relation.oid, 'UPDATE') "
+                    "AND NOT (namespace.nspname = 'public' AND relation.relname IN "
+                    "('fetch_runs', 'poll_state', 'collection_cycles'))) "
+                    "AS forbidden_update_count, "
+                    "pg_catalog.count(*) FILTER (WHERE "
+                    "pg_catalog.has_table_privilege(current_user, relation.oid, 'DELETE')) "
+                    "AS forbidden_delete_count, "
+                    "pg_catalog.count(*) FILTER (WHERE "
+                    "pg_catalog.has_table_privilege(current_user, relation.oid, 'TRUNCATE')) "
+                    "AS forbidden_truncate_count "
+                    "FROM pg_catalog.pg_class AS relation "
+                    "JOIN pg_catalog.pg_namespace AS namespace "
+                    "ON namespace.oid = relation.relnamespace "
+                    "WHERE relation.relkind IN ('r', 'p', 'f') "
+                    "AND namespace.nspname <> 'information_schema' "
+                    "AND namespace.nspname !~ '^pg_'"
+                )).mappings().one()
+                for key in (
+                    "forbidden_update_count",
+                    "forbidden_delete_count",
+                    "forbidden_truncate_count",
+                ):
+                    report[key] = int(forbidden[key])
+
+                report["schema_create_count"] = int(conn.execute(text(
+                    "SELECT pg_catalog.count(*) "
+                    "FROM pg_catalog.pg_namespace AS namespace "
+                    "WHERE namespace.nspname <> 'information_schema' "
+                    "AND namespace.nspname !~ '^pg_' "
+                    "AND pg_catalog.has_schema_privilege("
+                    "current_user, namespace.oid, 'CREATE')"
+                )).scalar_one())
+                report["database_create_violation_count"] = int(bool(
+                    conn.execute(text(
+                        "SELECT pg_catalog.has_database_privilege("
+                        "current_user, current_database(), 'CREATE')"
+                    )).scalar_one()
+                ))
+                report["row_security_violation_count"] = int(conn.execute(text(
+                    "SELECT pg_catalog.count(*) "
+                    "FROM pg_catalog.pg_class AS relation "
+                    "JOIN pg_catalog.pg_namespace AS namespace "
+                    "ON namespace.oid = relation.relnamespace "
+                    "WHERE namespace.nspname = 'public' "
+                    "AND relation.relname = ANY(CAST(:relations AS TEXT[])) "
+                    "AND (relation.relrowsecurity OR relation.relforcerowsecurity)"
+                ), {
+                    "relations": [table.name for table in collector_tables],
+                }).scalar_one())
+
+                attributes = conn.execute(text(
+                    "SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, "
+                    "rolreplication "
+                    "FROM pg_catalog.pg_roles WHERE rolname = current_user"
+                )).mappings().first()
+                report["role_attribute_violation_count"] = (
+                    sum(bool(attributes[key]) for key in (
+                        "rolsuper", "rolcreatedb", "rolcreaterole", "rolbypassrls",
+                        "rolreplication",
+                    ))
+                    if attributes is not None
+                    else 5
+                )
+
+                trigger_rows = conn.execute(text(
+                    "SELECT trigger.tgname, relation.relname, procedure.proname, "
+                    "trigger.tgenabled, trigger.tgtype "
+                    "FROM pg_catalog.pg_trigger AS trigger "
+                    "JOIN pg_catalog.pg_class AS relation "
+                    "ON relation.oid = trigger.tgrelid "
+                    "JOIN pg_catalog.pg_namespace AS relation_namespace "
+                    "ON relation_namespace.oid = relation.relnamespace "
+                    "JOIN pg_catalog.pg_proc AS procedure "
+                    "ON procedure.oid = trigger.tgfoid "
+                    "JOIN pg_catalog.pg_namespace AS procedure_namespace "
+                    "ON procedure_namespace.oid = procedure.pronamespace "
+                    "WHERE NOT trigger.tgisinternal "
+                    "AND relation_namespace.nspname = 'public' "
+                    "AND procedure_namespace.nspname = 'public'"
+                )).mappings().all()
+                report["active_trigger_count"] = sum(
+                    1
+                    for row in trigger_rows
+                    if required_triggers.get((
+                        row["tgname"], row["relname"], row["proname"],
+                    )) == int(row["tgtype"])
+                    and row["tgenabled"] in {"O", "A"}
+                )
+
+                for signature, expected in _COLLECTOR_FUNCTION_CONTRACTS.items():
+                    expected_comment, expected_hash, expected_volatility = expected
+                    function_row = conn.execute(text(
+                        "SELECT pg_catalog.obj_description(procedure.oid, 'pg_proc') "
+                        "AS contract_comment, "
+                        "pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to("
+                        "pg_catalog.regexp_replace(pg_catalog.btrim("
+                        "procedure.prosrc, E' \\n\\r\\t'), E'[ \\t]+\\n', "
+                        "E'\\n', 'g'), 'UTF8')), 'hex') AS source_hash, "
+                        "procedure.provolatile, procedure.prosecdef, "
+                        "procedure.proconfig, "
+                        "pg_catalog.has_function_privilege("
+                        "current_user, procedure.oid, 'EXECUTE') AS executable "
+                        "FROM pg_catalog.pg_proc AS procedure "
+                        "WHERE procedure.oid = "
+                        "pg_catalog.to_regprocedure(CAST(:signature AS TEXT))"
+                    ), {"signature": signature}).mappings().first()
+                    report["authenticated_function_contract_count"] += int(
+                        function_row is not None
+                        and function_row["contract_comment"] == expected_comment
+                        and function_row["source_hash"] == expected_hash
+                        and function_row["provolatile"] == expected_volatility
+                        and function_row["prosecdef"] is False
+                        and list(function_row["proconfig"] or [])
+                        == ["search_path=pg_catalog"]
+                        and bool(function_row["executable"])
+                    )
+
+                constraint_rows = conn.execute(text(
+                    "SELECT relation.relname, constraint_record.conname, "
+                    "constraint_record.contype, constraint_record.convalidated, "
+                    "referenced_relation.relname AS referenced_relation, "
+                    "constraint_record.confupdtype, constraint_record.confdeltype, "
+                    "constraint_record.confmatchtype, "
+                    "pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to("
+                    "pg_catalog.regexp_replace(pg_catalog.btrim("
+                    "pg_catalog.pg_get_constraintdef(constraint_record.oid, false), "
+                    "E' \\n\\r\\t'), E'[ \\t]+\\n', E'\\n', 'g'), "
+                    "'UTF8')), 'hex') AS definition_hash, "
+                    "ARRAY(SELECT attribute.attname::TEXT "
+                    "FROM pg_catalog.unnest(constraint_record.conkey) "
+                    "WITH ORDINALITY AS key_column(attnum, ordinal) "
+                    "JOIN pg_catalog.pg_attribute AS attribute "
+                    "ON attribute.attrelid = constraint_record.conrelid "
+                    "AND attribute.attnum = key_column.attnum "
+                    "ORDER BY key_column.ordinal) AS local_columns, "
+                    "ARRAY(SELECT attribute.attname::TEXT "
+                    "FROM pg_catalog.unnest(constraint_record.confkey) "
+                    "WITH ORDINALITY AS key_column(attnum, ordinal) "
+                    "JOIN pg_catalog.pg_attribute AS attribute "
+                    "ON attribute.attrelid = constraint_record.confrelid "
+                    "AND attribute.attnum = key_column.attnum "
+                    "ORDER BY key_column.ordinal) AS referenced_columns "
+                    "FROM pg_catalog.pg_constraint AS constraint_record "
+                    "JOIN pg_catalog.pg_class AS relation "
+                    "ON relation.oid = constraint_record.conrelid "
+                    "JOIN pg_catalog.pg_namespace AS namespace "
+                    "ON namespace.oid = relation.relnamespace "
+                    "LEFT JOIN pg_catalog.pg_class AS referenced_relation "
+                    "ON referenced_relation.oid = constraint_record.confrelid "
+                    "WHERE namespace.nspname = 'public'"
+                )).mappings().all()
+                for row in constraint_rows:
+                    expected = _COLLECTOR_CONSTRAINT_CONTRACTS.get((
+                        row["relname"], row["conname"],
+                    ))
+                    if expected is None:
+                        continue
+                    expected_type, expected_columns, expected_relation, expected_refs = (
+                        expected
+                    )
+                    constraint_key = (row["relname"], row["conname"])
+                    validation_valid = bool(row["convalidated"]) or (
+                        constraint_key in _COLLECTOR_NOT_VALID_CONSTRAINTS
+                    )
+                    type_and_keys_valid = (
+                        row["contype"] == expected_type
+                        and validation_valid
+                        and (
+                            expected_columns is None
+                            or tuple(row["local_columns"] or ()) == expected_columns
+                        )
+                        and row["referenced_relation"] == expected_relation
+                        and tuple(row["referenced_columns"] or ()) == expected_refs
+                    )
+                    if expected_type == "f":
+                        type_and_keys_valid = type_and_keys_valid and (
+                            row["confupdtype"] == "a"
+                            and row["confdeltype"] == "a"
+                            and row["confmatchtype"] == "s"
+                        )
+                    if expected_type == "c":
+                        type_and_keys_valid = type_and_keys_valid and (
+                            row["definition_hash"]
+                            == _COLLECTOR_CHECK_CONSTRAINT_HASHES.get(
+                                constraint_key
+                            )
+                        )
+                    report["active_constraint_count"] += int(type_and_keys_valid)
+
+                index_row = conn.execute(text(
+                    "SELECT index_record.indisvalid, index_record.indisready, "
+                    "index_record.indislive, index_record.indisunique, "
+                    "access_method.amname, index_record.indnkeyatts, "
+                    "index_record.indnatts, "
+                    "index_record.indoption::SMALLINT[] AS key_options, "
+                    "index_record.indpred IS NULL AS unfiltered, "
+                    "index_record.indexprs IS NULL AS unexpressed, "
+                    "ARRAY(SELECT pg_catalog.pg_get_indexdef("
+                    "index_record.indexrelid, ordinal, true) "
+                    "FROM pg_catalog.generate_series("
+                    "1, index_record.indnkeyatts) AS ordinal) AS key_definitions "
+                    "FROM pg_catalog.pg_index AS index_record "
+                    "JOIN pg_catalog.pg_class AS index_relation "
+                    "ON index_relation.oid = index_record.indexrelid "
+                    "JOIN pg_catalog.pg_class AS table_relation "
+                    "ON table_relation.oid = index_record.indrelid "
+                    "JOIN pg_catalog.pg_namespace AS namespace "
+                    "ON namespace.oid = table_relation.relnamespace "
+                    "JOIN pg_catalog.pg_am AS access_method "
+                    "ON access_method.oid = index_relation.relam "
+                    "WHERE namespace.nspname = 'public' "
+                    "AND table_relation.relname = 'fetch_runs' "
+                    "AND index_relation.relname = 'idx_fetch_query_server_time'"
+                )).mappings().first()
+                report["active_index_count"] = int(
+                    index_row is not None
+                    and bool(index_row["indisvalid"])
+                    and bool(index_row["indisready"])
+                    and bool(index_row["indislive"])
+                    and not bool(index_row["indisunique"])
+                    and index_row["amname"] == "btree"
+                    and int(index_row["indnkeyatts"]) == 4
+                    and int(index_row["indnatts"]) == 4
+                    and bool(index_row["unfiltered"])
+                    and bool(index_row["unexpressed"])
+                    and tuple(index_row["key_definitions"] or ()) == (
+                        "provider",
+                        "query_key",
+                        "server_started_utc",
+                        "server_terminal_utc",
+                    )
+                    and tuple(index_row["key_options"] or ()) == (0, 0, 3, 3)
+                )
+
+                # The exact DB trigger contract plus UPDATE authority on the
+                # parent table is what permits the runtime's SELECT FOR UPDATE.
+                # The preflight transaction itself remains database-read-only.
+                report["cycle_parent_lock_authority_valid"] = (
+                    report["required_update_count"] == len(mutable_table_names)
+                    and report["resolved_relation_count"]
+                    == report["required_table_count"]
+                )
+
+            direct_engine = self._collector_direct_engine(direct_url)
+            report["direct_endpoint_resolved"] = True
+            direct_connection = self._session_affine_connection(direct_engine)
+            report["session_affinity_valid"] = direct_connection is not None
+            if direct_connection is not None:
+                report["advisory_lock_valid"] = self._advisory_lock_contract_valid(
+                    direct_connection, direct_engine
+                )
+        except Exception:  # noqa: BLE001 - the returned projection must stay sanitized
+            pass
+        finally:
+            if direct_connection is not None:
+                with suppress(Exception):
+                    direct_connection.close()
+            if direct_engine is not None:
+                with suppress(Exception):
+                    direct_engine.dispose()
+
+        report["tables_selectable"] = (
+            report["selectable_table_count"] == report["required_table_count"]
+            and report["selectable_column_count"] == report["required_column_count"]
+            and report["exact_column_table_count"] == report["required_table_count"]
+        )
+        report["relation_resolution_valid"] = (
+            report["resolved_relation_count"] == report["required_table_count"]
+        )
+        report["privileges_valid"] = (
+            report["required_select_count"] == report["required_table_count"]
+            and report["required_insert_count"] == report["required_table_count"]
+            and report["required_update_count"] == len(mutable_table_names)
+            and report["forbidden_update_count"] == 0
+            and report["forbidden_delete_count"] == 0
+            and report["forbidden_truncate_count"] == 0
+            and report["schema_create_count"] == 0
+            and report["database_create_violation_count"] == 0
+            and report["row_security_violation_count"] == 0
+        )
+        report["role_attributes_valid"] = (
+            report["role_attribute_violation_count"] == 0
+        )
+        report["integrity_triggers_valid"] = (
+            report["active_trigger_count"] == report["required_trigger_count"]
+        )
+        report["function_contracts_valid"] = (
+            report["authenticated_function_contract_count"]
+            == report["required_function_contract_count"]
+        )
+        report["constraints_valid"] = (
+            report["active_constraint_count"] == report["required_constraint_count"]
+        )
+        report["indexes_valid"] = (
+            report["active_index_count"] == report["required_index_count"]
+        )
+        report["ready"] = all((
+            report["connected"],
+            report["database_clock_valid"],
+            report["search_path_valid"],
+            report["relation_resolution_valid"],
+            report["tables_selectable"],
+            report["privileges_valid"],
+            report["role_attributes_valid"],
+            report["integrity_triggers_valid"],
+            report["function_contracts_valid"],
+            report["constraints_valid"],
+            report["indexes_valid"],
+            report["cycle_parent_lock_authority_valid"],
+            report["direct_endpoint_resolved"],
+            report["session_affinity_valid"],
+            report["advisory_lock_valid"],
+        ))
+        return report
 
     def reserve_meta_budget(
         self, limits: dict[str, float], *, amount: float = 1.0

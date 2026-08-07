@@ -1,13 +1,16 @@
 # Container for the media poller — a long-running (or scheduled) data collector
 # that accumulates social/news history into a database for backtesting.
 #
-# Build:  docker build -f Dockerfile.poller -t tradingagents-poller .
+# Build:  docker build --build-arg GIT_REVISION="$(git rev-parse HEAD)" \
+#           -f Dockerfile.poller -t tradingagents-poller .
 # Run  :  docker run --rm -e MEDIA_POLLER_TICKERS=NVDA,AAPL \
 #                     -e MEDIA_DB_URL=postgresql+psycopg://user:pass@host:5432/trading \
 #                     tradingagents-poller
 #
 # The default ENTRYPOINT runs the hourly daemon. Override CMD for one-shot/cron
 # (e.g. `--once`) or inspection (`--stats`).
+
+ARG GIT_REVISION
 
 FROM python:3.12-slim@sha256:646fb0bca3dd3ea1bcc6feb72c17ed16eed6e10cffc732fcc1478bd3e7f02d7b AS builder
 
@@ -18,12 +21,23 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
-COPY . .
+# Copy only the files needed to build the installed package. Together with the
+# deny-by-default .dockerignore this keeps local credentials, Git metadata,
+# tests, reports, and workspace state out of remote-builder caches.
+COPY constraints-poller.txt pyproject.toml README.md ./
+COPY tradingagents ./tradingagents
+COPY cli ./cli
 # Install with the [poller] extra so networked stores (Postgres, …) work.
 RUN pip install --no-cache-dir --require-hashes -r constraints-poller.txt \
  && pip install --no-cache-dir --no-deps --no-build-isolation ".[poller]"
 
 FROM python:3.12-slim@sha256:646fb0bca3dd3ea1bcc6feb72c17ed16eed6e10cffc732fcc1478bd3e7f02d7b
+
+# Every production-image build must carry a full Git SHA. This makes an unsafe
+# raw `fly deploy` fail at build time instead of producing an untraceable release.
+ARG GIT_REVISION
+LABEL org.opencontainers.image.revision="${GIT_REVISION}"
+ENV GIT_REVISION="${GIT_REVISION}"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -31,7 +45,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN useradd --create-home appuser \
+RUN printf '%s' "$GIT_REVISION" | grep -Eq '^[0-9a-f]{40}$' \
+ && install -d -m 0755 /opt/tradingagents \
+ && printf '%s\n' "$GIT_REVISION" > /opt/tradingagents/REVISION \
+ && chmod 0444 /opt/tradingagents/REVISION \
+ && useradd --create-home appuser \
  && install -d -m 0755 -o appuser -g appuser /home/appuser/.tradingagents
 USER appuser
 WORKDIR /home/appuser/app

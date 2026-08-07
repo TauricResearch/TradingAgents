@@ -13,6 +13,16 @@ primary_region = "iad"          # keep close to the Fly MPG primary region
 [build]
   dockerfile = "Dockerfile.poller"
 
+[deploy]
+  # The image ENTRYPOINT remains tradingagents-poller, so this replaces only
+  # its CMD. The read-only preflight must pass before Fly updates the worker.
+  release_command = "--global-only --preflight"
+  release_command_timeout = "2m"
+  # Stop the sole old worker before starting the new one. This avoids a rolling
+  # overlap issuing duplicate provider requests; the hourly cadence tolerates
+  # the brief handoff and PostgreSQL also enforces a singleton advisory lease.
+  strategy = "immediate"
+
 [processes]
   app = "--global-only"
 
@@ -22,6 +32,9 @@ primary_region = "iad"          # keep close to the Fly MPG primary region
   MEDIA_AUTO_MIGRATE = "false"
   # This is the sole persistent runtime; disabling it is the emergency pause.
   MEDIA_COLLECTION_ENABLED = "true"
+  # Production preflight fails closed if the notification path is not configured.
+  # Fresh forks may set this false only during an explicitly reviewed setup phase.
+  MEDIA_REQUIRE_ALERT_WEBHOOK = "true"
   # Global-only mode requires this exact source boundary. Broad editorial-news
   # queries are built in; X topics come from ranked general news and geographic
   # trends, never a ticker/entity watchlist or first-party company feed.
@@ -33,12 +46,29 @@ primary_region = "iad"          # keep close to the Fly MPG primary region
   MEDIA_POLLER_X_INTERVAL = "86400"
   MEDIA_POLLER_X_TOPICS = "3"
   MEDIA_POLLER_X_LIMIT = "10"
+  # Private Fly health listener. There is deliberately no services/http_service
+  # section, so this port is not published on the app's public hostname.
+  MEDIA_HEALTH_PORT = "5500"
 
-# Restart the worker if it crashes; a clean SIGTERM during deploy won't loop.
-# dedup on (source, external_id) makes a re-poll after restart harmless.
+# The sole persistent collector must come back after any unexpected process exit.
+# Fly still owns intentional deployment replacement and scale-to-zero operations;
+# durable receipts and request budgets make a restarted collection idempotent.
 [[restart]]
-  policy = "on-failure"
-  retries = 10
+  policy = "always"
+  processes = ["app"]
+
+# A top-level check works without defining a public Fly service. The collector
+# binds this port on 0.0.0.0 inside its private network and reports coverage
+# produced by the current process at /healthz.
+[checks.collector_health]
+  type = "http"
+  port = 5500
+  method = "get"
+  path = "/healthz"
+  interval = "60s"
+  timeout = "10s"
+  grace_period = "5m"
+  processes = ["app"]
 
 # Smallest machine is ample: the poller's import surface is ~30 MB RSS and it is
 # network-bound, idle most of the hour. Bump memory only if you add many tickers.

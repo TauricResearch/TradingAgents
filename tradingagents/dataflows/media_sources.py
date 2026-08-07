@@ -23,6 +23,7 @@ import html
 import http.client
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -47,6 +48,12 @@ _BLUESKY_SEARCH = "https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?{q
 _TRUTHSOCIAL_SEARCH = "https://truthsocial.com/api/v2/search?{qs}"
 _X_SEARCH = "https://api.x.com/2/tweets/search/recent?{qs}"
 _X_TRENDS = "https://api.x.com/2/trends/by/woeid/{woeid}?{qs}"
+_X_REQUIRED_POST_METRICS = (
+    "like_count", "reply_count", "retweet_count", "quote_count",
+)
+_X_REQUIRED_USER_METRICS = (
+    "followers_count", "following_count", "tweet_count",
+)
 _YAHOO_NEWS_RSS = (
     "https://feeds.finance.yahoo.com/rss/2.0/headline?s={symbol}&region=US&lang=en-US"
 )
@@ -129,28 +136,57 @@ _FIRST_PARTY_HEADLINE = re.compile(
     re.IGNORECASE,
 )
 
+# Provider payloads are untrusted and the production collector runs in a small
+# VM.  Read at most this many bytes from any one HTTP response before parsing.
+_MAX_PROVIDER_RESPONSE_BYTES = 4 * 1024 * 1024
+
+
+class ProviderResponseError(RuntimeError):
+    """A sanitized provider schema failure that must not be retried blindly."""
+
+
+class ProviderTransientError(RuntimeError):
+    """A sanitized transport failure eligible for a bounded free-source retry."""
+
+
+def _is_transient_http_error(exc: HTTPError) -> bool:
+    """Return whether an HTTP response can plausibly succeed on a bounded retry."""
+    code = exc.code
+    return isinstance(code, int) and not isinstance(code, bool) and (
+        code in {408, 429} or 500 <= code <= 599
+    )
+
+
 # Sources that run without a key. 'x' is added by the poller only when a token
 # is present (see media poller's source resolution).
 KEYLESS_SOURCES = ("stocktwits", "reddit", "bluesky", "truthsocial", "news")
 
 
 def _iso_to_epoch(iso_str: str | None) -> float | None:
-    if not iso_str:
+    if not isinstance(iso_str, str) or not iso_str:
         return None
     try:
         normalized = iso_str[:-1] + "+00:00" if iso_str.endswith("Z") else iso_str
-        return datetime.fromisoformat(normalized).timestamp()
-    except (ValueError, TypeError):
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        timestamp = parsed.timestamp()
+        return timestamp if math.isfinite(timestamp) else None
+    except (OSError, OverflowError, ValueError, TypeError):
         return None
 
 
 def _rfc822_to_epoch(date_str: str | None) -> float | None:
     """Parse an RSS 2.0 ``pubDate`` (RFC-822, e.g. 'Wed, 28 Jun 2026 12:00:00 GMT')."""
-    if not date_str:
+    if not isinstance(date_str, str) or not date_str:
         return None
     try:
-        return parsedate_to_datetime(date_str).timestamp()
-    except (ValueError, TypeError):
+        parsed = parsedate_to_datetime(date_str)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        timestamp = parsed.timestamp()
+        return timestamp if math.isfinite(timestamp) else None
+    except (OSError, OverflowError, ValueError, TypeError):
         return None
 
 
@@ -159,6 +195,21 @@ def _strip_html(text: str | None) -> str:
     if not text:
         return ""
     return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", text)).split())
+
+
+def _has_meaningful_text(value: object) -> bool:
+    """Require at least one Unicode letter or number, not only blank/punctuation."""
+    return isinstance(value, str) and any(char.isalnum() for char in value)
+
+
+def _has_nonnegative_metrics(value: object, required: tuple[str, ...]) -> bool:
+    """Validate requested X metric counters without accepting booleans as ints."""
+    return isinstance(value, dict) and all(
+        isinstance(value.get(name), int)
+        and not isinstance(value[name], bool)
+        and value[name] >= 0
+        for name in required
+    )
 
 
 _TRACKING_QUERY_KEYS = frozenset({
@@ -305,14 +356,184 @@ def looks_company_authored(publisher: str | None, title: str | None) -> bool:
     )
 
 
+def _read_bounded(response, *, max_bytes: int | None = None) -> bytes:
+    """Read one provider response without allowing unbounded memory growth."""
+    limit = _MAX_PROVIDER_RESPONSE_BYTES if max_bytes is None else max_bytes
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise ValueError("provider response byte limit must be a positive integer")
+    payload = response.read(limit + 1)
+    if not isinstance(payload, bytes):
+        raise ProviderResponseError("provider response body is not bytes")
+    if len(payload) > limit:
+        raise ProviderResponseError("provider response exceeded the byte limit")
+    return payload
+
+
+def _parse_rss_response(response) -> ET.Element:
+    """Parse an RSS 2.0 response and return its required direct channel."""
+    root = ET.fromstring(_read_bounded(response))
+    if root.tag != "rss":
+        raise ProviderResponseError("provider RSS root is invalid")
+    channel = root.find("channel")
+    if channel is None:
+        raise ProviderResponseError("provider RSS channel is missing")
+    for required in ("title", "link", "description"):
+        element = channel.find(required)
+        if element is None or not _has_meaningful_text(element.text):
+            raise ProviderResponseError("provider RSS channel schema is invalid")
+    return channel
+
+
+def _rss_channel_items(channel: ET.Element) -> list[ET.Element]:
+    """Return direct RSS 2.0 items and reject nested or namespaced lookalikes."""
+    items = channel.findall("item")
+    item_like = [
+        element
+        for element in channel.iter()
+        if isinstance(element.tag, str) and element.tag.rsplit("}", 1)[-1] == "item"
+    ]
+    if len(items) != len(item_like):
+        raise ProviderResponseError("provider RSS item structure is invalid")
+    return items
+
+
 def _get_json(url: str, headers: dict, timeout: float):
     req = Request(url, headers={"User-Agent": _UA, **headers})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read())
-    except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:
-        logger.warning("GET %s failed: %s", url.split("?")[0], exc)
+            return json.loads(_read_bounded(resp))
+    except HTTPError as exc:
+        logger.info("GET %s failed (%s)", url.split("?")[0], type(exc).__name__)
+        if _is_transient_http_error(exc):
+            return None
+        raise ProviderResponseError("provider HTTP response was not retryable") from exc
+    except (OSError, http.client.HTTPException) as exc:
+        logger.info("GET %s failed (%s)", url.split("?")[0], type(exc).__name__)
         return None
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+        ProviderResponseError,
+    ) as exc:
+        logger.info("GET %s failed (%s)", url.split("?")[0], type(exc).__name__)
+        raise ProviderResponseError("provider JSON response schema was invalid") from exc
+
+
+def _x_response_items(data, *, response_name: str) -> list[dict]:
+    """Validate an X v2 response envelope without trusting error contents."""
+    if not isinstance(data, dict):
+        raise ProviderResponseError(f"X {response_name} response schema is invalid")
+
+    errors = data.get("errors")
+    if errors is not None:
+        if not isinstance(errors, list):
+            raise ProviderResponseError(f"X {response_name} response schema is invalid")
+        if errors:
+            raise ProviderResponseError(f"X {response_name} response reported errors")
+
+    meta = data.get("meta")
+    if meta is not None and not isinstance(meta, dict):
+        raise ProviderResponseError(f"X {response_name} response schema is invalid")
+    result_count = meta.get("result_count") if isinstance(meta, dict) else None
+    if result_count is not None and (
+        isinstance(result_count, bool)
+        or not isinstance(result_count, int)
+        or result_count < 0
+    ):
+        raise ProviderResponseError(f"X {response_name} response schema is invalid")
+
+    items = data.get("data")
+    if items is None:
+        if result_count == 0 and response_name != "trend":
+            return []
+        raise ProviderResponseError(f"X {response_name} response omitted result data")
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+        raise ProviderResponseError(f"X {response_name} response schema is invalid")
+    if result_count is not None and result_count != len(items):
+        raise ProviderResponseError(f"X {response_name} response count is inconsistent")
+    if response_name == "recent-search":
+        for item in items:
+            if (
+                not isinstance(item.get("id"), str)
+                or not item["id"].strip()
+                or not isinstance(item.get("author_id"), str)
+                or not item["author_id"].strip()
+                or not isinstance(item.get("text"), str)
+                or not item["text"].strip()
+                or _iso_to_epoch(item.get("created_at")) is None
+                or not _has_nonnegative_metrics(
+                    item.get("public_metrics"), _X_REQUIRED_POST_METRICS
+                )
+            ):
+                raise ProviderResponseError(
+                    "X recent-search response item schema is invalid"
+                )
+    elif response_name == "trend":
+        if not items:
+            raise ProviderResponseError("X trend response omitted ranked trends")
+        for item in items:
+            count = item.get("tweet_count")
+            if (
+                not isinstance(item.get("trend_name"), str)
+                or not item["trend_name"].strip()
+                or (
+                    count is not None
+                    and (
+                        isinstance(count, bool)
+                        or not isinstance(count, int)
+                        or count < 0
+                    )
+                )
+            ):
+                raise ProviderResponseError("X trend response item schema is invalid")
+    return items
+
+
+def _google_news_item(item: ET.Element) -> dict:
+    """Validate and normalize one Google News RSS item without partial salvage."""
+    guid_el = item.find("guid")
+    link_el = item.find("link")
+    title_el = item.find("title")
+    date_el = item.find("pubDate")
+    desc_el = item.find("description")
+    source_el = item.find("source")
+    provider_external_id = (
+        (guid_el.text if guid_el is not None else None)
+        or (link_el.text if link_el is not None else None)
+        or ""
+    ).strip()
+    title = ((title_el.text if title_el is not None else "") or "").strip()
+    published_utc = _rfc822_to_epoch(
+        date_el.text if date_el is not None else None
+    )
+    publisher = ((source_el.text if source_el is not None else "") or "").strip()
+    provenance = _google_news_provenance(item)
+    if (
+        not provider_external_id
+        or not _has_meaningful_text(title)
+        or published_utc is None
+        or not publisher
+        or not provenance.get("article_url")
+        or not provenance.get("publisher_domain")
+    ):
+        raise ProviderResponseError("Google News RSS item schema is invalid")
+    body = _strip_html(desc_el.text if desc_el is not None else "")
+    content_vintage_id, metadata = _google_news_content_vintage(
+        provider_external_id,
+        published_utc=published_utc,
+        publisher=publisher,
+        title=title,
+        body=body,
+        provenance=provenance,
+    )
+    return {
+        "external_id": content_vintage_id,
+        "title": title,
+        "body": body,
+        "created_utc": published_utc,
+        "publisher": publisher,
+        "metadata": metadata,
+    }
 
 
 def _row(source: str, ext_id: str, ticker: str, now: float, *,
@@ -404,16 +625,24 @@ def fetch_reddit(ticker: str, now: float, subreddits=_DEFAULT_SUBREDDITS,
         req = Request(url, headers={"User-Agent": _UA})
         try:
             with urlopen(req, timeout=timeout) as resp:
-                root = ET.fromstring(resp.read())
+                root = ET.fromstring(_read_bounded(resp))
         except HTTPError as exc:
             if exc.code == 429:
                 logger.warning("Reddit 429 for r/%s · %s — backing off 5s", sub, ticker)
                 time.sleep(5.0)
             else:
-                logger.warning("Reddit fetch failed for r/%s · %s: %s", sub, ticker, exc)
+                logger.warning(
+                    "Reddit fetch failed for r/%s · %s (%s)",
+                    sub, ticker, type(exc).__name__,
+                )
             continue
-        except (OSError, http.client.HTTPException, ET.ParseError) as exc:
-            logger.warning("Reddit fetch failed for r/%s · %s: %s", sub, ticker, exc)
+        except (
+            OSError, http.client.HTTPException, ET.ParseError, ProviderResponseError,
+        ) as exc:
+            logger.warning(
+                "Reddit fetch failed for r/%s · %s (%s)",
+                sub, ticker, type(exc).__name__,
+            )
             continue
         for entry in root.findall("atom:entry", _ATOM_NS):
             id_el = entry.find("atom:id", _ATOM_NS)
@@ -508,18 +737,48 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
                      {"Authorization": f"Bearer {token}", "Accept": "application/json"},
                      timeout)
     if data is None:
-        raise RuntimeError("X recent-search request failed; cursor was not advanced")
-    tweets = data.get("data", []) if isinstance(data, dict) else []
+        raise ProviderTransientError(
+            "X recent-search request failed; cursor was not advanced"
+        )
+    tweets = _x_response_items(data, response_name="recent-search")
+    includes = data.get("includes")
+    if includes is not None and not isinstance(includes, dict):
+        raise ProviderResponseError("X recent-search response schema is invalid")
+    if tweets and not isinstance(includes, dict):
+        raise ProviderResponseError("X recent-search response omitted expanded users")
+    raw_users = includes.get("users", []) if isinstance(includes, dict) else []
+    if not isinstance(raw_users, list) or any(
+        not isinstance(user, dict) for user in raw_users
+    ):
+        raise ProviderResponseError("X recent-search response schema is invalid")
     users = {
         str(user.get("id")): user
-        for user in ((data.get("includes") or {}).get("users", []) if isinstance(data, dict) else [])
+        for user in raw_users
         if user.get("id") is not None
     }
+    for tweet in tweets:
+        user = users.get(str(tweet.get("author_id")))
+        account_created_utc = (
+            _iso_to_epoch(user.get("created_at")) if isinstance(user, dict) else None
+        )
+        if (
+            not isinstance(user, dict)
+            or not isinstance(user.get("id"), str)
+            or user["id"] != tweet["author_id"]
+            or not isinstance(user.get("username"), str)
+            or not user["username"].strip()
+            or account_created_utc is None
+            or account_created_utc <= 0
+            or not _has_nonnegative_metrics(
+                user.get("public_metrics"), _X_REQUIRED_USER_METRICS
+            )
+        ):
+            raise ProviderResponseError(
+                "X recent-search response expanded author schema is invalid"
+            )
     rows = []
     for t in tweets:
         tid = t.get("id")
-        if tid is None:
-            continue
         user = users.get(str(t.get("author_id")), {})
         author_id = str(t.get("author_id") or "").strip()
         account_created_utc = _iso_to_epoch(user.get("created_at"))
@@ -603,8 +862,8 @@ def fetch_x_trends(woeid: int, limit: int = 30,
         timeout,
     )
     if data is None:
-        raise RuntimeError("X trend request failed; cursor was not advanced")
-    trends = data.get("data", []) if isinstance(data, dict) else []
+        raise ProviderTransientError("X trend request failed; cursor was not advanced")
+    trends = _x_response_items(data, response_name="trend")
     return [
         {
             "name": (trend.get("trend_name") or "").strip(),
@@ -624,67 +883,64 @@ def fetch_top_news_headlines(limit_per_feed: int = 12,
     Duplicate articles are deliberately retained across feeds because their
     cross-category appearance is a useful importance signal to the selector.
     """
+    if (
+        isinstance(limit_per_feed, bool)
+        or not isinstance(limit_per_feed, int)
+        or limit_per_feed < 1
+    ):
+        raise ValueError("top-news result limit must be a positive integer")
     headlines = []
     observed_feed_count = 0
-    failed_feed_count = 0
+    transient_failure_count = 0
+    response_failure_count = 0
     for category, region, url in _GOOGLE_TOP_NEWS_RSS:
         req = Request(url, headers={"User-Agent": _UA})
         try:
             with urlopen(req, timeout=timeout) as resp:
-                root = ET.fromstring(resp.read())
-        except (OSError, http.client.HTTPException, ET.ParseError, HTTPError) as exc:
-            failed_feed_count += 1
-            logger.warning(
+                channel = _parse_rss_response(resp)
+            items = _rss_channel_items(channel)
+            if not items:
+                raise ProviderResponseError("top-news RSS feed contained no ranked items")
+            parsed = [_google_news_item(item) for item in items[:limit_per_feed]]
+        except HTTPError as exc:
+            if _is_transient_http_error(exc):
+                transient_failure_count += 1
+            else:
+                response_failure_count += 1
+            logger.info(
+                "Top-news RSS fetch failed (%s:%s)", category, type(exc).__name__
+            )
+            continue
+        except (OSError, http.client.HTTPException) as exc:
+            transient_failure_count += 1
+            logger.info(
+                "Top-news RSS fetch failed (%s:%s)", category, type(exc).__name__
+            )
+            continue
+        except (ET.ParseError, ProviderResponseError) as exc:
+            response_failure_count += 1
+            logger.info(
                 "Top-news RSS fetch failed (%s:%s)", category, type(exc).__name__
             )
             continue
         observed_feed_count += 1
-        for rank, item in enumerate(root.iter("item")):
-            if rank >= limit_per_feed:
-                break
-            guid_el = item.find("guid")
-            link_el = item.find("link")
-            title_el = item.find("title")
-            date_el = item.find("pubDate")
-            desc_el = item.find("description")
-            source_el = item.find("source")
-            ext_id = (guid_el.text if guid_el is not None else None) or \
-                     (link_el.text if link_el is not None else None)
-            title = ((title_el.text if title_el is not None else "") or "").strip()
-            if not ext_id or not title:
-                continue
-            body = _strip_html(desc_el.text if desc_el is not None else "")
-            published_utc = _rfc822_to_epoch(
-                date_el.text if date_el is not None else None
-            )
-            publisher = (
-                (source_el.text if source_el is not None else "") or ""
-            ).strip()
-            content_vintage_id, metadata = _google_news_content_vintage(
-                ext_id,
-                published_utc=published_utc,
-                publisher=publisher,
-                title=title,
-                body=body,
-                provenance=_google_news_provenance(item),
-            )
+        for rank, normalized in enumerate(parsed):
             headlines.append({
-                "external_id": content_vintage_id,
-                "title": title,
-                "body": body,
-                "created_utc": published_utc,
-                "publisher": publisher,
-                "metadata": metadata,
+                **normalized,
                 "category": category,
                 "region": region,
                 "rank": rank,
             })
-    if failed_feed_count:
-        raise RuntimeError(
+    if response_failure_count:
+        raise ProviderResponseError(
+            "top-news discovery feed set violated the response contract"
+        )
+    if transient_failure_count:
+        raise ProviderTransientError(
             "top-news discovery feed set was incomplete; absence was not observed"
         )
     if observed_feed_count == 0:  # defensive: the frozen registry itself cannot be empty
-        raise RuntimeError("top-news discovery has no configured feeds")
+        raise ProviderResponseError("top-news discovery has no configured feeds")
     return headlines
 
 
@@ -702,11 +958,20 @@ def fetch_news(ticker: str, now: float, timeout: float = 10.0) -> list[dict]:
         req = Request(url, headers={"User-Agent": _UA})
         try:
             with urlopen(req, timeout=timeout) as resp:
-                root = ET.fromstring(resp.read())
-        except (OSError, http.client.HTTPException, ET.ParseError, HTTPError) as exc:
-            logger.warning("News RSS fetch failed (%s): %s", url.split("?")[0], exc)
+                channel = _parse_rss_response(resp)
+        except (
+            OSError,
+            http.client.HTTPException,
+            ET.ParseError,
+            HTTPError,
+            ProviderResponseError,
+        ) as exc:
+            logger.warning(
+                "News RSS fetch failed (%s:%s)",
+                url.split("?")[0], type(exc).__name__,
+            )
             continue
-        for item in root.iter("item"):
+        for item in channel.iter("item"):
             guid_el = item.find("guid")
             link_el = item.find("link")
             title_el = item.find("title")
@@ -760,49 +1025,39 @@ def fetch_global_news(query: str, now: float, theme: str,
     theme's headline window the same way it pulls a ticker's. The provider GUID
     is retained in metadata while the row key identifies one exact content vintage.
     """
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise ValueError("global-news result limit must be a positive integer")
     url = _GLOBAL_NEWS_RSS.format(q=quote(query))
     req = Request(url, headers={"User-Agent": _UA})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            root = ET.fromstring(resp.read())
-    except (OSError, http.client.HTTPException, ET.ParseError, HTTPError) as exc:
-        logger.warning("Global news fetch failed (%s)", type(exc).__name__)
-        raise RuntimeError("global-news request failed; cursor was not advanced") from exc
+            channel = _parse_rss_response(resp)
+    except HTTPError as exc:
+        if not _is_transient_http_error(exc):
+            raise ProviderResponseError(
+                "global-news HTTP response was not retryable; cursor was not advanced"
+            ) from exc
+        raise ProviderTransientError(
+            "global-news transport failed; cursor was not advanced"
+        ) from exc
+    except (OSError, http.client.HTTPException) as exc:
+        raise ProviderTransientError(
+            "global-news transport failed; cursor was not advanced"
+        ) from exc
+    except (ET.ParseError, ProviderResponseError) as exc:
+        raise ProviderResponseError(
+            "global-news response schema was invalid; cursor was not advanced"
+        ) from exc
     rows = []
-    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
-        raise ValueError("global-news result limit must be a positive integer")
-    for index, item in enumerate(root.iter("item")):
-        if index >= limit:
-            break
-        guid_el = item.find("guid")
-        link_el = item.find("link")
-        title_el = item.find("title")
-        date_el = item.find("pubDate")
-        desc_el = item.find("description")
-        source_el = item.find("source")
-        ext_id = (guid_el.text if guid_el is not None else None) or \
-                 (link_el.text if link_el is not None else None)
-        if not ext_id:
-            continue
-        publisher = ((source_el.text if source_el is not None else "") or "").strip()
-        title = (title_el.text if title_el is not None else "") or ""
-        body = _strip_html(desc_el.text if desc_el is not None else "")
-        published_utc = _rfc822_to_epoch(date_el.text if date_el is not None else None)
-        content_vintage_id, metadata = _google_news_content_vintage(
-            ext_id,
-            published_utc=published_utc,
-            publisher=publisher,
-            title=title,
-            body=body,
-            provenance=_google_news_provenance(item),
-        )
+    for item in _rss_channel_items(channel)[:limit]:
+        normalized = _google_news_item(item)
         rows.append(_row(
-            "globalnews", content_vintage_id, f"@{theme}", now,
-            author=publisher or None,
-            created_utc=published_utc,
-            title=title,
-            body=body,
-            metadata=metadata,
+            "globalnews", normalized["external_id"], f"@{theme}", now,
+            author=normalized["publisher"],
+            created_utc=normalized["created_utc"],
+            title=normalized["title"],
+            body=normalized["body"],
+            metadata=normalized["metadata"],
         ))
     return rows
 
