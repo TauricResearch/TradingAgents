@@ -225,3 +225,4 @@ reports/
 # Local developer convenience scripts (not part of upstream)
 /run.sh
 /run_aapl.py
+/batch_analyze.py

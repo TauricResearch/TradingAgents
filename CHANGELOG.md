@@ -10,6 +10,21 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Added
 
+- **Vendor provenance & fallback visibility.** `route_to_vendor` now records
+  which vendor actually served each method and which primaries it skipped, logs
+  the resolution at info level, and the CLI prints an "Effective configuration"
+  panel at startup (LLM provider/models/backend, per-category data vendor,
+  and for Bedrock the resolved region + auth mode) plus a "Data source" panel
+  after the run. This surfaces silent degrades (e.g. an unconfigured Schwab
+  primary skipped in favor of yfinance) that previously left it unclear which
+  source and Bedrock region/auth were in use.
+- **AnySearch global-news vendor (opt-in, live-only).** New `anysearch` vendor
+  for `get_global_news` backed by `api.anysearch.com`. Because AnySearch results
+  carry no reliable publish date, it is strictly look-ahead-safe: it serves only
+  live windows and defers (falls back to a date-filtering vendor) for historical
+  backtest dates. Uses the core `requests` dependency (no new extra);
+  `ANYSEARCH_API_KEY` is optional (anonymous works with lower limits). Not wired
+  into any default; enable by listing `anysearch` in the news vendor chain.
 - **Data vendor selection via env var / CLI.** New `TRADINGAGENTS_DATA_VENDOR`
   environment variable picks the source for prices (`core_stock_apis`) and
   technical indicators (`technical_indicators`) without editing code — a
@@ -34,6 +49,28 @@ Breaking changes within the 0.x line are called out explicitly.
   computes a per-day indicator window from an already-prepared OHLCV frame,
   shared by the yfinance and Schwab indicator paths (the yfinance per-day
   fallback is preserved).
+
+### Changed
+
+- **Cross-source reflection basis is now disclosed.** Realized returns for
+  reflection/alpha stay on yfinance split/dividend-adjusted prices (the correct
+  outcome basis), but when the agent priced its decision on an unadjusted vendor
+  (e.g. Schwab raw prices) the stored reflection now carries an explicit basis
+  caveat, and the verified snapshot discloses its yfinance-adjusted basis. This
+  prevents a raw-vs-adjusted artifact on split/dividend tickers from silently
+  poisoning the memory log or being mistaken for a data error. Default (yfinance)
+  behavior is unchanged.
+
+### Tests / CI
+
+- **Schwab enum contract + CI job.** A contract test pins the schwab-py
+  `PriceHistory` enum wire-values the vendor sends (`PeriodType.YEAR`,
+  `Period.FIVE_YEARS`, `FrequencyType.DAILY`, `Frequency.DAILY`) so a schwab-py
+  upgrade that renames a member or changes a value fails loudly instead of
+  silently sending the wrong frequency. A new CI job installs the `[schwab]`
+  extra and runs the Schwab vendor + contract tests.
+
+
 
 ## [0.3.1] — 2026-07-05
 
