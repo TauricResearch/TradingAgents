@@ -316,6 +316,11 @@ def formal_evidence_policy_manifest() -> dict:
         "expected_collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
             "expected_collector_semantics_id"
         ],
+        "compatible_collector_identities": list(
+            GLOBAL_EVENT_V2_PROTOCOL["evidence"].get(
+                "compatible_collector_identities", []
+            )
+        ),
         "fetch_receipt_evidence_lineage": dict(
             GLOBAL_EVENT_V2_PROTOCOL["evidence"]["fetch_receipt_evidence_lineage"]
         ),
@@ -1143,13 +1148,30 @@ def bind_receipt_coverage_to_selection(
                 )
             except json.JSONDecodeError:
                 receipt_metadata = {}
-            collector_identity_matches = (
-                receipt_metadata.get("protocol_id") == GLOBAL_EVENT_V2_PROTOCOL_ID
-                and receipt_metadata.get("collector_semantics_id")
-                == GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+            collector_identity = {
+                "protocol_id": receipt_metadata.get("protocol_id"),
+                "collector_semantics_id": receipt_metadata.get(
+                    "collector_semantics_id"
+                ),
+            }
+            current_collector_identity = {
+                "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
+                "collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
                     "expected_collector_semantics_id"
-                ]
-            )
+                ],
+            }
+            compatible_collector_identities = [
+                {
+                    "protocol_id": item.get("protocol_id"),
+                    "collector_semantics_id": item.get("collector_semantics_id"),
+                }
+                for item in GLOBAL_EVENT_V2_PROTOCOL["evidence"].get(
+                    "compatible_collector_identities", []
+                )
+                if isinstance(item, dict)
+            ]
+            collector_identity_matches = collector_identity == current_collector_identity \
+                or collector_identity in compatible_collector_identities
             receipt_lineage = run.get("formal_eligible_lineage")
             receipt_ids = run.get("formal_eligible_evidence_ids")
             lineage_shape_valid = isinstance(receipt_lineage, list) and all(
@@ -1344,6 +1366,119 @@ def evidence_window(store, decision_date: str) -> list[dict]:
     rows = sorted(deduplicated.values(), key=_row_order_key, reverse=True)
     _validate_history_bucket_counts(rows)
     return rows
+
+
+def validate_forecast_bundle(
+    bundle: dict,
+    *,
+    provider: str,
+    requested_model: str,
+    decision_date: str,
+    rows: list[dict],
+    universe: list[str],
+) -> DailyGlobalForecast:
+    """Validate a final forecast bundle independently of its model adapter.
+
+    Model adapters are untrusted ports.  The application layer calls this even
+    when an adapter did not use :func:`invoke_global_forecast`, so a custom
+    adapter cannot substitute unselected evidence or bypass grounding rules.
+    """
+    if not isinstance(bundle, dict):
+        raise TypeError("forecast bundle must be a mapping")
+    evidence = prepare_evidence(rows)
+    if not evidence:
+        raise ValueError("global-event forecast requires point-in-time evidence")
+    prompt = build_forecast_prompt(
+        decision_date=decision_date, evidence=evidence, universe=universe
+    )
+    expected_input_id = content_id(
+        {
+            "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
+            "decision_date": decision_date,
+            "universe": universe,
+            "evidence": evidence,
+        },
+        prefix="input_",
+    )
+    if bundle.get("protocol_id") != GLOBAL_EVENT_V2_PROTOCOL_ID:
+        raise ValueError("forecast bundle protocol differs from the frozen protocol")
+    if bundle.get("provider") != provider or bundle.get("requested_model") != requested_model:
+        raise ValueError("forecast bundle differs from the checkpoint request")
+    if bundle.get("input_bundle_id") != expected_input_id:
+        raise ValueError("forecast bundle input identity is invalid")
+    if bundle.get("evidence") != evidence:
+        raise ValueError("forecast bundle evidence differs from the selected projection")
+    if bundle.get("prompt") != prompt:
+        raise ValueError("forecast bundle prompt differs from its selected evidence")
+    response_id = bundle.get("response_id")
+    if not isinstance(response_id, str) or not response_id.strip():
+        raise ValueError("forecast bundle requires a non-empty response ID")
+    response_metadata = bundle.get("response_metadata")
+    if not isinstance(response_metadata, dict):
+        raise ValueError("forecast bundle lacks response metadata")
+    if bundle.get("model_id") != model_identity(
+        provider, requested_model, response_metadata
+    ):
+        raise ValueError("forecast bundle model identity is invalid")
+    if not isinstance(bundle.get("usage_metadata"), dict):
+        raise ValueError("forecast bundle usage metadata must be a mapping")
+    if not isinstance(bundle.get("raw_response"), dict):
+        raise ValueError("forecast bundle raw response must be a mapping")
+
+    forecast = DailyGlobalForecast.model_validate(bundle.get("forecast"))
+    expected_tickers = set(universe)
+    actual_tickers = {row.ticker for row in forecast.forecasts}
+    if actual_tickers != expected_tickers or len(forecast.forecasts) != len(universe):
+        raise ValueError("forecast bundle cross-section differs from the frozen universe")
+
+    evidence_by_id = {row["evidence_id"]: row for row in evidence}
+    event_ids = [event.event_id for event in forecast.events]
+    if len(set(event_ids)) != len(event_ids):
+        raise ValueError("forecast bundle contains duplicate event IDs")
+    known_events = set(event_ids)
+    cutoff = (
+        datetime.strptime(decision_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        + timedelta(days=1)
+    )
+    for event in forecast.events:
+        if len(set(event.evidence_ids)) != len(event.evidence_ids):
+            raise ValueError("forecast event contains duplicate evidence citations")
+        unknown = set(event.evidence_ids) - set(evidence_by_id)
+        if unknown:
+            raise ValueError("forecast event cites evidence outside the selected projection")
+        cited_rows = [evidence_by_id[evidence_id] for evidence_id in event.evidence_ids]
+        expected_sources = sorted({row["source"] for row in cited_rows})
+        expected_independent = len({
+            (row["source"], row.get("publisher_or_author") or row["evidence_id"])
+            for row in cited_rows
+        })
+        if event.source_types != expected_sources \
+                or event.independent_source_count != expected_independent:
+            raise ValueError("forecast event source provenance is inconsistent")
+        if event.onset_utc is not None and datetime.fromisoformat(
+            event.onset_utc.replace("Z", "+00:00")
+        ) > cutoff:
+            raise ValueError("forecast event onset occurs after the decision cutoff")
+
+    for row in forecast.forecasts:
+        if len(set(row.event_ids)) != len(row.event_ids) \
+                or not set(row.event_ids).issubset(known_events):
+            raise ValueError("asset forecast references unknown or duplicate events")
+        edge = row.expected_excess_return_bps
+        probability = row.probability_positive
+        if row.abstain:
+            if edge != 0.0 or probability != 0.5 or row.confidence != 0.0:
+                raise ValueError("an abstaining forecast must be an exact neutral abstention")
+            continue
+        coherent_sign = (edge > 0.0 and probability > 0.5) or (
+            edge < 0.0 and probability < 0.5
+        )
+        if not row.event_ids or row.confidence <= 0.0 or edge == 0.0 \
+                or not coherent_sign:
+            raise ValueError(
+                "a non-abstaining forecast must be grounded, nonzero, and sign-consistent"
+            )
+    return forecast
 
 
 def invoke_global_forecast(

@@ -57,8 +57,7 @@ tradingagents = "cli.main:app"
 tradingagents-poller = "tradingagents.poller:main"
 tradingagents-backtest = "tradingagents.backtest:main"
 tradingagents-walkforward = "tradingagents.walkforward:main"
-tradingagents-paper = "tradingagents.paper_trading:main"
-tradingagents-ops = "tradingagents.ops_cli:main"
+tradingagents-research = "tradingagents.research.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]

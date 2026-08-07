@@ -1,4 +1,4 @@
-"""Small production controls shared by the collector and paper worker."""
+"""Small sanitized alerting controls for the production collector."""
 
 from __future__ import annotations
 

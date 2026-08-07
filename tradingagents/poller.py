@@ -10,12 +10,12 @@ container can run with no CLI arguments. Env vars (CLI flags override them):
 
     MEDIA_POLLER_TICKERS   comma-separated; required only for ticker sources
     MEDIA_POLLER_SOURCES   subset of the sources; default = keyless (+x if token)
-    MEDIA_POLLER_INTERVAL  seconds between polls in daemon mode      (default 3600)
-    MEDIA_POLLER_X_INTERVAL seconds between X discovery cycles       (default 86400)
+    MEDIA_POLLER_INTERVAL  seconds between broad-news cycles
+    MEDIA_POLLER_X_INTERVAL seconds between X discovery cycles
     MEDIA_POLLER_X_TOPICS  max discovered topics per cycle           (default 3)
     MEDIA_POLLER_X_LIMIT   results per discovered X query            (default 10)
     MEDIA_POLLER_ONCE      "1"/"true" → poll once and exit (for cron/scheduler)
-    MEDIA_COLLECTION_ENABLED explicit formal-collector pause switch (default false)
+    MEDIA_COLLECTION_ENABLED explicit global-collector enable switch (default false)
     MEDIA_DB_URL           store location; default ~/.tradingagents/cache/media.db
     X_BEARER_TOKEN         enables the 'x' source (paid)
     TRUTHSOCIAL_TOKEN      enables Truth Social
@@ -24,9 +24,7 @@ Run modes:
     tradingagents-poller --tickers NVDA,AAPL          # hourly daemon
     tradingagents-poller --tickers NVDA --once        # one-shot (cron/scheduler)
     tradingagents-poller --stats                      # collection summary
-    tradingagents-poller --formal-collector           # frozen global-news mode
-    tradingagents-poller --formal-collector --release-material
-    tradingagents-poller --formal-collector --release-rehearsal
+    tradingagents-poller --global-only                # general news + bounded X
     tradingagents-poller --window NVDA --end 2026-06-28 --days 7
     python -m tradingagents.poller --tickers NVDA     # equivalent
 """
@@ -43,7 +41,7 @@ import re
 import signal
 import time
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from tradingagents import global_research
@@ -79,6 +77,21 @@ from tradingagents.research_protocol import (
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("media_poller")
+
+
+_GLOBAL_ONLY_COLLECTOR_POLICY_VERSION = 1
+_GLOBAL_ONLY_COLLECTOR_POLICY = (
+    f"global-only-editorial-and-trend-reaction-v{_GLOBAL_ONLY_COLLECTOR_POLICY_VERSION}"
+)
+_GLOBAL_ONLY_NEWS_INTERVAL_SECONDS = int(
+    GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"]["collector_interval_seconds"]
+)
+_GLOBAL_ONLY_X_INTERVAL_SECONDS = int(
+    GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_cycle_interval_seconds"]
+)
+# Filled with the content-derived value after the V1 surface was finalized.
+# Any semantic helper change must deliberately bump the policy version and ID.
+_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_cf5b90da1cd4d7db969389ee"
 
 
 # Topic discovery is deliberately entity-agnostic. It starts from ranked news
@@ -184,11 +197,24 @@ def _expected_query_slots(
 
 
 def _globalnews_query_slots(macro_themes: dict) -> list[tuple[str, str]]:
-    """Exact broad-news slots used by the formal evidence activation gate."""
+    """Return the exact configured broad-news query slots."""
     return [
         slot for slot in _expected_query_slots([], [], macro_themes)
         if slot[0] == "globalnews"
     ]
+
+
+def _global_only_news_themes() -> dict[str, dict[str, list[str]]]:
+    """Return broad-news themes with every prediction-market query removed."""
+    return {
+        str(theme): {
+            "queries": list(queries),
+            "prediction_topics": [],
+        }
+        for theme, queries in GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+            "broad_news_queries"
+        ].items()
+    }
 
 
 def _query_slot_id(provider: str, query_key: str) -> str:
@@ -245,7 +271,7 @@ def _sanitized_coverage_alert_details(coverage: dict) -> dict:
 
 @lru_cache(maxsize=1)
 def collector_semantics_manifest() -> dict:
-    """Content-address every helper that can alter a formal fetch receipt."""
+    """Content-address every helper that can alter a global-only fetch receipt."""
     components = {
         "normalize_public_url": media_sources.normalize_public_url,
         "publisher_domain": media_sources.publisher_domain,
@@ -284,10 +310,6 @@ def collector_semantics_manifest() -> dict:
         "collection_cycle_item_replay": media_store._verified_cycle_item_rows,
         "x_collection_cycle_spec": _x_collection_cycle_spec,
         "x_collection_cycle_orchestration": poll_x_topics_once,
-        "formal_release_cycle_spec": _formal_release_collection_cycle_spec,
-        "formal_release_cycle_orchestration": (
-            run_formal_collector_release_rehearsal
-        ),
         "formal_evidence_id_encoding": media_store._encoded_formal_evidence_ids,
         "formal_content_lineage_encoding": media_store._encoded_formal_lineage,
         "fetch_item_lineage": media_store._build_fetch_item_lineage,
@@ -344,10 +366,19 @@ def collector_semantics_manifest() -> dict:
     }
     evidence = GLOBAL_EVENT_V2_PROTOCOL["evidence"]
     manifest = {
-        "schema_version": 2,
-        "policy": "formal-collector-atomic-source-content-v2",
+        "schema_version": 3,
+        "policy": _GLOBAL_ONLY_COLLECTOR_POLICY,
         "components": sources,
         "semantic_values": {
+            "collection_scope": {
+                "ticker_watchlist": False,
+                "ticker_sources": [],
+                "polymarket": False,
+                "broad_editorial_news": True,
+                "trend_derived_x_reaction": True,
+                "news_interval_seconds": _GLOBAL_ONLY_NEWS_INTERVAL_SECONDS,
+                "x_interval_seconds": _GLOBAL_ONLY_X_INTERVAL_SECONDS,
+            },
             "broad_news_queries": evidence["broad_news_queries"],
             "formal_allowed_sources": evidence["allowed_sources"],
             "trendnews_role": evidence["trendnews_role"],
@@ -378,9 +409,12 @@ def collector_semantics_manifest() -> dict:
             "low_information_pattern": _LOW_INFORMATION_HEADLINE.pattern,
         },
     }
-    return {**manifest, "collector_semantics_id": content_id(
-        manifest, prefix="collector_"
-    )}
+    semantics_id = content_id(manifest, prefix="collector_")
+    if semantics_id != _EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID:
+        raise RuntimeError(
+            "global-only collector semantics changed without a policy version bump"
+        )
+    return {**manifest, "collector_semantics_id": semantics_id}
 
 
 def _check_cycle_query_coverage(
@@ -398,7 +432,7 @@ def _check_cycle_query_coverage(
     allow_empty = [
         slot for slot in expected_query_slots if slot[0] in allowed_empty_providers
     ]
-    frozen_globalnews_slots = set(_globalnews_query_slots(DEFAULT_CONFIG["macro_themes"]))
+    frozen_globalnews_slots = set(_globalnews_query_slots(_global_only_news_themes()))
     require_lineage = [
         slot for slot in expected_query_slots
         if slot in frozen_globalnews_slots or slot[0] == "trendnews"
@@ -663,109 +697,6 @@ def _run_globalnews_query(
             )
             sleeper(_GLOBALNEWS_RETRY_DELAYS[attempt_ordinal - 1])
     raise AssertionError("unreachable globalnews retry state")
-
-
-def _formal_release_collection_cycle_spec(now: float) -> dict:
-    """Return the one-shot exact broad-news/X release-rehearsal identity."""
-
-    if (
-        isinstance(now, bool)
-        or not isinstance(now, (int, float))
-        or not math.isfinite(float(now))
-    ):
-        raise ValueError("collector release rehearsal time must be finite")
-    observed = datetime.fromtimestamp(float(now), timezone.utc)
-    period_key = observed.strftime("release-%Y%m%dT%H%M%S.") + f"{observed.microsecond:06d}Z"
-    evidence = GLOBAL_EVENT_V2_PROTOCOL["evidence"]
-    static_slots = [
-        ("globalnews", f"{theme}:{query}")
-        for theme, queries in evidence["broad_news_queries"].items()
-        for query in queries
-    ] + [
-        ("xtrend", f"woeid:{int(woeid)}")
-        for woeid in evidence["x_trend_woeids"]
-    ] + [("trendnews", "ranked-global-discovery")]
-    return media_store.collection_cycle_spec(
-        cycle_kind="formal-release-rehearsal-v1",
-        period_key=period_key,
-        protocol_id=GLOBAL_EVENT_V2_PROTOCOL_ID,
-        collector_semantics_id=collector_semantics_manifest()[
-            "collector_semantics_id"
-        ],
-        expected_static_slots=static_slots,
-        max_dynamic_slots=int(evidence["max_x_search_requests_per_utc_day"]),
-    )
-
-
-def run_formal_collector_release_rehearsal(
-    store,
-    *,
-    now: float,
-    component_configuration_id: str,
-    collector_build_id: str,
-) -> dict:
-    """Run real frozen collector children and emit only a durable exact proof.
-
-    This is an explicitly requested one-shot operation while the daemon switch
-    remains paused. It performs the ten broad editorial-news fetches and the
-    same bounded X discovery/search children used by normal collection. Any
-    missing or empty broad-news slot fails closed in the terminal manifest.
-    """
-
-    from tradingagents.formal_activation import build_collector_rehearsal_payload
-
-    spec = _formal_release_collection_cycle_spec(now)
-    cycle_id = store.start_collection_cycle(spec, started_utc=time.time())
-    expected_slots = [
-        (slot["provider"], slot["query_key"])
-        for slot in spec["identity"]["expected_static_slots"]
-    ]
-    try:
-        for theme, queries in GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "broad_news_queries"
-        ].items():
-            for query in queries:
-                try:
-                    _run_globalnews_query(
-                        store,
-                        theme,
-                        query,
-                        collection_cycle_id=cycle_id,
-                        max_attempts=1,
-                    )
-                except Exception as exc:
-                    logger.error(
-                        "release globalnews slot %s failed (%s)",
-                        _query_slot_id("globalnews", f"{theme}:{query}"),
-                        _exception_kind(exc),
-                    )
-        _poll_x_cycle_children(
-            store,
-            now=now,
-            limit=int(
-                GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_results_per_query"]
-            ),
-            max_topics=int(
-                GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                    "max_x_search_requests_per_utc_day"
-                ]
-            ),
-            collection_cycle_id=cycle_id,
-            expected_slots=expected_slots,
-        )
-    finally:
-        cycle = store.finish_collection_cycle(cycle_id, completed_utc=time.time())
-    if cycle.get("status") != "complete" or cycle.get("manifest_valid") is not True:
-        raise ValueError("collector release rehearsal did not complete every exact slot")
-    manifest = cycle.get("manifest")
-    if not isinstance(manifest, Mapping):
-        raise ValueError("collector release rehearsal lacks its durable manifest")
-    if manifest.get("collector_build_id") != collector_build_id:
-        raise ValueError("collector release rehearsal used a different runtime build")
-    return build_collector_rehearsal_payload(
-        final_collection_cycle_manifest=manifest,
-        component_configuration_id=component_configuration_id,
-    )
 
 
 def _headline_without_publisher(title: str) -> str:
@@ -1414,278 +1345,6 @@ def run_cycle(store, tickers: list[str], sources: list[str], macro_themes: dict,
     store.set_meta("poller:last_cycle_utc", cycle_completed)
 
 
-def check_paper_heartbeat(store, now: float, max_age: float) -> bool:
-    """Independent watchdog for the paper worker's database heartbeat."""
-    success = store.get_meta("paper:last_success_utc")
-    failure = store.get_meta("paper:last_failure_utc")
-    healthy = bool(success and now - success <= max_age and (not failure or success >= failure))
-    if success is None:
-        logger.warning("Paper watchdog: no success heartbeat recorded yet")
-    elif now - success > max_age:
-        logger.error("Paper watchdog: success heartbeat is %.1f hours stale", (now - success) / 3600)
-    elif failure and failure > success:
-        logger.error("Paper watchdog: latest paper heartbeat is a failure")
-    if not healthy:
-        emit_alert(
-            "paper-watchdog", "unhealthy_heartbeat",
-            details={"success_utc": success, "failure_utc": failure, "max_age": max_age},
-        )
-    return healthy
-
-
-_FORMAL_COLLECTOR_RELEASE_PROJECTION_SQL = """
-SELECT authorized, collector_configuration_id
-FROM public.formal_collector_release_projection(
-    :protocol_id, :collector_build_id
-)
-""".strip()
-_FORMAL_HEALTH_ROW_FIELDS = frozenset({
-    "runtime_component",
-    "event_type",
-    "observed_utc",
-    "latest_success_utc",
-    "latest_failure_utc",
-    "latest_paused_utc",
-})
-
-
-def _formal_runtime_health_projection(
-    store,
-    *,
-    protocol_id: str,
-    collector_build_id: str,
-) -> tuple[dict, list[dict]]:
-    """Read only migration-013's outcome-free collector projections."""
-    from sqlalchemy import text
-
-    from tradingagents.formal_roles import RUNTIME_HEALTH_PROJECTION_SQL
-
-    engine = getattr(store, "engine", None)
-    if engine is None:
-        raise RuntimeError("formal collector health requires PostgreSQL projections")
-    parameters = {
-        "protocol_id": protocol_id,
-        "collector_build_id": collector_build_id,
-    }
-    with engine.connect() as connection:
-        release = connection.execute(
-            text(_FORMAL_COLLECTOR_RELEASE_PROJECTION_SQL), parameters
-        ).mappings().one()
-        health = connection.execute(
-            text(RUNTIME_HEALTH_PROJECTION_SQL), parameters
-        ).mappings().all()
-    return dict(release), [dict(row) for row in health]
-
-
-def _validated_formal_runtime_health_projection(
-    release: object, rows: object
-) -> tuple[dict, list[dict]]:
-    if not isinstance(release, Mapping) or set(release) != {
-        "authorized",
-        "collector_configuration_id",
-    }:
-        raise ValueError("formal collector release projection has a wrong schema")
-    authorized = release["authorized"]
-    configuration_id = release["collector_configuration_id"]
-    if not isinstance(authorized, bool):
-        raise ValueError("formal collector release projection has invalid authority")
-    if authorized:
-        if not isinstance(configuration_id, str) or re.fullmatch(
-            r"config_[0-9a-f]{24}", configuration_id
-        ) is None:
-            raise ValueError("formal collector release projection has an invalid config")
-    elif configuration_id is not None:
-        raise ValueError("unauthorized collector projection exposed a configuration")
-    if not isinstance(rows, list):
-        raise ValueError("formal runtime health projection must be a list")
-
-    normalized_rows = []
-    seen_components: set[str] = set()
-    for row in rows:
-        if not isinstance(row, Mapping) or set(row) != _FORMAL_HEALTH_ROW_FIELDS:
-            raise ValueError("formal runtime health projection row has a wrong schema")
-        component = row["runtime_component"]
-        event_type = row["event_type"]
-        if component not in {"decision", "marker"} or component in seen_components:
-            raise ValueError("formal runtime health projection component is invalid")
-        if event_type not in {"success", "failure", "paused"}:
-            raise ValueError("formal runtime health projection event is invalid")
-        for field in (
-            "observed_utc",
-            "latest_success_utc",
-            "latest_failure_utc",
-            "latest_paused_utc",
-        ):
-            value = row[field]
-            if value is None and field != "observed_utc":
-                continue
-            if isinstance(value, bool) or not isinstance(value, (int, float)) \
-                    or not math.isfinite(float(value)):
-                raise ValueError("formal runtime health projection time is invalid")
-        latest_field = f"latest_{event_type}_utc"
-        if row[latest_field] != row["observed_utc"]:
-            raise ValueError("formal runtime health projection latest event is inconsistent")
-        if any(
-            isinstance(row[field], (int, float))
-            and float(row[field]) > float(row["observed_utc"])
-            for field in (
-                "latest_success_utc",
-                "latest_failure_utc",
-                "latest_paused_utc",
-            )
-        ):
-            raise ValueError("formal runtime health projection chronology is invalid")
-        seen_components.add(component)
-        normalized_rows.append(dict(row))
-    if not authorized and normalized_rows:
-        raise ValueError("unauthorized collector projection exposed runtime health")
-    return dict(release), normalized_rows
-
-
-def check_formal_runtime_health(
-    store,
-    now: float,
-    max_age: float,
-    *,
-    protocol_id: str,
-    collector_build_id: str,
-    collector_configuration_id: str,
-) -> dict:
-    """Watch split paper workers without reading their protected ledgers.
-
-    Trial authorization gates paper activity, not preregistration evidence
-    collection. An unmatched collector image therefore reports
-    ``not-yet-authorized`` and leaves collection running.
-    """
-    if (
-        isinstance(now, bool)
-        or not isinstance(now, (int, float))
-        or not math.isfinite(float(now))
-        or isinstance(max_age, bool)
-        or not isinstance(max_age, (int, float))
-        or not math.isfinite(float(max_age))
-        or float(max_age) <= 0
-    ):
-        raise ValueError("formal runtime health clock settings are invalid")
-    try:
-        release, rows = _formal_runtime_health_projection(
-            store,
-            protocol_id=protocol_id,
-            collector_build_id=collector_build_id,
-        )
-    except Exception as exc:  # noqa: BLE001 - keep collection independent of paper health
-        error_kind = _exception_kind(exc)
-        logger.error("Formal paper health projection failed (%s)", error_kind)
-        emit_alert(
-            "paper-watchdog",
-            "health_projection_unavailable",
-            details={"error_type": error_kind},
-        )
-        return {
-            "status": "unavailable",
-            "healthy": False,
-            "authorized": False,
-            "runtime_components": [],
-        }
-
-    try:
-        release, rows = _validated_formal_runtime_health_projection(release, rows)
-    except ValueError:
-        logger.error("Formal paper health projection returned an invalid contract")
-        emit_alert(
-            "paper-watchdog",
-            "health_projection_invalid",
-            details={"contract": "migration-013-runtime-health"},
-        )
-        return {
-            "status": "invalid",
-            "healthy": False,
-            "authorized": False,
-            "runtime_components": [],
-        }
-
-    if release.get("authorized") is not True:
-        logger.info(
-            "Formal paper health: collector build is not yet trial-authorized; "
-            "evidence collection remains enabled"
-        )
-        return {
-            "status": "not-yet-authorized",
-            "healthy": True,
-            "authorized": False,
-            "runtime_components": [],
-        }
-    if release.get("collector_configuration_id") != collector_configuration_id:
-        logger.error("Formal paper health: authorized collector configuration differs")
-        emit_alert(
-            "paper-watchdog",
-            "collector_configuration_mismatch",
-            details={"build_id": collector_build_id},
-        )
-        return {
-            "status": "configuration-mismatch",
-            "healthy": False,
-            "authorized": True,
-            "runtime_components": [],
-        }
-
-    by_component = {row.get("runtime_component"): row for row in rows}
-    components = []
-    for name in ("decision", "marker"):
-        row = by_component.get(name)
-        if row is None:
-            status = "missing"
-        elif float(row["observed_utc"]) > float(now) + 300.0:
-            status = "future"
-        elif row["event_type"] == "paused":
-            paused = row["latest_paused_utc"]
-            success = row["latest_success_utc"]
-            failure = row["latest_failure_utc"]
-            unresolved_failure = isinstance(failure, (int, float)) and (
-                not isinstance(success, (int, float)) or float(failure) >= float(success)
-            )
-            if unresolved_failure:
-                status = "failure"
-            elif not isinstance(paused, (int, float)) or now - float(paused) > max_age:
-                status = "stale"
-            else:
-                status = "paused"
-        elif row["event_type"] == "failure":
-            status = "failure"
-        else:
-            success = row["latest_success_utc"]
-            status = (
-                "healthy"
-                if isinstance(success, (int, float)) and now - float(success) <= max_age
-                else "stale"
-            )
-        components.append({"runtime_component": name, "status": status})
-
-    unhealthy = [
-        component
-        for component in components
-        if component["status"] in {"failure", "future", "missing", "stale"}
-    ]
-    if unhealthy:
-        logger.error("Formal paper health: one or more split workers are unhealthy")
-        emit_alert(
-            "paper-watchdog",
-            "unhealthy_formal_runtime",
-            details={"components": unhealthy, "max_age": max_age},
-        )
-        status = "unhealthy"
-    elif all(component["status"] == "healthy" for component in components):
-        status = "healthy"
-    else:
-        status = "paused"
-    return {
-        "status": status,
-        "healthy": not unhealthy,
-        "authorized": True,
-        "runtime_components": components,
-    }
-
-
 def _sleep(seconds: float, stop: dict) -> None:
     """Sleep in short slices so a stop signal is honoured promptly."""
     slept = 0.0
@@ -1697,9 +1356,7 @@ def _sleep(seconds: float, stop: dict) -> None:
 def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
                  macro_themes: dict, clock: TradingClock | None = None,
                  x_enabled: bool = False, x_interval: int = 86400,
-                 x_limit: int = 10, x_topic_limit: int = 3,
-                 paper_heartbeat_max_age: float | None = None,
-                 formal_runtime_identity: Mapping[str, str] | None = None) -> None:
+                 x_limit: int = 10, x_topic_limit: int = 3) -> None:
     stop = {"flag": False}
 
     def _handle(signum, _frame):
@@ -1726,17 +1383,6 @@ def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
         try:
             run_cycle(store, tickers, sources, macro_themes, x_enabled,
                       x_interval=x_interval, x_limit=x_limit, x_topic_limit=x_topic_limit)
-            if paper_heartbeat_max_age and formal_runtime_identity is not None:
-                check_formal_runtime_health(
-                    store,
-                    datetime.now(timezone.utc).timestamp(),
-                    paper_heartbeat_max_age,
-                    **formal_runtime_identity,
-                )
-            elif paper_heartbeat_max_age:
-                check_paper_heartbeat(
-                    store, datetime.now(timezone.utc).timestamp(), paper_heartbeat_max_age
-                )
         except Exception as exc:  # noqa: BLE001 — daemon must survive transient providers/DBs
             error_kind = _exception_kind(exc)
             logger.error(
@@ -1785,18 +1431,87 @@ def print_window(store, ticker: str, end: str, days: int) -> None:
         print(f"  [{ts} · {r['source']:<10} {tag:<10}] {text}")
 
 
+def _x_cycle_audit_projection(store, period_date) -> dict:
+    midnight = datetime.combine(
+        period_date, datetime.min.time(), tzinfo=timezone.utc
+    ).timestamp()
+    spec = _x_collection_cycle_spec(
+        midnight,
+        int(GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+            "max_x_search_requests_per_utc_day"
+        ]),
+    )
+    cycle = store.collection_cycle(spec["collection_cycle_id"])
+    if cycle is None:
+        return {
+            "period": period_date.isoformat(),
+            "state": "missing",
+            "terminal_utc": None,
+            "trend_requests": 0,
+            "search_requests": 0,
+            "posts_returned": 0,
+        }
+    valid = cycle.get("identity_valid") is True \
+        and cycle.get("identity") == spec["identity"]
+    status = cycle.get("status")
+    manifest = cycle.get("manifest")
+    manifest_valid = cycle.get("manifest_valid") is True \
+        and isinstance(manifest, dict)
+    state = status if valid and status == "running" else "invalid"
+    receipts = []
+    terminal = None
+    if valid and manifest_valid and status in {"complete", "incomplete"}:
+        state = status
+        receipts = manifest.get("slot_receipts")
+        if not isinstance(receipts, list):
+            state = "invalid"
+            receipts = []
+        value = cycle.get("server_terminal_utc")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            terminal = datetime.fromtimestamp(float(value), timezone.utc).isoformat()
+        else:
+            state = "invalid"
+    return {
+        "period": period_date.isoformat(),
+        "state": state,
+        "terminal_utc": terminal,
+        "trend_requests": sum(
+            row.get("provider") == "xtrend" and row.get("fetch_run_id") is not None
+            for row in receipts if isinstance(row, dict)
+        ),
+        "search_requests": sum(
+            row.get("provider") == "x" and row.get("fetch_run_id") is not None
+            for row in receipts if isinstance(row, dict)
+        ),
+        "posts_returned": sum(
+            int(row.get("item_count") or 0)
+            for row in receipts
+            if isinstance(row, dict) and row.get("provider") == "x"
+        ),
+    }
+
+
 def print_audit(store) -> None:
     now = datetime.now(timezone.utc).timestamp()
-    expected_slots = _globalnews_query_slots(DEFAULT_CONFIG.get("macro_themes", {}))
+    expected_slots = _globalnews_query_slots(_global_only_news_themes())
     coverage = store.coverage_report(
         now,
         GLOBAL_EVENT_V2_PROTOCOL["evidence"]["required_source_groups"],
         expected_query_slots=expected_slots,
         require_lineage_query_slots=expected_slots,
     )
-    print(f"formal_coverage_complete={str(coverage['complete']).lower()}")
-    print(f"formal_expected_query_slots={len(coverage['query_slots'])}")
-    print(f"formal_missing_query_slots={len(coverage['missing_query_slots'])}")
+    print(f"collector_coverage_complete={str(coverage['complete']).lower()}")
+    print(f"collector_expected_query_slots={len(coverage['query_slots'])}")
+    print(f"collector_missing_query_slots={len(coverage['missing_query_slots'])}")
+    today = datetime.fromtimestamp(now, timezone.utc).date()
+    for label, period in (("current", today), ("prior", today - timedelta(days=1))):
+        x_cycle = _x_cycle_audit_projection(store, period)
+        print(f"collector_x_{label}_period={x_cycle['period']}")
+        print(f"collector_x_{label}_state={x_cycle['state']}")
+        print(f"collector_x_{label}_terminal_utc={x_cycle['terminal_utc'] or 'none'}")
+        print(f"collector_x_{label}_trend_requests={x_cycle['trend_requests']}")
+        print(f"collector_x_{label}_search_requests={x_cycle['search_requests']}")
+        print(f"collector_x_{label}_posts_returned={x_cycle['posts_returned']}")
     for run in store.fetch_runs(limit=25):
         when = datetime.fromtimestamp(run["started_utc"], timezone.utc).isoformat()
         print(
@@ -1820,6 +1535,13 @@ def _store_log_label(configured_url: str | None) -> str:
     return "configured database"
 
 
+def _configured_integer(values: Mapping[str, str], name: str) -> int | None:
+    raw = values.get(name)
+    if raw is None or not raw.strip():
+        return None
+    return int(raw)
+
+
 def _build_parser(env: Mapping[str, str] | None = None) -> argparse.ArgumentParser:
     values = os.environ if env is None else env
     p = argparse.ArgumentParser(
@@ -1832,11 +1554,11 @@ def _build_parser(env: Mapping[str, str] | None = None) -> argparse.ArgumentPars
     p.add_argument("--db", default=values.get("MEDIA_DB_URL"),
                    help="Store URL/path (env: MEDIA_DB_URL). Default: local SQLite.")
     p.add_argument("--interval", type=int,
-                   default=int(values.get("MEDIA_POLLER_INTERVAL", "3600")),
-                   help="Seconds between polls in daemon mode (env: MEDIA_POLLER_INTERVAL)")
+                   default=_configured_integer(values, "MEDIA_POLLER_INTERVAL"),
+                   help="Seconds between news cycles (env: MEDIA_POLLER_INTERVAL)")
     p.add_argument("--x-interval", type=int,
-                   default=int(values.get("MEDIA_POLLER_X_INTERVAL", "86400")),
-                   help="Seconds between X discovery cycles (default 86400 / 1 day)")
+                   default=_configured_integer(values, "MEDIA_POLLER_X_INTERVAL"),
+                   help="Seconds between X discovery cycles (env: MEDIA_POLLER_X_INTERVAL)")
     p.add_argument("--x-topics", type=int,
                    default=int(values.get("MEDIA_POLLER_X_TOPICS", "3")),
                    help="Maximum discovered topics per X cycle (default 3)")
@@ -1857,25 +1579,20 @@ def _build_parser(env: Mapping[str, str] | None = None) -> argparse.ArgumentPars
                         "(04:00–20:00 ET) on NYSE trading days (env: MEDIA_POLLER_TRADING_HOURS).")
     p.add_argument("--stats", action="store_true", help="Print collection stats and exit")
     p.add_argument("--audit", action="store_true", help="Print fetch receipts/coverage and exit")
+    p.add_argument(
+        "--test-alert",
+        action="store_true",
+        help="Send one sanitized collector webhook test without DB/provider access",
+    )
     p.add_argument("--window", metavar="TICKER", help="Print the backtest window and exit")
     p.add_argument("--end", help="Window end date YYYY-MM-DD (default: today)")
     p.add_argument("--days", type=int, default=7, help="Window length in days (default: 7)")
     p.add_argument(
-        "--formal-collector",
-        action="store_true",
-        help="Run the exact frozen global-event collector without a ticker watchlist",
-    )
-    p.add_argument(
-        "--release-material",
-        action="store_true",
-        help="Emit in-image collector configuration/preflight JSON and exit",
-    )
-    p.add_argument(
-        "--release-rehearsal",
+        "--global-only",
         action="store_true",
         help=(
-            "Run one exact broad-news/X collector rehearsal while the daemon "
-            "switch remains paused, emit content-addressed JSON, and exit"
+            "Collect broad editorial news plus bounded trend-derived X reaction; "
+            "ticker inputs and prediction markets are forbidden"
         ),
     )
     return p
@@ -1888,7 +1605,7 @@ def _comma_separated(value: str | None, *, lowercase: bool = False) -> list[str]
     return [item.lower() for item in items] if lowercase else items
 
 
-def _formal_collection_enabled(env: Mapping[str, str]) -> bool:
+def _collection_enabled(env: Mapping[str, str]) -> bool:
     raw = (env.get("MEDIA_COLLECTION_ENABLED") or "").strip().lower()
     if not raw:
         return False
@@ -1897,55 +1614,6 @@ def _formal_collection_enabled(env: Mapping[str, str]) -> bool:
     if raw in {"0", "false", "no", "off"}:
         return False
     raise ValueError("MEDIA_COLLECTION_ENABLED must be an explicit boolean")
-
-
-def _require_formal_collection_paused(env: Mapping[str, str]) -> None:
-    raw = env.get("MEDIA_COLLECTION_ENABLED")
-    if not isinstance(raw, str) or raw.strip().lower() not in {
-        "0",
-        "false",
-        "no",
-        "off",
-    }:
-        raise ValueError(
-            "MEDIA_COLLECTION_ENABLED must be explicitly false for release evidence"
-        )
-
-
-def _hold_paused_formal_collector() -> None:
-    """Keep the paused image reachable without touching DBs or providers.
-
-    Fly's ``on-failure`` restart policy deliberately does not restart a process
-    that exits successfully. A paused deployment therefore remains alive so an
-    operator can SSH into that exact Machine for release evidence and the
-    controlled one-shot rehearsal.
-    """
-
-    while True:
-        time.sleep(3600.0)
-
-
-def _formal_collector_runtime_material(
-    args,
-    *,
-    sources: list[str],
-    macro_themes: Mapping[str, object],
-    env: Mapping[str, str],
-    require_release_environment: bool = False,
-) -> dict:
-    """Resolve exact collector material without opening a DB or provider."""
-    from tradingagents.formal_runtime import collector_component_configuration
-
-    return collector_component_configuration(
-        args,
-        enabled_sources=sources,
-        macro_themes=macro_themes,
-        collector_semantics_id=collector_semantics_manifest()[
-            "collector_semantics_id"
-        ],
-        env=env,
-        require_release_environment=require_release_environment,
-    )
 
 
 def _inspection_command(args) -> bool:
@@ -1966,15 +1634,29 @@ def _run_inspection(args) -> None:
         store.close()
 
 
+def _run_alert_test(parser: argparse.ArgumentParser) -> None:
+    delivered = emit_alert(
+        "collector",
+        "delivery_test",
+        severity="warning",
+        details={
+            "schema_version": 1,
+            "collector_policy": _GLOBAL_ONLY_COLLECTOR_POLICY,
+        },
+    )
+    if not delivered:
+        parser.error("collector alert webhook test was not delivered")
+    print(canonical_json({"component": "collector", "delivered": True}))
+
+
 def main(argv: list[str] | None = None) -> None:
     env = os.environ
     p = _build_parser(env)
     args = p.parse_args(argv)
 
-    if (args.release_material or args.release_rehearsal) and not args.formal_collector:
-        p.error("release evidence commands require --formal-collector")
-    if args.release_material and args.release_rehearsal:
-        p.error("--release-material and --release-rehearsal are mutually exclusive")
+    if args.test_alert:
+        _run_alert_test(p)
+        return
     if _inspection_command(args):
         _run_inspection(args)
         return
@@ -1986,76 +1668,60 @@ def main(argv: list[str] | None = None) -> None:
     except ValueError as exc:
         p.error(str(exc))
 
+    if args.global_only:
+        if tickers:
+            p.error("--global-only rejects ticker inputs and MEDIA_POLLER_TICKERS")
+        if sources != ["x"] or explicit != ["x"]:
+            p.error("--global-only requires the sole explicit source '--sources x'")
+        if not args.macro:
+            p.error("--global-only requires its broad editorial-news queries")
+        if args.trading_hours:
+            p.error("--global-only requires --no-trading-hours for global coverage")
+        if args.interval is None or args.x_interval is None:
+            p.error(
+                "--global-only requires explicit --interval and --x-interval cadence"
+            )
+        if args.interval != _GLOBAL_ONLY_NEWS_INTERVAL_SECONDS:
+            p.error(
+                "--global-only news interval must match the versioned collector policy"
+            )
+        if args.x_interval != _GLOBAL_ONLY_X_INTERVAL_SECONDS:
+            p.error(
+                "--global-only X interval must match the versioned collector policy"
+            )
+        expected_topics = int(
+            GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+                "max_x_search_requests_per_utc_day"
+            ]
+        )
+        expected_limit = int(
+            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_results_per_query"]
+        )
+        if args.x_topics != expected_topics or args.x_limit != expected_limit:
+            p.error("--global-only X request bounds must match the collector policy")
+        if not args.once:
+            try:
+                collection_enabled = _collection_enabled(env)
+            except ValueError as exc:
+                p.error(str(exc))
+            if not collection_enabled:
+                p.error(
+                    "global collection is paused; set MEDIA_COLLECTION_ENABLED=true"
+                )
+        macro_themes = _global_only_news_themes()
+    else:
+        if args.interval is None:
+            args.interval = _GLOBAL_ONLY_NEWS_INTERVAL_SECONDS
+        if args.x_interval is None:
+            args.x_interval = _GLOBAL_ONLY_X_INTERVAL_SECONDS
+        macro_themes = DEFAULT_CONFIG.get("macro_themes", {}) if args.macro else {}
+
     x_selected = "x" in sources
     ticker_sources = [source for source in sources if source != "x"]
     if ticker_sources and not tickers:
         p.error(
             "--tickers (or MEDIA_POLLER_TICKERS) is required for ticker-specific sources"
         )
-    macro_themes = DEFAULT_CONFIG.get("macro_themes", {}) if args.macro else {}
-
-    component = None
-    formal_runtime_identity = None
-    if args.formal_collector:
-        collection_enabled = False
-        if args.release_material or args.release_rehearsal:
-            try:
-                _require_formal_collection_paused(env)
-            except ValueError as exc:
-                p.error(str(exc))
-        else:
-            try:
-                collection_enabled = _formal_collection_enabled(env)
-            except ValueError as exc:
-                p.error(str(exc))
-        try:
-            component = _formal_collector_runtime_material(
-                args,
-                sources=sources,
-                macro_themes=macro_themes,
-                env=env,
-                require_release_environment=(
-                    args.release_material or args.release_rehearsal or collection_enabled
-                ),
-            )
-        except ValueError as exc:
-            p.error(str(exc))
-        from tradingagents.formal_runtime import in_image_preflight_identity
-
-        if args.release_material:
-            try:
-                material = in_image_preflight_identity(component, env=env)
-            except ValueError as exc:
-                p.error(str(exc))
-            print(canonical_json(material))
-            return
-        if not collection_enabled and not args.release_rehearsal:
-            print(
-                canonical_json(
-                    {
-                        "schema_version": 1,
-                        "status": "paused",
-                        "role": "collector",
-                        "protocol_id": component["protocol_id"],
-                        "component_configuration_id": component[
-                            "configuration_id"
-                        ],
-                    }
-                ),
-                flush=True,
-            )
-            _hold_paused_formal_collector()
-            return
-        try:
-            runtime_material = in_image_preflight_identity(component, env=env)
-        except ValueError as exc:
-            p.error(str(exc))
-        preflight = runtime_material["preflight_payload"]
-        formal_runtime_identity = {
-            "protocol_id": component["protocol_id"],
-            "collector_build_id": preflight["build_id"],
-            "collector_configuration_id": component["configuration_id"],
-        }
 
     x_token_configured = bool((env.get("X_BEARER_TOKEN") or "").strip())
     if x_selected and not x_token_configured:
@@ -2067,30 +1733,16 @@ def main(argv: list[str] | None = None) -> None:
     if not ticker_sources and not macro_themes and not x_enabled:
         p.error("no enabled ticker, macro, or X collection source")
 
-    if args.release_rehearsal:
-        if component is None or formal_runtime_identity is None:
-            p.error("collector release rehearsal lacks exact runtime material")
-        store = open_store(args.db, auto_migrate=False)
-        try:
-            try:
-                rehearsal = run_formal_collector_release_rehearsal(
-                    store,
-                    now=time.time(),
-                    component_configuration_id=component["configuration_id"],
-                    collector_build_id=formal_runtime_identity["collector_build_id"],
-                )
-            except ValueError as exc:
-                p.error(str(exc))
-            print(canonical_json(rehearsal))
-            return
-        finally:
-            store.close()
-
     store = open_store(args.db)
     try:
         store_label = _store_log_label(args.db)
-        logger.info("Store: %s%s", store_label,
-                    f" · macro: {len(macro_themes)} themes" if macro_themes else " · macro off")
+        logger.info(
+            "Store: %s · news themes: %d · news cadence: %ds · X cadence: %ds",
+            store_label,
+            len(macro_themes),
+            args.interval,
+            args.x_interval,
+        )
 
         if args.once:
             # One-shot (cron/manual) always polls — gating is the daemon's job;
@@ -2102,11 +1754,7 @@ def main(argv: list[str] | None = None) -> None:
             clock = TradingClock() if args.trading_hours else None
             poll_forever(store, tickers, ticker_sources, args.interval, macro_themes, clock,
                          x_enabled=x_enabled, x_interval=args.x_interval,
-                         x_limit=args.x_limit, x_topic_limit=args.x_topics,
-                         paper_heartbeat_max_age=float(
-                             env.get("PAPER_HEARTBEAT_MAX_AGE", "0")
-                         ) or None,
-                         formal_runtime_identity=formal_runtime_identity)
+                         x_limit=args.x_limit, x_topic_limit=args.x_topics)
     finally:
         store.close()
 

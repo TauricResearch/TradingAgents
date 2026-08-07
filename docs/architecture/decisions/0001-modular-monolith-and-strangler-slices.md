@@ -5,10 +5,10 @@ Date: 2026-08-05
 
 ## Context
 
-The repository has working collector, research, portfolio, paper, deployment, and test behavior,
-but several large modules mix orchestration, persistence, configuration, scheduling, and domain
-logic. A broad package rewrite would collide with substantial current V2 changes and could fork
-backtest and paper semantics.
+The repository has working collector, offline research, portfolio, deployment, and test behavior,
+but several upstream modules still mix orchestration, persistence, configuration, scheduling, and
+domain logic. The former permanent paper workers were removed on 2026-08-06; the strangler
+principle now applies to the collector and explicit offline artifact phases.
 
 The current setuptools configuration installs `tradingagents*` and `cli*`; independent top-level
 application packages would not be included automatically.
@@ -34,8 +34,8 @@ directories or interfaces merely to match the target diagram.
 
 ## Consequences
 
-- Existing CLIs, Fly entrypoints, schemas, and the frozen V2 protocol remain stable during early
-  extraction.
+- Existing upstream CLIs, the collector Fly entrypoint, applied schemas, and the frozen V2 protocol
+  remain stable during early extraction.
 - Some legacy imports and global configuration remain temporarily.
 - Architecture coverage grows as a ratchet instead of applying unachievable rules to all legacy
   modules immediately.

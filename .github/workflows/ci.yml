@@ -60,8 +60,8 @@ jobs:
         # (results/ and worklog/ are excluded via pyproject extend-exclude).
         run: ruff check .
 
-  postgres-contracts:
-    name: PostgreSQL 16 migration and release contracts
+  postgres-collector:
+    name: PostgreSQL 16 collector contracts
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -86,46 +86,14 @@ jobs:
           sudo apt-get install --yes postgresql-client
           python -m pip install --upgrade pip
           pip install -e ".[dev,poller]"
-      - name: Replay exact migration heads and run PostgreSQL contracts
+      - name: Build collector schema and run PostgreSQL contracts
         env:
           PGHOST: 127.0.0.1
           PGPORT: "5432"
           PG_SUPERUSER: postgres
           MEDIA_AUTO_MIGRATE: "false"
-          PAPER_AUTO_MIGRATE: "false"
         run: |
           set -euo pipefail
-          driver_base="postgresql+psycopg://"
-          host="${PGHOST}:${PGPORT}"
-
-          bash scripts/prepare_postgres_rehearsal.sh ta_price_head008 8
-          TRADINGAGENTS_TEST_POSTGRES_ADMIN_URL="${driver_base}tradingagents-app-v2@${host}/ta_price_head008" \
-          TRADINGAGENTS_TEST_POSTGRES_PAPER_URL="${driver_base}tradingagents-paper@${host}/ta_price_head008" \
-            pytest -q -m integration tests/test_formal_price_capture_migration.py
-
-          bash scripts/prepare_postgres_rehearsal.sh ta_time_head009 9
-          TRADINGAGENTS_TEST_POSTGRES_URL="${driver_base}tradingagents-ingest-v2@${host}/ta_time_head009" \
+          bash scripts/prepare_collector_postgres.sh ta_collector
+          TRADINGAGENTS_TEST_POSTGRES_URL="postgresql+psycopg://tradingagents-ingest-v2@${PGHOST}:${PGPORT}/ta_collector" \
             pytest -q -m integration tests/test_server_observed_evidence_migration.py
-
-          bash scripts/prepare_postgres_rehearsal.sh ta_governance_head010 10
-          TRADINGAGENTS_TEST_POSTGRES_GOVERNANCE_URL="${driver_base}tradingagents-app-v2@${host}/ta_governance_head010" \
-            pytest -q -m integration tests/test_formal_artifact_governance_migration.py
-
-          bash scripts/prepare_postgres_rehearsal.sh ta_authorization_head012 12
-          TRADINGAGENTS_TEST_POSTGRES_ADMIN_URL="${driver_base}tradingagents-app-v2@${host}/ta_authorization_head012" \
-            pytest -q -m integration tests/test_formal_release_authorization_migration.py
-
-          bash scripts/prepare_postgres_rehearsal.sh ta_llm_head013 13
-          TRADINGAGENTS_TEST_POSTGRES_ADMIN_URL="${driver_base}tradingagents-app-v2@${host}/ta_llm_head013" \
-            pytest -q -m integration tests/test_formal_llm_budget_migration.py
-
-          bash scripts/prepare_postgres_rehearsal.sh ta_roles_head013 13
-          TRADINGAGENTS_TEST_POSTGRES_ADMIN_URL="${driver_base}tradingagents-app-v2@${host}/ta_roles_head013" \
-          TRADINGAGENTS_TEST_POSTGRES_FIXTURE_URL="${driver_base}postgres@${host}/ta_roles_head013" \
-            pytest -q -m integration tests/test_formal_role_split.py
-
-          if [[ -f tests/test_formal_release_postgres.py ]]; then
-            bash scripts/prepare_postgres_rehearsal.sh ta_release_head013 13
-            TRADINGAGENTS_TEST_POSTGRES_RELEASE_URL="${driver_base}tradingagents-app-v2@${host}/ta_release_head013" \
-              pytest -q -m integration tests/test_formal_release_postgres.py
-          fi

@@ -404,6 +404,121 @@ def test_x_source_enables_discovery_not_per_ticker_queries(tmp_path, monkeypatch
 
 
 @pytest.mark.unit
+def test_global_only_mode_runs_news_and_bounded_x_without_ticker_sources(
+    tmp_path, monkeypatch,
+):
+    captured = {}
+
+    def fake_run_cycle(store, tickers, sources, macro_themes, x_enabled,
+                       x_interval, x_limit, x_topic_limit, force_x):
+        captured.update(
+            tickers=tickers,
+            sources=sources,
+            macro_themes=macro_themes,
+            x_enabled=x_enabled,
+            x_interval=x_interval,
+            x_limit=x_limit,
+            x_topic_limit=x_topic_limit,
+            force_x=force_x,
+        )
+
+    monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
+    monkeypatch.setattr(poller, "run_cycle", fake_run_cycle)
+
+    poller.main([
+        "--global-only",
+        "--sources", "x",
+        "--once",
+        "--no-trading-hours",
+        "--interval", "3600",
+        "--x-interval", "86400",
+        "--db", str(tmp_path / "global.db"),
+    ])
+
+    assert captured["tickers"] == []
+    assert captured["sources"] == []
+    assert captured["x_enabled"] is True
+    assert captured["x_interval"] == 86400
+    assert captured["x_topic_limit"] == 3
+    assert captured["x_limit"] == 10
+    assert captured["force_x"] is True
+    assert len(poller._globalnews_query_slots(captured["macro_themes"])) == 10
+    assert all(
+        spec["prediction_topics"] == []
+        for spec in captured["macro_themes"].values()
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "extra_args",
+    [
+        ["--tickers", "AAPL"],
+        ["--sources", "x,reddit"],
+        ["--no-macro"],
+    ],
+)
+def test_global_only_mode_rejects_tickers_ticker_sources_and_missing_news(
+    tmp_path, monkeypatch, extra_args,
+):
+    monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
+    base = [
+        "--global-only",
+        "--sources", "x",
+        "--once",
+        "--no-trading-hours",
+        "--interval", "3600",
+        "--x-interval", "86400",
+        "--db", str(tmp_path / "must-not-open.db"),
+    ]
+    if "--sources" in extra_args:
+        base[base.index("--sources") + 1] = extra_args[1]
+        extra_args = []
+
+    with pytest.raises(SystemExit):
+        poller.main([*base, *extra_args])
+
+
+@pytest.mark.unit
+def test_global_only_mode_requires_explicit_versioned_cadence(tmp_path, monkeypatch):
+    monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
+    monkeypatch.delenv("MEDIA_POLLER_INTERVAL", raising=False)
+    monkeypatch.delenv("MEDIA_POLLER_X_INTERVAL", raising=False)
+
+    with pytest.raises(SystemExit):
+        poller.main([
+            "--global-only",
+            "--sources", "x",
+            "--once",
+            "--no-trading-hours",
+            "--db", str(tmp_path / "missing-cadence.db"),
+        ])
+
+
+@pytest.mark.unit
+def test_global_only_daemon_fails_closed_while_collection_is_paused(
+    tmp_path, monkeypatch,
+):
+    monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
+    monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "false")
+    monkeypatch.setattr(
+        poller,
+        "open_store",
+        lambda *_args, **_kwargs: pytest.fail("paused daemon opened the database"),
+    )
+
+    with pytest.raises(SystemExit):
+        poller.main([
+            "--global-only",
+            "--sources", "x",
+            "--no-trading-hours",
+            "--interval", "3600",
+            "--x-interval", "86400",
+            "--db", str(tmp_path / "paused.db"),
+        ])
+
+
+@pytest.mark.unit
 def test_explicit_x_source_fails_startup_without_nonblank_credentials(
     tmp_path, monkeypatch,
 ):

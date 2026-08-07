@@ -1,5 +1,4 @@
 """Independent fetch receipts retain late discoveries without shared-cursor gaps."""
-import inspect
 import json
 import logging
 
@@ -454,12 +453,9 @@ def test_complete_cycle_sets_success_heartbeat_without_alert(tmp_path, monkeypat
 
 
 @pytest.mark.unit
-def test_formal_gate_and_audit_require_all_ten_configured_globalnews_slots(capsys):
-    from tradingagents.formal_experiment import _formal_evidence_query_slots
-
-    expected = poller._globalnews_query_slots(poller.DEFAULT_CONFIG["macro_themes"])
+def test_collector_audit_requires_all_ten_globalnews_slots(capsys):
+    expected = poller._globalnews_query_slots(poller._global_only_news_themes())
     assert len(expected) == 10
-    assert _formal_evidence_query_slots() == expected
 
     captured = {}
 
@@ -478,345 +474,134 @@ def test_formal_gate_and_audit_require_all_ten_configured_globalnews_slots(capsy
         def fetch_runs(self, limit):
             return []
 
+        def collection_cycle(self, _cycle_id):
+            return None
+
     poller.print_audit(AuditStore())
 
     output = capsys.readouterr().out
     assert captured["kwargs"]["expected_query_slots"] == expected
-    assert "formal_expected_query_slots=10" in output
-    assert "formal_missing_query_slots=10" in output
+    assert "collector_expected_query_slots=10" in output
+    assert "collector_missing_query_slots=10" in output
+    assert "collector_x_current_state=missing" in output
+    assert "collector_x_prior_state=missing" in output
 
 
 @pytest.mark.unit
-def test_paper_watchdog_rejects_stale_or_newer_failure_heartbeat(tmp_path):
-    store = SqliteMediaStore(tmp_path / "m.db")
-    store.set_meta("paper:last_success_utc", 100.0)
-    assert poller.check_paper_heartbeat(store, now=150.0, max_age=100.0)
+def test_collector_x_audit_reports_exact_cycle_request_counts():
+    from datetime import date, datetime, timezone
 
-    store.set_meta("paper:last_failure_utc", 160.0)
-    assert not poller.check_paper_heartbeat(store, now=170.0, max_age=100.0)
-    assert not poller.check_paper_heartbeat(store, now=250.0, max_age=100.0)
-    store.close()
+    period = date(2026, 8, 5)
+    instant = datetime(2026, 8, 5, tzinfo=timezone.utc).timestamp()
+    spec = poller._x_collection_cycle_spec(instant, 3)
+    terminal = instant + 100.0
 
-
-@pytest.mark.unit
-def test_formal_watchdog_reports_pre_authorization_without_legacy_poll_state(
-    monkeypatch,
-):
-    class NoLegacyPollState:
-        def get_meta(self, _key):
-            pytest.fail("formal health must not read legacy poll_state heartbeats")
-
-    monkeypatch.setattr(
-        poller,
-        "_formal_runtime_health_projection",
-        lambda *_args, **_kwargs: (
-            {"authorized": False, "collector_configuration_id": None},
-            [],
-        ),
-    )
-
-    result = poller.check_formal_runtime_health(
-        NoLegacyPollState(),
-        now=100.0,
-        max_age=60.0,
-        protocol_id="protocol_test",
-        collector_build_id="build_" + "1" * 24,
-        collector_configuration_id="config_" + "2" * 24,
-    )
-
-    assert result == {
-        "status": "not-yet-authorized",
-        "healthy": True,
-        "authorized": False,
-        "runtime_components": [],
-    }
-
-
-@pytest.mark.unit
-def test_formal_watchdog_binds_configuration_and_reports_paused(monkeypatch):
-    configuration_id = "config_" + "2" * 24
-    monkeypatch.setattr(
-        poller,
-        "_formal_runtime_health_projection",
-        lambda *_args, **_kwargs: (
-            {"authorized": True, "collector_configuration_id": configuration_id},
-            [
-                {
-                    "runtime_component": "decision",
-                    "event_type": "paused",
-                    "observed_utc": 96.0,
-                    "latest_success_utc": None,
-                    "latest_failure_utc": None,
-                    "latest_paused_utc": 96.0,
+    class Store:
+        def collection_cycle(self, cycle_id):
+            assert cycle_id == spec["collection_cycle_id"]
+            return {
+                "identity_valid": True,
+                "identity": spec["identity"],
+                "status": "complete",
+                "manifest_valid": True,
+                "server_terminal_utc": terminal,
+                "manifest": {
+                    "slot_receipts": [
+                        {
+                            "provider": "xtrend",
+                            "fetch_run_id": "fetch_" + "1" * 24,
+                            "item_count": 4,
+                        },
+                        {
+                            "provider": "xtrend",
+                            "fetch_run_id": "fetch_" + "2" * 24,
+                            "item_count": 5,
+                        },
+                        {
+                            "provider": "x",
+                            "fetch_run_id": "fetch_" + "3" * 24,
+                            "item_count": 10,
+                        },
+                        {
+                            "provider": "x",
+                            "fetch_run_id": "fetch_" + "4" * 24,
+                            "item_count": 7,
+                        },
+                    ]
                 },
-                {
-                    "runtime_component": "marker",
-                    "event_type": "success",
-                    "observed_utc": 95.0,
-                    "latest_success_utc": 95.0,
-                    "latest_failure_utc": None,
-                    "latest_paused_utc": None,
-                },
-            ],
-        ),
-    )
-
-    result = poller.check_formal_runtime_health(
-        object(),
-        now=100.0,
-        max_age=60.0,
-        protocol_id="protocol_test",
-        collector_build_id="build_" + "1" * 24,
-        collector_configuration_id=configuration_id,
-    )
-
-    assert result["status"] == "paused"
-    assert result["healthy"] is True
-    assert result["authorized"] is True
-    assert result["runtime_components"] == [
-        {"runtime_component": "decision", "status": "paused"},
-        {"runtime_component": "marker", "status": "healthy"},
-    ]
-
-
-@pytest.mark.unit
-def test_formal_watchdog_distinguishes_missing_from_explicit_paused(monkeypatch):
-    configuration_id = "config_" + "2" * 24
-    monkeypatch.setattr(
-        poller,
-        "_formal_runtime_health_projection",
-        lambda *_args, **_kwargs: (
-            {"authorized": True, "collector_configuration_id": configuration_id},
-            [
-                {
-                    "runtime_component": "marker",
-                    "event_type": "paused",
-                    "observed_utc": 96.0,
-                    "latest_success_utc": None,
-                    "latest_failure_utc": None,
-                    "latest_paused_utc": 96.0,
-                }
-            ],
-        ),
-    )
-
-    result = poller.check_formal_runtime_health(
-        object(),
-        now=100.0,
-        max_age=60.0,
-        protocol_id="protocol_test",
-        collector_build_id="build_" + "1" * 24,
-        collector_configuration_id=configuration_id,
-    )
-
-    assert result["status"] == "unhealthy"
-    assert result["healthy"] is False
-    assert result["runtime_components"] == [
-        {"runtime_component": "decision", "status": "missing"},
-        {"runtime_component": "marker", "status": "paused"},
-    ]
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("latest_success_utc", "latest_failure_utc", "latest_paused_utc", "expected"),
-    [
-        (None, 90.0, 96.0, "failure"),
-        (80.0, 90.0, 96.0, "failure"),
-        (92.0, 90.0, 96.0, "paused"),
-        (20.0, 10.0, 30.0, "stale"),
-    ],
-)
-def test_formal_watchdog_pause_cannot_mask_failure_or_staleness(
-    monkeypatch,
-    latest_success_utc,
-    latest_failure_utc,
-    latest_paused_utc,
-    expected,
-):
-    configuration_id = "config_" + "2" * 24
-    rows = []
-    for component in ("decision", "marker"):
-        rows.append(
-            {
-                "runtime_component": component,
-                "event_type": "paused",
-                "observed_utc": latest_paused_utc,
-                "latest_success_utc": latest_success_utc,
-                "latest_failure_utc": latest_failure_utc,
-                "latest_paused_utc": latest_paused_utc,
             }
-        )
-    monkeypatch.setattr(
-        poller,
-        "_formal_runtime_health_projection",
-        lambda *_args, **_kwargs: (
-            {"authorized": True, "collector_configuration_id": configuration_id},
-            rows,
-        ),
-    )
 
-    result = poller.check_formal_runtime_health(
-        object(),
-        now=100.0,
-        max_age=60.0,
-        protocol_id="protocol_test",
-        collector_build_id="build_" + "1" * 24,
-        collector_configuration_id=configuration_id,
-    )
+    projection = poller._x_cycle_audit_projection(Store(), period)
 
-    assert result["runtime_components"] == [
-        {"runtime_component": "decision", "status": expected},
-        {"runtime_component": "marker", "status": expected},
-    ]
-    assert result["healthy"] is (expected == "paused")
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("release", "rows"),
-    [
-        ({"authorized": False, "collector_configuration_id": "config_bad"}, []),
-        (
-            {"authorized": True, "collector_configuration_id": "config_" + "2" * 24},
-            [{"runtime_component": "decision"}],
-        ),
-        (
-            {"authorized": True, "collector_configuration_id": "config_" + "2" * 24},
-            [
-                {
-                    "runtime_component": "decision",
-                    "event_type": "unknown",
-                    "observed_utc": 1.0,
-                    "latest_success_utc": None,
-                    "latest_failure_utc": None,
-                    "latest_paused_utc": None,
-                }
-            ],
-        ),
-        (
-            {"authorized": True, "collector_configuration_id": "config_" + "2" * 24},
-            [
-                {
-                    "runtime_component": "decision",
-                    "event_type": "success",
-                    "observed_utc": float("nan"),
-                    "latest_success_utc": float("nan"),
-                    "latest_failure_utc": None,
-                    "latest_paused_utc": None,
-                }
-            ],
-        ),
-        (
-            {"authorized": True, "collector_configuration_id": "config_" + "2" * 24},
-            [
-                {
-                    "runtime_component": "decision",
-                    "event_type": "paused",
-                    "observed_utc": 10.0,
-                    "latest_success_utc": 11.0,
-                    "latest_failure_utc": None,
-                    "latest_paused_utc": 10.0,
-                }
-            ],
-        ),
-    ],
-)
-def test_formal_health_projection_contract_fails_closed(release, rows):
-    with pytest.raises(ValueError):
-        poller._validated_formal_runtime_health_projection(release, rows)
-
-
-@pytest.mark.unit
-def test_formal_watchdog_rejects_future_heartbeat(monkeypatch):
-    configuration_id = "config_" + "2" * 24
-    monkeypatch.setattr(
-        poller,
-        "_formal_runtime_health_projection",
-        lambda *_args, **_kwargs: (
-            {"authorized": True, "collector_configuration_id": configuration_id},
-            [
-                {
-                    "runtime_component": component,
-                    "event_type": "success",
-                    "observed_utc": 401.0,
-                    "latest_success_utc": 401.0,
-                    "latest_failure_utc": None,
-                    "latest_paused_utc": None,
-                }
-                for component in ("decision", "marker")
-            ],
-        ),
-    )
-
-    result = poller.check_formal_runtime_health(
-        object(),
-        now=100.0,
-        max_age=60.0,
-        protocol_id="protocol_test",
-        collector_build_id="build_" + "1" * 24,
-        collector_configuration_id=configuration_id,
-    )
-
-    assert result["status"] == "unhealthy"
-    assert result["healthy"] is False
-    assert result["runtime_components"] == [
-        {"runtime_component": "decision", "status": "future"},
-        {"runtime_component": "marker", "status": "future"},
-    ]
-
-
-@pytest.mark.unit
-def test_formal_watchdog_uses_only_migration_013_projections():
-    source = inspect.getsource(poller._formal_runtime_health_projection)
-
-    assert "RUNTIME_HEALTH_PROJECTION_SQL" in source
-    assert "_FORMAL_COLLECTOR_RELEASE_PROJECTION_SQL" in source
-    assert "formal_collector_release_projection" in (
-        poller._FORMAL_COLLECTOR_RELEASE_PROJECTION_SQL
-    )
-    assert "paper_marks" not in source
-    assert "paper_decisions" not in source
-    assert "poll_state" not in source
-
-
-@pytest.mark.unit
-def test_formal_daemon_never_falls_back_to_legacy_poll_state_watchdog(monkeypatch):
-    calls = []
-    identity = {
-        "protocol_id": "protocol_test",
-        "collector_build_id": "build_" + "1" * 24,
-        "collector_configuration_id": "config_" + "2" * 24,
+    assert projection == {
+        "period": "2026-08-05",
+        "state": "complete",
+        "terminal_utc": datetime.fromtimestamp(terminal, timezone.utc).isoformat(),
+        "trend_requests": 2,
+        "search_requests": 2,
+        "posts_returned": 17,
     }
-    monkeypatch.setattr(poller.signal, "signal", lambda *_args: None)
-    monkeypatch.setattr(poller, "run_cycle", lambda *_args, **_kwargs: None)
+
+
+@pytest.mark.unit
+def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_parts():
+    manifest = poller.collector_semantics_manifest()
+
+    assert manifest["schema_version"] == 3
+    assert manifest["policy"] == "global-only-editorial-and-trend-reaction-v1"
+    assert manifest["collector_semantics_id"] == "collector_cf5b90da1cd4d7db969389ee"
+    assert manifest["semantic_values"]["collection_scope"] == {
+        "ticker_watchlist": False,
+        "ticker_sources": [],
+        "polymarket": False,
+        "broad_editorial_news": True,
+        "trend_derived_x_reaction": True,
+        "news_interval_seconds": 3600,
+        "x_interval_seconds": 86400,
+    }
+    assert not any("release" in name or "paper" in name for name in manifest["components"])
+
+
+@pytest.mark.unit
+def test_global_only_themes_have_news_but_no_prediction_market_queries():
+    themes = poller._global_only_news_themes()
+
+    assert len(poller._globalnews_query_slots(themes)) == 10
+    assert all(spec["queries"] for spec in themes.values())
+    assert all(spec["prediction_topics"] == [] for spec in themes.values())
+
+
+@pytest.mark.unit
+def test_alert_test_has_no_database_or_provider_access(monkeypatch, capsys):
+    calls = []
     monkeypatch.setattr(
         poller,
-        "check_formal_runtime_health",
-        lambda *_args, **kwargs: calls.append(kwargs),
+        "emit_alert",
+        lambda component, event, **kwargs: calls.append((component, event, kwargs)) or True,
     )
     monkeypatch.setattr(
         poller,
-        "check_paper_heartbeat",
-        lambda *_args, **_kwargs: pytest.fail("formal mode used legacy poll_state"),
-    )
-    monkeypatch.setattr(
-        poller,
-        "_sleep",
-        lambda _seconds, stop: stop.update(flag=True),
+        "open_store",
+        lambda *_args, **_kwargs: pytest.fail("alert test opened the database"),
     )
 
-    poller.poll_forever(
-        object(),
-        [],
-        [],
-        3600,
-        {},
-        paper_heartbeat_max_age=93_600.0,
-        formal_runtime_identity=identity,
-    )
+    poller.main(["--test-alert"])
 
-    assert calls == [identity]
+    assert calls == [(
+        "collector",
+        "delivery_test",
+        {
+            "severity": "warning",
+            "details": {
+                "schema_version": 1,
+                "collector_policy": "global-only-editorial-and-trend-reaction-v1",
+            },
+        },
+    )]
+    assert json.loads(capsys.readouterr().out) == {
+        "component": "collector",
+        "delivered": True,
+    }
 
 
 @pytest.mark.unit

@@ -494,6 +494,16 @@ def test_receipt_lineage_must_intersect_assigned_manifest_slot():
     assert bound["receipt_lineage_binding_complete"] is True
     assert all(slot["lineage_bound"] for slot in bound["query_slots"])
 
+    compatible = GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+        "compatible_collector_identities"
+    ][0]
+    coverage["query_slots"][0]["run"]["metadata_json"] = json.dumps({
+        "protocol_id": compatible["protocol_id"],
+        "collector_semantics_id": compatible["collector_semantics_id"],
+    })
+    legacy_collector = bind_receipt_coverage_to_selection(coverage, manifest)
+    assert legacy_collector["complete"] is True
+
     coverage["query_slots"][0]["run"]["metadata_json"] = json.dumps({
         "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
         "collector_semantics_id": "collector_000000000000000000000000",
@@ -1006,7 +1016,7 @@ def test_non_abstention_must_be_grounded_nonzero_and_sign_consistent(forecast_pa
 @pytest.mark.unit
 def test_content_ids_are_canonical():
     assert content_id({"a": 1, "b": 2}) == content_id({"b": 2, "a": 1})
-    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_7382464b4f6a755d767f2699"
+    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_485a418d45d44de9c0f45a94"
 
 
 @pytest.mark.unit

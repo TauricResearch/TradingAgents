@@ -3,13 +3,15 @@
 Status: accepted
 Date: 2026-08-05
 
-The architectural boundary is accepted; the current `schema_version=1` models remain an internal
-compatibility contract until normalized schema export and a public versioning policy are added.
+The architectural boundary remains accepted. Implementation note (2026-08-06): the unused legacy
+paper-JSON compatibility path described in the original slice was removed with the permanent paper
+workers. The offline decision runner currently persists validated target weights; it has not yet
+been wired through the canonical `TargetPortfolio` port.
 
 ## Context
 
-The current formal optimizer returns nested dictionaries whose meaning is understood by paper
-storage and backtest code. A future broker order is not portable: supported order types, sessions,
+The optimizer returns nested dictionaries whose meaning is understood by research and backtest
+code. A future broker order is not portable: supported order types, sessions,
 fractional quantities, confirmations, and account restrictions differ by broker.
 
 Creating broker orders in forecasting code would couple the research protocol to one account and
@@ -26,11 +28,10 @@ Research and portfolio policy produce an immutable, versioned `TargetPortfolio`.
 - constraints and allocation diagnostics; and
 - producer and provenance references.
 
-The current optimizer is exposed through an adapter. Explicit compatibility functions translate
-between `TargetPortfolio` and the existing paper JSON without changing weights or diagnostics.
-The formal target function now runs both the direct legacy optimizer and the canonical adapter,
-fails closed on any difference, and returns only the canonical path's legacy-compatible payload.
-No canonical object is persisted yet, so the database and artifact JSON remain unchanged.
+The initial compatibility adapter proved parity with the optimizer but had no remaining caller
+after the paper runtime was retired, so it was removed. A later execution slice should make the
+canonical `TargetPortfolio` the persisted output of the active offline allocator directly, with
+one adapter contract rather than another dual path.
 
 A future deterministic order planner—not the forecast model—will combine a target with account
 state, prices, execution policy, risk limits, and broker capabilities.
@@ -44,7 +45,7 @@ later schema version with account, price, cash, and notional invariants.
 - Weight targets plus cash sum to one and obey gross/position caps.
 - Long-only targets cannot contain negative positions or cash.
 - Timestamps are timezone-aware and normalized to UTC.
-- Legacy serialization is lossless for the existing formal optimizer output.
+- Any future adapter must prove lossless serialization for the active optimizer output.
 
 ## Consequences
 

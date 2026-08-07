@@ -1,136 +1,210 @@
-# Global-event V2 research contract
+# Global-event research contract
 
-The authoritative, machine-readable contract is
-`tradingagents/research_protocol.py`. Its canonical content hash is the
-`protocol_id`; deployments and reliability changes have a separate `build_id`.
+## Status
 
-## Flow
+This is a research design, not a validated trading strategy. No completed
+experiment in this repository demonstrates alpha, profitability, or readiness
+for live capital.
 
-1. The collector discovers broad world, business, and technology stories without
-   a ticker or company watchlist. Company-authored releases are rejected.
-2. Every provider/query attempt receives an independent database receipt. Older
-   stories first discovered today are retained and stamped with their actual
-   receipt time. Each broad-news receipt records its sorted, unique exact
-   eligible lineage as `(evidence_id, raw_content_id)` pairs, the matching
-   evidence-ID projection and count, plus the exact protocol and
-   collector-semantic identities that created it. The stable evidence ID names
-   the provider item; the raw-content ID binds the exact fetched provider
-   snapshot while deliberately excluding receipt time and storage-derived
-   labels.
-3. A decision is allowed only after every configured broad-news query has a
-   successful receipt in the cutoff-cycle window and every selected news item
-   binds by both evidence and raw-content ID to its single assigned receipt.
-   Missing identities, legacy scalar/ID-only lineage, or a receipt from
-   different collector semantics causes the decision to fail closed.
-4. Distinct paid forecast stages are ordered before invocation by the frozen
-   outcome-blind XNYS-session counterbalance: a six-session cycle traverses all
-   six permutations of champion, without-public-reaction, and
-   public-reaction-only, then filters out stages whose input does not require a
-   call. Across 252 contiguous XNYS sessions each three-stage ordinal is occupied
-   84 times (and either ordinal of a constant two-stage subset 126 times).
-   Formal evidence is source-stratified so X cannot crowd out broad news, and
-   company-authored material is filtered again at this boundary. `trendnews`
-   is collector-only topic-discovery provenance: it is never retrieved into the
-   formal candidate history and never enters a prompt.
-5. A deterministic allocator sees current positions and applies turnover,
-   position, sector, gross, and cash constraints. A no-edge or abstain forecast
-   preserves the current position; it does not mean liquidation.
-6. Champion, ablation, baseline, stale-input, and shuffled-input targets are
-   frozen synchronously. The without-public-reaction ablation excludes only X
-   rows; because `trendnews` is not forecast evidence, the causal difference is
-   exactly the selected public-reaction channel. Every prompt, input, model
-   response identifier, token usage record, event, forecast, and target is
-   stored append-only. Each successful result receipt also binds a
-   `forecast_bundle_id` content ID to the exact persisted payload for its stage.
-7. All strategies enter at the next official XNYS open and use the same captured
-   price vintage and cost model. The worker wakes 15 minutes after the open to
-   capture raw and adjusted opening-price, dividend, and split receipts.
+The design asks a narrow question: can a small, point-in-time sample of broad
+world news and public reaction improve a synchronized portfolio forecast beyond
+simple market and price-only baselines?
 
-## Editorial evidence and observed absence
+## How this differs from upstream TradingAgents
 
-Formal news uses a frozen strict editorial core. Publisher and host must match
-an exact allowlisted pair; syndicated aggregators, company-authored material,
-and unknown or incomplete provenance do not qualify. A successful query may
-therefore record exact empty lineage and evidence-ID lists with count zero
-(`[]`/`[]`/`0`). That is valid per-slot observed absence and never causes the
-allowlist, query mapping, or slot coverage rule to relax. All exact query
-receipts are still required, while the champion selection must contain at least
-one eligible `globalnews` item overall.
+The [upstream TradingAgents paper](https://arxiv.org/abs/2412.20138) calls a
+committee of analyst, debate, trader, risk, and portfolio-manager agents for one
+named ticker and date. Its main contribution is the multi-agent firm simulation.
 
-## Failure and retry semantics
+This branch adds a separate experiment:
 
-Every complete formal operation is serialized by a run-scoped database lock;
-overlapping workers cannot interleave decision, mark, or review lifecycle
-writes. Every model call atomically increments its durable decision/day counters
-and inserts its immutable reservation artifact in one database transaction
-before the provider is invoked. The provider call itself is outside that
-transaction. Before any reservation, a transient operational failure may use
-the bounded worker retry envelope. After the first reservation for a decision,
-that decision is never retried by the process, a deployment, or a restart. If
-the reserved call does not produce a valid completed decision, the interval
-remains in the intent-to-treat ledger and carries forward the previous
-portfolio. The carry-forward is the research outcome for that missing decision,
-not permission for a replacement model call.
+- discovery begins with broad global themes and trends, not tickers, company
+  feeds, or investor-relations material;
+- the model receives one time-bounded market-wide evidence snapshot and produces
+  cross-sectional asset forecasts in one structured call per experimental arm;
+- deterministic code, rather than an LLM persona, converts forecasts into a
+  constrained portfolio; and
+- snapshots, decisions, later outcomes, baselines, costs, and statistical tests
+  are linked as reproducible research artifacts.
 
-## Interpretation gates
+That combination is meaningfully different from upstream. It is best described
+as a point-in-time global-event evaluation harness, not a fundamentally new
+forecasting algorithm. Immutable data, content hashes, portfolio constraints,
+transaction-cost models, bootstrap tests, and multiple-testing corrections are
+established methods. Do not claim that this project invented them or is the
+first leakage-aware LLM trading study.
 
-The worker materializes each preregistered gate automatically from append-only
-state. Outcome-bearing gates commit an access receipt before reading outcomes,
-and routine status surfaces continue to hide formal weights, NAV, and returns.
+A fair assessment is strong differentiation from upstream, but moderate novelty
+against the broader quantitative-research literature. The strongest contribution
+is the research and evaluation harness. There is currently zero empirical
+evidence that its forecasts contain tradable alpha.
 
-- 20 assigned holding intervals: operations only, with no read of forecasts,
-  weights, NAV, returns, or other outcomes.
-- 60 intervals: fixed forecast-calibration and source/signal-quality diagnostics
-  after an outcome-access receipt; no strategy comparison or protocol action.
-- 126 intervals: a blinded operational-integrity report containing aggregate
-  path, interval, mark, assignment, and bundle counts only. It reads no
-  outcomes, writes no outcome-access receipt, and withholds strategy identities
-  and every efficacy statistic.
-- Exactly 252 intervals: the sole confirmatory report and frozen decision rule.
-  The earlier automated reports are leakage-bounded diagnostics, not additional
-  confirmatory looks.
+## Lean flow
 
-Before any final outcome table is read, the publication guard requires the set
-of successful decision-bundle dates to equal the target-applied assignment
-dates exactly. In assignment order, it replays every member with the independent
-offline verifier, requires all eight strategies and `external_calls=0`, and
-persists the sole content-addressed `formal_final_verification_manifest`. Only
-then may the final outcome-access receipt be committed and the readout built.
-The outcome bundle, report artifact, and final run label all bind both the
-manifest ID and its artifact ID. A missing, duplicate, incomplete, reordered,
-or tampered manifest—or any evidence of an unauthorized earlier efficacy
-look—blocks publication.
+```text
+collector -> immutable snapshot -> offline decide -> offline label -> evaluate
+```
 
-Live capital is never enabled automatically.
+### What is implemented now
 
-## Production activation invariant
+The collector and the `tradingagents-research` CLI enforce this application
+ordering with content-addressed filesystem artifacts. Snapshot creation applies
+publication, receipt, exact prior-day X-cycle, selection, and query-coverage
+checks. Decision generation imports no outcome provider, validates the exact
+selected evidence and grounded bundle independently of the model adapter,
+requires declared checkpoint metadata to predate the tested cutoffs, accepts
+`global_events` and `without_public_reaction` arms, and carries failed dates
+forward visibly. Labeling accepts only a committed decision ID, and evaluation
+verifies the exact object, decision, and label references.
 
-Migrations 003 through 013 are applied in numeric order by the Fly MPG schema
-administrator while the collector, legacy combined paper worker, decision
-worker, and marker worker are all paused; runtime identities never migrate
-schema. The migrations make source receipts and collection cycles append-only,
-register one immutable primary confirmatory run, govern formal artifacts and
-model-call budgets, require explicit release authorization, and force the
-decision and marker identities through distinct outcome-blind RLS policies.
-Each migration fails closed on ambiguous in-flight or pre-existing formal
-state.
+This first harness is not the complete experiment described below. Its default
+label adapter records the yfinance response obtained at label time, not a market
+price vintage captured contemporaneously with the session. Its evaluator reports
+a costed strategy path, benchmark path, drawdown, turnover, missingness, and a
+Newey-West mean diagnostic for one decision batch. It does not yet orchestrate
+all baselines, ablations, walk-forward folds, bootstrap intervals, multiplicity
+correction, or one-time holdout access. The checkpoint file is a validated
+declaration and returned-model allowlist, not independent proof of model weights
+or training data. The current filesystem store also has no durable first-attempt
+registry: rerunning a stochastic decision or mutable price request can create a
+second artifact, and the CLI does not yet prevent an operator from choosing one.
+It is therefore an exploratory harness until attempt selection is preregistered
+and enforced. Import separation is not an OS security boundary; run phases with
+separate credentials and artifact permissions for stronger isolation.
 
-The exact receipt, lineage, artifact, price-capture, authorization, and role
-split function hashes, fixed `search_path`, trigger/catalog shapes, ownership,
-ACLs, and RLS policies are authenticated during preflight. The final collector
-image must then create a complete qualifying one-shot collection-cycle
-manifest. A backup containing that cycle is restored into an isolated
-disposable cluster. The repository authenticates the migration-013 role
-contract, exact restored cycle, and zero preauthorization formal-activity rows.
-Decision and marker image/configuration semantics are independently bound by
-their paused in-image preflights and PostgreSQL/deterministic replay CI
-contracts; stored marker replay is available only after real intervals exist.
+### 1. Collect broad evidence
 
-Release authorization binds that fresh restore evidence, all three paused
-in-image configuration/preflight documents, all three Fly image digests, all
-three alert-delivery receipts, and durable retirement of the legacy combined
-credential. Activation requires successful post-authorization preflight for
-the collector, decision worker, and marker worker. Enable the marker first and
-the decision worker last. Any mismatch, stale evidence, missing heartbeat,
-unresolved failure, failed delivery, or replay error keeps the relevant action
-switch disabled.
+The single deployed worker polls general, world, business, and technology news
+feeds across several regions. Its frozen topic families cover rates, trade,
+politics and geopolitics, companies and the economy, technology, and energy.
+Queries never name a portfolio ticker or issuer.
+
+X is a bounded public-reaction channel, not a representative opinion poll. The
+daily budget permits at most two trend requests and three searches. Selection
+caps repeat authors, discourages automated-looking activity, and excludes
+verified business and government accounts. Company-authored material is also
+rejected at the forecast boundary.
+
+The editorial-news core is intentionally conservative. The current allowlist is
+AP, BBC, France 24, NPR, Reuters, and Sky News. A successful provider response
+may contain zero forecast-eligible stories and must retain exact `0`/`[]`
+lineage; a raw empty or failed provider response is unhealthy. Either case must
+not silently relax the source policy.
+
+### 2. Freeze an immutable snapshot
+
+Every provider attempt gets a receipt. Every retained item records both its
+publication time and the time this system first received it. Exact fetched
+content is content-addressed, and a snapshot commits the complete eligible
+lineage at a declared decision cutoff.
+
+A snapshot is useful only if it can be reconstructed without asking a live
+provider what used to be present. Historical provider IDs alone are not enough.
+When a source edits an item, the long-term design must retain the old text as a
+new content vintage. The current store is stronger at detecting changed content
+than at preserving every revision, so full bitemporal revision history remains
+work to do.
+
+### 3. Decide offline and outcome-blind
+
+The decision runner reads only a committed snapshot and frozen protocol inputs.
+It extracts global events and produces structured forecasts for the entire
+fixed universe. A deterministic allocator then applies gross, position, sector,
+cash, and turnover constraints. Within the outcome-blind batch, abstaining
+preserves the prior committed target; it does not force liquidation or observe
+post-return position drift.
+
+The decision artifact must bind at least:
+
+- snapshot and protocol IDs;
+- universe and prior-position IDs;
+- exact prompt and input hashes;
+- code/build identity;
+- model artifact identity and training cutoff; and
+- raw structured response plus allocated targets.
+
+A provider model name or mutable API alias is not a frozen checkpoint. LangGraph
+checkpoints only resume program state; they do not freeze model weights or erase
+facts learned during training. The offline CLI rejects declared checkpoint dates
+that overlap the experiment and verifies the model identity returned by the
+provider, but it cannot authenticate a hosted model's weights or training data.
+A credible historical test therefore requires a locally archived model artifact
+whose training cutoff predates the tested period, or equivalent provider evidence
+that the exact immutable checkpoint predates it. Until that exists, the harness
+can test data-side timing and prospective behavior but cannot make a strong
+historical no-leakage claim.
+
+### 4. Attach outcomes later
+
+Labels are computed only after targets are committed. Each strategy should use
+the same next-session entry convention, holding horizon, price vintage,
+corporate-action treatment, and cost model. Labeling must not invoke the model or
+rewrite a decision.
+
+Fetching an old adjusted price from a mutable public endpoint months later is
+not equivalent to having captured that vintage; Yahoo's adjusted history can be
+revised. The collector should eventually
+snapshot the required raw prices, adjustments, and calendars daily, or the
+project should use a genuinely versioned market-data provider. The current
+yfinance adapter hashes and stores the values it sees at labeling time, which
+makes that artifact reproducible but does not make the underlying history
+point-in-time safe.
+
+### 5. Evaluate the portfolio
+
+The confirmatory evaluation should be synchronized across the full universe.
+The champion should be compared with news-only, public-reaction-only, market or
+inverse-volatility, equal-weight, momentum, stale-input, and shuffled-input
+controls under the same execution and cost assumptions. Walk-forward folds use
+an embargo at least as long as the outcome horizon, and the final holdout is
+opened once rather than tuned against.
+
+Report coverage and missing decisions alongside return, drawdown, turnover,
+Sharpe, benchmark-relative performance, and cross-sectional diagnostics. Use
+HAC uncertainty estimates, block bootstrap intervals, and a declared
+multiple-testing correction where their assumptions fit. These tools reduce
+overclaiming; they do not rescue a small or biased sample.
+
+## Leakage rules
+
+For a decision cutoff at time `t`:
+
+1. Require `published_at < t` and `received_at < t` for every evidence item.
+2. Read a committed content vintage, never the source's current rendering.
+3. Keep current fundamentals, revised macro series, prediction markets, adaptive
+   decision memory, and realized outcomes out unless point-in-time versions are
+   explicitly available.
+4. Give the decision process no database role, view, file, or prompt containing
+   post-cutoff labels.
+5. Commit targets before outcome access, and make retries append-only and visible.
+6. Freeze the universe and delisting rules before evaluation; a present-day list
+   creates survivorship bias.
+7. Freeze the model artifact and its training cutoff; prompt instructions alone
+   cannot control parametric memory.
+8. Keep research folds and the final holdout separate. Do not revise the protocol
+   after seeing holdout efficacy.
+
+## Interpretation limits
+
+- The source mix is English-language and predominantly Western. It observes a
+  narrow editorial core and selected X reaction, not global population
+  sentiment.
+- The fixed universe is twenty large US companies, so results do not automatically
+  generalize to smaller firms, non-US markets, or other eras.
+- Content hashes prove identity and lineage, not truth. Citation presence is not
+  semantic fact-checking.
+- Simple clustering and source-diversity heuristics are not mathematical
+  information-gain maximization or a formal information-theoretic optimizer.
+- Separate stochastic model calls for ablations introduce sampling variance.
+  Counterbalancing call order helps but does not replace preregistered replicates
+  or sensitivity analysis.
+- The current offline evaluator is a boundary and accounting smoke test, not the
+  preregistered multi-arm analysis.
+- Content addressing makes reruns visible but does not itself choose a canonical
+  first attempt; confirmatory use needs an append-only attempt registry.
+- The protocol still needs an ex-ante power analysis before a confirmatory run.
+
+The honest success condition is evidence that the full, costed portfolio
+outperforms declared controls out of sample and survives leakage audits. Until
+then, the output is a research dataset and a falsifiable hypothesis—not a trading
+product.

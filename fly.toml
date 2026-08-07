@@ -1,7 +1,7 @@
-# Fly.io deployment for the media poller — an always-on worker (no public
-# service) that polls hourly and writes to managed Postgres.
+# Fly.io deployment for the global-news collector — one always-on worker with
+# no public service. It writes point-in-time evidence to managed Postgres.
 #
-# Deploy: see the "Fly.io" section of docs/poller-deployment.md.
+# Deploy and verify: see docs/production-runbook.md.
 #   - app name must be globally unique: change `app` below or let `fly launch` pick one
 #   - secrets (DB URL, source tokens) are set with `fly secrets set`, NOT here
 #   - data lives in Fly Managed Postgres via MEDIA_DB_URL; this worker is stateless
@@ -14,32 +14,25 @@ primary_region = "iad"          # keep close to the Fly MPG primary region
   dockerfile = "Dockerfile.poller"
 
 [processes]
-  # Exact frozen global-news/X collector. It validates its content-addressed
-  # component before any database or provider access.
-  app = "--formal-collector"
+  app = "--global-only"
 
-# Non-secret config. Topic policy/intervals are safe to commit; credentials are not —
-# set MEDIA_DB_URL / X_BEARER_TOKEN / TRUTHSOCIAL_TOKEN via `fly secrets set`.
+# Non-secret config. Credentials are set with Fly secrets, never committed.
 [env]
-  # Production schema changes are an explicit, paused-runtime operation.  The
-  # collector identity must never acquire DDL authority or migrate on boot.
+  # The collector identity never acquires DDL authority or migrates on boot.
   MEDIA_AUTO_MIGRATE = "false"
-  # Deploy paused. Enabling this starts preregistration evidence collection;
-  # collection intentionally does not depend on formal trial authorization.
-  MEDIA_COLLECTION_ENABLED = "false"
-  # X searches are discovered from ranked general news + two frozen geographic
-  # trend requests, never a ticker/entity watchlist. Three daily searches cap
-  # post reads at 30/day; both paid request classes use separate DB budgets.
+  # This is the sole persistent runtime; disabling it is the emergency pause.
+  MEDIA_COLLECTION_ENABLED = "true"
+  # Global-only mode requires this exact source boundary. Broad editorial-news
+  # queries are built in; X topics come from ranked general news and geographic
+  # trends, never a ticker/entity watchlist or first-party company feed.
   MEDIA_POLLER_SOURCES = "x"
+  # Explicit versioned cadence: ten broad-news slots hourly, while paid X trend
+  # discovery/search runs once per UTC day and caps post reads at 30/day.
   MEDIA_POLLER_INTERVAL = "3600"
-  # Global events are not bounded by US exchange hours. X still has its own
-  # daily cursor, so around-the-clock macro collection does not increase X use.
   MEDIA_POLLER_TRADING_HOURS = "false"
   MEDIA_POLLER_X_INTERVAL = "86400"
   MEDIA_POLLER_X_TOPICS = "3"
   MEDIA_POLLER_X_LIMIT = "10"
-  # Separate collector process watches the paper worker's DB heartbeat.
-  PAPER_HEARTBEAT_MAX_AGE = "93600"
 
 # Restart the worker if it crashes; a clean SIGTERM during deploy won't loop.
 # dedup on (source, external_id) makes a re-poll after restart harmless.

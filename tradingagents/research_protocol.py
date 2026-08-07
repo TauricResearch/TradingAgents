@@ -129,7 +129,18 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
                 "polymarket", "trendnews", "x", "xtrend",
             ],
         },
-        "expected_collector_semantics_id": "collector_aec83e329b85d5bf8654b2eb",
+        "expected_collector_semantics_id": "collector_cf5b90da1cd4d7db969389ee",
+        # The earlier collector used the same economic query/filter policy but
+        # hashed now-retired release-rehearsal helpers into its build identity.
+        # Keep that exact pair readable so already-captured evidence is not
+        # discarded; no other protocol/collector combination is accepted.
+        "compatible_collector_identities": [
+            {
+                "protocol_id": "protocol_7382464b4f6a755d767f2699",
+                "collector_semantics_id": "collector_aec83e329b85d5bf8654b2eb",
+                "reason": "pre-simplification collector with equivalent evidence semantics",
+            }
+        ],
         "fetch_receipt_evidence_lineage": {
             "version": "atomic-provider-snapshot-content-v2",
             "persisted_item_lineage": "every stored media response item",
