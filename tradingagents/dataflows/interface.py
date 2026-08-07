@@ -11,6 +11,7 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from .anysearch import get_anysearch_global_news
 from .config import get_config
 from .errors import (
     NoMarketDataError,
@@ -110,6 +111,7 @@ VENDOR_LIST = [
     "polymarket",
     "alpha_vantage",
     "schwab",
+    "anysearch",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -158,6 +160,7 @@ VENDOR_METHODS = {
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "anysearch": get_anysearch_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
