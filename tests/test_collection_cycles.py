@@ -445,7 +445,7 @@ def test_postgres_ingest_role_passes_read_only_runtime_preflight():
     if not url:
         pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
 
-    from sqlalchemy import func, select
+    from sqlalchemy import func, select, text
 
     store = SqlAlchemyMediaStore(url, auto_migrate=False)
     collector_tables = (
@@ -469,7 +469,41 @@ def test_postgres_ingest_role_passes_read_only_runtime_preflight():
                 for table in collector_tables
             }
 
+    transaction_settings_query = text(
+        "SELECT "
+        "pg_catalog.current_setting('lock_timeout')::INTERVAL = "
+        "INTERVAL '5 seconds' AS lock_timeout_valid, "
+        "pg_catalog.current_setting('statement_timeout')::INTERVAL = "
+        "INTERVAL '60 seconds' AS statement_timeout_valid, "
+        "pg_catalog.current_setting("
+        "'idle_in_transaction_session_timeout')::INTERVAL = "
+        "INTERVAL '60 seconds' AS idle_timeout_valid, "
+        "pg_catalog.current_schemas(false)::TEXT[] = "
+        "ARRAY['pg_catalog','public']::TEXT[] AS search_path_valid"
+    )
+
     try:
+        with store.engine.connect() as conn:
+            # The begin hook runs before this command. PostgreSQL still permits
+            # the release gate to make the transaction read-only afterward.
+            conn.execute(text("SET TRANSACTION READ ONLY"))
+            first_settings = conn.execute(
+                transaction_settings_query
+            ).mappings().one()
+            assert conn.execute(text(
+                "SELECT pg_catalog.current_setting('transaction_read_only') = 'on'"
+            )).scalar_one() is True
+            conn.rollback()
+
+            # A new implicit transaction on the same logical connection gets
+            # the complete SET LOCAL policy again after the prior rollback.
+            second_settings = conn.execute(
+                transaction_settings_query
+            ).mappings().one()
+            conn.rollback()
+        assert all(first_settings.values())
+        assert all(second_settings.values())
+
         before = row_counts()
         report = store.collector_runtime_preflight()
         after = row_counts()
@@ -519,7 +553,12 @@ def test_postgres_ingest_role_passes_read_only_runtime_preflight():
     assert report["constraints_valid"] is True
     assert report["indexes_valid"] is True
     assert report["ready"] is True
-    assert all(isinstance(value, (bool, int)) for value in report.values())
+    assert report["failure_stage"] is None
+    assert report["failure_type"] is None
+    assert all(
+        value is None or isinstance(value, (bool, int))
+        for value in report.values()
+    )
     assert url not in repr(report)
     assert "tradingagents-ingest-v2" not in repr(report)
 
@@ -579,6 +618,8 @@ def test_postgres_preflight_rejects_pre_009_function_contracts_and_recovers():
     assert stale_report["required_function_contract_count"] == 7
     assert stale_report["function_contracts_valid"] is False
     assert stale_report["ready"] is False
+    assert stale_report["failure_stage"] == "primary_contract"
+    assert stale_report["failure_type"] == "ContractMismatch"
 
     restored = SqlAlchemyMediaStore(url, auto_migrate=False)
     try:

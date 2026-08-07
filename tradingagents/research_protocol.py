@@ -161,7 +161,7 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
                 "polymarket", "trendnews", "x",
             ],
         },
-        "expected_collector_semantics_id": "collector_8ec4d89bc22ca934e079d6ce",
+        "expected_collector_semantics_id": "collector_d8193e226517a021c3c19861",
         # Earlier collectors used the same economic experiment but predated
         # stricter operational/provider contracts. Keep only their exact pairs
         # readable so already-captured, item-lineage-verified evidence is not

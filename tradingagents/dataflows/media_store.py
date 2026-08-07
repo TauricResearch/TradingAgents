@@ -251,24 +251,110 @@ def _safe_exception_kind(exc: BaseException) -> str:
     return kind if kind.isidentifier() and len(kind) <= 64 else "Exception"
 
 
-def _postgres_connect_args(*, read_only: bool = False) -> dict:
-    options = (
-        "-c lock_timeout=5000 "
-        "-c statement_timeout=60000 "
-        "-c idle_in_transaction_session_timeout=60000 "
-        "-c search_path=pg_catalog,public"
+_POSTGRES_TRANSACTION_SETTINGS = (
+    "SET LOCAL lock_timeout=5000",
+    "SET LOCAL statement_timeout=60000",
+    "SET LOCAL idle_in_transaction_session_timeout=60000",
+    "SET LOCAL search_path=pg_catalog,public",
+)
+_COLLECTOR_PREFLIGHT_FAILURE_TYPES = frozenset({
+    "ContractMismatch",
+    "DataError",
+    "DatabaseError",
+    "Exception",
+    "ImportError",
+    "IntegrityError",
+    "InterfaceError",
+    "InternalError",
+    "ModuleNotFoundError",
+    "NotSupportedError",
+    "OperationalError",
+    "ProgrammingError",
+    "RuntimeError",
+    "TimeoutError",
+    "ValueError",
+})
+_COLLECTOR_PREFLIGHT_FAILURE_STAGES = frozenset({
+    "primary_connection",
+    "primary_contract",
+    "direct_resolution",
+    "session_affinity",
+    "advisory_lock",
+})
+
+
+def _set_postgres_transaction_settings(connection) -> None:
+    """Apply bounded, schema-pinned settings to the current transaction.
+
+    Fly MPG uses PgBouncer transaction pooling and rejects libpq's ``options``
+    startup parameter. ``SET LOCAL`` works through that pool, is applied on
+    every SQLAlchemy transaction, and resets automatically at transaction end.
+    """
+    for statement in _POSTGRES_TRANSACTION_SETTINGS:
+        connection.exec_driver_sql(statement)
+
+
+def _install_postgres_transaction_settings(engine) -> None:
+    from sqlalchemy import event
+
+    event.listen(engine, "begin", _set_postgres_transaction_settings)
+
+
+def _collector_preflight_failure_type(exc: BaseException) -> str:
+    kind = _safe_exception_kind(exc)
+    return (
+        kind
+        if kind in _COLLECTOR_PREFLIGHT_FAILURE_TYPES
+        else "Exception"
     )
-    if read_only:
-        options += " -c default_transaction_read_only=on"
-    return {
+
+
+def _collector_preflight_contract_failure_stage(report: dict) -> str:
+    if not report["connected"]:
+        return "primary_connection"
+    primary_contract_fields = (
+        "database_clock_valid",
+        "search_path_valid",
+        "relation_resolution_valid",
+        "tables_selectable",
+        "privileges_valid",
+        "role_attributes_valid",
+        "integrity_triggers_valid",
+        "function_contracts_valid",
+        "constraints_valid",
+        "indexes_valid",
+        "cycle_parent_lock_authority_valid",
+    )
+    if not all(report[field] for field in primary_contract_fields):
+        return "primary_contract"
+    if not report["direct_endpoint_resolved"]:
+        return "direct_resolution"
+    if not report["session_affinity_valid"]:
+        return "session_affinity"
+    return "advisory_lock"
+
+
+def _postgres_connect_args(*, read_only: bool = False) -> dict:
+    args = {
         "connect_timeout": 10,
         "keepalives": 1,
         "keepalives_idle": 60,
         "keepalives_interval": 10,
         "keepalives_count": 3,
         "tcp_user_timeout": 30000,
-        "options": options,
     }
+    if read_only:
+        # Only direct, session-affine engines use startup options. The ordinary
+        # engine can point at PgBouncer and receives its safeguards from the
+        # transaction-begin hook instead.
+        args["options"] = (
+            "-c lock_timeout=5000 "
+            "-c statement_timeout=60000 "
+            "-c idle_in_transaction_session_timeout=60000 "
+            "-c search_path=pg_catalog,public "
+            "-c default_transaction_read_only=on"
+        )
+    return args
 
 
 def _advisory_lock_is_held_statement():
@@ -3035,6 +3121,8 @@ class SqlAlchemyMediaStore:
         self._database_url = url
         self.engine = create_engine(url, **engine_options)
         self.dialect = self.engine.dialect.name
+        if self.dialect == "postgresql":
+            _install_postgres_transaction_settings(self.engine)
         if self.dialect not in ("postgresql", "sqlite"):
             logger.warning("media store: dedup-on-conflict is verified for postgresql/"
                            "sqlite; %r may behave differently.", self.dialect)
@@ -3777,9 +3865,9 @@ class SqlAlchemyMediaStore:
     ) -> dict:
         """Verify the restricted PostgreSQL collector contract without writing.
 
-        The projection is deliberately limited to fixed booleans and counts. It
-        never returns connection details, role names, SQL text, or database error
-        messages, so callers can safely include it in an operational report.
+        The projection is deliberately limited to fixed booleans, counts, and
+        diagnostic enums. It never returns connection details, role names, SQL
+        text, or database error messages, so callers can safely log it.
         """
         if self.dialect != "postgresql":
             raise ValueError("collector runtime preflight requires PostgreSQL")
@@ -3875,15 +3963,19 @@ class SqlAlchemyMediaStore:
             "constraints_valid": False,
             "indexes_valid": False,
             "ready": False,
+            "failure_stage": None,
+            "failure_type": None,
         }
         direct_engine = None
         direct_connection = None
+        failure_stage = "primary_connection"
         try:
             with self.engine.connect() as conn:
                 # This transaction makes the no-write preflight promise a
                 # database-enforced property, not just a code-review claim.
                 conn.execute(text("SET TRANSACTION READ ONLY"))
                 report["connected"] = True
+                failure_stage = "primary_contract"
                 database_clock = self._server_observed_utc(conn)
                 report["database_clock_valid"] = math.isfinite(database_clock)
                 report["search_path_valid"] = bool(conn.execute(text(
@@ -4189,16 +4281,20 @@ class SqlAlchemyMediaStore:
                     == report["required_table_count"]
                 )
 
+            failure_stage = "direct_resolution"
             direct_engine = self._collector_direct_engine(direct_url)
             report["direct_endpoint_resolved"] = True
+            failure_stage = "session_affinity"
             direct_connection = self._session_affine_connection(direct_engine)
             report["session_affinity_valid"] = direct_connection is not None
             if direct_connection is not None:
+                failure_stage = "advisory_lock"
                 report["advisory_lock_valid"] = self._advisory_lock_contract_valid(
                     direct_connection, direct_engine
                 )
-        except Exception:  # noqa: BLE001 - the returned projection must stay sanitized
-            pass
+        except Exception as exc:  # noqa: BLE001 - return only sanitized enums
+            report["failure_stage"] = failure_stage
+            report["failure_type"] = _collector_preflight_failure_type(exc)
         finally:
             if direct_connection is not None:
                 with suppress(Exception):
@@ -4259,6 +4355,11 @@ class SqlAlchemyMediaStore:
             report["session_affinity_valid"],
             report["advisory_lock_valid"],
         ))
+        if not report["ready"] and report["failure_stage"] is None:
+            report["failure_stage"] = _collector_preflight_contract_failure_stage(
+                report
+            )
+            report["failure_type"] = "ContractMismatch"
         return report
 
     def reserve_meta_budget(

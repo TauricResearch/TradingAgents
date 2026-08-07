@@ -97,8 +97,9 @@ _GLOBAL_ONLY_X_INTERVAL_SECONDS = int(
     GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_cycle_interval_seconds"]
 )
 # Filled with the content-derived value after the V2 surface was finalized.
-# Any semantic helper change must deliberately bump the policy version and ID.
-_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_8ec4d89bc22ca934e079d6ce"
+# Any content-addressed helper change must deliberately update this ID; bump the
+# policy version as well when the economic collection policy itself changes.
+_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_d8193e226517a021c3c19861"
 
 # Coverage alerts are operational state, separate from the immutable evidence
 # ledger. Repeated identical incidents get one notification plus a daily reminder;
@@ -464,6 +465,30 @@ def collector_semantics_manifest() -> dict:
         "sqlite_cycle_recover": media_store.SqliteMediaStore.recover_collection_cycle,
         "sqlite_cycle_read": media_store.SqliteMediaStore.collection_cycle,
         "sqlite_server_clock": media_store.SqliteMediaStore.server_observed_utc,
+        "postgres_collector_lease": media_store._PostgresCollectorLease,
+        "postgres_advisory_lock_held": (
+            media_store._advisory_lock_is_held_statement
+        ),
+        "postgres_store_initialization": media_store.SqlAlchemyMediaStore.__init__,
+        "postgres_connect_args": media_store._postgres_connect_args,
+        "postgres_transaction_hook_install": (
+            media_store._install_postgres_transaction_settings
+        ),
+        "postgres_transaction_hook_apply": (
+            media_store._set_postgres_transaction_settings
+        ),
+        "postgres_collector_direct_url": (
+            media_store.SqlAlchemyMediaStore._collector_direct_database_url
+        ),
+        "postgres_collector_direct_engine": (
+            media_store.SqlAlchemyMediaStore._collector_direct_engine
+        ),
+        "postgres_session_affine_connection": (
+            media_store.SqlAlchemyMediaStore._session_affine_connection
+        ),
+        "postgres_acquire_collector_lease": (
+            media_store.SqlAlchemyMediaStore.acquire_collector_lease
+        ),
         "postgres_media_store": media_store.SqlAlchemyMediaStore.store,
         "postgres_atomic_media_store": (
             media_store.SqlAlchemyMediaStore._store_in_transaction
@@ -551,6 +576,23 @@ def collector_semantics_manifest() -> dict:
                 "x_required_user_metrics": media_sources._X_REQUIRED_USER_METRICS,
                 "global_news_endpoint": media_sources._GLOBAL_NEWS_RSS,
                 "top_news_feeds": media_sources._GOOGLE_TOP_NEWS_RSS,
+            },
+            "postgres_connection_contract": {
+                "transaction_settings": list(
+                    media_store._POSTGRES_TRANSACTION_SETTINGS
+                ),
+                "pool_recycle_seconds": media_store._POSTGRES_POOL_RECYCLE_SECONDS,
+                "collector_lease_heartbeat_seconds": (
+                    media_store._COLLECTOR_LEASE_HEARTBEAT_SECONDS
+                ),
+                "collector_advisory_lock_id": (
+                    media_store._COLLECTOR_ADVISORY_LOCK_ID
+                ),
+                "fly_mpg_pool_host_pattern": media_store._FLY_MPG_POOL_HOST.pattern,
+                "fly_mpg_direct_host_pattern": (
+                    media_store._FLY_MPG_DIRECT_HOST.pattern
+                ),
+                "local_postgres_hosts": sorted(media_store._LOCAL_POSTGRES_HOSTS),
             },
             "discovery_categories": list(_DISCOVERY_CATEGORIES),
             "query_stopwords": sorted(_QUERY_STOPWORDS),

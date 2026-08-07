@@ -1022,6 +1022,86 @@ def test_missing_sqlalchemy_error_does_not_expose_database_url(monkeypatch):
 
 
 @pytest.mark.unit
+def test_postgres_pooled_engine_uses_transaction_local_settings(monkeypatch):
+    import sqlalchemy
+
+    observed = {}
+
+    class FakeEngine:
+        class dialect:
+            name = "postgresql"
+
+        @staticmethod
+        def dispose():
+            observed["disposed"] = True
+
+    engine = FakeEngine()
+
+    def fake_create_engine(url, **kwargs):
+        observed["url"] = url
+        observed["engine_options"] = kwargs
+        return engine
+
+    def fake_listen(target, event_name, callback):
+        observed.setdefault("listeners", []).append(
+            (target, event_name, callback)
+        )
+
+    monkeypatch.setattr(sqlalchemy, "create_engine", fake_create_engine)
+    monkeypatch.setattr(sqlalchemy.event, "listen", fake_listen)
+    store = SqlAlchemyMediaStore(
+        "postgresql+psycopg://collector@example.invalid/evidence",
+        auto_migrate=False,
+    )
+    try:
+        connect_args = observed["engine_options"]["connect_args"]
+        assert connect_args == {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 60,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+            "tcp_user_timeout": 30000,
+        }
+        target, event_name, callback = next(
+            listener
+            for listener in observed["listeners"]
+            if listener[0] is engine and listener[1] == "begin"
+        )
+        assert target is engine
+        assert event_name == "begin"
+        assert callback is media_store_module._set_postgres_transaction_settings
+
+        class Connection:
+            def __init__(self):
+                self.statements = []
+
+            def exec_driver_sql(self, statement):
+                self.statements.append(statement)
+
+        first = Connection()
+        second = Connection()
+        callback(first)
+        callback(second)
+        expected = list(media_store_module._POSTGRES_TRANSACTION_SETTINGS)
+        assert first.statements == expected
+        assert second.statements == expected
+        assert all(statement.startswith("SET LOCAL ") for statement in expected)
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+def test_postgres_direct_engine_retains_read_only_startup_fail_safe():
+    pooled = media_store_module._postgres_connect_args()
+    direct = media_store_module._postgres_connect_args(read_only=True)
+
+    assert "options" not in pooled
+    assert "default_transaction_read_only=on" in direct["options"]
+    assert "search_path=pg_catalog,public" in direct["options"]
+
+
+@pytest.mark.unit
 def test_sqlalchemy_store_reports_insert_count_with_conflict_ignore(tmp_path):
     store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'sa.db'}")
     rows = [
@@ -1116,8 +1196,25 @@ def test_collector_runtime_preflight_failure_projection_is_sanitized(tmp_path):
     assert report["postgresql"] is True
     assert report["connected"] is False
     assert report["ready"] is False
+    assert report["failure_stage"] == "primary_connection"
+    assert report["failure_type"] == "RuntimeError"
+    assert report["failure_stage"] in (
+        media_store_module._COLLECTOR_PREFLIGHT_FAILURE_STAGES
+    )
+    assert report["failure_type"] in (
+        media_store_module._COLLECTOR_PREFLIGHT_FAILURE_TYPES
+    )
     assert sensitive not in repr(report)
-    assert all(isinstance(value, (bool, int)) for value in report.values())
+
+
+@pytest.mark.unit
+def test_collector_runtime_preflight_failure_type_has_fixed_vocabulary():
+    class CredentialNamedFailure(Exception):
+        pass
+
+    assert media_store_module._collector_preflight_failure_type(
+        CredentialNamedFailure("private connection details")
+    ) == "Exception"
 
 
 @pytest.mark.unit

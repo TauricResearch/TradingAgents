@@ -43,6 +43,14 @@ only secret names with:
 fly secrets list -a tradagent
 ```
 
+> **Credential-output warning:** Never run, capture, or paste
+> `fly mpg status --json`. Current `flyctl` versions can include plaintext
+> cluster credentials in that response. Use `fly status -a tradagent`,
+> `fly secrets list -a tradagent`, or `fly mpg users list <CLUSTER_ID>` for the
+> narrow inventory you need. Project allowlisted fields and redact them inside
+> the process before emitting any structured diagnostic; never save a raw MPG
+> status response.
+
 If a webhook was staged previously, it will take effect on the next deploy or
 machine update. It does not need to be added to any retired app.
 
@@ -89,21 +97,41 @@ accepted value in OCI metadata and
 temporary release Machine automatically runs `--global-only --preflight`. That
 read-only command validates the frozen collector configuration, database schema,
 and restricted runtime role without calling a provider or writing a receipt. Any
-nonzero result stops the deployment.
+nonzero result stops the deployment before the persistent worker changes. A
+failed release still advances Fly's release history, so the app-level version can
+name the failed attempt while the sole started Machine correctly remains on the
+last complete release. Verify the running Machine image/release, not only the
+app-level version, when investigating a stopped rollout.
 
 Provider responses are byte-bounded and schema-validated. Malformed X error
 envelopes and non-RSS HTML cannot masquerade as valid empty observations.
 Only transient Google transport failures receive bounded retries; schema or
 database failures do not refetch, and a per-cycle circuit breaker limits a broad
 Google outage to two failed query slots. PostgreSQL metadata writes are atomic,
-session timeouts prevent a row lock from hanging the worker indefinitely, and a
-30-second direct-session heartbeat terminates collection after a lost singleton
-lock. Preflight proves session affinity and cross-session advisory exclusion; an
-unknown database host fails closed unless `MEDIA_DB_DIRECT_URL` is configured.
-These rules are pinned as collector policy v2
-(`collector_8ec4d89bc22ca934e079d6ce`) under protocol
-`protocol_7e7f9ab78d55400fee355863`; the protocol retains the prior v1 identity
-as compatible historical lineage rather than rewriting old receipts.
+transaction-local timeouts prevent a row lock from hanging the worker
+indefinitely, and a 30-second direct-session heartbeat terminates collection
+after a lost singleton lock. The ordinary database engine uses only
+PgBouncer-compatible network startup parameters; every transaction applies
+fixed `SET LOCAL` timeouts and the pinned search path, so settings cannot leak to
+the next pooled client. The session-affine direct engine separately retains its
+startup read-only fail-safe. Preflight proves session affinity and cross-session
+advisory exclusion; an unknown database host fails closed unless
+`MEDIA_DB_DIRECT_URL` is configured. These rules are pinned as collector policy
+v2 (`collector_d8193e226517a021c3c19861`) under protocol
+`protocol_e4102248d1b5a3e54342de01`. Only the exact historical identity pairs in
+the protocol compatibility list remain readable, including the currently
+deployed `collector_fa2421d5a25636de4f035323` lineage. A candidate that failed
+before producing live evidence is not made compatible merely because Fly
+created a failed release record.
+
+If release preflight rejects the database, its log projection contains only a
+fixed failure stage and exception-type vocabulary, never the DSN or database
+message. For example, `primary_connection` / `OperationalError` localizes the
+failure to opening the configured primary engine without disclosing
+credentials. Inspect the failed release logs, `fly releases`, and the sole
+started Machine together. Do not bypass preflight or add the failed candidate to
+the historical compatibility list; correct the connection/runtime contract and
+redeploy through the wrapper.
 
 After activation, Fly checks `/healthz` over its private network. The endpoint
 reports whether the current process has produced complete coverage; it cannot be

@@ -5,6 +5,7 @@ import logging
 import pytest
 
 from tradingagents import poller
+from tradingagents.dataflows import media_store
 from tradingagents.dataflows.media_sources import (
     ProviderResponseError,
     ProviderTransientError,
@@ -1395,7 +1396,32 @@ def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_pa
 
     assert manifest["schema_version"] == 4
     assert manifest["policy"] == "global-only-editorial-and-trend-reaction-v2"
-    assert manifest["collector_semantics_id"] == "collector_8ec4d89bc22ca934e079d6ce"
+    assert manifest["collector_semantics_id"] == "collector_d8193e226517a021c3c19861"
+    assert {
+        "postgres_collector_lease",
+        "postgres_advisory_lock_held",
+        "postgres_store_initialization",
+        "postgres_connect_args",
+        "postgres_transaction_hook_install",
+        "postgres_transaction_hook_apply",
+        "postgres_collector_direct_url",
+        "postgres_collector_direct_engine",
+        "postgres_session_affine_connection",
+        "postgres_acquire_collector_lease",
+    } <= manifest["components"].keys()
+    assert manifest["semantic_values"]["postgres_connection_contract"] == {
+        "transaction_settings": list(
+            media_store._POSTGRES_TRANSACTION_SETTINGS
+        ),
+        "pool_recycle_seconds": media_store._POSTGRES_POOL_RECYCLE_SECONDS,
+        "collector_lease_heartbeat_seconds": (
+            media_store._COLLECTOR_LEASE_HEARTBEAT_SECONDS
+        ),
+        "collector_advisory_lock_id": media_store._COLLECTOR_ADVISORY_LOCK_ID,
+        "fly_mpg_pool_host_pattern": media_store._FLY_MPG_POOL_HOST.pattern,
+        "fly_mpg_direct_host_pattern": media_store._FLY_MPG_DIRECT_HOST.pattern,
+        "local_postgres_hosts": sorted(media_store._LOCAL_POSTGRES_HOSTS),
+    }
     assert manifest["semantic_values"]["collection_scope"] == {
         "ticker_watchlist": False,
         "ticker_sources": [],
