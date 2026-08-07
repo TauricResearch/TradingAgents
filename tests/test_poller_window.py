@@ -1084,10 +1084,10 @@ def test_collector_audit_cli_selects_history_explicitly(
     assert calls == [(store, {"include_history": include_history})]
 
 
-def _compatible_x_cycle_spec(instant):
+def _compatible_x_cycle_spec(instant, index=0):
     identity = poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
         "compatible_collector_identities"
-    ][0]
+    ][index]
     return poller._x_collection_cycle_spec_for_identity(
         instant,
         3,
@@ -1096,8 +1096,8 @@ def _compatible_x_cycle_spec(instant):
     )
 
 
-def _finish_compatible_x_cycle(store, instant, *, with_receipts):
-    spec = _compatible_x_cycle_spec(instant)
+def _finish_compatible_x_cycle(store, instant, *, with_receipts, index=0):
+    spec = _compatible_x_cycle_spec(instant, index)
     cycle_id = store.start_collection_cycle(spec, started_utc=instant)
     if with_receipts:
         for woeid in poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
@@ -1130,6 +1130,19 @@ def _finish_compatible_x_cycle(store, instant, *, with_receipts):
     return spec
 
 
+def _forbid_x_provider_calls(monkeypatch):
+    for provider_name in (
+        "fetch_top_news_headlines", "fetch_x_trends", "fetch_x_topic",
+    ):
+        monkeypatch.setattr(
+            poller,
+            provider_name,
+            lambda *_args, selected=provider_name, **_kwargs: pytest.fail(
+                f"compatible handoff called {selected}"
+            ),
+        )
+
+
 @pytest.mark.unit
 def test_complete_compatible_x_cycle_handoffs_without_duplicate_paid_work(
     tmp_path, monkeypatch,
@@ -1144,16 +1157,7 @@ def test_complete_compatible_x_cycle_handoffs_without_duplicate_paid_work(
     current_spec = poller._x_collection_cycle_spec(instant, 3)
     initial_receipts = store.fetch_runs(limit=100)
 
-    for provider_name in (
-        "fetch_top_news_headlines", "fetch_x_trends", "fetch_x_topic",
-    ):
-        monkeypatch.setattr(
-            poller,
-            provider_name,
-            lambda *_args, selected=provider_name, **_kwargs: pytest.fail(
-                f"compatible handoff called {selected}"
-            ),
-        )
+    _forbid_x_provider_calls(monkeypatch)
 
     assert poller._x_poll_due(store, instant, 86400) is False
     assert poller._x_daily_requirement_state(store, instant, 3) == "complete"
@@ -1173,6 +1177,138 @@ def test_complete_compatible_x_cycle_handoffs_without_duplicate_paid_work(
     assert coverage["complete"] is True
     assert coverage["periodic_requirements"] == {"x_daily": "complete"}
     assert store.collection_cycle(current_spec["collection_cycle_id"]) is None
+    assert store.fetch_runs(limit=100) == initial_receipts
+    store.close()
+
+
+@pytest.mark.unit
+def test_first_present_compatible_x_cycle_wins_with_multiple_prior_cycles(
+    tmp_path, monkeypatch,
+):
+    instant = 1_786_080_000.0
+    monkeypatch.setattr(poller.time, "time", lambda: instant)
+    store = SqliteMediaStore(tmp_path / "multiple-compatible-x.db")
+    monkeypatch.setattr(store, "server_observed_utc", lambda: instant)
+    second_spec = _finish_compatible_x_cycle(
+        store, instant, with_receipts=False, index=2
+    )
+    first_spec = _finish_compatible_x_cycle(
+        store, instant, with_receipts=True, index=1
+    )
+    initial_receipts = store.fetch_runs(limit=100)
+    _forbid_x_provider_calls(monkeypatch)
+
+    resolution = poller._x_daily_cycle_resolution(store, instant, 3)
+
+    assert resolution["origin"] == "compatible"
+    assert resolution["spec"] == first_spec
+    assert resolution["state"] == "complete"
+    assert resolution["cycle"]["collection_cycle_id"] \
+        == first_spec["collection_cycle_id"]
+    assert second_spec["collection_cycle_id"] \
+        != first_spec["collection_cycle_id"]
+    assert poller._x_poll_due(store, instant, 86400) is False
+    assert set(poller.poll_x_topics_once(store, instant, 10, 3)) == {
+        (slot["provider"], slot["query_key"])
+        for slot in first_spec["identity"]["expected_static_slots"]
+    }
+    coverage = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+
+    assert coverage["complete"] is True
+    assert coverage["periodic_requirements"] == {"x_daily": "complete"}
+    assert store.fetch_runs(limit=100) == initial_receipts
+    store.close()
+
+
+@pytest.mark.unit
+def test_compatible_precedence_never_falls_through_based_on_outcome(
+    tmp_path, monkeypatch,
+):
+    instant = 1_786_080_000.0
+    monkeypatch.setattr(poller.time, "time", lambda: instant)
+    store = SqliteMediaStore(tmp_path / "compatible-precedence-x.db")
+    monkeypatch.setattr(store, "server_observed_utc", lambda: instant)
+    second_spec = _finish_compatible_x_cycle(
+        store, instant, with_receipts=True, index=2
+    )
+    first_spec = _finish_compatible_x_cycle(
+        store, instant, with_receipts=False, index=1
+    )
+    initial_receipts = store.fetch_runs(limit=100)
+    _forbid_x_provider_calls(monkeypatch)
+
+    resolution = poller._x_daily_cycle_resolution(store, instant, 3)
+
+    assert resolution["origin"] == "compatible"
+    assert resolution["spec"] == first_spec
+    assert resolution["state"] == "incomplete"
+    assert resolution["cycle"]["collection_cycle_id"] \
+        == first_spec["collection_cycle_id"]
+    assert second_spec["collection_cycle_id"] \
+        != first_spec["collection_cycle_id"]
+    assert poller._x_poll_due(store, instant, 86400) is False
+    with pytest.raises(ValueError, match="not uniquely complete"):
+        poller.poll_x_topics_once(store, instant, 10, 3)
+    coverage = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+
+    assert coverage["complete"] is False
+    assert coverage["periodic_requirements"] == {"x_daily": "incomplete"}
+    assert store.fetch_runs(limit=100) == initial_receipts
+    store.close()
+
+
+@pytest.mark.unit
+def test_current_x_cycle_precedes_a_complete_compatible_cycle(
+    tmp_path, monkeypatch,
+):
+    instant = 1_786_080_000.0
+    monkeypatch.setattr(poller.time, "time", lambda: instant)
+    store = SqliteMediaStore(tmp_path / "current-precedence-x.db")
+    monkeypatch.setattr(store, "server_observed_utc", lambda: instant)
+    compatible_spec = _finish_compatible_x_cycle(
+        store, instant, with_receipts=True
+    )
+    current_spec = poller._x_collection_cycle_spec(instant, 3)
+    current_cycle_id = store.start_collection_cycle(
+        current_spec, started_utc=instant
+    )
+    store.finish_collection_cycle(current_cycle_id, completed_utc=instant)
+    initial_receipts = store.fetch_runs(limit=100)
+    _forbid_x_provider_calls(monkeypatch)
+
+    resolution = poller._x_daily_cycle_resolution(store, instant, 3)
+
+    assert resolution["origin"] == "current"
+    assert resolution["spec"] == current_spec
+    assert resolution["state"] == "incomplete"
+    assert compatible_spec["collection_cycle_id"] \
+        != current_spec["collection_cycle_id"]
+    assert poller._x_poll_due(store, instant, 86400) is False
+    coverage = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+
+    assert coverage["complete"] is False
+    assert coverage["periodic_requirements"] == {"x_daily": "incomplete"}
     assert store.fetch_runs(limit=100) == initial_receipts
     store.close()
 
@@ -1396,7 +1532,7 @@ def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_pa
 
     assert manifest["schema_version"] == 6
     assert manifest["policy"] == "global-only-editorial-and-trend-reaction-v2"
-    assert manifest["collector_semantics_id"] == "collector_f6aaca9c1014887d9e78da82"
+    assert manifest["collector_semantics_id"] == "collector_5d8f7d2a7c92e52be419ad17"
     assert {
         "postgres_collector_lease",
         "postgres_advisory_lock_held",
@@ -1411,6 +1547,8 @@ def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_pa
         "postgres_session_affine_connection",
         "postgres_acquire_collector_lease",
         "postgres_collector_runtime_preflight",
+        "sqlite_x_cycle_identity_inventory",
+        "sqlalchemy_x_cycle_identity_inventory",
         "collector_daemon_sleep",
         "collector_signal_handlers",
         "collector_runtime_failure",
@@ -1479,6 +1617,12 @@ def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_pa
         "required_when_webhook_required": True,
         "event": "release_preflight_probe",
         "schema_version": 1,
+    }
+    assert manifest["semantic_values"]["release_preflight_x_identity_history"] == {
+        "cycle_kind": "x-daily",
+        "accepted_pairs": "current-or-explicitly-compatible",
+        "scope": "all-observed-history",
+        "provider_calls": False,
     }
     assert manifest["semantic_values"]["operations_alert_redaction_policy"] == {
         "sensitive_key_parts": list(operations._SENSITIVE_KEY_PARTS),
@@ -1566,6 +1710,14 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
                 "required_trigger_count": 6,
             }
 
+        def collection_cycle_identity_pairs(self, cycle_kind):
+            assert cycle_kind == "x-daily"
+            calls.append("identities")
+            prior = poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+                "compatible_collector_identities"
+            ][0]
+            return [(prior["protocol_id"], prior["collector_semantics_id"])]
+
         def close(self):
             calls.append("close")
 
@@ -1624,9 +1776,11 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
     assert payload["schema_version"] == 2
     assert payload["status"] == "ok"
     assert payload["database_contract"]["ready"] is True
+    assert payload["x_identity_history_compatible"] is True
+    assert payload["x_identity_pair_count"] == 1
     assert payload["alert_webhook_required"] is True
     assert payload["alert_probe_delivered"] is True
-    assert calls == ["open", "preflight", "alert", "close"]
+    assert calls == ["open", "preflight", "identities", "alert", "close"]
     assert alerts == [(
         "collector",
         "release_preflight_probe",
@@ -1640,6 +1794,8 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
                 ]["expected_collector_semantics_id"],
                 "collector_build_id": "build_" + "a" * 24,
                 "database_contract_ready": True,
+                "x_identity_history_compatible": True,
+                "x_identity_pair_count": 1,
             },
         },
     )]
@@ -1662,6 +1818,11 @@ def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
             assert direct_url is None
             calls.append("preflight")
             return {"contract_version": 3, "ready": True}
+
+        def collection_cycle_identity_pairs(self, cycle_kind):
+            assert cycle_kind == "x-daily"
+            calls.append("identities")
+            return []
 
         def close(self):
             calls.append("close")
@@ -1717,11 +1878,72 @@ def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
         ])
 
     captured = capsys.readouterr()
-    assert calls == ["open", "preflight", "alert", "close"]
+    assert calls == ["open", "preflight", "identities", "alert", "close"]
     assert captured.out == ""
     assert "collector preflight failed (RuntimeError)" in captured.err
     assert secret_db not in captured.err
     assert "secret" not in captured.err
+
+
+@pytest.mark.unit
+def test_preflight_rejects_unregistered_historical_x_identity_before_alert(
+    monkeypatch, capsys,
+):
+    calls = []
+
+    class Store:
+        def collector_runtime_preflight(self, *, direct_url=None):
+            assert direct_url is None
+            calls.append("preflight")
+            return {"contract_version": 3, "ready": True}
+
+        def collection_cycle_identity_pairs(self, cycle_kind):
+            assert cycle_kind == "x-daily"
+            calls.append("identities")
+            return [("protocol_" + "d" * 24, "collector_" + "e" * 24)]
+
+        def close(self):
+            calls.append("close")
+
+    monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
+    monkeypatch.setenv("MEDIA_AUTO_MIGRATE", "false")
+    monkeypatch.setenv("MEDIA_REQUIRE_ALERT_WEBHOOK", "false")
+    monkeypatch.setenv("X_BEARER_TOKEN", "x-secret-token")
+    monkeypatch.delenv("MEDIA_DB_DIRECT_URL", raising=False)
+    monkeypatch.setattr(
+        poller,
+        "collector_semantics_manifest",
+        lambda: {
+            "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+                "expected_collector_semantics_id"
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        poller, "open_store", lambda *_args, **_kwargs: calls.append("open") or Store()
+    )
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *_args, **_kwargs: pytest.fail(
+            "incompatible identity history reached alert delivery"
+        ),
+    )
+
+    with pytest.raises(SystemExit):
+        poller.main([
+            "--global-only", "--preflight", "--sources", "x",
+            "--no-trading-hours", "--interval", "3600",
+            "--x-interval", "86400", "--health-port", "5500",
+            "--db", "postgresql+psycopg://collector:secret@db/evidence",
+        ])
+
+    captured = capsys.readouterr()
+    assert calls == ["open", "preflight", "identities", "close"]
+    assert captured.out == ""
+    assert "collector preflight failed (RuntimeError)" in captured.err
+    assert "protocol_" not in captured.err
+    assert "collector_" not in captured.err.replace("collector preflight", "")
 
 
 @pytest.mark.unit

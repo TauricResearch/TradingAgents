@@ -1270,7 +1270,7 @@ def test_non_abstention_must_be_grounded_nonzero_and_sign_consistent(forecast_pa
 @pytest.mark.unit
 def test_content_ids_are_canonical():
     assert content_id({"a": 1, "b": 2}) == content_id({"b": 2, "a": 1})
-    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_b4c36948d856e9a82e7167bb"
+    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_09b9f5ad4b015b24a553e7f4"
 
 
 @pytest.mark.unit

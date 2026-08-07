@@ -184,6 +184,51 @@ def test_cycle_identity_is_deterministic_canonical_and_known_before_requests():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("backend", ["sqlite", "sqlalchemy"])
+def test_cycle_identity_inventory_is_distinct_ordered_and_kind_scoped(
+    backend, tmp_path,
+):
+    value = (
+        SqliteMediaStore(tmp_path / "identity-inventory.db")
+        if backend == "sqlite"
+        else SqlAlchemyMediaStore(
+            f"sqlite+pysqlite:///{tmp_path / 'identity-inventory-sa.db'}"
+        )
+    )
+    try:
+        specs = [
+            collection_cycle_spec(
+                cycle_kind=kind,
+                period_key=period,
+                protocol_id=protocol,
+                collector_semantics_id=collector,
+                expected_static_slots=[("xtrend", "woeid:1")],
+                max_dynamic_slots=0,
+            )
+            for kind, period, protocol, collector in [
+                ("x-daily", "2026-08-05", "protocol_b", "collector_b"),
+                ("x-daily", "2026-08-06", "protocol_a", "collector_a"),
+                ("x-daily", "2026-08-07", "protocol_a", "collector_a"),
+                ("global-hourly", "2026-08-07T00", "protocol_c", "collector_c"),
+            ]
+        ]
+        for offset, spec in enumerate(specs):
+            value.start_collection_cycle(spec, started_utc=100.0 + offset)
+
+        assert value.collection_cycle_identity_pairs("x-daily") == [
+            ("protocol_a", "collector_a"),
+            ("protocol_b", "collector_b"),
+        ]
+        assert value.collection_cycle_identity_pairs("global-hourly") == [
+            ("protocol_c", "collector_c")
+        ]
+        with pytest.raises(ValueError, match="lowercase slug"):
+            value.collection_cycle_identity_pairs("X Daily")
+    finally:
+        value.close()
+
+
+@pytest.mark.unit
 def test_cycle_spec_rejects_tampering_and_unbounded_slots(store):
     spec = _spec()
     tampered = {**spec, "collection_cycle_id": f"cycle_{1:024x}"}

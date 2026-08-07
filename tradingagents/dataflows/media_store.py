@@ -2740,6 +2740,21 @@ class SqliteMediaStore:
             ),
         ) if row else None
 
+    def collection_cycle_identity_pairs(
+        self, cycle_kind: str,
+    ) -> list[tuple[str, str]]:
+        """Return every immutable protocol/collector pair seen for one cycle kind."""
+        kind = _validated_cycle_text(cycle_kind, "kind", max_bytes=64)
+        if _COLLECTION_CYCLE_KIND.fullmatch(kind) is None:
+            raise ValueError("collection cycle kind must be a lowercase slug")
+        rows = self.conn.execute(
+            "SELECT DISTINCT protocol_id,collector_semantics_id "
+            "FROM collection_cycles WHERE cycle_kind=? "
+            "ORDER BY protocol_id,collector_semantics_id",
+            (kind,),
+        ).fetchall()
+        return [(row[0], row[1]) for row in rows]
+
     def collection_cycle_slots(self, collection_cycle_id: str) -> list[dict]:
         cycle_id = _validated_collection_cycle_id(collection_cycle_id)
         self.conn.row_factory = sqlite3.Row
@@ -4794,6 +4809,27 @@ class SqlAlchemyMediaStore:
                 _verified_cycle_item_rows([dict(item) for item in item_rows]),
             ),
         ) if row else None
+
+    def collection_cycle_identity_pairs(
+        self, cycle_kind: str,
+    ) -> list[tuple[str, str]]:
+        """Return every immutable protocol/collector pair seen for one cycle kind."""
+        from sqlalchemy import select
+
+        kind = _validated_cycle_text(cycle_kind, "kind", max_bytes=64)
+        if _COLLECTION_CYCLE_KIND.fullmatch(kind) is None:
+            raise ValueError("collection cycle kind must be a lowercase slug")
+        statement = select(
+            self.cycles.c.protocol_id,
+            self.cycles.c.collector_semantics_id,
+        ).where(
+            self.cycles.c.cycle_kind == kind
+        ).distinct().order_by(
+            self.cycles.c.protocol_id,
+            self.cycles.c.collector_semantics_id,
+        )
+        with self.engine.connect() as conn:
+            return [tuple(row) for row in conn.execute(statement).all()]
 
     def collection_cycle_slots(self, collection_cycle_id: str) -> list[dict]:
         from sqlalchemy import case, select

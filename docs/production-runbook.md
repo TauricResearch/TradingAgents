@@ -112,6 +112,19 @@ history must also prove that the candidate's nearest prior complete release is
 the saved baseline (or the exact release most recently restored by this fenced
 wrapper) before either success or rollback.
 
+An immediate Fly update can briefly report no Machine, the saved Machine as
+non-running, or the nonce-tagged candidate in a state such as `created` or
+`starting`. During only the bounded post-deploy window, these observations may
+wait when they retain the exact saved identity or the same Machine ID plus this
+attempt's nonce-tag. Waiting never counts as success and never authorizes a
+rollback. A complete candidate tuple is bound at its first observation; any
+later tuple change is supersession. A terminal candidate, an unresolved handoff
+timeout, or malformed status preserves the shared remote lock for manual
+reconciliation. Foreign images, a different Machine ID, and multiple app
+Machines fail immediately. This identity-based rule also treats a future Fly
+lifecycle state conservatively without requiring the deployer to guess that
+state's meaning.
+
 Rollback does not start a second unguarded `fly deploy`. The helper acquires
 Fly's exclusive lease on the exact candidate Machine, requires the lease version
 and two independent API views to reproduce the authenticated tuple and sole,
@@ -205,6 +218,13 @@ name the failed attempt while the sole started Machine correctly remains on the
 last complete release. Verify the running Machine image/release, not only the
 app-level version, when investigating a stopped rollout.
 
+The read-only release preflight also inventories every distinct protocol and
+collector identity ever stored by an `x-daily` cycle. Each pair must be either
+the candidate's current identity or an exact entry in its frozen compatibility
+registry. Forgetting a historical identity therefore rejects the release before
+the persistent Machine changes; this inventory never calls a provider and its
+failure output contains only a sanitized exception class.
+
 Provider responses are byte-bounded and schema-validated. Malformed X error
 envelopes and non-RSS HTML cannot masquerade as valid empty observations.
 Only transient Google transport failures receive immediate bounded retries, and
@@ -225,12 +245,17 @@ separately retains its startup read-only fail-safe. Preflight proves session
 affinity and cross-session advisory exclusion; an unknown database host fails
 closed unless
 `MEDIA_DB_DIRECT_URL` is configured. These rules are pinned as collector policy
-v2 (`collector_f6aaca9c1014887d9e78da82`) under protocol
-`protocol_b4c36948d856e9a82e7167bb`. Only the exact historical identity pairs in
-the protocol compatibility list remain readable, including the currently
-deployed `collector_fa2421d5a25636de4f035323` lineage. A candidate that failed
-before producing live evidence is not made compatible merely because Fly
-created a failed release record.
+v2 (`collector_5d8f7d2a7c92e52be419ad17`) under protocol
+`protocol_09b9f5ad4b015b24a553e7f4`. Only the exact historical identity pairs in
+the protocol compatibility list remain readable. The immediately prior
+production pair (`protocol_b4c36948d856e9a82e7167bb`,
+`collector_f6aaca9c1014887d9e78da82`) is first in that frozen list. Runtime and
+research both prefer the current identity and otherwise select the first present
+compatible identity in registry order, before examining its status or content.
+Multiple historical cycles therefore cannot trigger a duplicate paid X attempt
+or an outcome-dependent fallback. A candidate that failed before producing live
+evidence is not made compatible merely because Fly created a failed release
+record.
 
 The schema gate authenticates all 75 collector columns, including exact
 nullability and the absence of server defaults, identity/generated expressions,
@@ -273,6 +298,13 @@ complete global collection cycle, and no repeated restart loop. The deploy
 wrapper also tests the alert path
 from inside the exact running Machine before it reports success. You can repeat
 that non-provider test independently after a webhook rotation:
+
+Fly documents `fly checks list`'s “Last Updated” as the time the check status
+last changed, not the time it last ran. While a check remains critical, its
+displayed connection error and timestamp can therefore describe the first boot
+attempt even though periodic checks continue. Treat one startup failure as
+transient; use the next interval plus the collector audit to distinguish it from
+a persistent coverage failure.
 
 ```bash
 fly ssh console -a tradagent -C "tradingagents-poller --test-alert"

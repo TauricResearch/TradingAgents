@@ -161,12 +161,20 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
                 "polymarket", "trendnews", "x",
             ],
         },
-        "expected_collector_semantics_id": "collector_f6aaca9c1014887d9e78da82",
+        "expected_collector_semantics_id": "collector_5d8f7d2a7c92e52be419ad17",
         # Earlier collectors used the same economic experiment but predated
         # stricter operational/provider contracts. Keep only their exact pairs
         # readable so already-captured, item-lineage-verified evidence is not
         # discarded; the current formal boundary still rejects malformed rows.
         "compatible_collector_identities": [
+            {
+                "protocol_id": "protocol_b4c36948d856e9a82e7167bb",
+                "collector_semantics_id": "collector_f6aaca9c1014887d9e78da82",
+                "reason": (
+                    "pre-ordered-compatible-resolution collector retained only when "
+                    "its exact immutable cycle and item lineage verifies"
+                ),
+            },
             {
                 "protocol_id": "protocol_1b393c51cbc64acb34fa4014",
                 "collector_semantics_id": "collector_fa2421d5a25636de4f035323",

@@ -495,71 +495,126 @@ capture_status_bounded() {
     fly status -a "$app" --json > "$output_file"
 }
 
-started_app_machine_summary() {
+app_machine_summary() {
   local status_file=$1
-  python3 - "$status_file" <<'PY'
+  local accepted_state=${2:-started}
+  python3 - "$status_file" "$accepted_state" <<'PY'
 import hashlib
 import json
 import sys
 
-with open(sys.argv[1], encoding="utf-8") as handle:
-    payload = json.load(handle)
-
-machines = []
-for machine in payload.get("Machines") or []:
-    config = machine.get("config") or {}
-    metadata = config.get("metadata") or {}
-    env = config.get("env") or {}
-    process_group = metadata.get("fly_process_group") or env.get("FLY_PROCESS_GROUP")
-    if process_group == "app":
-        machines.append(machine)
-if len(machines) != 1 or machines[0].get("state") != "started":
+accepted_state = sys.argv[2]
+if accepted_state == "started":
+    accepted_states = {"started"}
+elif accepted_state == "observable":
+    accepted_states = None
+else:
     raise SystemExit(2)
 
-machine = machines[0]
-config = machine.get("config") or {}
-metadata = config.get("metadata") or {}
-semantic_config = {
-    key: value
-    for key, value in config.items()
-    if key not in {"image", "metadata"}
-}
-fingerprint = hashlib.sha256(
-    json.dumps(semantic_config, sort_keys=True, separators=(",", ":")).encode()
-).hexdigest()
-image_ref = machine.get("image_ref") or {}
-rollback_from = metadata.get(
-    "tradingagents_fenced_rollback_from_release_version"
-) or "0"
-rollback_to = metadata.get(
-    "tradingagents_fenced_rollback_to_release_version"
-) or "0"
-if any(
-    not isinstance(value, str) or not value.isascii() or not value.isdecimal()
-    for value in (rollback_from, rollback_to)
+def safe_ascii(value, *, maximum, allow_empty=False):
+    return (
+        isinstance(value, str)
+        and (allow_empty or bool(value))
+        and value.isascii()
+        and all(0x20 <= ord(character) <= 0x7E for character in value)
+        and len(value.encode("ascii")) <= maximum
+    )
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict) or not isinstance(payload.get("Machines"), list):
+        raise ValueError
+    machines = []
+    for machine in payload["Machines"]:
+        if not isinstance(machine, dict):
+            raise ValueError
+        config = machine.get("config")
+        if not isinstance(config, dict):
+            raise ValueError
+        metadata = config.get("metadata", {})
+        env = config.get("env", {})
+        if not isinstance(metadata, dict) or not isinstance(env, dict):
+            raise ValueError
+        process_group = metadata.get("fly_process_group") or env.get(
+            "FLY_PROCESS_GROUP"
+        )
+        if process_group == "app":
+            machines.append(machine)
+    if len(machines) != 1:
+        raise ValueError
+
+    machine = machines[0]
+    state = machine.get("state")
+    if not safe_ascii(state, maximum=64) or (
+        accepted_states is not None and state not in accepted_states
+    ):
+        raise ValueError
+    config = machine["config"]
+    metadata = config.get("metadata", {})
+    image_ref = machine.get("image_ref")
+    if not isinstance(image_ref, dict):
+        raise ValueError
+    semantic_config = {
+        key: value
+        for key, value in config.items()
+        if key not in {"image", "metadata"}
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(semantic_config, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    rollback_from = metadata.get(
+        "tradingagents_fenced_rollback_from_release_version"
+    ) or "0"
+    rollback_to = metadata.get(
+        "tradingagents_fenced_rollback_to_release_version"
+    ) or "0"
+    if any(
+        not isinstance(value, str) or not value.isascii() or not value.isdecimal()
+        for value in (rollback_from, rollback_to)
+    ):
+        raise ValueError
+    fields = (
+        machine.get("id") or "",
+        machine.get("instance_id") or "",
+        config.get("image") or "",
+        image_ref.get("digest") or "",
+        metadata.get("fly_release_id") or "",
+        metadata.get("fly_release_version") or "",
+        rollback_from,
+        rollback_to,
+        fingerprint,
+    )
+    maximums = (256, 256, 2048, 128, 256, 64, 64, 64, 64)
+    if not all(
+        safe_ascii(value, maximum=maximum)
+        for value, maximum in zip(fields, maximums, strict=True)
+    ):
+        raise ValueError
+    print("\t".join(fields))
+except (
+    OSError, json.JSONDecodeError, OverflowError, RecursionError,
+    TypeError, UnicodeError, ValueError,
 ):
     raise SystemExit(2)
-fields = (
-    machine.get("id") or "",
-    machine.get("instance_id") or "",
-    config.get("image") or "",
-    image_ref.get("digest") or "",
-    metadata.get("fly_release_id") or "",
-    metadata.get("fly_release_version") or "",
-    rollback_from,
-    rollback_to,
-    fingerprint,
-)
-if not all(fields):
-    raise SystemExit(2)
-print("\t".join(fields))
 PY
 }
 
 read_started_app_machine() {
   local status_file=$1
   local summary
-  if ! summary=$(started_app_machine_summary "$status_file"); then
+  if ! summary=$(app_machine_summary "$status_file" started); then
+    return 1
+  fi
+  IFS=$'\t' read -r machine_id machine_instance machine_image machine_digest \
+    machine_release machine_release_version machine_rollback_from_version \
+    machine_rollback_to_version machine_config_fingerprint <<< "$summary"
+}
+
+read_observable_app_machine() {
+  local status_file=$1
+  local summary
+  if ! summary=$(app_machine_summary "$status_file" observable); then
     return 1
   fi
   IFS=$'\t' read -r machine_id machine_instance machine_image machine_digest \
@@ -569,7 +624,11 @@ read_started_app_machine() {
 
 status_relation() {
   local status_file=$1
-  python3 - "$status_file" \
+  local relation_mode=${2:-strict}
+  if [[ $relation_mode != strict && $relation_mode != post-deploy ]]; then
+    return 2
+  fi
+  python3 - "$status_file" "$relation_mode" \
     "$previous_id" "$previous_instance" "$previous_image" "$previous_digest" \
     "$previous_release" "$previous_release_version" \
     "$previous_rollback_from_version" "$previous_rollback_to_version" \
@@ -582,8 +641,18 @@ import hashlib
 import json
 import sys
 
+def safe_ascii(value, *, maximum, allow_empty=False):
+    return (
+        isinstance(value, str)
+        and (allow_empty or bool(value))
+        and value.isascii()
+        and all(0x20 <= ord(character) <= 0x7E for character in value)
+        and len(value.encode("ascii")) <= maximum
+    )
+
 (
     path,
+    relation_mode,
     previous_id,
     previous_instance,
     previous_image,
@@ -603,41 +672,73 @@ import sys
     target_rollback_to_version,
     target_fingerprint,
 ) = sys.argv[1:]
-with open(path, encoding="utf-8") as handle:
-    payload = json.load(handle)
+try:
+    with open(path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict) or not isinstance(payload.get("Machines"), list):
+        raise ValueError
+    raw_machines = payload["Machines"]
+    machines = []
+    for machine in raw_machines:
+        if not isinstance(machine, dict):
+            raise ValueError
+        config = machine.get("config")
+        if not isinstance(config, dict):
+            raise ValueError
+        metadata = config.get("metadata", {})
+        env = config.get("env", {})
+        image_ref = machine.get("image_ref", {})
+        if (
+            not isinstance(metadata, dict)
+            or not isinstance(env, dict)
+            or not isinstance(image_ref, dict)
+        ):
+            raise ValueError
+        process_group = metadata.get("fly_process_group") or env.get(
+            "FLY_PROCESS_GROUP"
+        )
+        if process_group == "app":
+            machines.append(machine)
+except (
+    OSError, json.JSONDecodeError, OverflowError, RecursionError,
+    TypeError, UnicodeError, ValueError,
+):
+    raise SystemExit(2)
 
-machines = []
-for machine in payload.get("Machines") or []:
-    config = machine.get("config") or {}
-    metadata = config.get("metadata") or {}
-    env = config.get("env") or {}
-    if (metadata.get("fly_process_group") or env.get("FLY_PROCESS_GROUP")) == "app":
-        machines.append(machine)
-
-if len(machines) == 1 and machines[0].get("state") == "started":
+if len(machines) == 1:
     machine = machines[0]
-    config = machine.get("config") or {}
-    semantic_config = {
-        key: value for key, value in config.items()
-        if key not in {"image", "metadata"}
-    }
-    fingerprint = hashlib.sha256(
-        json.dumps(semantic_config, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-    digest = (machine.get("image_ref") or {}).get("digest") or ""
-    metadata = config.get("metadata") or {}
-    release = metadata.get("fly_release_id") or ""
-    identity = (
-        machine.get("id") or "",
-        machine.get("instance_id") or "",
-        config.get("image") or "",
-        digest,
-        release,
-        metadata.get("fly_release_version") or "",
-        metadata.get("tradingagents_fenced_rollback_from_release_version") or "0",
-        metadata.get("tradingagents_fenced_rollback_to_release_version") or "0",
-        fingerprint,
-    )
+    try:
+        config = machine["config"]
+        metadata = config.get("metadata", {})
+        semantic_config = {
+            key: value for key, value in config.items()
+            if key not in {"image", "metadata"}
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(
+                semantic_config, sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        identity = (
+            machine.get("id") or "",
+            machine.get("instance_id") or "",
+            config.get("image") or "",
+            machine.get("image_ref", {}).get("digest") or "",
+            metadata.get("fly_release_id") or "",
+            metadata.get("fly_release_version") or "",
+            metadata.get("tradingagents_fenced_rollback_from_release_version") or "0",
+            metadata.get("tradingagents_fenced_rollback_to_release_version") or "0",
+            fingerprint,
+        )
+        state = machine.get("state")
+        maximums = (256, 256, 2048, 128, 256, 64, 64, 64, 64)
+        if not safe_ascii(state, maximum=64) or not all(
+            safe_ascii(value, maximum=maximum, allow_empty=True)
+            for value, maximum in zip(identity, maximums, strict=True)
+        ):
+            raise ValueError
+    except (OverflowError, RecursionError, TypeError, UnicodeError, ValueError):
+        raise SystemExit(2)
     previous = (
         previous_id,
         previous_instance,
@@ -660,12 +761,43 @@ if len(machines) == 1 and machines[0].get("state") == "started":
         target_rollback_to_version,
         target_fingerprint,
     )
-    if all(previous) and identity == previous:
-        print("previous")
-        raise SystemExit
-    if all(target) and identity == target:
-        print("owned")
-        raise SystemExit
+    state = machine.get("state")
+    if state == "started":
+        if all(previous) and identity == previous:
+            print("previous")
+            raise SystemExit
+        if all(target) and identity == target:
+            print("owned")
+            raise SystemExit
+
+    if relation_mode == "post-deploy":
+        # Pending grants neither success nor rollback ownership. Classify it by
+        # authenticated identity rather than an exhaustive lifecycle allowlist:
+        # Fly can add states without turning our own bounded handoff into a false
+        # supersession. Unknown states still only wait until the deadline.
+        target_bound = all(target)
+        same_machine = machine.get("id") == previous_id
+        image = config.get("image")
+        exact_previous = all(previous) and identity == previous
+        target_candidate = same_machine and (
+            (target_bound and identity == target)
+            or (not target_bound and image == target_image)
+        )
+        if state in {
+            "failed", "launch_failed", "stopped", "suspended", "suspending",
+            "destroying", "destroyed", "replaced", "migrated",
+        } and target_candidate:
+            print("candidate_failed")
+            raise SystemExit
+        if target_candidate or (exact_previous and state != "started"):
+            print("pending")
+            raise SystemExit
+
+if relation_mode == "post-deploy" and raw_machines == []:
+    # An explicitly empty list may be a short propagation gap. It authenticates
+    # nothing and can only consume the bounded verification window.
+    print("pending")
+    raise SystemExit
 
 print("superseded")
 PY
@@ -675,6 +807,25 @@ bind_target_from_status() {
   local status_file=$1
   [[ -z $target_release ]] || return 0
   if ! read_started_app_machine "$status_file" \
+    || [[ $machine_id != "$previous_id" ]] \
+    || [[ $machine_image != "$target_image" ]]; then
+    return 1
+  fi
+  target_id=$machine_id
+  target_instance=$machine_instance
+  target_digest=$machine_digest
+  target_release=$machine_release
+  target_release_version=$machine_release_version
+  target_rollback_from_version=$machine_rollback_from_version
+  target_rollback_to_version=$machine_rollback_to_version
+  target_config_fingerprint=$machine_config_fingerprint
+}
+
+bind_target_from_observable_status() {
+  local status_file=$1
+  [[ -z $target_release ]] || return 0
+  if ! read_observable_app_machine "$status_file" \
+    || [[ $machine_id != "$previous_id" ]] \
     || [[ $machine_image != "$target_image" ]]; then
     return 1
   fi
@@ -719,8 +870,14 @@ import json
 import sys
 
 path, target_raw, baseline_raw, rollback_from_raw, rollback_to_raw = sys.argv[1:]
-with open(path, encoding="utf-8") as handle:
-    payload = json.load(handle)
+try:
+    with open(path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+except (
+    OSError, json.JSONDecodeError, OverflowError, RecursionError,
+    UnicodeError, ValueError,
+):
+    raise SystemExit(2)
 if not isinstance(payload, list):
     raise SystemExit(2)
 
@@ -750,7 +907,7 @@ try:
         if not isinstance(status, str):
             raise ValueError
         rows.append((version, status.lower()))
-except (TypeError, ValueError):
+except (OverflowError, RecursionError, TypeError, UnicodeError, ValueError):
     raise SystemExit(2)
 
 if target not in seen or baseline >= target:
@@ -773,16 +930,26 @@ machine_check_passes() {
     python3 -c '
 import json, sys
 machine_id = sys.argv[1]
-payload = json.load(sys.stdin)
-items = payload.get(machine_id) or []
-target = [
-    item for item in items
-    if (item.get("name") or item.get("Name")) == "collector_health"
-]
-statuses = {
-    str(item.get("status") or item.get("Status") or "").lower()
-    for item in target
-}
+try:
+    payload = json.load(sys.stdin)
+    if not isinstance(payload, dict):
+        raise ValueError
+    items = payload.get(machine_id) or []
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+        raise ValueError
+    target = [
+        item for item in items
+        if (item.get("name") or item.get("Name")) == "collector_health"
+    ]
+    statuses = {
+        str(item.get("status") or item.get("Status") or "").lower()
+        for item in target
+    }
+except (
+    json.JSONDecodeError, OverflowError, RecursionError,
+    TypeError, UnicodeError, ValueError,
+):
+    raise SystemExit(1)
 raise SystemExit(0 if target and statuses <= {"passing", "pass"} else 1)
 ' "$machine_id"
 }
@@ -806,17 +973,30 @@ import json
 import sys
 
 path, expected_id, expected_image, expected_digest = sys.argv[1:]
-with open(path, encoding="utf-8") as handle:
-    payload = json.load(handle)
-machines = payload.get("Machines") or []
-if len(machines) != 1 or not isinstance(machines[0], dict):
+try:
+    with open(path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict) or not isinstance(payload.get("Machines"), list):
+        raise ValueError
+    machines = payload["Machines"]
+    if len(machines) != 1 or not isinstance(machines[0], dict):
+        raise ValueError
+    machine = machines[0]
+    config = machine.get("config")
+    image_ref = machine.get("image_ref")
+    if not isinstance(config, dict) or not isinstance(image_ref, dict):
+        raise ValueError
+    metadata = config.get("metadata", {})
+    env = config.get("env", {})
+    restart = config.get("restart", {})
+    if not all(isinstance(value, dict) for value in (metadata, env, restart)):
+        raise ValueError
+except (
+    OSError, json.JSONDecodeError, OverflowError, RecursionError,
+    TypeError, UnicodeError, ValueError,
+):
     raise SystemExit(1)
-machine = machines[0]
-config = machine.get("config") or {}
-metadata = config.get("metadata") or {}
-env = config.get("env") or {}
-restart = config.get("restart") or {}
-digest = (machine.get("image_ref") or {}).get("digest")
+digest = image_ref.get("digest")
 process_group = metadata.get("fly_process_group") or env.get("FLY_PROCESS_GROUP")
 max_retries = restart.get("max_retries")
 legacy_restart = (
@@ -936,20 +1116,28 @@ rollback_if_owned() {
     return 1
   fi
   if ! capture_status "$current_status" 2>/dev/null; then
+    preserve_remote_lock=true
     echo "cannot inspect the current Fly release; refusing an unsafe rollback" >&2
     return 1
   fi
   # The per-attempt image tag can authenticate a candidate even when fly deploy
   # returned nonzero after creating its Machine. After this binding, ownership
   # always requires the complete Machine/image/digest/release/config tuple.
-  bind_target_from_status "$current_status" 2>/dev/null || true
-  relation=$(status_relation "$current_status") || relation=unknown
+  bind_target_from_observable_status "$current_status" 2>/dev/null || true
+  relation=$(status_relation "$current_status" post-deploy) || relation=unknown
   if [[ $relation == previous ]]; then
     preserve_remote_lock=true
     echo "the previous collector is visible, but the failed mutation may still complete; preserving the remote lock" >&2
     return 1
   fi
+  if [[ $relation == pending || $relation == candidate_failed \
+    || $relation == unknown ]]; then
+    preserve_remote_lock=true
+    echo "the collector handoff is not authenticated as a started release; preserving the remote lock and refusing an unsafe rollback" >&2
+    return 1
+  fi
   if [[ $relation != owned ]]; then
+    superseded=true
     echo "deployment was superseded; refusing to roll back a newer release" >&2
     return 1
   fi
@@ -1185,12 +1373,19 @@ while (( SECONDS < deadline )); do
     exit 75
   fi
   if capture_status "$current_status" 2>/dev/null; then
+    bind_target_from_observable_status "$current_status" 2>/dev/null || true
     bind_target_from_status "$current_status" 2>/dev/null || true
-    relation=$(status_relation "$current_status") || relation=unknown
+    relation=$(status_relation "$current_status" post-deploy) || relation=unknown
     if [[ $relation == superseded ]]; then
       superseded=true
       echo "collector deployment was superseded before verification" >&2
       exit 75
+    fi
+    if [[ $relation == candidate_failed ]]; then
+      mutation_ambiguous=true
+      preserve_remote_lock=true
+      echo "collector candidate entered a terminal failure state; preserving the remote lock" >&2
+      exit 1
     fi
     if [[ $relation == owned ]] \
       && bound_target_matches_status "$current_status" \
@@ -1217,7 +1412,8 @@ while (( SECONDS < deadline )); do
         # Alert delivery takes time; close the race once more before success.
         if ! capture_status "$current_status" 2>/dev/null \
           || ! bound_target_matches_status "$current_status"; then
-          relation=$(status_relation "$current_status") || relation=unknown
+          relation=$(status_relation "$current_status" post-deploy) \
+            || relation=unknown
           if [[ $relation == superseded ]]; then
             superseded=true
             echo "collector deployment was superseded after alert verification" >&2
@@ -1235,7 +1431,8 @@ while (( SECONDS < deadline )); do
         echo "collector deployment is healthy at ${revision} on Machine ${target_id}"
         exit 0
       fi
-      relation=$(status_relation "$current_status") || relation=unknown
+      relation=$(status_relation "$current_status" post-deploy) \
+        || relation=unknown
       if [[ $relation == superseded ]]; then
         superseded=true
         echo "collector deployment was superseded during final verification" >&2

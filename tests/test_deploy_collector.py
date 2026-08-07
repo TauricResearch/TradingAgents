@@ -341,6 +341,23 @@ if args[:2] == ["auth", "token"]:
     print("test-fly-token-never-render")
     raise SystemExit(0)
 if args and args[0] == "status":
+    if scenario == "baseline_status_malformed" and phase == "previous":
+        print('{"Machines": [')
+        raise SystemExit(0)
+    if scenario == "baseline_status_deep_json" and phase == "previous":
+        print('{"Machines":' + "[" * 2000 + "0" + "]" * 2000 + "}")
+        raise SystemExit(0)
+    if scenario in {
+        "baseline_status_null_byte", "baseline_status_unpaired_surrogate",
+    } and phase == "previous":
+        unsafe = machine("previous")
+        unsafe["id"] = (
+            "machine\0old"
+            if scenario == "baseline_status_null_byte"
+            else "machine\ud800old"
+        )
+        print(json.dumps({"Machines": [unsafe]}))
+        raise SystemExit(0)
     superseding_kind = {
         "superseded": "foreign",
         "superseded_same_commit": "foreign-same-commit",
@@ -363,6 +380,70 @@ if args and args[0] == "status":
     else:
         kind = phase
     machines = [] if phase == "empty" else [machine(kind)]
+    if phase == "target" and scenario in {
+        "target_absent_once", "target_starting_once", "target_created_once",
+        "target_pending_created", "target_started_incomplete_once",
+        "target_starting_forever", "target_starting_tuple_change",
+        "target_launch_failed", "target_handoff_sequence", "target_malformed_once",
+        "foreign_starting", "foreign_same_commit_starting",
+        "changed_machine_id_starting", "multiple_starting",
+    }:
+        counter_path = state_dir / "transition-status-count"
+        count = int(counter_path.read_text()) if counter_path.exists() else 0
+        counter_path.write_text(str(count + 1))
+        if count == 0 and scenario == "target_absent_once":
+            machines = []
+        elif count == 0 and scenario == "target_starting_once":
+            machines[0]["state"] = "starting"
+        elif count == 0 and scenario == "target_created_once":
+            machines[0]["state"] = "created"
+        elif scenario == "target_pending_created" and count < 2:
+            machines[0]["state"] = "pending" if count == 0 else "created"
+        elif count == 0 and scenario == "target_started_incomplete_once":
+            machines[0]["image_ref"] = {}
+        elif scenario == "target_starting_forever":
+            machines[0]["state"] = "starting"
+        elif scenario == "target_starting_tuple_change":
+            machines[0]["state"] = "starting" if count == 0 else "started"
+            if count > 0:
+                machines[0]["instance_id"] = "instance-changed-001"
+        elif scenario == "target_launch_failed":
+            machines[0]["state"] = "launch_failed"
+        elif scenario == "target_handoff_sequence":
+            if count < 2:
+                machines = [machine("previous")]
+                machines[0]["state"] = "stopping" if count == 0 else "stopped"
+            elif count == 2:
+                machines = []
+            elif count < 5:
+                machines[0]["state"] = "created" if count == 3 else "starting"
+        elif count == 0 and scenario == "target_malformed_once":
+            print('{"Machines": [')
+            raise SystemExit(0)
+        elif scenario == "foreign_starting":
+            machines = [machine("foreign")]
+            machines[0]["state"] = "starting"
+        elif scenario == "foreign_same_commit_starting":
+            machines = [machine("foreign-same-commit")]
+            machines[0]["state"] = "starting"
+        elif scenario == "changed_machine_id_starting":
+            machines[0]["id"] = "machine-changed"
+            machines[0]["state"] = "starting"
+        elif scenario == "multiple_starting":
+            machines = [machine("target"), machine("previous")]
+            for item in machines:
+                item["state"] = "starting"
+    if phase == "previous" and scenario in {
+        "baseline_empty_before_deploy", "baseline_starting_before_deploy",
+    }:
+        counter_path = state_dir / "baseline-transition-status-count"
+        count = int(counter_path.read_text()) if counter_path.exists() else 0
+        counter_path.write_text(str(count + 1))
+        if count >= 2:
+            if scenario == "baseline_empty_before_deploy":
+                machines = []
+            else:
+                machines[0]["state"] = "starting"
     rolled_back = (
         phase == "previous"
         and (state_dir / "rollback-helper-calls.jsonl").exists()
@@ -384,6 +465,12 @@ if args and args[0] == "releases":
         raise SystemExit(1)
     if scenario == "release_history_malformed":
         print(json.dumps({"releases": "not-an-authenticated-list"}))
+        raise SystemExit(0)
+    if scenario == "release_history_invalid_json":
+        print('[{"Version":')
+        raise SystemExit(0)
+    if scenario == "release_history_huge_integer":
+        print('[{"Version":' + "9" * 5000 + ',"Status":"complete"}]')
         raise SystemExit(0)
     rows = [
         {"Version": 35, "Status": "failed"},
@@ -442,6 +529,9 @@ if args and args[0] == "deploy":
         raise SystemExit(1)
     raise SystemExit(0)
 if args[:2] == ["checks", "list"]:
+    if scenario == "health_checks_malformed":
+        print('{"machine-old": [')
+        raise SystemExit(0)
     baseline_status = (
         "critical"
         if scenario in {
@@ -693,6 +783,180 @@ def test_success_is_bound_to_target_machine_check_and_exact_revision(fake_deploy
         ],
     ]
     assert _lock_remote_reads(state_dir)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "target_absent_once",
+        "target_starting_once",
+        "target_created_once",
+        "target_pending_created",
+        "target_started_incomplete_once",
+    ],
+)
+def test_authenticated_fly_handoff_waits_for_a_started_target(
+    scenario, fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = scenario
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "4"
+
+    result = _run(env)
+
+    assert result.returncode == 0, result.stderr
+    assert f"healthy at {REVISION} on Machine machine-old" in result.stdout
+    assert "superseded" not in result.stderr
+    assert _rollback_helper_calls(state_dir) == []
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+def test_previous_stop_and_target_start_handoff_is_bounded_and_authenticated(
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "target_handoff_sequence"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "7"
+
+    result = _run(env)
+
+    assert result.returncode == 0, result.stderr
+    assert f"healthy at {REVISION} on Machine machine-old" in result.stdout
+    assert "superseded" not in result.stderr
+    assert _rollback_helper_calls(state_dir) == []
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+def test_persistent_handoff_never_rolls_back_and_preserves_remote_lock(
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "target_starting_forever"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "2"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert "health and revision did not pass within 2s" in result.stderr
+    assert "handoff is not authenticated as a started release" in result.stderr
+    assert "superseded" not in result.stderr
+    assert _rollback_helper_calls(state_dir) == []
+    assert (state_dir / "remote-lock").read_text() == "c" * 40
+
+
+@pytest.mark.unit
+def test_transitional_target_tuple_change_is_supersession(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "target_starting_tuple_change"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "4"
+
+    result = _run(env)
+
+    assert result.returncode == 75
+    assert "superseded before verification" in result.stderr
+    assert _rollback_helper_calls(state_dir) == []
+    assert (state_dir / "remote-lock").read_text() == "c" * 40
+
+
+@pytest.mark.unit
+def test_terminal_candidate_never_rolls_back_and_preserves_remote_lock(
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "target_launch_failed"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "4"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert "candidate entered a terminal failure state" in result.stderr
+    assert _rollback_helper_calls(state_dir) == []
+    assert (state_dir / "remote-lock").read_text() == "c" * 40
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "foreign_starting",
+        "foreign_same_commit_starting",
+        "changed_machine_id_starting",
+        "multiple_starting",
+    ],
+)
+def test_foreign_nonstarted_topology_is_immediate_supersession(
+    scenario, fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = scenario
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "4"
+
+    result = _run(env)
+
+    assert result.returncode == 75
+    assert "superseded before verification" in result.stderr
+    assert _rollback_helper_calls(state_dir) == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "scenario", ["baseline_empty_before_deploy", "baseline_starting_before_deploy"],
+)
+def test_predeploy_status_remains_strict_and_mutation_free(
+    scenario, fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = scenario
+
+    result = _run(env)
+
+    assert result.returncode == 75
+    assert "changed after baseline verification" in result.stderr
+    assert _deploy_calls(state_dir) == []
+    assert _rollback_helper_calls(state_dir) == []
+    assert not (state_dir / "remote-lock").exists()
+
+
+@pytest.mark.unit
+def test_malformed_handoff_status_is_silent_and_retryable(fake_deploy_env):
+    env, _state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "target_malformed_once"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "4"
+
+    result = _run(env)
+
+    assert result.returncode == 0, result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("scenario", "message"),
+    [
+        ("baseline_status_malformed", "exactly one started app Machine"),
+        ("baseline_status_deep_json", "exactly one started app Machine"),
+        ("baseline_status_null_byte", "exactly one started app Machine"),
+        ("baseline_status_unpaired_surrogate", "exactly one started app Machine"),
+        ("health_checks_malformed", "passing baseline collector_health check"),
+    ],
+)
+def test_malformed_fly_preflight_output_has_one_contextual_error(
+    scenario, message, fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = scenario
+
+    result = _run(env)
+
+    assert result.returncode == 69
+    assert message in result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
+    assert "ignored null byte" not in result.stdout + result.stderr
+    assert "UnicodeEncodeError" not in result.stdout + result.stderr
+    assert _deploy_calls(state_dir) == []
 
 
 @pytest.mark.unit
@@ -1010,7 +1274,10 @@ def test_unbound_empty_state_after_deploy_failure_refuses_rollback(fake_deploy_e
     assert result.returncode == 1
     assert len(_deploy_calls(state_dir)) == 1
     assert "deployment command failed" in result.stderr
-    assert "refusing to roll back a newer release" in result.stderr
+    assert "handoff is not authenticated as a started release" in result.stderr
+    assert "newer release" not in result.stderr
+    assert _rollback_helper_calls(state_dir) == []
+    assert (state_dir / "remote-lock").read_text() == "c" * 40
 
 
 @pytest.mark.unit
@@ -1146,7 +1413,13 @@ def test_interposed_complete_release_prevents_stale_baseline_rollback(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "scenario", ["release_history_unavailable", "release_history_malformed"],
+    "scenario",
+    [
+        "release_history_unavailable",
+        "release_history_malformed",
+        "release_history_invalid_json",
+        "release_history_huge_integer",
+    ],
 )
 def test_unverifiable_release_history_fails_closed_without_rollback(
     scenario, fake_deploy_env,
@@ -1160,6 +1433,7 @@ def test_unverifiable_release_history_fails_closed_without_rollback(
     assert len(_deploy_calls(state_dir)) == 1
     assert "candidate predecessor is not the saved baseline" in result.stderr
     assert "restoring the previous collector" not in result.stderr
+    assert "Traceback" not in result.stdout + result.stderr
 
 
 @pytest.mark.unit

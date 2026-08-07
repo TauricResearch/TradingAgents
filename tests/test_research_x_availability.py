@@ -357,6 +357,29 @@ def test_incomplete_primary_cycle_cannot_fall_back_to_compatible_cycle():
 
 
 @pytest.mark.unit
+def test_research_compatible_precedence_never_falls_through_on_outcome():
+    first_spec, second_spec = _compatible_specs()[:2]
+    first = _cycle(status="incomplete", lineage=[], spec=first_spec)
+    second = _cycle(status="complete", lineage=[], spec=second_spec)
+    store = _Store(first, cycle_id=first_spec["collection_cycle_id"])
+    store.cycles[second_spec["collection_cycle_id"]] = second
+
+    availability, rows = project_x_cycle_availability(
+        store,
+        cutoff=_CUTOFF,
+        candidate_rows=[_news_row(), _x_row("must-not-select-by-outcome")],
+    )
+
+    assert availability["state"] == "incomplete"
+    assert availability["collection_cycle_id"] == first_spec["collection_cycle_id"]
+    assert rows == [_news_row()]
+    assert store.requested_cycle_ids == [
+        _spec()["collection_cycle_id"],
+        first_spec["collection_cycle_id"],
+    ]
+
+
+@pytest.mark.unit
 def test_media_snapshot_rejects_stale_x_outside_exact_prior_day_cycle(monkeypatch):
     news = _news_row()
     current = _x_row("current")

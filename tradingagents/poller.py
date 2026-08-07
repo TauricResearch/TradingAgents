@@ -99,7 +99,7 @@ _GLOBAL_ONLY_X_INTERVAL_SECONDS = int(
 # Filled with the content-derived value after the V2 surface was finalized.
 # Any content-addressed helper change must deliberately update this ID; bump the
 # policy version as well when the economic collection policy itself changes.
-_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_f6aaca9c1014887d9e78da82"
+_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_5d8f7d2a7c92e52be419ad17"
 
 # Coverage alerts are operational state, separate from the immutable evidence
 # ledger. Repeated identical incidents get one notification plus a daily reminder;
@@ -577,6 +577,12 @@ def collector_semantics_manifest() -> dict:
         "collection_cycle_spec": media_store.collection_cycle_spec,
         "collection_cycle_manifest": media_store._collection_cycle_manifest,
         "collection_cycle_item_replay": media_store._verified_cycle_item_rows,
+        "sqlite_x_cycle_identity_inventory": (
+            media_store.SqliteMediaStore.collection_cycle_identity_pairs
+        ),
+        "sqlalchemy_x_cycle_identity_inventory": (
+            media_store.SqlAlchemyMediaStore.collection_cycle_identity_pairs
+        ),
         "x_collection_cycle_identity_spec": (
             _x_collection_cycle_spec_for_identity
         ),
@@ -807,6 +813,12 @@ def collector_semantics_manifest() -> dict:
                 "required_when_webhook_required": True,
                 "event": "release_preflight_probe",
                 "schema_version": 1,
+            },
+            "release_preflight_x_identity_history": {
+                "cycle_kind": "x-daily",
+                "accepted_pairs": "current-or-explicitly-compatible",
+                "scope": "all-observed-history",
+                "provider_calls": False,
             },
             "operations_alert_redaction_policy": {
                 "sensitive_key_parts": list(operations._SENSITIVE_KEY_PARTS),
@@ -1771,7 +1783,9 @@ def _x_daily_cycle_resolution(store, now: float, max_topics: int) -> dict:
     """Resolve one same-day attempt, preferring current over prior identities.
 
     Any exact allowlisted prior attempt blocks creation of a fresh paid identity.
-    Only one fully valid, complete prior cycle satisfies the daily requirement.
+    When more than one prior identity exists, select the first present cycle in
+    the frozen compatibility registry.  This is the same precedence rule used
+    by the research projection and never depends on terminal status or content.
     """
     current_spec = _x_collection_cycle_spec(now, max_topics)
     compatible_specs = _x_compatible_collection_cycle_specs(now, max_topics)
@@ -1790,29 +1804,23 @@ def _x_daily_cycle_resolution(store, now: float, max_topics: int) -> dict:
             "blocks_new_paid_cycle": True,
         }
 
-    matches = []
     for spec in compatible_specs:
         try:
             cycle = store.collection_cycle(spec["collection_cycle_id"])
         except ValueError:
-            matches.append((spec, None, "invalid"))
-            continue
+            return {
+                "origin": "compatible", "spec": spec, "cycle": None,
+                "state": "invalid", "blocks_new_paid_cycle": True,
+            }
         if cycle is not None:
-            matches.append((spec, cycle, _x_collection_cycle_state(spec, cycle)))
-    if not matches:
-        return {
-            "origin": None, "spec": current_spec, "cycle": None,
-            "state": "missing", "blocks_new_paid_cycle": False,
-        }
-    if len(matches) != 1:
-        return {
-            "origin": "compatible", "spec": None, "cycle": None,
-            "state": "invalid", "blocks_new_paid_cycle": True,
-        }
-    spec, cycle, state = matches[0]
+            return {
+                "origin": "compatible", "spec": spec, "cycle": cycle,
+                "state": _x_collection_cycle_state(spec, cycle),
+                "blocks_new_paid_cycle": True,
+            }
     return {
-        "origin": "compatible", "spec": spec, "cycle": cycle,
-        "state": state, "blocks_new_paid_cycle": True,
+        "origin": None, "spec": current_spec, "cycle": None,
+        "state": "missing", "blocks_new_paid_cycle": False,
     }
 
 
@@ -2578,6 +2586,34 @@ def _run_preflight(
                 canonical_json(preflight),
             )
             raise RuntimeError("collector database contract is not ready")
+        max_topics = int(GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+            "max_x_search_requests_per_utc_day"
+        ])
+        accepted_specs = [
+            _x_collection_cycle_spec(0.0, max_topics),
+            *_x_compatible_collection_cycle_specs(0.0, max_topics),
+        ]
+        accepted_pairs = {
+            (
+                spec["identity"]["protocol_id"],
+                spec["identity"]["collector_semantics_id"],
+            )
+            for spec in accepted_specs
+        }
+        observed_pairs = store.collection_cycle_identity_pairs("x-daily")
+        if (
+            not isinstance(observed_pairs, list)
+            or any(
+                not isinstance(pair, (list, tuple))
+                or len(pair) != 2
+                or not all(isinstance(value, str) for value in pair)
+                for pair in observed_pairs
+            )
+            or len(observed_pairs) != len({tuple(pair) for pair in observed_pairs})
+            or any(tuple(pair) not in accepted_pairs for pair in observed_pairs)
+        ):
+            raise RuntimeError("collector X identity history is not compatible")
+        x_identity_pair_count = len(observed_pairs)
         collector_build_id = build_identity()
         alert_probe_delivered = False
         if webhook_required:
@@ -2591,6 +2627,8 @@ def _run_preflight(
                     "collector_semantics_id": semantics_id,
                     "collector_build_id": collector_build_id,
                     "database_contract_ready": True,
+                    "x_identity_history_compatible": True,
+                    "x_identity_pair_count": x_identity_pair_count,
                 },
             ))
             if not alert_probe_delivered:
@@ -2602,6 +2640,8 @@ def _run_preflight(
             "collector_semantics_id": semantics_id,
             "collector_build_id": collector_build_id,
             "database_contract": preflight,
+            "x_identity_history_compatible": True,
+            "x_identity_pair_count": x_identity_pair_count,
             "health_port": args.health_port,
             "alert_webhook_required": webhook_required,
             "alert_probe_delivered": alert_probe_delivered,
