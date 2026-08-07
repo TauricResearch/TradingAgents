@@ -99,6 +99,21 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             (equity - account.starting_cash) / account.starting_cash * 100
             if equity is not None else None
         )
+        invested_pct = None
+        if equity:
+            invested = sum(i.value_usd or 0.0 for i in book_positions)
+            invested_pct = invested / equity * 100
+        core_value = sum(
+            i.value_usd or 0.0
+            for i in book_positions
+            if (i.note or "").strip().lower() == "core"
+        ) or None
+        # Realised P&L is invisible in a positions-only view, which is exactly
+        # how a book showing five green positions can still be losing money.
+        closed = [
+            t for t in await repo.list_trades(limit=500, account_type=position_type)
+            if t.side == "sell"
+        ]
         books.append(BookSummary(
             label=label,
             starting_cash_usd=account.starting_cash,
@@ -107,9 +122,16 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             return_pct=return_pct,
             positions=book_positions,
             enabled=(label != "tactical") or bool(settings.tactical_rule.strip()),
+            invested_pct=invested_pct,
+            core_value_usd=core_value,
+            realised_pnl_usd=sum(t.realized_pnl_usd or 0.0 for t in closed),
+            closed_trades=len(closed),
+            winning_trades=sum(1 for t in closed if (t.realized_pnl_usd or 0) > 0),
         ))
     if not books:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No paper books yet")
+
+    from app.services.core_holding import core_trend_ok
 
     strategic = books[0]
     return PortfolioResponse(
@@ -117,6 +139,10 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
         real_positions=real,
         benchmark_return_pct=await _benchmark_return_pct(oldest_created),
         tactical_rule=settings.tactical_rule.strip(),
+        core_etf=settings.core_etf,
+        core_enabled=settings.core_enabled,
+        core_trend_filter=settings.core_trend_filter,
+        core_defensive=(settings.core_trend_filter and not await core_trend_ok()),
         cash_usd=strategic.cash_usd,
         starting_cash_usd=strategic.starting_cash_usd,
         equity_usd=strategic.equity_usd,

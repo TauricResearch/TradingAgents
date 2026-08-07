@@ -71,6 +71,18 @@ class AssistantSettings(BaseSettings):
     # rather than zero.
     core_enabled: bool = True
     core_etf: str = "SPY"
+    # Crash insurance on the core: hold the benchmark only while it trades
+    # above its long-term average, else sit in cash. Measured on SPY
+    # 1993-2026, this is the ONLY timing rule tested that beat an
+    # exposure-matched no-skill blend — same return, HALF the drawdown
+    # (-22% vs -46%), and it turned the 2008 crash from -46% into -12%.
+    #
+    # It is insurance, not alpha, and the premium is real: outside the GFC it
+    # costs 3-5pp of CAGR (about $30-44/month on $10k) because it sits out
+    # rallies. In 2008-2009 alone it was worth +18.9pp. Off by default so the
+    # cost is always a deliberate choice.
+    core_trend_filter: bool = False
+    core_trend_window: int = Field(default=200, ge=20, le=400)
     # Cash kept uninvested so satellite entries never fail for want of
     # settlement headroom. 5% of a $10k book is $500 — roughly one position.
     core_cash_buffer_pct: float = Field(default=5.0, ge=0.0, le=50.0)

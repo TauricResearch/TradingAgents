@@ -867,20 +867,48 @@ async function loadPortfolio() {
   const fmtRet = (r) => r == null ? "—" : (r >= 0 ? "+" : "") + r.toFixed(2) + "%";
   const cls = (r) => (r ?? 0) >= 0 ? "pnl-pos" : "pnl-neg";
 
+  // Deployment is shown next to every return because it, not stock picking,
+  // explained the Jul-Aug 2026 shortfall: both books held decent positions
+  // and still trailed SPY while most of the capital earned nothing in cash.
+  const deploy = (b) => {
+    if (b.invested_pct == null) return "";
+    const pct = b.invested_pct;
+    const warn = pct < 70 ? " style=\"color:var(--bad)\"" : "";
+    const core = b.core_value_usd ? ` · ${usd(b.core_value_usd)} core` : "";
+    return `<div class="s"${warn}>${pct.toFixed(0)}% invested · ${(100 - pct).toFixed(0)}% idle${core}</div>`;
+  };
+  // Realised P&L is invisible in a positions-only view — which is how a book
+  // showing five green positions can still be losing money overall.
+  const realised = (b) => {
+    if (!b.closed_trades) return "";
+    const c = b.realised_pnl_usd >= 0 ? "pnl-pos" : "pnl-neg";
+    return `<div class="s">realised <span class="${c}">${b.realised_pnl_usd >= 0 ? "+" : "−"}$${Math.abs(b.realised_pnl_usd).toFixed(0)}</span>` +
+           ` · ${b.winning_trades}/${b.closed_trades} closed trades won</div>`;
+  };
+
   const bookTile = (b, emoji, colorVar) => `
     <div class="tile"><div class="k">${emoji} ${esc(b.label)} book${b.enabled ? "" : " · <i>off</i>"}</div>
       <div class="v ${cls(b.return_pct)}">${fmtRet(b.return_pct)}</div>
-      <div class="s">${usd(b.equity_usd)} equity · ${usd(b.cash_usd)} cash · ${b.positions.length} pos</div>
+      <div class="s">${usd(b.equity_usd)} equity · ${b.positions.length} pos</div>
+      ${deploy(b)}${realised(b)}
       ${sparkline(equityHistory[b.label], colorVar)}</div>`;
 
   const strategic = pf.books.find(b => b.label === "strategic");
   const tactical = pf.books.find(b => b.label === "tactical");
+  const coreNote = !pf.core_enabled
+    ? `<div class="s" style="color:var(--bad)">off — idle cash earns 0% against an SPY benchmark</div>`
+    : pf.core_defensive
+      ? `<div class="s" style="color:var(--bad)">DEFENSIVE — ${esc(pf.core_etf)} below its trend, core in cash</div>`
+      : `<div class="s">idle cash rests in ${esc(pf.core_etf)}${pf.core_trend_filter ? " · trend filter on" : ""}</div>`;
   $("tiles").innerHTML =
     (strategic ? bookTile(strategic, "🧠", "--series-1") : "") +
     (tactical ? bookTile(tactical, "⚡", "--good") : "") +
     `<div class="tile"><div class="k">📊 SPY benchmark</div>
       <div class="v ${cls(bench)}">${fmtRet(bench)}</div>
-      <div class="s">same period — the bar both books must beat</div></div>`;
+      <div class="s">same period — the bar both books must beat</div></div>` +
+    `<div class="tile"><div class="k">🏦 index core</div>
+      <div class="v">${pf.core_enabled ? esc(pf.core_etf) : "—"}</div>
+      ${coreNote}</div>`;
 
   $("paperBody").innerHTML = pf.paper_positions.length ? pf.paper_positions.map(p => `
     <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>

@@ -62,6 +62,69 @@ async def _core_position(repo: PortfolioRepository, book: str, symbol: str) -> P
     return position if position is not None and is_core(position) else None
 
 
+def _trend_ok_sync(symbol: str, window: int) -> bool | None:
+    """True when ``symbol`` closes above its ``window``-day average.
+
+    Returns None when history is unavailable, and callers treat that as
+    "stay invested" — an outage must never silently liquidate the book.
+    """
+    import yfinance as yf
+
+    try:
+        hist = yf.Ticker(symbol).history(period=f"{window + 60}d", auto_adjust=True)
+    except Exception:
+        logger.warning("Trend check failed for %s", symbol, exc_info=True)
+        return None
+    closes = hist.get("Close")
+    if closes is None or len(closes) < window:
+        return None
+    return float(closes.iloc[-1]) > float(closes.iloc[-window:].mean())
+
+
+async def core_trend_ok() -> bool:
+    """Whether the core may be held right now. True when the filter is off."""
+    import asyncio
+
+    settings = get_settings()
+    if not settings.core_trend_filter:
+        return True
+    ok = await asyncio.to_thread(
+        _trend_ok_sync, settings.core_etf, settings.core_trend_window
+    )
+    if ok is None:
+        logger.warning("No trend data for %s; holding core", settings.core_etf)
+        return True
+    return ok
+
+
+async def _exit_core(book: str, reason: str) -> str | None:
+    """Liquidate the core when the trend filter turns defensive."""
+    from app.services.paper_broker import BOOK_POSITION_TYPE, live_price
+
+    settings = get_settings()
+    price = await live_price(settings.core_etf)
+    if price is None:
+        return None
+    async with session_factory()() as session, session.begin():
+        repo = PortfolioRepository(session)
+        account = await repo.get_account(book)
+        position = await _core_position(repo, book, settings.core_etf)
+        if account is None or position is None or position.quantity <= 0:
+            return None
+        quantity = position.quantity
+        proceeds = quantity * price
+        pnl = quantity * (price - position.avg_price)
+        account.cash += proceeds
+        await repo.remove_position(position)
+        await repo.add_trade(Trade(
+            account_type=BOOK_POSITION_TYPE[book], symbol=settings.core_etf,
+            side="sell", quantity=quantity, price=price, currency="USD",
+            reason=reason, realized_pnl_usd=pnl,
+        ))
+    logger.info("Core exited (%s): %s", book, reason)
+    return f"exited core {settings.core_etf} @ {price:,.2f} ({reason})"
+
+
 async def sweep_idle_cash(book: str = "strategic") -> str | None:
     """Invest cash above the buffer into the core ETF. Returns a summary or None.
 
@@ -81,6 +144,14 @@ async def sweep_idle_cash(book: str = "strategic") -> str | None:
     if equity is None or price is None or price <= 0:
         logger.warning("Core sweep skipped for %s: no equity or price for %s", book, symbol)
         return None
+
+    # Trend filter: below the long-term average, stay in cash and liquidate any
+    # core already held. This is the defensive half — it is what converts a
+    # -46% drawdown into -12%, and it only earns that in a genuine crash.
+    if not await core_trend_ok():
+        return await _exit_core(
+            book, f"{symbol} below {settings.core_trend_window}d average"
+        )
 
     buffer_usd = equity * settings.core_cash_buffer_pct / 100.0
 

@@ -154,6 +154,14 @@ class BookSummary(BaseModel):
     return_pct: float | None
     positions: list[PositionItem]
     enabled: bool = True            # tactical shows False until a rule is set
+    # Deployment is the metric that actually explained the Jul-Aug 2026
+    # underperformance: both books held decent positions and still trailed SPY
+    # because most of the capital sat in cash earning nothing.
+    invested_pct: float | None = None
+    core_value_usd: float | None = None
+    realised_pnl_usd: float = 0.0   # closed trades — hidden by a positions-only view
+    closed_trades: int = 0
+    winning_trades: int = 0
 
 
 class EquityPoint(BaseModel):
@@ -166,6 +174,10 @@ class PortfolioResponse(BaseModel):
     real_positions: list[PositionItem]
     benchmark_return_pct: float | None  # SPY since the books opened
     tactical_rule: str                  # "" = disabled (backtest gate not passed)
+    core_etf: str = "SPY"
+    core_enabled: bool = True
+    core_trend_filter: bool = False     # crash insurance; costs ~3-5pp/yr when on
+    core_defensive: bool = False        # True when the filter has moved to cash
     # Backward-compat mirrors of the strategic book (dashboard v1 fields)
     cash_usd: float
     starting_cash_usd: float
