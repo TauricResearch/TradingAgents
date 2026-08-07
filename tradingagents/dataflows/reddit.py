@@ -48,6 +48,11 @@ _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 # investing trend more measured. Caller can override.
 DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 
+# Equity-oriented subreddits barely discuss crypto tickers (a live BTC-USD run
+# returned zero posts across all three) — callers analyzing a crypto asset
+# should pass this set instead.
+CRYPTO_SUBREDDITS = ("CryptoCurrency", "Bitcoin", "CryptoMarkets")
+
 
 def _search_qs(ticker: str, limit: int) -> str:
     return urlencode({

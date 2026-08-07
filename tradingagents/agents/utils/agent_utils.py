@@ -8,6 +8,12 @@ from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
+from tradingagents.agents.utils.crypto_signals_tools import (
+    get_bitcoin_network_hashrate,
+    get_crypto_fear_greed_index,
+    get_crypto_funding_rate,
+    get_crypto_open_interest,
+)
 from tradingagents.agents.utils.fundamental_data_tools import (
     get_balance_sheet,
     get_cashflow,
@@ -29,6 +35,10 @@ from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 __all__ = [
     "get_stock_data",
     "get_indicators",
+    "get_crypto_funding_rate",
+    "get_crypto_open_interest",
+    "get_crypto_fear_greed_index",
+    "get_bitcoin_network_hashrate",
     "get_fundamentals",
     "get_balance_sheet",
     "get_cashflow",

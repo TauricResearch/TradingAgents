@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Crypto derivatives/on-chain signals for the market analyst.** New
+  `crypto_signals` vendor category (keyless, no auth) surfacing perpetual
+  funding rate and open interest (Binance), the market-wide Fear & Greed
+  Index (alternative.me), and Bitcoin network hashrate (mempool.space) —
+  data the framework had no equivalent for. Bound to the Market Analyst
+  only when `asset_type == "crypto"`.
+- **Crypto-native subreddits for the sentiment analyst.** The equities
+  default (`wallstreetbets`/`stocks`/`investing`) returns near-zero signal
+  for a crypto ticker; a crypto asset now searches `CryptoCurrency`,
+  `Bitcoin`, and `CryptoMarkets` instead.
+
 ## [0.3.1] — 2026-07-05
 
 Correctness and stability patch: data look-ahead, graph-router crash-safety,

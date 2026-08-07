@@ -14,7 +14,11 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_balance_sheet,
+    get_bitcoin_network_hashrate,
     get_cashflow,
+    get_crypto_fear_greed_index,
+    get_crypto_funding_rate,
+    get_crypto_open_interest,
     get_fundamentals,
     get_global_news,
     get_income_statement,
@@ -198,6 +202,14 @@ class TradingAgentsGraph:
                     # LLM and required by its prompt; must be executable here or
                     # the call fails and the model reports it "unavailable").
                     get_verified_market_snapshot,
+                    # Crypto derivatives/on-chain signals. Only bound to the LLM
+                    # when asset_type == "crypto" (see market_analyst.py), but
+                    # harmless to register here unconditionally since ToolNode
+                    # only executes what's actually requested.
+                    get_crypto_funding_rate,
+                    get_crypto_open_interest,
+                    get_crypto_fear_greed_index,
+                    get_bitcoin_network_hashrate,
                 ]
             ),
             "social": ToolNode(

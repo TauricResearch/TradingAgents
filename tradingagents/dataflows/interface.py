@@ -11,13 +11,19 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from .binance import (
+    get_funding_rate as get_binance_funding_rate,
+    get_open_interest as get_binance_open_interest,
+)
 from .config import get_config
 from .errors import (
     NoMarketDataError,
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
+from .feargreed import get_fear_greed_index as get_feargreed_index
 from .fred import get_macro_data as get_fred_macro_data
+from .mempool import get_network_hashrate as get_mempool_hashrate
 from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
 from .y_finance import (
     get_balance_sheet as get_yfinance_balance_sheet,
@@ -74,6 +80,15 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_prediction_markets",
         ]
+    },
+    "crypto_signals": {
+        "description": "Crypto derivatives positioning and on-chain/sentiment signals",
+        "tools": [
+            "get_crypto_funding_rate",
+            "get_crypto_open_interest",
+            "get_crypto_fear_greed_index",
+            "get_bitcoin_network_hashrate",
+        ]
     }
 }
 
@@ -82,6 +97,9 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "binance",
+    "feargreed",
+    "mempool",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -89,7 +107,7 @@ VENDOR_LIST = [
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "crypto_signals"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
@@ -140,6 +158,19 @@ VENDOR_METHODS = {
     # prediction_markets
     "get_prediction_markets": {
         "polymarket": get_polymarket_prediction_markets,
+    },
+    # crypto_signals
+    "get_crypto_funding_rate": {
+        "binance": get_binance_funding_rate,
+    },
+    "get_crypto_open_interest": {
+        "binance": get_binance_open_interest,
+    },
+    "get_crypto_fear_greed_index": {
+        "feargreed": get_feargreed_index,
+    },
+    "get_bitcoin_network_hashrate": {
+        "mempool": get_mempool_hashrate,
     },
 }
 
