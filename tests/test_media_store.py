@@ -59,6 +59,69 @@ def _row(source, ext_id, ticker, created, **kw):
     return base
 
 
+def _complete_x_receipt(
+    store, external_id, received, labels, automation_risk,
+    *, set_server_time, server_started, server_terminal, created=90.0,
+):
+    set_server_time(server_started)
+    run = store.start_fetch(
+        "x",
+        f"topic:{labels[0]}",
+        received - 1,
+        metadata={"kind": "media", "labels": labels},
+    )
+    row = _row(
+        "x", external_id, labels[0], created,
+        fetched_utc=received, author="public-user", body="Public reaction",
+        labels=labels,
+        metadata={"author_id": "42", "automation_risk": automation_risk},
+    )
+    set_server_time(server_terminal)
+    store.complete_fetch(
+        run,
+        rows=[row],
+        status="success",
+        received_utc=received,
+        completed_utc=received + 1,
+    )
+
+
+def _assert_authenticated_receipt_cutoff(store, set_server_time):
+    _complete_x_receipt(
+        store, "known", 100.0, ["@WORLD"], 0.1,
+        set_server_time=set_server_time, server_started=1_000.0,
+        server_terminal=1_001.0,
+    )
+    _complete_x_receipt(
+        store, "known", 200.0, ["@LATE"], 0.9,
+        set_server_time=set_server_time, server_started=80_000.0,
+        server_terminal=90_000.0,
+    )
+    _complete_x_receipt(
+        store, "straddling-only", 300.0, ["@WORLD"], 0.5,
+        set_server_time=set_server_time, server_started=80_010.0,
+        server_terminal=90_010.0, created=95.0,
+    )
+
+    rows = store.history_asof("1970-01-01", "1970-01-01", sources=["x"])
+
+    assert [row["external_id"] for row in rows] == ["known"]
+    assert rows[0]["metadata"]["automation_risk"] == 0.1
+    assert rows[0]["labels"] == ["@WORLD"]
+    assert rows[0]["latest_observed_utc"] == 1_001.0
+    assert rows[0]["latest_observed_utc_source"] == "server_terminal_utc"
+    assert [
+        row["external_id"]
+        for row in store.history_asof(
+            "1970-01-01", "1970-01-01",
+            tickers=["@WORLD"], sources=["x"], limit=1,
+        )
+    ] == ["known"]
+    assert store.history_asof(
+        "1970-01-01", "1970-01-01", tickers=["@LATE"], sources=["x"]
+    ) == []
+
+
 @pytest.fixture
 def store(tmp_path):
     s = SqliteMediaStore(tmp_path / "media.db")
@@ -121,6 +184,30 @@ def test_formal_identity_rejects_cross_poll_provenance_drift(store):
     persisted = store.history_asof("2026-06-20", "2026-06-20", sources=["globalnews"])
     assert persisted[0]["author"] == "Reuters"
     assert persisted[0]["metadata"]["publisher_domain"] == "reuters.com"
+
+
+@pytest.mark.unit
+def test_news_vintage_identity_rejects_provider_lineage_drift(store):
+    first = _row(
+        "globalnews", "google_news_v1_fixed", "@WORLD", 100.0,
+        fetched_utc=101.0, author="Reuters", title="Independent report",
+        body="Exact report",
+        metadata={
+            "provider_external_id": "cluster-a",
+            "content_vintage_id": "google_news_v1_fixed",
+            "content_vintage_schema_version": 1,
+            "publisher_domain": "reuters.com",
+        },
+    )
+    drifted = {
+        **first,
+        "fetched_utc": 102.0,
+        "metadata": {**first["metadata"], "provider_external_id": "cluster-b"},
+    }
+
+    store.store([first])
+    with pytest.raises(ValueError, match="immutable provenance"):
+        store.store([drifted])
 
 
 @pytest.mark.unit
@@ -322,6 +409,63 @@ def test_atomic_fetch_completion_binds_exact_persisted_snapshot(store):
         "evidence_id": eligible[0],
         "raw_content_id": raw_content_id(row),
     }]
+
+
+@pytest.mark.unit
+def test_latest_successful_receipt_orders_reverted_content_vintage(store, monkeypatch):
+    server_clock = {"now": 0.0}
+    monkeypatch.setattr(
+        "tradingagents.dataflows.media_store.time.time", lambda: server_clock["now"]
+    )
+    observations = [
+        ("v1", "Original report", 101.0),
+        ("v2", "Corrected report", 201.0),
+        ("v1", "Original report", 301.0),
+    ]
+    for index, (external_id, title, received) in enumerate(observations):
+        server_clock["now"] = 1_000.0 + index * 2
+        run = store.start_fetch("globalnews", "world:core", received - 1)
+        row = _row(
+            "globalnews", external_id, "@WORLD", 90.0,
+            fetched_utc=received, author="Reuters", title=title, body="Exact body",
+            metadata={
+                "provider_external_id": "provider-cluster",
+                "publisher_domain": "reuters.com",
+            },
+        )
+        server_clock["now"] = 1_001.0 + index * 2
+        store.complete_fetch(
+            run,
+            rows=[row],
+            status="success",
+            received_utc=received,
+            completed_utc=received + 1,
+            formal_eligible_item_count=1,
+            formal_eligible_evidence_ids=[evidence_id(row)],
+        )
+
+    rows = store.history_asof(
+        "1970-01-01", "1970-01-01", sources=["globalnews"]
+    )
+    by_id = {row["external_id"]: row for row in rows}
+
+    assert by_id["v1"]["fetched_utc"] == 101.0
+    assert by_id["v1"]["latest_observed_utc"] == 1_005.0
+    assert by_id["v2"]["latest_observed_utc"] == 1_003.0
+
+
+@pytest.mark.unit
+def test_history_uses_authenticated_receipt_cutoff_for_rows_metadata_and_labels(
+    store, monkeypatch
+):
+    server_clock = {"now": 0.0}
+    monkeypatch.setattr(
+        "tradingagents.dataflows.media_store.time.time", lambda: server_clock["now"]
+    )
+
+    _assert_authenticated_receipt_cutoff(
+        store, lambda value: server_clock.__setitem__("now", value)
+    )
 
 
 @pytest.mark.unit
@@ -882,9 +1026,13 @@ def test_sqlalchemy_store_reports_insert_count_with_conflict_ignore(tmp_path):
 
 
 @pytest.mark.unit
-def test_sqlalchemy_atomic_fetch_completion_matches_sqlite(tmp_path):
+def test_sqlalchemy_atomic_fetch_completion_matches_sqlite(tmp_path, monkeypatch):
     store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'atomic-sa.db'}")
     try:
+        server_clock = iter([1_000.0, 1_001.0])
+        monkeypatch.setattr(
+            store, "_server_observed_utc", lambda _conn: next(server_clock)
+        )
         run = store.start_fetch(
             "globalnews", "world:core", 100.0, metadata={"kind": "media"}
         )
@@ -903,6 +1051,25 @@ def test_sqlalchemy_atomic_fetch_completion_matches_sqlite(tmp_path):
         assert store.fetch_runs(provider="globalnews")[0][
             "formal_eligible_lineage"
         ] == [{"evidence_id": eligible[0], "raw_content_id": raw_content_id(row)}]
+        history = store.history_asof(
+            "1970-01-01", "1970-01-01", sources=["globalnews"]
+        )
+        assert history[0]["latest_observed_utc"] == 1_001.0
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+def test_sqlalchemy_history_uses_authenticated_receipt_cutoff(tmp_path, monkeypatch):
+    store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'receipt-cutoff.db'}")
+    try:
+        server_clock = {"now": 0.0}
+        monkeypatch.setattr(
+            store, "_server_observed_utc", lambda _conn: server_clock["now"]
+        )
+        _assert_authenticated_receipt_cutoff(
+            store, lambda value: server_clock.__setitem__("now", value)
+        )
     finally:
         store.close()
 

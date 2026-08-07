@@ -77,7 +77,13 @@ _COLLECTION_CYCLE_KIND = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
 _COLLECTOR_BUILD_ID = re.compile(r"build_[0-9a-f]{24}")
 _FORMAL_MEDIA_SOURCES = frozenset({"globalnews", "trendnews", "x"})
 _IMMUTABLE_MEDIA_FIELDS = ("created_utc", "title", "body")
-_IMMUTABLE_NEWS_PROVENANCE_FIELDS = ("publisher_domain", "article_url")
+_IMMUTABLE_NEWS_PROVENANCE_FIELDS = (
+    "publisher_domain",
+    "article_url",
+    "provider_external_id",
+    "content_vintage_id",
+    "content_vintage_schema_version",
+)
 
 
 def _validated_collection_cycle_id(value: str | None) -> str | None:
@@ -1029,6 +1035,27 @@ def _history_bounds(start: str, end: str) -> tuple[float, float]:
     return lo.timestamp(), hi.timestamp()
 
 
+def _matches_requested_labels(
+    row: dict,
+    *,
+    tickers: list[str] | None = None,
+    ticker_prefixes: list[str] | None = None,
+) -> bool:
+    """Recheck requested associations after trusted receipt labels are attached."""
+    if not tickers and not ticker_prefixes:
+        return True
+    labels = {
+        str(label).upper()
+        for label in row.get("labels", [])
+        if isinstance(label, str) and label
+    }
+    exact = {ticker.upper() for ticker in (tickers or [])}
+    prefixes = tuple(prefix.upper() for prefix in (ticker_prefixes or []))
+    return bool(labels & exact) or any(
+        label.startswith(prefix) for label in labels for prefix in prefixes
+    )
+
+
 class SqliteMediaStore:
     """Local SQLite backend (stdlib ``sqlite3``, no extra dependencies)."""
 
@@ -1690,7 +1717,75 @@ class SqliteMediaStore:
         self, rows: list[dict], cutoff_utc: float | None = None,
         *, strict_cutoff: bool = False,
     ) -> list[dict]:
+        attached = []
         for row in rows:
+            receipt_sql = (
+                "SELECT receipt.server_terminal_utc,item.observed_utc,"
+                "receipt.metadata_json,observation.metadata_json "
+                "FROM fetch_run_items AS item "
+                "JOIN fetch_runs AS receipt ON receipt.fetch_run_id=item.fetch_run_id "
+                "LEFT JOIN media_observations AS observation "
+                "ON observation.source=item.source "
+                "AND observation.external_id=item.external_id "
+                "AND observation.observed_utc=item.observed_utc "
+                "WHERE item.source=? AND item.external_id=? "
+                "AND receipt.status='success' AND receipt.server_terminal_utc IS NOT NULL"
+            )
+            receipt_params: list = [row["source"], row["external_id"]]
+            if cutoff_utc is not None:
+                receipt_sql += " AND receipt.server_terminal_utc" + (
+                    "<?" if strict_cutoff else "<=?"
+                )
+                receipt_params.append(cutoff_utc)
+            receipts = self.conn.execute(
+                receipt_sql
+                + " ORDER BY receipt.server_terminal_utc DESC,receipt.fetch_run_id DESC",
+                receipt_params,
+            ).fetchall()
+            if receipts:
+                latest_observation = (
+                    json.loads(receipts[0][3]) if receipts[0][3] else {}
+                )
+                row["metadata"] = (
+                    latest_observation
+                    if isinstance(latest_observation, dict) else {}
+                )
+                trusted_labels: set[str] = set()
+                for receipt in receipts:
+                    receipt_metadata = json.loads(receipt[2]) if receipt[2] else {}
+                    observation_metadata = json.loads(receipt[3]) if receipt[3] else {}
+                    for value in (
+                        receipt_metadata.get("labels", [])
+                        if isinstance(receipt_metadata, dict) else []
+                    ):
+                        if isinstance(value, str) and value.strip():
+                            trusted_labels.add(value.strip().upper())
+                    for value in (
+                        observation_metadata.get("receipt_labels", [])
+                        if isinstance(observation_metadata, dict) else []
+                    ):
+                        if isinstance(value, str) and value.strip():
+                            trusted_labels.add(value.strip().upper())
+                if not trusted_labels and row.get("source") == "trendnews" \
+                        and isinstance(row.get("ticker"), str):
+                    # Pre-receipt-label discovery rows can safely retain the
+                    # ticker persisted by their first successful receipt.
+                    trusted_labels.add(row["ticker"].strip().upper())
+                row["labels"] = sorted(trusted_labels)
+                row["latest_observed_utc"] = float(receipts[0][0])
+                row["latest_observed_utc_source"] = "server_terminal_utc"
+                attached.append(row)
+                continue
+
+            lineage_exists = self.conn.execute(
+                "SELECT 1 FROM fetch_run_items WHERE source=? AND external_id=? LIMIT 1",
+                (row["source"], row["external_id"]),
+            ).fetchone()
+            if lineage_exists is not None:
+                # Receipt lineage exists, but none committed successfully by
+                # this cutoff. Falling back to client clocks would leak it.
+                continue
+
             sql = "SELECT label FROM media_labels WHERE source=? AND external_id=?"
             params: list = [row["source"], row["external_id"]]
             if cutoff_utc is not None:
@@ -1699,7 +1794,7 @@ class SqliteMediaStore:
             labels = self.conn.execute(sql + " ORDER BY label", params).fetchall()
             row["labels"] = [label[0] for label in labels]
             observation_sql = (
-                "SELECT metadata_json FROM media_observations WHERE source=? "
+                "SELECT metadata_json,observed_utc FROM media_observations WHERE source=? "
                 "AND external_id=?"
             )
             observation_params: list = [row["source"], row["external_id"]]
@@ -1710,7 +1805,14 @@ class SqliteMediaStore:
                 observation_sql + " ORDER BY observed_utc DESC LIMIT 1", observation_params,
             ).fetchone()
             row["metadata"] = json.loads(observation[0]) if observation else {}
-        return rows
+            row["latest_observed_utc"] = (
+                float(observation[1]) if observation else row.get("fetched_utc")
+            )
+            row["latest_observed_utc_source"] = (
+                "media_observation_utc" if observation else "fetched_utc"
+            )
+            attached.append(row)
+        return attached
 
     def stats(self) -> list[tuple]:
         return self.conn.execute(
@@ -1730,7 +1832,11 @@ class SqliteMediaStore:
             (ticker.upper(), hi, lo, hi),
         ).fetchall()
         self.conn.row_factory = None
-        return self._attach_labels([dict(r) for r in rows], hi)
+        attached = self._attach_labels([dict(r) for r in rows], hi)
+        return [
+            row for row in attached
+            if _matches_requested_labels(row, tickers=[ticker])
+        ]
 
     def history_asof(
         self,
@@ -1776,15 +1882,34 @@ class SqliteMediaStore:
             marks = ",".join("?" for _ in sources)
             clauses.append(f"source IN ({marks})")
             params.extend(sources)
-        params.append(max(1, limit))
-        self.conn.row_factory = sqlite3.Row
-        rows = self.conn.execute(
+        target = max(1, limit)
+        query = (
             "SELECT * FROM media_posts WHERE " + " AND ".join(clauses)
-            + " ORDER BY created_utc DESC LIMIT ?",
-            params,
-        ).fetchall()
-        self.conn.row_factory = None
-        return self._attach_labels([dict(row) for row in rows], hi, strict_cutoff=True)
+            + " ORDER BY created_utc DESC,source,external_id LIMIT ? OFFSET ?"
+        )
+        matched: list[dict] = []
+        offset = 0
+        while len(matched) < target:
+            self.conn.row_factory = sqlite3.Row
+            rows = self.conn.execute(
+                query, [*params, target, offset]
+            ).fetchall()
+            self.conn.row_factory = None
+            if not rows:
+                break
+            attached = self._attach_labels(
+                [dict(row) for row in rows], hi, strict_cutoff=True
+            )
+            matched.extend(
+                row for row in attached
+                if _matches_requested_labels(
+                    row, tickers=tickers, ticker_prefixes=ticker_prefixes
+                )
+            )
+            offset += len(rows)
+            if len(rows) < target:
+                break
+        return matched[:target]
 
     def _store_odds_in_transaction(self, rows: list[dict]) -> int:
         if not rows:
@@ -2849,14 +2974,98 @@ class SqlAlchemyMediaStore:
             ).mappings().all()
             payload = [dict(r) for r in rows]
             self._attach_labels_sa(conn, payload, hi)
-        return payload
+        return [
+            row for row in payload
+            if _matches_requested_labels(row, tickers=[ticker])
+        ]
 
     def _attach_labels_sa(
         self, conn, rows: list[dict], cutoff_utc: float | None = None,
         *, strict_cutoff: bool = False,
     ) -> None:
         from sqlalchemy import and_, select
+        attached = []
         for row in rows:
+            receipt_clauses = [
+                self.fetch_items_table.c.source == row["source"],
+                self.fetch_items_table.c.external_id == row["external_id"],
+                self.fetches.c.status == "success",
+                self.fetches.c.server_terminal_utc.is_not(None),
+            ]
+            if cutoff_utc is not None:
+                receipt_clauses.append(
+                    self.fetches.c.server_terminal_utc < cutoff_utc
+                    if strict_cutoff else self.fetches.c.server_terminal_utc <= cutoff_utc
+                )
+            receipts = conn.execute(
+                select(
+                    self.fetches.c.server_terminal_utc,
+                    self.fetch_items_table.c.observed_utc,
+                    self.fetches.c.metadata_json,
+                    self.observations.c.metadata_json,
+                ).select_from(
+                    self.fetch_items_table.join(
+                        self.fetches,
+                        self.fetches.c.fetch_run_id
+                        == self.fetch_items_table.c.fetch_run_id,
+                    ).outerjoin(
+                        self.observations,
+                        and_(
+                            self.observations.c.source
+                            == self.fetch_items_table.c.source,
+                            self.observations.c.external_id
+                            == self.fetch_items_table.c.external_id,
+                            self.observations.c.observed_utc
+                            == self.fetch_items_table.c.observed_utc,
+                        ),
+                    )
+                ).where(and_(*receipt_clauses)).order_by(
+                    self.fetches.c.server_terminal_utc.desc(),
+                    self.fetches.c.fetch_run_id.desc(),
+                )
+            ).all()
+            if receipts:
+                latest_observation = (
+                    json.loads(receipts[0][3]) if receipts[0][3] else {}
+                )
+                row["metadata"] = (
+                    latest_observation
+                    if isinstance(latest_observation, dict) else {}
+                )
+                trusted_labels: set[str] = set()
+                for receipt in receipts:
+                    receipt_metadata = json.loads(receipt[2]) if receipt[2] else {}
+                    observation_metadata = json.loads(receipt[3]) if receipt[3] else {}
+                    for value in (
+                        receipt_metadata.get("labels", [])
+                        if isinstance(receipt_metadata, dict) else []
+                    ):
+                        if isinstance(value, str) and value.strip():
+                            trusted_labels.add(value.strip().upper())
+                    for value in (
+                        observation_metadata.get("receipt_labels", [])
+                        if isinstance(observation_metadata, dict) else []
+                    ):
+                        if isinstance(value, str) and value.strip():
+                            trusted_labels.add(value.strip().upper())
+                if not trusted_labels and row.get("source") == "trendnews" \
+                        and isinstance(row.get("ticker"), str):
+                    trusted_labels.add(row["ticker"].strip().upper())
+                row["labels"] = sorted(trusted_labels)
+                row["latest_observed_utc"] = float(receipts[0][0])
+                row["latest_observed_utc_source"] = "server_terminal_utc"
+                attached.append(row)
+                continue
+
+            lineage_exists = conn.execute(select(
+                self.fetch_items_table.c.fetch_run_id
+            ).where(and_(
+                self.fetch_items_table.c.source == row["source"],
+                self.fetch_items_table.c.external_id == row["external_id"],
+            )).limit(1)).first()
+            if lineage_exists is not None:
+                continue
+
             clauses = [
                 self.labels.c.source == row["source"],
                 self.labels.c.external_id == row["external_id"],
@@ -2880,11 +3089,22 @@ class SqlAlchemyMediaStore:
                     if strict_cutoff else self.observations.c.observed_utc <= cutoff_utc
                 )
             observation = conn.execute(
-                select(self.observations.c.metadata_json).where(and_(
+                select(
+                    self.observations.c.metadata_json,
+                    self.observations.c.observed_utc,
+                ).where(and_(
                     *observation_clauses
                 )).order_by(self.observations.c.observed_utc.desc()).limit(1)
-            ).scalar_one_or_none()
-            row["metadata"] = json.loads(observation) if observation else {}
+            ).first()
+            row["metadata"] = json.loads(observation[0]) if observation else {}
+            row["latest_observed_utc"] = (
+                float(observation[1]) if observation else row.get("fetched_utc")
+            )
+            row["latest_observed_utc_source"] = (
+                "media_observation_utc" if observation else "fetched_utc"
+            )
+            attached.append(row)
+        rows[:] = attached
 
     def history_asof(
         self,
@@ -2927,12 +3147,31 @@ class SqlAlchemyMediaStore:
             stmt = stmt.where(or_(*identities))
         if sources:
             stmt = stmt.where(t.c.source.in_(sources))
-        stmt = stmt.order_by(t.c.created_utc.desc()).limit(max(1, limit))
+        target = max(1, limit)
+        stmt = stmt.order_by(
+            t.c.created_utc.desc(), t.c.source, t.c.external_id
+        )
+        matched: list[dict] = []
+        offset = 0
         with self.engine.connect() as conn:
-            rows = conn.execute(stmt).mappings().all()
-            payload = [dict(row) for row in rows]
-            self._attach_labels_sa(conn, payload, hi, strict_cutoff=True)
-        return payload
+            while len(matched) < target:
+                rows = conn.execute(
+                    stmt.limit(target).offset(offset)
+                ).mappings().all()
+                if not rows:
+                    break
+                payload = [dict(row) for row in rows]
+                self._attach_labels_sa(conn, payload, hi, strict_cutoff=True)
+                matched.extend(
+                    row for row in payload
+                    if _matches_requested_labels(
+                        row, tickers=tickers, ticker_prefixes=ticker_prefixes
+                    )
+                )
+                offset += len(rows)
+                if len(rows) < target:
+                    break
+        return matched[:target]
 
     def odds_asof(self, end: str, themes: list[str] | None = None) -> list[dict]:
         from sqlalchemy import text
@@ -3369,6 +3608,7 @@ class SqlAlchemyMediaStore:
         cycle_id = _validated_collection_cycle_id(collection_cycle_id)
         if cycle_id is None:
             return None
+        # Slots are append-only; locking them would require unintended UPDATE authority.
         row = conn.execute(select(self.cycles.c.collection_cycle_id).select_from(
             self.cycles.join(
                 self.cycle_slots,
@@ -3383,7 +3623,7 @@ class SqlAlchemyMediaStore:
             self.cycles.c.collection_cycle_id == cycle_id,
             self.cycles.c.status == "running",
             self.cycles.c.started_utc <= started_utc,
-        )).with_for_update()).first()
+        )).with_for_update(of=self.cycles)).first()
         if row is None:
             raise ValueError("fetch receipt lacks a declared running cycle slot")
         return cycle_id

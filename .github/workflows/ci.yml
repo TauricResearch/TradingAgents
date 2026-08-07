@@ -96,4 +96,5 @@ jobs:
           set -euo pipefail
           bash scripts/prepare_collector_postgres.sh ta_collector
           TRADINGAGENTS_TEST_POSTGRES_URL="postgresql+psycopg://tradingagents-ingest-v2@${PGHOST}:${PGPORT}/ta_collector" \
-            pytest -q -m integration tests/test_server_observed_evidence_migration.py
+            pytest -q -m integration tests/test_server_observed_evidence_migration.py \
+              tests/test_collection_cycles.py

@@ -594,6 +594,23 @@ def test_snapshot_rejects_evidence_observed_at_the_cutoff():
 
 
 @pytest.mark.unit
+def test_snapshot_rejects_latest_receipt_observed_at_the_cutoff():
+    cutoff = datetime(2026, 1, 11, tzinfo=timezone.utc).timestamp()
+    row = {**_row(), "latest_observed_utc": cutoff}
+
+    with pytest.raises(ValueError, match="latest observation.*strictly before cutoff"):
+        build_snapshot(
+            run_id="future-latest-observation",
+            decision_dates=(date(2026, 1, 10),),
+            universe=("AAPL",),
+            sectors={"AAPL": "technology"},
+            evidence_loader=lambda _date: [row],
+            selection_builder=_selection,
+            coverage_builder=_coverage,
+        )
+
+
+@pytest.mark.unit
 def test_snapshot_rejects_evidence_published_at_the_cutoff():
     cutoff = datetime(2026, 1, 11, tzinfo=timezone.utc).timestamp()
     row = {**_row(), "created_utc": cutoff}

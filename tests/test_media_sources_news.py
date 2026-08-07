@@ -76,6 +76,11 @@ def test_top_news_discovery_uses_ranked_feeds_without_search_queries(monkeypatch
     assert all("/rss/search" not in url for url in urls)
     assert all(row["rank"] == 0 for row in rows)
     assert {row["region"] for row in rows} == {"US", "GB", "IN", "SG", "AU"}
+    assert {row["metadata"]["provider_external_id"] for row in rows} == {"0"}
+    assert all(
+        row["external_id"] == row["metadata"]["content_vintage_id"]
+        for row in rows
+    )
 
 
 @pytest.mark.unit
@@ -138,15 +143,45 @@ def test_global_news_keeps_raw_rows_and_persists_normalized_provenance(monkeypat
 
     rows = media_sources.fetch_global_news("technology launches", 1.0, "technology")
 
-    assert [row["external_id"] for row in rows] == ["release", "report"]
+    assert len({row["external_id"] for row in rows}) == 2
+    assert all(row["external_id"].startswith("google_news_v1_") for row in rows)
     assert rows[0]["metadata"] == {
         "article_url": "https://news.google.com/articles/release?b=2",
         "publisher_domain": "prnewswire.com",
+        "provider_external_id": "release",
+        "content_vintage_id": rows[0]["external_id"],
+        "content_vintage_schema_version": 1,
     }
     assert rows[1]["metadata"] == {
         "article_url": "https://news.google.com/articles/report",
         "publisher_domain": "reuters.com",
+        "provider_external_id": "report",
+        "content_vintage_id": rows[1]["external_id"],
+        "content_vintage_schema_version": 1,
     }
+
+
+@pytest.mark.unit
+def test_global_news_cluster_revisions_get_distinct_stable_content_vintages(monkeypatch):
+    title = ["Original report - Reuters"]
+
+    def response(_request, timeout):
+        del timeout
+        return _rss(title[0])
+
+    monkeypatch.setattr(media_sources, "urlopen", response)
+
+    original = media_sources.fetch_global_news("global policy", 1.0, "world")[0]
+    repeated = media_sources.fetch_global_news("global policy", 2.0, "world")[0]
+    title[0] = "Corrected report - Reuters"
+    revised = media_sources.fetch_global_news("global policy", 3.0, "world")[0]
+
+    assert original["external_id"] == repeated["external_id"]
+    assert revised["external_id"] != original["external_id"]
+    assert {
+        original["metadata"]["provider_external_id"],
+        revised["metadata"]["provider_external_id"],
+    } == {"0"}
 
 
 @pytest.mark.unit
@@ -160,7 +195,10 @@ def test_global_news_caps_each_broad_query_response(monkeypatch):
     rows = media_sources.fetch_global_news("global policy", 1.0, "world", limit=25)
 
     assert len(rows) == 25
-    assert [row["external_id"] for row in rows] == [str(index) for index in range(25)]
+    assert len({row["external_id"] for row in rows}) == 25
+    assert [
+        row["metadata"]["provider_external_id"] for row in rows
+    ] == [str(index) for index in range(25)]
 
 
 @pytest.mark.unit

@@ -5,7 +5,7 @@ import logging
 import pytest
 
 from tradingagents import poller
-from tradingagents.dataflows.media_sources import _row
+from tradingagents.dataflows.media_sources import _google_news_content_vintage, _row
 from tradingagents.dataflows.media_store import SqliteMediaStore
 from tradingagents.research_protocol import (
     GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES,
@@ -131,6 +131,57 @@ def test_formal_news_receipt_binds_exact_eligible_evidence_ids(tmp_path):
     metadata = json.loads(receipt["metadata_json"])
     assert metadata["protocol_id"].startswith("protocol_")
     assert metadata["collector_semantics_id"].startswith("collector_")
+    store.close()
+
+
+@pytest.mark.unit
+def test_google_news_cluster_revision_is_appended_without_poisoning_receipt(tmp_path):
+    store = SqliteMediaStore(tmp_path / "google-revision.db")
+    theme, queries = next(iter(GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES.items()))
+    query = queries[0]
+    label = global_news_query_slot_label(theme, query)
+
+    def row(captured, title):
+        metadata_base = {
+            "article_url": "https://news.google.com/articles/provider-cluster",
+            "publisher_domain": "reuters.com",
+        }
+        external_id, metadata = _google_news_content_vintage(
+            "provider-cluster",
+            published_utc=captured - 1,
+            publisher="Reuters",
+            title=title,
+            body="Independent report",
+            provenance=metadata_base,
+        )
+        return _row(
+            "globalnews",
+            external_id,
+            f"@{theme}",
+            captured,
+            author="Reuters",
+            created_utc=captured - 1,
+            title=title,
+            body="Independent report",
+            metadata=metadata,
+        )
+
+    for title in ("Original headline", "Corrected headline"):
+        count, _, status = poller._run_fetch(
+            store,
+            provider="globalnews",
+            query_key=f"{theme}:{query}",
+            labels=[f"@{theme}", label],
+            fetch_fn=lambda captured, value=title: [row(captured, value)],
+        )
+        assert (count, status) == (1, "success")
+
+    assert store.conn.execute("SELECT COUNT(*) FROM media_posts").fetchone()[0] == 2
+    receipts = store.fetch_runs(provider="globalnews")
+    assert [receipt["status"] for receipt in receipts] == ["success", "success"]
+    assert len({
+        receipt["formal_eligible_evidence_ids"][0] for receipt in receipts
+    }) == 2
     store.close()
 
 
@@ -278,6 +329,45 @@ def test_fetch_receipt_rejects_conflicting_duplicate_identity_before_storage(tmp
     receipt = store.fetch_runs(provider="globalnews")[0]
     assert receipt["status"] == "failed"
     assert store.stats() == []
+    store.close()
+
+
+@pytest.mark.unit
+def test_fetch_receipt_collapses_exact_duplicate_and_merges_topic_labels(tmp_path):
+    store = SqliteMediaStore(tmp_path / "duplicate-discovery.db")
+
+    def fetch(captured):
+        common = {
+            "author": "Reuters",
+            "created_utc": captured - 1,
+            "title": "Shared discovery headline",
+            "body": "Independent report",
+            "metadata": {
+                "publisher_domain": "reuters.com",
+                "provider_external_id": "provider-cluster",
+            },
+        }
+        return [
+            _row("trendnews", "same-vintage", "@TREND_WORLD", captured, **common),
+            _row(
+                "trendnews", "same-vintage", "@TREND_TECHNOLOGY", captured, **common
+            ),
+        ]
+
+    count, inserted, status = poller._run_fetch(
+        store,
+        provider="trendnews",
+        query_key="ranked-global-discovery",
+        fetch_fn=fetch,
+    )
+
+    assert (count, inserted, status) == (1, 1, "success")
+    receipt = store.fetch_runs(provider="trendnews")[0]
+    assert receipt["item_count"] == 1
+    assert len(store.fetch_items(receipt["fetch_run_id"])) == 1
+    assert store.conn.execute(
+        "SELECT label FROM media_labels ORDER BY label"
+    ).fetchall() == [("@TREND_TECHNOLOGY",), ("@TREND_WORLD",)]
     store.close()
 
 
@@ -549,7 +639,7 @@ def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_pa
 
     assert manifest["schema_version"] == 3
     assert manifest["policy"] == "global-only-editorial-and-trend-reaction-v1"
-    assert manifest["collector_semantics_id"] == "collector_cf5b90da1cd4d7db969389ee"
+    assert manifest["collector_semantics_id"] == "collector_fa2421d5a25636de4f035323"
     assert manifest["semantic_values"]["collection_scope"] == {
         "ticker_watchlist": False,
         "ticker_sources": [],

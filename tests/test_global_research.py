@@ -174,6 +174,245 @@ def test_formal_evidence_caps_are_source_stratified():
 
 
 @pytest.mark.unit
+def test_formal_evidence_uses_latest_observed_google_content_vintage():
+    theme, query = _slot_parts(FORMAL_GLOBALNEWS_QUERY_SLOTS[0])
+    label = global_news_query_slot_label(theme, query)
+    base = {
+        "source": "globalnews",
+        "ticker": f"@{theme}",
+        "labels": [f"@{theme}", label],
+        "author": "Reuters",
+        "body": "Independent report",
+    }
+    original = {
+        **base,
+        "external_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        "created_utc": 900.0,
+        "fetched_utc": 910.0,
+        "latest_observed_utc": 910.0,
+        "title": "Original report",
+        "metadata": {
+            **_editorial_metadata("reuters.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+    }
+    revised = {
+        **base,
+        "external_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        # A provider revision may move its claimed publication time backward;
+        # first-received system time still determines the latest known vintage.
+        "created_utc": 850.0,
+        "fetched_utc": 920.0,
+        "latest_observed_utc": 920.0,
+        "title": "Corrected report",
+        "metadata": {
+            **_editorial_metadata("reuters.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        },
+    }
+
+    selected = prepare_evidence([original, revised])
+    reversed_selected = prepare_evidence([revised, original])
+
+    assert [row["external_id"] for row in selected] == [revised["external_id"]]
+    assert reversed_selected == selected
+    manifest = evidence_selection_manifest([original, revised], as_of_utc=1_000.0)
+    selected_id = selected[0]["evidence_id"]
+    assert manifest["ordered_selected_evidence_ids"]["champion"] == [selected_id]
+    assert {
+        candidate["provider_external_id"] for candidate in manifest["candidates"]
+    } == {"provider-cluster"}
+    candidates = {
+        candidate["external_id"]: candidate for candidate in manifest["candidates"]
+    }
+    assert candidates[original["external_id"]]["eligible"] is False
+    assert candidates[original["external_id"]]["reason"] == (
+        "superseded_content_vintage"
+    )
+    assert candidates[revised["external_id"]]["disposition"] == "selected"
+
+
+@pytest.mark.unit
+def test_formal_evidence_uses_latest_occurrence_when_cluster_reverts():
+    theme, query = _slot_parts(FORMAL_GLOBALNEWS_QUERY_SLOTS[0])
+    label = global_news_query_slot_label(theme, query)
+    base = {
+        "source": "globalnews",
+        "ticker": f"@{theme}",
+        "labels": [f"@{theme}", label],
+        "author": "Reuters",
+        "body": "Independent report",
+    }
+    original = {
+        **base,
+        "external_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        "created_utc": 900.0,
+        "fetched_utc": 910.0,
+        # The original rendering was observed again after the correction.
+        "latest_observed_utc": 930.0,
+        "title": "Original report",
+        "metadata": {
+            **_editorial_metadata("reuters.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+    }
+    corrected = {
+        **base,
+        "external_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        "created_utc": 905.0,
+        "fetched_utc": 920.0,
+        "latest_observed_utc": 920.0,
+        "title": "Corrected report",
+        "metadata": {
+            **_editorial_metadata("reuters.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        },
+    }
+
+    selected = prepare_evidence([original, corrected])
+    manifest = evidence_selection_manifest([original, corrected], as_of_utc=1_000.0)
+
+    assert [row["external_id"] for row in selected] == [original["external_id"]]
+    candidates = {
+        candidate["external_id"]: candidate for candidate in manifest["candidates"]
+    }
+    assert candidates[corrected["external_id"]]["reason"] == (
+        "superseded_content_vintage"
+    )
+    assert candidates[original["external_id"]]["disposition"] == "selected"
+
+
+@pytest.mark.unit
+def test_vintage_selector_temporally_filters_before_provider_grouping():
+    theme, query = _slot_parts(FORMAL_GLOBALNEWS_QUERY_SLOTS[0])
+    label = global_news_query_slot_label(theme, query)
+    base = {
+        "source": "globalnews",
+        "ticker": f"@{theme}",
+        "labels": [f"@{theme}", label],
+        "author": "Reuters",
+        "body": "Independent report",
+    }
+    known = {
+        **base,
+        "external_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        "created_utc": 900.0,
+        "fetched_utc": 910.0,
+        "latest_observed_utc": 910.0,
+        "title": "Known report",
+        "metadata": {
+            **_editorial_metadata("reuters.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+    }
+    at_cutoff = {
+        **base,
+        "external_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        "created_utc": 920.0,
+        "fetched_utc": 1_000.0,
+        "latest_observed_utc": 1_000.0,
+        "title": "Not yet committed report",
+        "metadata": {
+            **_editorial_metadata("reuters.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        },
+    }
+
+    manifest = evidence_selection_manifest([known, at_cutoff], as_of_utc=1_000.0)
+    candidates = {
+        candidate["external_id"]: candidate for candidate in manifest["candidates"]
+    }
+
+    assert candidates[known["external_id"]]["disposition"] == "selected"
+    assert candidates[at_cutoff["external_id"]]["reason"] == (
+        "received_after_cutoff"
+    )
+    assert manifest["ordered_selected_evidence_ids"]["champion"] == [
+        candidates[known["external_id"]]["evidence_id"]
+    ]
+
+
+@pytest.mark.unit
+def test_vintage_selector_does_not_cross_order_worker_and_database_clocks():
+    row = {
+        **_rows()[0],
+        "fetched_utc": 101.0,
+        "latest_observed_utc": 100.0,
+        "latest_observed_utc_source": "server_terminal_utc",
+    }
+
+    manifest = evidence_selection_manifest([row], as_of_utc=200.0)
+
+    assert manifest["candidates"][0]["eligible"] is True
+    assert manifest["candidates"][0]["reason"] is None
+    assert len(manifest["ordered_selected_evidence_ids"]["champion"]) == 1
+
+
+@pytest.mark.unit
+def test_ineligible_latest_news_vintage_cannot_resurrect_eligible_old_content():
+    theme, query = _slot_parts(FORMAL_GLOBALNEWS_QUERY_SLOTS[0])
+    label = global_news_query_slot_label(theme, query)
+    original = {
+        "source": "globalnews",
+        "external_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        "ticker": f"@{theme}",
+        "labels": [f"@{theme}", label],
+        "author": "Reuters",
+        "created_utc": 900.0,
+        "fetched_utc": 910.0,
+        "latest_observed_utc": 910.0,
+        "title": "Independent report",
+        "body": "Independent report",
+        "metadata": {
+            **_editorial_metadata("reuters.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_aaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+    }
+    company_revision = {
+        **original,
+        "external_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        "author": "PR Newswire",
+        "fetched_utc": 920.0,
+        "latest_observed_utc": 920.0,
+        "title": "Company announces product",
+        "metadata": {
+            **_editorial_metadata("prnewswire.com"),
+            "provider_external_id": "provider-cluster",
+            "content_vintage_id": "google_news_v1_bbbbbbbbbbbbbbbbbbbbbbbb",
+        },
+    }
+
+    champion, without_reaction, public = partition_formal_evidence(
+        [original, company_revision], as_of_utc=1_000.0
+    )
+    manifest = evidence_selection_manifest(
+        [original, company_revision], as_of_utc=1_000.0
+    )
+
+    assert (champion, without_reaction, public) == ([], [], [])
+    candidates = {
+        candidate["external_id"]: candidate for candidate in manifest["candidates"]
+    }
+    assert candidates[original["external_id"]]["reason"] == (
+        "superseded_content_vintage"
+    )
+    assert candidates[company_revision["external_id"]]["reason"] == (
+        "company_authored"
+    )
+    assert all(
+        not evidence_ids
+        for evidence_ids in manifest["eligible_evidence_ids_by_query_slot"].values()
+    )
+
+
+@pytest.mark.unit
 def test_trendnews_is_discovery_only_and_ablation_differs_only_by_x_rows():
     rows = [
         {"source": "globalnews", "external_id": "independent", "author": "Reuters",
@@ -1016,7 +1255,7 @@ def test_non_abstention_must_be_grounded_nonzero_and_sign_consistent(forecast_pa
 @pytest.mark.unit
 def test_content_ids_are_canonical():
     assert content_id({"a": 1, "b": 2}) == content_id({"b": 2, "a": 1})
-    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_485a418d45d44de9c0f45a94"
+    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_1b393c51cbc64acb34fa4014"
 
 
 @pytest.mark.unit

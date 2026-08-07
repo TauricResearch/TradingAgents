@@ -1,6 +1,9 @@
 """Immutable collection-cycle identities, child binding, and terminal manifests."""
 
+import os
 import sqlite3
+import time
+import uuid
 
 import pytest
 
@@ -281,5 +284,100 @@ def test_sqlalchemy_backend_has_collection_cycle_parity(tmp_path):
         assert cycle["status"] == "complete"
         assert cycle["manifest_valid"] is True
         assert {run["collection_cycle_id"] for run in store.fetch_runs()} == {cycle_id}
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+def test_postgres_cycle_binding_locks_only_mutable_cycle_parent(tmp_path):
+    from sqlalchemy.dialects import postgresql
+
+    store = SqlAlchemyMediaStore(f"sqlite+pysqlite:///{tmp_path / 'lock-scope.db'}")
+    cycle_id = f"cycle_{'a' * 24}"
+    statements = []
+
+    class _Result:
+        @staticmethod
+        def first():
+            return (cycle_id,)
+
+    class _Connection:
+        @staticmethod
+        def execute(statement):
+            statements.append(str(statement.compile(dialect=postgresql.dialect())))
+            return _Result()
+
+    try:
+        assert store._validate_cycle_fetch_binding(
+            _Connection(), cycle_id, "xtrend", "woeid:1", 1.0
+        ) == cycle_id
+    finally:
+        store.close()
+
+    sql = " ".join(statements[0].split())
+    assert "JOIN collection_cycle_slots" in sql
+    assert sql.endswith("FOR UPDATE OF collection_cycles")
+
+
+@pytest.mark.integration
+def test_postgres_ingest_role_can_start_cycle_bound_fetches():
+    """Regression: immutable slots need SELECT, not accidental row-lock authority."""
+    url = os.getenv("TRADINGAGENTS_TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TRADINGAGENTS_TEST_POSTGRES_URL is not configured")
+
+    suffix = uuid.uuid4().hex
+    started = time.time()
+    spec = collection_cycle_spec(
+        cycle_kind="x-daily",
+        period_key=f"runtime-lock-{suffix}",
+        protocol_id=f"protocol-{suffix}",
+        collector_semantics_id=f"collector-{suffix}",
+        expected_static_slots=[
+            ("trendnews", f"discovery-{suffix}"),
+            ("xtrend", f"woeid-{suffix}"),
+        ],
+        max_dynamic_slots=0,
+    )
+    store = SqlAlchemyMediaStore(url)
+    try:
+        cycle_id = store.start_collection_cycle(spec, started_utc=started)
+        free_run = store.start_fetch(
+            "trendnews",
+            f"discovery-{suffix}",
+            started + 1,
+            collection_cycle_id=cycle_id,
+        )
+        paid_run = store.start_budgeted_fetch(
+            "xtrend",
+            f"woeid-{suffix}",
+            started + 1,
+            collection_cycle_id=cycle_id,
+            budget_limits={f"integration-budget-{suffix}": 1.0},
+        )
+        assert paid_run is not None
+        store.finish_fetch(
+            free_run,
+            status="failed",
+            received_utc=started + 2,
+            completed_utc=started + 3,
+            item_count=0,
+            inserted_count=0,
+            error="integration_test_terminal",
+        )
+        store.finish_fetch(
+            paid_run,
+            status="failed",
+            received_utc=started + 2,
+            completed_utc=started + 3,
+            item_count=0,
+            inserted_count=0,
+            error="integration_test_terminal",
+            cost_units=1.0,
+        )
+        cycle = store.finish_collection_cycle(
+            cycle_id, completed_utc=started + 4
+        )
+        assert cycle["status"] == "incomplete"
     finally:
         store.close()

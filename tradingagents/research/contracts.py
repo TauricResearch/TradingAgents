@@ -51,6 +51,13 @@ def require_strict_evidence_availability(
         observed = _finite_number(row.get("fetched_utc"), "evidence fetched_utc")
         if observed >= cutoff_utc:
             raise ValueError("snapshot evidence was not observed strictly before cutoff")
+        latest_observed = row.get("latest_observed_utc")
+        if latest_observed is not None and _finite_number(
+            latest_observed, "evidence latest_observed_utc"
+        ) >= cutoff_utc:
+            raise ValueError(
+                "snapshot evidence latest observation was not strictly before cutoff"
+            )
         published = _finite_number(row.get("created_utc"), "evidence created_utc")
         if published >= cutoff_utc:
             raise ValueError("snapshot evidence was not published strictly before cutoff")

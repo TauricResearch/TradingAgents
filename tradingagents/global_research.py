@@ -627,10 +627,11 @@ def formal_evidence_ineligibility_reason(
         lookback = float(GLOBAL_EVENT_V2_PROTOCOL["evidence"]["lookback_days"] * 86400)
         if not math.isfinite(published) or not as_of_utc - lookback <= published <= as_of_utc:
             return "outside_frozen_lookback"
-        received = row.get("fetched_utc")
-        if isinstance(received, bool) or not isinstance(received, (int, float)) \
-                or not math.isfinite(float(received)) or float(received) > as_of_utc:
-            return "received_after_cutoff"
+        observation_reason = _observation_time_ineligibility_reason(
+            row, as_of_utc=float(as_of_utc)
+        )
+        if observation_reason is not None:
+            return observation_reason
     return None
 
 
@@ -639,6 +640,26 @@ def is_formally_eligible_evidence(
 ) -> bool:
     """Apply the frozen, fail-closed evidence boundary to one raw row."""
     return formal_evidence_ineligibility_reason(row, as_of_utc=as_of_utc) is None
+
+
+def _observation_time_ineligibility_reason(
+    row: dict, *, as_of_utc: float
+) -> str | None:
+    """Validate the strict point-in-time receipt contract for one row."""
+    received = row.get("fetched_utc")
+    if isinstance(received, bool) or not isinstance(received, (int, float)) \
+            or not math.isfinite(float(received)):
+        return "invalid_received_time"
+    received_value = float(received)
+    latest = row.get("latest_observed_utc", received_value)
+    if isinstance(latest, bool) or not isinstance(latest, (int, float)) \
+            or not math.isfinite(float(latest)):
+        return "invalid_observation_time"
+    if received_value >= float(as_of_utc):
+        return "received_after_cutoff"
+    if float(latest) >= float(as_of_utc):
+        return "observed_after_cutoff"
+    return None
 
 
 def _row_order_key(row: dict) -> tuple[float, str, str]:
@@ -653,6 +674,68 @@ def _row_order_key(row: dict) -> tuple[float, str, str]:
     )
 
 
+def _provider_item_identity(row: dict) -> tuple[object, object]:
+    """Group content vintages that came from one provider item."""
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    provider_external_id = (
+        metadata.get("provider_external_id")
+        if row.get("source") in {"globalnews", "trendnews"}
+        else None
+    )
+    return (
+        row.get("source"),
+        provider_external_id or row.get("external_id"),
+    )
+
+
+def _content_vintage_order_key(row: dict) -> tuple[int, float, float, str]:
+    """Prefer the latest database-observed rendering of a provider item."""
+    observed = row.get("latest_observed_utc")
+    observed_value = (
+        float(observed)
+        if isinstance(observed, (int, float))
+        and not isinstance(observed, bool)
+        and math.isfinite(float(observed))
+        else float("-inf")
+    )
+    fetched = row.get("fetched_utc")
+    fetched_value = (
+        float(fetched)
+        if isinstance(fetched, (int, float))
+        and not isinstance(fetched, bool)
+        and math.isfinite(float(fetched))
+        else float("-inf")
+    )
+    if row.get("latest_observed_utc_source") == "server_terminal_utc":
+        # Do not compare an authenticated database clock to app-worker time.
+        return 1, observed_value, 0.0, _raw_content_id(row)
+    return 0, observed_value, fetched_value, _raw_content_id(row)
+
+
+def _latest_content_vintages(
+    rows: list[dict], *, as_of_utc: float | None = None
+) -> list[dict]:
+    """Return one deterministic as-observed vintage per provider identity."""
+    if as_of_utc is not None and (
+        isinstance(as_of_utc, bool)
+        or not isinstance(as_of_utc, (int, float))
+        or not math.isfinite(float(as_of_utc))
+    ):
+        raise ValueError("formal evidence as-of time must be finite")
+    latest: dict[tuple[object, object], dict] = {}
+    for row in rows:
+        if as_of_utc is not None and _observation_time_ineligibility_reason(
+            row, as_of_utc=float(as_of_utc)
+        ) is not None:
+            continue
+        identity = _provider_item_identity(row)
+        current = latest.get(identity)
+        if current is None or _content_vintage_order_key(row) > \
+                _content_vintage_order_key(current):
+            latest[identity] = row
+    return list(latest.values())
+
+
 def partition_formal_evidence(
     rows: list[dict], *, as_of_utc: float | None = None
 ) -> tuple[list[dict], list[dict], list[dict]]:
@@ -663,7 +746,7 @@ def partition_formal_evidence(
     only by eligible X rows, rather than by an additional editorial-news set.
     """
     eligible = [
-        row for row in rows
+        row for row in _latest_content_vintages(rows, as_of_utc=as_of_utc)
         if is_formally_eligible_evidence(row, as_of_utc=as_of_utc)
     ]
     without_reaction = [
@@ -686,7 +769,10 @@ def prepare_evidence(rows: list[dict], *, limit: int = FORMAL_EVIDENCE_LIMIT) ->
         slot: [] for slot in FORMAL_GLOBALNEWS_QUERY_SLOTS
     }
     seen = set()
-    ordered = sorted(rows, key=_row_order_key, reverse=True)
+    # Google News cluster GUIDs are provider identities, not immutable content
+    # identities. The collector stores every rendering as a separate vintage;
+    # the point-in-time selector uses only the latest one observed by its cutoff.
+    ordered = sorted(_latest_content_vintages(rows), key=_row_order_key, reverse=True)
     for row in ordered:
         source = row.get("source")
         if not is_formally_eligible_evidence(row):
@@ -832,6 +918,13 @@ def evidence_selection_manifest(rows: list[dict], *, as_of_utc: float) -> dict:
             or not math.isfinite(float(as_of_utc)):
         raise ValueError("formal evidence as-of time must be finite")
     bucket_counts = _validate_history_bucket_counts(rows)
+    latest_vintage_markers = {
+        _provider_item_identity(row): (
+            row.get("external_id"),
+            _raw_content_id(row),
+        )
+        for row in _latest_content_vintages(rows, as_of_utc=as_of_utc)
+    }
     champion_rows, no_reaction_rows, public_rows = partition_formal_evidence(
         rows, as_of_utc=as_of_utc
     )
@@ -873,9 +966,17 @@ def evidence_selection_manifest(rows: list[dict], *, as_of_utc: float) -> dict:
         source = row.get("source")
         external_id = row.get("external_id")
         identity = (source, external_id)
+        raw_id = _raw_content_id(row)
         eligibility_reason = formal_evidence_ineligibility_reason(
             row, as_of_utc=as_of_utc
         )
+        superseded = (
+            eligibility_reason is None
+            and latest_vintage_markers.get(_provider_item_identity(row))
+            != (external_id, raw_id)
+        )
+        if superseded:
+            eligibility_reason = "superseded_content_vintage"
         reason = eligibility_reason
         evidence_id = _evidence_id(row)
         roles = (
@@ -912,12 +1013,15 @@ def evidence_selection_manifest(rows: list[dict], *, as_of_utc: float) -> dict:
         matching_x_topics = list(_matching_x_topics(row)) if source == "x" else []
         normalized_x_text = _normalized_x_text(row) if source == "x" else None
         candidates.append({
-            "raw_content_id": _raw_content_id(row),
+            "raw_content_id": raw_id,
             "evidence_id": evidence_id,
             "source": source,
             "external_id": external_id,
+            "provider_external_id": metadata.get("provider_external_id"),
+            "content_vintage_id": metadata.get("content_vintage_id"),
             "published_utc": row.get("created_utc"),
             "received_utc": row.get("fetched_utc"),
+            "latest_observed_utc": row.get("latest_observed_utc"),
             "publisher_or_author": row.get("author") or row.get("publisher_or_author"),
             "publisher_domain": metadata.get("publisher_domain")
             or row.get("publisher_domain"),

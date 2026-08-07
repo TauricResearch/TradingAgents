@@ -18,6 +18,7 @@ The keyless sources (stocktwits, reddit, bluesky, news) need no credentials.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import http.client
 import json
@@ -217,6 +218,55 @@ def _google_news_provenance(item) -> dict:
         ),
     }
     return {key: value for key, value in metadata.items() if value is not None}
+
+
+def _google_news_content_vintage(
+    provider_external_id: str,
+    *,
+    published_utc: float | None,
+    publisher: str,
+    title: str,
+    body: str,
+    provenance: dict,
+) -> tuple[str, dict]:
+    """Name one exact rendering of a mutable Google News cluster.
+
+    Google reuses a cluster GUID after changing publication time, publisher
+    display name, title, or description.  Treating that GUID as an immutable
+    row key makes one revised item abort an otherwise healthy query receipt.
+    Keep the GUID as provider lineage and use the exact normalized RSS
+    rendering as the stored content-vintage identity instead.
+    """
+    if not isinstance(provider_external_id, str) or not provider_external_id:
+        raise ValueError("Google News content requires a provider external ID")
+    projected_provenance = {
+        key: provenance.get(key)
+        for key in ("article_url", "publisher_domain")
+        if provenance.get(key) is not None
+    }
+    payload = {
+        "schema_version": 1,
+        "provider_external_id": provider_external_id,
+        "published_utc": published_utc,
+        "publisher": publisher,
+        "title": title,
+        "body": body,
+        "provenance": projected_provenance,
+    }
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    vintage_id = f"google_news_v1_{hashlib.sha256(encoded).hexdigest()[:24]}"
+    return vintage_id, {
+        **projected_provenance,
+        "provider_external_id": provider_external_id,
+        "content_vintage_id": vintage_id,
+        "content_vintage_schema_version": 1,
+    }
 
 
 def looks_company_authored(publisher: str | None, title: str | None) -> bool:
@@ -603,15 +653,28 @@ def fetch_top_news_headlines(limit_per_feed: int = 12,
             title = ((title_el.text if title_el is not None else "") or "").strip()
             if not ext_id or not title:
                 continue
+            body = _strip_html(desc_el.text if desc_el is not None else "")
+            published_utc = _rfc822_to_epoch(
+                date_el.text if date_el is not None else None
+            )
+            publisher = (
+                (source_el.text if source_el is not None else "") or ""
+            ).strip()
+            content_vintage_id, metadata = _google_news_content_vintage(
+                ext_id,
+                published_utc=published_utc,
+                publisher=publisher,
+                title=title,
+                body=body,
+                provenance=_google_news_provenance(item),
+            )
             headlines.append({
-                "external_id": ext_id,
+                "external_id": content_vintage_id,
                 "title": title,
-                "body": _strip_html(desc_el.text if desc_el is not None else ""),
-                "created_utc": _rfc822_to_epoch(
-                    date_el.text if date_el is not None else None
-                ),
-                "publisher": ((source_el.text if source_el is not None else "") or "").strip(),
-                "metadata": _google_news_provenance(item),
+                "body": body,
+                "created_utc": published_utc,
+                "publisher": publisher,
+                "metadata": metadata,
                 "category": category,
                 "region": region,
                 "rank": rank,
@@ -694,7 +757,8 @@ def fetch_global_news(query: str, now: float, theme: str,
 
     Stored in the shared ``media_posts`` table under ``source='globalnews'`` and
     a namespaced pseudo-ticker ``@<theme>`` so the backtest loader can pull a
-    theme's headline window the same way it pulls a ticker's. Dedup key: guid/link.
+    theme's headline window the same way it pulls a ticker's. The provider GUID
+    is retained in metadata while the row key identifies one exact content vintage.
     """
     url = _GLOBAL_NEWS_RSS.format(q=quote(query))
     req = Request(url, headers={"User-Agent": _UA})
@@ -722,13 +786,23 @@ def fetch_global_news(query: str, now: float, theme: str,
             continue
         publisher = ((source_el.text if source_el is not None else "") or "").strip()
         title = (title_el.text if title_el is not None else "") or ""
-        rows.append(_row(
-            "globalnews", ext_id, f"@{theme}", now,
-            author=publisher or None,
-            created_utc=_rfc822_to_epoch(date_el.text if date_el is not None else None),
+        body = _strip_html(desc_el.text if desc_el is not None else "")
+        published_utc = _rfc822_to_epoch(date_el.text if date_el is not None else None)
+        content_vintage_id, metadata = _google_news_content_vintage(
+            ext_id,
+            published_utc=published_utc,
+            publisher=publisher,
             title=title,
-            body=_strip_html(desc_el.text if desc_el is not None else ""),
-            metadata=_google_news_provenance(item),
+            body=body,
+            provenance=_google_news_provenance(item),
+        )
+        rows.append(_row(
+            "globalnews", content_vintage_id, f"@{theme}", now,
+            author=publisher or None,
+            created_utc=published_utc,
+            title=title,
+            body=body,
+            metadata=metadata,
         ))
     return rows
 

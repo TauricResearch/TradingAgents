@@ -129,12 +129,20 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
                 "polymarket", "trendnews", "x", "xtrend",
             ],
         },
-        "expected_collector_semantics_id": "collector_cf5b90da1cd4d7db969389ee",
+        "expected_collector_semantics_id": "collector_fa2421d5a25636de4f035323",
         # The earlier collector used the same economic query/filter policy but
         # hashed now-retired release-rehearsal helpers into its build identity.
         # Keep that exact pair readable so already-captured evidence is not
         # discarded; no other protocol/collector combination is accepted.
         "compatible_collector_identities": [
+            {
+                "protocol_id": "protocol_485a418d45d44de9c0f45a94",
+                "collector_semantics_id": "collector_cf5b90da1cd4d7db969389ee",
+                "reason": (
+                    "pre-content-vintage collector retained only when its exact "
+                    "immutable receipt and per-item content lineage verifies"
+                ),
+            },
             {
                 "protocol_id": "protocol_7382464b4f6a755d767f2699",
                 "collector_semantics_id": "collector_aec83e329b85d5bf8654b2eb",
@@ -142,10 +150,28 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
             }
         ],
         "fetch_receipt_evidence_lineage": {
-            "version": "atomic-provider-snapshot-content-v2",
+            "version": "atomic-provider-snapshot-content-v3",
             "persisted_item_lineage": "every stored media response item",
             "formal_projection_providers": ["globalnews", "trendnews", "x"],
-            "evidence_id": "sha256 content ID of source and external_id",
+            "google_news_content_vintages": (
+                "retain the mutable Google cluster GUID as provider_external_id; "
+                "store each exact normalized RSS rendering under a deterministic "
+                "content-vintage external_id and select the latest successfully "
+                "committed vintage available at the cutoff"
+            ),
+            "identical_response_duplicates": (
+                "collapse an exact repeated content identity to one receipt item while "
+                "retaining the union of its topic/ticker label associations; reject "
+                "different raw content under one identity"
+            ),
+            "latest_vintage_observation": (
+                "order repeated content vintages by the latest successful fetch receipt "
+                "server_terminal_utc at the cutoff, with media observation time only "
+                "for direct or legacy rows that lack receipt lineage"
+            ),
+            "evidence_id": (
+                "sha256 content ID of source and stored content-vintage external_id"
+            ),
             "raw_content_id": (
                 "sha256 content ID of canonical provider snapshot content/provenance; "
                 "receipt time and storage-derived labels are excluded"

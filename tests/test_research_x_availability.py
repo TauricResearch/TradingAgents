@@ -37,22 +37,29 @@ def _spec() -> dict:
     )
 
 
-def _legacy_spec() -> dict:
+def _compatible_specs() -> list[dict]:
     primary = _spec()["identity"]
-    compatible = GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+    compatible_identities = GLOBAL_EVENT_V2_PROTOCOL["evidence"][
         "compatible_collector_identities"
-    ][0]
-    return collection_cycle_spec(
-        cycle_kind=primary["cycle_kind"],
-        period_key=primary["period_key"],
-        protocol_id=compatible["protocol_id"],
-        collector_semantics_id=compatible["collector_semantics_id"],
-        expected_static_slots=[
-            (slot["provider"], slot["query_key"])
-            for slot in primary["expected_static_slots"]
-        ],
-        max_dynamic_slots=primary["max_dynamic_slots"],
-    )
+    ]
+    return [
+        collection_cycle_spec(
+            cycle_kind=primary["cycle_kind"],
+            period_key=primary["period_key"],
+            protocol_id=compatible["protocol_id"],
+            collector_semantics_id=compatible["collector_semantics_id"],
+            expected_static_slots=[
+                (slot["provider"], slot["query_key"])
+                for slot in primary["expected_static_slots"]
+            ],
+            max_dynamic_slots=primary["max_dynamic_slots"],
+        )
+        for compatible in compatible_identities
+    ]
+
+
+def _legacy_spec() -> dict:
+    return _compatible_specs()[0]
 
 
 def _x_row(external_id: str, *, age_seconds: int = 900) -> dict:
@@ -195,7 +202,7 @@ def test_missing_x_cycle_is_explicit_and_preserves_news():
     assert rows == [news]
     assert store.requested_cycle_ids == [
         _spec()["collection_cycle_id"],
-        _legacy_spec()["collection_cycle_id"],
+        *(spec["collection_cycle_id"] for spec in _compatible_specs()),
     ]
 
 

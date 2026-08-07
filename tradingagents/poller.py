@@ -91,7 +91,7 @@ _GLOBAL_ONLY_X_INTERVAL_SECONDS = int(
 )
 # Filled with the content-derived value after the V1 surface was finalized.
 # Any semantic helper change must deliberately bump the policy version and ID.
-_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_cf5b90da1cd4d7db969389ee"
+_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_fa2421d5a25636de4f035323"
 
 
 # Topic discovery is deliberately entity-agnostic. It starts from ranked news
@@ -276,6 +276,7 @@ def collector_semantics_manifest() -> dict:
         "normalize_public_url": media_sources.normalize_public_url,
         "publisher_domain": media_sources.publisher_domain,
         "google_news_provenance": media_sources._google_news_provenance,
+        "google_news_content_vintage": media_sources._google_news_content_vintage,
         "company_authorship_classifier": media_sources.looks_company_authored,
         "automation_risk": media_sources._automation_risk,
         "x_search": media_sources._fetch_x_search,
@@ -303,6 +304,7 @@ def collector_semantics_manifest() -> dict:
         "formal_editorial_boundary": global_research.is_independent_editorial_evidence,
         "formal_ineligibility": global_research.formal_evidence_ineligibility_reason,
         "formal_eligibility": is_formally_eligible_evidence,
+        "identical_fetch_item_collapse": _collapse_identical_fetch_rows,
         "fetch_receipt_pipeline": _run_fetch,
         "globalnews_retry_orchestration": _run_globalnews_query,
         "collection_cycle_spec": media_store.collection_cycle_spec,
@@ -456,6 +458,57 @@ def _check_cycle_query_coverage(
     return coverage
 
 
+def _collapse_identical_fetch_rows(rows: list[dict], provider: str) -> list[dict]:
+    """Collapse repeated identities while retaining every label association.
+
+    Ranked discovery can assign one exact headline to more than one topic. A
+    fetch receipt has one lineage row per content identity, so exact duplicates
+    become one item whose normalized labels include every topic/ticker. A
+    reused identity with different content remains a hard failure.
+    """
+    collapsed: dict[tuple[object, object], dict] = {}
+    fingerprints: dict[tuple[object, object], str] = {}
+    associations: dict[tuple[object, object], set[str]] = {}
+    tickers: dict[tuple[object, object], set[str]] = {}
+    for row in rows:
+        identity = (row.get("source"), row.get("external_id"))
+        fingerprint = _raw_content_id(row)
+        if identity in fingerprints and (
+            fingerprints[identity] != fingerprint
+            or media_store._media_rows_conflict(collapsed[identity], row)
+        ):
+            raise ValueError(
+                f"{provider} fetcher returned conflicting duplicate provenance"
+            )
+        fingerprints.setdefault(identity, fingerprint)
+        collapsed.setdefault(identity, dict(row))
+        label_values = row.get("labels") or []
+        if not isinstance(label_values, (list, tuple, set)):
+            raise ValueError(f"{provider} fetcher returned invalid media labels")
+        ticker = row.get("ticker")
+        if not isinstance(ticker, str) or not ticker.strip():
+            raise ValueError(f"{provider} fetcher returned an invalid media ticker")
+        normalized_ticker = ticker.strip().upper()
+        tickers.setdefault(identity, set()).add(normalized_ticker)
+        normalized_labels = associations.setdefault(identity, set())
+        normalized_labels.add(normalized_ticker)
+        for label in label_values:
+            if not isinstance(label, str) or not label.strip():
+                raise ValueError(f"{provider} fetcher returned invalid media labels")
+            normalized_labels.add(label.strip().upper())
+    normalized = []
+    for identity, row in collapsed.items():
+        row["ticker"] = min(tickers[identity])
+        row["labels"] = sorted(associations[identity])
+        metadata = row.get("metadata")
+        row["metadata"] = {
+            **(metadata if isinstance(metadata, dict) else {}),
+            "receipt_labels": list(row["labels"]),
+        }
+        normalized.append(row)
+    return normalized
+
+
 def _run_fetch(
     store, *, provider: str, query_key: str, fetch_fn,
     labels: list[str] | None = None, odds: bool = False, cost_units: float = 0.0,
@@ -517,15 +570,7 @@ def _run_fetch(
                 {**row, "fetched_utc": received, **({"labels": labels} if labels else {})}
                 for row in rows
             ]
-            fingerprints: dict[tuple[object, object], str] = {}
-            for row in rows:
-                identity = (row.get("source"), row.get("external_id"))
-                fingerprint = _raw_content_id(row)
-                if identity in fingerprints and fingerprints[identity] != fingerprint:
-                    raise ValueError(
-                        f"{provider} fetcher returned conflicting duplicate provenance"
-                    )
-                fingerprints.setdefault(identity, fingerprint)
+            rows = _collapse_identical_fetch_rows(rows, provider)
             if formal_eligibility_fn is not None:
                 formal_eligible_evidence_ids = sorted({
                     _evidence_id(row)
@@ -534,7 +579,11 @@ def _run_fetch(
                         provider != "globalnews"
                         or query_key in _formal_query_slots(row)
                     )
-                    and formal_eligibility_fn(row, received)
+                    # Decision cutoffs are strict. For this receipt's own
+                    # content projection, admit the exact response timestamp.
+                    and formal_eligibility_fn(
+                        row, math.nextafter(received, math.inf)
+                    )
                 })
                 formal_eligible_item_count = len(formal_eligible_evidence_ids)
         status = "success" if rows else "empty"
