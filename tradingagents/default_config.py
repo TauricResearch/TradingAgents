@@ -19,6 +19,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
+    # Resilience net: if the primary provider errors out (rate-limited, down,
+    # model deprecated), retry against this provider+model instead of failing
+    # the run. Both must be set together; unset disables it entirely.
+    "TRADINGAGENTS_LLM_FALLBACK_PROVIDER": "llm_fallback_provider",
+    "TRADINGAGENTS_LLM_FALLBACK_MODEL":    "llm_fallback_model",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -100,6 +105,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # provider/SDK at its own default (usually 2). Raise it to ride out bursty
     # 429 throttling on rate-limited deployments instead of aborting a run (#1091).
     "llm_max_retries": None,
+    # Resilience fallback: if the primary provider errors out, retry against
+    # this provider+model rather than failing the run. Both keys must be set
+    # together; either alone is treated as unset. Typically a second free tier
+    # or a local Ollama model — on 2026-08-06 an exhausted weekly cap errored
+    # 3 of 4 scheduled runs with no net beneath them.
+    "llm_fallback_provider": None,
+    "llm_fallback_model": None,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

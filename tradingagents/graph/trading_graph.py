@@ -41,6 +41,47 @@ from .reflection import Reflector
 from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
+logger_fallback = logging.getLogger(__name__)
+
+
+def _apply_llm_fallback(config: dict, deep_llm, quick_llm):
+    """Wrap both LLM tiers in a resilience fallback. Returns (deep, quick).
+
+    A single provider outage — a 429 on a free tier, a deprecated model, a
+    regional blip — otherwise kills an unattended scheduled run outright.
+    This is exactly what happened on 2026-08-06, when the Ollama cloud weekly
+    cap errored 3 of 4 runs and the assistant sat idle.
+
+    Both keys must be set; a provider with no model (or the reverse) is a
+    half-configured net and is treated as no net at all rather than guessed
+    at. Both tiers share ONE fallback client — a resilience net does not need
+    its own quick/deep quality split, and sharing keeps the failure surface
+    small.
+    """
+    provider = config.get("llm_fallback_provider")
+    model = config.get("llm_fallback_model")
+    if not provider or not model:
+        return deep_llm, quick_llm
+
+    kwargs: dict[str, Any] = {}
+    temperature = config.get("temperature")
+    if temperature is not None and temperature != "":
+        # Env vars arrive as strings; the provider clients expect a float.
+        kwargs["temperature"] = float(temperature)
+
+    try:
+        fallback = create_llm_client(provider=provider, model=model, **kwargs).get_llm()
+    except Exception:
+        # A broken fallback must never take the primary path down with it.
+        logger_fallback.warning(
+            "LLM fallback %s/%s could not be constructed; continuing without it",
+            provider, model, exc_info=True,
+        )
+        return deep_llm, quick_llm
+
+    logger_fallback.info("LLM fallback armed: %s/%s", provider, model)
+    return deep_llm.with_fallbacks([fallback]), quick_llm.with_fallbacks([fallback])
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,8 +152,9 @@ class TradingAgentsGraph:
             **llm_kwargs,
         )
 
-        self.deep_thinking_llm = deep_client.get_llm()
-        self.quick_thinking_llm = quick_client.get_llm()
+        self.deep_thinking_llm, self.quick_thinking_llm = _apply_llm_fallback(
+            self.config, deep_client.get_llm(), quick_client.get_llm()
+        )
 
         self.memory_log = TradingMemoryLog(self.config)
 
