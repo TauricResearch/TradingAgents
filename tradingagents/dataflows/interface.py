@@ -33,6 +33,32 @@ from .yfinance_news import get_global_news_yfinance, get_news_yfinance
 
 logger = logging.getLogger(__name__)
 
+# Vendor provenance: the most recent successful (method -> vendor, skipped)
+# resolution per method. The CLI reads this after a run to show which vendor
+# actually served core stock data / indicators, and whether a configured
+# primary (e.g. Schwab) was silently skipped in favor of a fallback (#988).
+# In-process only; not thread-safe by design (agents run sequentially per run).
+_last_served_vendor: dict[str, dict[str, object]] = {}
+
+
+def _record_served(method: str, vendor: str, skipped: tuple[str, ...]) -> None:
+    _last_served_vendor[method] = {"vendor": vendor, "skipped": skipped}
+
+
+def get_last_served_vendors() -> dict[str, dict[str, object]]:
+    """Return a copy of the per-method vendor-provenance record.
+
+    Maps each method that has served at least once to
+    ``{"vendor": <name>, "skipped": (<reasons>,)}``. Empty before any routed
+    call. Used by the CLI to surface the real data source and any fallback.
+    """
+    return {k: dict(v) for k, v in _last_served_vendor.items()}
+
+
+def reset_served_vendors() -> None:
+    """Clear the provenance record (used by tests for isolation)."""
+    _last_served_vendor.clear()
+
 # Tools organized by category
 TOOLS_CATEGORIES = {
     "core_stock_apis": {
@@ -198,28 +224,47 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     last_no_data: NoMarketDataError | None = None
     first_error: Exception | None = None
+    fallback_reasons: list[str] = []
     for vendor in vendor_chain:
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            return impl_func(*args, **kwargs)
+            result = impl_func(*args, **kwargs)
+            # Success. Record provenance so callers (and the CLI) can show which
+            # vendor actually served the request, and whether a primary was
+            # skipped (#988 confusion: "am I actually using Schwab?"). A
+            # first-choice hit logs quietly at info level; a fallback logs the
+            # skipped vendors so a silent degrade to yfinance becomes visible.
+            _record_served(method, vendor, tuple(fallback_reasons))
+            if fallback_reasons:
+                logger.info(
+                    "Served %s via fallback vendor %r (skipped: %s).",
+                    method, vendor, ", ".join(fallback_reasons),
+                )
+            else:
+                logger.info("Served %s via vendor %r.", method, vendor)
+            return result
         except VendorRateLimitError:
             logger.warning("Vendor %r rate-limited for %s; trying next vendor.", vendor, method)
+            fallback_reasons.append(f"{vendor}=rate_limited")
             continue
         except VendorNotConfiguredError as e:
             logger.warning("Vendor %r not configured for %s; trying next vendor.", vendor, method)
+            fallback_reasons.append(f"{vendor}=not_configured")
             if first_error is None:
                 first_error = e  # Surface it if no other vendor can serve the call.
             continue
         except NoMarketDataError as e:
             last_no_data = e  # No data here; another configured vendor may have it
+            fallback_reasons.append(f"{vendor}=no_data")
             continue
         except Exception as e:
             # Don't let one vendor's failure crash the call when another can
             # serve it, but never swallow silently: a broken primary must be
             # visible in the logs (#989), not hidden behind a fallback's verdict.
             logger.warning("Vendor %r failed for %s: %s", vendor, method, e)
+            fallback_reasons.append(f"{vendor}=error")
             if first_error is None:
                 first_error = e
             continue

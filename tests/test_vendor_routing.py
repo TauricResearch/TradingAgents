@@ -118,6 +118,43 @@ class VendorRoutingTests(unittest.TestCase):
                 self.assertRaises(ValueError):
             interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
 
+    def test_provenance_records_first_choice_vendor(self):
+        # A first-choice hit records the serving vendor with no skipped list, so
+        # the CLI can confirm "you're actually using this vendor".
+        interface.reset_served_vendors()
+        set_config({"data_vendors": {"core_stock_apis": "yfinance"}})
+        with self._route({"yfinance": _returns("YF_DATA")}):
+            interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+        record = interface.get_last_served_vendors()["get_stock_data"]
+        self.assertEqual(record["vendor"], "yfinance")
+        self.assertEqual(record["skipped"], ())
+
+    def test_provenance_records_fallback_with_reason(self):
+        # A silent degrade (Schwab-style primary skipped -> yfinance served) must
+        # be recorded with the skipped primary + reason (#988).
+        interface.reset_served_vendors()
+        from tradingagents.dataflows.errors import VendorNotConfiguredError
+        set_config({"data_vendors": {"core_stock_apis": "alpha_vantage,yfinance"}})
+        with self._route({
+            "alpha_vantage": _raises(VendorNotConfiguredError("alpha_vantage")),
+            "yfinance": _returns("YF_DATA"),
+        }):
+            result = interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+        self.assertEqual(result, "YF_DATA")
+        record = interface.get_last_served_vendors()["get_stock_data"]
+        self.assertEqual(record["vendor"], "yfinance")
+        self.assertEqual(record["skipped"], ("alpha_vantage=not_configured",))
+
+    def test_provenance_logs_info_on_success(self):
+        interface.reset_served_vendors()
+        set_config({"data_vendors": {"core_stock_apis": "yfinance"}})
+        with self._route({"yfinance": _returns("YF_DATA")}), \
+                self.assertLogs("tradingagents.dataflows.interface", level="INFO") as cm:
+            interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+        self.assertIn("Served get_stock_data via vendor 'yfinance'", "\n".join(cm.output))
+
 
 if __name__ == "__main__":
     unittest.main()
