@@ -100,10 +100,12 @@ lineage at a declared decision cutoff.
 
 A snapshot is useful only if it can be reconstructed without asking a live
 provider what used to be present. Historical provider IDs alone are not enough.
-When a source edits an item, the long-term design must retain the old text as a
-new content vintage. The current store is stronger at detecting changed content
-than at preserving every revision, so full bitemporal revision history remains
-work to do.
+For Google News, each exact RSS rendering is therefore stored under a stable
+content-vintage ID while retaining the provider cluster ID for grouping. Snapshot
+selection uses the latest database-observed eligible vintage at the cutoff and
+keeps superseded revisions in append-only lineage. This protects the collected
+news path from provider edits; it does not claim that every external source has a
+general-purpose bitemporal API.
 
 ### 3. Decide offline and outcome-blind
 
