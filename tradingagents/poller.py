@@ -93,6 +93,14 @@ _GLOBAL_ONLY_X_INTERVAL_SECONDS = int(
 # Any semantic helper change must deliberately bump the policy version and ID.
 _EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_fa2421d5a25636de4f035323"
 
+# Coverage alerts are operational state, separate from the immutable evidence
+# ledger. Repeated identical incidents get one notification plus a daily reminder;
+# a transition back to complete coverage emits one recovery notification.
+_COVERAGE_ALERT_STATE_KEY = "poller:coverage_alert_unhealthy"
+_COVERAGE_ALERT_LAST_UTC_KEY = "poller:coverage_alert_last_utc"
+_COVERAGE_ALERT_FINGERPRINT_KEY = "poller:coverage_alert_fingerprint"
+_COVERAGE_ALERT_REMINDER_SECONDS = 24 * 60 * 60
+
 
 # Topic discovery is deliberately entity-agnostic. It starts from ranked news
 # feeds and live trends instead of a watchlist of companies, politicians, or
@@ -267,6 +275,59 @@ def _sanitized_coverage_alert_details(coverage: dict) -> dict:
         "slots": slots,
         "slots_truncated": max(0, len(missing) - len(slots)),
     }
+
+
+def _coverage_alert_fingerprint(details: dict) -> float:
+    """Encode a stable incident identity in the store's numeric metadata type."""
+    digest = hashlib.sha256(canonical_json(details).encode("utf-8")).hexdigest()
+    # Twelve hex characters fit exactly in an IEEE-754 double, which is the
+    # common representation used by both poll-state backends.
+    return float(int(digest[:12], 16))
+
+
+def _update_coverage_alert_state(
+    store, *, coverage: dict, observed_utc: float,
+) -> None:
+    """Notify on coverage transitions, changed incidents, and daily reminders."""
+    previously_unhealthy = store.get_meta(_COVERAGE_ALERT_STATE_KEY) == 1.0
+    if coverage["complete"]:
+        delivered_incident = store.get_meta(_COVERAGE_ALERT_FINGERPRINT_KEY)
+        if previously_unhealthy and delivered_incident not in {None, 0.0}:
+            recovered = emit_alert(
+                "collector",
+                "query_slot_coverage_recovered",
+                severity="info",
+                details={
+                    "expected_query_slot_count": len(coverage.get("query_slots") or []),
+                    "missing_query_slot_count": 0,
+                },
+            )
+            if not recovered:
+                return
+        store.set_meta(_COVERAGE_ALERT_STATE_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_FINGERPRINT_KEY, 0.0)
+        return
+
+    details = _sanitized_coverage_alert_details(coverage)
+    fingerprint = _coverage_alert_fingerprint(details)
+    prior_fingerprint = store.get_meta(_COVERAGE_ALERT_FINGERPRINT_KEY)
+    last_alert_utc = store.get_meta(_COVERAGE_ALERT_LAST_UTC_KEY)
+    reminder_due = last_alert_utc is None or (
+        observed_utc - float(last_alert_utc) >= _COVERAGE_ALERT_REMINDER_SECONDS
+    )
+    if not previously_unhealthy or prior_fingerprint != fingerprint or reminder_due:
+        delivered = emit_alert(
+            "collector",
+            "query_slot_coverage_incomplete",
+            severity="warning",
+            details=details,
+        )
+        # A failed webhook delivery must be retried on the next collection cycle
+        # instead of being suppressed for a full reminder interval.
+        if delivered:
+            store.set_meta(_COVERAGE_ALERT_LAST_UTC_KEY, observed_utc)
+            store.set_meta(_COVERAGE_ALERT_FINGERPRINT_KEY, fingerprint)
+    store.set_meta(_COVERAGE_ALERT_STATE_KEY, 1.0)
 
 
 @lru_cache(maxsize=1)
@@ -449,12 +510,9 @@ def _check_cycle_query_coverage(
     )
     heartbeat = "poller:last_success_utc" if coverage["complete"] else "poller:last_failure_utc"
     store.set_meta(heartbeat, cycle_completed_utc)
-    if not coverage["complete"]:
-        emit_alert(
-            "collector",
-            "query_slot_coverage_incomplete",
-            details=_sanitized_coverage_alert_details(coverage),
-        )
+    _update_coverage_alert_state(
+        store, coverage=coverage, observed_utc=cycle_completed_utc
+    )
     return coverage
 
 
@@ -1540,12 +1598,19 @@ def _x_cycle_audit_projection(store, period_date) -> dict:
     }
 
 
-def print_audit(store) -> None:
+def print_audit(store, *, include_history: bool = False) -> None:
+    """Print current collector health and, when requested, immutable history."""
     now = datetime.now(timezone.utc).timestamp()
     expected_slots = _globalnews_query_slots(_global_only_news_themes())
+    query_cycle = GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"]
+    max_age_seconds = float(
+        query_cycle["collector_interval_seconds"]
+        + query_cycle["cycle_start_grace_seconds"]
+    )
     coverage = store.coverage_report(
         now,
         GLOBAL_EVENT_V2_PROTOCOL["evidence"]["required_source_groups"],
+        max_age_seconds=max_age_seconds,
         expected_query_slots=expected_slots,
         require_lineage_query_slots=expected_slots,
     )
@@ -1561,13 +1626,20 @@ def print_audit(store) -> None:
         print(f"collector_x_{label}_trend_requests={x_cycle['trend_requests']}")
         print(f"collector_x_{label}_search_requests={x_cycle['search_requests']}")
         print(f"collector_x_{label}_posts_returned={x_cycle['posts_returned']}")
-    for run in store.fetch_runs(limit=25):
-        when = datetime.fromtimestamp(run["started_utc"], timezone.utc).isoformat()
+    if include_history:
+        print("collector_immutable_receipt_history_begin")
         print(
-            f"{when} {run['provider']} {run['status']} items={run['item_count']} "
-            f"inserted={run['inserted_count']} cost_units={run['cost_units']} "
-            f"query={run['query_key']}"
+            "collector_immutable_receipt_history_note="
+            "historical_receipts_do_not_override_current_health"
         )
+        for run in store.fetch_runs(limit=25):
+            when = datetime.fromtimestamp(run["started_utc"], timezone.utc).isoformat()
+            print(
+                f"{when} {run['provider']} {run['status']} items={run['item_count']} "
+                f"inserted={run['inserted_count']} cost_units={run['cost_units']} "
+                f"query={run['query_key']}"
+            )
+        print("collector_immutable_receipt_history_end")
 
 
 def _store_log_label(configured_url: str | None) -> str:
@@ -1627,7 +1699,12 @@ def _build_parser(env: Mapping[str, str] | None = None) -> argparse.ArgumentPars
                         "By default the daemon polls only during the extended US session "
                         "(04:00–20:00 ET) on NYSE trading days (env: MEDIA_POLLER_TRADING_HOURS).")
     p.add_argument("--stats", action="store_true", help="Print collection stats and exit")
-    p.add_argument("--audit", action="store_true", help="Print fetch receipts/coverage and exit")
+    p.add_argument("--audit", action="store_true", help="Print current collector health and exit")
+    p.add_argument(
+        "--audit-history",
+        action="store_true",
+        help="Print current health plus clearly delimited immutable recent receipts and exit",
+    )
     p.add_argument(
         "--test-alert",
         action="store_true",
@@ -1666,7 +1743,7 @@ def _collection_enabled(env: Mapping[str, str]) -> bool:
 
 
 def _inspection_command(args) -> bool:
-    return bool(args.stats or args.audit or args.window)
+    return bool(args.stats or args.audit or args.audit_history or args.window)
 
 
 def _run_inspection(args) -> None:
@@ -1674,8 +1751,8 @@ def _run_inspection(args) -> None:
     try:
         if args.stats:
             print_stats(store)
-        elif args.audit:
-            print_audit(store)
+        elif args.audit or args.audit_history:
+            print_audit(store, include_history=args.audit_history)
         else:
             end = args.end or datetime.now(timezone.utc).strftime("%Y-%m-%d")
             print_window(store, args.window, end, args.days)
@@ -1687,7 +1764,7 @@ def _run_alert_test(parser: argparse.ArgumentParser) -> None:
     delivered = emit_alert(
         "collector",
         "delivery_test",
-        severity="warning",
+        severity="info",
         details={
             "schema_version": 1,
             "collector_policy": _GLOBAL_ONLY_COLLECTOR_POLICY,

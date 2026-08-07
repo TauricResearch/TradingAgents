@@ -492,6 +492,7 @@ def test_cycle_alerts_for_each_missing_query_slot_without_leaking_payloads(
     assert len(alerts) == 1
     component, event, kwargs = alerts[0]
     assert (component, event) == ("collector", "query_slot_coverage_incomplete")
+    assert kwargs["severity"] == "warning"
     assert kwargs["details"]["expected_query_slot_count"] == 2
     assert kwargs["details"]["missing_query_slot_count"] == 1
     assert kwargs["details"]["reason_counts"] == {"failed": 1}
@@ -503,6 +504,171 @@ def test_cycle_alerts_for_each_missing_query_slot_without_leaking_payloads(
     assert sensitive_query not in caplog.text
     assert secret_url not in caplog.text
     assert "secret-provider-token" not in caplog.text
+    store.close()
+
+
+@pytest.mark.unit
+def test_coverage_alerts_on_transition_change_reminder_and_recovery(
+    tmp_path, monkeypatch,
+):
+    store = SqliteMediaStore(tmp_path / "m.db")
+    alerts = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda component, event, **kwargs: alerts.append(
+            (component, event, kwargs)
+        ) or True,
+    )
+    incomplete = {
+        "complete": False,
+        "query_slots": [{"provider": "globalnews", "query_key": "world"}],
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "failed"}
+        ],
+        "missing_source_groups": [],
+    }
+
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=100.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=200.0
+    )
+    assert [event for _, event, _ in alerts] == [
+        "query_slot_coverage_incomplete"
+    ]
+
+    changed = {
+        **incomplete,
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "empty"}
+        ],
+    }
+    poller._update_coverage_alert_state(
+        store, coverage=changed, observed_utc=300.0
+    )
+    poller._update_coverage_alert_state(
+        store,
+        coverage=changed,
+        observed_utc=300.0 + poller._COVERAGE_ALERT_REMINDER_SECONDS,
+    )
+    complete = {
+        "complete": True,
+        "query_slots": incomplete["query_slots"],
+        "missing_query_slots": [],
+        "missing_source_groups": [],
+    }
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=90_000.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=90_100.0
+    )
+
+    assert [event for _, event, _ in alerts] == [
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_recovered",
+    ]
+    assert [kwargs["severity"] for _, _, kwargs in alerts] == [
+        "warning", "warning", "warning", "info"
+    ]
+    store.close()
+
+
+@pytest.mark.unit
+def test_coverage_alert_retries_after_webhook_delivery_failure(tmp_path, monkeypatch):
+    store = SqliteMediaStore(tmp_path / "m.db")
+    delivered = iter([False, True])
+    alerts = []
+
+    def capture(component, event, **kwargs):
+        alerts.append((component, event, kwargs))
+        return next(delivered)
+
+    monkeypatch.setattr(poller, "emit_alert", capture)
+    incomplete = {
+        "complete": False,
+        "query_slots": [{"provider": "globalnews", "query_key": "world"}],
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "failed"}
+        ],
+        "missing_source_groups": [],
+    }
+
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=100.0
+    )
+    poller._update_coverage_alert_state(
+        store,
+        coverage={**incomplete, "complete": True, "missing_query_slots": []},
+        observed_utc=150.0,
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=200.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=300.0
+    )
+
+    assert [event for _, event, _ in alerts] == [
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_incomplete",
+    ]
+    assert store.get_meta(poller._COVERAGE_ALERT_LAST_UTC_KEY) == 200.0
+    store.close()
+
+
+@pytest.mark.unit
+def test_coverage_recovery_retries_only_after_a_delivered_incident(
+    tmp_path, monkeypatch,
+):
+    store = SqliteMediaStore(tmp_path / "m.db")
+    deliveries = iter([True, False, True])
+    events = []
+
+    def capture(_component, event, **_kwargs):
+        events.append(event)
+        return next(deliveries)
+
+    monkeypatch.setattr(poller, "emit_alert", capture)
+    incomplete = {
+        "complete": False,
+        "query_slots": [{"provider": "globalnews", "query_key": "world"}],
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "failed"}
+        ],
+        "missing_source_groups": [],
+    }
+    complete = {
+        **incomplete,
+        "complete": True,
+        "missing_query_slots": [],
+    }
+
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=100.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=200.0
+    )
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 1.0
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=300.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=400.0
+    )
+
+    assert events == [
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_recovered",
+        "query_slot_coverage_recovered",
+    ]
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
+    assert store.get_meta(poller._COVERAGE_ALERT_FINGERPRINT_KEY) == 0.0
     store.close()
 
 
@@ -562,7 +728,7 @@ def test_collector_audit_requires_all_ten_globalnews_slots(capsys):
             }
 
         def fetch_runs(self, limit):
-            return []
+            pytest.fail("current-health audit must not read historical receipts")
 
         def collection_cycle(self, _cycle_id):
             return None
@@ -571,10 +737,86 @@ def test_collector_audit_requires_all_ten_globalnews_slots(capsys):
 
     output = capsys.readouterr().out
     assert captured["kwargs"]["expected_query_slots"] == expected
+    assert captured["kwargs"]["max_age_seconds"] == 4500.0
     assert "collector_expected_query_slots=10" in output
     assert "collector_missing_query_slots=10" in output
     assert "collector_x_current_state=missing" in output
     assert "collector_x_prior_state=missing" in output
+    assert "collector_immutable_receipt_history" not in output
+
+
+@pytest.mark.unit
+def test_collector_audit_history_is_opt_in_and_clearly_delimited(capsys):
+    expected = poller._globalnews_query_slots(poller._global_only_news_themes())
+
+    class AuditStore:
+        def coverage_report(self, cutoff, groups, **kwargs):
+            return {
+                "complete": True,
+                "query_slots": [
+                    {"provider": provider, "query_key": query}
+                    for provider, query in kwargs["expected_query_slots"]
+                ],
+                "missing_query_slots": [],
+            }
+
+        def fetch_runs(self, limit):
+            assert limit == 25
+            return [{
+                "started_utc": 100.0,
+                "provider": "globalnews",
+                "status": "failed",
+                "item_count": 0,
+                "inserted_count": 0,
+                "cost_units": 0.0,
+                "query_key": expected[0][1],
+            }]
+
+        def collection_cycle(self, _cycle_id):
+            return None
+
+    poller.print_audit(AuditStore(), include_history=True)
+
+    output = capsys.readouterr().out
+    begin = output.index("collector_immutable_receipt_history_begin")
+    note = output.index(
+        "collector_immutable_receipt_history_note="
+        "historical_receipts_do_not_override_current_health"
+    )
+    receipt = output.index("globalnews failed items=0")
+    end = output.index("collector_immutable_receipt_history_end")
+    assert begin < note < receipt < end
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("flag", "include_history"),
+    [("--audit", False), ("--audit-history", True)],
+)
+def test_collector_audit_cli_selects_history_explicitly(
+    monkeypatch, flag, include_history,
+):
+    class Store:
+        def close(self):
+            return None
+
+    store = Store()
+    calls = []
+    monkeypatch.setattr(poller, "open_store", lambda _db: store)
+    monkeypatch.setattr(
+        poller,
+        "print_audit",
+        lambda selected, **kwargs: calls.append((selected, kwargs)),
+    )
+    monkeypatch.setattr(
+        poller,
+        "print_stats",
+        lambda *_args, **_kwargs: pytest.fail("audit command printed stats"),
+    )
+
+    poller.main([flag])
+
+    assert calls == [(store, {"include_history": include_history})]
 
 
 @pytest.mark.unit
@@ -681,7 +923,7 @@ def test_alert_test_has_no_database_or_provider_access(monkeypatch, capsys):
         "collector",
         "delivery_test",
         {
-            "severity": "warning",
+            "severity": "info",
             "details": {
                 "schema_version": 1,
                 "collector_policy": "global-only-editorial-and-trend-reaction-v1",

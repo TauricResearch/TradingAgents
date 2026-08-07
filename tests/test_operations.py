@@ -9,6 +9,27 @@ from tradingagents import operations
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("severity", "expected_level"),
+    [
+        ("info", logging.INFO),
+        ("warning", logging.WARNING),
+        ("error", logging.ERROR),
+        ("critical", logging.ERROR),
+    ],
+)
+def test_alert_log_level_matches_payload_severity(
+    monkeypatch, caplog, severity, expected_level,
+):
+    monkeypatch.delenv("TRADINGAGENTS_ALERT_WEBHOOK_URL", raising=False)
+
+    with caplog.at_level(logging.INFO):
+        assert not operations.emit_alert("collector", "test", severity=severity)
+
+    assert caplog.records[-1].levelno == expected_level
+
+
+@pytest.mark.unit
 def test_webhook_delivery_error_redacts_secret_url(monkeypatch, caplog):
     secret = "https://hooks.example.invalid/token/super-secret"
     monkeypatch.setenv("TRADINGAGENTS_ALERT_WEBHOOK_URL", secret)

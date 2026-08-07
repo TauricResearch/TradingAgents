@@ -78,7 +78,12 @@ def emit_alert(
         "severity": safe_severity,
         "details": safe_details,
     }
-    log = logger.error if severity in {"error", "critical"} else logger.warning
+    if severity in {"error", "critical"}:
+        log = logger.error
+    elif severity == "warning":
+        log = logger.warning
+    else:
+        log = logger.info
     log(
         "%s alert: %s · %s",
         safe_component,

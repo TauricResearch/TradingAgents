@@ -61,8 +61,8 @@ the alert path from inside the running image:
 fly ssh console -a tradagent -C "tradingagents-poller --test-alert"
 ```
 
-The command emits a sanitized test payload and exits nonzero if delivery fails.
-It does not query the database or a provider.
+The command emits a sanitized informational test payload and exits nonzero if
+delivery fails. It does not query the database or a provider.
 
 ## Verify collection
 
@@ -71,12 +71,15 @@ Use the collector's read-only inspection modes:
 ```bash
 fly ssh console -a tradagent -C "tradingagents-poller --stats"
 fly ssh console -a tradagent -C "tradingagents-poller --audit"
+fly ssh console -a tradagent -C "tradingagents-poller --audit-history"
 ```
 
-`--stats` summarizes stored rows. `--audit` reports whether the expected query
-slots were covered and lists recent provider receipts without printing secret
-URLs. A healthy cycle has a successful receipt for every configured broad-news
-slot. That receipt may prove zero forecast-eligible stories with exact `0`/`[]`
+`--stats` summarizes stored rows. `--audit` reports current health only, so an
+old immutable failure receipt cannot look like a present outage. Use
+`--audit-history` when investigating an incident; it prints the same current
+health followed by a clearly delimited list of recent immutable receipts. A
+healthy cycle has a successful receipt for every configured broad-news slot.
+That receipt may prove zero forecast-eligible stories with exact `0`/`[]`
 lineage; a raw empty or failed provider response is unhealthy. X should run only
 once per UTC day, with at most two trend requests, three searches, and ten
 returned posts per search.
