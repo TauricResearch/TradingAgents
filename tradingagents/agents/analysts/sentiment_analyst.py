@@ -40,7 +40,11 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
-from tradingagents.dataflows.reddit import fetch_reddit_posts
+from tradingagents.dataflows.reddit import (
+    CRYPTO_SUBREDDITS,
+    DEFAULT_SUBREDDITS,
+    fetch_reddit_posts,
+)
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 
 
@@ -69,7 +73,14 @@ def create_sentiment_analyst(llm):
         # always sees something — either real data or a clear placeholder.
         news_block = get_news.func(ticker, start_date, end_date)
         stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
-        reddit_block = fetch_reddit_posts(ticker)
+        # Crypto tickers get crypto-native subreddits instead of the
+        # equities-default set (wallstreetbets/stocks/investing barely
+        # discuss crypto tickers, as seen live — a run returned "no posts
+        # found" for BTC-USD across all three).
+        subreddits = (
+            CRYPTO_SUBREDDITS if state.get("asset_type") == "crypto" else DEFAULT_SUBREDDITS
+        )
+        reddit_block = fetch_reddit_posts(ticker, subreddits=subreddits)
 
         system_message = _build_system_message(
             ticker=ticker,
