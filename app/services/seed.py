@@ -76,10 +76,14 @@ async def seed_schedule_if_empty(session: AsyncSession) -> int:
 async def seed_paper_account_if_missing(session: AsyncSession, starting_cash: float) -> bool:
     """Create the paper books on first run. Returns True if any were created."""
     from app.repositories.portfolio import PortfolioRepository
+    from app.services.books import BOOKS
 
     repo = PortfolioRepository(session)
     created = False
-    for label in ("strategic", "tactical"):
+    # Every arm of the forward test gets the same starting capital on the same
+    # day, so differences between books are attributable to policy rather than
+    # to entry timing. See app/services/books.py for what each arm tests.
+    for label in BOOKS:
         if await repo.get_account(label) is None:
             await repo.create_account(starting_cash, label=label)
             logger.info("Created %s paper book with $%.2f virtual cash", label, starting_cash)

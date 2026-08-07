@@ -81,34 +81,50 @@ def _trend_ok_sync(symbol: str, window: int) -> bool | None:
     return float(closes.iloc[-1]) > float(closes.iloc[-window:].mean())
 
 
-async def core_trend_ok() -> bool:
-    """Whether the core may be held right now. True when the filter is off."""
+async def core_trend_ok(book: str = "strategic") -> bool:
+    """Whether ``book`` may hold its core now. True when its filter is off."""
     import asyncio
 
+    from app.services.books import spec
+
     settings = get_settings()
-    if not settings.core_trend_filter:
+    sp = spec(book)
+    # A book's own spec decides its ETF and filter; the global setting only
+    # gates the strategic/tactical arms so existing config keeps working.
+    trend_on = sp.trend_filter or (sp.active and settings.core_trend_filter)
+    if not trend_on:
         return True
-    ok = await asyncio.to_thread(
-        _trend_ok_sync, settings.core_etf, settings.core_trend_window
-    )
+    etf = core_etf_for(book)
+    ok = await asyncio.to_thread(_trend_ok_sync, etf, settings.core_trend_window)
     if ok is None:
-        logger.warning("No trend data for %s; holding core", settings.core_etf)
+        logger.warning("No trend data for %s; holding core", etf)
         return True
     return ok
+
+
+def core_etf_for(book: str) -> str:
+    """The ETF this book's idle cash rests in."""
+    from app.services.books import spec
+
+    sp = spec(book)
+    # Active arms follow the global CORE_ETF so it stays user-configurable;
+    # the passive arms are fixed by definition — that is what makes them
+    # comparable across the experiment.
+    return get_settings().core_etf if sp.active else sp.core_etf
 
 
 async def _exit_core(book: str, reason: str) -> str | None:
     """Liquidate the core when the trend filter turns defensive."""
     from app.services.paper_broker import BOOK_POSITION_TYPE, live_price
 
-    settings = get_settings()
-    price = await live_price(settings.core_etf)
+    etf = core_etf_for(book)
+    price = await live_price(etf)
     if price is None:
         return None
     async with session_factory()() as session, session.begin():
         repo = PortfolioRepository(session)
         account = await repo.get_account(book)
-        position = await _core_position(repo, book, settings.core_etf)
+        position = await _core_position(repo, book, etf)
         if account is None or position is None or position.quantity <= 0:
             return None
         quantity = position.quantity
@@ -117,12 +133,12 @@ async def _exit_core(book: str, reason: str) -> str | None:
         account.cash += proceeds
         await repo.remove_position(position)
         await repo.add_trade(Trade(
-            account_type=BOOK_POSITION_TYPE[book], symbol=settings.core_etf,
+            account_type=BOOK_POSITION_TYPE[book], symbol=etf,
             side="sell", quantity=quantity, price=price, currency="USD",
             reason=reason, realized_pnl_usd=pnl,
         ))
     logger.info("Core exited (%s): %s", book, reason)
-    return f"exited core {settings.core_etf} @ {price:,.2f} ({reason})"
+    return f"exited core {etf} @ {price:,.2f} ({reason})"
 
 
 async def sweep_idle_cash(book: str = "strategic") -> str | None:
@@ -138,7 +154,7 @@ async def sweep_idle_cash(book: str = "strategic") -> str | None:
     if not settings.core_enabled:
         return None
 
-    symbol = settings.core_etf
+    symbol = core_etf_for(book)
     equity = await paper_equity_usd(book)
     price = await live_price(symbol)
     if equity is None or price is None or price <= 0:
@@ -148,7 +164,7 @@ async def sweep_idle_cash(book: str = "strategic") -> str | None:
     # Trend filter: below the long-term average, stay in cash and liquidate any
     # core already held. This is the defensive half — it is what converts a
     # -46% drawdown into -12%, and it only earns that in a genuine crash.
-    if not await core_trend_ok():
+    if not await core_trend_ok(book):
         return await _exit_core(
             book, f"{symbol} below {settings.core_trend_window}d average"
         )
@@ -210,7 +226,7 @@ async def ensure_cash(book: str, needed_usd: float) -> float:
     if not settings.core_enabled or needed_usd <= 0:
         return 0.0
 
-    symbol = settings.core_etf
+    symbol = core_etf_for(book)
     price = await live_price(symbol)
     if price is None or price <= 0:
         return 0.0
@@ -250,8 +266,10 @@ async def ensure_cash(book: str, needed_usd: float) -> float:
 
 async def sweep_all_books() -> list[str]:
     """Sweep every book. Scheduler entry point."""
+    from app.services.books import BOOKS
+
     events: list[str] = []
-    for book in ("strategic", "tactical"):
+    for book in BOOKS:
         try:
             summary = await sweep_idle_cash(book)
         except Exception:  # one book's failure must not stop the other
@@ -268,17 +286,17 @@ async def core_weight_pct(book: str = "strategic") -> float | None:
     """Share of book equity currently held in the core ETF, for reporting."""
     from app.services.paper_broker import BOOK_POSITION_TYPE, live_price, paper_equity_usd
 
-    settings = get_settings()
     equity = await paper_equity_usd(book)
     if not equity:
         return None
     async with session_factory()() as session:
         repo = PortfolioRepository(session)
         positions = await repo.list_positions(BOOK_POSITION_TYPE[book])
-    core = [p for p in positions if is_core(p) and p.symbol == settings.core_etf]
+    etf = core_etf_for(book)
+    core = [p for p in positions if is_core(p) and p.symbol == etf]
     if not core:
         return 0.0
-    price = await live_price(settings.core_etf)
+    price = await live_price(etf)
     if price is None:
         return None
     return sum(p.quantity for p in core) * price / equity * 100.0

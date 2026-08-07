@@ -103,9 +103,10 @@ async def _position_value_usd(position: Position) -> float | None:
     return position.quantity * price / rate
 
 
-# Book label -> the account_type its positions/trades carry. 'paper' is the
-# legacy value for the strategic book (pre-books data keeps working).
-BOOK_POSITION_TYPE = {"strategic": "paper", "tactical": "tactical"}
+# Book label -> the account_type its positions/trades carry. Defined in
+# app/services/books.py, which also holds each arm's core ETF and trend
+# setting. Re-exported here because most call sites already import it.
+from app.services.books import BOOK_POSITION_TYPE  # noqa: E402
 
 
 async def paper_equity_usd(book: str = "strategic") -> float | None:

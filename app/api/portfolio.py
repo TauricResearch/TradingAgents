@@ -75,6 +75,7 @@ async def _benchmark_return_pct(since: datetime) -> float | None:
 async def portfolio(session: SessionDep) -> PortfolioResponse:
     from app.api.schemas import BookSummary
     from app.core.config import get_settings
+    from app.services.core_holding import core_etf_for, core_trend_ok
     from app.services.paper_broker import BOOK_POSITION_TYPE
 
     repo = PortfolioRepository(session)
@@ -85,7 +86,9 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
     settings = get_settings()
     books: list[BookSummary] = []
     oldest_created = None
-    for label in ("strategic", "tactical"):
+    from app.services.books import BOOKS
+
+    for label in BOOKS:
         account = await repo.get_account(label)
         if account is None:
             continue
@@ -122,6 +125,8 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             return_pct=return_pct,
             positions=book_positions,
             enabled=(label != "tactical") or bool(settings.tactical_rule.strip()),
+            core_etf=core_etf_for(label),
+            description=BOOKS[label].description,
             invested_pct=invested_pct,
             core_value_usd=core_value,
             realised_pnl_usd=sum(t.realized_pnl_usd or 0.0 for t in closed),
@@ -131,9 +136,7 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
     if not books:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No paper books yet")
 
-    from app.services.core_holding import core_trend_ok
-
-    strategic = books[0]
+    strategic = next((b for b in books if b.label == "strategic"), books[0])
     return PortfolioResponse(
         books=books,
         real_positions=real,
@@ -142,7 +145,7 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
         core_etf=settings.core_etf,
         core_enabled=settings.core_enabled,
         core_trend_filter=settings.core_trend_filter,
-        core_defensive=(settings.core_trend_filter and not await core_trend_ok()),
+        core_defensive=(settings.core_trend_filter and not await core_trend_ok("strategic")),
         cash_usd=strategic.cash_usd,
         starting_cash_usd=strategic.starting_cash_usd,
         equity_usd=strategic.equity_usd,
@@ -155,10 +158,11 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
 async def portfolio_history(session: SessionDep) -> dict:
     """Daily equity curves per book, for the scoreboard sparklines."""
     from app.api.schemas import EquityPoint
+    from app.services.books import BOOKS
 
     repo = PortfolioRepository(session)
     out: dict[str, list] = {}
-    for book in ("strategic", "tactical"):
+    for book in BOOKS:
         snapshots = await repo.list_snapshots(book, limit=120)
         out[book] = [
             EquityPoint(date=s.snapshot_date, equity_usd=round(s.equity_usd, 2)).model_dump()

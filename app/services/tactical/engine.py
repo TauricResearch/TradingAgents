@@ -198,7 +198,9 @@ async def run_tactical() -> list[str]:
 async def record_equity_snapshots() -> None:
     """Daily equity per book — the scoreboard's raw data. Cheap, always on."""
     today = datetime.now(timezone.utc).date().isoformat()
-    for book in ("strategic", "tactical"):
+    from app.services.books import BOOKS
+
+    for book in BOOKS:
         equity = await paper_equity_usd(book)
         if equity is None:
             continue

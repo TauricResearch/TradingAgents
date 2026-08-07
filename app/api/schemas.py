@@ -162,6 +162,8 @@ class BookSummary(BaseModel):
     realised_pnl_usd: float = 0.0   # closed trades — hidden by a positions-only view
     closed_trades: int = 0
     winning_trades: int = 0
+    core_etf: str = "SPY"
+    description: str = ""
 
 
 class EquityPoint(BaseModel):
