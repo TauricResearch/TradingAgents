@@ -45,7 +45,7 @@ primary_region = "iad"          # keep close to the Fly MPG primary region
 # dedup on (source, external_id) makes a re-poll after restart harmless.
 [[restart]]
   policy = "on-failure"
-  max_retries = 10
+  retries = 10
 
 # Smallest machine is ample: the poller's import surface is ~30 MB RSS and it is
 # network-bound, idle most of the hour. Bump memory only if you add many tickers.

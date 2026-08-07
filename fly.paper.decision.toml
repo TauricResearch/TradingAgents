@@ -39,7 +39,7 @@ primary_region = "iad"
 
 [[restart]]
   policy = "on-failure"
-  max_retries = 10
+  retries = 10
 
 [[vm]]
   memory = "1gb"
