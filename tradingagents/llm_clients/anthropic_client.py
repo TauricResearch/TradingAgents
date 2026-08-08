@@ -3,12 +3,24 @@ from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import (
+    BaseLLMClient,
+    normalize_content,
+    retry_overload_async,
+    retry_overload_sync,
+)
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
-    "timeout", "max_retries", "api_key", "max_tokens", "temperature",
-    "callbacks", "http_client", "http_async_client", "effort",
+    "timeout",
+    "max_retries",
+    "api_key",
+    "max_tokens",
+    "temperature",
+    "callbacks",
+    "http_client",
+    "http_async_client",
+    "effort",
 )
 
 # Anthropic's extended-thinking ``effort`` parameter is accepted by Opus 4.5+,
@@ -48,6 +60,14 @@ class NormalizedChatAnthropic(ChatAnthropic):
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
+
+    @retry_overload_sync
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    @retry_overload_async
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+        return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
 
 class AnthropicClient(BaseLLMClient):

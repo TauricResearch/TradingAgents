@@ -1,7 +1,12 @@
 import os
 from typing import Any
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import (
+    BaseLLMClient,
+    normalize_content,
+    retry_overload_async,
+    retry_overload_sync,
+)
 from .validators import validate_model
 
 # Bedrock has no global default region; us-west-2 hosts the broadest model set.
@@ -34,6 +39,14 @@ def _bedrock_class():
         def invoke(self, input, config=None, **kwargs):
             return normalize_content(super().invoke(input, config, **kwargs))
 
+        @retry_overload_sync
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+        @retry_overload_async
+        async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
     _BEDROCK_CLASS = NormalizedChatBedrockConverse
     return _BEDROCK_CLASS
 
@@ -55,9 +68,7 @@ class BedrockClient(BaseLLMClient):
         chat_cls = _bedrock_class()
 
         region = (
-            os.environ.get("AWS_REGION")
-            or os.environ.get("AWS_DEFAULT_REGION")
-            or _DEFAULT_REGION
+            os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or _DEFAULT_REGION
         )
         llm_kwargs = {"model": self.model, "region_name": region}
         # A Bedrock API key authenticates without AWS access keys. Passing it as

@@ -2,7 +2,12 @@ from typing import Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import (
+    BaseLLMClient,
+    normalize_content,
+    retry_overload_async,
+    retry_overload_sync,
+)
 from .validators import validate_model
 
 
@@ -15,6 +20,14 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
+
+    @retry_overload_sync
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    @retry_overload_async
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+        return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
 
 class GoogleClient(BaseLLMClient):
@@ -31,7 +44,14 @@ class GoogleClient(BaseLLMClient):
         if self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
-        for key in ("timeout", "max_retries", "temperature", "callbacks", "http_client", "http_async_client"):
+        for key in (
+            "timeout",
+            "max_retries",
+            "temperature",
+            "callbacks",
+            "http_client",
+            "http_async_client",
+        ):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 

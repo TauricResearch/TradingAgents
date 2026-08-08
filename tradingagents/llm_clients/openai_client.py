@@ -8,7 +8,12 @@ from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .api_key_env import get_api_key_env
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import (
+    BaseLLMClient,
+    normalize_content,
+    retry_overload_async,
+    retry_overload_sync,
+)
 from .capabilities import get_capabilities
 from .validators import validate_model
 
@@ -34,6 +39,17 @@ class NormalizedChatOpenAI(ChatOpenAI):
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
+
+    @retry_overload_sync
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        # All sync LLM calls (invoke, bind_tools pipelines, with_structured_output)
+        # funnel through _generate, so retrying here covers every call site with
+        # exponential backoff on gateway 529/429/5xx/timeout errors.
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    @retry_overload_async
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+        return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
@@ -116,9 +132,7 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
         response_dict = (
             response
             if isinstance(response, dict)
-            else response.model_dump(
-                exclude={"choices": {"__all__": {"message": {"parsed"}}}}
-            )
+            else response.model_dump(exclude={"choices": {"__all__": {"message": {"parsed"}}}})
         )
         for generation, choice in zip(
             chat_result.generations, response_dict.get("choices", []), strict=False
@@ -164,8 +178,14 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
-    "timeout", "max_retries", "reasoning_effort", "temperature",
-    "api_key", "callbacks", "http_client", "http_async_client",
+    "timeout",
+    "max_retries",
+    "reasoning_effort",
+    "temperature",
+    "api_key",
+    "callbacks",
+    "http_client",
+    "http_async_client",
 )
 
 # OpenAI's ``reasoning_effort`` is only accepted by reasoning models — the GPT-5
@@ -197,35 +217,41 @@ class ProviderSpec:
     ``chat_class``) lives here.
     """
 
-    chat_class: type = NormalizedChatOpenAI   # provider quirks live in the subclass
-    base_url: str | None = None            # default endpoint (None -> SDK default)
-    base_url_env: str | None = None        # env var that overrides base_url (e.g. OLLAMA_BASE_URL)
-    key_optional: bool = False                # don't require/prompt; send a placeholder if unset
-    placeholder_key: str = "EMPTY"            # sent when no key is available (keyless local servers)
-    require_base_url: bool = False            # error if no base_url is resolved (generic endpoint)
-    use_responses_api: bool = False           # native OpenAI Responses API
+    chat_class: type = NormalizedChatOpenAI  # provider quirks live in the subclass
+    base_url: str | None = None  # default endpoint (None -> SDK default)
+    base_url_env: str | None = None  # env var that overrides base_url (e.g. OLLAMA_BASE_URL)
+    key_optional: bool = False  # don't require/prompt; send a placeholder if unset
+    placeholder_key: str = "EMPTY"  # sent when no key is available (keyless local servers)
+    require_base_url: bool = False  # error if no base_url is resolved (generic endpoint)
+    use_responses_api: bool = False  # native OpenAI Responses API
 
 
 # Single source of truth for the OpenAI-compatible provider family. Dual-region
 # providers (qwen/glm/minimax) keep separate endpoints because international and
 # China accounts cannot share credentials (#758).
 OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
-    "openai":     ProviderSpec(use_responses_api=True),
-    "xai":        ProviderSpec(base_url="https://api.x.ai/v1"),
-    "deepseek":   ProviderSpec(base_url="https://api.deepseek.com", chat_class=DeepSeekChatOpenAI),
-    "qwen":       ProviderSpec(base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
-    "qwen-cn":    ProviderSpec(base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"),
-    "glm":        ProviderSpec(base_url="https://api.z.ai/api/paas/v4/"),
-    "glm-cn":     ProviderSpec(base_url="https://open.bigmodel.cn/api/paas/v4/"),
-    "minimax":    ProviderSpec(base_url="https://api.minimax.io/v1", chat_class=MinimaxChatOpenAI),
-    "minimax-cn": ProviderSpec(base_url="https://api.minimaxi.com/v1", chat_class=MinimaxChatOpenAI),
+    "openai": ProviderSpec(use_responses_api=True),
+    "xai": ProviderSpec(base_url="https://api.x.ai/v1"),
+    "deepseek": ProviderSpec(base_url="https://api.deepseek.com", chat_class=DeepSeekChatOpenAI),
+    "qwen": ProviderSpec(base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
+    "qwen-cn": ProviderSpec(base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"),
+    "glm": ProviderSpec(base_url="https://api.z.ai/api/paas/v4/"),
+    "glm-cn": ProviderSpec(base_url="https://open.bigmodel.cn/api/paas/v4/"),
+    "minimax": ProviderSpec(base_url="https://api.minimax.io/v1", chat_class=MinimaxChatOpenAI),
+    "minimax-cn": ProviderSpec(
+        base_url="https://api.minimaxi.com/v1", chat_class=MinimaxChatOpenAI
+    ),
     "openrouter": ProviderSpec(base_url="https://openrouter.ai/api/v1"),
-    "mistral":    ProviderSpec(base_url="https://api.mistral.ai/v1"),
-    "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
-    "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
-    "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
-    "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
-                               key_optional=True, placeholder_key="ollama"),
+    "mistral": ProviderSpec(base_url="https://api.mistral.ai/v1"),
+    "kimi": ProviderSpec(base_url="https://api.moonshot.ai/v1"),
+    "groq": ProviderSpec(base_url="https://api.groq.com/openai/v1"),
+    "nvidia": ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
+    "ollama": ProviderSpec(
+        base_url="http://localhost:11434/v1",
+        base_url_env="OLLAMA_BASE_URL",
+        key_optional=True,
+        placeholder_key="ollama",
+    ),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(
         require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI
@@ -320,6 +346,26 @@ class OpenAIClient(BaseLLMClient):
                 llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
+
+        # Default request timeout + retries so a hung backend (e.g. a
+        # third-party OpenAI-compatible endpoint that accepts the connection
+        # but never responds) can't wedge the agent loop. Overridable per
+        # run via TRADINGAGENTS_LLM_TIMEOUT, and still honored when the
+        # caller passes an explicit timeout/max_retries through kwargs.
+        if "timeout" not in self.kwargs:
+            env_timeout = os.environ.get("TRADINGAGENTS_LLM_TIMEOUT")
+            if env_timeout:
+                try:
+                    llm_kwargs["timeout"] = float(env_timeout)
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid TRADINGAGENTS_LLM_TIMEOUT: {env_timeout!r} "
+                        f"(expected a number of seconds)"
+                    ) from None
+            else:
+                llm_kwargs["timeout"] = 120.0
+        if "max_retries" not in self.kwargs:
+            llm_kwargs["max_retries"] = 2
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:
