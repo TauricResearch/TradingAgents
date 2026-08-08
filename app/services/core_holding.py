@@ -120,11 +120,10 @@ def core_etf_for(book: str) -> str:
     """The ETF this book's idle cash rests in."""
     from app.services.books import spec
 
-    sp = spec(book)
-    # Active arms follow the global CORE_ETF so it stays user-configurable;
-    # the passive arms are fixed by definition — that is what makes them
-    # comparable across the experiment.
-    return get_settings().core_etf if sp.active else sp.core_etf
+    # An empty spec ETF means "follow the CORE_ETF setting" (strategic only);
+    # every other arm pins its own, because a passive control whose holding
+    # could change under it is not a control.
+    return spec(book).core_etf or get_settings().core_etf
 
 
 async def _exit_core(book: str, reason: str) -> str | None:

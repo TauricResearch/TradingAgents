@@ -215,6 +215,30 @@ crontab -e
 Uses `sqlite3 .backup`, not `cp` — the monitor writes every 60 seconds and a
 plain copy can capture a torn page that only fails when you try to restore it.
 
+## What trades automatically, per book
+
+Verified end-to-end against a copy of the live database — every path below was
+executed, not inferred.
+
+| Book | Buys | Sells | Core vehicle |
+|---|---|---|---|
+| `strategic` | LLM Buy/Overweight → `execute_signal` | LLM Sell/Underweight, stop-loss, price target | SPY |
+| `tactical` | rule `signal==1` → `_tactical_buy` | rule `signal==0`, trailing stop | **VOO** |
+| `core_spy` | sweep only | never (buy-and-hold control) | SPY |
+| `core_trend` | sweep only | when SPY closes below its 200-day average | SPY |
+| `core_2x` | sweep only | never | SSO |
+| `core_jepi` | sweep only | never | JEPI |
+
+**The core is protected from all three sell paths** — the stop ratchet skips it,
+`_paper_sell` refuses it, and the rule's `held` set excludes it. Only
+`ensure_cash` may sell core, and only to fund a satellite entry.
+
+**Why tactical parks in VOO, not SPY.** Its rule trades SPY as a position. If
+the core used SPY too, the sweep would refuse to add it (a conviction position
+already owns the symbol) and the book would sit ~48% in idle cash — the exact
+drag the core exists to remove. VOO tracks the same index, so exposure is
+identical and the collision is impossible.
+
 ## Traps worth knowing before you start
 
 | Trap | Why it bites |

@@ -43,12 +43,30 @@ def _history_sync(symbol: str):
 
 
 async def _universe() -> list[str]:
-    """Core US tickers (stocks + ETFs) — liquid names the rules were tested on."""
+    """Core US tickers (stocks + ETFs) — liquid names the rules were tested on.
+
+    CORE_ETF is excluded. It is the book's cash-parking vehicle, and a symbol
+    cannot coherently be both a rule bet and the place idle cash rests:
+
+      - the sweep refuses to add core when a conviction position already owns
+        the symbol (it would insert a duplicate row), so a rule position in SPY
+        silently blocks the book from ever deploying — measured at 48% idle
+        cash, which is precisely the drag the index core exists to remove;
+      - and the return would be double-counted, once as rule performance and
+        once as benchmark exposure, making the book uninterpretable against
+        the very benchmark it is scored on.
+
+    Excluding it keeps the book readable as "rule positions + benchmark core".
+    """
+    core_etf = get_settings().core_etf.strip().upper()
     async with session_factory()() as session:
         rows = await WatchlistRepository(session).list_all()
     return [
         t.symbol for t in rows
-        if t.market == Market.US.value and t.category == "core" and t.tier != "paused"
+        if t.market == Market.US.value
+        and t.category == "core"
+        and t.tier != "paused"
+        and t.symbol.upper() != core_etf
     ]
 
 

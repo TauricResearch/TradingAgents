@@ -282,3 +282,63 @@ class TestCoreIsProtected:
                 f"{model.__name__}.account_type is String({width}) but the "
                 f"longest book position_type is {longest} chars"
             )
+
+
+class TestEveryBookCanDeploy:
+    """Regression: a symbol collision silently left one book 48% in cash.
+
+    The tactical book holds SPY as a trend-rule position. The sweep refuses to
+    add core when a conviction position already owns the symbol (a duplicate
+    row would make `get_position`'s scalar_one_or_none raise), so tactical
+    never deployed — reproducing the exact cash drag the index core exists to
+    remove, in the one book nobody would think to check.
+    """
+
+    def test_no_book_parks_cash_in_a_symbol_its_rule_trades(self):
+        from app.core.config import get_settings
+        from app.services.books import BOOKS
+        from app.services.core_holding import core_etf_for
+
+        # The rule universe is the CORE-category US watchlist. The tactical
+        # book's core vehicle must not be a name its own rule can buy.
+        tactical_core = core_etf_for("tactical")
+        strategic_core = core_etf_for("strategic")
+        assert tactical_core != strategic_core, (
+            f"tactical parks cash in {tactical_core} and the rule trades "
+            f"{strategic_core}; if they match, the sweep is blocked and the "
+            "book sits in idle cash"
+        )
+        assert tactical_core, "every book needs a core vehicle"
+        # And the global setting still drives the strategic book.
+        assert strategic_core == get_settings().core_etf
+        assert BOOKS["tactical"].core_etf, "tactical must pin its own ETF"
+
+    def test_every_book_resolves_a_core_etf(self):
+        from app.services.books import BOOKS
+        from app.services.core_holding import core_etf_for
+
+        for label in BOOKS:
+            assert core_etf_for(label), f"{label} has no core vehicle"
+
+    def test_passive_arms_pin_their_etf(self):
+        """A control whose holding could change under it is not a control."""
+        from app.services.books import BOOKS
+
+        for label, spec in BOOKS.items():
+            if not spec.active:
+                assert spec.core_etf, (
+                    f"{label} is a passive control and must pin its ETF rather "
+                    "than follow the mutable CORE_ETF setting"
+                )
+
+    def test_core_etf_excluded_from_the_rule_universe(self):
+        """The rule must not trade the benchmark it is scored against."""
+        import inspect
+
+        from app.services.tactical import engine
+
+        source = inspect.getsource(engine._universe)
+        assert "core_etf" in source, (
+            "_universe must exclude CORE_ETF, or the rule double-counts "
+            "benchmark exposure and blocks its own core sweep"
+        )

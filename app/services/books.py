@@ -34,7 +34,9 @@ class BookSpec:
     #: ``Position.account_type`` for this book's rows. 'paper' is the legacy
     #: value for the strategic book, kept so pre-books data keeps working.
     position_type: str
-    #: ETF that idle cash rests in.
+    #: ETF that idle cash rests in. Empty means "follow the CORE_ETF setting",
+    #: so the strategic book stays user-configurable while every other arm is
+    #: pinned — a passive control whose holding could change is not a control.
     core_etf: str
     #: Hold the core only while it trades above its long-term average.
     trend_filter: bool
@@ -45,11 +47,16 @@ class BookSpec:
 
 BOOKS: dict[str, BookSpec] = {
     "strategic": BookSpec(
-        "strategic", "paper", "SPY", False, True,
+        "strategic", "paper", "", False, True,
         "LLM signals over an index core",
     ),
+    # VOO, not SPY. The rule trades individual names and parks the rest in the
+    # index; if both used SPY the sweep would refuse to add core (a conviction
+    # position already owns the symbol) and the book would sit ~48% in idle
+    # cash — exactly the drag the core exists to remove. VOO tracks the same
+    # S&P 500 index, so the exposure is identical and the collision is gone.
     "tactical": BookSpec(
-        "tactical", "tactical", "SPY", False, True,
+        "tactical", "tactical", "VOO", False, True,
         "rule-based trend entries over an index core",
     ),
     "core_spy": BookSpec(
