@@ -243,24 +243,36 @@ identical and the collision is impossible.
 
 Oracle publishes no capacity signal, has no status page for it, and offers no
 alerting. The only way to know a slot has opened is to attempt a launch and see
-whether it errors — reports range from hours to several weeks, with no pattern
-you can plan around.
+whether it errors — reports range from hours to several weeks.
 
-`deploy/watch-for-capacity.py` does that on a loop and pings the Telegram bot
-the assistant already uses the moment it lands. A failed attempt is a rejected
-API call, not a resource, so it costs nothing to leave running.
+The assistant does this itself: `app/services/oci_capacity.py` runs as a
+scheduler job every 5 minutes whenever `OCI_COMPARTMENT_ID` and `OCI_SUBNET_ID`
+are set in `.env`. No separate process to babysit — it starts and stops with
+`uvicorn app.main:app`.
 
 ```bash
-# one-time: install and configure the OCI CLI, then fill in the two OCIDs
-# at the top of the script (get them from Cloud Shell — see step 1 below)
-python deploy/watch-for-capacity.py              # every 15 min
-python deploy/watch-for-capacity.py --once       # single attempt, to test setup
+# in .env — get both from OCI Cloud Shell:
+#   echo $OCI_TENANCY
+#   oci network subnet list -c $OCI_TENANCY --query 'data[].{name:"display-name",id:id}' --output table
+OCI_COMPARTMENT_ID=ocid1.tenancy.oc1..
+OCI_SUBNET_ID=ocid1.subnet.oc1...
 ```
 
-It tries every availability domain each round, since capacity is per-AD. It
-stops on any NON-capacity error — a bad OCID, a zero quota, an auth failure —
-because those never resolve by waiting, and hammering the API for days would
-just hide the real problem.
+It requires the OCI CLI installed and configured (`oci setup config` — answer
+**N/A** to the passphrase prompt, it does not accept an empty Enter, then upload
+the generated public key under Identity → My profile → API keys).
+
+**It stays quiet.** At 5-minute intervals that is ~288 checks a day; reporting
+each one would bury the single message that matters. So: nothing while
+unavailable, and one sentence when it lands —
+
+> ✅ Oracle Ampere capacity found — your VM is now running in AD-2.
+
+It tries every availability domain each pass, since capacity is per-AD. Oracle's
+`TooManyRequests` throttling is treated as transient and retried. A permanent
+error — a bad OCID, a zero service limit, an auth failure — sends one short
+notice and then disables the job, because repeating a request that cannot
+succeed just fills your phone with the same stack trace.
 
 ## Traps worth knowing before you start
 

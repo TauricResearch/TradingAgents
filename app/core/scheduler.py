@@ -21,6 +21,7 @@ from app.models.base import session_factory
 from app.repositories.schedule import ScheduleRepository
 from app.services.core_holding import sweep_all_books
 from app.services.heartbeat import send_heartbeat
+from app.services.oci_capacity import check_capacity, is_configured
 from app.services.paper_broker import check_stops
 from app.services.pipeline import run_slot
 from app.services.screener import run_screener
@@ -81,6 +82,20 @@ def build_scheduler() -> AsyncIOScheduler:
             minutes=5,
             id="heartbeat",
             name="liveness heartbeat",
+            coalesce=True,
+            max_instances=1,
+        )
+    # Oracle Ampere capacity watch. Rides along with the assistant rather than
+    # needing a separate headless task, and stays silent until it has something
+    # worth saying — a check every 5 minutes would otherwise be ~288 messages a
+    # day, which trains you to ignore the one that matters.
+    if is_configured():
+        scheduler.add_job(
+            check_capacity,
+            "interval",
+            minutes=5,
+            id="oci_capacity",
+            name="Oracle capacity watch",
             coalesce=True,
             max_instances=1,
         )

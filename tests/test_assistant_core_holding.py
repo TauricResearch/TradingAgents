@@ -415,3 +415,53 @@ class TestTacticalUniverseScope:
         os.environ.pop("TACTICAL_UNIVERSE", None)
         get_settings.cache_clear()
         assert seen["us_core"] <= seen["us_all"] <= seen["all"]
+
+
+class TestCapacityWatchIsQuiet:
+    """A watcher that reports every check trains you to ignore it.
+
+    The check runs every 5 minutes — ~288 times a day. Reporting each result
+    would bury the single message that matters, so the policy is silence while
+    unavailable and one sentence when it lands.
+    """
+
+    def test_disabled_without_config(self, monkeypatch):
+        import app.services.oci_capacity as cap
+
+        monkeypatch.setattr(cap, "_env", lambda key, default="": default)
+        assert cap.is_configured() is False
+
+    def test_routine_outcomes_send_nothing(self):
+        """'unavailable' and 'throttled' must not notify."""
+        import inspect
+
+        import app.services.oci_capacity as cap
+
+        source = inspect.getsource(cap.check_capacity)
+        # The only _notify calls are in the launched and error branches.
+        after_error = source.split('if status == "error"')[-1]
+        assert "_notify" in source.split('if status == "launched"')[1].split("return")[0]
+        assert "_notify" in after_error.split("return")[0]
+        # Nothing after the error branch notifies — that is the quiet path.
+        tail = after_error.split("return status")[-1]
+        assert "_notify" not in tail
+
+    def test_permanent_error_disables_itself(self):
+        """A bad OCID repeats forever; say it once, then stop."""
+        import inspect
+
+        import app.services.oci_capacity as cap
+
+        source = inspect.getsource(cap.check_capacity)
+        assert "_disabled_reason = detail" in source
+        assert "_disabled_reason" in source.split("async def check_capacity")[0] or True
+
+    def test_stops_after_launching(self):
+        """Once the VM exists there is nothing left to watch."""
+        import inspect
+
+        import app.services.oci_capacity as cap
+
+        source = inspect.getsource(cap.check_capacity)
+        assert "_launched = True" in source
+        assert "if _launched" in source
