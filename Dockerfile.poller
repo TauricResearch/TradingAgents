@@ -2,6 +2,7 @@
 # that accumulates social/news history into a database for backtesting.
 #
 # Build:  docker build --build-arg GIT_REVISION="$(git rev-parse HEAD)" \
+#           --build-arg COLLECTOR_DEPLOYMENT_NONCE=<32-lowercase-hex> \
 #           -f Dockerfile.poller -t tradingagents-poller .
 # Run  :  docker run --rm -e MEDIA_POLLER_TICKERS=NVDA,AAPL \
 #                     -e MEDIA_DB_URL=postgresql+psycopg://user:pass@host:5432/trading \
@@ -21,23 +22,27 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
-# Copy only the files needed to build the installed package. Together with the
-# deny-by-default .dockerignore this keeps local credentials, Git metadata,
-# tests, reports, and workspace state out of remote-builder caches.
-COPY constraints-poller.txt pyproject.toml README.md ./
+# Keep the expensive, pinned dependency layer independent of routine source
+# edits. The deny-by-default .dockerignore keeps credentials and workspace state
+# out of both local and remote builder caches.
+COPY constraints-poller.txt ./
+RUN pip install --no-cache-dir --require-hashes -r constraints-poller.txt
+
+COPY pyproject.toml README.md ./
 COPY tradingagents ./tradingagents
 COPY cli ./cli
 # Install with the [poller] extra so networked stores (Postgres, …) work.
-RUN pip install --no-cache-dir --require-hashes -r constraints-poller.txt \
- && pip install --no-cache-dir --no-deps --no-build-isolation ".[poller]"
+RUN pip install --no-cache-dir --no-deps --no-build-isolation ".[poller]"
 
 FROM python:3.12-slim@sha256:646fb0bca3dd3ea1bcc6feb72c17ed16eed6e10cffc732fcc1478bd3e7f02d7b
 
 # Every production-image build must carry a full Git SHA. This makes an unsafe
 # raw `fly deploy` fail at build time instead of producing an untraceable release.
 ARG GIT_REVISION
+ARG COLLECTOR_DEPLOYMENT_NONCE
 LABEL org.opencontainers.image.revision="${GIT_REVISION}"
 ENV GIT_REVISION="${GIT_REVISION}"
+ENV COLLECTOR_DEPLOYMENT_NONCE="${COLLECTOR_DEPLOYMENT_NONCE}"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -46,6 +51,7 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN printf '%s' "$GIT_REVISION" | grep -Eq '^[0-9a-f]{40}$' \
+ && printf '%s' "$COLLECTOR_DEPLOYMENT_NONCE" | grep -Eq '^[0-9a-f]{32}$' \
  && install -d -m 0755 /opt/tradingagents \
  && printf '%s\n' "$GIT_REVISION" > /opt/tradingagents/REVISION \
  && chmod 0444 /opt/tradingagents/REVISION \

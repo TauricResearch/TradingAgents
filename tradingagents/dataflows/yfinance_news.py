@@ -6,7 +6,10 @@ from datetime import datetime, timedelta, timezone
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
+from tradingagents.logging_utils import safe_exception_type
+
 from .config import get_config
+from .errors import VendorError
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
 
@@ -140,8 +143,10 @@ def get_news_yfinance(
 
         return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
 
-    except Exception as e:
-        return f"Error fetching news for {ticker}: {str(e)}"
+    except Exception as exc:
+        raise VendorError(
+            f"Yahoo Finance news request failed ({safe_exception_type(exc)})"
+        ) from None
 
 
 def get_global_news_yfinance(
@@ -228,5 +233,7 @@ def get_global_news_yfinance(
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
-    except Exception as e:
-        return f"Error fetching global news: {str(e)}"
+    except Exception as exc:
+        raise VendorError(
+            f"Yahoo Finance global-news request failed ({safe_exception_type(exc)})"
+        ) from None

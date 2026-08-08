@@ -62,6 +62,16 @@ if args and args[0] == "check-ref-format":
         and args[-1] == "refs/heads/main"
     )
     raise SystemExit(1 if invalid_target else 0)
+if args[:3] == ["remote", "get-url", "--all"]:
+    if os.environ.get("FAKE_TARGET_MULTIPLE_FETCHURLS") == "true":
+        print("https://github.com/example/TradingAgents.git")
+        print("https://github.com/attacker/TradingAgents.git")
+    else:
+        print(os.environ.get(
+            "FAKE_TARGET_FETCH_URL",
+            "https://github.com/example/TradingAgents.git",
+        ))
+    raise SystemExit(0)
 if args[:3] == ["remote", "get-url", "--push"]:
     if os.environ.get("FAKE_LOCK_REMOTE_UNAVAILABLE") == "true":
         print(
@@ -70,12 +80,12 @@ if args[:3] == ["remote", "get-url", "--push"]:
         )
         raise SystemExit(2)
     if os.environ.get("FAKE_LOCK_MULTIPLE_PUSHURLS") == "true":
-        print("https://github.com/clarkipeng/TradingAgents.git")
+        print("https://github.com/example/TradingAgents.git")
         print("https://github.com/attacker/TradingAgents.git")
     else:
         print(os.environ.get(
             "FAKE_LOCK_REMOTE_URL",
-            "https://github.com/clarkipeng/TradingAgents.git",
+            "https://github.com/example/TradingAgents.git",
         ))
     raise SystemExit(0)
 if args == ["mktree"]:
@@ -201,10 +211,11 @@ raise SystemExit(2)
 """
 
 
-FAKE_FLY = r'''#!/usr/bin/env python3
+FAKE_FLY = r"""#!/usr/bin/env python3
 import json
 import os
 import pathlib
+import shlex
 import signal
 import subprocess
 import sys
@@ -219,6 +230,14 @@ with (state_dir / "calls.jsonl").open("a", encoding="utf-8") as handle:
 
 phase_path = state_dir / "phase"
 phase = phase_path.read_text() if phase_path.exists() else "previous"
+
+def hang_until_bounded_command_terminates(label):
+    def record_termination(_signum, _frame):
+        (state_dir / "bounded-child-terminated").write_text(label)
+        raise SystemExit(143)
+
+    signal.signal(signal.SIGTERM, record_termination)
+    time.sleep(30)
 
 def value(flag):
     return args[args.index(flag) + 1]
@@ -449,7 +468,7 @@ if args and args[0] == "status":
         and (state_dir / "rollback-helper-calls.jsonl").exists()
     )
     if rolled_back and scenario == "legacy_status_hang":
-        time.sleep(30)
+        hang_until_bounded_command_terminates(scenario)
     if rolled_back and scenario in {"legacy_status_gap", "legacy_tuple_change"}:
         counter_path = state_dir / "legacy-rollback-status-count"
         count = int(counter_path.read_text()) if counter_path.exists() else 0
@@ -490,6 +509,20 @@ if args and args[0] == "releases":
     raise SystemExit(0)
 if args and args[0] == "deploy":
     image_label = value("--image-label")
+    build_arguments = [
+        args[index + 1]
+        for index, argument in enumerate(args[:-1])
+        if argument == "--build-arg"
+    ]
+    build_values = dict(argument.split("=", 1) for argument in build_arguments)
+    deployment_nonce = build_values.get("COLLECTOR_DEPLOYMENT_NONCE", "")
+    if (
+        len(deployment_nonce) != 32
+        or any(character not in "0123456789abcdef" for character in deployment_nonce)
+        or image_label != f"git-{revision}-{deployment_nonce}"
+    ):
+        raise SystemExit(2)
+    (state_dir / "deployment-nonce").write_text(deployment_nonce)
     (state_dir / "target-image").write_text(
         f"registry.fly.io/tradagent:{image_label}", encoding="utf-8"
     )
@@ -570,13 +603,34 @@ if args[:2] == ["checks", "list"]:
     raise SystemExit(0)
 if args[:2] == ["ssh", "console"]:
     command = value("-C")
-    if scenario == "signal" and "/opt/tradingagents/REVISION" in command:
-        os.kill(os.getppid(), signal.SIGTERM)
-        raise SystemExit(143)
-    if scenario == "revision_mismatch" and "/opt/tradingagents/REVISION" in command:
-        raise SystemExit(1)
-    if scenario == "alert_failure" and "--test-alert" in command:
-        raise SystemExit(1)
+    if "tradingagents.collector_health" in command:
+        probe_count_path = state_dir / "readiness-probe-count"
+        probe_count = (
+            int(probe_count_path.read_text())
+            if probe_count_path.exists()
+            else 0
+        )
+        probe_count_path.write_text(str(probe_count + 1))
+        command_arguments = shlex.split(command)
+        expected_nonce = command_arguments[
+            command_arguments.index("--expected-deployment-nonce") + 1
+        ]
+        runtime_nonce = (state_dir / "deployment-nonce").read_text()
+        if scenario == "same_revision_successor_stale_status" and probe_count > 0:
+            runtime_nonce = "f" * 32
+        if expected_nonce != runtime_nonce:
+            raise SystemExit(1)
+        if scenario == "signal":
+            deploy_pid = int(subprocess.check_output(
+                ["ps", "-o", "ppid=", "-p", str(os.getppid())],
+                text=True,
+            ).strip())
+            os.kill(deploy_pid, signal.SIGTERM)
+            raise SystemExit(143)
+        if scenario in {"revision_mismatch", "stale_cached_check"}:
+            raise SystemExit(1)
+        if scenario == "final_readiness_failure" and probe_count > 0:
+            raise SystemExit(1)
     if "poller:last_success_utc" in command:
         probe_count_path = state_dir / "legacy-probe-count"
         probe_count = (
@@ -590,12 +644,12 @@ if args[:2] == ["ssh", "console"]:
         ):
             raise SystemExit(1)
         if scenario == "legacy_probe_hang" and probe_count > 0:
-            time.sleep(30)
+            hang_until_bounded_command_terminates(scenario)
     raise SystemExit(0)
 
 print("unexpected fake fly invocation", args, file=sys.stderr)
 raise SystemExit(2)
-'''
+"""
 
 
 @pytest.fixture
@@ -609,7 +663,8 @@ def fake_deploy_env(tmp_path):
         executable.write_text(textwrap.dedent(body), encoding="utf-8")
         executable.chmod(0o755)
     fake_python = bin_dir / "python3"
-    fake_python.write_text(textwrap.dedent(f"""\
+    fake_python.write_text(
+        textwrap.dedent(f"""\
         #!{sys.executable}
         import json
         import os
@@ -639,7 +694,9 @@ def fake_deploy_env(tmp_path):
             raise SystemExit(0)
         real_python = os.environ["REAL_PYTHON"]
         os.execv(real_python, [real_python, *args])
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     fake_python.chmod(0o755)
     env = {
         **os.environ,
@@ -648,7 +705,7 @@ def fake_deploy_env(tmp_path):
         "FAKE_STATE_DIR": str(state_dir),
         "FAKE_REVISION": REVISION,
         "REAL_PYTHON": sys.executable,
-        "COLLECTOR_HEALTH_TIMEOUT_SECONDS": "1",
+        "COLLECTOR_HEALTH_TIMEOUT_SECONDS": "3",
         "COLLECTOR_HEALTH_POLL_SECONDS": "1",
         "COLLECTOR_ROLLBACK_TIMEOUT_SECONDS": "3",
         "COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE": "false",
@@ -656,14 +713,14 @@ def fake_deploy_env(tmp_path):
     return env, state_dir
 
 
-def _run(env, *, app="tradagent"):
+def _run(env, *, app="tradagent", timeout=10):
     return subprocess.run(
         [str(DEPLOY), app],
         cwd=ROOT,
         env=env,
         text=True,
         capture_output=True,
-        timeout=10,
+        timeout=timeout,
         check=False,
     )
 
@@ -701,10 +758,7 @@ def _calls(state_dir):
     path = state_dir / "calls.jsonl"
     if not path.exists():
         return []
-    return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-    ]
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
 def _git_calls(state_dir):
@@ -747,30 +801,70 @@ def _rollback_helper_calls(state_dir):
 
 
 @pytest.mark.unit
-def test_success_is_bound_to_target_machine_check_and_exact_revision(fake_deploy_env):
+def test_success_is_bound_to_the_target_process_incarnation(fake_deploy_env):
     env, state_dir = fake_deploy_env
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "3"
 
     result = _run(env)
 
     assert result.returncode == 0, result.stderr
-    assert f"healthy at {REVISION} on Machine machine-old" in result.stdout
+    assert f"runtime-ready at {REVISION} on Machine machine-old" in result.stdout
     deploys = _deploy_calls(state_dir)
     assert len(deploys) == 1
-    assert ["--build-arg", f"GIT_REVISION={REVISION}"] == deploys[0][
-        deploys[0].index("--build-arg"):deploys[0].index("--build-arg") + 2
-    ]
+    assert deploys[0][deploys[0].index("--dockerfile") + 1] == "Dockerfile.poller"
     image_label = deploys[0][deploys[0].index("--image-label") + 1]
     assert re.fullmatch(rf"git-{REVISION}-[0-9a-f]{{32}}", image_label)
-    ssh_call = next(call for call in _calls(state_dir) if call[:2] == ["ssh", "console"])
-    assert ssh_call[ssh_call.index("--machine") + 1] == "machine-old"
-    assert REVISION in ssh_call[ssh_call.index("-C") + 1]
+    deployment_nonce = image_label.rsplit("-", 1)[1]
+    build_arguments = [
+        deploys[0][index + 1]
+        for index, argument in enumerate(deploys[0][:-1])
+        if argument == "--build-arg"
+    ]
+    assert build_arguments == [
+        f"GIT_REVISION={REVISION}",
+        f"COLLECTOR_DEPLOYMENT_NONCE={deployment_nonce}",
+    ]
+    readiness_calls = [
+        call
+        for call in _calls(state_dir)
+        if call[:2] == ["ssh", "console"]
+        and "tradingagents.collector_health" in call[call.index("-C") + 1]
+    ]
+    assert len(readiness_calls) == 2
+    for call in readiness_calls:
+        assert call[call.index("--machine") + 1] == "machine-old"
+        command = shlex.split(call[call.index("-C") + 1])
+        assert command == [
+            "python",
+            "-m",
+            "tradingagents.collector_health",
+            "--expected-build-revision",
+            REVISION,
+            "--expected-machine-id",
+            "machine-old",
+            "--expected-deployment-nonce",
+            deployment_nonce,
+        ]
+    assert not any("--test-alert" in argument for call in _calls(state_dir) for argument in call)
     assert _target_remote_reads(state_dir) == [
-        ["ls-remote", "--exit-code", "--refs", "origin", "refs/heads/main"],
-        ["ls-remote", "--exit-code", "--refs", "origin", "refs/heads/main"],
+        [
+            "ls-remote",
+            "--exit-code",
+            "--refs",
+            "https://github.com/example/TradingAgents.git",
+            "refs/heads/main",
+        ],
+        [
+            "ls-remote",
+            "--exit-code",
+            "--refs",
+            "https://github.com/example/TradingAgents.git",
+            "refs/heads/main",
+        ],
     ]
     lock_ref = "refs/heads/tradingagents-deploy-lock/tradagent"
     lock_commit = "c" * 40
-    lock_url = "https://github.com/clarkipeng/TradingAgents.git"
+    lock_url = "https://github.com/example/TradingAgents.git"
     pushes = _lock_pushes(state_dir)
     assert pushes == [
         ["push", "--no-verify", lock_url, f"{lock_commit}:{lock_ref}"],
@@ -797,7 +891,8 @@ def test_success_is_bound_to_target_machine_check_and_exact_revision(fake_deploy
     ],
 )
 def test_authenticated_fly_handoff_waits_for_a_started_target(
-    scenario, fake_deploy_env,
+    scenario,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
@@ -806,27 +901,30 @@ def test_authenticated_fly_handoff_waits_for_a_started_target(
     result = _run(env)
 
     assert result.returncode == 0, result.stderr
-    assert f"healthy at {REVISION} on Machine machine-old" in result.stdout
+    assert f"runtime-ready at {REVISION} on Machine machine-old" in result.stdout
     assert "superseded" not in result.stderr
     assert _rollback_helper_calls(state_dir) == []
     assert not (state_dir / "remote-lock").exists()
 
 
 @pytest.mark.unit
-def test_previous_stop_and_target_start_handoff_is_bounded_and_authenticated(
+def test_previous_stop_and_target_start_handoff_authenticates_final_target(
     fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = "target_handoff_sequence"
-    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "7"
+    # The assertion is the observed state sequence, not a scheduler-sensitive
+    # race against the configured production deadline.
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "20"
 
-    result = _run(env)
+    result = _run(env, timeout=30)
 
     assert result.returncode == 0, result.stderr
-    assert f"healthy at {REVISION} on Machine machine-old" in result.stdout
+    assert f"runtime-ready at {REVISION} on Machine machine-old" in result.stdout
     assert "superseded" not in result.stderr
     assert _rollback_helper_calls(state_dir) == []
     assert not (state_dir / "remote-lock").exists()
+    assert int((state_dir / "transition-status-count").read_text()) >= 6
 
 
 @pytest.mark.unit
@@ -840,7 +938,7 @@ def test_persistent_handoff_never_rolls_back_and_preserves_remote_lock(
     result = _run(env)
 
     assert result.returncode == 1
-    assert "health and revision did not pass within 2s" in result.stderr
+    assert "readiness and revision did not pass within 2s" in result.stderr
     assert "handoff is not authenticated as a started release" in result.stderr
     assert "superseded" not in result.stderr
     assert _rollback_helper_calls(state_dir) == []
@@ -888,7 +986,8 @@ def test_terminal_candidate_never_rolls_back_and_preserves_remote_lock(
     ],
 )
 def test_foreign_nonstarted_topology_is_immediate_supersession(
-    scenario, fake_deploy_env,
+    scenario,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
@@ -903,10 +1002,12 @@ def test_foreign_nonstarted_topology_is_immediate_supersession(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "scenario", ["baseline_empty_before_deploy", "baseline_starting_before_deploy"],
+    "scenario",
+    ["baseline_empty_before_deploy", "baseline_starting_before_deploy"],
 )
 def test_predeploy_status_remains_strict_and_mutation_free(
-    scenario, fake_deploy_env,
+    scenario,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
@@ -944,7 +1045,9 @@ def test_malformed_handoff_status_is_silent_and_retryable(fake_deploy_env):
     ],
 )
 def test_malformed_fly_preflight_output_has_one_contextual_error(
-    scenario, message, fake_deploy_env,
+    scenario,
+    message,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
@@ -1004,9 +1107,7 @@ def test_primary_deploy_failure_uses_one_fenced_machine_rollback(fake_deploy_env
         helper[helper.index("--baseline-config-fingerprint") + 1],
     )
     assert "--allow-legacy-baseline-on-failure" not in helper
-    assert helper[helper.index("--previous-status") + 1].endswith(
-        "status.previous.json"
-    )
+    assert helper[helper.index("--previous-status") + 1].endswith("status.previous.json")
     assert "test-fly-token-never-render" not in json.dumps(helper_calls)
 
 
@@ -1059,7 +1160,8 @@ def test_break_glass_flag_does_not_unpin_a_nonlegacy_deployment_baseline(
 @pytest.mark.unit
 @pytest.mark.parametrize("scenario", ["legacy_status_gap", "legacy_tuple_change"])
 def test_legacy_rollback_requires_consecutive_bound_observations(
-    scenario, fake_deploy_env,
+    scenario,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
@@ -1099,21 +1201,18 @@ def test_failed_legacy_runtime_probe_preserves_remote_lock(fake_deploy_env):
 @pytest.mark.unit
 @pytest.mark.parametrize("scenario", ["legacy_probe_hang", "legacy_status_hang"])
 def test_hung_legacy_rollback_observation_is_bounded_and_preserves_lock(
-    scenario, fake_deploy_env,
+    scenario,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
     env["COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE"] = "true"
     env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "3"
-    started = time.monotonic()
 
     result = _run(env)
 
-    elapsed = time.monotonic() - started
     assert result.returncode == 1
-    # Completing within the test harness's 10-second subprocess bound proves
-    # the fake 30-second child was killed; keep margin for loaded CI hosts.
-    assert elapsed < 9
+    assert (state_dir / "bounded-child-terminated").read_text() == scenario
     assert "was not restored" in result.stderr
     assert (state_dir / "remote-lock").read_text() == "c" * 40
 
@@ -1134,7 +1233,8 @@ def test_legacy_runtime_probe_must_pass_before_fly_mutation(fake_deploy_env):
 
 @pytest.mark.unit
 def test_legacy_runtime_probe_conditions_survive_python_optimization(
-    fake_deploy_env, tmp_path,
+    fake_deploy_env,
+    tmp_path,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = "legacy_probe_preflight_failure"
@@ -1185,10 +1285,7 @@ def test_legacy_runtime_probe_conditions_survive_python_optimization(
     probe_env = {
         **os.environ,
         "PYTHONPATH": str(tmp_path / "probe"),
-        "FLY_IMAGE_REF": (
-            "registry.fly.io/tradagent:"
-            "deployment-01KZAD8T2KXJJJXAM2JJW8E447"
-        ),
+        "FLY_IMAGE_REF": ("registry.fly.io/tradagent:deployment-01KZAD8T2KXJJJXAM2JJW8E447"),
         "PROBE_HEARTBEAT": "1",
     }
 
@@ -1249,9 +1346,8 @@ def test_delayed_candidate_after_failed_deploy_ack_keeps_remote_lock(
     assert "failed mutation may still complete" in result.stderr
     deadline = time.monotonic() + 2
     phase_path = state_dir / "phase"
-    while (
-        time.monotonic() < deadline
-        and (not phase_path.exists() or phase_path.read_text() != "target")
+    while time.monotonic() < deadline and (
+        not phase_path.exists() or phase_path.read_text() != "target"
     ):
         time.sleep(0.02)
     assert phase_path.read_text() == "target"
@@ -1293,6 +1389,54 @@ def test_unverified_target_rolls_back(scenario, fake_deploy_env):
     assert len(_deploy_calls(state_dir)) == 1
     assert len(_rollback_helper_calls(state_dir)) == 1
     assert "previous collector image and configuration restored" in result.stdout
+
+
+@pytest.mark.unit
+def test_cached_passing_fly_check_cannot_replace_current_process_readiness(
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "stale_cached_check"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "3"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert len(_deploy_calls(state_dir)) == 1
+    assert (state_dir / "readiness-probe-count").exists()
+    assert len(_rollback_helper_calls(state_dir)) == 1
+    assert "previous collector image and configuration restored" in result.stdout
+
+
+@pytest.mark.unit
+def test_final_process_readiness_probe_cannot_be_replaced_by_the_first(
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "final_readiness_failure"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "3"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert int((state_dir / "readiness-probe-count").read_text()) >= 2
+    assert len(_rollback_helper_calls(state_dir)) == 1
+
+
+@pytest.mark.unit
+def test_same_revision_machine_successor_cannot_reuse_stale_status(
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_SCENARIO"] = "same_revision_successor_stale_status"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "3"
+
+    result = _run(env)
+
+    assert result.returncode == 1
+    assert "runtime-ready" not in result.stdout
+    assert int((state_dir / "readiness-probe-count").read_text()) >= 2
+    assert len(_rollback_helper_calls(state_dir)) == 1
 
 
 @pytest.mark.unit
@@ -1354,7 +1498,7 @@ def test_unhealthy_baseline_requires_loud_one_run_break_glass(fake_deploy_env):
     assert result.returncode == 0, result.stderr
     assert len(_deploy_calls(state_dir)) == 1
     assert "WARNING: break-glass deployment" in result.stderr
-    assert "cannot certify it healthy" in result.stderr
+    assert "cannot certify it runtime-ready" in result.stderr
 
 
 @pytest.mark.unit
@@ -1422,7 +1566,8 @@ def test_interposed_complete_release_prevents_stale_baseline_rollback(
     ],
 )
 def test_unverifiable_release_history_fails_closed_without_rollback(
-    scenario, fake_deploy_env,
+    scenario,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
@@ -1438,10 +1583,12 @@ def test_unverifiable_release_history_fails_closed_without_rollback(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "scenario", ["rollback_fenced_race", "fenced_rollback_failure"],
+    "scenario",
+    ["rollback_fenced_race", "fenced_rollback_failure"],
 )
 def test_fenced_rollback_failure_has_no_unconditional_fallback(
-    scenario, fake_deploy_env,
+    scenario,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = scenario
@@ -1458,22 +1605,10 @@ def test_fenced_rollback_failure_has_no_unconditional_fallback(
 
 
 @pytest.mark.unit
-def test_alert_failure_preserves_revision_verified_release(fake_deploy_env):
-    env, state_dir = fake_deploy_env
-    env["FAKE_SCENARIO"] = "alert_failure"
-
-    result = _run(env)
-
-    assert result.returncode == 1
-    assert len(_deploy_calls(state_dir)) == 1
-    assert "alert was not delivered" in result.stderr
-    assert "not rolling back code" in result.stderr
-
-
-@pytest.mark.unit
 def test_signal_after_remote_mutation_runs_controlled_rollback(fake_deploy_env):
     env, state_dir = fake_deploy_env
     env["FAKE_SCENARIO"] = "signal"
+    env["COLLECTOR_HEALTH_TIMEOUT_SECONDS"] = "4"
     env["COLLECTOR_ROLLBACK_TIMEOUT_SECONDS"] = "4"
 
     result = _run(env)
@@ -1517,6 +1652,30 @@ def test_deploy_target_must_match_checked_in_app(fake_deploy_env):
     assert result.returncode == 64
     assert "must exactly match fly.toml app" in result.stderr
     assert not (state_dir / "calls.jsonl").exists()
+
+
+@pytest.mark.unit
+def test_default_lock_uses_target_remote_without_branch_tracking(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+
+    result = _run(env)
+
+    assert result.returncode == 0, result.stderr
+    assert ["remote", "get-url", "--all", "origin"] in _git_calls(state_dir)
+    assert ["remote", "get-url", "--push", "--all", "origin"] in _git_calls(state_dir)
+    assert not any("@{" in argument for call in _git_calls(state_dir) for argument in call)
+
+
+@pytest.mark.unit
+def test_explicit_target_ref_replaces_origin_main(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["COLLECTOR_DEPLOY_TARGET_REF"] = "fork/main"
+
+    result = _run(env)
+
+    assert result.returncode == 0, result.stderr
+    assert ["remote", "get-url", "--all", "fork"] in _git_calls(state_dir)
+    assert ["remote", "get-url", "--push", "--all", "fork"] in _git_calls(state_dir)
 
 
 @pytest.mark.unit
@@ -1571,14 +1730,15 @@ def test_remote_branch_is_authoritative_over_stale_local_tracking_ref(fake_deplo
 
     assert result.returncode == 0, result.stderr
     rev_parses = [call for call in _git_calls(state_dir) if call[:1] == ["rev-parse"]]
-    assert rev_parses == [["rev-parse", "--verify", "HEAD"]]
+    assert ["rev-parse", "--verify", "HEAD"] in rev_parses
+    assert not any(
+        call[:2] == ["rev-parse", "--verify"] and call[-1] != "HEAD" for call in rev_parses
+    )
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("mode", ["unavailable", "malformed"])
-def test_unavailable_or_malformed_remote_fails_closed_without_leaking_output(
-    mode, fake_deploy_env
-):
+def test_unavailable_or_malformed_remote_fails_closed_without_leaking_output(mode, fake_deploy_env):
     env, state_dir = fake_deploy_env
     env["FAKE_REMOTE_MODE"] = mode
 
@@ -1659,7 +1819,7 @@ def test_remote_deploy_lock_cleanup_is_exact_and_fails_loudly_on_race(
     result = _run(env)
 
     assert result.returncode == 0
-    assert "healthy at" in result.stdout
+    assert "runtime-ready at" in result.stdout
     assert "remote-secret" not in result.stdout + result.stderr
     assert (state_dir / "remote-lock").read_text() == "d" * 40
 
@@ -1672,7 +1832,7 @@ def test_unreleased_owned_remote_lock_turns_success_into_failure(fake_deploy_env
     result = _run(env)
 
     assert result.returncode == 74
-    assert "healthy at" in result.stdout
+    assert "runtime-ready at" in result.stdout
     assert "remote deploy lock was not released" in result.stderr
     assert (state_dir / "remote-lock").read_text() == "c" * 40
     assert "remote-secret" not in result.stdout + result.stderr
@@ -1696,16 +1856,28 @@ def test_lost_remote_lock_never_rolls_back_or_deletes_new_owner(fake_deploy_env)
 
 
 @pytest.mark.unit
-def test_lock_remote_must_be_explicitly_valid_and_writable(fake_deploy_env):
+def test_divergent_explicit_lock_remote_is_rejected_before_fly(fake_deploy_env):
     env, state_dir = fake_deploy_env
-    env["COLLECTOR_DEPLOY_ALLOW_UNMERGED"] = "true"
-    env["COLLECTOR_DEPLOY_LOCK_REMOTE"] = "invalid/remote"
+    env["COLLECTOR_DEPLOY_LOCK_REMOTE"] = "somewhere-else"
 
     result = _run(env)
 
     assert result.returncode == 64
-    assert "shared writable deployment remote" in result.stderr
-    assert not (state_dir / "calls.jsonl").exists()
+    assert "must match the configured deployment target remote" in result.stderr
+    assert _deploy_calls(state_dir) == []
+    assert not any(call[:2] == ["remote", "get-url"] for call in _git_calls(state_dir))
+
+
+@pytest.mark.unit
+def test_matching_explicit_lock_remote_uses_the_target_namespace(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["COLLECTOR_DEPLOY_TARGET_REF"] = "reviewed/main"
+    env["COLLECTOR_DEPLOY_LOCK_REMOTE"] = "reviewed"
+
+    result = _run(env)
+
+    assert result.returncode == 0, result.stderr
+    assert ["remote", "get-url", "--push", "--all", "reviewed"] in _git_calls(state_dir)
 
 
 @pytest.mark.unit
@@ -1732,13 +1904,15 @@ def test_lost_lock_create_ack_is_reconciled_without_retry_or_secret_leak(
 def test_inherited_git_trace2_targets_are_disabled_for_transport(fake_deploy_env):
     env, state_dir = fake_deploy_env
     trace_target = state_dir / "credential-bearing-trace.json"
-    env.update({
-        "FAKE_REQUIRE_GIT_TRACE_DISABLED": "true",
-        "GIT_TRACE": str(trace_target),
-        "GIT_TRACE2": str(trace_target),
-        "GIT_TRACE2_EVENT": str(trace_target),
-        "GIT_TRACE2_PERF": str(trace_target),
-    })
+    env.update(
+        {
+            "FAKE_REQUIRE_GIT_TRACE_DISABLED": "true",
+            "GIT_TRACE": str(trace_target),
+            "GIT_TRACE2": str(trace_target),
+            "GIT_TRACE2_EVENT": str(trace_target),
+            "GIT_TRACE2_PERF": str(trace_target),
+        }
+    )
 
     result = _run(env)
 
@@ -1748,19 +1922,24 @@ def test_inherited_git_trace2_targets_are_disabled_for_transport(fake_deploy_env
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
+    "setting",
+    ["FAKE_TARGET_FETCH_URL", "FAKE_LOCK_REMOTE_URL"],
+)
+@pytest.mark.parametrize(
     "remote_url",
     [
-        "https://token@github.com/clarkipeng/TradingAgents.git",
-        "https://github.com/another/TradingAgents.git",
-        "https://github.com/clarkipeng/TradingAgents.git?token=private",
+        "https://token@github.com/example/TradingAgents.git",
+        "https://github.com/example/TradingAgents.git?token=private",
     ],
 )
-def test_lock_remote_rejects_credentials_or_wrong_canonical_repo(
-    remote_url, fake_deploy_env,
+def test_deploy_remote_rejects_credential_bearing_urls(
+    setting,
+    remote_url,
+    fake_deploy_env,
 ):
     env, state_dir = fake_deploy_env
     env["COLLECTOR_DEPLOY_ALLOW_UNMERGED"] = "true"
-    env["FAKE_LOCK_REMOTE_URL"] = remote_url
+    env[setting] = remote_url
 
     result = _run(env)
 
@@ -1780,6 +1959,65 @@ def test_multiple_lock_push_urls_fail_before_fly(fake_deploy_env):
 
     assert result.returncode == 64
     assert _deploy_calls(state_dir) == []
+
+
+@pytest.mark.unit
+def test_multiple_target_fetch_urls_fail_before_fly(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["FAKE_TARGET_MULTIPLE_FETCHURLS"] = "true"
+
+    result = _run(env)
+
+    assert result.returncode == 64
+    assert _deploy_calls(state_dir) == []
+
+
+@pytest.mark.unit
+def test_target_fetch_and_push_must_not_form_a_fork_triangle(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    fetch_url = "https://github.com/upstream/TradingAgents.git"
+    push_url = "git@github.com:contributor/TradingAgents.git"
+    env["FAKE_TARGET_FETCH_URL"] = fetch_url
+    env["FAKE_LOCK_REMOTE_URL"] = push_url
+
+    result = _run(env)
+
+    assert result.returncode == 64
+    assert "must name the same GitHub repository" in result.stderr
+    assert _deploy_calls(state_dir) == []
+    assert fetch_url not in result.stdout + result.stderr
+    assert push_url not in result.stdout + result.stderr
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "fetch_url,push_url",
+    [
+        (
+            "https://github.com/Example/TradingAgents.git",
+            "git@github.com:example/tradingagents",
+        ),
+        (
+            "ssh://git@github.com/EXAMPLE/TradingAgents.GIT",
+            "https://github.com/example/tradingagents.git",
+        ),
+    ],
+)
+def test_equivalent_github_url_forms_share_one_lock_repository(
+    fetch_url,
+    push_url,
+    fake_deploy_env,
+):
+    env, state_dir = fake_deploy_env
+    env["FAKE_TARGET_FETCH_URL"] = fetch_url
+    env["FAKE_LOCK_REMOTE_URL"] = push_url
+
+    deployed = _run(env)
+    inspected = _run_unlock(env, "inspect")
+
+    assert deployed.returncode == 0, deployed.stderr
+    assert inspected.returncode == 0, inspected.stderr
+    assert any(push_url in call for call in _lock_pushes(state_dir))
 
 
 @pytest.mark.unit
@@ -1847,13 +2085,16 @@ def test_real_git_remote_lock_has_one_winner_and_exact_cleanup(tmp_path):
     loser = next(result for result in results if result[0] != 0)
     assert sorted(result[0] == 0 for result in results) == [False, True]
     for repo, _owner in owners:
-        assert subprocess.run(
-            ["git", "for-each-ref", "--format=%(refname)"],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout == ""
+        assert (
+            subprocess.run(
+                ["git", "for-each-ref", "--format=%(refname)"],
+                cwd=repo,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            == ""
+        )
 
     winner_repo, winner_oid = winner[1:]
     subprocess.run(
@@ -1962,6 +2203,49 @@ def test_safe_unlock_inspects_and_exactly_releases_remote_owner(fake_deploy_env)
 
 
 @pytest.mark.unit
+def test_safe_unlock_derives_lock_remote_from_target(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    env["COLLECTOR_DEPLOY_TARGET_REF"] = "reviewed/main"
+
+    result = _run_unlock(env, "inspect")
+
+    assert result.returncode == 0, result.stderr
+    assert ["remote", "get-url", "--all", "reviewed"] in _git_calls(state_dir)
+    assert ["remote", "get-url", "--push", "--all", "reviewed"] in _git_calls(state_dir)
+
+
+@pytest.mark.unit
+def test_safe_unlock_rejects_a_lock_remote_outside_target(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    owner = "c" * 40
+    (state_dir / "remote-lock").write_text(owner)
+    env["COLLECTOR_DEPLOY_LOCK_REMOTE"] = "somewhere-else"
+
+    result = _run_unlock(env, "inspect")
+
+    assert result.returncode == 64
+    assert "must match the configured deployment target remote" in result.stderr
+    assert (state_dir / "remote-lock").read_text() == owner
+    assert not any(call[:2] == ["remote", "get-url"] for call in _git_calls(state_dir))
+
+
+@pytest.mark.unit
+def test_safe_unlock_rejects_a_target_fetch_push_triangle(fake_deploy_env):
+    env, state_dir = fake_deploy_env
+    fetch_url = "https://github.com/upstream/TradingAgents.git"
+    push_url = "ssh://git@github.com/contributor/TradingAgents.git"
+    env["FAKE_TARGET_FETCH_URL"] = fetch_url
+    env["FAKE_LOCK_REMOTE_URL"] = push_url
+
+    result = _run_unlock(env, "inspect")
+
+    assert result.returncode == 69
+    assert "must name the same GitHub repository" in result.stderr
+    assert fetch_url not in result.stdout + result.stderr
+    assert push_url not in result.stdout + result.stderr
+
+
+@pytest.mark.unit
 def test_safe_unlock_removes_only_verified_dead_local_owner(fake_deploy_env):
     env, state_dir = fake_deploy_env
     owner = "c" * 40
@@ -2040,14 +2324,16 @@ def test_safe_unlock_disables_shell_and_git_tracing(fake_deploy_env):
     env, state_dir = fake_deploy_env
     trace_target = state_dir / "unlock-trace.json"
     canary = "unlock-secret-canary-never-render"
-    env.update({
-        "FAKE_REQUIRE_GIT_TRACE_DISABLED": "true",
-        "GIT_TRACE": str(trace_target),
-        "GIT_TRACE2": str(trace_target),
-        "GIT_TRACE2_EVENT": str(trace_target),
-        "GIT_TRACE2_PERF": str(trace_target),
-        "UNRELATED_SECRET": canary,
-    })
+    env.update(
+        {
+            "FAKE_REQUIRE_GIT_TRACE_DISABLED": "true",
+            "GIT_TRACE": str(trace_target),
+            "GIT_TRACE2": str(trace_target),
+            "GIT_TRACE2_EVENT": str(trace_target),
+            "GIT_TRACE2_PERF": str(trace_target),
+            "UNRELATED_SECRET": canary,
+        }
+    )
 
     result = _run_unlock(env, "inspect", xtrace=True)
 

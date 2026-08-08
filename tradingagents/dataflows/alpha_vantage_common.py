@@ -6,7 +6,9 @@ from io import StringIO
 import pandas as pd
 import requests
 
-from .errors import VendorNotConfiguredError, VendorRateLimitError
+from tradingagents.logging_utils import safe_exception_type
+
+from .errors import VendorError, VendorNotConfiguredError, VendorRateLimitError
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -59,6 +61,11 @@ class AlphaVantageRateLimitError(VendorRateLimitError):
     """Raised when the Alpha Vantage API rate limit is exceeded."""
     pass
 
+
+class AlphaVantageDataError(VendorError):
+    """Raised when an Alpha Vantage response cannot be used safely."""
+
+
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
 
@@ -83,10 +90,22 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
 
-    response = requests.get(API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT)
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise AlphaVantageDataError(
+            f"Alpha Vantage request failed ({safe_exception_type(exc)})"
+        ) from None
 
-    response_text = response.text
+    try:
+        response_text = response.text
+    except Exception as exc:
+        raise AlphaVantageDataError(
+            f"Alpha Vantage response could not be read ({safe_exception_type(exc)})"
+        ) from None
 
     # Error responses are JSON; data responses are usually CSV (or data-keyed
     # JSON). A non-JSON body is normal data.
@@ -94,20 +113,30 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         response_json = json.loads(response_text)
     except json.JSONDecodeError:
         return response_text
+    if not isinstance(response_json, dict):
+        raise AlphaVantageDataError("Alpha Vantage response was not a JSON object")
 
     # Alpha Vantage reports problems via "Information" / "Note". Classify so a
     # genuine rate limit and an invalid/missing key aren't conflated (#991):
     # rate-limit phrasing is checked first because those notices also mention
     # "API key" ("your API key ... 25 requests per day").
+    has_notice = "Information" in response_json or "Note" in response_json
     notice = response_json.get("Information") or response_json.get("Note")
-    if notice:
+    if has_notice:
+        if not isinstance(notice, str) or not notice.strip():
+            raise AlphaVantageDataError("Alpha Vantage returned an unusable notice")
         low = notice.lower()
         if any(m in low for m in ("rate limit", "requests per day", "call frequency", "premium")):
-            raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {notice}")
+            raise AlphaVantageRateLimitError("Alpha Vantage rate limit exceeded")
         if "api key" in low or "apikey" in low:
             # Reuse the existing "not configured" error so a bad key surfaces as
             # a real, actionable failure rather than a mislabeled rate limit (#991).
-            raise AlphaVantageNotConfiguredError(f"Alpha Vantage API key invalid or missing: {notice}")
+            raise AlphaVantageNotConfiguredError(
+                "Alpha Vantage API key is invalid or missing"
+            )
+        raise AlphaVantageDataError("Alpha Vantage returned an unusable notice")
+    if response_json.get("Error Message"):
+        raise AlphaVantageDataError("Alpha Vantage rejected the request")
 
     return response_text
 
@@ -125,27 +154,26 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
     Returns:
         Filtered CSV string
     """
-    if not csv_data or csv_data.strip() == "":
-        return csv_data
-
     try:
-        # Parse CSV data
+        if not isinstance(csv_data, str):
+            raise TypeError("CSV response is not text")
+        if not csv_data.strip():
+            return csv_data
         df = pd.read_csv(StringIO(csv_data))
+        if df.columns.empty or df.columns[0] != "timestamp":
+            raise ValueError("missing timestamp column")
 
-        # Assume the first column is the date column (timestamp)
-        date_col = df.columns[0]
-        df[date_col] = pd.to_datetime(df[date_col])
+        timestamps = pd.to_datetime(
+            df["timestamp"], format="%Y-%m-%d", errors="raise"
+        )
+        start_dt = pd.Timestamp(datetime.strptime(start_date, "%Y-%m-%d"))
+        end_dt = pd.Timestamp(datetime.strptime(end_date, "%Y-%m-%d"))
+        if start_dt > end_dt:
+            raise ValueError("start date is after end date")
 
-        # Filter by date range
-        start_dt = pd.to_datetime(start_date)
-        end_dt = pd.to_datetime(end_date)
-
-        filtered_df = df[(df[date_col] >= start_dt) & (df[date_col] <= end_dt)]
-
-        # Convert back to CSV string
+        filtered_df = df[(timestamps >= start_dt) & (timestamps <= end_dt)]
         return filtered_df.to_csv(index=False)
-
-    except Exception as e:
-        # If filtering fails, return original data with a warning
-        print(f"Warning: Failed to filter CSV data by date range: {e}")
-        return csv_data
+    except Exception:
+        raise AlphaVantageDataError(
+            "Alpha Vantage CSV response could not be safely filtered"
+        ) from None

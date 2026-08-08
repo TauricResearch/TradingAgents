@@ -8,9 +8,11 @@ string, not a dict).
 import json
 
 import pytest
+import requests
 
 import tradingagents.dataflows.alpha_vantage_common as av
 import tradingagents.dataflows.alpha_vantage_fundamentals as avf
+import tradingagents.dataflows.alpha_vantage_indicator as avi
 
 
 class _FakeResponse:
@@ -39,10 +41,15 @@ def test_request_passes_timeout(monkeypatch):
 
 @pytest.mark.unit
 def test_rate_limit_detected(monkeypatch):
-    body = '{"Information": "Our standard API rate limit is 25 requests per day. ... your API key ..."}'
+    secret = "must-not-escape"
+    body = (
+        '{"Information": "Our standard API rate limit is 25 requests per day. '
+        f'API key {secret}"}}'
+    )
     monkeypatch.setattr(av.requests, "get", _patched_get(body))
-    with pytest.raises(av.AlphaVantageRateLimitError):
+    with pytest.raises(av.AlphaVantageRateLimitError) as captured:
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+    assert secret not in str(captured.value)
 
 
 @pytest.mark.unit
@@ -54,9 +61,148 @@ def test_invalid_key_not_mislabeled_as_rate_limit(monkeypatch):
     monkeypatch.setattr(av.requests, "get", _patched_get(body))
     with pytest.raises(av.AlphaVantageNotConfiguredError):
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
-    with pytest.raises(av.AlphaVantageRateLimitError):  # sanity: rate-limit path still distinct
-        monkeypatch.setattr(av.requests, "get", _patched_get('{"Note": "API call frequency is 5 calls per minute."}'))
+
+
+@pytest.mark.unit
+def test_http_error_does_not_expose_request_url(monkeypatch):
+    secret = "https://provider.invalid/?apikey=must-not-escape"
+
+    class FailedResponse:
+        text = ""
+
+        def raise_for_status(self):
+            raise requests.HTTPError(secret)
+
+    monkeypatch.setattr(av.requests, "get", lambda *args, **kwargs: FailedResponse())
+    with pytest.raises(av.AlphaVantageDataError) as captured:
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+
+    assert secret not in str(captured.value)
+    assert "HTTPError" in str(captured.value)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "payload",
+    [
+        [],
+        "unexpected",
+        None,
+        {"Information": None},
+        {"Note": ["unexpected"]},
+        {"Information": "https://provider.invalid/?token=must-not-escape"},
+    ],
+)
+def test_unusable_json_shapes_fail_closed(monkeypatch, payload):
+    secret = "must-not-escape"
+    body = json.dumps(payload)
+    monkeypatch.setattr(av.requests, "get", _patched_get(body))
+
+    with pytest.raises(av.AlphaVantageDataError) as captured:
+        av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+
+    assert secret not in str(captured.value)
+
+
+@pytest.mark.unit
+def test_response_read_failure_is_sanitized(monkeypatch):
+    secret = "https://provider.invalid/?token=must-not-escape"
+
+    class UnreadableResponse:
+        def raise_for_status(self):
+            pass
+
+        @property
+        def text(self):
+            raise UnicodeError(secret)
+
+    monkeypatch.setattr(av.requests, "get", lambda *args, **kwargs: UnreadableResponse())
+    with pytest.raises(av.AlphaVantageDataError) as captured:
+        av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+
+    assert secret not in str(captured.value)
+    assert "UnicodeError" in str(captured.value)
+
+
+@pytest.mark.unit
+def test_indicator_failure_raises_sanitized_vendor_error(monkeypatch):
+    secret = "https://provider.invalid/?apikey=must-not-escape"
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(avi, "_make_api_request", fail)
+
+    with pytest.raises(av.AlphaVantageDataError) as captured:
+        avi.get_indicator("AAPL", "rsi", "2026-01-01", 30)
+
+    assert secret not in str(captured.value)
+    assert "RuntimeError" in str(captured.value)
+    with pytest.raises(av.AlphaVantageRateLimitError):  # sanity: distinct path
+        monkeypatch.setattr(
+            av.requests,
+            "get",
+            _patched_get('{"Note": "API call frequency is 5 calls per minute."}'),
+        )
+        av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+
+
+@pytest.mark.unit
+def test_csv_date_filter_excludes_future_rows():
+    csv_data = (
+        "timestamp,open,close\n"
+        "2026-01-03,3,4\n"
+        "2026-01-02,2,3\n"
+        "2026-01-01,1,2\n"
+    )
+
+    filtered = av._filter_csv_by_date_range(
+        csv_data, "2026-01-01", "2026-01-02"
+    )
+
+    assert filtered == (
+        "timestamp,open,close\n"
+        "2026-01-02,2,3\n"
+        "2026-01-01,1,2\n"
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "csv_data,start_date,end_date",
+    [
+        (None, "2026-01-01", "2026-01-02"),
+        ("date,close\n2026-01-01,2\n", "2026-01-01", "2026-01-02"),
+        ("timestamp,close\nnot-a-date,2\n", "2026-01-01", "2026-01-02"),
+        ("timestamp,close\n2026-01-01,2\n", "2026-01-03", "2026-01-02"),
+    ],
+)
+def test_csv_date_filter_fails_closed(csv_data, start_date, end_date, capsys):
+    with pytest.raises(
+        av.AlphaVantageDataError,
+        match="^Alpha Vantage CSV response could not be safely filtered$",
+    ):
+        av._filter_csv_by_date_range(csv_data, start_date, end_date)
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+
+
+@pytest.mark.unit
+def test_csv_date_filter_does_not_expose_parser_error(monkeypatch):
+    secret = "https://example.invalid/?apikey=must-not-escape"
+
+    def fail_sensitively(*_args, **_kwargs):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(av.pd, "read_csv", fail_sensitively)
+    with pytest.raises(av.AlphaVantageDataError) as error:
+        av._filter_csv_by_date_range(
+            "timestamp,close\n2026-01-01,2\n", "2026-01-01", "2026-01-02"
+        )
+
+    assert secret not in str(error.value)
 
 
 _FUNDAMENTALS_JSON = json.dumps({

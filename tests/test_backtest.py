@@ -1,5 +1,6 @@
 """Backtest execution timing, costs, and safety checks."""
 
+import json
 from types import SimpleNamespace
 
 import pandas as pd
@@ -117,6 +118,34 @@ def test_signal_manifest_includes_effective_decision_config(monkeypatch):
 
 
 @pytest.mark.unit
+def test_signal_manifest_never_persists_backend_credentials(monkeypatch):
+    secret = "must-not-enter-artifacts"
+    monkeypatch.setitem(
+        backtest.DEFAULT_CONFIG,
+        "backend_url",
+        f"https://user:password@llm.invalid/v1/{secret}?token={secret}",
+    )
+
+    manifest = backtest._signal_manifest(
+        SimpleNamespace(db="sqlite:///research.db"), ("market", "news")
+    )
+
+    serialized = json.dumps(manifest)
+    assert secret not in serialized
+    assert "password" not in serialized
+    assert "backend_url" not in manifest["decision_config"]
+    assert manifest["decision_config"]["backend_id"]
+
+
+@pytest.mark.unit
+def test_signal_manifest_rejects_untrusted_provider_text(monkeypatch):
+    monkeypatch.setitem(backtest.DEFAULT_CONFIG, "llm_provider", "provider\nsecret")
+
+    with pytest.raises(ValueError, match="unsupported LLM provider"):
+        backtest._signal_manifest(SimpleNamespace(db="sqlite:///research.db"), ("news",))
+
+
+@pytest.mark.unit
 def test_operational_build_change_does_not_fork_signal_identity(monkeypatch):
     args = SimpleNamespace(db="postgresql://u:p@db.example/research")
     initial = backtest._signal_manifest(args, ("market", "news"))
@@ -165,13 +194,23 @@ def test_cached_decision_outcomes_are_recomputed_for_current_horizon_and_cost():
 
 
 @pytest.mark.unit
-def test_jsonl_resume_ignores_partial_crash_line(tmp_path, capsys):
+def test_jsonl_resume_fails_closed_on_partial_crash_line(tmp_path):
     path = tmp_path / "signals.jsonl"
     path.write_text('{"ticker":"A","decision_date":"2026-07-01"}\n{"ticker":',
                     encoding="utf-8")
-    rows = backtest._load_records(path)
-    assert rows == [{"ticker": "A", "decision_date": "2026-07-01"}]
-    assert "Ignoring malformed JSONL line 2" in capsys.readouterr().out
+    with pytest.raises(ValueError, match="malformed JSON on line 2"):
+        backtest._load_records(path)
+
+
+@pytest.mark.unit
+def test_append_jsonl_flushes_one_complete_record(tmp_path):
+    path = tmp_path / "signals.jsonl"
+    row = {"ticker": "A", "decision_date": "2026-07-01"}
+
+    backtest._append_jsonl(path, row)
+
+    assert backtest._load_records(path) == [row]
+    assert path.read_bytes().endswith(b"\n")
 
 
 @pytest.mark.unit

@@ -286,11 +286,11 @@ exploratory tests of the original per-ticker graph against captured media. Use a
 dry run to inspect LLM call counts before spending provider credits:
 
 ```bash
+export MEDIA_DB_URL='postgresql+psycopg://...'
 tradingagents-backtest \
   --tickers NVDA,MSFT,AMZN,META \
   --start 2026-07-01 \
   --end 2026-07-01 \
-  --db "$MEDIA_DB_URL" \
   --max-runs 4 \
   --portfolio-mode long-only \
   --cost-bps 5 \

@@ -9,14 +9,17 @@
 
 app = "tradagent"
 primary_region = "iad"          # keep close to the Fly MPG primary region
+kill_signal = "SIGTERM"
+# Let an in-flight bounded collection cycle finalize receipts and release its lease.
+kill_timeout = "300s"
 
 [build]
   dockerfile = "Dockerfile.poller"
 
 [deploy]
   # The image ENTRYPOINT remains tradingagents-poller, so this replaces only
-  # its CMD. The database-read-only preflight and sanitized webhook probe must
-  # pass before Fly updates the worker.
+  # its CMD. The database-read-only preflight and silent webhook receiver-contract
+  # probe must pass before Fly updates the worker.
   release_command = "--global-only --preflight"
   release_command_timeout = "2m"
   # Stop the sole old worker before starting the new one. This avoids a rolling
@@ -58,14 +61,15 @@ primary_region = "iad"          # keep close to the Fly MPG primary region
   policy = "always"
   processes = ["app"]
 
-# A top-level check works without defining a public Fly service. The collector
-# binds this port on 0.0.0.0 inside its private network and reports coverage
-# produced by the current process at /healthz.
+# A top-level check works without defining a public Fly service. Keep the
+# existing check name for rollout and rollback compatibility. /readyz proves
+# that this process completed a fresh cycle without a runtime failure; strict
+# coverage remains available separately at /healthz.
 [checks.collector_health]
   type = "http"
   port = 5500
   method = "get"
-  path = "/healthz"
+  path = "/readyz"
   interval = "60s"
   timeout = "10s"
   grace_period = "5m"

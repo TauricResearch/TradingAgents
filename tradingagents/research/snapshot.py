@@ -7,7 +7,7 @@ providers and never invokes a model.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from tradingagents.global_research import (
@@ -22,11 +22,17 @@ from tradingagents.research.contracts import (
     SnapshotSlice,
     require_strict_evidence_availability,
 )
+from tradingagents.research.coverage import validate_global_event_receipt_coverage
+from tradingagents.research.timeline import (
+    decision_cutoff,
+    require_contiguous_xnys_sessions,
+)
 from tradingagents.research.x_availability import (
     bind_x_availability_to_selection,
     project_x_cycle_availability,
 )
 from tradingagents.research_protocol import (
+    GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
     GLOBAL_EVENT_V2_PROTOCOL,
     GLOBAL_EVENT_V2_PROTOCOL_ID,
     build_identity,
@@ -35,33 +41,6 @@ from tradingagents.research_protocol import (
 EvidenceLoader = Callable[[str], list[dict[str, Any]]]
 SelectionBuilder = Callable[[list[dict[str, Any]], float], dict[str, Any]]
 ReceiptCoverageLoader = Callable[[date, datetime, dict[str, Any]], dict[str, Any]]
-
-
-def _decision_cutoff(decision_date: date) -> datetime:
-    """The V2 after-session boundary: following UTC midnight."""
-    return datetime.combine(decision_date + timedelta(days=1), time.min, timezone.utc)
-
-
-def _require_xnys_sessions(decision_dates: tuple[date, ...]) -> None:
-    """Reject weekend, holiday, or out-of-calendar experimental dates."""
-    if not decision_dates:
-        raise ValueError("snapshot requires at least one decision date")
-    try:
-        import exchange_calendars as xcals
-    except ImportError as exc:  # pragma: no cover - exercised by clean-install smoke
-        raise RuntimeError(
-            "media snapshots require exchange-calendars; install tradingagents[poller]"
-        ) from exc
-    calendar = xcals.get_calendar("XNYS")
-    sessions = {
-        value.date()
-        for value in calendar.sessions_in_range(
-            min(decision_dates).isoformat(), max(decision_dates).isoformat()
-        )
-    }
-    invalid = [value.isoformat() for value in decision_dates if value not in sessions]
-    if invalid:
-        raise ValueError("decision dates must be XNYS sessions: " + ",".join(invalid))
 
 
 def _default_selection(rows: list[dict[str, Any]], cutoff: float) -> dict[str, Any]:
@@ -81,9 +60,7 @@ def build_snapshot(
     evidence_loader: EvidenceLoader,
     benchmark: str = "SPY",
     protocol_id: str = GLOBAL_EVENT_V2_PROTOCOL_ID,
-    collection_policy_id: str = GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-        "expected_collector_semantics_id"
-    ],
+    collection_policy_id: str = GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
     selection_builder: SelectionBuilder = _default_selection,
     coverage_builder: Callable[[dict[str, Any]], dict[str, Any]] = _default_coverage,
     receipt_coverage_loader: ReceiptCoverageLoader | None = None,
@@ -95,10 +72,11 @@ def build_snapshot(
     dates = tuple(sorted(set(requested_dates)))
     if not dates:
         raise ValueError("snapshot requires at least one decision date")
+    require_contiguous_xnys_sessions(dates)
     symbols = tuple(symbol.strip().upper() for symbol in universe)
     slices = []
     for decision_date in dates:
-        cutoff = _decision_cutoff(decision_date)
+        cutoff = decision_cutoff(decision_date)
         rows = evidence_loader(decision_date.isoformat())
         if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
             raise TypeError("evidence loader must return a list of mappings")
@@ -161,7 +139,7 @@ def build_media_snapshot(
     from tradingagents.dataflows.media_store import open_store
 
     dates = tuple(decision_dates)
-    _require_xnys_sessions(dates)
+    require_contiguous_xnys_sessions(tuple(sorted(set(dates))))
     protocol_universe = GLOBAL_EVENT_V2_PROTOCOL["universe"]
     symbols = tuple(protocol_universe["symbols"])
     sectors = dict(protocol_universe["sectors"])
@@ -182,7 +160,7 @@ def build_media_snapshot(
 
         def load_evidence(decision_date: str) -> list[dict[str, Any]]:
             parsed_date = date.fromisoformat(decision_date)
-            cutoff = _decision_cutoff(parsed_date)
+            cutoff = decision_cutoff(parsed_date)
             candidates = evidence_window(store, decision_date)
             availability, rows = project_x_cycle_availability(
                 store, cutoff=cutoff, candidate_rows=candidates
@@ -214,7 +192,7 @@ def build_media_snapshot(
                 require_lineage_query_slots=query_slots,
                 min_started_utc=(cutoff - timedelta(seconds=window)).timestamp(),
             )
-            return {
+            decorated = {
                 **report,
                 "collector_interval_seconds": interval,
                 "cycle_start_grace_seconds": grace,
@@ -222,6 +200,10 @@ def build_media_snapshot(
                     cutoff - timedelta(seconds=window)
                 ).timestamp(),
             }
+            validate_global_event_receipt_coverage(
+                decorated, cutoff_utc=cutoff.timestamp()
+            )
+            return decorated
 
         return build_snapshot(
             run_id=run_id,

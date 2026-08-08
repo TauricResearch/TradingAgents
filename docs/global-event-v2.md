@@ -79,11 +79,39 @@ feeds across several regions. Its frozen topic families cover rates, trade,
 politics and geopolitics, companies and the economy, technology, and energy.
 Queries never name a portfolio ticker or issuer.
 
+The query-free topic selector is also part of the collection contract. Its text
+normalization, story clustering, trend matching, query construction, ranking
+weights, category representation, and deterministic tie-breaks live in one
+immutable discovery policy. Changing any of those machine rules creates a new
+collection identity; editing an identity-history explanation does not.
+
 X is a bounded public-reaction channel, not a representative opinion poll. The
 daily budget permits at most two trend requests and three searches. Selection
 caps repeat authors, discourages automated-looking activity, and excludes
-verified business and government accounts. Company-authored material is also
-rejected at the forecast boundary.
+verified business and government accounts. It also freezes each author's name,
+description, URL/entities, parody flag, and identity-verification flag, then
+rejects any parody label or conservative organization/leadership language
+signal before formal eligibility. The X adapter accepts the documented legacy
+and current metric names but stores one canonical counter shape.
+
+The once-per-UTC-day X attempt starts only from 21:00 through 23:45 UTC. This
+places collection at or after the latest possible regular XNYS close while
+giving the hourly worker several chances before the day ends. Before 21:00,
+today's X requirement is `scheduled`: it is healthy, makes no provider request,
+and emits no missing-coverage alert. If no attempt exists after 23:45, it is
+genuinely missing. A forced one-shot run obeys the same window.
+
+This screen is intentionally described as a heuristic, not proof that every
+remaining account is an unaffiliated person: profile text is self-reported and
+an unverified organization can omit identifying language. The immutable inputs
+and screening result make that residual limitation measurable and allow a later
+policy version to improve the classifier without rewriting historical evidence.
+
+The global X adapter and collection manifest share one recursively immutable
+request policy. It binds the endpoints, relevancy ordering, language and reply/
+retweet exclusions, result bounds and defaults, requested tweet/user/trend
+fields and expansions, source verified-type prefilter, and automation-risk
+formula. Ticker-specific recency search is a separate non-global mode.
 
 The editorial-news core is intentionally conservative. The current allowlist is
 AP, BBC, France 24, NPR, Reuters, and Sky News. A successful provider response
@@ -97,6 +125,20 @@ Every provider attempt gets a receipt. Every retained item records both its
 publication time and the time this system first received it. Exact fetched
 content is content-addressed, and a snapshot commits the complete eligible
 lineage at a declared decision cutoff.
+
+Receipts carry a narrow collection-protocol ID and a separate stored-semantics
+ID. Those IDs cover requests, admission rules, normalization, lineage, and wire
+formats only. Alerting, database pooling, deployment code, and the forecasting
+experiment are deliberately excluded, so operational maintenance cannot make an
+otherwise equivalent day look like missing evidence. The exact Git build remains
+recorded separately for implementation provenance. Forecast, portfolio, and
+evaluation artifacts continue to use the complete experiment-protocol ID. That
+full ID includes the current collection and stored-semantics IDs, the
+chronological compatibility ledger and each pair's frozen daily X cycle shape,
+and the explicit `current, then newest compatible to oldest` precedence rule.
+It excludes only the human explanation attached to each compatibility entry;
+X availability artifacts likewise contain machine identity and shape, not that
+operator prose.
 
 A snapshot is useful only if it can be reconstructed without asking a live
 provider what used to be present. Historical provider IDs alone are not enough.

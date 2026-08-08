@@ -16,6 +16,7 @@ import pytest
 
 from tradingagents.dataflows import interface, stockstats_utils
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.errors import VendorError
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
 
@@ -64,10 +65,9 @@ class TestRouteToVendorSentinel(unittest.TestCase):
         self.assertIn("GC=F", result)
         self.assertIn("Do not estimate", result)
 
-    def test_unconfigured_fallback_does_not_mask_no_data(self):
-        # When the primary vendor reports no data and the fallback is simply
-        # unavailable (e.g. missing API key -> raises), the no-data sentinel
-        # must win rather than the fallback's incidental error crashing out.
+    def test_unavailable_fallback_prevents_false_no_data_verdict(self):
+        # One clean empty response does not establish absence when another
+        # configured provider failed.
         def raises_no_data(symbol, *a, **k):
             raise NoMarketDataError(symbol, symbol, "no rows")
 
@@ -75,13 +75,14 @@ class TestRouteToVendorSentinel(unittest.TestCase):
             raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
 
         patched = {"yfinance": raises_no_data, "alpha_vantage": raises_unavailable}
+        set_config({"data_vendors": {"core_stock_apis": "yfinance,alpha_vantage"}})
         with mock.patch.dict(
             interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
-        ):
-            result = interface.route_to_vendor(
+        ), self.assertRaises(VendorError) as captured:
+            interface.route_to_vendor(
                 "get_stock_data", "FAKE", "2026-01-01", "2026-01-10"
             )
-        self.assertIn("NO_DATA_AVAILABLE", result)
+        self.assertNotIn("NO_DATA_AVAILABLE", str(captured.exception))
 
 
 if __name__ == "__main__":

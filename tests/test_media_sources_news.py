@@ -27,6 +27,18 @@ def _rss(*titles):
 
 
 @pytest.mark.unit
+def test_public_provenance_url_drops_credential_bearing_query_and_fragment():
+    secret = "must-not-be-persisted"
+
+    normalized = media_sources.normalize_public_url(
+        f"HTTPS://Example.COM:443/story?token={secret}&signature={secret}#fragment"
+    )
+
+    assert normalized == "https://example.com/story"
+    assert secret not in normalized
+
+
+@pytest.mark.unit
 def test_ambiguous_ticker_uses_company_identity_and_filters_mismatch(monkeypatch):
     urls = []
 
@@ -63,6 +75,42 @@ def test_unambiguous_ticker_keeps_symbol_anchored_query(monkeypatch):
     media_sources.fetch_news("NVDA", now=1.0)
 
     assert "NVDA" in parse_qs(urlparse(urls[1]).query)["q"][0]
+
+
+@pytest.mark.unit
+def test_ticker_news_partial_transport_failure_is_not_observed_absence(monkeypatch):
+    calls = 0
+
+    def partial(_request, timeout):
+        nonlocal calls
+        del timeout
+        calls += 1
+        if calls == 1:
+            raise OSError("temporary feed failure")
+        return _rss("Observed company report")
+
+    monkeypatch.setattr(media_sources, "urlopen", partial)
+    monkeypatch.setattr(media_sources.time, "sleep", lambda _: None)
+
+    with pytest.raises(media_sources.ProviderTransientError, match="incomplete"):
+        media_sources.fetch_news("NVDA", now=1.0)
+
+
+@pytest.mark.unit
+def test_ticker_news_rejects_malformed_items_without_partial_salvage(monkeypatch):
+    malformed = BytesIO(
+        b"<rss><channel><title>News</title><link>https://example.com/</link>"
+        b"<description>feed</description><item><guid>missing-fields</guid></item>"
+        b"</channel></rss>"
+    )
+    responses = iter((malformed, _rss("Observed company report")))
+    monkeypatch.setattr(
+        media_sources, "urlopen", lambda _request, timeout: next(responses)
+    )
+    monkeypatch.setattr(media_sources.time, "sleep", lambda _: None)
+
+    with pytest.raises(media_sources.ProviderResponseError, match="response contract"):
+        media_sources.fetch_news("NVDA", now=1.0)
 
 
 @pytest.mark.unit
@@ -211,7 +259,7 @@ def test_global_news_keeps_raw_rows_and_persists_normalized_provenance(monkeypat
     assert len({row["external_id"] for row in rows}) == 2
     assert all(row["external_id"].startswith("google_news_v1_") for row in rows)
     assert rows[0]["metadata"] == {
-        "article_url": "https://news.google.com/articles/release?b=2",
+        "article_url": "https://news.google.com/articles/release",
         "publisher_domain": "prnewswire.com",
         "provider_external_id": "release",
         "content_vintage_id": rows[0]["external_id"],

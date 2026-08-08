@@ -1,6 +1,7 @@
 """Dynamic X discovery stays broad, diverse, and tightly bounded."""
 
-from pathlib import Path
+import json
+from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -10,12 +11,8 @@ from tradingagents.dataflows import media_sources
 from tradingagents.dataflows.media_sources import _row
 from tradingagents.dataflows.media_store import SqliteMediaStore
 
-
-@pytest.fixture(autouse=True)
-def _freeze_canonical_collector_semantics_before_adapter_stubs():
-    """Keep semantic identity independent of per-test provider monkeypatch order."""
-    poller.collector_semantics_manifest.cache_clear()
-    poller.collector_semantics_manifest()
+_X_WINDOW_OPEN_UTC = datetime(2026, 8, 5, 21, tzinfo=timezone.utc).timestamp()
+_X_WINDOW_CLOSED_UTC = datetime(2026, 8, 5, 23, 46, tzinfo=timezone.utc).timestamp()
 
 
 @pytest.mark.unit
@@ -32,15 +29,23 @@ def test_x_topic_query_is_public_relevant_and_minimum_sized(monkeypatch):
                 "text": "People react to a major story",
                 "public_metrics": {
                     "like_count": 2, "reply_count": 0,
-                    "retweet_count": 1, "quote_count": 0,
+                    "repost_count": 1, "quote_count": 0,
                 },
             }],
             "includes": {"users": [{
                 "id": "101", "username": "publicvoice", "verified_type": "none",
+                "name": "Alice Example", "description": "Watching world events",
+                "parody": False, "is_identity_verified": False,
+                "url": "https://alice.example/profile?token=private#fragment",
+                "entities": {"url": {"urls": [{
+                    "expanded_url": (
+                        "https://alice.example/about?api_key=private#fragment"
+                    ),
+                }]}},
                 "created_at": "2020-01-01T00:00:00Z",
                 "public_metrics": {
                     "followers_count": 100, "following_count": 20,
-                    "tweet_count": 500,
+                    "post_count": 500,
                 },
             }]},
         }
@@ -59,17 +64,149 @@ def test_x_topic_query_is_public_relevant_and_minimum_sized(monkeypatch):
     assert "-is:retweet -is:reply" in params["query"][0]
     assert "from:" not in params["query"][0]
     assert "$" not in params["query"][0]
+    assert "post.fields" in params
+    assert "tweet.fields" not in params
+    assert {
+        "description", "entities", "is_identity_verified",
+        "name", "parody", "url",
+    }.issubset(set(params["user.fields"][0].split(",")))
+    assert "affiliation" not in params["user.fields"][0].split(",")
     assert captured["headers"]["Authorization"] == "Bearer secret-test-token"
     assert rows[0]["ticker"] == "@TREND_WORLD"
     assert rows[0]["metadata"]["evidence_role"] == "unverified_public_reaction"
     assert rows[0]["metadata"]["author_id"] == "101"
     assert rows[0]["metadata"]["automation_signals_complete"] is True
+    assert rows[0]["metadata"]["profile_screening_complete"] is True
+    assert rows[0]["metadata"]["organization_signals"] == []
+    assert rows[0]["metadata"]["author_display_name"] == "Alice Example"
+    assert rows[0]["metadata"]["author_description"] == "Watching world events"
+    assert rows[0]["metadata"]["author_profile_url"] == (
+        "https://alice.example/profile"
+    )
+    assert rows[0]["metadata"]["author_profile_entity_urls"] == [
+        "https://alice.example/about"
+    ]
+    assert "private" not in json.dumps(rows[0]["metadata"])
     assert rows[0]["metadata"]["account_created_utc"] is not None
+    assert rows[0]["metadata"]["engagement"]["retweet_count"] == 1
+    assert "repost_count" not in rows[0]["metadata"]["engagement"]
+    assert rows[0]["metadata"]["author_metrics"]["tweet_count"] == 500
+    assert "post_count" not in rows[0]["metadata"]["author_metrics"]
     assert 0 <= rows[0]["metadata"]["automation_risk"] <= 1
 
 
 @pytest.mark.unit
+def test_x_topic_accepts_expanded_user_without_a_bio(monkeypatch):
+    monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
+    monkeypatch.setattr(
+        media_sources,
+        "_get_json",
+        lambda *_args, **_kwargs: {
+            "data": [{
+                "id": "no-bio-post",
+                "author_id": "303",
+                "created_at": "2026-07-22T12:00:00Z",
+                "text": "A substantive public reaction",
+                "public_metrics": {
+                    "like_count": 1,
+                    "reply_count": 0,
+                    "retweet_count": 0,
+                    "quote_count": 0,
+                },
+            }],
+            "includes": {"users": [{
+                "id": "303",
+                "username": "quiet_observer",
+                "name": "Alice Example",
+                "parody": False,
+                "is_identity_verified": False,
+                "verified_type": "none",
+                "created_at": "2020-01-01T00:00:00Z",
+                "public_metrics": {
+                    "followers_count": 100,
+                    "following_count": 20,
+                    "tweet_count": 500,
+                },
+            }]},
+        },
+    )
+
+    rows = media_sources.fetch_x_topic(
+        "trend_world", "major event", 1_800_000_000.0
+    )
+
+    assert [row["external_id"] for row in rows] == ["no-bio-post"]
+    assert rows[0]["metadata"]["author_description"] == ""
+    assert rows[0]["metadata"]["profile_screening_complete"] is True
+
+
+@pytest.mark.unit
+def test_x_topic_excludes_an_author_with_incomplete_optional_screening(
+    monkeypatch,
+):
+    monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
+    monkeypatch.setattr(
+        media_sources,
+        "_get_json",
+        lambda *_args, **_kwargs: {
+            "data": [{
+                "id": "unscreenable-post",
+                "author_id": "404",
+                "created_at": "2026-07-22T12:00:00Z",
+                "text": "A substantive public reaction",
+                "public_metrics": {
+                    "like_count": 1,
+                    "reply_count": 0,
+                    "repost_count": 0,
+                    "quote_count": 0,
+                },
+            }],
+            "includes": {"users": [{
+                "id": "404",
+                "username": "unscreenable_user",
+                "name": "Alice Example",
+                "is_identity_verified": False,
+                "verified_type": "none",
+                "created_at": "2020-01-01T00:00:00Z",
+                "public_metrics": {
+                    "followers_count": 100,
+                    "following_count": 20,
+                    "post_count": 500,
+                },
+            }]},
+        },
+    )
+
+    assert media_sources.fetch_x_topic(
+        "trend_world", "major event", 1_800_000_000.0
+    ) == []
+
+
+@pytest.mark.unit
+def test_x_metric_aliases_must_be_unambiguous():
+    aliases = media_sources.GLOBAL_X_ADAPTER_POLICY["recent_search"][
+        "response_metric_aliases"
+    ]["post"]
+
+    with pytest.raises(media_sources.ProviderResponseError, match="metrics schema"):
+        media_sources._normalize_x_metrics(
+            {
+                "like_count": 1,
+                "reply_count": 0,
+                "retweet_count": 2,
+                "repost_count": 2,
+                "quote_count": 0,
+            },
+            aliases,
+        )
+
+
+@pytest.mark.unit
 def test_x_topic_excludes_official_business_accounts(monkeypatch):
+    excluded_type = media_sources.GLOBAL_X_ADAPTER_POLICY["recent_search"][
+        "excluded_verified_types"
+    ][0]
+
     def fake_get_json(url, headers, timeout):
         return {
             "data": [
@@ -89,10 +226,22 @@ def test_x_topic_excludes_official_business_accounts(monkeypatch):
                         "retweet_count": 0, "quote_count": 0,
                     },
                 },
+                {
+                    "id": "unverified-company-post", "author_id": "3",
+                    "text": "Our product announcement",
+                    "created_at": "2026-07-22T12:00:00Z",
+                    "public_metrics": {
+                        "like_count": 1, "reply_count": 0,
+                        "retweet_count": 0, "quote_count": 0,
+                    },
+                },
             ],
             "includes": {"users": [
                 {
-                    "id": "1", "username": "officialco", "verified_type": "business",
+                    "id": "1", "username": "officialco",
+                    "verified_type": excluded_type,
+                    "name": "Acme Products", "description": "",
+                    "parody": False, "is_identity_verified": True,
                     "created_at": "2020-01-01T00:00:00Z",
                     "public_metrics": {
                         "followers_count": 100, "following_count": 20,
@@ -101,6 +250,18 @@ def test_x_topic_excludes_official_business_accounts(monkeypatch):
                 },
                 {
                     "id": "2", "username": "publicvoice", "verified_type": "none",
+                    "name": "Alice Example", "description": "Watching world events",
+                    "parody": False, "is_identity_verified": False,
+                    "created_at": "2020-01-01T00:00:00Z",
+                    "public_metrics": {
+                        "followers_count": 100, "following_count": 20,
+                        "tweet_count": 500,
+                    },
+                },
+                {
+                    "id": "3", "username": "acme_updates", "verified_type": "none",
+                    "name": "Acme", "description": "Official company account",
+                    "parody": False, "is_identity_verified": False,
                     "created_at": "2020-01-01T00:00:00Z",
                     "public_metrics": {
                         "followers_count": 100, "following_count": 20,
@@ -120,36 +281,169 @@ def test_x_topic_excludes_official_business_accounts(monkeypatch):
 
 
 @pytest.mark.unit
-def test_x_missing_requested_account_creation_fails_provider_contract(monkeypatch):
+def test_x_ineligible_author_does_not_discard_valid_sibling(monkeypatch):
     def fake_get_json(url, headers, timeout):
         return {
-            "data": [{
-                "id": "post", "author_id": "202", "text": "A substantive public reaction",
-                "created_at": "2026-07-22T12:00:00Z",
-                "public_metrics": {
-                    "like_count": 1, "reply_count": 0,
-                    "retweet_count": 0, "quote_count": 0,
+            "data": [
+                {
+                    "id": "ineligible-post", "author_id": "202",
+                    "text": "A substantive public reaction",
+                    "created_at": "2026-07-22T12:00:00Z",
+                    "public_metrics": {
+                        "like_count": 1, "reply_count": 0,
+                        "retweet_count": 0, "quote_count": 0,
+                    },
                 },
-            }],
-            "includes": {"users": [{
-                "id": "202", "username": "incomplete_user",
-                "verified_type": "none",
-                "public_metrics": {
-                    "followers_count": 100, "following_count": 20,
-                    "tweet_count": 500,
+                {
+                    "id": "valid-post", "author_id": "203",
+                    "text": "Another substantive public reaction",
+                    "created_at": "2026-07-22T12:00:00Z",
+                    "public_metrics": {
+                        "like_count": 1, "reply_count": 0,
+                        "retweet_count": 0, "quote_count": 0,
+                    },
                 },
-            }]},
+            ],
+            "includes": {"users": [
+                {
+                    "id": "202", "username": "incomplete_user",
+                    "verified_type": "none",
+                    "name": "Alice Example",
+                    "description": "Watching world events",
+                    "parody": False, "is_identity_verified": False,
+                    "public_metrics": {
+                        "followers_count": 100, "following_count": 20,
+                        "tweet_count": 500,
+                    },
+                },
+                {
+                    "id": "203", "username": "public_user",
+                    "verified_type": "none",
+                    "name": "Bob Example",
+                    "description": "Watching world events",
+                    "parody": False, "is_identity_verified": False,
+                    "created_at": "2020-01-01T00:00:00Z",
+                    "public_metrics": {
+                        "followers_count": 100, "following_count": 20,
+                        "tweet_count": 500,
+                    },
+                },
+            ]},
         }
 
     monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
     monkeypatch.setattr(media_sources, "_get_json", fake_get_json)
 
+    rows = media_sources.fetch_x_topic(
+        "trend_world", "major event", 1_800_000_000.0
+    )
+
+    assert [row["external_id"] for row in rows] == ["valid-post"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("verified_type", [None, "unknown-tier"])
+def test_x_unknown_verified_type_excludes_author(
+    monkeypatch, verified_type,
+):
+    user = {
+        "id": "202",
+        "username": "public_user",
+        "name": "Alice Example",
+        "description": "Watching world events",
+        "parody": False,
+        "is_identity_verified": False,
+        "created_at": "2020-01-01T00:00:00Z",
+        "public_metrics": {
+            "followers_count": 100,
+            "following_count": 20,
+            "tweet_count": 500,
+        },
+    }
+    if verified_type is not None:
+        user["verified_type"] = verified_type
+    monkeypatch.setenv("X_BEARER_TOKEN", "secret-test-token")
+    monkeypatch.setattr(
+        media_sources,
+        "_get_json",
+        lambda *_args, **_kwargs: {
+            "data": [{
+                "id": "post",
+                "author_id": "202",
+                "text": "A substantive public reaction",
+                "created_at": "2026-07-22T12:00:00Z",
+                "public_metrics": {
+                    "like_count": 1,
+                    "reply_count": 0,
+                    "retweet_count": 0,
+                    "quote_count": 0,
+                },
+            }],
+            "includes": {"users": [user]},
+        },
+    )
+
+    assert media_sources.fetch_x_topic(
+        "trend_world", "major event", 1_800_000_000.0
+    ) == []
+
+
+@pytest.mark.unit
+def test_x_profile_screen_is_complete_and_conservative():
+    policy = media_sources.GLOBAL_X_ADAPTER_POLICY["recent_search"]
+    person = {
+        "username": "alice_example",
+        "name": "Alice Example",
+        "description": "Watching world events",
+        "parody": False,
+        "is_identity_verified": False,
+    }
+    assert media_sources._x_author_profile(person, policy)[
+        "organization_signals"
+    ] == []
+
+    incomplete = dict(person)
+    incomplete.pop("parody")
     with pytest.raises(
-        media_sources.ProviderResponseError, match="expanded author schema"
+        media_sources.ProviderResponseError, match="author profile"
     ):
-        media_sources.fetch_x_topic(
-            "trend_world", "major event", 1_800_000_000.0
-        )
+        media_sources._x_author_profile(incomplete, policy)
+
+    invalid_description = {**person, "description": None}
+    with pytest.raises(
+        media_sources.ProviderResponseError, match="author profile"
+    ):
+        media_sources._x_author_profile(invalid_description, policy)
+
+    organization = {**person, "username": "acme_corp"}
+    assert media_sources._x_author_profile(organization, policy)[
+        "organization_signals"
+    ] == ["username_organization_language"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "profile_fields",
+    [
+        {"url": "javascript:alert(1)"},
+        {"entities": {"url": {"urls": [{"expanded_url": {"bad": "url"}}]}}},
+    ],
+)
+def test_x_author_profile_rejects_malformed_present_urls(profile_fields):
+    policy = media_sources.GLOBAL_X_ADAPTER_POLICY["recent_search"]
+    person = {
+        "username": "alice_example",
+        "name": "Alice Example",
+        "description": "Watching world events",
+        "parody": False,
+        "is_identity_verified": False,
+        **profile_fields,
+    }
+
+    with pytest.raises(
+        media_sources.ProviderResponseError, match="profile URL"
+    ):
+        media_sources._x_author_profile(person, policy)
 
 
 @pytest.mark.unit
@@ -167,10 +461,18 @@ def test_discovery_selects_current_news_across_three_categories(monkeypatch):
         {"external_id": "t1", "title": "Helios Labs releases Nova model - The Verge",
          "body": "", "created_utc": 12.0, "publisher": "The Verge", "category": "general", "rank": 1},
     ]
-    monkeypatch.setattr(poller, "fetch_top_news_headlines", lambda: headlines)
+    feed_limits = []
+
+    def fetch_headlines(*, limit_per_feed):
+        feed_limits.append(limit_per_feed)
+        return headlines
+
+    monkeypatch.setattr(poller, "fetch_top_news_headlines", fetch_headlines)
     monkeypatch.setattr(
         poller, "fetch_x_trends",
-        lambda woeid: [{"name": "Helios Labs", "tweet_count": 1000}] if woeid == 1 else [],
+        lambda woeid, **_kwargs: (
+            [{"name": "Helios Labs", "tweet_count": 1000}] if woeid == 1 else []
+        ),
     )
 
     topics = poller.discover_x_topics(max_topics=3)
@@ -179,6 +481,27 @@ def test_discovery_selects_current_news_across_three_categories(monkeypatch):
     assert all(topic["query"] for topic in topics)
     assert topics[2]["query"].startswith('"Helios Labs"')
     assert {topic["external_id"] for topic in topics} == {"w1", "b1", "t1"}
+    assert feed_limits == [12]
+
+
+@pytest.mark.unit
+def test_discovery_normalization_matching_and_query_contract():
+    assert poller._semantic_terms(
+        "Nova AI models launch worldwide - Reuters"
+    ) == {"nova", "ai", "model", "launch", "world"}
+    assert poller._same_story(
+        "Nova AI model launches worldwide - Reuters",
+        "Nova AI models launched around world - BBC",
+    ) is True
+    assert poller._trend_matches_headline(
+        "#OpenAI GPT6", "OpenAI launches GPT6 model"
+    ) is True
+    assert poller._trend_matches_headline(
+        "#OpenAI Markets", "OpenAI launches model"
+    ) is False
+    assert poller._headline_query(
+        "Breaking OpenAI GPT-6 Model Launches Worldwide - Reuters"
+    ) == '"OpenAI GPT-6" Model'
 
 
 @pytest.mark.unit
@@ -191,8 +514,10 @@ def test_discovery_clusters_headline_variants_and_keeps_lineage(monkeypatch):
          "body": "", "created_utc": 11.0, "publisher": "BBC", "category": "world",
          "region": "GB", "rank": 1},
     ]
-    monkeypatch.setattr(poller, "fetch_top_news_headlines", lambda: headlines)
-    monkeypatch.setattr(poller, "fetch_x_trends", lambda _: [])
+    monkeypatch.setattr(
+        poller, "fetch_top_news_headlines", lambda **_kwargs: headlines
+    )
+    monkeypatch.setattr(poller, "fetch_x_trends", lambda _, **_kwargs: [])
 
     topics = poller.discover_x_topics(max_topics=1)
 
@@ -270,24 +595,31 @@ def test_paid_topic_search_requires_a_finite_capture_time():
 
 @pytest.mark.unit
 def test_x_discovery_cycle_has_independent_daily_clock(tmp_path, monkeypatch):
+    now = _X_WINDOW_OPEN_UTC
     store = SqliteMediaStore(tmp_path / "media.db")
     topic = {
         "topic": "trend_world", "category": "world", "query": '"Bordeaux" wildfires',
         "external_id": "headline-1", "title": "Wildfires force Bordeaux evacuations - Reuters",
-        "body": "summary", "created_utc": 90.0, "publisher": "Reuters",
+        "body": "summary", "created_utc": now - 10, "publisher": "Reuters",
         "metadata": {
             "article_url": "https://news.google.com/articles/headline-1",
             "publisher_domain": "reuters.com",
         },
     }
-    monkeypatch.setattr(poller.time, "time", lambda: 100.0)
-    monkeypatch.setattr(
-        poller, "fetch_x_trends", lambda woeid: [{"name": "Global event"}]
-    )
+    trend_limits = []
+
+    def fetch_trends(_woeid, *, limit):
+        trend_limits.append(limit)
+        return [{"name": "Global event"}]
+
+    monkeypatch.setattr(poller.time, "time", lambda: now)
+    monkeypatch.setattr(poller, "fetch_x_trends", fetch_trends)
     monkeypatch.setattr(
         poller, "discover_x_topics", lambda max_topics, **kwargs: [topic]
     )
-    monkeypatch.setattr(poller, "fetch_top_news_headlines", lambda: [topic])
+    monkeypatch.setattr(
+        poller, "fetch_top_news_headlines", lambda **_kwargs: [topic]
+    )
     monkeypatch.setattr(
         poller, "fetch_x_topic",
         lambda topic, query, now, limit: [
@@ -295,11 +627,9 @@ def test_x_discovery_cycle_has_independent_daily_clock(tmp_path, monkeypatch):
         ],
     )
 
-    poller.poll_x_topics_once(store, now=100.0, limit=10, max_topics=3)
+    poller.poll_x_topics_once(store, now=now, limit=10, max_topics=3)
 
-    assert store.get_meta("last_x_poll_utc") == 100.0
-    assert poller._x_poll_due(store, now=86399.0, interval=86400) is False
-    assert poller._x_poll_due(store, now=86400.0, interval=86400) is True
+    assert store.get_meta("last_x_poll_utc") == now
     stats = {(row[0], row[1]) for row in store.stats()}
     assert ("@TREND_WORLD", "x") in stats
     assert ("@TREND_WORLD", "trendnews") in stats
@@ -307,6 +637,11 @@ def test_x_discovery_cycle_has_independent_daily_clock(tmp_path, monkeypatch):
     search_receipts = store.fetch_runs(provider="x")
     assert len(trend_receipts) == 2
     assert len(search_receipts) == 1
+    assert trend_limits == [
+        media_sources.GLOBAL_X_ADAPTER_POLICY["trends"]["result_limit"][
+            "default"
+        ]
+    ] * len(trend_receipts)
     x_items = store.fetch_items(search_receipts[0]["fetch_run_id"])
     assert len(x_items) == 1
     assert x_items[0]["source"] == "x"
@@ -324,8 +659,9 @@ def test_x_discovery_cycle_has_independent_daily_clock(tmp_path, monkeypatch):
     assert len(cycle_ids) == 1
     cycle = store.collection_cycle(cycle_ids.pop())
     assert cycle["status"] == "complete"
-    assert poller._x_daily_requirement_state(store, 100.0, 3) == "complete"
-    assert poller._x_daily_requirement_state(store, 86400.0, 3) == "missing"
+    assert poller._x_daily_requirement_state(store, now, 3) == "complete"
+    next_midnight = datetime(2026, 8, 6, tzinfo=timezone.utc).timestamp()
+    assert poller._x_daily_requirement_state(store, next_midnight, 3) == "scheduled"
     assert cycle["manifest_valid"] is True
     assert {
         row["status"] for row in cycle["manifest"]["slot_receipts"]
@@ -354,25 +690,30 @@ def test_x_discovery_cycle_has_independent_daily_clock(tmp_path, monkeypatch):
 
 @pytest.mark.unit
 def test_observed_empty_x_search_is_valid_cycle_coverage(tmp_path, monkeypatch):
+    now = _X_WINDOW_OPEN_UTC
     store = SqliteMediaStore(tmp_path / "media.db")
     topic = {
         "topic": "trend_world", "category": "world", "query": '"Global event" reaction',
         "external_id": "headline-1", "title": "Global event develops - Reuters",
-        "body": "summary", "created_utc": 90.0, "publisher": "Reuters",
+        "body": "summary", "created_utc": now - 10, "publisher": "Reuters",
         "metadata": {
             "article_url": "https://news.google.com/articles/headline-1",
             "publisher_domain": "reuters.com",
         },
     }
     alerts = []
-    monkeypatch.setattr(poller.time, "time", lambda: 100.0)
+    monkeypatch.setattr(poller.time, "time", lambda: now)
     monkeypatch.setattr(
-        poller, "fetch_x_trends", lambda woeid: [{"name": "Global event"}]
+        poller,
+        "fetch_x_trends",
+        lambda woeid, **_kwargs: [{"name": "Global event"}],
     )
     monkeypatch.setattr(
         poller, "discover_x_topics", lambda max_topics, **kwargs: [topic]
     )
-    monkeypatch.setattr(poller, "fetch_top_news_headlines", lambda: [topic])
+    monkeypatch.setattr(
+        poller, "fetch_top_news_headlines", lambda **_kwargs: [topic]
+    )
     monkeypatch.setattr(poller, "fetch_x_topic", lambda *args, **kwargs: [])
     monkeypatch.setattr(
         poller,
@@ -390,9 +731,9 @@ def test_observed_empty_x_search_is_valid_cycle_coverage(tmp_path, monkeypatch):
     )
 
     assert alerts == []
-    assert store.get_meta("poller:last_success_utc") == 100.0
+    assert store.get_meta("poller:last_success_utc") == now
     assert store.get_meta("poller:last_failure_utc") is None
-    cycle_id = poller._x_collection_cycle_spec(100.0, 3)["collection_cycle_id"]
+    cycle_id = poller._x_collection_cycle_spec(now, 3)["collection_cycle_id"]
     cycle = store.collection_cycle(cycle_id)
     assert cycle["status"] == "complete"
     outcomes = {
@@ -571,6 +912,7 @@ def test_explicit_x_source_fails_startup_without_nonblank_credentials(
 def test_x_cycle_manifest_distinguishes_failed_trend_and_empty_search(
     tmp_path, monkeypatch,
 ):
+    now = _X_WINDOW_OPEN_UTC
     store = SqliteMediaStore(tmp_path / "x-failure.db")
     topic = {
         "topic": "trend_world",
@@ -579,19 +921,21 @@ def test_x_cycle_manifest_distinguishes_failed_trend_and_empty_search(
         "external_id": "headline-1",
         "title": "Global event develops - Reuters",
         "body": "summary",
-        "created_utc": 90.0,
+        "created_utc": now - 10,
         "publisher": "Reuters",
         "metadata": {
             "article_url": "https://news.google.com/articles/headline-1",
             "publisher_domain": "reuters.com",
         },
     }
-    monkeypatch.setattr(poller.time, "time", lambda: 100.0)
-    monkeypatch.setattr(poller, "fetch_top_news_headlines", lambda: [topic])
+    monkeypatch.setattr(poller.time, "time", lambda: now)
+    monkeypatch.setattr(
+        poller, "fetch_top_news_headlines", lambda **_kwargs: [topic]
+    )
     monkeypatch.setattr(
         poller,
         "fetch_x_trends",
-        lambda woeid: (_ for _ in ()).throw(
+        lambda woeid, **_kwargs: (_ for _ in ()).throw(
             poller.ProviderTransientError("unavailable")
         )
         if woeid == 1 else [{"name": "Global event"}],
@@ -601,9 +945,9 @@ def test_x_cycle_manifest_distinguishes_failed_trend_and_empty_search(
     )
     monkeypatch.setattr(poller, "fetch_x_topic", lambda *args, **kwargs: [])
 
-    poller.poll_x_topics_once(store, now=100.0, limit=10, max_topics=3)
+    poller.poll_x_topics_once(store, now=now, limit=10, max_topics=3)
 
-    cycle_id = poller._x_collection_cycle_spec(100.0, 3)["collection_cycle_id"]
+    cycle_id = poller._x_collection_cycle_spec(now, 3)["collection_cycle_id"]
     cycle = store.collection_cycle(cycle_id)
     outcomes = {
         (row["provider"], row["query_key"]): row["status"]
@@ -614,7 +958,7 @@ def test_x_cycle_manifest_distinguishes_failed_trend_and_empty_search(
     assert outcomes[("xtrend", "woeid:23424977")] == "missing"
     assert outcomes[("trendnews", "ranked-global-discovery")] == "missing"
     assert all(provider != "x" for provider, _ in outcomes)
-    assert poller._x_daily_requirement_state(store, 100.0, 3) == "incomplete"
+    assert poller._x_daily_requirement_state(store, now, 3) == "incomplete"
 
     alerts = []
     monkeypatch.setattr(
@@ -644,27 +988,31 @@ def test_x_cycle_manifest_distinguishes_failed_trend_and_empty_search(
 def test_discovery_feed_failure_never_starts_or_spends_paid_x_cycle(
     tmp_path, monkeypatch,
 ):
+    now = _X_WINDOW_OPEN_UTC
     store = SqliteMediaStore(tmp_path / "x-news-partial.db")
-    monkeypatch.setattr(poller.time, "time", lambda: 100.0)
+    monkeypatch.setattr(poller.time, "time", lambda: now)
     monkeypatch.setattr(
         poller,
         "fetch_x_trends",
-        lambda _: pytest.fail("free discovery must be validated before paid X"),
+        lambda _, **_kwargs: pytest.fail(
+            "free discovery must be validated before paid X"
+        ),
     )
     monkeypatch.setattr(
         poller,
         "fetch_top_news_headlines",
-        lambda: (_ for _ in ()).throw(
+        lambda **_kwargs: (_ for _ in ()).throw(
             poller.ProviderTransientError("top-news discovery feed set was incomplete")
         ),
     )
 
-    slots = poller.poll_x_topics_once(store, now=100.0, limit=10, max_topics=3)
+    slots = poller.poll_x_topics_once(store, now=now, limit=10, max_topics=3)
 
-    cycle_id = poller._x_collection_cycle_spec(100.0, 3)["collection_cycle_id"]
+    cycle_id = poller._x_collection_cycle_spec(now, 3)["collection_cycle_id"]
     assert store.collection_cycle(cycle_id) is None
     assert store.fetch_runs(limit=100) == []
-    assert store.daily_cost_units("xtrend", 0.0, 1000.0) == 0.0
+    day_start = datetime(2026, 8, 5, tzinfo=timezone.utc).timestamp()
+    assert store.daily_cost_units("xtrend", day_start, day_start + 86400) == 0.0
     assert set(slots) == {
         ("xtrend", "woeid:1"),
         ("xtrend", "woeid:23424977"),
@@ -716,6 +1064,7 @@ def test_discovery_feed_failure_never_starts_or_spends_paid_x_cycle(
 
 @pytest.mark.unit
 def test_same_daily_x_cycle_cannot_retry_paid_requests(tmp_path, monkeypatch):
+    now = _X_WINDOW_OPEN_UTC
     store = SqliteMediaStore(tmp_path / "x-no-retry.db")
     topic = {
         "topic": "trend_technology",
@@ -724,43 +1073,127 @@ def test_same_daily_x_cycle_cannot_retry_paid_requests(tmp_path, monkeypatch):
         "external_id": "headline-1",
         "title": "Nova model launches - Reuters",
         "body": "summary",
-        "created_utc": 90.0,
+        "created_utc": now - 10,
         "publisher": "Reuters",
         "metadata": {
             "article_url": "https://news.google.com/articles/headline-1",
             "publisher_domain": "reuters.com",
         },
     }
-    monkeypatch.setattr(poller.time, "time", lambda: 100.0)
-    monkeypatch.setattr(poller, "fetch_top_news_headlines", lambda: [topic])
-    monkeypatch.setattr(poller, "fetch_x_trends", lambda _: [])
+    monkeypatch.setattr(poller.time, "time", lambda: now)
+    monkeypatch.setattr(
+        poller, "fetch_top_news_headlines", lambda **_kwargs: [topic]
+    )
+    monkeypatch.setattr(poller, "fetch_x_trends", lambda _, **_kwargs: [])
     monkeypatch.setattr(
         poller, "discover_x_topics", lambda max_topics, **kwargs: [topic]
     )
     monkeypatch.setattr(poller, "fetch_x_topic", lambda *args, **kwargs: [])
 
-    poller.poll_x_topics_once(store, now=100.0, limit=10, max_topics=3)
+    poller.poll_x_topics_once(store, now=now, limit=10, max_topics=3)
     first_receipts = store.fetch_runs(limit=100)
     monkeypatch.setattr(
         poller, "fetch_x_trends",
-        lambda _: pytest.fail("terminal cycle reuse must not fetch trends"),
+        lambda _, **_kwargs: pytest.fail(
+            "terminal cycle reuse must not fetch trends"
+        ),
     )
     monkeypatch.setattr(
         poller, "fetch_top_news_headlines",
-        lambda: pytest.fail("terminal cycle reuse must not fetch news"),
+        lambda **_kwargs: pytest.fail("terminal cycle reuse must not fetch news"),
     )
     monkeypatch.setattr(
         poller, "fetch_x_topic",
         lambda *args, **kwargs: pytest.fail("terminal cycle reuse must not search"),
     )
     reused_slots = poller.poll_x_topics_once(
-        store, now=100.0, limit=10, max_topics=3
+        store, now=now, limit=10, max_topics=3
     )
 
     assert len(store.fetch_runs(limit=100)) == len(first_receipts)
     assert ("x", topic["query"]) in reused_slots
-    assert store.daily_cost_units("xtrend", 0.0, 1000.0) == 2.0
-    assert store.daily_cost_units("x", 0.0, 1000.0) == 1.0
+    day_start = datetime(2026, 8, 5, tzinfo=timezone.utc).timestamp()
+    assert store.daily_cost_units("xtrend", day_start, day_start + 86400) == 2.0
+    assert store.daily_cost_units("x", day_start, day_start + 86400) == 1.0
+    store.close()
+
+
+@pytest.mark.unit
+def test_duplicate_derived_queries_form_one_bound_request_with_all_labels(
+    tmp_path, monkeypatch,
+):
+    now = _X_WINDOW_OPEN_UTC
+    store = SqliteMediaStore(tmp_path / "x-grouped-query.db")
+    topics = [
+        {
+            "topic": "trend_world",
+            "category": "world",
+            "query": '"Shared event" reaction',
+            "external_id": "world-story",
+            "title": "Shared event changes world outlook - Reuters",
+            "created_utc": now - 10,
+            "publisher": "Reuters",
+            "metadata": {"publisher_domain": "reuters.com"},
+        },
+        {
+            "topic": "trend_business",
+            "category": "business",
+            "query": '"Shared event" reaction',
+            "external_id": "business-story",
+            "title": "Shared event changes markets - Reuters",
+            "created_utc": now - 9,
+            "publisher": "Reuters",
+            "metadata": {"publisher_domain": "reuters.com"},
+        },
+    ]
+    calls = []
+    monkeypatch.setattr(poller.time, "time", lambda: now)
+    monkeypatch.setattr(
+        poller, "fetch_top_news_headlines", lambda **_kwargs: topics
+    )
+    monkeypatch.setattr(poller, "fetch_x_trends", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        poller, "discover_x_topics", lambda max_topics, **_kwargs: topics
+    )
+    monkeypatch.setattr(
+        poller,
+        "fetch_x_topic",
+        lambda topic, query, now, limit: calls.append(
+            (topic, query, now, limit)
+        ) or [],
+    )
+
+    poller.poll_x_topics_once(store, now=now, limit=10, max_topics=3)
+
+    cycle_id = poller._x_collection_cycle_spec(now, 3)["collection_cycle_id"]
+    cycle = store.collection_cycle(cycle_id)
+    assert calls == [("trend_business", '"Shared event" reaction', now, 10)]
+    assert cycle["status"] == "complete"
+    assert cycle["manifest"]["expected_dynamic_slots"] == [{
+        "provider": "x",
+        "query_key": '"Shared event" reaction',
+    }]
+    receipt = store.fetch_runs(provider="x")[0]
+    assert json.loads(receipt["metadata_json"])["labels"] == [
+        "@TREND_BUSINESS",
+        "@TREND_WORLD",
+    ]
+    decision_items = store.collection_cycle_item_rows(
+        cycle_id,
+        provider="trendnews",
+        query_key="ranked-global-discovery",
+    )
+    decisions = [
+        json.loads(item["row"]["body"])
+        for item in decision_items
+        if item["row"].get("ticker") == "@X_DISCOVERY_AUDIT"
+    ]
+    assert len(decisions) == 1
+    poller.validate_x_discovery_decision(decisions[0])
+    assert decisions[0]["search_requests"][0]["labels"] == [
+        "@TREND_BUSINESS",
+        "@TREND_WORLD",
+    ]
     store.close()
 
 
@@ -784,12 +1217,14 @@ def test_restart_recovers_running_daily_cycle_without_an_external_retry(
     monkeypatch.setattr(
         poller,
         "fetch_x_trends",
-        lambda _: pytest.fail("recovery must not retry a paid trend request"),
+        lambda _, **_kwargs: pytest.fail(
+            "recovery must not retry a paid trend request"
+        ),
     )
     monkeypatch.setattr(
         poller,
         "fetch_top_news_headlines",
-        lambda: pytest.fail("recovery must not rerun discovery"),
+        lambda **_kwargs: pytest.fail("recovery must not rerun discovery"),
     )
     monkeypatch.setattr(
         poller,
@@ -847,7 +1282,9 @@ def test_concurrent_contender_noops_while_daily_cycle_owner_is_fresh(
     monkeypatch.setattr(
         poller,
         "fetch_x_trends",
-        lambda _: pytest.fail("a contender must not issue an external request"),
+        lambda _, **_kwargs: pytest.fail(
+            "a contender must not issue an external request"
+        ),
     )
 
     slots = poller.poll_x_topics_once(store, now=100.0, limit=10, max_topics=3)
@@ -870,24 +1307,277 @@ def test_concurrent_contender_noops_while_daily_cycle_owner_is_fresh(
 
 
 @pytest.mark.unit
-def test_x_period_due_is_utc_date_keyed_and_interval_is_frozen(tmp_path, monkeypatch):
+def test_receiptless_x_period_is_incomplete_and_utc_date_keyed(tmp_path, monkeypatch):
+    now = _X_WINDOW_OPEN_UTC
     store = SqliteMediaStore(tmp_path / "x-period.db")
-    monkeypatch.setattr(poller.time, "time", lambda: 100.0)
-    spec = poller._x_collection_cycle_spec(100.0, 3)
-    cycle_id = store.start_collection_cycle(spec, started_utc=100.0)
-    store.finish_collection_cycle(cycle_id, completed_utc=101.0)
+    monkeypatch.setattr(poller.time, "time", lambda: now)
+    spec = poller._x_collection_cycle_spec(now, 3)
+    cycle_id = store.start_collection_cycle(spec, started_utc=now)
+    store.finish_collection_cycle(cycle_id, completed_utc=now + 1)
 
-    assert poller._x_poll_due(store, now=86399.9, interval=86400) is False
-    assert poller._x_poll_due(store, now=86400.0, interval=86400) is True
+    assert poller._x_daily_requirement_state(store, now, 3) == "incomplete"
+    next_midnight = datetime(2026, 8, 6, tzinfo=timezone.utc).timestamp()
+    assert poller._x_daily_requirement_state(store, next_midnight, 3) == "scheduled"
+    next_closed = datetime(2026, 8, 6, 23, 46, tzinfo=timezone.utc).timestamp()
+    assert poller._x_daily_requirement_state(store, next_closed, 3) == "missing"
     with pytest.raises(ValueError, match="frozen protocol"):
-        poller._x_poll_due(store, now=100.0, interval=86399)
+        poller.run_cycle(
+            store,
+            tickers=[],
+            sources=[],
+            macro_themes={},
+            x_enabled=True,
+            x_interval=86399,
+        )
     store.close()
 
 
 @pytest.mark.unit
-def test_discovery_has_no_fixed_entity_watchlist():
-    source = Path(poller.__file__).read_text(encoding="utf-8")
-    assert "DEFAULT_X_TOPICS" not in source
-    assert "OpenAI OR" not in source
-    assert "Trump OR" not in source
+def test_x_cycle_is_scheduled_before_window_even_when_forced(tmp_path, monkeypatch):
+    now = datetime(2026, 8, 5, 20, 59, tzinfo=timezone.utc).timestamp()
+    store = SqliteMediaStore(tmp_path / "x-before-window.db")
+    monkeypatch.setattr(poller.time, "time", lambda: now)
+    monkeypatch.setattr(
+        poller,
+        "fetch_top_news_headlines",
+        lambda **_kwargs: pytest.fail("scheduled X must not fetch discovery input"),
+    )
+    monkeypatch.setattr(
+        poller,
+        "fetch_x_trends",
+        lambda *_args, **_kwargs: pytest.fail("scheduled X must not fetch trends"),
+    )
+    monkeypatch.setattr(
+        poller,
+        "fetch_x_topic",
+        lambda *_args, **_kwargs: pytest.fail("scheduled X must not search"),
+    )
+    alerts = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *args, **kwargs: alerts.append((args, kwargs)) or True,
+    )
+
+    coverage = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+
+    assert coverage["periodic_requirements"] == {"x_daily": "scheduled"}
+    assert coverage["missing_periodic_requirements"] == []
+    assert coverage["complete"] is True
+    assert coverage["query_slots"] == []
+    assert store.fetch_runs() == []
+    assert alerts == []
+    store.close()
+
+
+@pytest.mark.unit
+def test_x_cycle_does_not_start_near_utc_midnight_and_reports_missing(
+    tmp_path, monkeypatch,
+):
+    now = _X_WINDOW_CLOSED_UTC
+    store = SqliteMediaStore(tmp_path / "x-midnight-boundary.db")
+    monkeypatch.setattr(poller.time, "time", lambda: now)
+    monkeypatch.setattr(
+        poller,
+        "fetch_top_news_headlines",
+        lambda **_kwargs: pytest.fail("late cycle must not fetch discovery input"),
+    )
+    alerts = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *args, **kwargs: alerts.append((args, kwargs)) or True,
+    )
+
+    coverage = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+
+    assert store.fetch_runs() == []
+    assert store.collection_cycle(
+        poller._x_collection_cycle_spec(now, 3)["collection_cycle_id"]
+    ) is None
+    assert coverage["periodic_requirements"] == {"x_daily": "missing"}
+    assert coverage["missing_periodic_requirements"] == ["x_daily"]
+    assert coverage["complete"] is False
+    assert len(alerts) == 1
+    store.close()
+
+
+@pytest.mark.unit
+def test_scheduled_period_preserves_prior_x_incident_until_x_completes(
+    tmp_path, monkeypatch,
+):
+    first_open = _X_WINDOW_OPEN_UTC
+    next_scheduled = datetime(2026, 8, 6, 0, 5, tzinfo=timezone.utc).timestamp()
+    next_open = datetime(2026, 8, 6, 21, tzinfo=timezone.utc).timestamp()
+    clock = {"now": first_open}
+    store = SqliteMediaStore(tmp_path / "x-incident-boundary.db")
+    monkeypatch.setattr(poller.time, "time", lambda: clock["now"])
+    calls = []
+
+    def unavailable_news(**_kwargs):
+        calls.append(clock["now"])
+        raise poller.ProviderTransientError("temporarily unavailable")
+
+    alerts = []
+    monkeypatch.setattr(poller, "fetch_top_news_headlines", unavailable_news)
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda _component, event, **_kwargs: alerts.append(event) or True,
+    )
+
+    failed = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+    )
+    clock["now"] = next_scheduled
+    scheduled = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+
+    assert failed["periodic_requirements"] == {"x_daily": "missing"}
+    assert scheduled["periodic_requirements"] == {"x_daily": "scheduled"}
+    assert scheduled["complete"] is True
+    assert calls == [first_open]
+    assert alerts == ["query_slot_coverage_incomplete"]
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 1.0
+
+    topic = {
+        "topic": "trend_world",
+        "category": "world",
+        "query": '"Global event" reaction',
+        "external_id": "headline-2",
+        "title": "Global event develops - Reuters",
+        "body": "summary",
+        "created_utc": next_open - 10,
+        "publisher": "Reuters",
+        "metadata": {"publisher_domain": "reuters.com"},
+    }
+    monkeypatch.setattr(
+        poller, "fetch_top_news_headlines", lambda **_kwargs: [topic]
+    )
+    monkeypatch.setattr(
+        poller, "fetch_x_trends", lambda *_args, **_kwargs: [{"name": "Global event"}]
+    )
+    monkeypatch.setattr(
+        poller, "discover_x_topics", lambda *_args, **_kwargs: [topic]
+    )
+    monkeypatch.setattr(poller, "fetch_x_topic", lambda *_args, **_kwargs: [])
+    clock["now"] = next_open
+
+    recovered = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+    )
+
+    assert recovered["periodic_requirements"] == {"x_daily": "complete"}
+    assert recovered["complete"] is True
+    assert alerts == [
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_recovered",
+    ]
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
+    store.close()
+
+
+@pytest.mark.unit
+def test_failed_open_window_attempt_stays_missing_after_start_window_closes(
+    tmp_path, monkeypatch,
+):
+    open_now = _X_WINDOW_OPEN_UTC
+    closed_now = _X_WINDOW_CLOSED_UTC
+    clock = {"now": open_now}
+    alerts = []
+    store = SqliteMediaStore(tmp_path / "x-failed-before-midnight.db")
+    monkeypatch.setattr(poller.time, "time", lambda: clock["now"])
+    monkeypatch.setattr(
+        poller,
+        "fetch_top_news_headlines",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            poller.ProviderTransientError("temporarily unavailable")
+        ),
+    )
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *args, **kwargs: alerts.append((args, kwargs)) or True,
+    )
+
+    first = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+    clock["now"] = closed_now
+    second = poller.run_cycle(
+        store,
+        tickers=[],
+        sources=[],
+        macro_themes={},
+        x_enabled=True,
+        force_x=True,
+    )
+
+    assert first["periodic_requirements"] == {"x_daily": "missing"}
+    assert second["periodic_requirements"] == {"x_daily": "missing"}
+    assert second["missing_periodic_requirements"] == ["x_daily"]
+    assert second["complete"] is False
+    assert len(alerts) == 1
+    store.close()
+
+
+@pytest.mark.unit
+def test_discovery_queries_are_derived_only_from_ranked_headlines():
+    def discover(entity, external_id):
+        return poller.discover_x_topics(
+            max_topics=1,
+            headlines=[{
+                "external_id": external_id,
+                "title": f"{entity} launches a new platform - Reuters",
+                "body": "",
+                "created_utc": 10.0,
+                "publisher": "Reuters",
+                "category": "technology",
+                "region": "US",
+                "rank": 0,
+            }],
+            trends=[{"name": "Unrelated entertainment trend"}],
+        )[0]
+
+    first = discover("ZephyrQuill", "first")
+    second = discover("QuasarLoom", "second")
+
+    assert first["external_id"] == "first"
+    assert second["external_id"] == "second"
+    assert first["query"] != second["query"]
+    assert "zephyrquill" in first["query"].lower()
+    assert "quasarloom" in second["query"].lower()
     assert "xtrend" not in poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"]["allowed_sources"]

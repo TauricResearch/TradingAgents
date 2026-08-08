@@ -59,6 +59,7 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
              mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
              mock.patch.object(m, "select_analysts", return_value=[]), \
              mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m.console, "print") as console_print, \
              mock.patch.object(m, "ensure_api_key") as ensure_key, \
              mock.patch.object(m, "select_llm_provider") as prompt_provider, \
              mock.patch.object(m, "ask_output_language") as prompt_lang, \
@@ -73,6 +74,9 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         prompt_deep.assert_not_called()
         # API key is still verified for the env-configured provider.
         ensure_key.assert_called_once()
+        rendered = " ".join(str(call) for call in console_print.call_args_list)
+        self.assertIn("Backend endpoint configured", rendered)
+        self.assertNotIn(env["TRADINGAGENTS_LLM_BACKEND_URL"], rendered)
 
         # The env values flow into the returned selections.
         self.assertEqual(sel["llm_provider"], "openai")

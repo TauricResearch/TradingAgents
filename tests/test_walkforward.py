@@ -1,16 +1,50 @@
 """Walk-forward fold boundaries and promotion-gate aggregation."""
 
 import json
+from argparse import Namespace
 
 import pytest
 
 from tradingagents import backtest
 from tradingagents.walkforward import (
+    WalkForwardFold,
+    _backtest_command,
     build_folds,
     partition_holdout,
     prediction_horizon_sessions,
     summarize_folds,
 )
+
+
+@pytest.mark.unit
+def test_backtest_child_command_never_contains_database_credentials(tmp_path):
+    secret = "postgresql://user:password@database.invalid/research"
+    args = Namespace(
+        tickers="AAPL,MSFT",
+        benchmark="SPY",
+        analysts="market,news",
+        db=secret,
+        max_runs_per_fold=2,
+        replicates=1,
+        portfolio_mode="long-only",
+        gross_limit=1.0,
+        max_weight=0.25,
+        cost_bps=5.0,
+        slippage_bps=5.0,
+        annual_borrow_bps=300.0,
+        tail_sessions=1,
+        holding_sessions=5,
+        placebo_trials=10,
+        identity_control="none",
+        debug=False,
+        global_topics_only=False,
+    )
+    fold = WalkForwardFold(1, "2026-01-01", "2026-01-10", "2026-01-16", "2026-01-20")
+
+    command = _backtest_command(args, fold, tmp_path / "fold.jsonl")
+
+    assert "--db" not in command
+    assert secret not in command
 
 
 @pytest.mark.unit

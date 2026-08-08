@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import stat
 from unittest.mock import patch
 
 import pytest
@@ -111,6 +112,8 @@ def test_ensure_api_key_prompts_and_writes_to_env(monkeypatch, tmp_path, cli_uti
     assert env_file.exists()
     assert "DEEPSEEK_API_KEY" in env_file.read_text()
     assert "sk-deepseek-test" in env_file.read_text()
+    if os.name == "posix":
+        assert stat.S_IMODE(env_file.stat().st_mode) == 0o600
 
 
 def test_ensure_api_key_user_cancels_returns_none(monkeypatch, tmp_path, cli_utils):
@@ -146,3 +149,23 @@ def test_ensure_api_key_updates_existing_env_file(monkeypatch, tmp_path, cli_uti
     assert "OPENAI_API_KEY" in content and "sk-existing" in content
     assert "OTHER=value" in content
     assert "OPENROUTER_API_KEY" in content and "sk-openrouter-new" in content
+    if os.name == "posix":
+        assert stat.S_IMODE(env_file.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(os.name != "posix", reason="symlink and mode contract is POSIX-only")
+def test_ensure_api_key_rejects_symlinked_env(monkeypatch, tmp_path, cli_utils):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    outside = tmp_path / "outside"
+    outside.write_text("UNCHANGED=yes\n")
+    (tmp_path / ".env").symlink_to(outside)
+
+    fake_prompt = type("P", (), {"ask": staticmethod(lambda: "must-not-be-written")})()
+    with (
+        patch.object(cli_utils.questionary, "password", return_value=fake_prompt),
+        pytest.raises(ValueError, match="regular file"),
+    ):
+        cli_utils.ensure_api_key("openrouter")
+
+    assert outside.read_text() == "UNCHANGED=yes\n"

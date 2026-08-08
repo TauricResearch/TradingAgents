@@ -45,6 +45,18 @@ class TestStockTwitsResilience:
         assert "unavailable" in out.lower()
         assert out.startswith("<stocktwits unavailable")
 
+    def test_transport_error_text_is_not_logged_or_returned(self, caplog):
+        secret = "https://provider.invalid/?token=must-not-escape"
+        caplog.set_level("WARNING", logger=stocktwits.__name__)
+        with patch.object(
+            stocktwits, "urlopen", return_value=_raise(TimeoutError(secret))
+        ):
+            out = stocktwits.fetch_stocktwits_messages("NVDA")
+
+        rendered = caplog.text + out
+        assert secret not in rendered
+        assert "TimeoutError" in rendered
+
 
 @pytest.mark.unit
 class TestStockTwitsCryptoSymbols:

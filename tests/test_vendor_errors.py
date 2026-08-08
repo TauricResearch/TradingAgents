@@ -12,6 +12,7 @@ import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
 from tradingagents.dataflows import interface
 from tradingagents.dataflows.alpha_vantage_common import (
+    AlphaVantageDataError,
     AlphaVantageNotConfiguredError,
     AlphaVantageRateLimitError,
 )
@@ -36,6 +37,7 @@ class HierarchyTests(unittest.TestCase):
         self.assertTrue(issubclass(VendorNotConfiguredError, ValueError))
 
     def test_vendor_named_errors_subclass_the_generic_bases(self):
+        self.assertTrue(issubclass(AlphaVantageDataError, VendorError))
         self.assertTrue(issubclass(AlphaVantageRateLimitError, VendorRateLimitError))
         self.assertTrue(issubclass(AlphaVantageNotConfiguredError, VendorNotConfiguredError))
         self.assertTrue(issubclass(FredNotConfiguredError, VendorNotConfiguredError))

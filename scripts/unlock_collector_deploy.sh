@@ -59,8 +59,43 @@ safe_git_transport() {
     git "$@"
 }
 
-lock_remote=${COLLECTOR_DEPLOY_LOCK_REMOTE:-fork}
-lock_repository_identity=github.com/clarkipeng/tradingagents
+github_repository_identity() {
+  local url=$1 owner repo normalized
+  if [[ $url =~ ^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
+    owner=${BASH_REMATCH[1]}
+    repo=${BASH_REMATCH[2]}
+  elif [[ $url =~ ^git@github\.com:([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
+    owner=${BASH_REMATCH[1]}
+    repo=${BASH_REMATCH[2]}
+  elif [[ $url =~ ^ssh://git@github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
+    owner=${BASH_REMATCH[1]}
+    repo=${BASH_REMATCH[2]}
+  else
+    return 1
+  fi
+  normalized=$(printf '%s/%s' "$owner" "$repo" | \
+    LC_ALL=C tr '[:upper:]' '[:lower:]')
+  printf '%s\n' "${normalized%.git}"
+}
+
+target_ref=${COLLECTOR_DEPLOY_TARGET_REF:-origin/main}
+if [[ $target_ref != */* ]]; then
+  echo "COLLECTOR_DEPLOY_TARGET_REF must name a configured remote and branch" >&2
+  exit 64
+fi
+target_remote=${target_ref%%/*}
+target_branch=${target_ref#*/}
+if ! [[ $target_remote =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
+  || ! safe_git_transport check-ref-format \
+    "refs/heads/${target_branch}" >/dev/null 2>&1; then
+  echo "COLLECTOR_DEPLOY_TARGET_REF must name a valid configured remote branch" >&2
+  exit 64
+fi
+lock_remote=${COLLECTOR_DEPLOY_LOCK_REMOTE:-$target_remote}
+if [[ $lock_remote != "$target_remote" ]]; then
+  echo "COLLECTOR_DEPLOY_LOCK_REMOTE must match the configured deployment target remote" >&2
+  exit 64
+fi
 lock_ref="refs/heads/tradingagents-deploy-lock/${app}"
 lock_transport=
 lock_dir="${TMPDIR:-/tmp}/tradingagents-${app}.deploy.lock"
@@ -68,35 +103,27 @@ local_lock_present=false
 local_lock_pid=
 local_lock_revision=
 
-resolve_lock_transport() {
-  local remote_url identity owner repo
-  if ! [[ $lock_remote =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
-    || ! remote_url=$(safe_git_transport remote get-url --push --all \
-      "$lock_remote" 2>/dev/null) \
-    || [[ -z $remote_url || $remote_url == *$'\n'* ]]; then
-    echo "collector unlock remote is unavailable or has multiple push URLs" >&2
+resolve_target_lock_transport() {
+  local fetch_url push_url fetch_identity push_identity
+  if ! fetch_url=$(safe_git_transport remote get-url --all \
+    "$target_remote" 2>/dev/null) \
+    || [[ -z $fetch_url || $fetch_url == *$'\n'* ]] \
+    || ! fetch_identity=$(github_repository_identity "$fetch_url"); then
+    echo "collector unlock target remote must have one credential-free GitHub fetch URL" >&2
     return 1
   fi
-  if [[ $remote_url =~ ^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
-    owner=${BASH_REMATCH[1]}
-    repo=${BASH_REMATCH[2]%.git}
-  elif [[ $remote_url =~ ^git@github\.com:([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
-    owner=${BASH_REMATCH[1]}
-    repo=${BASH_REMATCH[2]%.git}
-  elif [[ $remote_url =~ ^ssh://git@github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
-    owner=${BASH_REMATCH[1]}
-    repo=${BASH_REMATCH[2]%.git}
-  else
-    echo "collector unlock remote is not the reviewed credential-free GitHub repository" >&2
+  if ! push_url=$(safe_git_transport remote get-url --push --all \
+    "$target_remote" 2>/dev/null) \
+    || [[ -z $push_url || $push_url == *$'\n'* ]] \
+    || ! push_identity=$(github_repository_identity "$push_url"); then
+    echo "collector unlock target remote must have one credential-free GitHub push URL" >&2
     return 1
   fi
-  identity=$(printf 'github.com/%s/%s' "$owner" "$repo" | \
-    LC_ALL=C tr '[:upper:]' '[:lower:]')
-  if [[ $identity != "$lock_repository_identity" ]]; then
-    echo "collector unlock remote resolves to the wrong repository" >&2
+  if [[ $fetch_identity != "$push_identity" ]]; then
+    echo "collector unlock target fetch and push URLs must name the same GitHub repository" >&2
     return 1
   fi
-  lock_transport=$remote_url
+  lock_transport=$push_url
 }
 
 read_remote_lock() {
@@ -165,7 +192,7 @@ remove_dead_local_lock() {
   local_lock_present=false
 }
 
-resolve_lock_transport || exit 69
+resolve_target_lock_transport || exit 69
 inspect_local_lock || exit 75
 if ! observed=$(read_remote_lock); then
   echo "collector remote lock state is unreadable or malformed" >&2

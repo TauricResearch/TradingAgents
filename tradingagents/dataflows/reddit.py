@@ -30,6 +30,8 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from tradingagents.logging_utils import safe_exception_type
+
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
@@ -112,18 +114,24 @@ def _fetch_subreddit_rss(
     except HTTPError as exc:
         if exc.code == 429 and _retry:
             wait = _retry_after_seconds(exc) or 5.0
-            logger.warning(
+            logger.info(
                 "Reddit RSS 429 for r/%s · %s — backing off %.1fs then retrying once",
                 sub, ticker, wait,
             )
             time.sleep(wait)
             return _fetch_subreddit_rss(ticker, sub, limit, timeout, _retry=False)
-        logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
+        logger.warning(
+            "Reddit RSS fetch failed for r/%s · %s (%s)",
+            sub, ticker, safe_exception_type(exc),
+        )
         return []
     except (OSError, http.client.HTTPException, ET.ParseError) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).
-        logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
+        logger.warning(
+            "Reddit RSS fetch failed for r/%s · %s (%s)",
+            sub, ticker, safe_exception_type(exc),
+        )
         return []
 
     posts = []
@@ -166,9 +174,9 @@ def _fetch_subreddit_json(
         children = (payload.get("data") or {}).get("children") or []
         return [c.get("data", {}) for c in children if isinstance(c, dict)]
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:
-        logger.warning(
-            "Reddit JSON fetch failed for r/%s · %s: %s — falling back to RSS feed.",
-            sub, ticker, exc,
+        logger.info(
+            "Reddit JSON fetch failed for r/%s · %s (%s); falling back to RSS",
+            sub, ticker, safe_exception_type(exc),
         )
         return _fetch_subreddit_rss(ticker, sub, limit, timeout)
 

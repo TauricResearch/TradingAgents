@@ -25,10 +25,16 @@ from tradingagents.global_research import (
     partition_formal_evidence,
     prepare_evidence,
 )
+from tradingagents.research.errors import ForecastUnavailableError
 from tradingagents.research_protocol import (
     GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES,
-    GLOBAL_EVENT_V2_PROTOCOL,
+    GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+    GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_MANIFEST,
+    GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+    GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_MANIFEST,
+    GLOBAL_EVENT_V2_LEGACY_COLLECTOR_IDENTITIES,
     GLOBAL_EVENT_V2_PROTOCOL_ID,
+    GLOBAL_EVENT_V2_PROTOCOL_MANIFEST,
     content_id,
     global_news_query_slot_label,
 )
@@ -54,6 +60,15 @@ class _LLM:
             usage_metadata={"input_tokens": 10, "output_tokens": 20},
         )
         return _Structured({"parsed": parsed, "raw": raw, "parsing_error": None})
+
+
+class _FailedStructuredLLM:
+    def __init__(self, error):
+        self.error = error
+
+    def with_structured_output(self, _schema, include_raw):
+        assert include_raw is True
+        return _Structured({"parsed": None, "raw": None, "parsing_error": self.error})
 
 
 def _rows():
@@ -91,6 +106,8 @@ def _x_metadata(
         "author_id": author_id,
         "account_created_utc": 1.0,
         "automation_signals_complete": True,
+        "profile_screening_complete": True,
+        "organization_signals": [],
         "verified_type": "none",
         "automation_risk": risk,
         "engagement": {
@@ -733,10 +750,10 @@ def test_receipt_lineage_must_intersect_assigned_manifest_slot():
                     "formal_eligible_evidence_ids": list(lineage[slot]),
                     "formal_eligible_lineage": content_by_slot[slot],
                 "metadata_json": json.dumps({
-                    "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
-                    "collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                        "expected_collector_semantics_id"
-                    ],
+                    "protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+                    "collector_semantics_id": (
+                        GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID
+                    ),
                 }),
             },
             "healthy": True, "reason": None,
@@ -748,9 +765,7 @@ def test_receipt_lineage_must_intersect_assigned_manifest_slot():
     assert bound["receipt_lineage_binding_complete"] is True
     assert all(slot["lineage_bound"] for slot in bound["query_slots"])
 
-    compatible = GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-        "compatible_collector_identities"
-    ][0]
+    compatible = GLOBAL_EVENT_V2_LEGACY_COLLECTOR_IDENTITIES[0]
     coverage["query_slots"][0]["run"]["metadata_json"] = json.dumps({
         "protocol_id": compatible["protocol_id"],
         "collector_semantics_id": compatible["collector_semantics_id"],
@@ -759,7 +774,7 @@ def test_receipt_lineage_must_intersect_assigned_manifest_slot():
     assert legacy_collector["complete"] is True
 
     coverage["query_slots"][0]["run"]["metadata_json"] = json.dumps({
-        "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
+        "protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
         "collector_semantics_id": "collector_000000000000000000000000",
     })
     stale_collector = bind_receipt_coverage_to_selection(coverage, manifest)
@@ -769,9 +784,16 @@ def test_receipt_lineage_must_intersect_assigned_manifest_slot():
     )
     coverage["query_slots"][0]["run"]["metadata_json"] = json.dumps({
         "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
-        "collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "expected_collector_semantics_id"
-        ],
+        "collector_semantics_id": GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+    })
+    experiment_identity = bind_receipt_coverage_to_selection(coverage, manifest)
+    assert experiment_identity["complete"] is False
+    assert experiment_identity["missing_query_slots"][0]["reason"] == (
+        "collector_semantics_mismatch"
+    )
+    coverage["query_slots"][0]["run"]["metadata_json"] = json.dumps({
+        "protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+        "collector_semantics_id": GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
     })
     original_lineage = coverage["query_slots"][0]["run"][
         "formal_eligible_lineage"
@@ -825,10 +847,8 @@ def test_observed_absent_slots_are_valid_but_one_strict_core_item_is_required():
     )
 
     receipt_metadata = json.dumps({
-        "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
-        "collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "expected_collector_semantics_id"
-        ],
+        "protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+        "collector_semantics_id": GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
     })
     coverage = {
         "complete": True,
@@ -939,6 +959,14 @@ def test_x_formal_eligibility_rejects_missing_metrics_high_risk_and_zero_engagem
     partial_author["author_metrics"].pop("tweet_count")
     government = _x_metadata()
     government["verified_type"] = "government"
+    missing_status = _x_metadata()
+    missing_status.pop("profile_screening_complete")
+    unknown_status = _x_metadata()
+    unknown_status["verified_type"] = "unknown-tier"
+    organization = _x_metadata()
+    organization["organization_signals"] = [
+        "description_organization_language"
+    ]
     rows = [
         {**base, "external_id": "missing", "metadata": {}},
         {**base, "external_id": "risky", "metadata": _x_metadata(risk=0.31)},
@@ -947,6 +975,9 @@ def test_x_formal_eligibility_rejects_missing_metrics_high_risk_and_zero_engagem
         {**base, "external_id": "negative", "metadata": negative_engagement},
         {**base, "external_id": "partial-author", "metadata": partial_author},
         {**base, "external_id": "government", "metadata": government},
+        {**base, "external_id": "missing-status", "metadata": missing_status},
+        {**base, "external_id": "unknown-status", "metadata": unknown_status},
+        {**base, "external_id": "organization", "metadata": organization},
         {
             **base, "external_id": "eligible",
             "metadata": _x_metadata(engagement=1, risk=0.30),
@@ -1011,6 +1042,67 @@ def test_shared_forecast_rejects_incomplete_cross_section():
         invoke_global_forecast(
             llm=_LLM(payload), provider="openai", requested_model="requested",
             decision_date="2026-08-04", rows=_rows(), universe=["A", "B"],
+        )
+
+
+@pytest.mark.unit
+def test_shared_forecast_never_copies_parser_error_text():
+    secret = "https://provider.invalid/?token=must-not-escape"
+
+    with pytest.raises(
+        ForecastUnavailableError,
+        match="^forecast provider returned no structured result$",
+    ) as captured:
+        invoke_global_forecast(
+            llm=_FailedStructuredLLM(RuntimeError(secret)),
+            provider="openai",
+            requested_model="requested",
+            decision_date="2026-08-04",
+            rows=_rows(),
+            universe=["A"],
+        )
+
+    assert secret not in str(captured.value)
+
+
+@pytest.mark.unit
+def test_shared_forecast_does_not_mask_schema_binding_bugs():
+    class BrokenProvider:
+        def with_structured_output(self, _schema, *, include_raw):
+            assert include_raw is True
+            raise AttributeError("internal binding bug")
+
+    with pytest.raises(AttributeError, match="internal binding bug"):
+        invoke_global_forecast(
+            llm=BrokenProvider(),
+            provider="openai",
+            requested_model="requested",
+            decision_date="2026-08-04",
+            rows=_rows(),
+            universe=["A"],
+        )
+
+
+@pytest.mark.unit
+def test_shared_forecast_does_not_mask_unknown_invocation_bugs():
+    class BrokenInvocation:
+        def with_structured_output(self, _schema, *, include_raw):
+            assert include_raw is True
+
+            class Bound:
+                def invoke(self, _prompt):
+                    raise RuntimeError("internal invocation bug")
+
+            return Bound()
+
+    with pytest.raises(RuntimeError, match="internal invocation bug"):
+        invoke_global_forecast(
+            llm=BrokenInvocation(),
+            provider="openai",
+            requested_model="requested",
+            decision_date="2026-08-04",
+            rows=_rows(),
+            universe=["A"],
         )
 
 
@@ -1270,7 +1362,19 @@ def test_non_abstention_must_be_grounded_nonzero_and_sign_consistent(forecast_pa
 @pytest.mark.unit
 def test_content_ids_are_canonical():
     assert content_id({"a": 1, "b": 2}) == content_id({"b": 2, "a": 1})
-    assert GLOBAL_EVENT_V2_PROTOCOL_ID == "protocol_09b9f5ad4b015b24a553e7f4"
+    assert content_id(
+        GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_MANIFEST,
+        prefix="protocol_",
+    ) == GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID
+    assert content_id(
+        GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_MANIFEST,
+        prefix="collector_",
+    ) == GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID
+    assert content_id(
+        GLOBAL_EVENT_V2_PROTOCOL_MANIFEST,
+        prefix="protocol_",
+    ) == GLOBAL_EVENT_V2_PROTOCOL_ID
+    assert GLOBAL_EVENT_V2_PROTOCOL_ID != GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID
 
 
 @pytest.mark.unit

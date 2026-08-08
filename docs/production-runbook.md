@@ -25,9 +25,18 @@ The Fly app in `fly.toml` is currently named `tradagent`. It needs:
 - `X_BEARER_TOKEN`: the X API bearer token; and
 - `TRADINGAGENTS_ALERT_WEBHOOK_URL`: the required production alert destination.
 
+The webhook must be the checked-in
+[Google alert receiver](../integrations/google_alert_webhook/README.md), not an
+arbitrary endpoint. Its silent release probe verifies the exact event contract,
+recipient configuration, and current mail-delivery readiness before Fly replaces
+the worker.
+
 `fly.toml` fixes the non-secret policy: broad global mode, hourly editorial-news
-cycles, one bounded X cycle per day, no ticker watchlist, no US-hours gate, and
-no runtime schema migration. It also fixes the private health listener to port
+cycles, one bounded X cycle per UTC day between 21:00 and 23:45 UTC, no ticker
+watchlist, no US-hours gate, and no runtime schema migration. Before 21:00,
+today's X cycle is `scheduled`, which is healthy and silent; after 23:45, an
+unattempted cycle is missing. `--once` does not override either boundary. The
+configuration also fixes the private health listener to port
 `5500`, and requires the production alert webhook during preflight; no Fly
 service publishes the health port to the internet. This repository's checked-in
 collection value is `true`
@@ -54,6 +63,15 @@ fly secrets list -a tradagent
 If a webhook was staged previously, it will take effect on the next deploy or
 machine update. It does not need to be added to any retired app.
 
+When the checked-in receiver contract changes, publish `Code.gs` as a new version
+of the existing Apps Script deployment before deploying the collector. Updating
+that deployment preserves the secret URL. Before deploying the collector, run
+the current worker image's `tradingagents-poller --test-alert` and visually
+confirm delivery. The legacy receiver accepts that image's envelope, but the old
+sender treats any HTTP 200 response, including a negative acknowledgement, as
+success. Remove compatibility only after that image is no longer a rollback
+target.
+
 ## Deploy and activate
 
 Activation is reviewed configuration, not a secret override. After focused local
@@ -68,9 +86,13 @@ fly logs -a tradagent
 ```
 
 The deploy wrapper refuses a dirty worktree, embeds the exact commit, waits for
-the new process to complete its own healthy cycle, and verifies that the passing
-check belongs to the sole started Machine running that exact revision. Before it
-changes Fly, it saves the deployed image and configuration together and requires
+the new process to finish a fresh cycle without a runtime failure, and verifies
+the sole started Machine's private `/readyz` response contains that exact Machine
+ID, revision, and non-secret per-deployment incarnation. It performs this bounded
+loopback probe after Fly reports its check passing and again immediately before
+the final Machine snapshot; cached check status can describe an older process and
+cannot certify a replacement. Before changing Fly, it saves the deployed image
+and configuration together and requires
 the baseline Machine's `collector_health` check to pass. A failed or interrupted
 rollout restores both only while exact ownership of the candidate remains
 provable. A legacy Machine without that check requires the narrowly scoped,
@@ -84,20 +106,24 @@ authenticated `origin/main` remote branch; it never trusts a possibly stale loca
 remote-tracking ref. It resolves that exact remote branch before Fly inspection
 and again immediately after the rollback snapshot, before deployment. An
 unavailable, malformed, or changed remote fails closed without printing remote
-transport output, which can contain credentials. A different configured target
-uses `COLLECTOR_DEPLOY_TARGET_REF=<remote>/<branch>`. An explicitly reviewed
-emergency rollout from another ref must opt in with
+transport output, which can contain credentials. An intentionally different
+target uses `COLLECTOR_DEPLOY_TARGET_REF=<remote>/<branch>`. An explicitly
+reviewed emergency rollout from another ref must opt in with
 `COLLECTOR_DEPLOY_ALLOW_UNMERGED=true`; do not make that setting persistent. The
 wrapper also takes a local per-app lock and atomically creates
 `refs/heads/tradingagents-deploy-lock/<app>` on the shared writable Git remote.
-The default lock remote is `fork`; set
-`COLLECTOR_DEPLOY_LOCK_REMOTE=<remote>` only when every deployment host uses that
-same repository. The alias is accepted only when its one expanded,
-credential-free push URL resolves to the checked-in canonical identity
-`github.com/clarkipeng/tradingagents`; the wrapper then uses that captured URL
-for both reads and writes. Fetch/push splits, multiple push URLs, embedded HTTPS
-credentials, or a different fork fail before Fly is read. This remote lock is
-held from before the rollback snapshot
+The lock always uses the remote named by `COLLECTOR_DEPLOY_TARGET_REF` (`origin`
+by default), so every host reviewing the same release target also contends on
+the same lock namespace. `COLLECTOR_DEPLOY_LOCK_REMOTE` is optional and, when
+set, must repeat that exact remote name; a divergent remote fails before Fly is
+read. The target remote must have exactly one credential-free GitHub fetch URL
+and one credential-free GitHub push URL. HTTPS, `git@github.com`, and
+`ssh://git@github.com` forms are normalized case-insensitively to an owner and
+repository, with an optional `.git` suffix; both URLs must identify the same
+repository. The wrapper captures the fetch URL for reviewed-target reads and the
+push URL for lock reads and writes. A fetch-upstream/push-fork split, multiple
+URLs, or embedded credentials fails before Fly is read. This remote lock is held
+from before the rollback snapshot
 until forward verification or fenced rollback completes. Creation is
 non-forced, ownership is reauthenticated around Fly mutations, and cleanup uses
 an exact `--force-with-lease`, so one process cannot delete another process's
@@ -190,9 +216,15 @@ scripts/unlock_collector_deploy.sh inspect tradagent
 scripts/unlock_collector_deploy.sh release tradagent <exact-owner-sha>
 ```
 
-The helper validates the same single canonical push URL as the deploy wrapper,
-uses it for both read and exact-CAS delete, suppresses Git transport/tracing, and
-reconciles a lost delete acknowledgement. A crash also leaves the local
+If the deployment used a non-default `COLLECTOR_DEPLOY_TARGET_REF`, supply that
+same value to both recovery commands. The helper will derive its lock remote
+from the target exactly as the deployment wrapper did.
+
+The helper derives the same target remote, rejects a divergent explicit lock
+remote, and applies the same single-fetch/single-push repository identity check.
+It uses the validated push URL for both lock read and exact-CAS delete,
+suppresses Git transport/tracing, and reconciles a lost delete acknowledgement.
+A crash also leaves the local
 `$TMPDIR/tradingagents-tradagent.deploy.lock`; the helper accepts only its exact
 one-file owner record, refuses a live PID, and removes a verified dead local lock
 without recursive deletion. If either command reports malformed state, a live
@@ -209,21 +241,33 @@ accepted value in OCI metadata and
 temporary release Machine automatically runs `--global-only --preflight`. That
 database-read-only command validates the frozen collector configuration,
 database schema, and restricted runtime role without calling a provider or
-writing a receipt. Because production requires the webhook, it also sends one
-sanitized `release_preflight_probe` and fails unless the destination confirms
-delivery. Any nonzero result stops the deployment before the persistent worker
-changes. A
+writing a receipt. Because production requires the webhook, it also performs a
+silent receiver-contract probe with a nonce-bound acknowledgement. The probe has
+no human-notification fields and fails unless the destination confirms the
+contract; it must not create an email or other operator notification. Any nonzero
+result stops the deployment before the persistent worker changes. The deploy
+wrapper does not send a second test notification after the health gate;
+`--test-alert` remains an explicit operator command for webhook setup or rotation.
+A
 failed release still advances Fly's release history, so the app-level version can
 name the failed attempt while the sole started Machine correctly remains on the
 last complete release. Verify the running Machine image/release, not only the
 app-level version, when investigating a stopped rollout.
 
-The read-only release preflight also inventories every distinct protocol and
-collector identity ever stored by an `x-daily` cycle. Each pair must be either
-the candidate's current identity or an exact entry in its frozen compatibility
-registry. Forgetting a historical identity therefore rejects the release before
-the persistent Machine changes; this inventory never calls a provider and its
-failure output contains only a sanitized exception class.
+The read-only release preflight projects every distinct `x-daily` cycle ID,
+protocol ID, and collector-semantics ID stored for the database server's current
+UTC day. It reconstructs the candidate's current and compatible cycle IDs,
+requires an exact identity match, and authenticates each observed terminal
+envelope and content hash. It deliberately does **not** certify evidence health:
+a registered, authenticated terminal shape from an older collector may be
+admitted so the release that repairs its stricter validation can deploy. The
+machine-readable result therefore reports identity-inventory validity, the
+number of repair-compatible cycles, and `x_evidence_health_validated=false`.
+Research still performs the full provenance, slot, receipt, manifest, and cutoff
+replay before using evidence. An unregistered identity or unauthenticated
+terminal envelope is rejected. This same-day check never calls a provider or
+rescans all historical rows, and its failure output contains only a sanitized
+exception class.
 
 Provider responses are byte-bounded and schema-validated. Malformed X error
 envelopes and non-RSS HTML cannot masquerade as valid empty observations.
@@ -244,14 +288,17 @@ to the next transaction-pooled client. The session-affine direct engine
 separately retains its startup read-only fail-safe. Preflight proves session
 affinity and cross-session advisory exclusion; an unknown database host fails
 closed unless
-`MEDIA_DB_DIRECT_URL` is configured. These rules are pinned as collector policy
-v2 (`collector_5d8f7d2a7c92e52be419ad17`) under protocol
-`protocol_09b9f5ad4b015b24a553e7f4`. Only the exact historical identity pairs in
-the protocol compatibility list remain readable. The immediately prior
-production pair (`protocol_b4c36948d856e9a82e7167bb`,
-`collector_f6aaca9c1014887d9e78da82`) is first in that frozen list. Runtime and
-research both prefer the current identity and otherwise select the first present
-compatible identity in registry order, before examining its status or content.
+`MEDIA_DB_DIRECT_URL` is configured. The current collection-protocol and stored-
+semantics IDs are derived from their declarative manifests; inspect preflight or
+audit output instead of copying an ID from this runbook. Only exact historical
+identity pairs in the separate frozen read-compatibility registry remain
+readable. The append-only ledger is chronological; the full experiment identity
+binds that ledger's machine-readable pairs and frozen daily X cycle shapes plus
+an explicit selection rule. Runtime and research both prefer the current
+identity, then inspect compatible identities from newest to oldest, before
+examining status or content. Human explanatory reasons are absent from
+content-addressed X availability. Changes to the current collection or stored-
+semantics manifests also change the full experiment identity.
 Multiple historical cycles therefore cannot trigger a duplicate paid X attempt
 or an outcome-dependent fallback. A candidate that failed before producing live
 evidence is not made compatible merely because Fly created a failed release
@@ -281,30 +328,43 @@ started Machine together. Do not bypass preflight or add the failed candidate to
 the historical compatibility list; correct the connection/runtime contract and
 redeploy through the wrapper.
 
-After activation, Fly checks `/healthz` over its private network. The endpoint
-reports whether the current process has produced complete coverage; it cannot be
-satisfied solely by a previous image's recent receipts. The port is not a public
-API. A hashed static-slot manifest prevents malformed empty coverage from
-passing, and an incomplete current-day X cycle stays unhealthy during later
-hourly news cycles. A daemon runtime failure keeps the process alive but
-unhealthy, closes the store and any singleton lease, and reacquires both before
-another provider call. Retries use signal-responsive exponential backoff from 5
-seconds to a 300-second cap. Identical incidents emit one transition alert plus
-at most one daily reminder; changed failure stages/types are coalesced to at
-most one transition alert per hour, and recovery is reported only after a
-complete cycle. CLI validation and `--once` remain fail-fast. Look for a passing
-`collector_health` check, a
-complete global collection cycle, and no repeated restart loop. The deploy
-wrapper also tests the alert path
-from inside the exact running Machine before it reports success. You can repeat
-that non-provider test independently after a webhook rotation:
+After activation, Fly's existing `collector_health` check probes `/readyz` over
+its private network. It passes only after the current process finishes a fresh,
+non-throwing cycle, regardless of coverage; retaining the check name keeps old
+rollouts and rollbacks compatible. The deploy wrapper additionally opens that
+endpoint over loopback inside the exact target Machine. Its silent parser rejects
+redirects, proxies, non-200 responses, oversized or malformed JSON, and any
+Machine/revision/deployment-incarnation mismatch without printing the URL or
+body. The incarnation is generated for one deploy, embedded in its image, and
+prevents a same-commit successor from satisfying stale control-plane status.
+`/healthz` remains the strict coverage endpoint. It rejects missing static slots
+or periodic
+requirements, including an incomplete current-day X cycle. A malformed coverage
+projection is a runtime failure and cannot make either endpoint ready. Neither
+endpoint can be satisfied by a prior image's receipts. The port is not a public
+API.
 
-Fly documents `fly checks list`'s “Last Updated” as the time the check status
-last changed, not the time it last ran. While a check remains critical, its
-displayed connection error and timestamp can therefore describe the first boot
-attempt even though periodic checks continue. Treat one startup failure as
-transient; use the next interval plus the collector audit to distinguish it from
-a persistent coverage failure.
+A `scheduled` X state before 21:00 is neutral, not proof that an earlier X
+incident recovered. An X-caused coverage incident remains active and silent
+through that pre-window state, then recovers only after a later daily X cycle is
+actually complete.
+
+A daemon runtime failure keeps both endpoints unhealthy, closes the store and
+any singleton lease, and reacquires both before another provider call. Retries
+use signal-responsive exponential backoff from 5 seconds to a 300-second cap.
+Identical runtime incidents emit one transition alert plus at most one daily
+reminder. A failed alert attempt retries hourly with the same idempotency key;
+changed failure stages/types stay visible in health and logs but do not create
+another human notification. Any normally returned cycle recovers the runtime
+incident and `/readyz`; incomplete coverage remains a separate coverage incident
+until a complete cycle recovers it. A failed runtime-recovery notification is
+retried on later terminal cycles unless a new outage supersedes it. CLI
+validation and `--once` remain fail-fast.
+Look for a passing `collector_health` check, a complete global collection cycle,
+and no repeated restart loop. Release
+preflight silently validates the webhook receiver contract, but the deploy
+wrapper does not send a visible test alert after readiness succeeds. After a
+webhook rotation, run the explicit non-provider test from the worker:
 
 ```bash
 fly ssh console -a tradagent -C "tradingagents-poller --test-alert"
@@ -312,6 +372,14 @@ fly ssh console -a tradagent -C "tradingagents-poller --test-alert"
 
 The command emits a sanitized informational test payload and exits nonzero if
 delivery fails. It does not query the database or a provider.
+
+Fly documents `fly checks list`'s “Last Updated” as the time the check status
+last changed, not the time it last ran. While readiness remains critical, its
+displayed connection error and timestamp can therefore describe the first boot
+attempt even though periodic checks continue. Treat one startup failure as
+transient; continued critical status means startup, runtime, or freshness has
+not recovered. Coverage can remain incomplete while readiness passes; inspect
+`/healthz` or the collector audit separately.
 
 ## Verify collection
 
@@ -330,8 +398,10 @@ health followed by a clearly delimited list of recent immutable receipts. A
 healthy cycle has a successful receipt for every configured broad-news slot.
 That receipt may prove zero forecast-eligible stories with exact `0`/`[]`
 lineage; a raw empty or failed provider response is unhealthy. X should run only
-once per UTC day, with at most two trend requests, three searches, and ten
-returned posts per search.
+once per UTC day from 21:00 through 23:45 UTC, with at most two trend requests,
+three searches, and ten returned posts per search. `scheduled` before 21:00 is
+expected; `missing`, `incomplete`, or `invalid` after the window warrants
+investigation.
 
 Also check:
 
@@ -488,10 +558,11 @@ a forward migration, then explain which snapshots are affected.
 - collector-only tests and migration checks pass;
 - database backup and restore procedure has been exercised;
 - Fly image and configuration match the reviewed commit;
-- the automatic database-read-only release preflight succeeds and its sanitized
-  webhook probe arrives;
-- `collector_health` is passing for the new Machine;
-- the image revision label and `/opt/tradingagents/REVISION` match the commit;
+- the automatic database-read-only release preflight succeeds, including its
+  silent webhook receiver-contract probe;
+- `collector_health` is passing and the wrapper's two private readiness probes
+  bind the new Machine ID, build revision, and non-secret deployment incarnation to
+  the current process;
 - only the collector runtime has data-source secrets;
 - no runtime role can migrate schema;
 - collection receipts and heartbeat are current;

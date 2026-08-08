@@ -23,72 +23,75 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install (with dev extras)
+      - name: Install locked dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install uv==0.10.11
           # Exercise the same SQLAlchemy/PostgreSQL import surface shipped by
           # the collector instead of silently skipping poller-only paths.
-          pip install -e ".[dev,poller]"
+          uv sync --locked --extra dev --extra poller
       - name: Run test suite
-        run: pytest -q
+        run: uv run --locked --extra dev --extra poller pytest -q
 
   smoke-install:
     name: clean-install smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-      - name: Fresh install (no dev extras) and import
+      - name: Fresh locked install (no extras) and import
         run: |
-          python -m pip install --upgrade pip
-          pip install .
+          python -m pip install uv==0.10.11
+          uv sync --locked
           # Catches undeclared runtime deps (e.g. #994 python-dotenv): a bare
           # install must import the package and the CLI module.
-          python -c "import tradingagents, cli.main; print('clean-install import OK')"
+          uv run --locked python -c "import tradingagents, cli.main; print('clean-install import OK')"
 
   poller-image:
     name: production poller image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Validate deploy wrapper syntax
-        run: bash -n scripts/deploy_collector.sh scripts/unlock_collector_deploy.sh
+        run: >-
+          bash -n scripts/build_collector_image.sh scripts/deploy_collector.sh
+          scripts/unlock_collector_deploy.sh
       - name: Build the exact production Dockerfile
-        run: |
-          set -euo pipefail
-          docker build \
-            --build-arg "GIT_REVISION=${GITHUB_SHA}" \
-            --file Dockerfile.poller \
-            --tag tradingagents-poller-ci .
+        run: GIT_REVISION="$GITHUB_SHA" scripts/build_collector_image.sh tradingagents-poller-ci
       - name: Verify installed CLI and revision provenance
         run: |
           set -euo pipefail
           docker run --rm tradingagents-poller-ci --help | grep -F -- '--preflight'
           test "$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' tradingagents-poller-ci)" = "${GITHUB_SHA}"
           docker run --rm --entrypoint /bin/sh \
-            --env "EXPECTED_REVISION=${GITHUB_SHA}" tradingagents-poller-ci -c \
-            'test "$GIT_REVISION" = "$EXPECTED_REVISION" && test "$GIT_REVISION" = "$(cat /opt/tradingagents/REVISION)"'
+            --env "EXPECTED_REVISION=${GITHUB_SHA}" \
+            --env "EXPECTED_DEPLOYMENT_NONCE=${COLLECTOR_DEPLOYMENT_NONCE}" \
+            tradingagents-poller-ci -c \
+            'test "$GIT_REVISION" = "$EXPECTED_REVISION" &&
+             test "$GIT_REVISION" = "$(cat /opt/tradingagents/REVISION)" &&
+             test "$COLLECTOR_DEPLOYMENT_NONCE" = "$EXPECTED_DEPLOYMENT_NONCE"'
 
   lint:
     name: ruff (strict, full repo)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-      - name: Install ruff
-        run: pip install "ruff>=0.15"
+      - name: Install locked lint dependencies
+        run: |
+          python -m pip install uv==0.10.11
+          uv sync --locked --extra dev
       - name: Lint the repository
         # The repo is fully clean under the strict select, so we lint everything
         # (results/ and worklog/ are excluded via pyproject extend-exclude).
-        run: ruff check .
+        run: uv run --locked --extra dev ruff check .
 
   postgres-collector:
     name: PostgreSQL 16 collector contracts
@@ -108,8 +111,8 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Install PostgreSQL, PgBouncer, and test dependencies
@@ -120,8 +123,8 @@ jobs:
           # isolated, unprivileged instance with an explicit transaction-pool
           # configuration instead.
           sudo systemctl stop pgbouncer
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,poller]"
+          python -m pip install uv==0.10.11
+          uv sync --locked --extra dev --extra poller
       - name: Build collector schema and run PostgreSQL contracts
         env:
           PGHOST: 127.0.0.1
@@ -196,16 +199,15 @@ jobs:
           # backend. This fails deterministically if named prepare is re-enabled.
           TRADINGAGENTS_TEST_POSTGRES_URL="postgresql+psycopg://tradingagents-ingest-v2@${PGHOST}:${PGPORT}/ta_collector" \
           TRADINGAGENTS_TEST_POSTGRES_POOL_URL="postgresql+psycopg://tradingagents-ingest-v2@127.0.0.1:6432/ta_collector" \
-            pytest -q -m integration tests/test_server_observed_evidence_migration.py \
+            uv run --locked --extra dev --extra poller pytest -q -m integration \
+              tests/test_server_observed_evidence_migration.py \
               tests/test_collection_cycles.py
 
           # Exercise preflight through the exact packaged image, not the host's
           # editable install. Linux host networking reaches both local ports
           # without putting credentials in the image.
-          docker build \
-            --build-arg "GIT_REVISION=${GITHUB_SHA}" \
-            --file Dockerfile.poller \
-            --tag tradingagents-poller-postgres-ci .
+          GIT_REVISION="$GITHUB_SHA" \
+            scripts/build_collector_image.sh tradingagents-poller-postgres-ci
           docker run --rm --network host \
             --env MEDIA_DB_URL="postgresql+psycopg://tradingagents-ingest-v2@127.0.0.1:6432/ta_collector" \
             --env MEDIA_DB_DIRECT_URL="postgresql+psycopg://tradingagents-ingest-v2@127.0.0.1:5432/ta_collector" \

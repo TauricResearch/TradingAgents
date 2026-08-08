@@ -60,7 +60,7 @@ case $allow_unhealthy_baseline in
     ;;
 esac
 
-for command_name in fly git python3; do
+for command_name in fly git python3 tr; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "collector deploy requires $command_name" >&2
     exit 69
@@ -97,6 +97,73 @@ safe_git_transport() {
     git "$@"
 }
 
+github_repository_identity() {
+  local url=$1 owner repo normalized
+  if [[ $url =~ ^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
+    owner=${BASH_REMATCH[1]}
+    repo=${BASH_REMATCH[2]}
+  elif [[ $url =~ ^git@github\.com:([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
+    owner=${BASH_REMATCH[1]}
+    repo=${BASH_REMATCH[2]}
+  elif [[ $url =~ ^ssh://git@github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
+    owner=${BASH_REMATCH[1]}
+    repo=${BASH_REMATCH[2]}
+  else
+    return 1
+  fi
+  normalized=$(printf '%s/%s' "$owner" "$repo" | \
+    LC_ALL=C tr '[:upper:]' '[:lower:]')
+  printf '%s\n' "${normalized%.git}"
+}
+
+if [[ $target_ref != */* ]]; then
+  echo "COLLECTOR_DEPLOY_TARGET_REF must name a configured remote and branch" >&2
+  exit 64
+fi
+target_remote=${target_ref%%/*}
+target_branch=${target_ref#*/}
+if ! [[ $target_remote =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
+  || ! safe_git_transport check-ref-format \
+    "refs/heads/${target_branch}" >/dev/null 2>&1; then
+  echo "COLLECTOR_DEPLOY_TARGET_REF must name a valid configured remote branch" >&2
+  exit 64
+fi
+lock_remote=${COLLECTOR_DEPLOY_LOCK_REMOTE:-$target_remote}
+if [[ $lock_remote != "$target_remote" ]]; then
+  echo "COLLECTOR_DEPLOY_LOCK_REMOTE must match the configured deployment target remote" >&2
+  exit 64
+fi
+target_transport=
+lock_transport=
+
+resolve_target_transports() {
+  local fetch_url push_url fetch_identity push_identity
+  if ! fetch_url=$(safe_git_transport remote get-url --all \
+    "$target_remote" 2>/dev/null) \
+    || [[ -z $fetch_url || $fetch_url == *$'\n'* ]] \
+    || ! fetch_identity=$(github_repository_identity "$fetch_url"); then
+    echo "collector deploy target remote must have one credential-free GitHub fetch URL" >&2
+    return 1
+  fi
+  if ! push_url=$(safe_git_transport remote get-url --push --all \
+    "$target_remote" 2>/dev/null) \
+    || [[ -z $push_url || $push_url == *$'\n'* ]] \
+    || ! push_identity=$(github_repository_identity "$push_url"); then
+    echo "collector deploy target remote must have one credential-free GitHub push URL" >&2
+    return 1
+  fi
+  if [[ $fetch_identity != "$push_identity" ]]; then
+    echo "collector deploy target fetch and push URLs must name the same GitHub repository" >&2
+    return 1
+  fi
+  target_transport=$fetch_url
+  lock_transport=$push_url
+}
+
+if ! resolve_target_transports; then
+  exit 64
+fi
+
 read_exact_remote_ref() {
   local remote=$1
   local ref=$2
@@ -117,7 +184,7 @@ read_exact_remote_ref() {
 }
 
 read_remote_target_revision() {
-  read_exact_remote_ref "$target_remote" "refs/heads/${target_branch}"
+  read_exact_remote_ref "$target_transport" "refs/heads/${target_branch}"
 }
 
 verify_remote_target() {
@@ -133,17 +200,6 @@ verify_remote_target() {
 }
 
 if [[ $allow_unmerged != true ]]; then
-  if [[ $target_ref != */* ]]; then
-    echo "COLLECTOR_DEPLOY_TARGET_REF must name a configured remote and branch" >&2
-    exit 64
-  fi
-  target_remote=${target_ref%%/*}
-  target_branch=${target_ref#*/}
-  if ! [[ $target_remote =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
-    || ! git check-ref-format "refs/heads/${target_branch}" >/dev/null 2>&1; then
-    echo "COLLECTOR_DEPLOY_TARGET_REF must name a valid configured remote branch" >&2
-    exit 64
-  fi
   if ! verify_remote_target; then
     echo "set COLLECTOR_DEPLOY_ALLOW_UNMERGED=true only for an explicitly reviewed exceptional rollout" >&2
     exit 65
@@ -161,9 +217,6 @@ temp_dir=
 remote_lock_owned=false
 preserve_remote_lock=false
 remote_lock_release_permitted=true
-lock_remote=${COLLECTOR_DEPLOY_LOCK_REMOTE:-fork}
-lock_repository_identity=github.com/clarkipeng/tradingagents
-lock_transport=
 lock_ref="refs/heads/tradingagents-deploy-lock/${app}"
 lock_commit=
 
@@ -362,36 +415,12 @@ verify_remote_deploy_lock() {
 }
 
 acquire_remote_deploy_lock() {
-  local lock_message lock_remote_url lock_identity lock_owner lock_repo
+  local lock_message
   local empty_tree observed push_status=0 started_at
-  if ! [[ $lock_remote =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
-    || ! git check-ref-format "$lock_ref" >/dev/null 2>&1 \
-    || ! lock_remote_url=$(safe_git_transport remote get-url --push --all \
-      "$lock_remote" 2>/dev/null) \
-    || [[ -z $lock_remote_url || $lock_remote_url == *$'\n'* ]]; then
-    echo "COLLECTOR_DEPLOY_LOCK_REMOTE must name the shared writable deployment remote" >&2
+  if ! git check-ref-format "$lock_ref" >/dev/null 2>&1; then
+    echo "COLLECTOR_DEPLOY_LOCK_REMOTE must name one shared writable deployment remote" >&2
     return 64
   fi
-  if [[ $lock_remote_url =~ ^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
-    lock_owner=${BASH_REMATCH[1]}
-    lock_repo=${BASH_REMATCH[2]%.git}
-  elif [[ $lock_remote_url =~ ^git@github\.com:([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
-    lock_owner=${BASH_REMATCH[1]}
-    lock_repo=${BASH_REMATCH[2]%.git}
-  elif [[ $lock_remote_url =~ ^ssh://git@github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$ ]]; then
-    lock_owner=${BASH_REMATCH[1]}
-    lock_repo=${BASH_REMATCH[2]%.git}
-  else
-    echo "collector deploy lock remote URL is not the reviewed credential-free GitHub repository" >&2
-    return 64
-  fi
-  lock_identity=$(printf 'github.com/%s/%s' "$lock_owner" "$lock_repo" | \
-    LC_ALL=C tr '[:upper:]' '[:lower:]')
-  if [[ $lock_identity != "$lock_repository_identity" ]]; then
-    echo "collector deploy lock remote resolves to the wrong repository" >&2
-    return 64
-  fi
-  lock_transport=$lock_remote_url
   if ! observed=$(read_remote_deploy_lock); then
     echo "collector deploy cannot authenticate the remote lock state" >&2
     return 75
@@ -445,7 +474,12 @@ acquire_remote_deploy_lock() {
 run_bounded_command() {
   local command_timeout=$1
   shift
-  python3 - "$command_timeout" "$@" <<'PY'
+  local silent=false
+  if [[ ${1:-} == --silent ]]; then
+    silent=true
+    shift
+  fi
+  python3 - "$command_timeout" "$silent" "$@" <<'PY'
 import os
 import signal
 import subprocess
@@ -455,12 +489,14 @@ try:
     timeout = int(sys.argv[1])
 except (TypeError, ValueError):
     raise SystemExit(64)
-if timeout < 1 or len(sys.argv) < 3:
+if timeout < 1 or len(sys.argv) < 4 or sys.argv[2] not in {"true", "false"}:
     raise SystemExit(64)
 
 process = subprocess.Popen(
-    sys.argv[2:],
+    sys.argv[3:],
     stdin=subprocess.DEVNULL,
+    stdout=subprocess.DEVNULL if sys.argv[2] == "true" else None,
+    stderr=subprocess.DEVNULL if sys.argv[2] == "true" else None,
     start_new_session=True,
 )
 try:
@@ -954,16 +990,19 @@ raise SystemExit(0 if target and statuses <= {"passing", "pass"} else 1)
 ' "$machine_id"
 }
 
-target_revision_matches() {
-  local machine_id=$1
-  fly ssh console -a "$app" --machine "$machine_id" --pty=false \
-    -C "grep -Fxq '$revision' /opt/tradingagents/REVISION" >/dev/null
-}
-
-target_alert_delivers() {
-  local machine_id=$1
-  fly ssh console -a "$app" --machine "$machine_id" --pty=false \
-    -C "tradingagents-poller --test-alert" >/dev/null
+target_process_is_ready() {
+  local machine_id=$1 command_timeout=$2 probe_command
+  [[ $machine_id =~ ^[A-Za-z0-9_-]{1,64}$ \
+    && $command_timeout =~ ^[0-9]+$ \
+    && $command_timeout -ge 1 ]] || return 1
+  (( command_timeout > 15 )) && command_timeout=15
+  probe_command="python -m tradingagents.collector_health"
+  probe_command+=" --expected-build-revision ${revision}"
+  probe_command+=" --expected-machine-id ${machine_id}"
+  probe_command+=" --expected-deployment-nonce ${deployment_nonce}"
+  run_bounded_command "$command_timeout" --silent \
+    fly ssh console -a "$app" --machine "$machine_id" --pty=false \
+      -C "$probe_command"
 }
 
 legacy_baseline_contract_matches() {
@@ -1297,7 +1336,7 @@ elif [[ $allow_unhealthy_baseline != true ]]; then
   echo "use COLLECTOR_DEPLOY_ALLOW_UNHEALTHY_BASELINE=true only for one reviewed break-glass repair" >&2
   exit 69
 else
-  echo "WARNING: break-glass deployment from a baseline without a passing collector_health check; rollback can restore that baseline but cannot certify it healthy" >&2
+  echo "WARNING: break-glass deployment from a baseline without a passing collector_health check; rollback can restore that baseline but cannot certify it runtime-ready" >&2
 fi
 
 # A normal fenced rollback submits the saved tag pinned to its immutable digest.
@@ -1331,7 +1370,7 @@ if [[ $allow_unmerged != true ]] && ! verify_remote_target; then
   exit 75
 fi
 
-# The health probe and authenticated remote check both take time. Re-read Fly
+# The readiness probe and authenticated remote check both take time. Re-read Fly
 # immediately before mutation so a concurrent release cannot hide inside that
 # interval and be treated as the baseline captured above.
 if ! capture_status "$current_status" 2>/dev/null; then
@@ -1356,7 +1395,9 @@ remote_lock_release_permitted=false
 if ! run_mutating_command fly deploy \
   -a "$app" \
   -c fly.toml \
+  --dockerfile Dockerfile.poller \
   --build-arg "GIT_REVISION=${revision}" \
+  --build-arg "COLLECTOR_DEPLOYMENT_NONCE=${deployment_nonce}" \
   --image-label "git-${revision}"-"${deployment_nonce}" \
   --strategy immediate \
   --wait-timeout 10m \
@@ -1365,7 +1406,10 @@ if ! run_mutating_command fly deploy \
   exit 1
 fi
 
-deadline=$((SECONDS + timeout_seconds))
+# Give verification its complete configured interval rather than the remainder
+# of Bash's current one-second counter tick.
+SECONDS=0
+deadline=$timeout_seconds
 while (( SECONDS < deadline )); do
   if ! verify_remote_deploy_lock; then
     superseded=true
@@ -1387,49 +1431,37 @@ while (( SECONDS < deadline )); do
       echo "collector candidate entered a terminal failure state; preserving the remote lock" >&2
       exit 1
     fi
+    remaining=$((deadline - SECONDS))
     if [[ $relation == owned ]] \
       && bound_target_matches_status "$current_status" \
       && machine_check_passes "$target_id" \
-        && target_revision_matches "$target_id"; then
+      && (( remaining > 0 )) \
+      && target_process_is_ready "$target_id" "$remaining"; then
       if ! candidate_predecessor_is_baseline; then
         superseded=true
         echo "candidate predecessor is not the saved baseline; another release interposed" >&2
         exit 75
       fi
-      # Close the check/SSH race: a concurrent deploy may replace the target
-      # after either observation. Success requires one final exact snapshot.
+      # Fly's check status may describe an earlier process. Query the exact
+      # target's loopback listener again, then close that SSH/status race with
+      # one final authenticated Machine snapshot.
       if capture_status "$current_status" 2>/dev/null \
         && bound_target_matches_status "$current_status"; then
-        if ! target_alert_delivers "$target_id"; then
-          # The previous image would use the same Fly secret, so rolling code
-          # back cannot repair notification delivery. Preserve the healthy,
-          # revision-verified release and make the operator address the alert.
-          deployment_verified=true
-          remote_lock_release_permitted=true
-          echo "collector is healthy, but the deployment alert was not delivered; not rolling back code" >&2
-          exit 1
-        fi
-        # Alert delivery takes time; close the race once more before success.
-        if ! capture_status "$current_status" 2>/dev/null \
-          || ! bound_target_matches_status "$current_status"; then
-          relation=$(status_relation "$current_status" post-deploy) \
-            || relation=unknown
-          if [[ $relation == superseded ]]; then
+        remaining=$((deadline - SECONDS))
+        if (( remaining > 0 )) \
+          && target_process_is_ready "$target_id" "$remaining" \
+          && capture_status "$current_status" 2>/dev/null \
+          && bound_target_matches_status "$current_status"; then
+          if ! verify_remote_deploy_lock; then
             superseded=true
-            echo "collector deployment was superseded after alert verification" >&2
+            echo "collector remote deploy lock ownership was lost before success" >&2
             exit 75
           fi
-          continue
+          deployment_verified=true
+          remote_lock_release_permitted=true
+          echo "collector deployment is runtime-ready at ${revision} on Machine ${target_id}"
+          exit 0
         fi
-        if ! verify_remote_deploy_lock; then
-          superseded=true
-          echo "collector remote deploy lock ownership was lost before success" >&2
-          exit 75
-        fi
-        deployment_verified=true
-        remote_lock_release_permitted=true
-        echo "collector deployment is healthy at ${revision} on Machine ${target_id}"
-        exit 0
       fi
       relation=$(status_relation "$current_status" post-deploy) \
         || relation=unknown
@@ -1447,5 +1479,5 @@ while (( SECONDS < deadline )); do
   sleep "$sleep_for"
 done
 
-echo "collector health and revision did not pass within ${timeout_seconds}s" >&2
+echo "collector readiness and revision did not pass within ${timeout_seconds}s" >&2
 exit 1

@@ -13,9 +13,16 @@ from tradingagents.research.artifacts import (
 from tradingagents.research.contracts import (
     DecisionBatch,
     EvaluationReport,
+    EvidenceSnapshot,
     OutcomeBatch,
     parse_contract,
 )
+from tradingagents.research.decision_validation import (
+    replay_decision_batch,
+    validate_decision_batch_protocol,
+    validate_snapshot_protocol,
+)
+from tradingagents.research.outcome_validation import validate_outcome_observation
 from tradingagents.research_protocol import build_identity
 from tradingagents.research_statistics import newey_west_mean_test
 
@@ -55,10 +62,20 @@ def evaluate(
         or labels.benchmark != decisions.benchmark
     ):
         raise ValueError("decision and label batches describe different experiments")
+    validate_decision_batch_protocol(decisions)
     by_date = {row.decision_date: row for row in labels.outcomes}
     decision_dates = {row.decision_date for row in decisions.decisions}
     if set(by_date) != decision_dates:
         raise ValueError("label batch must contain exactly one row for every decision")
+    for decision in decisions.decisions:
+        label = by_date[decision.decision_date]
+        validate_outcome_observation(
+            label.observation,
+            decision_date=decision.decision_date,
+            universe=decisions.universe,
+            benchmark=decisions.benchmark,
+            error_type=label.error_type,
+        )
 
     trading_cost_bps = float(decisions.allocator["trading_cost_bps"])
     slippage_bps = float(decisions.allocator["slippage_bps"])
@@ -202,12 +219,24 @@ def evaluate_from_artifacts(
     decision_artifact_id: str,
     label_artifact_id: str,
 ) -> ArtifactRef:
-    decision_ref = artifact_store.load_ref("decisions", decision_artifact_id)
-    label_ref = artifact_store.load_ref("labels", label_artifact_id)
-    decisions = parse_contract(
-        DecisionBatch, artifact_store.load("decisions", decision_artifact_id)
+    decision_ref, decision_payload = artifact_store.load_with_ref(
+        "decisions", decision_artifact_id
     )
-    labels = parse_contract(OutcomeBatch, artifact_store.load("labels", label_artifact_id))
+    label_ref, label_payload = artifact_store.load_with_ref(
+        "labels", label_artifact_id
+    )
+    decisions = parse_contract(DecisionBatch, decision_payload)
+    labels = parse_contract(OutcomeBatch, label_payload)
+    snapshot_ref, snapshot_payload = artifact_store.load_with_ref(
+        "snapshot", decisions.snapshot_artifact_id
+    )
+    snapshot = parse_contract(EvidenceSnapshot, snapshot_payload)
+    validate_snapshot_protocol(snapshot, decisions.checkpoint)
+    replay_decision_batch(
+        decisions,
+        snapshot=snapshot,
+        snapshot_ref=snapshot_ref,
+    )
     report = evaluate(
         decisions=decisions,
         decision_ref=decision_ref,

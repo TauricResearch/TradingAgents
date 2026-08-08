@@ -14,10 +14,16 @@ import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
 from tradingagents.dataflows import interface, polymarket
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.errors import (
+    ProviderResponseError,
+    ProviderTransientError,
+)
+from tradingagents.dataflows.media_sources import fetch_polymarket_odds
 
 
 def _market(question, prob, *, volume, end_date, closed=False, wk=None):
     return {
+        "id": question,
         "question": question,
         "outcomes": '["Yes", "No"]',
         "outcomePrices": f'["{prob}", "{round(1 - prob, 4)}"]',
@@ -94,12 +100,58 @@ class PolymarketFormatTests(unittest.TestCase):
 class PolymarketResilienceTests(unittest.TestCase):
     def test_network_error_degrades_gracefully(self):
         # An external-service hiccup must not raise into the analyst.
+        secret = "https://provider.invalid/?token=must-not-escape"
         with mock.patch.object(
-            polymarket, "_request", side_effect=requests.RequestException("boom")
-        ):
+            polymarket, "_request", side_effect=requests.RequestException(secret)
+        ), self.assertLogs(
+            "tradingagents.dataflows.polymarket", level="WARNING"
+        ) as captured:
             out = polymarket.get_prediction_markets("Fed rate cut")
         self.assertIn("unavailable", out.lower())
         self.assertIn("Fed rate cut", out)
+        rendered = "\n".join(captured.output) + out
+        self.assertNotIn(secret, rendered)
+        self.assertIn("ProviderResponseError", rendered)
+
+    def test_structured_transport_failure_is_not_empty(self):
+        with mock.patch.object(
+            polymarket, "_request", side_effect=requests.Timeout("opaque")
+        ), self.assertRaises(ProviderTransientError):
+            fetch_polymarket_odds("rates", 1.0, "macro")
+
+    def test_structured_upstream_failure_is_not_empty(self):
+        with mock.patch.object(
+            polymarket, "_request", side_effect=requests.HTTPError("opaque")
+        ), self.assertRaises(ProviderResponseError):
+            fetch_polymarket_odds("rates", 1.0, "macro")
+
+    def test_structured_explicit_empty_is_empty(self):
+        with mock.patch.object(polymarket, "_request", return_value={"events": []}):
+            self.assertEqual(fetch_polymarket_odds("rates", 1.0, "macro"), [])
+
+    def test_structured_malformed_response_is_not_empty(self):
+        with mock.patch.object(
+            polymarket, "_request", return_value={}
+        ), self.assertRaises(ProviderResponseError):
+            fetch_polymarket_odds("rates", 1.0, "macro")
+
+    def test_structured_malformed_market_is_not_empty(self):
+        malformed = {"events": [{"markets": [{**_SEARCH["events"][0]["markets"][0],
+                                                "endDate": "not-a-date"}]}]}
+        with mock.patch.object(
+            polymarket, "_request", return_value=malformed
+        ), self.assertRaises(ProviderResponseError):
+            fetch_polymarket_odds("rates", 1.0, "macro")
+
+    def test_structured_non_array_market_values_are_not_empty(self):
+        for encoded in ("42", '{"Yes": 0.5}'):
+            with self.subTest(encoded=encoded):
+                malformed = copy.deepcopy(_SEARCH)
+                malformed["events"][0]["markets"][0]["outcomes"] = encoded
+                with mock.patch.object(
+                    polymarket, "_request", return_value=malformed
+                ), self.assertRaises(ProviderResponseError):
+                    fetch_polymarket_odds("rates", 1.0, "macro")
 
 
 @pytest.mark.unit

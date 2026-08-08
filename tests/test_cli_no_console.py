@@ -45,13 +45,16 @@ def test_missing_console_prints_actionable_message(monkeypatch):
     assert "Traceback" not in result.output
 
 
-def test_unrelated_errors_still_propagate(monkeypatch):
-    # The handler must stay narrow: only the console error is translated.
+def test_unrelated_errors_are_sanitized_at_the_console_boundary(monkeypatch):
     monkeypatch.setattr(m, "_NO_CONSOLE_ERRORS", (RuntimeError,))
+    secret = "https://provider.invalid/?token=must-not-escape"
 
     def _boom(*a, **k):
-        raise ValueError("unrelated")
+        raise ValueError(secret)
 
     monkeypatch.setattr(m, "run_analysis", _boom)
     result = CliRunner().invoke(m.app, [])
-    assert isinstance(result.exception, ValueError)
+    assert result.exit_code == 1
+    assert "Analysis failed (ValueError)." in result.output
+    assert secret not in result.output
+    assert "Traceback" not in result.output

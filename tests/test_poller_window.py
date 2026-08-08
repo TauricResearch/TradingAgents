@@ -1,11 +1,11 @@
 """Independent fetch receipts retain late discoveries without shared-cursor gaps."""
 import json
 import logging
+from datetime import datetime, timezone
 
 import pytest
 
-from tradingagents import operations, poller
-from tradingagents.dataflows import media_store
+from tradingagents import poller
 from tradingagents.dataflows.media_sources import (
     ProviderResponseError,
     ProviderTransientError,
@@ -20,18 +20,6 @@ from tradingagents.research_protocol import (
 
 
 @pytest.mark.unit
-def test_within_retains_late_discovered_older_items():
-    rows = [
-        _row("x", "fresh", "NVDA", 0.0, created_utc=100.0),
-        _row("x", "stale", "NVDA", 0.0, created_utc=10.0),
-        _row("x", "undated", "NVDA", 0.0, created_utc=None),
-    ]
-    kept = {r["external_id"] for r in poller._within(rows, since=50.0)}
-    assert kept == {"fresh", "stale", "undated"}
-    assert len(poller._within(rows, since=None)) == 3
-
-
-@pytest.mark.unit
 def test_poll_once_stores_older_items_first_discovered_now(tmp_path, monkeypatch):
     store = SqliteMediaStore(tmp_path / "m.db")
 
@@ -40,7 +28,7 @@ def test_poll_once_stores_older_items_first_discovered_now(tmp_path, monkeypatch
                 _row("x", "b", ticker, now, created_utc=9000.0)]   # too old
 
     monkeypatch.setattr(poller, "FETCHERS", {"x": fake_source})
-    poller.poll_once(store, ["NVDA"], ["x"], now=10000.0, since=9990.0)
+    poller.poll_once(store, ["NVDA"], ["x"])
 
     stored = store.window("NVDA", "2100-01-01", days=400000)
     assert {r["external_id"] for r in stored} == {"a", "b"}
@@ -765,7 +753,7 @@ def test_cycle_alerts_for_each_missing_query_slot_without_leaking_payloads(
 
 
 @pytest.mark.unit
-def test_coverage_alerts_on_transition_change_reminder_and_recovery(
+def test_coverage_alerts_once_per_transition_then_reminder_and_recovery(
     tmp_path, monkeypatch,
 ):
     store = SqliteMediaStore(tmp_path / "m.db")
@@ -826,12 +814,16 @@ def test_coverage_alerts_on_transition_change_reminder_and_recovery(
     assert [event for _, event, _ in alerts] == [
         "query_slot_coverage_incomplete",
         "query_slot_coverage_incomplete",
-        "query_slot_coverage_incomplete",
         "query_slot_coverage_recovered",
     ]
     assert [kwargs["severity"] for _, _, kwargs in alerts] == [
-        "warning", "warning", "warning", "info"
+        "warning", "warning", "info"
     ]
+    occurrence_keys = [kwargs["dedupe_key"] for _, _, kwargs in alerts]
+    assert len(set(occurrence_keys)) == 3
+    assert all(key.startswith("coverage-v2:") for key in occurrence_keys)
+    assert alerts[1][2]["details"]["reminder_ordinal"] == 1
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
     store.close()
 
 
@@ -874,8 +866,516 @@ def test_coverage_alert_retries_after_webhook_delivery_failure(tmp_path, monkeyp
         "query_slot_coverage_incomplete",
         "query_slot_coverage_incomplete",
     ]
+    occurrence_keys = [kwargs["dedupe_key"] for _, _, kwargs in alerts]
+    assert len(set(occurrence_keys)) == 2
+    assert all(key.startswith("coverage-v2:") for key in occurrence_keys)
     assert store.get_meta(poller._COVERAGE_ALERT_LAST_UTC_KEY) == 200.0
     store.close()
+
+
+@pytest.mark.unit
+def test_new_coverage_incident_does_not_inherit_prior_alert_timer(
+    tmp_path, monkeypatch,
+):
+    store = SqliteMediaStore(tmp_path / "m.db")
+    deliveries = iter([True, True, False, True])
+    alerts = []
+
+    def capture(_component, event, **kwargs):
+        alerts.append((event, kwargs["dedupe_key"]))
+        return next(deliveries)
+
+    monkeypatch.setattr(poller, "emit_alert", capture)
+    incomplete = {
+        "complete": False,
+        "query_slots": [{"provider": "globalnews", "query_key": "world"}],
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "failed"}
+        ],
+        "missing_source_groups": [],
+    }
+    complete = {**incomplete, "complete": True, "missing_query_slots": []}
+
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=100.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=200.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=300.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=400.0
+    )
+
+    assert [event for event, _ in alerts] == [
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_recovered",
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_incomplete",
+    ]
+    assert len({key for _, key in alerts[:3]}) == 3
+    assert alerts[2][1] == alerts[3][1]
+    assert store.get_meta(poller._COVERAGE_ALERT_LAST_UTC_KEY) == 400.0
+    store.close()
+
+
+@pytest.mark.unit
+def test_coverage_incident_identity_is_durable_before_delivery(tmp_path, monkeypatch):
+    store = SqliteMediaStore(tmp_path / "m.db")
+    attempts = []
+    incomplete = {
+        "complete": False,
+        "query_slots": [{"provider": "globalnews", "query_key": "world"}],
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "failed"}
+        ],
+        "missing_source_groups": [],
+    }
+
+    def interrupted_delivery(_component, _event, **kwargs):
+        attempts.append(kwargs["dedupe_key"])
+        assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 1.0
+        assert store.get_meta(poller._COVERAGE_ALERT_STARTED_UTC_KEY) == 100.0
+        occurrence = store.get_meta(poller._COVERAGE_ALERT_INCIDENT_KEY)
+        assert kwargs["dedupe_key"] == f"coverage-v2:{int(occurrence)}"
+        raise RuntimeError("process interrupted after receiver accepted the alert")
+
+    monkeypatch.setattr(poller, "emit_alert", interrupted_delivery)
+    with pytest.raises(RuntimeError, match="process interrupted"):
+        poller._update_coverage_alert_state(
+            store, coverage=incomplete, observed_utc=100.0
+        )
+
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda _component, _event, **kwargs: attempts.append(
+            kwargs["dedupe_key"]
+        ) or True,
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=200.0
+    )
+
+    assert len(attempts) == 2
+    assert attempts[0] == attempts[1]
+    assert store.get_meta(poller._COVERAGE_ALERT_LAST_UTC_KEY) == 200.0
+    store.close()
+
+
+@pytest.mark.unit
+def test_coverage_occurrences_survive_ack_loss_beyond_two_hours(
+    tmp_path, monkeypatch,
+):
+    store = SqliteMediaStore(tmp_path / "m.db")
+    attempts = []
+    long_retry_seconds = 3 * 60 * 60 + 1
+    incomplete = {
+        "complete": False,
+        "query_slots": [{"provider": "globalnews", "query_key": "world"}],
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "failed"}
+        ],
+        "missing_source_groups": [],
+    }
+    complete = {**incomplete, "complete": True, "missing_query_slots": []}
+
+    def lose_ack(_component, event, **kwargs):
+        attempts.append((event, kwargs["dedupe_key"]))
+        raise RuntimeError("receiver accepted before the process stopped")
+
+    def acknowledge(_component, event, **kwargs):
+        attempts.append((event, kwargs["dedupe_key"]))
+        return True
+
+    monkeypatch.setattr(poller, "emit_alert", lose_ack)
+    with pytest.raises(RuntimeError, match="receiver accepted"):
+        poller._update_coverage_alert_state(
+            store, coverage=incomplete, observed_utc=100.0
+        )
+    monkeypatch.setattr(poller, "emit_alert", acknowledge)
+    initial_retry_utc = 100.0 + long_retry_seconds
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=initial_retry_utc
+    )
+
+    reminder_utc = initial_retry_utc + poller._COVERAGE_ALERT_REMINDER_SECONDS
+    monkeypatch.setattr(poller, "emit_alert", lose_ack)
+    with pytest.raises(RuntimeError, match="receiver accepted"):
+        poller._update_coverage_alert_state(
+            store, coverage=incomplete, observed_utc=reminder_utc
+        )
+    assert store.get_meta(poller._COVERAGE_ALERT_PENDING_ORDINAL_KEY) == 1.0
+    monkeypatch.setattr(poller, "emit_alert", acknowledge)
+    reminder_retry_utc = reminder_utc + long_retry_seconds
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=reminder_retry_utc
+    )
+
+    recovery_utc = reminder_retry_utc + 100.0
+    monkeypatch.setattr(poller, "emit_alert", lose_ack)
+    with pytest.raises(RuntimeError, match="receiver accepted"):
+        poller._update_coverage_alert_state(
+            store, coverage=complete, observed_utc=recovery_utc
+        )
+    monkeypatch.setattr(poller, "emit_alert", acknowledge)
+    poller._update_coverage_alert_state(
+        store,
+        coverage=complete,
+        observed_utc=recovery_utc + long_retry_seconds,
+    )
+
+    assert [event for event, _ in attempts] == [
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_incomplete",
+        "query_slot_coverage_recovered",
+        "query_slot_coverage_recovered",
+    ]
+    assert attempts[0][1] == attempts[1][1]
+    assert attempts[2][1] == attempts[3][1]
+    assert attempts[4][1] == attempts[5][1]
+    assert len({attempts[0][1], attempts[2][1], attempts[4][1]}) == 3
+    assert store.get_meta(poller._COVERAGE_ALERT_REMINDER_ORDINAL_KEY) == 0.0
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
+    store.close()
+
+
+@pytest.mark.unit
+def test_coverage_state_write_gaps_retry_the_same_occurrence(monkeypatch):
+    class Store:
+        def __init__(self):
+            self.values = {}
+            self.fail_next_key = None
+
+        def get_meta(self, key):
+            return self.values.get(key)
+
+        def set_meta(self, key, value):
+            if key == self.fail_next_key:
+                self.fail_next_key = None
+                raise RuntimeError("simulated state-write gap")
+            self.values[key] = value
+
+    store = Store()
+    attempts = []
+    long_retry_seconds = 3 * 60 * 60 + 1
+    incomplete = {
+        "complete": False,
+        "query_slots": [],
+        "missing_query_slots": [],
+        "missing_source_groups": [],
+    }
+    complete = {**incomplete, "complete": True}
+
+    def fail_after_ack(_component, event, **kwargs):
+        attempts.append((event, kwargs["dedupe_key"]))
+        store.fail_next_key = (
+            poller._COVERAGE_ALERT_STATE_KEY
+            if event == "query_slot_coverage_recovered"
+            else poller._COVERAGE_ALERT_LAST_UTC_KEY
+        )
+        return True
+
+    def acknowledge(_component, event, **kwargs):
+        attempts.append((event, kwargs["dedupe_key"]))
+        return True
+
+    monkeypatch.setattr(poller, "emit_alert", fail_after_ack)
+    with pytest.raises(RuntimeError, match="state-write gap"):
+        poller._update_coverage_alert_state(
+            store, coverage=incomplete, observed_utc=100.0
+        )
+    monkeypatch.setattr(poller, "emit_alert", acknowledge)
+    initial_retry_utc = 100.0 + long_retry_seconds
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=initial_retry_utc
+    )
+
+    reminder_utc = initial_retry_utc + poller._COVERAGE_ALERT_REMINDER_SECONDS
+    monkeypatch.setattr(poller, "emit_alert", fail_after_ack)
+    with pytest.raises(RuntimeError, match="state-write gap"):
+        poller._update_coverage_alert_state(
+            store, coverage=incomplete, observed_utc=reminder_utc
+        )
+    monkeypatch.setattr(poller, "emit_alert", acknowledge)
+    reminder_retry_utc = reminder_utc + long_retry_seconds
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=reminder_retry_utc
+    )
+
+    recovery_utc = reminder_retry_utc + 100.0
+    monkeypatch.setattr(poller, "emit_alert", fail_after_ack)
+    with pytest.raises(RuntimeError, match="state-write gap"):
+        poller._update_coverage_alert_state(
+            store, coverage=complete, observed_utc=recovery_utc
+        )
+    monkeypatch.setattr(poller, "emit_alert", acknowledge)
+    poller._update_coverage_alert_state(
+        store,
+        coverage=complete,
+        observed_utc=recovery_utc + long_retry_seconds,
+    )
+
+    assert attempts[0][1] == attempts[1][1]
+    assert attempts[2][1] == attempts[3][1]
+    assert attempts[4][1] == attempts[5][1]
+    assert len({attempts[0][1], attempts[2][1], attempts[4][1]}) == 3
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
+
+
+@pytest.mark.unit
+def test_acknowledged_reminder_finishes_an_interrupted_state_commit(monkeypatch):
+    class Store:
+        def __init__(self):
+            self.values = {
+                poller._COVERAGE_ALERT_STATE_KEY: 1.0,
+                poller._COVERAGE_ALERT_STARTED_UTC_KEY: 100.0,
+                poller._COVERAGE_ALERT_SEQUENCE_KEY: 101.0,
+                poller._COVERAGE_ALERT_INCIDENT_KEY: 101.0,
+                poller._COVERAGE_ALERT_DELIVERED_KEY: 1.0,
+                poller._COVERAGE_ALERT_LAST_UTC_KEY: 100.0,
+                poller._COVERAGE_ALERT_REMINDER_ORDINAL_KEY: 0.0,
+            }
+            self.fail_next_key = None
+
+        def get_meta(self, key):
+            return self.values.get(key)
+
+        def set_meta(self, key, value):
+            if key == self.fail_next_key:
+                self.fail_next_key = None
+                raise RuntimeError("simulated ordinal-write gap")
+            self.values[key] = value
+
+    store = Store()
+    attempts = []
+    long_retry_seconds = 3 * 60 * 60 + 1
+
+    def acknowledge(_component, _event, **kwargs):
+        attempts.append(kwargs["dedupe_key"])
+        store.fail_next_key = poller._COVERAGE_ALERT_REMINDER_ORDINAL_KEY
+        return True
+
+    monkeypatch.setattr(poller, "emit_alert", acknowledge)
+    incomplete = {
+        "complete": False,
+        "query_slots": [],
+        "missing_query_slots": [],
+        "missing_source_groups": [],
+    }
+    with pytest.raises(RuntimeError, match="ordinal-write gap"):
+        poller._update_coverage_alert_state(
+            store,
+            coverage=incomplete,
+            observed_utc=100.0 + poller._COVERAGE_ALERT_REMINDER_SECONDS,
+        )
+
+    assert store.get_meta(poller._COVERAGE_ALERT_ACKED_REMINDER_KEY) is not None
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *_args, **_kwargs: pytest.fail("acknowledged reminder was resent"),
+    )
+    poller._update_coverage_alert_state(
+        store,
+        coverage=incomplete,
+        observed_utc=(
+            100.0
+            + poller._COVERAGE_ALERT_REMINDER_SECONDS
+            + long_retry_seconds
+        ),
+    )
+
+    assert len(attempts) == 1
+    assert store.get_meta(poller._COVERAGE_ALERT_REMINDER_ORDINAL_KEY) == 1.0
+    assert store.get_meta(poller._COVERAGE_ALERT_REMINDER_KEY) == 0.0
+    assert store.get_meta(poller._COVERAGE_ALERT_ACKED_REMINDER_KEY) == 0.0
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad_identity", [None, float("nan"), -1.0, 1.5])
+def test_recovery_repairs_and_persists_its_identity_before_delivery(
+    monkeypatch, bad_identity,
+):
+    class Store:
+        def __init__(self):
+            self.values = {
+                poller._COVERAGE_ALERT_STATE_KEY: 1.0,
+                poller._COVERAGE_ALERT_STARTED_UTC_KEY: 100.0,
+                poller._COVERAGE_ALERT_SEQUENCE_KEY: 101.0,
+                poller._COVERAGE_ALERT_INCIDENT_KEY: 101.0,
+                poller._COVERAGE_ALERT_RECOVERY_KEY: bad_identity,
+                poller._COVERAGE_ALERT_DELIVERED_KEY: 1.0,
+                poller._COVERAGE_ALERT_LAST_UTC_KEY: 100.0,
+            }
+
+        def get_meta(self, key):
+            return self.values.get(key)
+
+        def set_meta(self, key, value):
+            self.values[key] = value
+
+    store = Store()
+    attempts = []
+    deliveries = iter([False, True])
+    long_retry_seconds = 3 * 60 * 60 + 1
+
+    def capture(_component, _event, **kwargs):
+        persisted = store.get_meta(poller._COVERAGE_ALERT_RECOVERY_KEY)
+        attempts.append((kwargs["dedupe_key"], persisted))
+        assert kwargs["dedupe_key"] == f"coverage-v2:{int(persisted)}"
+        return next(deliveries)
+
+    monkeypatch.setattr(poller, "emit_alert", capture)
+    complete = {
+        "complete": True,
+        "query_slots": [],
+        "missing_query_slots": [],
+        "missing_source_groups": [],
+    }
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=200.0
+    )
+    poller._update_coverage_alert_state(
+        store, coverage=complete, observed_utc=200.0 + long_retry_seconds
+    )
+
+    assert attempts[0] == attempts[1]
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
+
+
+@pytest.mark.unit
+def test_stale_pending_reminder_ordinal_repairs_forward(monkeypatch):
+    class Store:
+        values = {
+            poller._COVERAGE_ALERT_STATE_KEY: 1.0,
+            poller._COVERAGE_ALERT_STARTED_UTC_KEY: 100.0,
+            poller._COVERAGE_ALERT_SEQUENCE_KEY: 500.0,
+            poller._COVERAGE_ALERT_INCIDENT_KEY: 101.0,
+            poller._COVERAGE_ALERT_DELIVERED_KEY: 1.0,
+            poller._COVERAGE_ALERT_LAST_UTC_KEY: 199.0,
+            poller._COVERAGE_ALERT_REMINDER_KEY: 500.0,
+            poller._COVERAGE_ALERT_REMINDER_ORDINAL_KEY: 5.0,
+            poller._COVERAGE_ALERT_PENDING_ORDINAL_KEY: 1.0,
+        }
+
+        def get_meta(self, key):
+            return self.values.get(key)
+
+        def set_meta(self, key, value):
+            self.values[key] = value
+
+    store = Store()
+    attempts = []
+
+    def capture(_component, event, **kwargs):
+        attempts.append((event, kwargs))
+        assert store.get_meta(poller._COVERAGE_ALERT_PENDING_ORDINAL_KEY) == 6.0
+        return True
+
+    monkeypatch.setattr(poller, "emit_alert", capture)
+    poller._update_coverage_alert_state(
+        store,
+        coverage={
+            "complete": False,
+            "query_slots": [],
+            "missing_query_slots": [],
+            "missing_source_groups": [],
+        },
+        observed_utc=200.0,
+    )
+
+    assert attempts[0][1]["dedupe_key"] == "coverage-v2:500"
+    assert attempts[0][1]["details"]["reminder_ordinal"] == 6
+    assert store.get_meta(poller._COVERAGE_ALERT_REMINDER_ORDINAL_KEY) == 6.0
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad_timestamp", [float("nan"), float("inf"), "bad"])
+def test_corrupt_coverage_alert_timestamps_cannot_suppress_delivery(
+    monkeypatch, bad_timestamp,
+):
+    class Store:
+        values = {
+            poller._COVERAGE_ALERT_STATE_KEY: 1.0,
+            poller._COVERAGE_ALERT_STARTED_UTC_KEY: 100.0,
+            poller._COVERAGE_ALERT_SEQUENCE_KEY: 101.0,
+            poller._COVERAGE_ALERT_INCIDENT_KEY: 101.0,
+            poller._COVERAGE_ALERT_DELIVERED_KEY: 1.0,
+            poller._COVERAGE_ALERT_LAST_UTC_KEY: bad_timestamp,
+        }
+
+        def get_meta(self, key):
+            return self.values.get(key)
+
+        def set_meta(self, key, value):
+            self.values[key] = value
+
+    alerts = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda _component, event, **kwargs: alerts.append(
+            (event, kwargs["dedupe_key"])
+        ) or True,
+    )
+
+    poller._update_coverage_alert_state(
+        Store(),
+        coverage={
+            "complete": False,
+            "query_slots": [],
+            "missing_query_slots": [],
+            "missing_source_groups": [],
+        },
+        observed_utc=200.0,
+    )
+
+    assert alerts == [("query_slot_coverage_incomplete", "coverage-v2:201")]
+
+
+@pytest.mark.unit
+def test_coverage_alert_clock_rollback_does_not_duplicate_an_active_incident(monkeypatch):
+    class Store:
+        def __init__(self):
+            self.values = {
+                poller._COVERAGE_ALERT_STATE_KEY: 1.0,
+                poller._COVERAGE_ALERT_STARTED_UTC_KEY: 300.0,
+                poller._COVERAGE_ALERT_SEQUENCE_KEY: 301.0,
+                poller._COVERAGE_ALERT_INCIDENT_KEY: 301.0,
+                poller._COVERAGE_ALERT_DELIVERED_KEY: 1.0,
+                poller._COVERAGE_ALERT_LAST_UTC_KEY: 300.0,
+            }
+
+        def get_meta(self, key):
+            return self.values.get(key)
+
+        def set_meta(self, key, value):
+            self.values[key] = value
+
+    alerts = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *_args, **_kwargs: alerts.append(True) or True,
+    )
+
+    poller._update_coverage_alert_state(
+        Store(),
+        coverage={
+            "complete": False,
+            "query_slots": [],
+            "missing_query_slots": [],
+            "missing_source_groups": [],
+        },
+        observed_utc=200.0,
+    )
+
+    assert alerts == []
 
 
 @pytest.mark.unit
@@ -925,8 +1425,69 @@ def test_coverage_recovery_retries_only_after_a_delivered_incident(
         "query_slot_coverage_recovered",
     ]
     assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
-    assert store.get_meta(poller._COVERAGE_ALERT_FINGERPRINT_KEY) == 0.0
+    assert store.get_meta(poller._COVERAGE_ALERT_DELIVERED_KEY) == 0.0
     store.close()
+
+
+@pytest.mark.unit
+def test_recovery_commits_the_incident_boundary_before_auxiliary_cleanup(monkeypatch):
+    class Store:
+        def __init__(self):
+            self.values = {
+                poller._COVERAGE_ALERT_STATE_KEY: 1.0,
+                poller._COVERAGE_ALERT_STARTED_UTC_KEY: 100.0,
+                poller._COVERAGE_ALERT_DELIVERED_KEY: 1.0,
+                poller._COVERAGE_ALERT_LAST_UTC_KEY: 100.0,
+            }
+            self.fail_cleanup = True
+
+        def get_meta(self, key):
+            return self.values.get(key)
+
+        def set_meta(self, key, value):
+            self.values[key] = value
+            if self.fail_cleanup and key == poller._COVERAGE_ALERT_DELIVERED_KEY:
+                raise RuntimeError("simulated disconnect during cleanup")
+
+    store = Store()
+    events = []
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda _component, event, **kwargs: events.append(
+            (event, kwargs["dedupe_key"])
+        ) or True,
+    )
+    complete = {
+        "complete": True,
+        "query_slots": [],
+        "missing_query_slots": [],
+        "missing_source_groups": [],
+    }
+    incomplete = {
+        **complete,
+        "complete": False,
+        "missing_query_slots": [
+            {"provider": "globalnews", "query_key": "world", "reason": "failed"}
+        ],
+    }
+
+    with pytest.raises(RuntimeError, match="simulated disconnect"):
+        poller._update_coverage_alert_state(
+            store, coverage=complete, observed_utc=200.0
+        )
+    assert store.get_meta(poller._COVERAGE_ALERT_STATE_KEY) == 0.0
+
+    store.fail_cleanup = False
+    poller._update_coverage_alert_state(
+        store, coverage=incomplete, observed_utc=300.0
+    )
+
+    assert [event for event, _ in events] == [
+        "query_slot_coverage_recovered",
+        "query_slot_coverage_incomplete",
+    ]
+    assert events[0][1] != events[1][1]
 
 
 @pytest.mark.unit
@@ -994,6 +1555,11 @@ def test_collector_audit_requires_all_ten_globalnews_slots(capsys):
         def collection_cycle(self, _cycle_id):
             return None
 
+        def collection_cycle_identities(self, cycle_kind, *, period_key):
+            assert cycle_kind == "x-daily"
+            assert period_key
+            return []
+
     poller.print_audit(AuditStore())
 
     output = capsys.readouterr().out
@@ -1002,9 +1568,57 @@ def test_collector_audit_requires_all_ten_globalnews_slots(capsys):
     assert captured["kwargs"]["max_age_seconds"] == 4500.0
     assert "collector_expected_query_slots=10" in output
     assert "collector_missing_query_slots=10" in output
-    assert "collector_x_current_state=missing" in output
+    assert "collector_x_current_state=scheduled" in output
     assert "collector_x_prior_state=missing" in output
     assert "collector_immutable_receipt_history" not in output
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("database_now", "expected_state", "expected_complete"),
+    [
+        (
+            datetime(2026, 8, 5, 20, 59, tzinfo=timezone.utc).timestamp(),
+            "scheduled",
+            True,
+        ),
+        (
+            datetime(2026, 8, 5, 23, 46, tzinfo=timezone.utc).timestamp(),
+            "missing",
+            False,
+        ),
+    ],
+)
+def test_collector_audit_combines_news_and_scheduled_x_health(
+    capsys, database_now, expected_state, expected_complete,
+):
+    class AuditStore:
+        def server_observed_utc(self):
+            return database_now
+
+        def coverage_report(self, cutoff, groups, **kwargs):
+            return {
+                "complete": True,
+                "query_slots": [
+                    {"provider": provider, "query_key": query}
+                    for provider, query in kwargs["expected_query_slots"]
+                ],
+                "missing_query_slots": [],
+            }
+
+        def collection_cycle(self, _cycle_id):
+            return None
+
+        def collection_cycle_identities(self, _cycle_kind, *, period_key):
+            assert period_key
+            return []
+
+    poller.print_audit(AuditStore())
+
+    output = capsys.readouterr().out
+    assert f"collector_coverage_complete={str(expected_complete).lower()}" in output
+    assert f"collector_x_current_state={expected_state}" in output
+    assert "collector_x_prior_state=missing" in output
 
 
 @pytest.mark.unit
@@ -1039,6 +1653,10 @@ def test_collector_audit_history_is_opt_in_and_clearly_delimited(capsys):
 
         def collection_cycle(self, _cycle_id):
             return None
+
+        def collection_cycle_identities(self, _cycle_kind, *, period_key):
+            assert period_key
+            return []
 
     poller.print_audit(AuditStore(), include_history=True)
 
@@ -1085,15 +1703,107 @@ def test_collector_audit_cli_selects_history_explicitly(
 
 
 def _compatible_x_cycle_spec(instant, index=0):
-    identity = poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-        "compatible_collector_identities"
-    ][index]
-    return poller._x_collection_cycle_spec_for_identity(
-        instant,
-        3,
-        protocol_id=identity["protocol_id"],
-        collector_semantics_id=identity["collector_semantics_id"],
+    identity = poller.GLOBAL_EVENT_V2_COMPATIBLE_COLLECTOR_IDENTITIES[index]
+    return poller._x_collection_cycle_spec_for_identity(instant, identity)
+
+
+def _running_x_cycle(spec, started):
+    identity = spec["identity"]
+    return {
+        "collection_cycle_id": spec["collection_cycle_id"],
+        "cycle_kind": identity["cycle_kind"],
+        "period_key": identity["period_key"],
+        "protocol_id": identity["protocol_id"],
+        "collector_semantics_id": identity["collector_semantics_id"],
+        "identity_valid": True,
+        "identity": identity,
+        "started_utc": started,
+        "completed_utc": None,
+        "status": "running",
+        "manifest_id": None,
+        "manifest": None,
+        "manifest_valid": False,
+        "server_started_utc": started,
+        "server_terminal_utc": None,
+        "collector_build_id": "build_" + "b" * 24,
+    }
+
+
+@pytest.mark.unit
+def test_x_cycle_trend_requirement_comes_from_candidate_identity():
+    spec = poller._x_collection_cycle_spec_for_identity(
+        1_786_080_000.0,
+        {
+            "protocol_id": "protocol_" + "d" * 24,
+            "collector_semantics_id": "collector_" + "e" * 24,
+            "x_daily_static_slots": (
+                ("xtrend", "woeid:42"),
+                ("trendnews", "ranked-global-discovery"),
+            ),
+            "x_daily_max_dynamic_slots": 1,
+        },
     )
+    identity = spec["identity"]
+    started = 1_786_080_000.0
+    completed = started + 10
+    build_id = "build_" + "b" * 24
+    receipts = [
+        {
+            "slot_kind": "static",
+            "provider": "trendnews",
+            "query_key": "ranked-global-discovery",
+            "fetch_run_id": "00000000-0000-4000-8000-000000000001",
+            "status": "success",
+            "item_count": 1,
+            "raw_content_ids": [],
+        },
+        {
+            "slot_kind": "static",
+            "provider": "xtrend",
+            "query_key": "woeid:42",
+            "fetch_run_id": "00000000-0000-4000-8000-000000000002",
+            "status": "success",
+            "item_count": 1,
+            "raw_content_ids": [],
+        },
+    ]
+    manifest = {
+        "schema_version": 2,
+        "collection_cycle_id": spec["collection_cycle_id"],
+        "cycle_kind": "x-daily",
+        "period_key": identity["period_key"],
+        "protocol_id": identity["protocol_id"],
+        "collector_semantics_id": identity["collector_semantics_id"],
+        "started_utc": started,
+        "completed_utc": completed,
+        "status": "complete",
+        "expected_static_slots": identity["expected_static_slots"],
+        "expected_dynamic_slots": [],
+        "slot_receipts": receipts,
+        "server_started_utc": started,
+        "server_terminal_utc": completed,
+        "collector_build_id": build_id,
+    }
+    cycle = {
+        "collection_cycle_id": spec["collection_cycle_id"],
+        "cycle_kind": "x-daily",
+        "period_key": identity["period_key"],
+        "protocol_id": identity["protocol_id"],
+        "collector_semantics_id": identity["collector_semantics_id"],
+        "identity_valid": True,
+        "identity": identity,
+        "started_utc": started,
+        "completed_utc": completed,
+        "status": "complete",
+        "manifest_valid": True,
+        "manifest": manifest,
+        "manifest_id": poller.content_id(manifest, prefix="cycle_manifest_"),
+        "server_started_utc": started,
+        "server_terminal_utc": completed,
+        "collector_build_id": build_id,
+    }
+
+    assert poller._x_collection_cycle_state(spec, cycle) == "complete"
 
 
 def _finish_compatible_x_cycle(store, instant, *, with_receipts, index=0):
@@ -1144,6 +1854,89 @@ def _forbid_x_provider_calls(monkeypatch):
 
 
 @pytest.mark.unit
+def test_x_search_budget_stops_paid_cycle_without_a_redundant_alert(
+    monkeypatch, caplog,
+):
+    now = 1_786_080_000.0
+    headlines = [
+        {
+            "category": "technology",
+            "external_id": "news-1",
+            "title": "Independent technology report",
+            "body": "",
+            "publisher": "Reuters",
+            "created_utc": now,
+            "region": "US",
+            "rank": 0,
+            "metadata": {"publisher_domain": "reuters.com"},
+        },
+        {
+            "category": "world",
+            "external_id": "news-2",
+            "title": "Independent world report",
+            "body": "",
+            "publisher": "Associated Press",
+            "created_utc": now,
+            "region": "US",
+            "rank": 0,
+            "metadata": {"publisher_domain": "apnews.com"},
+        },
+    ]
+    topics = poller._formally_grounded_discovery_topics(
+        poller.discover_x_topics(max_topics=3, headlines=headlines, trends=[]), now
+    )
+    cycle_id = "cycle_" + "1" * 24
+    attempted_searches = []
+
+    class Store:
+        def declare_collection_cycle_slots(
+            self, collection_cycle_id, slots, *, declared_utc,
+        ):
+            assert collection_cycle_id == cycle_id
+            assert declared_utc > 0
+            self.slots = slots
+
+    store = Store()
+
+    def run_fetch(_store, *, provider, fetch_fn, **kwargs):
+        if provider == "trendnews":
+            rows = fetch_fn(now)
+            assert len(rows) == len(topics) + 1
+            return len(rows), len(rows), "success"
+        if provider == "x":
+            attempted_searches.append(kwargs["query_key"])
+            raise poller._FetchBudgetExceeded("budget exhausted")
+        return 0, 0, "empty"
+
+    monkeypatch.setattr(poller, "_run_fetch", run_fetch)
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *_args, **_kwargs: pytest.fail("budget exhaustion sent an alert"),
+    )
+
+    with caplog.at_level(logging.INFO):
+        slots = poller._poll_x_cycle_children(
+            store,
+            now=now,
+            limit=10,
+            max_topics=3,
+            collection_cycle_id=cycle_id,
+            expected_slots=[],
+            discovery_headlines=headlines,
+        )
+
+    expected = [
+        ("x", request["query_key"])
+        for request in poller._group_x_search_topics(topics)
+    ]
+    assert slots == expected
+    assert store.slots == expected
+    assert attempted_searches == [expected[0][1]]
+    assert "X daily search budget reached; stopping paid cycle" in caplog.text
+
+
+@pytest.mark.unit
 def test_complete_compatible_x_cycle_handoffs_without_duplicate_paid_work(
     tmp_path, monkeypatch,
 ):
@@ -1159,7 +1952,6 @@ def test_complete_compatible_x_cycle_handoffs_without_duplicate_paid_work(
 
     _forbid_x_provider_calls(monkeypatch)
 
-    assert poller._x_poll_due(store, instant, 86400) is False
     assert poller._x_daily_requirement_state(store, instant, 3) == "complete"
     assert set(poller.poll_x_topics_once(store, instant, 10, 3)) == {
         (slot["provider"], slot["query_key"])
@@ -1207,7 +1999,6 @@ def test_first_present_compatible_x_cycle_wins_with_multiple_prior_cycles(
         == first_spec["collection_cycle_id"]
     assert second_spec["collection_cycle_id"] \
         != first_spec["collection_cycle_id"]
-    assert poller._x_poll_due(store, instant, 86400) is False
     assert set(poller.poll_x_topics_once(store, instant, 10, 3)) == {
         (slot["provider"], slot["query_key"])
         for slot in first_spec["identity"]["expected_static_slots"]
@@ -1253,7 +2044,6 @@ def test_compatible_precedence_never_falls_through_based_on_outcome(
         == first_spec["collection_cycle_id"]
     assert second_spec["collection_cycle_id"] \
         != first_spec["collection_cycle_id"]
-    assert poller._x_poll_due(store, instant, 86400) is False
     with pytest.raises(ValueError, match="not uniquely complete"):
         poller.poll_x_topics_once(store, instant, 10, 3)
     coverage = poller.run_cycle(
@@ -1297,7 +2087,6 @@ def test_current_x_cycle_precedes_a_complete_compatible_cycle(
     assert resolution["state"] == "incomplete"
     assert compatible_spec["collection_cycle_id"] \
         != current_spec["collection_cycle_id"]
-    assert poller._x_poll_due(store, instant, 86400) is False
     coverage = poller.run_cycle(
         store,
         tickers=[],
@@ -1326,10 +2115,11 @@ def test_incomplete_compatible_x_cycle_blocks_force_but_stays_unhealthy(
     monkeypatch.setattr(
         poller,
         "fetch_top_news_headlines",
-        lambda: pytest.fail("an incomplete prior attempt must block a fresh paid cycle"),
+        lambda **_kwargs: pytest.fail(
+            "an incomplete prior attempt must block a fresh paid cycle"
+        ),
     )
 
-    assert poller._x_poll_due(store, instant, 86400) is False
     assert poller._x_daily_requirement_state(store, instant, 3) == "incomplete"
     with pytest.raises(ValueError, match="not uniquely complete"):
         poller.poll_x_topics_once(store, instant, 10, 3)
@@ -1372,11 +2162,12 @@ def test_invalid_compatible_x_cycle_is_blocked_and_never_accepted(monkeypatch):
     monkeypatch.setattr(
         poller,
         "fetch_top_news_headlines",
-        lambda: pytest.fail("an invalid prior attempt must block paid work"),
+        lambda **_kwargs: pytest.fail(
+            "an invalid prior attempt must block paid work"
+        ),
     )
     store = Store()
 
-    assert poller._x_poll_due(store, instant, 86400) is False
     assert poller._x_daily_requirement_state(store, instant, 3) == "invalid"
     with pytest.raises(ValueError, match="not uniquely complete"):
         poller.poll_x_topics_once(store, instant, 10, 3)
@@ -1387,9 +2178,16 @@ def test_unlisted_x_cycle_is_not_considered_daily_completion():
     instant = 1_786_080_000.0
     unlisted = poller._x_collection_cycle_spec_for_identity(
         instant,
-        3,
-        protocol_id="protocol_" + "d" * 24,
-        collector_semantics_id="collector_" + "e" * 24,
+        {
+            "protocol_id": "protocol_" + "d" * 24,
+            "collector_semantics_id": "collector_" + "e" * 24,
+            "x_daily_static_slots": (
+                ("xtrend", "woeid:1"),
+                ("xtrend", "woeid:23424977"),
+                ("trendnews", "ranked-global-discovery"),
+            ),
+            "x_daily_max_dynamic_slots": 3,
+        },
     )
     queried = []
 
@@ -1400,10 +2198,20 @@ def test_unlisted_x_cycle_is_not_considered_daily_completion():
                 return {"status": "complete"}
             return None
 
+        def collection_cycle_identities(self, cycle_kind, *, period_key):
+            assert cycle_kind == "x-daily"
+            assert period_key == unlisted["identity"]["period_key"]
+            return [{
+                "collection_cycle_id": unlisted["collection_cycle_id"],
+                "protocol_id": "protocol_" + "d" * 24,
+                "collector_semantics_id": "collector_" + "e" * 24,
+            }]
+
     store = Store()
 
-    assert poller._x_daily_requirement_state(store, instant, 3) == "missing"
-    assert poller._x_poll_due(store, instant, 86400) is True
+    assert poller._x_daily_requirement_state(store, instant, 3) == "invalid"
+    with pytest.raises(ValueError, match="not recognized"):
+        poller.poll_x_topics_once(store, instant, 10, 3)
     assert unlisted["collection_cycle_id"] not in queried
 
 
@@ -1416,12 +2224,7 @@ def test_running_x_cycle_age_uses_database_clock(monkeypatch):
     class Store:
         def collection_cycle(self, cycle_id):
             assert cycle_id == spec["collection_cycle_id"]
-            return {
-                "identity_valid": True,
-                "identity": spec["identity"],
-                "status": "running",
-                "server_started_utc": instant - 1.0,
-            }
+            return _running_x_cycle(spec, instant - 1.0)
 
         def server_observed_utc(self):
             return instant
@@ -1448,71 +2251,65 @@ def test_collector_x_audit_reports_exact_cycle_request_counts():
     instant = datetime(2026, 8, 5, tzinfo=timezone.utc).timestamp()
     spec = poller._x_collection_cycle_spec(instant, 3)
     terminal = instant + 100.0
+    build_id = "build_" + "b" * 24
+    static_slots = spec["identity"]["expected_static_slots"]
+    dynamic_slots = [
+        {"provider": "x", "query_key": "global topic one"},
+        {"provider": "x", "query_key": "global topic two"},
+    ]
+    slots = [*static_slots, *dynamic_slots]
+    item_counts = [0, 4, 5, 10, 7]
+    receipts = [
+        {
+            "slot_kind": "static" if slot in static_slots else "dynamic",
+            **slot,
+            "fetch_run_id": f"00000000-0000-4000-8000-{index + 1:012x}",
+                "status": "success" if item_counts[index] else "empty",
+            "item_count": item_counts[index],
+            "raw_content_ids": [],
+        }
+        for index, slot in enumerate(slots)
+    ]
+    manifest = {
+        "schema_version": 2,
+        "collection_cycle_id": spec["collection_cycle_id"],
+        "cycle_kind": spec["identity"]["cycle_kind"],
+        "period_key": spec["identity"]["period_key"],
+        "protocol_id": spec["identity"]["protocol_id"],
+        "collector_semantics_id": spec["identity"]["collector_semantics_id"],
+        "started_utc": instant,
+        "completed_utc": terminal,
+        "status": "complete",
+        "expected_static_slots": static_slots,
+        "expected_dynamic_slots": dynamic_slots,
+        "slot_receipts": receipts,
+        "server_started_utc": instant,
+        "server_terminal_utc": terminal,
+        "collector_build_id": build_id,
+    }
+    terminal_cycle = {
+        "collection_cycle_id": spec["collection_cycle_id"],
+        "cycle_kind": spec["identity"]["cycle_kind"],
+        "period_key": spec["identity"]["period_key"],
+        "protocol_id": spec["identity"]["protocol_id"],
+        "collector_semantics_id": spec["identity"]["collector_semantics_id"],
+        "identity_valid": True,
+        "identity": spec["identity"],
+        "started_utc": instant,
+        "completed_utc": terminal,
+        "status": "complete",
+        "manifest_valid": True,
+        "manifest": manifest,
+        "manifest_id": poller.content_id(manifest, prefix="cycle_manifest_"),
+        "server_started_utc": instant,
+        "server_terminal_utc": terminal,
+        "collector_build_id": build_id,
+    }
 
     class Store:
         def collection_cycle(self, cycle_id):
             assert cycle_id == spec["collection_cycle_id"]
-            static_slots = spec["identity"]["expected_static_slots"]
-            dynamic_slots = [
-                {"provider": "x", "query_key": "global topic one"},
-                {"provider": "x", "query_key": "global topic two"},
-            ]
-            return {
-                "identity_valid": True,
-                "identity": spec["identity"],
-                "status": "complete",
-                "manifest_valid": True,
-                "server_terminal_utc": terminal,
-                "manifest": {
-                    "collection_cycle_id": spec["collection_cycle_id"],
-                    "cycle_kind": spec["identity"]["cycle_kind"],
-                    "period_key": spec["identity"]["period_key"],
-                    "protocol_id": spec["identity"]["protocol_id"],
-                    "collector_semantics_id": spec["identity"][
-                        "collector_semantics_id"
-                    ],
-                    "status": "complete",
-                    "expected_static_slots": static_slots,
-                    "expected_dynamic_slots": dynamic_slots,
-                    "slot_receipts": [
-                        {
-                            "provider": "xtrend",
-                            "query_key": "woeid:1",
-                            "fetch_run_id": "fetch_" + "1" * 24,
-                            "status": "success",
-                            "item_count": 4,
-                        },
-                        {
-                            "provider": "xtrend",
-                            "query_key": "woeid:23424977",
-                            "fetch_run_id": "fetch_" + "2" * 24,
-                            "status": "success",
-                            "item_count": 5,
-                        },
-                        {
-                            "provider": "trendnews",
-                            "query_key": "ranked-global-discovery",
-                            "fetch_run_id": None,
-                            "status": "empty",
-                            "item_count": 0,
-                        },
-                        {
-                            "provider": "x",
-                            "query_key": "global topic one",
-                            "fetch_run_id": "fetch_" + "3" * 24,
-                            "status": "success",
-                            "item_count": 10,
-                        },
-                        {
-                            "provider": "x",
-                            "query_key": "global topic two",
-                            "fetch_run_id": "fetch_" + "4" * 24,
-                            "status": "success",
-                            "item_count": 7,
-                        },
-                    ]
-                },
-            }
+            return terminal_cycle
 
     projection = poller._x_cycle_audit_projection(Store(), period)
 
@@ -1527,125 +2324,22 @@ def test_collector_x_audit_reports_exact_cycle_request_counts():
 
 
 @pytest.mark.unit
-def test_global_only_policy_is_content_addressed_and_excludes_retired_runtime_parts():
+def test_poller_exposes_the_stable_declarative_collector_contract():
     manifest = poller.collector_semantics_manifest()
 
-    assert manifest["schema_version"] == 6
-    assert manifest["policy"] == "global-only-editorial-and-trend-reaction-v2"
-    assert manifest["collector_semantics_id"] == "collector_5d8f7d2a7c92e52be419ad17"
-    assert {
-        "postgres_collector_lease",
-        "postgres_advisory_lock_held",
-        "postgres_store_initialization",
-        "postgres_column_type_family",
-        "postgres_column_contract_authentication",
-        "postgres_connect_args",
-        "postgres_transaction_hook_install",
-        "postgres_transaction_hook_apply",
-        "postgres_collector_direct_url",
-        "postgres_collector_direct_engine",
-        "postgres_session_affine_connection",
-        "postgres_acquire_collector_lease",
-        "postgres_collector_runtime_preflight",
-        "sqlite_x_cycle_identity_inventory",
-        "sqlalchemy_x_cycle_identity_inventory",
-        "collector_daemon_sleep",
-        "collector_signal_handlers",
-        "collector_runtime_failure",
-        "collector_runtime_failure_type",
-        "collector_retry_delay",
-        "collector_runtime_incident",
-        "collector_daemon_loop",
-        "collector_attempt_cleanup",
-        "collector_daemon_supervisor",
-        "collector_preflight",
-        "collector_main",
-        "collector_executable_boundary",
-        "operations_alert_text_redaction",
-        "operations_alert_structure_redaction",
-        "operations_alert_delivery",
-    } <= manifest["components"].keys()
-    assert manifest["semantic_values"]["postgres_connection_contract"] == {
-        "prepare_threshold": None,
-        "transaction_settings": list(
-            media_store._POSTGRES_TRANSACTION_SETTINGS
-        ),
-        "pool_recycle_seconds": media_store._POSTGRES_POOL_RECYCLE_SECONDS,
-        "collector_lease_heartbeat_seconds": (
-            media_store._COLLECTOR_LEASE_HEARTBEAT_SECONDS
-        ),
-        "collector_advisory_lock_id": media_store._COLLECTOR_ADVISORY_LOCK_ID,
-        "fly_mpg_pool_host_pattern": media_store._FLY_MPG_POOL_HOST.pattern,
-        "fly_mpg_direct_host_pattern": media_store._FLY_MPG_DIRECT_HOST.pattern,
-        "local_postgres_hosts": sorted(media_store._LOCAL_POSTGRES_HOSTS),
+    assert manifest["collector_semantics_id"] == (
+        poller.GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID
+    )
+    assert set(manifest) == {
+        "schema_version", "normalization", "receipts", "wire_formats",
+        "collector_semantics_id",
     }
-    assert manifest["semantic_values"]["postgres_schema_contract"] == {
-        "check_constraint_definition_hashes": {
-            f"{table}.{constraint}": sorted(hashes)
-            for (table, constraint), hashes in sorted(
-                media_store._COLLECTOR_CHECK_CONSTRAINT_HASHES.items()
-            )
-        },
-        "column_type_families": {
-            family: [
-                {"type_oid": oid, "type_modifier": modifier}
-                for oid, modifier in sorted(members)
-            ]
-            for family, members in sorted(
-                media_store._COLLECTOR_POSTGRES_TYPE_FAMILIES.items()
-            )
-        },
-        "column_metadata": {
-            "nullability": "exact-model-match",
-            "server_defaults": "forbidden",
-            "collation": "built-in-type-default",
-            "identity": "forbidden",
-            "generated": "forbidden",
-        },
-    }
-    assert manifest["semantic_values"]["runtime_supervision"] == {
-        "retry_initial_seconds": 5.0,
-        "retry_max_seconds": 300.0,
-        "alert_min_interval_seconds": 3600,
-        "alert_reminder_seconds": 86400,
-        "failure_stages": sorted(poller._RUNTIME_FAILURE_STAGES),
-        "retry_scope": "daemon-only",
-        "teardown_before_retry": True,
-        "recovery_boundary": "completed-cycle",
-    }
-    assert manifest["semantic_values"]["release_preflight_alert_probe"] == {
-        "required_when_webhook_required": True,
-        "event": "release_preflight_probe",
-        "schema_version": 1,
-    }
-    assert manifest["semantic_values"]["release_preflight_x_identity_history"] == {
-        "cycle_kind": "x-daily",
-        "accepted_pairs": "current-or-explicitly-compatible",
-        "scope": "all-observed-history",
-        "provider_calls": False,
-    }
-    assert manifest["semantic_values"]["operations_alert_redaction_policy"] == {
-        "sensitive_key_parts": list(operations._SENSITIVE_KEY_PARTS),
-        "url_pattern": operations._URL.pattern,
-        "url_pattern_flags": int(operations._URL.flags),
-        "bearer_pattern": operations._BEARER.pattern,
-        "bearer_pattern_flags": int(operations._BEARER.flags),
-        "api_key_pattern": operations._API_KEY.pattern,
-        "api_key_pattern_flags": int(operations._API_KEY.flags),
-    }
-    assert manifest["semantic_values"]["collection_scope"] == {
-        "ticker_watchlist": False,
-        "ticker_sources": [],
-        "polymarket": False,
-        "broad_editorial_news": True,
-        "trend_derived_x_reaction": True,
-        "news_interval_seconds": 3600,
-        "x_interval_seconds": 86400,
-    }
-    assert not any("release" in name or "paper" in name for name in manifest["components"])
+    manifest["wire_formats"]["fetch_receipt_metadata"] = -1
+    assert poller.collector_semantics_manifest()["wire_formats"][
+        "fetch_receipt_metadata"
+    ] == 1
 
 
-@pytest.mark.unit
 def test_global_only_themes_have_news_but_no_prediction_market_queries():
     themes = poller._global_only_news_themes()
 
@@ -1697,8 +2391,27 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
     )
     secret_webhook = "https://hooks.example.invalid/private-token"
     calls = []
+    server_now = 1_786_080_000.0
+    observed_spec = _compatible_x_cycle_spec(server_now)
+    old_manifest = {
+        "schema_version": 1,
+        "collection_cycle_id": observed_spec["collection_cycle_id"],
+        "status": "complete",
+    }
+    observed_cycle = {
+        **_running_x_cycle(observed_spec, server_now - 10),
+        "status": "complete",
+        "completed_utc": server_now - 5,
+        "server_terminal_utc": server_now - 5,
+        "manifest": old_manifest,
+        "manifest_id": poller.content_id(old_manifest, prefix="cycle_manifest_"),
+    }
+    assert poller._x_collection_cycle_state(observed_spec, observed_cycle) == "invalid"
 
     class Store:
+        def server_observed_utc(self):
+            return server_now
+
         def collector_runtime_preflight(self, *, direct_url=None):
             assert direct_url == secret_direct_db
             calls.append("preflight")
@@ -1710,13 +2423,22 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
                 "required_trigger_count": 6,
             }
 
-        def collection_cycle_identity_pairs(self, cycle_kind):
+        def collection_cycle_identities(self, cycle_kind, *, period_key):
             assert cycle_kind == "x-daily"
+            assert period_key == observed_spec["identity"]["period_key"]
             calls.append("identities")
-            prior = poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                "compatible_collector_identities"
-            ][0]
-            return [(prior["protocol_id"], prior["collector_semantics_id"])]
+            return [{
+                "collection_cycle_id": observed_spec["collection_cycle_id"],
+                "protocol_id": observed_spec["identity"]["protocol_id"],
+                "collector_semantics_id": observed_spec["identity"][
+                    "collector_semantics_id"
+                ],
+            }]
+
+        def collection_cycle(self, cycle_id):
+            assert cycle_id == observed_spec["collection_cycle_id"]
+            calls.append("cycle")
+            return observed_cycle
 
         def close(self):
             calls.append("close")
@@ -1738,20 +2460,16 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
         poller,
         "collector_semantics_manifest",
         lambda: {
-            "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                "expected_collector_semantics_id"
-            ]
+            "collector_semantics_id": poller.GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID
         },
     )
     monkeypatch.setattr(poller, "build_identity", lambda: "build_" + "a" * 24)
-    alerts = []
 
-    def fake_alert(component, event, **kwargs):
-        calls.append("alert")
-        alerts.append((component, event, kwargs))
+    def fake_probe():
+        calls.append("probe")
         return True
 
-    monkeypatch.setattr(poller, "emit_alert", fake_alert)
+    monkeypatch.setattr(poller, "probe_alert_webhook", fake_probe)
     for provider_name in (
         "fetch_global_news", "fetch_x_topic", "fetch_x_trends",
     ):
@@ -1773,37 +2491,53 @@ def test_preflight_is_read_only_sanitized_and_checks_production_contract(
     ])
 
     payload = json.loads(capsys.readouterr().out)
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 4
     assert payload["status"] == "ok"
     assert payload["database_contract"]["ready"] is True
-    assert payload["x_identity_history_compatible"] is True
-    assert payload["x_identity_pair_count"] == 1
+    assert payload["x_identity_inventory_valid"] is True
+    assert payload["x_identity_cycle_count"] == 1
+    assert payload["x_repair_compatible_cycle_count"] == 1
+    assert payload["x_evidence_health_validated"] is False
+    assert payload["collection_protocol_id"] == (
+        poller.GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID
+    )
     assert payload["alert_webhook_required"] is True
     assert payload["alert_probe_delivered"] is True
-    assert calls == ["open", "preflight", "identities", "alert", "close"]
-    assert alerts == [(
-        "collector",
-        "release_preflight_probe",
-        {
-            "severity": "info",
-            "details": {
-                "schema_version": 1,
-                "protocol_id": poller.GLOBAL_EVENT_V2_PROTOCOL_ID,
-                "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL[
-                    "evidence"
-                ]["expected_collector_semantics_id"],
-                "collector_build_id": "build_" + "a" * 24,
-                "database_contract_ready": True,
-                "x_identity_history_compatible": True,
-                "x_identity_pair_count": 1,
-            },
-        },
-    )]
+    assert calls == [
+        "open", "preflight", "identities", "cycle", "probe", "close"
+    ]
     rendered = json.dumps(payload)
     assert secret_db not in rendered
     assert secret_direct_db not in rendered
     assert secret_webhook not in rendered
     assert "x-secret-token" not in rendered
+
+
+@pytest.mark.unit
+def test_preflight_repair_boundary_rejects_unauthenticated_cycle_content():
+    server_now = 1_786_080_000.0
+    spec = _compatible_x_cycle_spec(server_now)
+    manifest = {
+        "schema_version": 1,
+        "collection_cycle_id": spec["collection_cycle_id"],
+        "status": "incomplete",
+    }
+    cycle = {
+        **_running_x_cycle(spec, server_now - 10),
+        "status": "incomplete",
+        "completed_utc": server_now - 5,
+        "server_terminal_utc": server_now - 5,
+        "manifest": manifest,
+        "manifest_id": poller.content_id(manifest, prefix="cycle_manifest_"),
+    }
+
+    assert poller._preflight_x_cycle_is_known(spec, cycle) is True
+    assert poller._preflight_x_cycle_is_known(
+        spec, {**cycle, "manifest_id": "cycle_manifest_" + "0" * 24}
+    ) is False
+    assert poller._preflight_x_cycle_is_known(
+        spec, {**cycle, "identity_valid": False}
+    ) is False
 
 
 @pytest.mark.unit
@@ -1814,13 +2548,17 @@ def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
     calls = []
 
     class Store:
+        def server_observed_utc(self):
+            return 1_786_080_000.0
+
         def collector_runtime_preflight(self, *, direct_url=None):
             assert direct_url is None
             calls.append("preflight")
             return {"contract_version": 3, "ready": True}
 
-        def collection_cycle_identity_pairs(self, cycle_kind):
+        def collection_cycle_identities(self, cycle_kind, *, period_key):
             assert cycle_kind == "x-daily"
+            assert period_key
             calls.append("identities")
             return []
 
@@ -1840,9 +2578,7 @@ def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
         poller,
         "collector_semantics_manifest",
         lambda: {
-            "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                "expected_collector_semantics_id"
-            ]
+            "collector_semantics_id": poller.GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID
         },
     )
     monkeypatch.setattr(poller, "build_identity", lambda: "build_" + "b" * 24)
@@ -1853,8 +2589,8 @@ def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
     )
     monkeypatch.setattr(
         poller,
-        "emit_alert",
-        lambda *_args, **_kwargs: calls.append("alert") or False,
+        "probe_alert_webhook",
+        lambda: calls.append("probe") or False,
     )
     for provider_name in (
         "fetch_global_news", "fetch_x_topic", "fetch_x_trends",
@@ -1878,7 +2614,7 @@ def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
         ])
 
     captured = capsys.readouterr()
-    assert calls == ["open", "preflight", "identities", "alert", "close"]
+    assert calls == ["open", "preflight", "identities", "probe", "close"]
     assert captured.out == ""
     assert "collector preflight failed (RuntimeError)" in captured.err
     assert secret_db not in captured.err
@@ -1886,21 +2622,41 @@ def test_required_preflight_fails_when_sanitized_alert_probe_is_not_delivered(
 
 
 @pytest.mark.unit
-def test_preflight_rejects_unregistered_historical_x_identity_before_alert(
+def test_preflight_rejects_accepted_pair_with_wrong_frozen_shape_before_probe(
     monkeypatch, capsys,
 ):
     calls = []
+    server_now = 1_786_080_000.0
+    accepted = poller.GLOBAL_EVENT_V2_COMPATIBLE_COLLECTOR_IDENTITIES[0]
+    wrong_shape = poller.media_store.collection_cycle_spec(
+        cycle_kind="x-daily",
+        period_key=poller._x_collection_cycle_spec(server_now, 3)["identity"][
+            "period_key"
+        ],
+        protocol_id=accepted["protocol_id"],
+        collector_semantics_id=accepted["collector_semantics_id"],
+        expected_static_slots=[("xtrend", "woeid:1")],
+        max_dynamic_slots=3,
+    )
 
     class Store:
+        def server_observed_utc(self):
+            return server_now
+
         def collector_runtime_preflight(self, *, direct_url=None):
             assert direct_url is None
             calls.append("preflight")
             return {"contract_version": 3, "ready": True}
 
-        def collection_cycle_identity_pairs(self, cycle_kind):
+        def collection_cycle_identities(self, cycle_kind, *, period_key):
             assert cycle_kind == "x-daily"
+            assert period_key
             calls.append("identities")
-            return [("protocol_" + "d" * 24, "collector_" + "e" * 24)]
+            return [{
+                "collection_cycle_id": wrong_shape["collection_cycle_id"],
+                "protocol_id": accepted["protocol_id"],
+                "collector_semantics_id": accepted["collector_semantics_id"],
+            }]
 
         def close(self):
             calls.append("close")
@@ -1914,9 +2670,7 @@ def test_preflight_rejects_unregistered_historical_x_identity_before_alert(
         poller,
         "collector_semantics_manifest",
         lambda: {
-            "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                "expected_collector_semantics_id"
-            ]
+            "collector_semantics_id": poller.GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID
         },
     )
     monkeypatch.setattr(
@@ -1924,9 +2678,9 @@ def test_preflight_rejects_unregistered_historical_x_identity_before_alert(
     )
     monkeypatch.setattr(
         poller,
-        "emit_alert",
-        lambda *_args, **_kwargs: pytest.fail(
-            "incompatible identity history reached alert delivery"
+        "probe_alert_webhook",
+        lambda: pytest.fail(
+            "incompatible current identity reached alert probing"
         ),
     )
 
@@ -1956,9 +2710,7 @@ def test_preflight_failure_never_renders_database_exception_text(monkeypatch, ca
         poller,
         "collector_semantics_manifest",
         lambda: {
-            "collector_semantics_id": poller.GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                "expected_collector_semantics_id"
-            ]
+            "collector_semantics_id": poller.GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID
         },
     )
     monkeypatch.setattr(
@@ -2003,7 +2755,7 @@ def test_runtime_retry_backoff_is_exponential_and_capped():
 
 
 @pytest.mark.unit
-def test_incomplete_cycle_cannot_report_runtime_recovery(monkeypatch):
+def test_incomplete_terminal_cycle_reports_runtime_recovery(monkeypatch):
     stop = {"flag": False}
     observed = {"health": [], "recoveries": 0}
     incomplete = {
@@ -2030,21 +2782,25 @@ def test_incomplete_cycle_cannot_report_runtime_recovery(monkeypatch):
         object(), [], [], 3600, {},
         health_state=Health(),
         stop=stop,
-        on_cycle_success=mark_recovery,
+        on_cycle_terminal=mark_recovery,
     )
 
-    assert observed == {"health": [incomplete], "recoveries": 0}
+    assert observed == {"health": [incomplete], "recoveries": 1}
 
 
 @pytest.mark.unit
-def test_runtime_incident_dedupes_repeats_alerts_changes_and_clears_on_recovery():
+def test_runtime_incident_retries_and_reminds_with_stable_occurrence_keys():
     now = {"value": 100.0}
     alerts = []
+    deliveries = iter([False, True, False, True, True, True, True])
+
+    def capture(component, event, **kwargs):
+        alerts.append((component, event, kwargs))
+        return next(deliveries)
+
     incident = poller._CollectorRuntimeIncident(
         clock=lambda: now["value"],
-        alert=lambda component, event, **kwargs: alerts.append(
-            (component, event, kwargs)
-        ) or True,
+        alert=capture,
     )
 
     assert incident.mark_failure(
@@ -2061,7 +2817,7 @@ def test_runtime_incident_dedupes_repeats_alerts_changes_and_clears_on_recovery(
         stage="lease_acquisition", error_type="OperationalError",
         retry_delay_seconds=20.0,
     ) is False
-    now["value"] += poller._RUNTIME_ALERT_MIN_INTERVAL_SECONDS
+    now["value"] += poller._RUNTIME_ALERT_MIN_INTERVAL_SECONDS - 1
     assert incident.mark_failure(
         stage="lease_acquisition", error_type="OperationalError",
         retry_delay_seconds=40.0,
@@ -2070,6 +2826,18 @@ def test_runtime_incident_dedupes_repeats_alerts_changes_and_clears_on_recovery(
     assert incident.mark_failure(
         stage="lease_acquisition", error_type="OperationalError",
         retry_delay_seconds=80.0,
+    ) is True
+    now["value"] += 1
+    assert incident.mark_failure(
+        stage="cycle", error_type="RuntimeError", retry_delay_seconds=160.0,
+    ) is False
+    now["value"] += poller._RUNTIME_ALERT_MIN_INTERVAL_SECONDS - 1
+    assert incident.mark_failure(
+        stage="cycle", error_type="RuntimeError", retry_delay_seconds=300.0,
+    ) is True
+    now["value"] += poller._RUNTIME_ALERT_REMINDER_SECONDS
+    assert incident.mark_failure(
+        stage="cycle", error_type="RuntimeError", retry_delay_seconds=300.0,
     ) is True
     assert incident.active is True
 
@@ -2084,14 +2852,118 @@ def test_runtime_incident_dedupes_repeats_alerts_changes_and_clears_on_recovery(
         "runtime_unhealthy",
         "runtime_unhealthy",
         "runtime_unhealthy",
+        "runtime_unhealthy",
+        "runtime_unhealthy",
         "runtime_recovered",
         "runtime_unhealthy",
     ]
     unhealthy = [kwargs["details"] for _, event, kwargs in alerts
                  if event == "runtime_unhealthy"]
     assert [details["reminder"] for details in unhealthy] == [
-        False, False, True, False,
+        False, False, True, True, True, False,
     ]
+    keys = [kwargs["dedupe_key"] for _, _, kwargs in alerts]
+    assert keys[0] == keys[1]
+    assert keys[2] == keys[3]
+    assert len({keys[0], keys[2], keys[4], keys[5], keys[6]}) == 5
+    assert unhealthy[1]["failure_stage"] == "lease_acquisition"
+    assert unhealthy[-1]["failure_stage"] == "cycle"
+
+
+@pytest.mark.unit
+def test_runtime_recovery_retries_until_ack_with_latest_failure_state():
+    alerts = []
+    recovery_outcomes = iter([False, RuntimeError("receiver bug"), True])
+
+    def capture(component, event, **kwargs):
+        alerts.append((component, event, kwargs))
+        if event == "runtime_unhealthy":
+            return True
+        outcome = next(recovery_outcomes)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    incident = poller._CollectorRuntimeIncident(clock=lambda: 100.0, alert=capture)
+    assert incident.mark_failure(
+        stage="store_startup", error_type="OperationalError",
+        retry_delay_seconds=5.0,
+    ) is True
+    assert incident.mark_failure(
+        stage="lease_lost", error_type="CollectorLeaseLost",
+        retry_delay_seconds=10.0,
+    ) is False
+
+    incident.mark_recovered()
+    assert incident.active is False
+    incident.mark_recovered()
+    assert incident.active is False
+    incident.mark_recovered()
+    assert incident.active is False
+
+    incident_key = alerts[0][2]["dedupe_key"]
+    recoveries = [kwargs for _, event, kwargs in alerts if event == "runtime_recovered"]
+    assert len(recoveries) == 3
+    assert len({item["dedupe_key"] for item in recoveries}) == 1
+    assert recoveries[0]["dedupe_key"] != incident_key
+    assert recoveries[-1]["details"] == {
+        "schema_version": 1,
+        "prior_failure_stage": "lease_lost",
+        "prior_failure_type": "CollectorLeaseLost",
+    }
+
+
+@pytest.mark.unit
+def test_new_runtime_failure_supersedes_an_unacknowledged_recovery():
+    alerts = []
+
+    def capture(component, event, **kwargs):
+        alerts.append((component, event, kwargs))
+        return event == "runtime_unhealthy"
+
+    incident = poller._CollectorRuntimeIncident(clock=lambda: 100.0, alert=capture)
+    incident.mark_failure(
+        stage="store_startup",
+        error_type="OperationalError",
+        retry_delay_seconds=5.0,
+    )
+    incident.mark_recovered()
+    assert incident.active is False
+
+    incident.mark_failure(
+        stage="cycle",
+        error_type="RuntimeError",
+        retry_delay_seconds=5.0,
+    )
+
+    assert [event for _, event, _ in alerts] == [
+        "runtime_unhealthy",
+        "runtime_recovered",
+        "runtime_unhealthy",
+    ]
+    assert alerts[0][2]["dedupe_key"] != alerts[2][2]["dedupe_key"]
+
+
+@pytest.mark.unit
+def test_runtime_recovery_is_silent_when_incident_was_never_delivered():
+    alerts = []
+
+    def reject(component, event, **kwargs):
+        alerts.append((component, event, kwargs))
+        return False
+
+    incident = poller._CollectorRuntimeIncident(
+        clock=lambda: 100.0,
+        alert=reject,
+    )
+
+    assert incident.mark_failure(
+        stage="cycle", error_type="RuntimeError", retry_delay_seconds=5.0,
+    ) is True
+    incident.mark_recovered()
+
+    assert incident.active is False
+    assert [event for _, event, _ in alerts] == ["runtime_unhealthy"]
 
 
 @pytest.mark.unit
@@ -2128,6 +3000,9 @@ def test_daemon_startup_failures_stay_in_process_unhealthy_and_deduped(
 
     monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
     monkeypatch.setenv("X_BEARER_TOKEN", "configured")
+    monkeypatch.setenv("GIT_REVISION", "a" * 40)
+    monkeypatch.setenv("FLY_MACHINE_ID", "machine-123")
+    monkeypatch.setenv("COLLECTOR_DEPLOYMENT_NONCE", "1" * 32)
     monkeypatch.setattr(poller, "open_store", fail_store)
     monkeypatch.setattr(poller, "start_collector_health_server", start_health)
     monkeypatch.setattr(poller, "_sleep", fake_sleep)
@@ -2167,6 +3042,9 @@ def test_daemon_startup_failures_stay_in_process_unhealthy_and_deduped(
     assert status == 503
     assert payload["reason"] == "cycle_failed"
     assert payload["failure_type"] == "RuntimeError"
+    assert payload["build_revision"] == "a" * 40
+    assert payload["machine_id"] == "machine-123"
+    assert payload["deployment_nonce"] == "1" * 32
     rendered = caplog.text + json.dumps(observed["alerts"])
     assert secret not in rendered
     assert "private-password" not in rendered
@@ -2174,7 +3052,9 @@ def test_daemon_startup_failures_stay_in_process_unhealthy_and_deduped(
 
 
 @pytest.mark.unit
-def test_daemon_supervises_startup_value_error_and_recovers(monkeypatch):
+def test_daemon_recovers_runtime_incident_after_incomplete_terminal_cycle(
+    monkeypatch,
+):
     observed = {
         "attempts": 0,
         "closed": 0,
@@ -2196,10 +3076,16 @@ def test_daemon_supervises_startup_value_error_and_recovers(monkeypatch):
             raise ValueError("rotated runtime topology is temporarily invalid")
         return Store()
 
-    def successful_cycle(*_args, **_kwargs):
+    def incomplete_cycle(*_args, **_kwargs):
         observed["cycles"] += 1
         handlers[poller.signal.SIGTERM](poller.signal.SIGTERM, None)
-        return {"complete": True, "missing_query_slots": [], "query_slots": []}
+        return {
+            "complete": False,
+            "missing_query_slots": [
+                {"provider": "globalnews", "query_key": "missing-slot"}
+            ],
+            "query_slots": [],
+        }
 
     def fake_sleep(seconds, stop, **_kwargs):
         if not stop["flag"]:
@@ -2208,7 +3094,7 @@ def test_daemon_supervises_startup_value_error_and_recovers(monkeypatch):
     monkeypatch.setenv("MEDIA_COLLECTION_ENABLED", "true")
     monkeypatch.setenv("X_BEARER_TOKEN", "configured")
     monkeypatch.setattr(poller, "open_store", open_after_invalid_runtime_value)
-    monkeypatch.setattr(poller, "run_cycle", successful_cycle)
+    monkeypatch.setattr(poller, "run_cycle", incomplete_cycle)
     monkeypatch.setattr(poller, "_sleep", fake_sleep)
     monkeypatch.setattr(
         poller.signal,
@@ -2353,6 +3239,53 @@ def test_one_shot_failure_remains_fail_fast(monkeypatch):
             "--x-interval", "86400",
             "--db", secret,
         ])
+
+
+@pytest.mark.unit
+def test_one_shot_singleton_lease_uses_exit_status_instead_of_alerting(monkeypatch):
+    observed = {"cycles": 0, "lease_closed": 0, "store_closed": 0}
+
+    class Lease:
+        is_held = True
+
+        def close(self):
+            observed["lease_closed"] += 1
+
+    class Store:
+        dialect = "postgresql"
+
+        def acquire_collector_lease(self, *, direct_url=None, on_loss=None):
+            assert direct_url is None
+            assert on_loss is None
+            return Lease()
+
+        def close(self):
+            observed["store_closed"] += 1
+
+    def run_cycle(*_args, **_kwargs):
+        observed["cycles"] += 1
+        return {"complete": True, "missing_query_slots": [], "query_slots": []}
+
+    monkeypatch.setenv("X_BEARER_TOKEN", "configured")
+    monkeypatch.delenv("MEDIA_DB_DIRECT_URL", raising=False)
+    monkeypatch.setattr(poller, "open_store", lambda _url: Store())
+    monkeypatch.setattr(poller, "run_cycle", run_cycle)
+    monkeypatch.setattr(
+        poller,
+        "emit_alert",
+        lambda *_args, **_kwargs: pytest.fail("one-shot lease sent an alert"),
+    )
+
+    poller.main([
+        "--global-only",
+        "--once",
+        "--sources", "x",
+        "--no-trading-hours",
+        "--interval", "3600",
+        "--x-interval", "86400",
+    ])
+
+    assert observed == {"cycles": 1, "lease_closed": 1, "store_closed": 1}
 
 
 @pytest.mark.unit

@@ -2,12 +2,14 @@ import os
 from pathlib import Path
 
 import questionary
-from dotenv import find_dotenv, set_key
+from dotenv import set_key
 from rich.console import Console
 
+from cli.environment import secure_environment_file
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.logging_utils import safe_exception_type
 
 console = Console()
 
@@ -221,8 +223,11 @@ def _fetch_openrouter_models() -> list[tuple[str, str]]:
         # "latest available" label holds regardless of response ordering.
         models.sort(key=lambda m: m.get("created") or 0, reverse=True)
         return [(m.get("name") or m["id"], m["id"]) for m in models]
-    except Exception as e:
-        console.print(f"\n[yellow]Could not fetch OpenRouter models: {e}[/yellow]")
+    except Exception as exc:
+        console.print(
+            "\n[yellow]Could not fetch OpenRouter models "
+            f"({safe_exception_type(exc)}); use a custom model ID.[/yellow]"
+        )
         return []
 
 
@@ -571,32 +576,29 @@ def ask_minimax_region() -> tuple[str, str]:
 
 
 def confirm_ollama_endpoint(url: str) -> None:
-    """Show the resolved Ollama endpoint after provider selection.
+    """Confirm the resolved Ollama endpoint without rendering credentials.
 
-    Surfaces three things the user benefits from seeing before model
-    selection: which URL we'll actually hit, where it came from
-    (`OLLAMA_BASE_URL` vs default), and a soft warning if the URL is
-    missing the scheme/port that ollama-serve expects. The warning is
-    advisory only — we don't reject malformed input, since the user may
-    be doing something deliberately unusual (e.g. a reverse-proxy path).
+    A configured URL can contain userinfo, signed query parameters, or a token
+    in its path.  The CLI therefore reports only its source and any structural
+    hint needed by the user.
     """
     from_env = os.environ.get("OLLAMA_BASE_URL")
     origin = " (from OLLAMA_BASE_URL)" if from_env and from_env == url else ""
-    console.print(f"[green]✓ Using Ollama at {url}{origin}[/green]")
+    console.print(f"[green]✓ Ollama endpoint configured{origin}[/green]")
 
     if not url.startswith(("http://", "https://")):
         console.print(
-            f"[yellow]Note: {url!r} is missing a scheme. "
-            f"Ollama-serve typically expects a URL like "
-            f"http://<host>:11434/v1.[/yellow]"
+            "[yellow]Note: the configured endpoint is missing a scheme. "
+            "Ollama-serve typically expects a URL like "
+            "http://<host>:11434/v1.[/yellow]"
         )
     elif ":11434" not in url and "://localhost" not in url and "://127.0.0.1" not in url:
         # Soft hint when the port differs from the ollama-serve default
         # and the host isn't local (where users sometimes proxy on :80).
         console.print(
-            f"[yellow]Note: {url!r} doesn't include port 11434. "
-            f"Make sure your remote ollama-serve listens on the port "
-            f"shown above.[/yellow]"
+            "[yellow]Note: the configured remote endpoint does not include "
+            "port 11434. Make sure ollama-serve listens on the configured "
+            "port.[/yellow]"
         )
 
 
@@ -642,9 +644,10 @@ def ensure_api_key(provider: str) -> str | None:
         )
         return None
 
-    env_path = find_dotenv(usecwd=True) or str(Path.cwd() / ".env")
-    Path(env_path).touch(exist_ok=True)
-    set_key(env_path, env_var, key)
+    env_path = Path.cwd() / ".env"
+    secure_environment_file(env_path, create=True)
+    set_key(str(env_path), env_var, key)
+    secure_environment_file(env_path)
     os.environ[env_var] = key
     console.print(f"[green]Saved {env_var} to {env_path}[/green]")
     return key

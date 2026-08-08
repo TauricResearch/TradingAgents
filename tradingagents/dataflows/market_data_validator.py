@@ -16,6 +16,7 @@ import pandas as pd
 from stockstats import wrap
 
 from tradingagents.dataflows.stockstats_utils import load_ohlcv
+from tradingagents.logging_utils import safe_exception_type
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
 DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
@@ -79,7 +80,7 @@ def build_verified_market_snapshot(
             stock_df[name]  # triggers stockstats calculation
             indicator_values[name] = _fmt(stock_df.iloc[-1][name])
         except Exception as exc:  # noqa: BLE001 — one bad indicator shouldn't sink the snapshot
-            indicator_values[name] = f"N/A ({type(exc).__name__})"
+            indicator_values[name] = f"N/A ({safe_exception_type(exc)})"
 
     latest = df.iloc[-1]
     latest_date = _fmt(latest["Date"])

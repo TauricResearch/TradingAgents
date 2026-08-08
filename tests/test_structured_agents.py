@@ -10,8 +10,10 @@ so they share the same deterministic output shape.
 from unittest.mock import MagicMock
 
 import pytest
+from langchain_core.exceptions import OutputParserException
 from pydantic import ValidationError
 
+from tradingagents.agents.analysts import sentiment_analyst as sentiment_module
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
@@ -27,6 +29,17 @@ from tradingagents.agents.schemas import (
     render_trader_proposal,
 )
 from tradingagents.agents.trader.trader import create_trader
+from tradingagents.agents.utils.structured import bind_structured
+
+
+@pytest.mark.unit
+def test_structured_binding_does_not_hide_provider_implementation_bugs():
+    class BrokenProvider:
+        def with_structured_output(self, _schema):
+            raise AttributeError("internal provider bug")
+
+    with pytest.raises(AttributeError, match="internal provider bug"):
+        bind_structured(BrokenProvider(), TraderProposal, "trader")
 
 # ---------------------------------------------------------------------------
 # Render functions
@@ -168,6 +181,72 @@ def test_invoke_structured_falls_back_when_result_is_none():
     )
     assert out == "FREETEXT"
     plain.invoke.assert_called_once()
+
+
+@pytest.mark.unit
+def test_structured_fallback_log_does_not_render_provider_error(caplog):
+    from tradingagents.agents.utils.structured import invoke_structured_or_freetext
+
+    secret = "https://provider.invalid/?token=must-not-escape"
+    structured = MagicMock()
+    structured.invoke.side_effect = OutputParserException(secret)
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREETEXT")
+    caplog.set_level("INFO", logger="tradingagents.agents.utils.structured")
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda result: str(result), agent_name="t"
+    )
+
+    assert out == "FREETEXT"
+    assert secret not in caplog.text
+    assert "OutputParserException" in caplog.text
+    assert not [record for record in caplog.records if record.levelno >= 30]
+
+
+@pytest.mark.unit
+def test_unknown_structured_failure_is_not_retried_as_plain_text():
+    from tradingagents.agents.utils.structured import invoke_structured_or_freetext
+
+    failure = RuntimeError("provider unavailable")
+    structured = MagicMock()
+    structured.invoke.side_effect = failure
+    plain = MagicMock()
+
+    with pytest.raises(RuntimeError) as captured:
+        invoke_structured_or_freetext(
+            structured,
+            plain,
+            "prompt",
+            render=lambda result: str(result),
+            agent_name="t",
+        )
+
+    assert captured.value is failure
+    plain.invoke.assert_not_called()
+
+
+@pytest.mark.unit
+def test_structured_render_contract_failure_is_not_retried():
+    from tradingagents.agents.utils.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.return_value = object()
+    plain = MagicMock()
+
+    def invalid_render(_result):
+        raise ValueError("invalid rendered result")
+
+    with pytest.raises(ValueError, match="invalid rendered result"):
+        invoke_structured_or_freetext(
+            structured,
+            plain,
+            "prompt",
+            render=invalid_render,
+            agent_name="t",
+        )
+
+    plain.invoke.assert_not_called()
 
 
 @pytest.mark.unit
@@ -367,6 +446,19 @@ def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = N
 
 @pytest.mark.unit
 class TestSentimentAnalystAgent:
+    @pytest.fixture(autouse=True)
+    def _captured_media(self, monkeypatch):
+        monkeypatch.setattr(sentiment_module, "collected_media_enabled", lambda: True)
+        monkeypatch.setattr(
+            sentiment_module,
+            "get_collected_sentiment_blocks",
+            lambda *_args: {
+                "news": "captured news",
+                "stocktwits": "captured StockTwits",
+                "reddit": "captured Reddit",
+            },
+        )
+
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
         report = SentimentReport(
@@ -401,7 +493,7 @@ class TestSentimentAnalystAgent:
     def test_falls_back_to_freetext_when_structured_call_fails(self):
         plain = "Fallback free-text sentiment."
         structured = MagicMock()
-        structured.invoke.side_effect = ValueError("bad JSON from model")
+        structured.invoke.side_effect = OutputParserException("bad JSON from model")
         llm = MagicMock()
         llm.with_structured_output.return_value = structured
         llm.invoke.return_value = MagicMock(content=plain)

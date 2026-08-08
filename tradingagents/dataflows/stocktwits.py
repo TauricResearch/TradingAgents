@@ -19,6 +19,8 @@ import json
 import logging
 from urllib.request import Request, urlopen
 
+from tradingagents.logging_utils import safe_exception_type
+
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
@@ -54,8 +56,9 @@ def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).
-        logger.warning("StockTwits fetch failed for %s: %s", ticker, exc)
-        return f"<stocktwits unavailable: {type(exc).__name__}>"
+        error_type = safe_exception_type(exc)
+        logger.warning("StockTwits fetch failed for %s (%s)", ticker, error_type)
+        return f"<stocktwits unavailable: {error_type}>"
 
     messages = data.get("messages", []) if isinstance(data, dict) else []
     if not messages:

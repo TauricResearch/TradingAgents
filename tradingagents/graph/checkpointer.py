@@ -6,14 +6,26 @@ Per-ticker SQLite databases so concurrent tickers don't contend.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import sqlite3
+import warnings
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from langgraph.checkpoint.sqlite import SqliteSaver
+import langchain_core  # noqa: F401 - installs its warning categories before our filter
 
 from tradingagents.dataflows.utils import safe_ticker_component
+
+# langgraph-checkpoint 4.0.3 constructs Reviver without allowed_objects at
+# import time. Keep this dependency-specific workaround local to the importer.
+warnings.filterwarnings(
+    "ignore",
+    message=r"The default value of `allowed_objects`.*",
+    category=PendingDeprecationWarning,
+)
+
+SqliteSaver = importlib.import_module("langgraph.checkpoint.sqlite").SqliteSaver
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:

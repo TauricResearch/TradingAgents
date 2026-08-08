@@ -25,6 +25,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from tradingagents.logging_utils import safe_exception_type
+
 logger = logging.getLogger(__name__)
 
 _ET = ZoneInfo("America/New_York")
@@ -47,7 +49,8 @@ class TradingClock:
             logger.warning(
                 "exchange_calendars unavailable (%s) — trading gate falls back to "
                 "weekends-only with fixed 04:00–20:00 ET hours (no holidays). "
-                "Install the 'poller' extra for the full NYSE calendar.", exc,
+                "Install the 'poller' extra for the full NYSE calendar.",
+                safe_exception_type(exc),
             )
 
     # -- session bounds for a given ET calendar date --------------------------

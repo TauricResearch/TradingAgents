@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import statistics
+import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,6 +23,8 @@ import pandas as pd
 import yfinance as yf
 
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV
+from tradingagents.logging_utils import safe_exception_type
 from tradingagents.portfolio_backtest import (
     aggregate_signal_records,
     portfolio_diagnostics,
@@ -163,13 +166,24 @@ def _load_records(path: Path) -> list[dict]:
     if not path.exists():
         return []
     rows = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        raise ValueError("backtest record file is not valid UTF-8 JSONL") from None
+    for line_number, line in enumerate(lines, 1):
         if not line.strip():
             continue
         try:
-            rows.append(json.loads(line))
+            row = json.loads(line)
         except json.JSONDecodeError:
-            print(f"Ignoring malformed JSONL line {line_number} in {path}.")
+            raise ValueError(
+                f"backtest record file has malformed JSON on line {line_number}"
+            ) from None
+        if not isinstance(row, dict):
+            raise ValueError(
+                f"backtest record file has a non-object on line {line_number}"
+            )
+        rows.append(row)
     return rows
 
 
@@ -224,13 +238,19 @@ def _database_identity(url: str | None) -> str:
 
 
 _DECISION_CONFIG_KEYS = (
-    "anthropic_effort", "backend_url", "collected_media_enabled",
+    "anthropic_effort", "collected_media_enabled",
     "data_vendors", "global_news_article_limit", "global_news_lookback_days",
     "global_news_novelty_lookback_days", "global_news_queries", "google_thinking_level",
     "llm_max_retries", "macro_themes", "max_debate_rounds", "max_recur_limit",
     "max_risk_discuss_rounds", "news_article_limit", "online_tools", "output_language",
     "tool_vendors",
 )
+
+
+def _validated_provider(value: object) -> str:
+    if type(value) is not str or value not in PROVIDER_API_KEY_ENV:
+        raise ValueError("unsupported LLM provider")
+    return value
 
 
 def _signal_manifest(
@@ -242,7 +262,7 @@ def _signal_manifest(
         "protocol_code_id": _strategy_code_fingerprint(),
         "build_id": _decision_code_fingerprint(),
         "analysts": list(analysts),
-        "llm_provider": DEFAULT_CONFIG["llm_provider"],
+        "llm_provider": _validated_provider(DEFAULT_CONFIG["llm_provider"]),
         "quick_model": DEFAULT_CONFIG["quick_think_llm"],
         "deep_model": DEFAULT_CONFIG["deep_think_llm"],
         "temperature": DEFAULT_CONFIG.get("temperature"),
@@ -257,7 +277,8 @@ def _signal_manifest(
         "identity_aliases": identity_aliases or {},
         "global_topics_only": bool(getattr(args, "global_topics_only", False)),
         "decision_config": {
-            key: DEFAULT_CONFIG.get(key) for key in _DECISION_CONFIG_KEYS
+            **{key: DEFAULT_CONFIG.get(key) for key in _DECISION_CONFIG_KEYS},
+            "backend_id": _database_identity(DEFAULT_CONFIG.get("backend_url")),
         },
     }
 
@@ -298,8 +319,15 @@ def _reevaluate_records(
 
 def _append_jsonl(path: Path, row: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    encoded = (json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
+    descriptor = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    try:
+        written = os.write(descriptor, encoded)
+        if written != len(encoded):
+            raise OSError("partial backtest record write")
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _write_portfolio_outputs(path: Path, payload: dict) -> tuple[Path, Path]:
@@ -508,7 +536,7 @@ def main(argv: list[str] | None = None) -> None:
             "data_fingerprint": data_fingerprints[(ticker, date)],
             "signal_manifest": manifest,
             "analysts": list(analysts),
-            "llm_provider": config["llm_provider"],
+            "llm_provider": manifest["llm_provider"],
             "quick_model": config["quick_think_llm"],
             "deep_model": config["deep_think_llm"],
             "final_decision": graph.curr_state["final_trade_decision"],
@@ -598,5 +626,14 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Saved {portfolio_path} and {equity_path}")
 
 
+def _main_entrypoint() -> None:
+    """Exit nonzero without rendering provider or database exception text."""
+    try:
+        main()
+    except Exception as exc:  # noqa: BLE001 - sanitize the executable boundary
+        print(f"Backtest failed ({safe_exception_type(exc)})", file=sys.stderr)
+        raise SystemExit(1) from None
+
+
 if __name__ == "__main__":
-    main()
+    _main_entrypoint()

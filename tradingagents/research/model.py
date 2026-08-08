@@ -5,7 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol, runtime_checkable
 
+from httpx import TransportError
+from openai import APIConnectionError, InternalServerError, RateLimitError
+
 from tradingagents.research.contracts import ModelCheckpointSpec
+from tradingagents.research.errors import ForecastUnavailableError
 
 
 @runtime_checkable
@@ -36,14 +40,22 @@ class GlobalForecastModel:
     ) -> dict[str, Any]:
         from tradingagents.global_research import invoke_global_forecast
 
-        bundle = invoke_global_forecast(
-            llm=self.llm,
-            provider=checkpoint.provider,
-            requested_model=checkpoint.requested_model,
-            decision_date=decision_date,
-            rows=[dict(row) for row in raw_evidence],
-            universe=list(universe),
-        )
+        try:
+            bundle = invoke_global_forecast(
+                llm=self.llm,
+                provider=checkpoint.provider,
+                requested_model=checkpoint.requested_model,
+                decision_date=decision_date,
+                rows=[dict(row) for row in raw_evidence],
+                universe=list(universe),
+            )
+        except (
+            APIConnectionError,
+            InternalServerError,
+            RateLimitError,
+            TransportError,
+        ):
+            raise ForecastUnavailableError("forecast provider unavailable") from None
         returned = {
             value.strip()
             for key in ("model_name", "model", "model_id")

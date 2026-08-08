@@ -127,7 +127,8 @@ def test_confirm_endpoint_shows_default(monkeypatch, capsys):
     importlib.reload(cli_utils)
     cli_utils.confirm_ollama_endpoint("http://localhost:11434/v1")
     out = capsys.readouterr().out
-    assert "http://localhost:11434/v1" in out
+    assert "Ollama endpoint configured" in out
+    assert "http://localhost:11434/v1" not in out
     assert "OLLAMA_BASE_URL" not in out  # not from env
     assert "Note" not in out  # no warnings for the canonical default
 
@@ -138,8 +139,22 @@ def test_confirm_endpoint_marks_env_origin(monkeypatch, capsys):
     importlib.reload(cli_utils)
     cli_utils.confirm_ollama_endpoint("http://remote-host:11434/v1")
     out = capsys.readouterr().out
-    assert "http://remote-host:11434/v1" in out
+    assert "http://remote-host:11434/v1" not in out
     assert "OLLAMA_BASE_URL" in out
+
+
+def test_confirm_endpoint_never_renders_url_secrets(monkeypatch, capsys):
+    url = "https://user:password@remote.invalid:11434/private/token?signature=secret"
+    monkeypatch.setenv("OLLAMA_BASE_URL", url)
+    import cli.utils as cli_utils
+    importlib.reload(cli_utils)
+
+    cli_utils.confirm_ollama_endpoint(url)
+
+    out = capsys.readouterr().out
+    assert "Ollama endpoint configured" in out
+    for secret in (url, "user", "password", "private", "signature", "secret"):
+        assert secret not in out
 
 
 def test_confirm_endpoint_warns_on_missing_scheme(monkeypatch, capsys):

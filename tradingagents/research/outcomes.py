@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta, timezone
 from typing import Protocol, runtime_checkable
 
 from tradingagents.domain.contracts import canonical_json
 from tradingagents.research.contracts import OutcomeObservation
+from tradingagents.research.errors import OutcomeUnavailableError
+from tradingagents.research.timeline import outcome_sessions
+from tradingagents.research_protocol import GLOBAL_EVENT_V2_PROTOCOL
+
+_POLICY = GLOBAL_EVENT_V2_PROTOCOL["portfolio"]["price_capture"][
+    "exploratory_history_adapter"
+]
 
 
 @runtime_checkable
@@ -30,31 +38,42 @@ class YFinanceAdjustedOpenOutcomeProvider:
 
     @property
     def provider_name(self) -> str:
-        return "yfinance-adjusted-daily-open"
+        return str(_POLICY["provider_id"])
 
     @staticmethod
     def _endpoints(symbol: str, decision_date: date) -> list[dict] | None:
         import pandas as pd
         import yfinance as yf
+        from curl_cffi.requests.exceptions import RequestException as CurlRequestError
+        from requests.exceptions import RequestException as RequestsError
+        from yfinance.exceptions import YFException
 
-        frame = yf.Ticker(symbol).history(
-            start=(decision_date - timedelta(days=2)).isoformat(),
-            end=(decision_date + timedelta(days=15)).isoformat(),
-            auto_adjust=True,
-        )
+        try:
+            frame = yf.Ticker(symbol).history(
+                start=(decision_date - timedelta(days=2)).isoformat(),
+                end=(decision_date + timedelta(days=15)).isoformat(),
+                auto_adjust=True,
+            )
+        except (CurlRequestError, RequestsError, YFException):
+            raise OutcomeUnavailableError("outcome provider unavailable") from None
         if frame.empty or "Open" not in frame:
             return None
-        rows = []
+        expected = outcome_sessions(decision_date)
+        rows: dict[date, float] = {}
         for index, row in frame.sort_index().iterrows():
             session = pd.Timestamp(index).date()
-            if session <= decision_date:
+            if session not in expected:
                 continue
             value = float(row["Open"])
-            if value > 0:
-                rows.append({"date": session.isoformat(), "adjusted_open": value})
-            if len(rows) == 2:
-                return rows
-        return None
+            if session in rows or not math.isfinite(value) or value <= 0.0:
+                return None
+            rows[session] = value
+        if set(rows) != set(expected):
+            return None
+        return [
+            {"date": session.isoformat(), "adjusted_open": rows[session]}
+            for session in expected
+        ]
 
     def observe(
         self,
@@ -104,7 +123,9 @@ class YFinanceAdjustedOpenOutcomeProvider:
             benchmark_return=benchmark_return,
             cash_return=0.0,
             provenance={
+                "schema_version": _POLICY["provenance_schema_version"],
+                "provider": self.provider_name,
                 "endpoints": endpoints,
-                "price_semantics": "provider adjusted regular-session daily Open",
+                "price_semantics": _POLICY["price_semantics"],
             },
         )

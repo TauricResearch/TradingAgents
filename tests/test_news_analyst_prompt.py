@@ -3,9 +3,11 @@
 The prompt used to advertise ``get_news(query, ...)`` while the tool takes a
 ``ticker``, tricking the LLM into hallucinating free-text query calls.
 """
-import inspect
+from unittest.mock import MagicMock
 
 import pytest
+from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableLambda
 
 import tradingagents.agents.analysts.news_analyst as na
 from tradingagents.agents.utils.news_data_tools import get_news
@@ -19,10 +21,28 @@ def test_get_news_takes_ticker_not_query():
 
 
 @pytest.mark.unit
-def test_news_prompt_matches_get_news_signature():
-    src = inspect.getsource(na)
-    assert "get_news(ticker, start_date, end_date)" in src
-    assert "get_news(query" not in src
+def test_news_prompt_matches_get_news_signature(monkeypatch):
+    captured = {}
+    llm = MagicMock()
+
+    def respond(prompt):
+        captured["text"] = "\n".join(
+            str(message.content) for message in prompt.to_messages()
+        )
+        return AIMessage(content="done")
+
+    llm.bind_tools.return_value = RunnableLambda(respond)
+    monkeypatch.setattr(na, "collected_media_enabled", lambda: False)
+
+    na.create_news_analyst(llm)({
+        "company_of_interest": "NVDA",
+        "trade_date": "2026-01-15",
+        "asset_type": "stock",
+        "messages": [],
+    })
+
+    assert "get_news(ticker, start_date, end_date)" in captured["text"]
+    assert "get_news(query" not in captured["text"]
 
 
 @pytest.mark.unit

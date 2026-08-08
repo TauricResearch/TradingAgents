@@ -39,6 +39,17 @@ def raw_content_id(row: dict) -> str:
             "title_sha256": _text_sha256(row.get("title") or ""),
             "text_sha256": _text_sha256(row.get("body") or row.get("text") or ""),
             "verified_type": metadata.get("verified_type"),
+            "profile_screening_complete": metadata.get("profile_screening_complete"),
+            "organization_signals": metadata.get("organization_signals"),
+            "author_display_name": metadata.get("author_display_name"),
+            "author_description": metadata.get("author_description"),
+            "author_profile_url": metadata.get("author_profile_url"),
+            "author_profile_entity_urls": metadata.get(
+                "author_profile_entity_urls"
+            ),
+            "author_affiliation": metadata.get("author_affiliation"),
+            "author_parody": metadata.get("author_parody"),
+            "author_identity_verified": metadata.get("author_identity_verified"),
             "evidence_role": metadata.get("evidence_role"),
             "author_id": metadata.get("author_id"),
             "account_created_utc": metadata.get("account_created_utc"),

@@ -20,6 +20,7 @@ from tradingagents.dataflows.media_store import (
     _window_bounds,
     collection_cycle_spec,
     open_store,
+    validate_coverage_report,
 )
 from tradingagents.evidence_lineage import evidence_id, raw_content_id
 
@@ -808,7 +809,196 @@ def test_query_slot_completion_after_cutoff_cannot_backfill_past_coverage(
     )
 
     assert not report["complete"]
-    assert report["missing_query_slots"][0]["reason"] == "incomplete"
+    assert report["missing_query_slots"][0]["reason"] == "not_run"
+
+
+@pytest.mark.unit
+def test_query_slot_completion_at_cutoff_is_not_point_in_time_coverage(store):
+    run = store.start_fetch("globalnews", "world:core", 100.0)
+    store.finish_fetch(
+        run,
+        status="success",
+        received_utc=101.0,
+        completed_utc=102.0,
+        item_count=1,
+        inserted_count=1,
+        formal_eligible_item_count=0,
+        formal_eligible_evidence_ids=[],
+    )
+
+    report = store.coverage_report(
+        _server_cutoff(store, run, offset=0.0),
+        [],
+        expected_query_slots=[("globalnews", "world:core")],
+    )
+
+    assert report["complete"] is False
+    assert report["missing_query_slots"][0]["reason"] == "not_run"
+
+
+def _coverage_store(backend, tmp_path):
+    path = tmp_path / f"coverage-cutoff-{backend}.db"
+    return (
+        SqliteMediaStore(path)
+        if backend == "sqlite"
+        else SqlAlchemyMediaStore(f"sqlite+pysqlite:///{path}")
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("backend", ["sqlite", "sqlalchemy"])
+def test_coverage_report_replays_from_its_terminal_receipts(tmp_path, backend):
+    store = _coverage_store(backend, tmp_path)
+    try:
+        run_id = store.start_fetch("globalnews", "world:core", 100.0)
+        store.finish_fetch(
+            run_id,
+            status="success",
+            received_utc=101.0,
+            completed_utc=102.0,
+            item_count=1,
+            inserted_count=1,
+            formal_eligible_item_count=0,
+            formal_eligible_evidence_ids=[],
+            formal_eligible_lineage=[],
+        )
+        receipt = _fetch_receipt(store, run_id)
+        cutoff = float(receipt["server_terminal_utc"]) + 1.0
+        slots = [("globalnews", "world:core")]
+        report = store.coverage_report(
+            cutoff,
+            [["globalnews"]],
+            max_age_seconds=60.0,
+            expected_query_slots=slots,
+            require_lineage_query_slots=slots,
+            min_started_utc=receipt["server_started_utc"],
+        )
+
+        validate_coverage_report(
+            report,
+            cutoff,
+            [["globalnews"]],
+            max_age_seconds=60.0,
+            expected_query_slots=slots,
+            require_lineage_query_slots=slots,
+            min_started_utc=receipt["server_started_utc"],
+        )
+    finally:
+        store.close()
+
+
+def _set_receipt_clock(monkeypatch, store, backend, values):
+    if backend == "sqlite":
+        # SQLite reads the same registered clock once in Python and once again
+        # in the provenance trigger for every state change.
+        clock = iter(value for value in values for _ in range(2))
+        monkeypatch.setattr(
+            media_store_module.time, "time", lambda: next(clock)
+        )
+    else:
+        clock = iter(values)
+        monkeypatch.setattr(store, "_server_observed_utc", lambda _connection: next(clock))
+
+
+def _finish_coverage_receipt(store, started, *, status="success"):
+    run = store.start_fetch("globalnews", "world:core", started)
+    success = status == "success"
+    store.finish_fetch(
+        run,
+        status=status,
+        received_utc=started + 1,
+        completed_utc=started + 2,
+        item_count=int(success),
+        inserted_count=int(success),
+        error=None if success else "ProviderTransientError",
+        formal_eligible_item_count=0 if success else None,
+        formal_eligible_evidence_ids=[] if success else None,
+    )
+    return run
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("backend", ["sqlite", "sqlalchemy"])
+def test_fixed_cutoff_coverage_cannot_change_after_later_completion(
+    tmp_path, monkeypatch, backend,
+):
+    store = _coverage_store(backend, tmp_path)
+    _set_receipt_clock(monkeypatch, store, backend, [10.0, 20.0])
+    slots = [("globalnews", "world:core")]
+    try:
+        run = store.start_fetch("globalnews", "world:core", 100.0)
+        during = store.coverage_report(15.0, [], expected_query_slots=slots)
+        store.finish_fetch(
+            run,
+            status="success",
+            received_utc=101.0,
+            completed_utc=102.0,
+            item_count=1,
+            inserted_count=1,
+            formal_eligible_item_count=0,
+            formal_eligible_evidence_ids=[],
+        )
+        after = store.coverage_report(15.0, [], expected_query_slots=slots)
+
+        assert after == during
+        assert after["query_slots"][0]["run"] is None
+        assert after["missing_query_slots"][0]["reason"] == "not_run"
+        validate_coverage_report(after, 15.0, [], expected_query_slots=slots)
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("backend", ["sqlite", "sqlalchemy"])
+@pytest.mark.parametrize("later_terminal", [40.0, 50.0])
+def test_later_receipt_at_or_after_cutoff_cannot_mask_prior_coverage(
+    tmp_path, monkeypatch, backend, later_terminal
+):
+    store = _coverage_store(backend, tmp_path)
+    _set_receipt_clock(monkeypatch, store, backend, [10.0, 20.0, 30.0, later_terminal])
+    try:
+        prior = _finish_coverage_receipt(store, 100.0)
+        _finish_coverage_receipt(store, 110.0)
+
+        report = store.coverage_report(
+            40.0,
+            [["globalnews"]],
+            expected_query_slots=[("globalnews", "world:core")],
+        )
+
+        assert report["complete"] is True
+        assert report["sources"]["globalnews"]["fetch_run_id"] == prior
+        assert report["query_slots"][0]["run"]["fetch_run_id"] == prior
+    finally:
+        store.close()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("backend", ["sqlite", "sqlalchemy"])
+def test_latest_failed_receipt_before_cutoff_masks_prior_success(
+    tmp_path, monkeypatch, backend
+):
+    store = _coverage_store(backend, tmp_path)
+    _set_receipt_clock(monkeypatch, store, backend, [10.0, 20.0, 30.0, 40.0])
+    try:
+        _finish_coverage_receipt(store, 100.0)
+        failed = _finish_coverage_receipt(store, 110.0, status="failed")
+
+        report = store.coverage_report(
+            50.0,
+            [["globalnews"]],
+            expected_query_slots=[("globalnews", "world:core")],
+        )
+
+        assert report["complete"] is False
+        assert report["sources"]["globalnews"]["fetch_run_id"] == failed
+        assert report["missing_query_slots"] == [{
+            "provider": "globalnews",
+            "query_key": "world:core",
+            "reason": "failed",
+        }]
+    finally:
+        store.close()
 
 
 @pytest.mark.unit

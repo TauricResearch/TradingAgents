@@ -6,6 +6,8 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,7 @@ from tradingagents.dataflows.media_store import (
     SqliteMediaStore,
     collection_cycle_spec,
 )
+from tradingagents.x_cycle import x_cycle_structural_state
 
 _MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 _CHECK_RENDERING_COLUMNS = {
@@ -185,7 +188,7 @@ def test_cycle_identity_is_deterministic_canonical_and_known_before_requests():
 
 @pytest.mark.unit
 @pytest.mark.parametrize("backend", ["sqlite", "sqlalchemy"])
-def test_cycle_identity_inventory_is_distinct_ordered_and_kind_scoped(
+def test_cycle_identity_inventory_is_exact_ordered_and_kind_scoped(
     backend, tmp_path,
 ):
     value = (
@@ -215,15 +218,20 @@ def test_cycle_identity_inventory_is_distinct_ordered_and_kind_scoped(
         for offset, spec in enumerate(specs):
             value.start_collection_cycle(spec, started_utc=100.0 + offset)
 
-        assert value.collection_cycle_identity_pairs("x-daily") == [
-            ("protocol_a", "collector_a"),
-            ("protocol_b", "collector_b"),
-        ]
-        assert value.collection_cycle_identity_pairs("global-hourly") == [
-            ("protocol_c", "collector_c")
-        ]
+        assert value.collection_cycle_identities(
+            "x-daily", period_key="2026-08-05"
+        ) == [{
+            "collection_cycle_id": specs[0]["collection_cycle_id"],
+            "protocol_id": "protocol_b",
+            "collector_semantics_id": "collector_b",
+        }]
+        assert value.collection_cycle_identities(
+            "x-daily", period_key="2026-08-04"
+        ) == []
         with pytest.raises(ValueError, match="lowercase slug"):
-            value.collection_cycle_identity_pairs("X Daily")
+            value.collection_cycle_identities(
+                "X Daily", period_key="2026-08-05"
+            )
     finally:
         value.close()
 
@@ -243,6 +251,21 @@ def test_cycle_spec_rejects_tampering_and_unbounded_slots(store):
             expected_static_slots=[("xtrend", "woeid:1")],
             max_dynamic_slots=101,
         )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("period_key", ["2026-8-05", "2026-02-30"])
+def test_x_cycle_requires_an_exact_iso_utc_period(period_key):
+    spec = collection_cycle_spec(
+        cycle_kind="x-daily",
+        period_key=period_key,
+        protocol_id="protocol_test",
+        collector_semantics_id="collector_test",
+        expected_static_slots=[("xtrend", "woeid:1")],
+        max_dynamic_slots=0,
+    )
+
+    assert x_cycle_structural_state(spec, None) == "invalid"
 
 
 @pytest.mark.unit
@@ -327,6 +350,99 @@ def test_observed_empty_is_a_complete_cycle_not_an_availability_failure(store):
     assert cycle["manifest"]["server_started_utc"] == cycle["server_started_utc"]
     assert cycle["manifest"]["server_terminal_utc"] == cycle["server_terminal_utc"]
     assert cycle["manifest"]["slot_receipts"][0]["status"] == "empty"
+
+
+@pytest.mark.unit
+def test_shared_x_cycle_structure_accepts_real_rows_and_rejects_mutations(store):
+    started = store.server_observed_utc()
+    period = datetime.fromtimestamp(started, timezone.utc).date().isoformat()
+    spec = collection_cycle_spec(
+        cycle_kind="x-daily",
+        period_key=period,
+        protocol_id="protocol_test",
+        collector_semantics_id="collector_test",
+        expected_static_slots=[
+            ("trendnews", "ranked-global-discovery"),
+            ("xtrend", "woeid:1"),
+        ],
+        max_dynamic_slots=2,
+    )
+    cycle_id = store.start_collection_cycle(spec, started_utc=started)
+    running = store.collection_cycle(cycle_id)
+    assert x_cycle_structural_state(spec, running) == "running"
+    malformed_running = deepcopy(running)
+    malformed_running["started_utc"] = float("nan")
+    assert x_cycle_structural_state(spec, malformed_running) == "invalid"
+    store.declare_collection_cycle_slots(
+        cycle_id, [("x", "broad global story")], declared_utc=started
+    )
+    for slot in store.collection_cycle_slots(cycle_id):
+        run_id = store.start_fetch(
+            slot["provider"], slot["query_key"], started,
+            collection_cycle_id=cycle_id,
+        )
+        _finish(store, run_id, "success", started=started)
+    cycle = store.finish_collection_cycle(cycle_id, completed_utc=started + 2)
+    assert x_cycle_structural_state(spec, cycle) == "complete"
+
+    def readdress(candidate):
+        candidate["manifest_id"] = media_store_module._content_addressed_json_id(
+            "cycle_manifest_", candidate["manifest"]
+        )
+        return candidate
+
+    invalid = []
+    schema = deepcopy(cycle)
+    schema["manifest"]["schema_version"] = 1
+    invalid.append(readdress(schema))
+    provenance = deepcopy(cycle)
+    provenance["manifest"]["server_terminal_utc"] += 1
+    invalid.append(readdress(provenance))
+    build = deepcopy(cycle)
+    build["collector_build_id"] = "build_invalid"
+    build["manifest"]["collector_build_id"] = "build_invalid"
+    invalid.append(readdress(build))
+    fetch_id = deepcopy(cycle)
+    fetch_id["manifest"]["slot_receipts"][0]["fetch_run_id"] = "not-a-uuid"
+    invalid.append(readdress(fetch_id))
+    raw_id = deepcopy(cycle)
+    raw_id["manifest"]["slot_receipts"][0]["raw_content_ids"] = ["raw_invalid"]
+    invalid.append(readdress(raw_id))
+    manifest_id = deepcopy(cycle)
+    manifest_id["manifest_id"] = "cycle_manifest_" + "0" * 24
+    invalid.append(manifest_id)
+    zero_success = deepcopy(cycle)
+    zero_success["manifest"]["slot_receipts"][0]["item_count"] = 0
+    invalid.append(readdress(zero_success))
+    nonempty_empty = deepcopy(cycle)
+    nonempty_empty["manifest"]["slot_receipts"][0]["status"] = "empty"
+    nonempty_empty["manifest"]["slot_receipts"][0]["item_count"] = 5
+    invalid.append(readdress(nonempty_empty))
+    nonempty_failed = deepcopy(cycle)
+    nonempty_failed["status"] = "incomplete"
+    nonempty_failed["manifest"]["status"] = "incomplete"
+    nonempty_failed["manifest"]["slot_receipts"][0]["status"] = "failed"
+    nonempty_failed["manifest"]["slot_receipts"][0]["item_count"] = 5
+    invalid.append(readdress(nonempty_failed))
+    reused_fetch = deepcopy(cycle)
+    reused_fetch["manifest"]["slot_receipts"][1]["fetch_run_id"] = (
+        reused_fetch["manifest"]["slot_receipts"][0]["fetch_run_id"]
+    )
+    invalid.append(readdress(reused_fetch))
+    dynamic_provider = deepcopy(cycle)
+    dynamic_provider["manifest"]["expected_dynamic_slots"][0]["provider"] = (
+        "globalnews"
+    )
+    dynamic_provider["manifest"]["slot_receipts"][-1]["provider"] = "globalnews"
+    invalid.append(readdress(dynamic_provider))
+    wrong_period = deepcopy(cycle)
+    wrong_period["manifest"]["server_terminal_utc"] += 86400
+    wrong_period["server_terminal_utc"] += 86400
+    invalid.append(readdress(wrong_period))
+
+    assert [x_cycle_structural_state(spec, candidate) for candidate in invalid] == [
+        "invalid"
+    ] * len(invalid)
 
 
 @pytest.mark.unit
@@ -479,6 +595,94 @@ def test_postgres_cycle_binding_locks_only_mutable_cycle_parent(tmp_path):
     sql = " ".join(statements[0].split())
     assert "JOIN collection_cycle_slots" in sql
     assert sql.endswith("FOR UPDATE OF collection_cycles")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("backend", ["sqlite", "sqlalchemy"])
+def test_cycle_item_replay_preserves_exact_username_and_receipt_times(
+    tmp_path, monkeypatch, backend,
+):
+    path = tmp_path / f"cycle-replay-{backend}.db"
+    store = (
+        SqliteMediaStore(path)
+        if backend == "sqlite"
+        else SqlAlchemyMediaStore(f"sqlite+pysqlite:///{path}")
+    )
+    clock = {"now": 100.0}
+    monkeypatch.setattr(media_store_module.time, "time", lambda: clock["now"])
+    spec = collection_cycle_spec(
+        cycle_kind="x-daily",
+        period_key="1970-01-01",
+        protocol_id="protocol-test",
+        collector_semantics_id="collector-test",
+        expected_static_slots=[("x", "old-query"), ("x", "new-query")],
+        max_dynamic_slots=0,
+    )
+    try:
+        cycle_id = store.start_collection_cycle(spec, started_utc=100.0)
+
+        def capture(query_key, username, received, terminal):
+            clock["now"] = received - 1
+            run_id = store.start_fetch(
+                "x",
+                query_key,
+                received - 1,
+                metadata={"kind": "media", "labels": ["@TREND_WORLD"]},
+                collection_cycle_id=cycle_id,
+            )
+            row = {
+                "source": "x",
+                "external_id": "same-post",
+                "ticker": "@TREND_WORLD",
+                "subreddit": None,
+                "author": username,
+                "sentiment": None,
+                "created_utc": 90.0,
+                "title": None,
+                "body": "Substantive public reaction",
+                "fetched_utc": received,
+                "labels": ["@TREND_WORLD"],
+                "metadata": {
+                    "author_id": "123",
+                    "author_username": username,
+                },
+            }
+            clock["now"] = terminal
+            store.complete_fetch(
+                run_id,
+                rows=[row],
+                status="success",
+                received_utc=received,
+                completed_utc=terminal,
+            )
+
+        capture("old-query", "old_name", 110.0, 111.0)
+        capture("new-query", "new_name", 120.0, 121.0)
+        clock["now"] = 130.0
+        store.finish_collection_cycle(cycle_id, completed_utc=130.0)
+
+        old = store.collection_cycle_item_rows(
+            cycle_id, provider="x", query_key="old-query"
+        )[0]["row"]
+        new = store.collection_cycle_item_rows(
+            cycle_id, provider="x", query_key="new-query"
+        )[0]["row"]
+        terminals = {
+            receipt["query_key"]: receipt["server_terminal_utc"]
+            for receipt in store.fetch_runs(limit=10)
+        }
+        assert (old["author"], old["metadata"]["author_username"]) == (
+            "old_name", "old_name"
+        )
+        assert (new["author"], new["metadata"]["author_username"]) == (
+            "new_name", "new_name"
+        )
+        assert old["fetched_utc"] == 110.0
+        assert new["fetched_utc"] == 120.0
+        assert old["latest_observed_utc"] == terminals["old-query"]
+        assert new["latest_observed_utc"] == terminals["new-query"]
+    finally:
+        store.close()
 
 
 @pytest.mark.integration

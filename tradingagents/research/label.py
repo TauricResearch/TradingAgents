@@ -8,9 +8,9 @@ sample dates.
 from __future__ import annotations
 
 import hashlib
-import re
 from datetime import datetime, timezone
 
+from tradingagents.logging_utils import safe_exception_type
 from tradingagents.research.artifacts import (
     ArtifactRef,
     FilesystemArtifactStore,
@@ -18,18 +18,24 @@ from tradingagents.research.artifacts import (
 )
 from tradingagents.research.contracts import (
     DecisionBatch,
+    EvidenceSnapshot,
     OutcomeBatch,
     OutcomeObservation,
     OutcomeRecord,
     parse_contract,
 )
+from tradingagents.research.decision_validation import (
+    replay_decision_batch,
+    validate_decision_batch_protocol,
+    validate_snapshot_protocol,
+)
+from tradingagents.research.errors import OutcomeUnavailableError
+from tradingagents.research.outcome_validation import validate_outcome_observation
 from tradingagents.research.outcomes import OutcomeProvider
-from tradingagents.research_protocol import build_identity
-
-
-def _safe_error_type(exc: BaseException) -> str:
-    name = type(exc).__name__
-    return name if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name) else "Exception"
+from tradingagents.research_protocol import (
+    GLOBAL_EVENT_V2_PROTOCOL,
+    build_identity,
+)
 
 
 def attach_labels(
@@ -41,6 +47,12 @@ def attach_labels(
     require_payload_reference(
         decision_ref, kind="decisions", payload=decisions.model_dump(mode="json")
     )
+    validate_decision_batch_protocol(decisions)
+    expected_provider = GLOBAL_EVENT_V2_PROTOCOL["portfolio"]["price_capture"][
+        "exploratory_history_adapter"
+    ]["provider_id"]
+    if provider.provider_name != expected_provider:
+        raise ValueError("outcome provider differs from the frozen protocol")
     outcomes = []
     for decision in decisions.decisions:
         error_type = None
@@ -52,24 +64,8 @@ def attach_labels(
             )
             if not isinstance(observation, OutcomeObservation):
                 observation = parse_contract(OutcomeObservation, observation)
-            if observation.provider != provider.provider_name:
-                raise ValueError("outcome provider returned a different provider identity")
-            if set(observation.asset_returns) != set(decisions.universe):
-                raise ValueError("outcome provider returned a different universe")
-            if observation.observed_at <= decision.decision_cutoff:
-                raise ValueError("outcome was captured before its decision cutoff")
-            if observation.entry_date is not None and (
-                observation.entry_date <= decision.decision_date
-                or observation.exit_date is None
-                or observation.exit_date <= observation.entry_date
-            ):
-                raise ValueError("outcome provider returned an invalid decision horizon")
-            if observation.exit_date is not None and (
-                observation.observed_at.date() < observation.exit_date
-            ):
-                raise ValueError("outcome was captured before its exit session")
-        except Exception as exc:
-            error_type = _safe_error_type(exc)
+        except OutcomeUnavailableError as exc:
+            error_type = safe_exception_type(exc)
             observed_at = datetime.now(timezone.utc)
             attempted = (
                 f"{provider.provider_name}:{decision.decision_date.isoformat()}"
@@ -89,6 +85,13 @@ def attach_labels(
                     "status": "provider_failure",
                 },
             )
+        validate_outcome_observation(
+            observation,
+            decision_date=decision.decision_date,
+            universe=decisions.universe,
+            benchmark=decisions.benchmark,
+            error_type=error_type,
+        )
         missing = observation.benchmark_return is None or any(
             value is None for value in observation.asset_returns.values()
         )
@@ -118,9 +121,19 @@ def label_from_artifact(
     decision_artifact_id: str,
     provider: OutcomeProvider,
 ) -> ArtifactRef:
-    decision_ref = artifact_store.load_ref("decisions", decision_artifact_id)
-    decisions = parse_contract(
-        DecisionBatch, artifact_store.load("decisions", decision_artifact_id)
+    decision_ref, payload = artifact_store.load_with_ref(
+        "decisions", decision_artifact_id
+    )
+    decisions = parse_contract(DecisionBatch, payload)
+    snapshot_ref, snapshot_payload = artifact_store.load_with_ref(
+        "snapshot", decisions.snapshot_artifact_id
+    )
+    snapshot = parse_contract(EvidenceSnapshot, snapshot_payload)
+    validate_snapshot_protocol(snapshot, decisions.checkpoint)
+    replay_decision_batch(
+        decisions,
+        snapshot=snapshot,
+        snapshot_ref=snapshot_ref,
     )
     batch = attach_labels(
         decisions=decisions,

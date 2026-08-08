@@ -49,6 +49,7 @@ from tradingagents.graph.analyst_execution import (
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.logging_utils import safe_exception_type
 from tradingagents.reporting import write_report_tree
 
 console = Console()
@@ -632,7 +633,7 @@ def get_user_selections():
             selected_llm_provider, env_url=DEFAULT_CONFIG["backend_url"]
         )
         console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
-        console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
+        console.print("[green]✓ Backend endpoint configured[/green]")
         # Still confirm/persist the API key so the run doesn't fail later.
         ensure_api_key(selected_llm_provider)
     else:
@@ -1271,8 +1272,11 @@ def run_analysis(checkpoint: bool | None = None):
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
-        except Exception as e:
-            console.print(f"[red]Error saving report: {e}[/red]")
+        except Exception as exc:
+            console.print(
+                "[red]Could not save the report "
+                f"({safe_exception_type(exc)}). Check the path and permissions.[/red]"
+            )
 
     # Prompt to display full report
     display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
@@ -1311,7 +1315,22 @@ def analyze(
             err=True,
         )
         raise typer.Exit(code=1) from None
+    except Exception as exc:  # noqa: BLE001 - sanitize the executable boundary
+        typer.echo(
+            f"Analysis failed ({safe_exception_type(exc)}).",
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+
+
+def _main_entrypoint() -> None:
+    """Run Typer without exposing unexpected exception text at the CLI boundary."""
+    try:
+        app()
+    except Exception as exc:  # noqa: BLE001 - sanitize the executable boundary
+        typer.echo(f"Command failed ({safe_exception_type(exc)}).", err=True)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
-    app()
+    _main_entrypoint()

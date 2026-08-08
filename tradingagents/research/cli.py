@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 
+from tradingagents.logging_utils import safe_exception_type
 from tradingagents.research.artifacts import FilesystemArtifactStore
 from tradingagents.research.contracts import ModelCheckpointSpec
 
@@ -125,5 +127,14 @@ def main(argv: list[str] | None = None) -> None:
     )
 
 
+def _main_entrypoint() -> None:
+    """Exit nonzero without rendering provider or database exception text."""
+    try:
+        main()
+    except Exception as exc:  # noqa: BLE001 - sanitize the executable boundary
+        print(f"Research command failed ({safe_exception_type(exc)})", file=sys.stderr)
+        raise SystemExit(1) from None
+
+
 if __name__ == "__main__":
-    main()
+    _main_entrypoint()

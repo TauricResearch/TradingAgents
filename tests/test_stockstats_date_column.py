@@ -6,10 +6,29 @@ instead of `Date`, which would otherwise silently drop every indicator.
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 import pytest
+from yfinance.exceptions import YFRateLimitError
 
 from tradingagents.dataflows import stockstats_utils as su
+
+
+@pytest.mark.unit
+def test_rate_limit_retry_warns_only_on_terminal_exhaustion(monkeypatch, caplog):
+    monkeypatch.setattr(su.time, "sleep", lambda _seconds: None)
+
+    def limited():
+        raise YFRateLimitError()
+
+    with caplog.at_level(logging.INFO), pytest.raises(YFRateLimitError):
+        su.yf_retry(limited, max_retries=2, base_delay=0)
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert sum(record.levelno == logging.WARNING for record in caplog.records) == 1
+    assert sum("retrying" in message for message in messages) == 2
+    assert messages[-1] == "Yahoo Finance rate-limit retries exhausted"
 
 
 def _ohlcv(date_col: str) -> pd.DataFrame:

@@ -3,10 +3,89 @@
 from __future__ import annotations
 
 import importlib
+import os
+import stat
+import subprocess
+import sys
+import traceback
 
 import pytest
 
 import tradingagents.default_config as default_config_module
+
+
+def _clean_subprocess_env() -> dict[str, str]:
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key not in default_config_module._ENV_OVERRIDES
+    }
+
+
+@pytest.mark.unit
+def test_package_import_does_not_load_project_environment(tmp_path):
+    (tmp_path / ".env").write_text("TRADINGAGENTS_LLM_PROVIDER=google\n")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import os, tradingagents; print(os.getenv('TRADINGAGENTS_LLM_PROVIDER', 'unset'))",
+        ],
+        cwd=tmp_path,
+        env=_clean_subprocess_env(),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert completed.stdout.strip() == "unset"
+
+
+@pytest.mark.unit
+def test_default_config_never_searches_parent_directories_for_env(tmp_path):
+    (tmp_path / ".env").write_text("TRADINGAGENTS_LLM_PROVIDER=untrusted-parent\n")
+    child = tmp_path / "child"
+    child.mkdir()
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from tradingagents.default_config import DEFAULT_CONFIG; "
+            "print(DEFAULT_CONFIG['llm_provider'])",
+        ],
+        cwd=child,
+        env=_clean_subprocess_env(),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert completed.stdout.strip() == "openai"
+
+
+@pytest.mark.unit
+def test_application_entrypoint_loads_only_the_current_project_env(tmp_path):
+    (tmp_path / ".env").write_text("TRADINGAGENTS_LLM_PROVIDER=google\n")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import os; from cli.entrypoints import _load_project_environment; "
+            "_load_project_environment(); print(os.environ['TRADINGAGENTS_LLM_PROVIDER'])",
+        ],
+        cwd=tmp_path,
+        env=_clean_subprocess_env(),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert completed.stdout.strip() == "google"
+    if os.name == "posix":
+        assert stat.S_IMODE((tmp_path / ".env").stat().st_mode) == 0o600
 
 
 def _reload_with_env(monkeypatch, **overrides):
@@ -106,6 +185,21 @@ def test_invalid_int_raises(monkeypatch):
     with pytest.raises(ValueError, match="TRADINGAGENTS_MAX_DEBATE_ROUNDS"):
         importlib.reload(default_config_module)
     # Restore module state for subsequent tests in this process
+    monkeypatch.delenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", raising=False)
+    importlib.reload(default_config_module)
+
+
+def test_invalid_env_value_is_not_rendered(monkeypatch):
+    secret = "https://config.invalid/?token=must-not-escape"
+    monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", secret)
+    with pytest.raises(ValueError) as captured:
+        importlib.reload(default_config_module)
+
+    rendered = "".join(traceback.format_exception(captured.value))
+    assert "TRADINGAGENTS_MAX_DEBATE_ROUNDS" in rendered
+    assert "expected an integer" in rendered
+    assert secret not in rendered
+
     monkeypatch.delenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", raising=False)
     importlib.reload(default_config_module)
 

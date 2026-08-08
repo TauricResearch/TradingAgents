@@ -22,8 +22,12 @@ from tradingagents.evidence_lineage import (
     evidence_id as _evidence_id,
     raw_content_id as _raw_content_id,
 )
+from tradingagents.research.errors import ForecastUnavailableError
 from tradingagents.research_protocol import (
     GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES,
+    GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+    GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+    GLOBAL_EVENT_V2_LEGACY_COLLECTOR_IDENTITIES,
     GLOBAL_EVENT_V2_PROTOCOL,
     GLOBAL_EVENT_V2_PROTOCOL_ID,
     canonical_json,
@@ -112,6 +116,12 @@ FORMAL_X_REQUIRED_AUTHOR_METRICS = tuple(
 )
 FORMAL_X_EXCLUDED_VERIFIED_TYPES = frozenset(
     _X_FORMAL_POLICY["excluded_verified_types"]
+)
+FORMAL_X_KNOWN_VERIFIED_TYPES = frozenset(
+    _X_FORMAL_POLICY["known_verified_types"]
+)
+FORMAL_X_ORGANIZATION_SIGNALS = frozenset(
+    _X_FORMAL_POLICY["organization_signal_flags"]
 )
 FORMAL_X_ENGAGEMENT_WEIGHTS = {
     metric: int(weight)
@@ -247,6 +257,8 @@ def _formal_metadata_projection(row: dict) -> dict:
         "author_username": _utf8_prefix(metadata.get("author_username"), 32),
         "account_created_utc": metadata.get("account_created_utc"),
         "automation_signals_complete": metadata.get("automation_signals_complete"),
+        "profile_screening_complete": metadata.get("profile_screening_complete"),
+        "organization_signals": metadata.get("organization_signals"),
         "verified_type": metadata.get("verified_type"),
         "automation_risk": metadata.get("automation_risk"),
         "engagement": {
@@ -301,52 +313,6 @@ def _prompt_evidence_projection(row: dict, citation_key: str) -> dict:
     if len(canonical_json(projected).encode("utf-8")) > max_bytes:
         raise ValueError("formal prompt evidence exceeds its frozen per-item byte cap")
     return projected
-
-
-def formal_evidence_policy_manifest() -> dict:
-    """Return the frozen build-level evidence controls stored with each run."""
-    return {
-        "version": FORMAL_EVIDENCE_POLICY_VERSION,
-        "allowed_sources": list(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["allowed_sources"]
-        ),
-        "trendnews_role": GLOBAL_EVENT_V2_PROTOCOL["evidence"]["trendnews_role"],
-        "source_caps": dict(FORMAL_EVIDENCE_SOURCE_CAPS),
-        "total_cap": FORMAL_EVIDENCE_LIMIT,
-        "history_candidate_limit": FORMAL_HISTORY_CANDIDATE_LIMIT,
-        "history_candidate_buckets": dict(FORMAL_HISTORY_BUCKET_POLICY),
-        "prompt_evidence_canonicalization": dict(_PROMPT_EVIDENCE_POLICY),
-        "expected_collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "expected_collector_semantics_id"
-        ],
-        "compatible_collector_identities": list(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"].get(
-                "compatible_collector_identities", []
-            )
-        ),
-        "fetch_receipt_evidence_lineage": dict(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["fetch_receipt_evidence_lineage"]
-        ),
-        "globalnews_cap_per_query_slot": FORMAL_GLOBALNEWS_PER_QUERY_CAP,
-        "require_selected_item_per_query_slot": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "require_selected_item_per_query_slot"
-        ],
-        "minimum_selected_globalnews_total": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "minimum_selected_globalnews_total"
-        ],
-        "independent_editorial_policy": {
-            "version": _INDEPENDENT_EDITORIAL_POLICY["version"],
-            "require_exact_normalized_publisher_domain_pair": True,
-        },
-        "company_authored_material": "excluded-at-forecast-boundary",
-        "x_formal_policy": dict(_X_FORMAL_POLICY),
-        "x_formal_availability": dict(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_formal_availability"]
-        ),
-        "without_public_reaction_excluded_sources": sorted(
-            WITHOUT_PUBLIC_REACTION_EXCLUDED_SOURCES
-        ),
-    }
 
 
 def is_company_authored_evidence(row: dict) -> bool:
@@ -453,9 +419,21 @@ def _x_formal_ineligibility_reason(row: dict) -> str | None:
     metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
     if metadata.get("evidence_role") != _X_FORMAL_POLICY["required_evidence_role"]:
         return "missing_public_reaction_role"
-    if str(metadata.get("verified_type") or "").strip().lower() \
-            in FORMAL_X_EXCLUDED_VERIFIED_TYPES:
+    verified_type = str(metadata.get("verified_type") or "").strip().lower()
+    if verified_type not in FORMAL_X_KNOWN_VERIFIED_TYPES:
+        return "unknown_verified_type"
+    if verified_type in FORMAL_X_EXCLUDED_VERIFIED_TYPES:
         return "official_account_not_public_reaction"
+    signals = metadata.get("organization_signals")
+    if (
+        metadata.get("profile_screening_complete") is not True
+        or not isinstance(signals, list)
+        or signals != sorted(set(signals))
+        or any(value not in FORMAL_X_ORGANIZATION_SIGNALS for value in signals)
+    ):
+        return "incomplete_author_profile_screening"
+    if signals:
+        return "organization_profile_signal"
     if metadata.get("automation_signals_complete") is not True:
         return "incomplete_automation_signals"
     if _normalized_x_author(row) is None:
@@ -1037,6 +1015,10 @@ def evidence_selection_manifest(rows: list[dict], *, as_of_utc: float) -> dict:
             "title_sha256": _text_sha256(title),
             "text_sha256": _text_sha256(body),
             "verified_type": metadata.get("verified_type"),
+            "profile_screening_complete": metadata.get(
+                "profile_screening_complete"
+            ),
+            "organization_signals": metadata.get("organization_signals"),
             "evidence_role": metadata.get("evidence_role"),
             "author_id": metadata.get("author_id"),
             "account_created_utc": metadata.get("account_created_utc"),
@@ -1243,6 +1225,16 @@ def bind_receipt_coverage_to_selection(
         or expected_pairs != set(observed_pairs)
     ):
         raise ValueError("formal coverage query-slot receipt set is malformed")
+    accepted_collector_identities = {
+        (
+            GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+            GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+        ),
+        *(
+            (identity["protocol_id"], identity["collector_semantics_id"])
+            for identity in GLOBAL_EVENT_V2_LEGACY_COLLECTOR_IDENTITIES
+        ),
+    }
 
     slots: list[dict] = []
     for raw_slot in raw_slots:
@@ -1259,30 +1251,13 @@ def bind_receipt_coverage_to_selection(
                 )
             except json.JSONDecodeError:
                 receipt_metadata = {}
-            collector_identity = {
-                "protocol_id": receipt_metadata.get("protocol_id"),
-                "collector_semantics_id": receipt_metadata.get(
-                    "collector_semantics_id"
-                ),
-            }
-            current_collector_identity = {
-                "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
-                "collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                    "expected_collector_semantics_id"
-                ],
-            }
-            compatible_collector_identities = [
-                {
-                    "protocol_id": item.get("protocol_id"),
-                    "collector_semantics_id": item.get("collector_semantics_id"),
-                }
-                for item in GLOBAL_EVENT_V2_PROTOCOL["evidence"].get(
-                    "compatible_collector_identities", []
-                )
-                if isinstance(item, dict)
-            ]
-            collector_identity_matches = collector_identity == current_collector_identity \
-                or collector_identity in compatible_collector_identities
+            collector_identity = (
+                receipt_metadata.get("protocol_id"),
+                receipt_metadata.get("collector_semantics_id"),
+            )
+            collector_identity_matches = all(
+                isinstance(value, str) for value in collector_identity
+            ) and collector_identity in accepted_collector_identities
             receipt_lineage = run.get("formal_eligible_lineage")
             receipt_ids = run.get("formal_eligible_evidence_ids")
             lineage_shape_valid = isinstance(receipt_lineage, list) and all(
@@ -1368,9 +1343,8 @@ def bind_receipt_coverage_to_selection(
         "missing_query_slots": missing_slots,
         "receipt_lineage_binding_version": "assigned-manifest-content-v2",
         "receipt_lineage_binding_complete": not missing_slots,
-        "expected_collector_semantics_id": GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "expected_collector_semantics_id"
-        ],
+        "collection_protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+        "expected_collector_semantics_id": GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
     }
     bound["complete"] = not missing_groups and not missing_slots
     return bound
@@ -1618,7 +1592,7 @@ def invoke_global_forecast(
     parsed = result.get("parsed") if isinstance(result, dict) else None
     parsing_error = result.get("parsing_error") if isinstance(result, dict) else None
     if parsing_error or parsed is None:
-        raise ValueError(f"formal structured forecast failed: {parsing_error or 'empty result'}")
+        raise ForecastUnavailableError("forecast provider returned no structured result")
     expected = set(universe)
     actual = {forecast.ticker for forecast in parsed.forecasts}
     if actual != expected or len(parsed.forecasts) != len(universe):

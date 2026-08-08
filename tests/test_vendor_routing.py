@@ -15,6 +15,7 @@ import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
 from tradingagents.dataflows import interface
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.errors import VendorError, VendorRateLimitError
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
 
@@ -71,16 +72,22 @@ class VendorRoutingTests(unittest.TestCase):
             result = interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
         self.assertEqual(result, "AV_DATA")
 
-    def test_primary_error_is_logged_not_masked(self):
-        # #989: primary errors + fallback no-data -> NO_DATA, but the failure
-        # must be visible in logs (broken primary not hidden).
+    def test_primary_error_is_not_misreported_as_no_data(self):
+        # A clean empty result cannot prove absence when another provider was
+        # never observed successfully.
         set_config({"data_vendors": {"core_stock_apis": "yfinance,alpha_vantage"}})
-        with self._route({"yfinance": _raises(ValueError("boom")), "alpha_vantage": _no_data}), \
-                self.assertLogs("tradingagents.dataflows.interface", level="WARNING") as cm:
-            result = interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
-        self.assertIn("NO_DATA_AVAILABLE", result)
-        joined = "\n".join(cm.output)
-        self.assertIn("boom", joined)            # the real error surfaced in logs
+        secret = "https://provider.invalid/?token=must-not-escape"
+        with self._route(
+            {"yfinance": _raises(ValueError(secret)), "alpha_vantage": _no_data}
+        ), self.assertLogs(
+            "tradingagents.dataflows.interface", level="INFO"
+        ) as cm, self.assertRaises(VendorError) as captured:
+            interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+        joined = "\n".join(cm.output) + str(captured.exception)
+        self.assertNotIn(secret, joined)
+        self.assertIn("ValueError", joined)
         self.assertIn("yfinance", joined)
 
     def test_unknown_configured_vendor_raises(self):
@@ -103,20 +110,53 @@ class VendorRoutingTests(unittest.TestCase):
         # An optional enrichment vendor (FRED macro) that raises must NOT abort
         # the run — the router returns a sentinel so the analysis proceeds.
         set_config({"data_vendors": {"macro_data": "fred"}})
+        secret = "https://fred.invalid/?api_key=must-not-escape"
         with self._route_method(
-            "get_macro_indicators", {"fred": _raises(ValueError("FRED 400: bad series"))}
-        ):
+            "get_macro_indicators", {"fred": _raises(ValueError(secret))}
+        ), self.assertLogs(
+            "tradingagents.dataflows.interface", level="WARNING"
+        ) as captured:
             result = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-01-01")
         self.assertIn("DATA_UNAVAILABLE", result)
         self.assertIn("macro_data", result)
+        rendered = "\n".join(captured.output) + result
+        self.assertNotIn(secret, rendered)
+        self.assertIn("ValueError", rendered)
+
+    def test_successful_fallback_does_not_emit_a_warning(self):
+        set_config({"data_vendors": {"core_stock_apis": "yfinance,alpha_vantage"}})
+        secret = "https://provider.invalid/?token=must-not-escape"
+        with self._route(
+            {"yfinance": _raises(ValueError(secret)), "alpha_vantage": _returns("OK")}
+        ), mock.patch.object(interface.logger, "warning") as warning:
+            result = interface.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+
+        self.assertEqual(result, "OK")
+        warning.assert_not_called()
+
+    def test_optional_rate_limit_degrades_instead_of_falling_through(self):
+        set_config({"data_vendors": {"macro_data": "fred"}})
+        with self._route_method(
+            "get_macro_indicators",
+            {"fred": _raises(VendorRateLimitError("opaque provider text"))},
+        ):
+            result = interface.route_to_vendor(
+                "get_macro_indicators", "cpi", "2026-01-01"
+            )
+        self.assertIn("DATA_UNAVAILABLE", result)
 
     def test_core_category_still_raises_on_error(self):
         # A core category (single configured vendor) propagates the error so a
         # broken primary is loud, not silently degraded.
         set_config({"data_vendors": {"core_stock_apis": "yfinance"}})
-        with self._route({"yfinance": _raises(ValueError("boom"))}), \
-                self.assertRaises(ValueError):
+        secret = "https://provider.invalid/?token=must-not-escape"
+        with self._route({"yfinance": _raises(ValueError(secret))}), \
+                self.assertRaises(VendorError) as captured:
             interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+        self.assertNotIn(secret, str(captured.exception))
+        self.assertIn("ValueError", str(captured.exception))
 
 
 if __name__ == "__main__":

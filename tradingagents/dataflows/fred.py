@@ -14,7 +14,9 @@ from datetime import datetime, timedelta
 
 import requests
 
-from .errors import VendorNotConfiguredError
+from tradingagents.logging_utils import safe_exception_type
+
+from .errors import VendorError, VendorNotConfiguredError
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,10 @@ class FredNotConfiguredError(VendorNotConfiguredError):
     """
 
 
+class FredDataError(VendorError):
+    """Raised when a FRED response cannot be used safely."""
+
+
 def get_api_key() -> str:
     """Retrieve the FRED API key from the environment."""
     api_key = os.getenv("FRED_API_KEY")
@@ -116,21 +122,24 @@ def _resolve_series_id(indicator: str) -> str:
 
 
 def _request(path: str, params: dict) -> dict:
-    """GET a FRED endpoint, surfacing FRED's JSON error body on a bad request."""
+    """GET a FRED endpoint and return a validated JSON object."""
     api_params = {**params, "api_key": get_api_key(), "file_type": "json"}
-    response = requests.get(
-        f"{FRED_API_BASE}/{path}", params=api_params, timeout=REQUEST_TIMEOUT
-    )
-    # FRED returns 400 with a JSON {"error_message": ...} for unknown series IDs
-    # or malformed params; turn that into a clear, actionable error.
-    if response.status_code == 400:
-        try:
-            message = response.json().get("error_message", response.text)
-        except ValueError:
-            message = response.text
-        raise ValueError(f"FRED request failed: {message}")
-    response.raise_for_status()
-    return response.json()
+    try:
+        response = requests.get(
+            f"{FRED_API_BASE}/{path}", params=api_params, timeout=REQUEST_TIMEOUT
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise FredDataError(
+            f"FRED request failed ({safe_exception_type(exc)})"
+        ) from None
+    try:
+        payload = response.json()
+    except ValueError:
+        raise FredDataError("FRED response was not valid JSON") from None
+    if not isinstance(payload, dict):
+        raise FredDataError("FRED response was not a JSON object")
+    return payload
 
 
 def get_macro_data(

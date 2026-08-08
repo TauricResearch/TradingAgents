@@ -32,6 +32,7 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.logging_utils import safe_exception_type
 from tradingagents.reporting import write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -288,8 +289,8 @@ class TradingAgentsGraph:
             return raw, alpha, actual_days
         except Exception as e:
             logger.warning(
-                "Could not resolve outcome for %s on %s vs %s (will retry next run): %s",
-                ticker, trade_date, benchmark, e,
+                "Could not resolve outcome for %s on %s vs %s (%s); will retry next run",
+                ticker, trade_date, benchmark, safe_exception_type(e),
             )
             return None, None, None
 

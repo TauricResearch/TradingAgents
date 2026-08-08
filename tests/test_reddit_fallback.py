@@ -89,6 +89,17 @@ class TestRssParsing:
         with patch.object(reddit, "urlopen", return_value=_resp(lambda: b"<<not xml>>")):
             assert reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0) == []
 
+    def test_failure_log_exposes_only_the_exception_type(self, caplog):
+        secret = "https://provider.invalid/?token=must-not-escape"
+        caplog.set_level("WARNING", logger=reddit.__name__)
+        with patch.object(
+            reddit, "urlopen", return_value=_raise(TimeoutError(secret))
+        ):
+            assert reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0) == []
+
+        assert secret not in caplog.text
+        assert "TimeoutError" in caplog.text
+
 
 @pytest.mark.unit
 class TestFetchSubredditIsRssFirst:
@@ -120,17 +131,30 @@ class TestJsonPathFallsBackToRss:
         rss.assert_called_once()
         assert out and out[0]["source"] == "rss"
 
+    def test_recovered_json_failure_is_sanitized_info(self, caplog):
+        secret = "https://provider.invalid/?token=must-not-escape"
+        caplog.set_level("INFO", logger=reddit.__name__)
+        with patch.object(reddit, "urlopen", side_effect=TimeoutError(secret)), \
+             patch.object(reddit, "_fetch_subreddit_rss", return_value=[]):
+            reddit._fetch_subreddit_json("NVDA", "stocks", 5, 5.0)
+
+        assert secret not in caplog.text
+        assert "TimeoutError" in caplog.text
+        assert not [record for record in caplog.records if record.levelno >= 30]
+
 
 @pytest.mark.unit
 class TestRss429Backoff:
-    def test_429_then_success_retries_once(self):
+    def test_429_then_success_retries_once(self, caplog):
         err = HTTPError("url", 429, "Too Many Requests", {}, None)
+        caplog.set_level("INFO", logger=reddit.__name__)
         with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]) as op, \
              patch.object(reddit.time, "sleep") as slept:
             posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         assert op.call_count == 2          # original + exactly one retry
         slept.assert_called_once()         # backed off before retrying
         assert len(posts) == 2
+        assert not [record for record in caplog.records if record.levelno >= 30]
 
     def test_429_twice_gives_up_after_one_retry(self):
         err = HTTPError("url", 429, "Too Many Requests", {}, None)

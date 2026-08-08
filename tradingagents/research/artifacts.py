@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -93,7 +94,13 @@ class FilesystemArtifactStore:
         digest = reference.payload_sha256
         artifact_id = reference.artifact_id
         parent = self.root / kind
-        parent.mkdir(parents=True, exist_ok=True)
+        try:
+            parent.mkdir(mode=0o700)
+        except FileExistsError:
+            if not parent.is_dir():
+                raise
+        else:
+            _fsync_directory(self.root)
         final = self._path(kind, artifact_id)
         if final.exists():
             if self.load_ref(kind, artifact_id) != reference:
@@ -122,7 +129,9 @@ class FilesystemArtifactStore:
             _fsync_directory(staging)
             try:
                 staging.rename(final)
-            except FileExistsError:
+            except OSError as exc:
+                if exc.errno not in {errno.EEXIST, errno.ENOTEMPTY}:
+                    raise
                 if self.load_ref(kind, artifact_id) != reference:
                     raise ArtifactIntegrityError(
                         "concurrent artifact commit disagreed"
@@ -133,7 +142,10 @@ class FilesystemArtifactStore:
                 shutil.rmtree(staging)
         return reference
 
-    def load_ref(self, kind: str, artifact_id: str) -> ArtifactRef:
+    def load_with_ref(
+        self, kind: str, artifact_id: str
+    ) -> tuple[ArtifactRef, dict[str, Any]]:
+        """Read once, validate once, and return the exact validated payload."""
         path = self._path(kind, artifact_id)
         marker_path = path / "COMMITTED.json"
         payload_path = path / "payload.json"
@@ -164,11 +176,12 @@ class FilesystemArtifactStore:
         expected_id = content_id(kind, {"kind": kind, "payload": payload})
         if expected_id != artifact_id:
             raise ArtifactIntegrityError("artifact content ID does not match its payload")
-        return ArtifactRef(kind, artifact_id, digest)
+        return ArtifactRef(kind, artifact_id, digest), payload
+
+    def load_ref(self, kind: str, artifact_id: str) -> ArtifactRef:
+        reference, _ = self.load_with_ref(kind, artifact_id)
+        return reference
 
     def load(self, kind: str, artifact_id: str) -> dict[str, Any]:
-        self.load_ref(kind, artifact_id)
-        payload = json.loads((self._path(kind, artifact_id) / "payload.json").read_bytes())
-        if not isinstance(payload, dict):
-            raise ArtifactIntegrityError("artifact payload must be a mapping")
+        _, payload = self.load_with_ref(kind, artifact_id)
         return payload

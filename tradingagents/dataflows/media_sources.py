@@ -28,11 +28,17 @@ import os
 import re
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+from types import MappingProxyType
 from urllib.error import HTTPError
-from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
+
+from tradingagents.logging_utils import safe_exception_type
+
+from .errors import ProviderResponseError, ProviderTransientError
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +52,128 @@ _REDDIT_RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
 _DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 _BLUESKY_SEARCH = "https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?{qs}"
 _TRUTHSOCIAL_SEARCH = "https://truthsocial.com/api/v2/search?{qs}"
-_X_SEARCH = "https://api.x.com/2/tweets/search/recent?{qs}"
-_X_TRENDS = "https://api.x.com/2/trends/by/woeid/{woeid}?{qs}"
-_X_REQUIRED_POST_METRICS = (
-    "like_count", "reply_count", "retweet_count", "quote_count",
-)
-_X_REQUIRED_USER_METRICS = (
-    "followers_count", "following_count", "tweet_count",
-)
+GLOBAL_X_ADAPTER_POLICY = MappingProxyType({
+    "version": "global-event-x-request-v4",
+    "recent_search": MappingProxyType({
+        "endpoint": "https://api.x.com/2/tweets/search/recent?{qs}",
+        "topic_sort_order": "relevancy",
+        "query_language": "en",
+        "query_exclusions": ("retweet", "reply"),
+        "result_limit": MappingProxyType({
+            "default": 10,
+            "minimum": 10,
+            "maximum": 100,
+        }),
+        "fields_parameter": "post.fields",
+        "post_fields": (
+            "created_at",
+            "author_id",
+            "public_metrics",
+        ),
+        "expansions": ("author_id",),
+        "user_fields": (
+            "username",
+            "name",
+            "description",
+            "url",
+            "entities",
+            "parody",
+            "is_identity_verified",
+            "verified_type",
+            "created_at",
+            "public_metrics",
+        ),
+        "required_post_metrics": (
+            "like_count",
+            "reply_count",
+            "retweet_count",
+            "quote_count",
+        ),
+        "required_user_metrics": MappingProxyType({
+            "followers": "followers_count",
+            "following": "following_count",
+            "activity": "tweet_count",
+        }),
+        "response_metric_aliases": MappingProxyType({
+            "post": MappingProxyType({
+                "like_count": ("like_count",),
+                "reply_count": ("reply_count",),
+                "retweet_count": ("retweet_count", "repost_count"),
+                "quote_count": ("quote_count",),
+            }),
+            "user": MappingProxyType({
+                "followers_count": ("followers_count",),
+                "following_count": ("following_count",),
+                "tweet_count": ("tweet_count", "post_count"),
+            }),
+        }),
+        "known_verified_types": ("none", "blue", "business", "government"),
+        "excluded_verified_types": ("business", "government"),
+        "profile_screening": MappingProxyType({
+            "version": "conservative-organization-signals-v3",
+            "profile_url_keys": ("display_url", "expanded_url", "unwound_url", "url"),
+            "max_profile_urls": 32,
+            "url_normalization": "credential-query-fragment-free-http-s-v1",
+            "missing_description": "empty-string",
+            "organization_language_pattern": (
+                r"\b(agency|association|brand|business|company|corporation|corp|"
+                r"department|enterprise|foundation|government|incorporated|"
+                r"institute|investor relations|llc|ltd|ministry|newsroom|"
+                r"official|organisation|organization|plc|press office|"
+                r"public relations|customer support|university)\b"
+            ),
+            "leadership_language_pattern": (
+                r"\b(ceo|cfo|chief executive|co[- ]?founder|coo|cto|founder|"
+                r"chair(?:man|woman|person)?|president of)\b"
+            ),
+            "flags": (
+                "description_organization_language",
+                "description_leadership_language",
+                "name_organization_language",
+                "name_leadership_language",
+                "parody",
+                "profile_url_organization_language",
+                "username_organization_language",
+                "username_leadership_language",
+            ),
+        }),
+        "automation_risk": MappingProxyType({
+            "invalid_score": 1.0,
+            "maximum_score": 1.0,
+            "young_account_age_days_lt": 30,
+            "young_account_weight": 0.4,
+            "low_follower_count_lt": 10,
+            "high_following_count_gt": 100,
+            "low_followers_high_following_weight": 0.3,
+            "young_high_volume_age_days_lt": 180,
+            "high_tweet_count_gt": 10_000,
+            "young_high_volume_weight": 0.2,
+        }),
+    }),
+    "trends": MappingProxyType({
+        "endpoint": "https://api.x.com/2/trends/by/woeid/{woeid}?{qs}",
+        "result_limit": MappingProxyType({
+            "default": 30,
+            "minimum": 1,
+            "maximum": 50,
+        }),
+        "fields": ("trend_name", "tweet_count"),
+    }),
+})
+
+
+def global_x_adapter_policy_manifest() -> dict[str, object]:
+    """Return a JSON-ready projection of the end-to-end global X adapter."""
+    def plain(value):
+        if isinstance(value, Mapping):
+            return {key: plain(item) for key, item in value.items()}
+        if isinstance(value, tuple):
+            return [plain(item) for item in value]
+        return value
+
+    return plain(GLOBAL_X_ADAPTER_POLICY)
+
+
 _YAHOO_NEWS_RSS = (
     "https://feeds.finance.yahoo.com/rss/2.0/headline?s={symbol}&region=US&lang=en-US"
 )
@@ -141,14 +261,6 @@ _FIRST_PARTY_HEADLINE = re.compile(
 _MAX_PROVIDER_RESPONSE_BYTES = 4 * 1024 * 1024
 
 
-class ProviderResponseError(RuntimeError):
-    """A sanitized provider schema failure that must not be retried blindly."""
-
-
-class ProviderTransientError(RuntimeError):
-    """A sanitized transport failure eligible for a bounded free-source retry."""
-
-
 def _is_transient_http_error(exc: HTTPError) -> bool:
     """Return whether an HTTP response can plausibly succeed on a bounded retry."""
     code = exc.code
@@ -202,7 +314,7 @@ def _has_meaningful_text(value: object) -> bool:
     return isinstance(value, str) and any(char.isalnum() for char in value)
 
 
-def _has_nonnegative_metrics(value: object, required: tuple[str, ...]) -> bool:
+def _has_nonnegative_metrics(value: object, required: Iterable[str]) -> bool:
     """Validate requested X metric counters without accepting booleans as ints."""
     return isinstance(value, dict) and all(
         isinstance(value.get(name), int)
@@ -212,9 +324,24 @@ def _has_nonnegative_metrics(value: object, required: tuple[str, ...]) -> bool:
     )
 
 
-_TRACKING_QUERY_KEYS = frozenset({
-    "fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src",
-})
+def _normalize_x_metrics(
+    value: object,
+    aliases: Mapping[str, Iterable[str]],
+) -> dict:
+    """Normalize X's Tweet/Post counter aliases into one stable wire shape."""
+    if not isinstance(value, dict):
+        raise ProviderResponseError("X response metrics schema is invalid")
+    normalized = {}
+    for canonical, accepted in aliases.items():
+        names = tuple(accepted)
+        present = [name for name in names if name in value]
+        if len(present) != 1:
+            raise ProviderResponseError("X response metrics schema is invalid")
+        counter = value[present[0]]
+        if isinstance(counter, bool) or not isinstance(counter, int) or counter < 0:
+            raise ProviderResponseError("X response metrics schema is invalid")
+        normalized[canonical] = counter
+    return normalized
 
 
 def normalize_public_url(value: str | None) -> str | None:
@@ -235,13 +362,8 @@ def normalize_public_url(value: str | None) -> str | None:
         parsed.scheme.lower() == "https" and port == 443
     )
     netloc = host if port is None or default_port else f"{host}:{port}"
-    query = urlencode(sorted(
-        (key, item)
-        for key, item in parse_qsl(parsed.query, keep_blank_values=True)
-        if not key.lower().startswith("utm_") and key.lower() not in _TRACKING_QUERY_KEYS
-    ))
     return urlunsplit((
-        parsed.scheme.lower(), netloc, parsed.path or "/", query, "",
+        parsed.scheme.lower(), netloc, parsed.path or "/", "", "",
     ))
 
 
@@ -403,20 +525,61 @@ def _get_json(url: str, headers: dict, timeout: float):
         with urlopen(req, timeout=timeout) as resp:
             return json.loads(_read_bounded(resp))
     except HTTPError as exc:
-        logger.info("GET %s failed (%s)", url.split("?")[0], type(exc).__name__)
+        logger.info("GET %s failed (%s)", url.split("?")[0], safe_exception_type(exc))
         if _is_transient_http_error(exc):
-            return None
+            raise ProviderTransientError("provider request did not complete") from exc
         raise ProviderResponseError("provider HTTP response was not retryable") from exc
     except (OSError, http.client.HTTPException) as exc:
-        logger.info("GET %s failed (%s)", url.split("?")[0], type(exc).__name__)
-        return None
+        logger.info("GET %s failed (%s)", url.split("?")[0], safe_exception_type(exc))
+        raise ProviderTransientError("provider request did not complete") from exc
     except (
         json.JSONDecodeError,
         UnicodeDecodeError,
         ProviderResponseError,
     ) as exc:
-        logger.info("GET %s failed (%s)", url.split("?")[0], type(exc).__name__)
+        logger.info("GET %s failed (%s)", url.split("?")[0], safe_exception_type(exc))
         raise ProviderResponseError("provider JSON response schema was invalid") from exc
+
+
+def _response_list(data: object, field: str) -> list[dict]:
+    """Return an explicit provider collection, rejecting ambiguous envelopes."""
+    if (
+        not isinstance(data, dict)
+        or field not in data
+        or not isinstance(data[field], list)
+        or any(not isinstance(item, dict) for item in data[field])
+    ):
+        raise ProviderResponseError("provider JSON response schema was invalid")
+    return data[field]
+
+
+def _required_mapping(value: object) -> dict:
+    if not isinstance(value, dict):
+        raise ProviderResponseError("provider JSON response item schema was invalid")
+    return value
+
+
+def _required_text(value: object) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ProviderResponseError("provider JSON response item schema was invalid")
+    return value.strip()
+
+
+def _required_external_id(value: object) -> str:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, str))
+        or not str(value).strip()
+    ):
+        raise ProviderResponseError("provider JSON response item schema was invalid")
+    return str(value).strip()
+
+
+def _required_created_utc(value: object) -> float:
+    created_utc = _iso_to_epoch(value if isinstance(value, str) else None)
+    if created_utc is None:
+        raise ProviderResponseError("provider JSON response item schema was invalid")
+    return created_utc
 
 
 def _x_response_items(data, *, response_name: str) -> list[dict]:
@@ -452,6 +615,10 @@ def _x_response_items(data, *, response_name: str) -> list[dict]:
     if result_count is not None and result_count != len(items):
         raise ProviderResponseError(f"X {response_name} response count is inconsistent")
     if response_name == "recent-search":
+        normalized_items = []
+        aliases = GLOBAL_X_ADAPTER_POLICY["recent_search"][
+            "response_metric_aliases"
+        ]["post"]
         for item in items:
             if (
                 not isinstance(item.get("id"), str)
@@ -461,13 +628,18 @@ def _x_response_items(data, *, response_name: str) -> list[dict]:
                 or not isinstance(item.get("text"), str)
                 or not item["text"].strip()
                 or _iso_to_epoch(item.get("created_at")) is None
-                or not _has_nonnegative_metrics(
-                    item.get("public_metrics"), _X_REQUIRED_POST_METRICS
-                )
             ):
                 raise ProviderResponseError(
                     "X recent-search response item schema is invalid"
                 )
+            try:
+                metrics = _normalize_x_metrics(item.get("public_metrics"), aliases)
+            except ProviderResponseError:
+                raise ProviderResponseError(
+                    "X recent-search response item schema is invalid"
+                ) from None
+            normalized_items.append({**item, "public_metrics": metrics})
+        items = normalized_items
     elif response_name == "trend":
         if not items:
             raise ProviderResponseError("X trend response omitted ranked trends")
@@ -536,6 +708,45 @@ def _google_news_item(item: ET.Element) -> dict:
     }
 
 
+def _ticker_news_item(item: ET.Element) -> dict:
+    """Validate one generic company-news RSS item without partial salvage."""
+    guid_el = item.find("guid")
+    link_el = item.find("link")
+    title_el = item.find("title")
+    date_el = item.find("pubDate")
+    desc_el = item.find("description")
+    source_el = item.find("source")
+    article_url = normalize_public_url(
+        link_el.text if link_el is not None else None
+    )
+    guid = ((guid_el.text if guid_el is not None else "") or "").strip()
+    external_id = normalize_public_url(guid) or guid or article_url or ""
+    title = ((title_el.text if title_el is not None else "") or "").strip()
+    created_utc = _rfc822_to_epoch(
+        date_el.text if date_el is not None else None
+    )
+    if not external_id or not article_url or not _has_meaningful_text(title) \
+            or created_utc is None:
+        raise ProviderResponseError("company-news RSS item schema is invalid")
+    metadata = {"article_url": article_url}
+    domain = publisher_domain(
+        source_el.get("url") if source_el is not None else None
+    )
+    if domain:
+        metadata["publisher_domain"] = domain
+    return {
+        "external_id": external_id,
+        "title": title,
+        "body": _strip_html(desc_el.text if desc_el is not None else ""),
+        "created_utc": created_utc,
+        "publisher": (
+            ((source_el.text if source_el is not None else "") or "").strip()
+            or None
+        ),
+        "metadata": metadata,
+    }
+
+
 def _row(source: str, ext_id: str, ticker: str, now: float, *,
          author=None, sentiment=None, subreddit=None,
          created_utc=None, title=None, body="", metadata=None) -> dict:
@@ -551,9 +762,10 @@ def _row(source: str, ext_id: str, ticker: str, now: float, *,
 
 
 def _automation_risk(user: dict, now: float) -> float:
+    policy = GLOBAL_X_ADAPTER_POLICY["recent_search"]
+    risk_policy = policy["automation_risk"]
     metrics = user.get("public_metrics")
     created = _iso_to_epoch(user.get("created_at"))
-    required = ("followers_count", "following_count", "tweet_count")
     if (
         not isinstance(metrics, dict)
         or not isinstance(user.get("username"), str)
@@ -565,24 +777,137 @@ def _automation_risk(user: dict, now: float) -> float:
             isinstance(metrics.get(key), bool)
             or not isinstance(metrics.get(key), int)
             or metrics[key] < 0
-            for key in required
+            for key in policy["required_user_metrics"].values()
         )
     ):
-        return 1.0
+        return float(risk_policy["invalid_score"])
     age_days = (now - created) / 86400
-    followers = metrics["followers_count"]
-    following = metrics["following_count"]
-    tweets = metrics["tweet_count"]
+    metric_fields = policy["required_user_metrics"]
+    followers = metrics[metric_fields["followers"]]
+    following = metrics[metric_fields["following"]]
+    tweets = metrics[metric_fields["activity"]]
     risk = 0.0
-    if age_days < 30:
-        risk += 0.4
-    if followers < 10 and following > 100:
-        risk += 0.3
-    if age_days < 180 and tweets > 10_000:
-        risk += 0.2
-    if not user.get("username"):
-        risk += 0.2
-    return min(1.0, risk)
+    if age_days < risk_policy["young_account_age_days_lt"]:
+        risk += risk_policy["young_account_weight"]
+    if (
+        followers < risk_policy["low_follower_count_lt"]
+        and following > risk_policy["high_following_count_gt"]
+    ):
+        risk += risk_policy["low_followers_high_following_weight"]
+    if (
+        age_days < risk_policy["young_high_volume_age_days_lt"]
+        and tweets > risk_policy["high_tweet_count_gt"]
+    ):
+        risk += risk_policy["young_high_volume_weight"]
+    return min(float(risk_policy["maximum_score"]), risk)
+
+
+def _x_author_profile(user: dict, policy: Mapping) -> dict:
+    """Validate and freeze the profile fields used by the organization screen."""
+    username = user.get("username")
+    name = user.get("name")
+    description = user.get("description", "")
+    profile_url = user.get("url")
+    entities = user.get("entities")
+    parody = user.get("parody")
+    identity_verified = user.get("is_identity_verified")
+    if (
+        not isinstance(username, str)
+        or not username.strip()
+        or not isinstance(name, str)
+        or not isinstance(description, str)
+        or (profile_url is not None and not isinstance(profile_url, str))
+        or (entities is not None and not isinstance(entities, dict))
+        or not isinstance(parody, bool)
+        or not isinstance(identity_verified, bool)
+    ):
+        raise ProviderResponseError(
+            "X recent-search response expanded author profile is invalid"
+        )
+    screen = policy["profile_screening"]
+    if screen["missing_description"] != "empty-string":
+        raise RuntimeError("X author profile description policy is unsupported")
+    if screen["url_normalization"] != "credential-query-fragment-free-http-s-v1":
+        raise RuntimeError("X author profile URL policy is unsupported")
+    normalized_profile_url = normalize_public_url(profile_url)
+    if (
+        isinstance(profile_url, str)
+        and profile_url.strip()
+        and normalized_profile_url is None
+    ):
+        raise ProviderResponseError(
+            "X recent-search response expanded author profile URL is invalid"
+        )
+    profile_urls = set()
+
+    def collect_profile_urls(value: object, key: str | None = None) -> None:
+        if isinstance(value, dict):
+            if key in screen["profile_url_keys"] and "urls" not in value:
+                raise ProviderResponseError(
+                    "X recent-search response expanded author profile URL is invalid"
+                )
+            for child_key, child in value.items():
+                collect_profile_urls(child, str(child_key))
+        elif isinstance(value, list):
+            if key in screen["profile_url_keys"]:
+                raise ProviderResponseError(
+                    "X recent-search response expanded author profile URL is invalid"
+                )
+            for child in value:
+                collect_profile_urls(child, key)
+        elif key in screen["profile_url_keys"]:
+            if value is None or value == "":
+                return
+            if not isinstance(value, str):
+                raise ProviderResponseError(
+                    "X recent-search response expanded author profile URL is invalid"
+                )
+            normalized = normalize_public_url(value)
+            if normalized is None:
+                raise ProviderResponseError(
+                    "X recent-search response expanded author profile URL is invalid"
+                )
+            profile_urls.add(normalized)
+
+    collect_profile_urls(entities)
+    if len(profile_urls) > int(screen["max_profile_urls"]):
+        raise ProviderResponseError(
+            "X recent-search response expanded author profile is too large"
+        )
+    organization_pattern = str(screen["organization_language_pattern"])
+    leadership_pattern = str(screen["leadership_language_pattern"])
+    signals = []
+    if parody:
+        signals.append("parody")
+    username_text = re.sub(r"[_\-.]+", " ", username.strip())
+    for field, text in (
+        ("username", username_text),
+        ("name", name),
+        ("description", description),
+    ):
+        if re.search(organization_pattern, text, flags=re.IGNORECASE):
+            signals.append(f"{field}_organization_language")
+        if re.search(leadership_pattern, text, flags=re.IGNORECASE):
+            signals.append(f"{field}_leadership_language")
+    url_text = " ".join((
+        normalized_profile_url or "",
+        *sorted(profile_urls),
+    ))
+    if re.search(organization_pattern, url_text, flags=re.IGNORECASE):
+        signals.append("profile_url_organization_language")
+    signals = sorted(set(signals))
+    if any(value not in screen["flags"] for value in signals):
+        raise RuntimeError("X author profile screen emitted an undeclared signal")
+    return {
+        "author_display_name": name.strip(),
+        "author_description": description.strip(),
+        "author_profile_url": normalized_profile_url,
+        "author_profile_entity_urls": sorted(profile_urls),
+        "author_parody": parody,
+        "author_identity_verified": identity_verified,
+        "profile_screening_complete": True,
+        "organization_signals": signals,
+    }
 
 
 def fetch_stocktwits(ticker: str, now: float, limit: int = 30,
@@ -591,19 +916,24 @@ def fetch_stocktwits(ticker: str, now: float, limit: int = 30,
     user's Bullish/Bearish label)."""
     data = _get_json(_STOCKTWITS_API.format(ticker=ticker.upper()),
                      {"Accept": "application/json"}, timeout)
-    messages = data.get("messages", []) if isinstance(data, dict) else []
+    messages = _response_list(data, "messages")
     rows = []
     for m in messages[:limit] if limit else messages:
-        mid = m.get("id")
-        if mid is None:
-            continue
-        sentiment_obj = (m.get("entities") or {}).get("sentiment") or {}
+        mid = _required_external_id(m.get("id"))
+        user = _required_mapping(m.get("user"))
+        entities = _required_mapping(m.get("entities"))
+        sentiment_obj = entities.get("sentiment")
+        if sentiment_obj is not None and not isinstance(sentiment_obj, dict):
+            raise ProviderResponseError("provider JSON response item schema was invalid")
+        sentiment = sentiment_obj.get("basic") if sentiment_obj else None
+        if sentiment not in {None, "Bullish", "Bearish"}:
+            raise ProviderResponseError("provider JSON response item schema was invalid")
         rows.append(_row(
-            "stocktwits", str(mid), ticker, now,
-            author=(m.get("user") or {}).get("username"),
-            sentiment=sentiment_obj.get("basic") if isinstance(sentiment_obj, dict) else None,
-            created_utc=_iso_to_epoch(m.get("created_at")),
-            body=(m.get("body") or "").strip(),
+            "stocktwits", mid, ticker, now,
+            author=_required_text(user.get("username")),
+            sentiment=sentiment,
+            created_utc=_required_created_utc(m.get("created_at")),
+            body=_required_text(m.get("body")),
         ))
     return rows
 
@@ -626,36 +956,31 @@ def fetch_reddit(ticker: str, now: float, subreddits=_DEFAULT_SUBREDDITS,
         try:
             with urlopen(req, timeout=timeout) as resp:
                 root = ET.fromstring(_read_bounded(resp))
+            if root.tag != f"{{{_ATOM_NS['atom']}}}feed":
+                raise ProviderResponseError("Reddit response schema was invalid")
         except HTTPError as exc:
-            if exc.code == 429:
-                logger.warning("Reddit 429 for r/%s · %s — backing off 5s", sub, ticker)
-                time.sleep(5.0)
-            else:
-                logger.warning(
-                    "Reddit fetch failed for r/%s · %s (%s)",
-                    sub, ticker, type(exc).__name__,
-                )
-            continue
-        except (
-            OSError, http.client.HTTPException, ET.ParseError, ProviderResponseError,
-        ) as exc:
-            logger.warning(
-                "Reddit fetch failed for r/%s · %s (%s)",
-                sub, ticker, type(exc).__name__,
-            )
-            continue
+            if _is_transient_http_error(exc):
+                raise ProviderTransientError("Reddit request did not complete") from exc
+            raise ProviderResponseError("Reddit HTTP response was not usable") from exc
+        except (OSError, http.client.HTTPException) as exc:
+            raise ProviderTransientError("Reddit request did not complete") from exc
+        except (ET.ParseError, ProviderResponseError) as exc:
+            raise ProviderResponseError("Reddit response schema was invalid") from exc
         for entry in root.findall("atom:entry", _ATOM_NS):
             id_el = entry.find("atom:id", _ATOM_NS)
             title_el = entry.find("atom:title", _ATOM_NS)
             published_el = entry.find("atom:published", _ATOM_NS)
             content_el = entry.find("atom:content", _ATOM_NS)
-            ext_id = id_el.text if id_el is not None else None
-            if not ext_id:
-                continue
             rows.append(_row(
-                "reddit", ext_id, ticker, now, subreddit=sub,
-                created_utc=_iso_to_epoch(published_el.text if published_el is not None else None),
-                title=(title_el.text if title_el is not None else "") or "",
+                "reddit",
+                _required_text(id_el.text if id_el is not None else None),
+                ticker,
+                now,
+                subreddit=sub,
+                created_utc=_required_created_utc(
+                    published_el.text if published_el is not None else None
+                ),
+                title=_required_text(title_el.text if title_el is not None else None),
                 body=_strip_html(content_el.text if content_el is not None else ""),
             ))
     return rows
@@ -666,49 +991,48 @@ def fetch_bluesky(ticker: str, now: float, limit: int = 50,
     """Recent Bluesky posts via the keyless public AppView (dedup key: post uri)."""
     qs = urlencode({"q": f"${ticker}", "limit": limit, "sort": "latest"})
     data = _get_json(_BLUESKY_SEARCH.format(qs=qs), {"Accept": "application/json"}, timeout)
-    posts = data.get("posts", []) if isinstance(data, dict) else []
+    posts = _response_list(data, "posts")
     rows = []
     for p in posts:
-        uri = p.get("uri")
-        if not uri:
-            continue
-        record = p.get("record") or {}
+        record = _required_mapping(p.get("record"))
+        author = _required_mapping(p.get("author"))
         rows.append(_row(
-            "bluesky", uri, ticker, now,
-            author=(p.get("author") or {}).get("handle"),
-            created_utc=_iso_to_epoch(record.get("createdAt")),
-            body=(record.get("text") or "").strip(),
+            "bluesky", _required_text(p.get("uri")), ticker, now,
+            author=_required_text(author.get("handle")),
+            created_utc=_required_created_utc(record.get("createdAt")),
+            body=_required_text(record.get("text")),
         ))
     return rows
 
 
 def fetch_truthsocial(ticker: str, now: float, limit: int = 40,
                       timeout: float = 10.0) -> list[dict]:
-    """Truth Social statuses (Mastodon v2 search). Needs TRUTHSOCIAL_TOKEN; degrades silently."""
+    """Truth Social statuses from its Mastodon-compatible search endpoint."""
     headers = {"Accept": "application/json"}
     token = os.environ.get("TRUTHSOCIAL_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
     qs = urlencode({"q": ticker, "type": "statuses", "limit": limit})
     data = _get_json(_TRUTHSOCIAL_SEARCH.format(qs=qs), headers, timeout)
-    statuses = data.get("statuses", []) if isinstance(data, dict) else []
+    statuses = _response_list(data, "statuses")
     rows = []
     for s in statuses:
-        sid = s.get("id")
-        if sid is None:
-            continue
+        account = _required_mapping(s.get("account"))
+        body = _strip_html(_required_text(s.get("content")))
+        if not body:
+            raise ProviderResponseError("provider JSON response item schema was invalid")
         rows.append(_row(
-            "truthsocial", str(sid), ticker, now,
-            author=(s.get("account") or {}).get("username"),
-            created_utc=_iso_to_epoch(s.get("created_at")),
-            body=_strip_html(s.get("content")),
+            "truthsocial", _required_external_id(s.get("id")), ticker, now,
+            author=_required_text(account.get("username")),
+            created_utc=_required_created_utc(s.get("created_at")),
+            body=body,
         ))
     return rows
 
 
 def fetch_x(ticker: str, now: float, limit: int = 50,
             timeout: float = 10.0) -> list[dict]:
-    """X/Twitter recent search (API v2). No-ops without X_BEARER_TOKEN."""
+    """Ticker-specific X search, outside the global-event collection contract."""
     return _fetch_x_search(
         query=f"${ticker}",
         label=ticker,
@@ -725,15 +1049,24 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
     token = (os.environ.get("X_BEARER_TOKEN") or "").strip()
     if not token:
         raise RuntimeError("X bearer token is not configured")
+    policy = GLOBAL_X_ADAPTER_POLICY["recent_search"]
+    result_limit = policy["result_limit"]
+    query_filters = " ".join((
+        f"lang:{policy['query_language']}",
+        *(f"-is:{value}" for value in policy["query_exclusions"]),
+    ))
     qs = urlencode({
-        "query": f"({query}) lang:en -is:retweet -is:reply",
-        "max_results": min(max(limit, 10), 100),
+        "query": f"({query}) {query_filters}",
+        "max_results": min(
+            max(limit, int(result_limit["minimum"])),
+            int(result_limit["maximum"]),
+        ),
         "sort_order": sort_order,
-        "tweet.fields": "created_at,author_id,public_metrics,possibly_sensitive,referenced_tweets",
-        "expansions": "author_id",
-        "user.fields": "username,verified_type,created_at,public_metrics",
+        policy["fields_parameter"]: ",".join(policy["post_fields"]),
+        "expansions": ",".join(policy["expansions"]),
+        "user.fields": ",".join(policy["user_fields"]),
     })
-    data = _get_json(_X_SEARCH.format(qs=qs),
+    data = _get_json(policy["endpoint"].format(qs=qs),
                      {"Authorization": f"Bearer {token}", "Accept": "application/json"},
                      timeout)
     if data is None:
@@ -751,15 +1084,37 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
         not isinstance(user, dict) for user in raw_users
     ):
         raise ProviderResponseError("X recent-search response schema is invalid")
-    users = {
-        str(user.get("id")): user
-        for user in raw_users
-        if user.get("id") is not None
-    }
+    users = {}
+    seen_user_ids = set()
+    required_author_ids = {tweet["author_id"] for tweet in tweets}
+    user_aliases = policy["response_metric_aliases"]["user"]
+    for user in raw_users:
+        user_id = user.get("id")
+        if not isinstance(user_id, str) or not user_id.strip():
+            continue
+        if user_id not in required_author_ids:
+            continue
+        if user_id in seen_user_ids:
+            raise ProviderResponseError(
+                "X recent-search response expanded author schema is invalid"
+            )
+        seen_user_ids.add(user_id)
+        try:
+            metrics = _normalize_x_metrics(user.get("public_metrics"), user_aliases)
+        except ProviderResponseError:
+            continue
+        users[user_id] = {**user, "public_metrics": metrics}
+    profiles = {}
     for tweet in tweets:
         user = users.get(str(tweet.get("author_id")))
         account_created_utc = (
             _iso_to_epoch(user.get("created_at")) if isinstance(user, dict) else None
+        )
+        verified_type = (
+            user.get("verified_type").strip().lower()
+            if isinstance(user, dict)
+            and isinstance(user.get("verified_type"), str)
+            else None
         )
         if (
             not isinstance(user, dict)
@@ -769,20 +1124,31 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
             or not user["username"].strip()
             or account_created_utc is None
             or account_created_utc <= 0
+            or verified_type not in policy["known_verified_types"]
             or not _has_nonnegative_metrics(
-                user.get("public_metrics"), _X_REQUIRED_USER_METRICS
+                user.get("public_metrics"),
+                policy["required_user_metrics"].values(),
             )
         ):
-            raise ProviderResponseError(
-                "X recent-search response expanded author schema is invalid"
-            )
+            continue
+        try:
+            profiles[tweet["author_id"]] = _x_author_profile(user, policy)
+        except ProviderResponseError:
+            # Optional profile fields can be absent even when requested. Such
+            # authors are ineligible, but one unscreenable author must not
+            # invalidate every other result in the paid response.
+            continue
     rows = []
     for t in tweets:
         tid = t.get("id")
-        user = users.get(str(t.get("author_id")), {})
         author_id = str(t.get("author_id") or "").strip()
+        profile = profiles.get(author_id)
+        if profile is None:
+            continue
+        user = users[author_id]
         account_created_utc = _iso_to_epoch(user.get("created_at"))
         author_metrics = user.get("public_metrics")
+        verified_type = user["verified_type"].strip().lower()
         automation_signals_complete = bool(
             author_id
             and str(user.get("id") or "").strip() == author_id
@@ -790,16 +1156,21 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
             and user["username"].strip()
             and account_created_utc is not None
             and 0 < account_created_utc <= now
+            and verified_type in policy["known_verified_types"]
             and isinstance(author_metrics, dict)
             and all(
                 isinstance(author_metrics.get(key), int)
                 and not isinstance(author_metrics.get(key), bool)
                 and author_metrics[key] >= 0
-                for key in ("followers_count", "following_count", "tweet_count")
+                for key in policy["required_user_metrics"].values()
             )
         )
-        # Official business accounts are announcements, not public sentiment.
-        if user.get("verified_type") == "business":
+        # Provider verification and the conservative profile screen are both
+        # necessary: an unverified organization is still not public reaction.
+        if (
+            verified_type in policy["excluded_verified_types"]
+            or profile["organization_signals"]
+        ):
             continue
         rows.append(_row(
             "x", str(tid), label, now,
@@ -812,19 +1183,25 @@ def _fetch_x_search(query: str, label: str, now: float, limit: int,
                 "author_username": user.get("username"),
                 "account_created_utc": account_created_utc,
                 "automation_signals_complete": automation_signals_complete,
-                "verified_type": user.get("verified_type"),
+                "verified_type": verified_type,
+                **profile,
                 "engagement": t.get("public_metrics") or {},
                 "author_metrics": author_metrics or {},
                 "automation_risk": _automation_risk(user, now),
-                "possibly_sensitive": bool(t.get("possibly_sensitive")),
-                "referenced_tweets": t.get("referenced_tweets") or [],
             },
         ))
     return rows
 
 
-def fetch_x_topic(topic: str, query: str, now: float, limit: int = 10,
-                  timeout: float = 10.0) -> list[dict]:
+def fetch_x_topic(
+    topic: str,
+    query: str,
+    now: float,
+    limit: int = int(
+        GLOBAL_X_ADAPTER_POLICY["recent_search"]["result_limit"]["default"]
+    ),
+    timeout: float = 10.0,
+) -> list[dict]:
     """Fetch broad, market-relevant X discussion under a pseudo ticker.
 
     Topic rows use ``@<topic>`` instead of a company ticker. Relevancy ordering
@@ -837,12 +1214,17 @@ def fetch_x_topic(topic: str, query: str, now: float, limit: int = 10,
         now=now,
         limit=limit,
         timeout=timeout,
-        sort_order="relevancy",
+        sort_order=GLOBAL_X_ADAPTER_POLICY["recent_search"]["topic_sort_order"],
     )
 
 
-def fetch_x_trends(woeid: int, limit: int = 30,
-                   timeout: float = 10.0) -> list[dict]:
+def fetch_x_trends(
+    woeid: int,
+    limit: int = int(
+        GLOBAL_X_ADAPTER_POLICY["trends"]["result_limit"]["default"]
+    ),
+    timeout: float = 10.0,
+) -> list[dict]:
     """Current X trends for a place (WOEID 1 is worldwide).
 
     Trends are discovery signals only. The poller cross-checks them against
@@ -852,12 +1234,17 @@ def fetch_x_trends(woeid: int, limit: int = 30,
     token = (os.environ.get("X_BEARER_TOKEN") or "").strip()
     if not token:
         raise RuntimeError("X bearer token is not configured")
+    policy = GLOBAL_X_ADAPTER_POLICY["trends"]
+    result_limit = policy["result_limit"]
     qs = urlencode({
-        "max_trends": min(max(limit, 1), 50),
-        "trend.fields": "trend_name,tweet_count",
+        "max_trends": min(
+            max(limit, int(result_limit["minimum"])),
+            int(result_limit["maximum"]),
+        ),
+        "trend.fields": ",".join(policy["fields"]),
     })
     data = _get_json(
-        _X_TRENDS.format(woeid=woeid, qs=qs),
+        policy["endpoint"].format(woeid=woeid, qs=qs),
         {"Authorization": f"Bearer {token}", "Accept": "application/json"},
         timeout,
     )
@@ -908,19 +1295,19 @@ def fetch_top_news_headlines(limit_per_feed: int = 12,
             else:
                 response_failure_count += 1
             logger.info(
-                "Top-news RSS fetch failed (%s:%s)", category, type(exc).__name__
+                "Top-news RSS fetch failed (%s:%s)", category, safe_exception_type(exc)
             )
             continue
         except (OSError, http.client.HTTPException) as exc:
             transient_failure_count += 1
             logger.info(
-                "Top-news RSS fetch failed (%s:%s)", category, type(exc).__name__
+                "Top-news RSS fetch failed (%s:%s)", category, safe_exception_type(exc)
             )
             continue
         except (ET.ParseError, ProviderResponseError) as exc:
             response_failure_count += 1
             logger.info(
-                "Top-news RSS fetch failed (%s:%s)", category, type(exc).__name__
+                "Top-news RSS fetch failed (%s:%s)", category, safe_exception_type(exc)
             )
             continue
         observed_feed_count += 1
@@ -950,51 +1337,53 @@ def fetch_news(ticker: str, now: float, timeout: float = 10.0) -> list[dict]:
     identities = _AMBIGUOUS_NEWS_IDENTITIES.get(ticker)
     google_query = f'"{identities[0]}" stock {ticker}' if identities else f'"{ticker}" stock'
     feeds = (
-        (_YAHOO_NEWS_RSS.format(symbol=quote(ticker)), None),
-        (_GOOGLE_NEWS_RSS.format(query=quote(google_query)), identities),
+        (_YAHOO_NEWS_RSS.format(symbol=quote(ticker)), None, _ticker_news_item),
+        (_GOOGLE_NEWS_RSS.format(query=quote(google_query)), identities, _google_news_item),
     )
     rows = []
-    for url, required_identities in feeds:
+    transient_failure = False
+    response_failure = False
+    for url, required_identities, item_parser in feeds:
         req = Request(url, headers={"User-Agent": _UA})
         try:
             with urlopen(req, timeout=timeout) as resp:
                 channel = _parse_rss_response(resp)
-        except (
-            OSError,
-            http.client.HTTPException,
-            ET.ParseError,
-            HTTPError,
-            ProviderResponseError,
-        ) as exc:
-            logger.warning(
-                "News RSS fetch failed (%s:%s)",
-                url.split("?")[0], type(exc).__name__,
-            )
+            parsed = [item_parser(item) for item in _rss_channel_items(channel)]
+        except HTTPError as exc:
+            if _is_transient_http_error(exc):
+                transient_failure = True
+            else:
+                response_failure = True
             continue
-        for item in channel.iter("item"):
-            guid_el = item.find("guid")
-            link_el = item.find("link")
-            title_el = item.find("title")
-            date_el = item.find("pubDate")
-            desc_el = item.find("description")
-            title = (title_el.text if title_el is not None else "") or ""
-            description = _strip_html(desc_el.text if desc_el is not None else "")
+        except (OSError, http.client.HTTPException):
+            transient_failure = True
+            continue
+        except (ET.ParseError, ProviderResponseError):
+            response_failure = True
+            continue
+        for normalized in parsed:
+            title = normalized["title"]
+            description = normalized["body"]
             if required_identities:
                 haystack = f"{title} {description}".casefold()
                 if not any(identity.casefold() in haystack
                            for identity in required_identities):
                     continue
-            ext_id = (guid_el.text if guid_el is not None else None) or \
-                     (link_el.text if link_el is not None else None)
-            if not ext_id:
-                continue
             rows.append(_row(
-                "news", ext_id, ticker, now,
-                created_utc=_rfc822_to_epoch(date_el.text if date_el is not None else None),
+                "news", normalized["external_id"], ticker, now,
+                author=normalized["publisher"],
+                created_utc=normalized["created_utc"],
                 title=title,
                 body=description,
+                metadata=normalized["metadata"],
             ))
         time.sleep(0.5)
+    if response_failure:
+        raise ProviderResponseError("company-news RSS feed set violated the response contract")
+    if transient_failure:
+        raise ProviderTransientError(
+            "company-news RSS feed set was incomplete; absence was not observed"
+        )
     return rows
 
 
@@ -1075,14 +1464,17 @@ def fetch_polymarket_odds(topic: str, now: float, theme: str,
     rows = []
     for m in iter_forward_markets(topic, limit):
         prices = _parse_json_list(m.get("outcomePrices"))
-        try:
-            prob = float(prices[0])
-        except (ValueError, IndexError):
-            continue
-        market_id = str(m.get("id") or m.get("conditionId") or m.get("slug")
-                        or m.get("question") or "")
-        if not market_id:
-            continue
+        prob = float(prices[0])
+        market_id = next(
+            (
+                _required_external_id(m.get(field))
+                for field in ("id", "conditionId", "slug")
+                if m.get(field) is not None
+            ),
+            None,
+        )
+        if market_id is None:
+            raise ProviderResponseError("Polymarket market identity was missing")
         rows.append({
             "theme": theme,
             "topic": topic,

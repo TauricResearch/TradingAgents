@@ -8,9 +8,9 @@ canonical pattern:
    not support structured output (rare; mostly older Ollama models), the
    wrap is skipped and the agent uses free-text generation instead.
 2. At invocation, run the structured call and render the result back to
-   markdown. If the structured call itself fails for any reason
-   (malformed JSON from a weak model, transient provider issue), fall
-   back to a plain ``llm.invoke`` so the pipeline never blocks.
+   markdown. Output-shape failures get one plain-text fallback. Provider
+   availability failures propagate because a second request cannot repair
+   authentication, throttling, or a network outage.
 
 Centralising the pattern here keeps the agent factories small and ensures
 all three agents log the same warnings when fallback fires.
@@ -20,9 +20,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from json import JSONDecodeError
 from typing import Any, TypeVar
 
-from pydantic import BaseModel
+from langchain_core.exceptions import OutputParserException
+from pydantic import BaseModel, ValidationError
+
+from tradingagents.logging_utils import safe_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -38,20 +42,35 @@ NO_EXTERNAL_TOOLS = (
     "or search the web; if something is missing, say so explicitly."
 )
 
+_PARSE_ERRORS = (
+    OutputParserException,
+    ValidationError,
+    JSONDecodeError,
+    NotImplementedError,
+)
+
 
 def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
     """Return ``llm.with_structured_output(schema)`` or ``None`` if unsupported.
 
-    Logs a warning when the binding fails so the user understands the agent
+    Logs an informational event when binding fails so the user understands the agent
     will use free-text generation for every call instead of one-shot fallback.
     """
+    binder = getattr(llm, "with_structured_output", None)
+    if binder is None:
+        logger.info(
+            "%s: provider does not support with_structured_output; "
+            "falling back to free-text generation",
+            agent_name,
+        )
+        return None
     try:
-        return llm.with_structured_output(schema)
-    except (NotImplementedError, AttributeError) as exc:
-        logger.warning(
+        return binder(schema)
+    except NotImplementedError as exc:
+        logger.info(
             "%s: provider does not support with_structured_output (%s); "
             "falling back to free-text generation",
-            agent_name, exc,
+            agent_name, safe_exception_type(exc),
         )
         return None
 
@@ -63,7 +82,7 @@ def invoke_structured_or_freetext(
     render: Callable[[T], str],
     agent_name: str,
 ) -> str:
-    """Run the structured call and render to markdown; fall back to free-text on any failure.
+    """Render structured output, with one fallback for output-shape failures.
 
     ``prompt`` is whatever the underlying LLM accepts (a string for chat
     invocations, a list of message dicts for chat models that take that
@@ -73,16 +92,18 @@ def invoke_structured_or_freetext(
     if structured_llm is not None:
         try:
             result = structured_llm.invoke(prompt)
-            if result is None:
-                # A thinking model can answer in plain text instead of calling
-                # the tool, leaving the parser with nothing to return. Treat it
-                # as a structured miss and fall back, with a clear reason.
-                raise ValueError("structured output returned no parsed result")
-            return render(result)
-        except Exception as exc:
-            logger.warning(
+        except _PARSE_ERRORS as exc:
+            logger.info(
                 "%s: structured-output invocation failed (%s); retrying once as free text",
-                agent_name, exc,
+                agent_name, safe_exception_type(exc),
+            )
+        else:
+            if result is not None:
+                return render(result)
+            logger.info(
+                "%s: structured output returned no parsed result; "
+                "retrying once as free text",
+                agent_name,
             )
 
     response = plain_llm.invoke(prompt)

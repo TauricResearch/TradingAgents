@@ -10,11 +10,14 @@ sends, not merely that the constant is referenced in the module.
 """
 from __future__ import annotations
 
-import inspect
 from unittest.mock import MagicMock
 
 import pytest
+from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableLambda
 
+import tradingagents.agents.analysts.market_analyst as market
+import tradingagents.agents.analysts.news_analyst as news
 import tradingagents.agents.analysts.sentiment_analyst as sentiment
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
@@ -41,6 +44,17 @@ def _prompt_text(prompt) -> str:
     for m in prompt:
         parts.append(m.get("content", "") if isinstance(m, dict) else getattr(m, "content", ""))
     return "\n".join(str(p) for p in parts)
+
+
+def _tool_calling_llm(captured: dict):
+    llm = MagicMock()
+
+    def respond(prompt):
+        captured["prompt"] = prompt.to_messages()
+        return AIMessage(content="done")
+
+    llm.bind_tools.return_value = RunnableLambda(respond)
+    return llm
 
 
 @pytest.mark.unit
@@ -165,13 +179,32 @@ def test_sentiment_historical_mode_uses_only_collected_blocks(monkeypatch):
 
 
 @pytest.mark.unit
-def test_tool_using_analysts_keep_their_date_guidance():
-    # The analysts that really do call tools keep the wording that anchors their
-    # tool date ranges (#836) — this fix is scoped to no-tool agents.
-    import tradingagents.agents.analysts.market_analyst as market
-    import tradingagents.agents.analysts.news_analyst as news
-    for module in (market, news):
-        assert "tool-call date ranges" in inspect.getsource(module)
+def test_tool_using_analysts_keep_their_date_guidance(monkeypatch):
+    # Exercise the rendered prompt, not comments or implementation source.
+    monkeypatch.setattr(news, "collected_media_enabled", lambda: False)
+    cases = (
+        (
+            market.create_market_analyst,
+            {
+                "company_of_interest": "NVDA",
+                "trade_date": "2026-01-15",
+                "messages": [],
+            },
+        ),
+        (
+            news.create_news_analyst,
+            {
+                "company_of_interest": "NVDA",
+                "trade_date": "2026-01-15",
+                "asset_type": "stock",
+                "messages": [],
+            },
+        ),
+    )
+    for factory, state in cases:
+        captured = {}
+        factory(_tool_calling_llm(captured))(state)
+        assert "tool-call date ranges" in _prompt_text(captured["prompt"])
 
 
 @pytest.mark.unit

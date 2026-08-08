@@ -53,11 +53,11 @@ poller = [
 ]
 
 [project.scripts]
-tradingagents = "cli.main:app"
-tradingagents-poller = "tradingagents.poller:_main_entrypoint"
-tradingagents-backtest = "tradingagents.backtest:main"
-tradingagents-walkforward = "tradingagents.walkforward:main"
-tradingagents-research = "tradingagents.research.cli:main"
+tradingagents = "cli.entrypoints:interactive"
+tradingagents-poller = "cli.entrypoints:poller"
+tradingagents-backtest = "cli.entrypoints:backtest"
+tradingagents-walkforward = "cli.entrypoints:walkforward"
+tradingagents-research = "cli.entrypoints:research"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
@@ -73,8 +73,10 @@ markers = [
     "integration: tests requiring external services",
     "smoke: quick sanity-check tests",
 ]
+# Warning-producing behavior tests carry narrow message/category filters locally.
+# Everything else is a regression, including dependency deprecations and leaks.
 filterwarnings = [
-    "ignore::DeprecationWarning",
+    "error",
 ]
 
 [tool.ruff]

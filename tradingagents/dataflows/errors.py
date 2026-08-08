@@ -13,6 +13,9 @@ these (or a thin vendor-named subclass) and needs no new ``except`` clause.
 The number of types is the number of distinct router reactions, not the number
 of human-describable causes: empty and stale data get identical handling, so
 they share ``NoMarketDataError`` and differ only in the free-text ``detail``.
+
+Collector-facing HTTP adapters use the two ``Provider*Error`` types below so a
+failed observation can never be persisted as a successful empty response.
 """
 
 from __future__ import annotations
@@ -53,3 +56,11 @@ class VendorNotConfiguredError(VendorError, ValueError):
     Also a ``ValueError`` so existing callers that catch ``ValueError`` keep
     working while the routing layer can treat it as "vendor unavailable".
     """
+
+
+class ProviderResponseError(RuntimeError):
+    """A provider returned a response that cannot be treated as observations."""
+
+
+class ProviderTransientError(RuntimeError):
+    """A provider request failed before a response was observed."""

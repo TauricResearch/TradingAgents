@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from tradingagents import backtest
+from tradingagents.logging_utils import safe_exception_type
 
 
 @dataclass(frozen=True)
@@ -266,7 +268,6 @@ def _backtest_command(args, fold: WalkForwardFold, output: Path) -> list[str]:
         "--end", fold.evaluation_end,
         "--benchmark", args.benchmark,
         "--analysts", args.analysts,
-        "--db", args.db,
         "--output", str(output),
         "--max-runs", str(args.max_runs_per_fold),
         "--replicates", str(args.replicates),
@@ -293,7 +294,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--tickers", required=True)
     parser.add_argument("--start", required=True, help="First available session")
     parser.add_argument("--end", required=True, help="Last available session")
-    parser.add_argument("--db", required=True)
+    parser.add_argument(
+        "--db",
+        default=os.getenv("MEDIA_DB_URL") or os.getenv("DATABASE_URL"),
+        help="Captured-media database (prefer MEDIA_DB_URL so credentials stay out of argv)",
+    )
     parser.add_argument("--output-dir", default="results/walk-forward")
     parser.add_argument("--benchmark", default="SPY")
     parser.add_argument("--train-sessions", type=int, default=60)
@@ -332,6 +337,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args(argv)
 
+    if not args.db:
+        parser.error("captured-media database required: set MEDIA_DB_URL or pass --db")
     if args.start > args.end:
         parser.error("--start must be on or before --end")
     if args.holdout_sessions < 0:
@@ -431,11 +438,13 @@ def main(argv: list[str] | None = None) -> None:
             f"evaluate {fold.evaluation_start}..{fold.evaluation_end}"
         )
         if args.dry_run:
-            display = command.copy()
-            display[display.index("--db") + 1] = "<redacted>"
-            print("  " + " ".join(display))
+            print("  " + " ".join(command))
         else:
-            subprocess.run(command, check=True)
+            subprocess.run(
+                command,
+                check=True,
+                env={**os.environ, "MEDIA_DB_URL": args.db},
+            )
 
     if args.dry_run:
         print("Dry run complete; existing fold artifacts were not summarized.")
@@ -462,5 +471,14 @@ def main(argv: list[str] | None = None) -> None:
     )
 
 
+def _main_entrypoint() -> None:
+    """Exit nonzero without rendering provider or database exception text."""
+    try:
+        main()
+    except Exception as exc:  # noqa: BLE001 - sanitize the executable boundary
+        print(f"Walk-forward failed ({safe_exception_type(exc)})", file=sys.stderr)
+        raise SystemExit(1) from None
+
+
 if __name__ == "__main__":
-    main()
+    _main_entrypoint()

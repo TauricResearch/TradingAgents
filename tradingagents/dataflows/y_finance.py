@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Annotated
 
@@ -5,6 +6,9 @@ import pandas as pd
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
+from tradingagents.logging_utils import safe_exception_type
+
+from .errors import VendorError
 from .stockstats_utils import (
     StockstatsUtils,
     _assert_ohlcv_not_stale,
@@ -13,6 +17,14 @@ from .stockstats_utils import (
     yf_retry,
 )
 from .symbol_utils import NoMarketDataError, normalize_symbol
+
+logger = logging.getLogger(__name__)
+
+
+def _request_error(operation: str, exc: BaseException) -> VendorError:
+    return VendorError(
+        f"Yahoo Finance {operation} failed ({safe_exception_type(exc)})"
+    )
 
 
 def get_YFin_data_online(
@@ -187,8 +199,11 @@ def get_stock_stats_indicators_window(
 
     except NoMarketDataError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
-    except Exception as e:
-        print(f"Error getting bulk stockstats data: {e}")
+    except Exception as exc:
+        logger.info(
+            "Bulk stockstats calculation failed (%s); using daily fallback",
+            safe_exception_type(exc),
+        )
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -262,9 +277,10 @@ def get_stockstats_indicator(
         )
     except NoMarketDataError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
-    except Exception as e:
-        print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
+    except Exception as exc:
+        logger.info(
+            "Stockstats indicator calculation failed for %s on %s (%s)",
+            indicator, curr_date, safe_exception_type(exc),
         )
         return ""
 
@@ -334,8 +350,8 @@ def get_fundamentals(
 
     except NoMarketDataError:
         raise
-    except Exception as e:
-        return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+    except Exception as exc:
+        raise _request_error("fundamentals request", exc) from None
 
 
 def get_balance_sheet(
@@ -369,8 +385,8 @@ def get_balance_sheet(
 
     except NoMarketDataError:
         raise
-    except Exception as e:
-        return f"Error retrieving balance sheet for {ticker}: {str(e)}"
+    except Exception as exc:
+        raise _request_error("balance-sheet request", exc) from None
 
 
 def get_cashflow(
@@ -404,8 +420,8 @@ def get_cashflow(
 
     except NoMarketDataError:
         raise
-    except Exception as e:
-        return f"Error retrieving cash flow for {ticker}: {str(e)}"
+    except Exception as exc:
+        raise _request_error("cash-flow request", exc) from None
 
 
 def get_income_statement(
@@ -439,8 +455,8 @@ def get_income_statement(
 
     except NoMarketDataError:
         raise
-    except Exception as e:
-        return f"Error retrieving income statement for {ticker}: {str(e)}"
+    except Exception as exc:
+        raise _request_error("income-statement request", exc) from None
 
 
 def get_insider_transactions(
@@ -466,5 +482,5 @@ def get_insider_transactions(
 
         return header + csv_string
 
-    except Exception as e:
-        return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+    except Exception as exc:
+        raise _request_error("insider-transactions request", exc) from None

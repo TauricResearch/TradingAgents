@@ -34,6 +34,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tradingagents.evidence_lineage import evidence_id, raw_content_id
+from tradingagents.logging_utils import safe_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -310,11 +311,6 @@ def _collector_postgres_column_contract_valid(column, actual: dict) -> bool:
     )
 
 
-def _safe_exception_kind(exc: BaseException) -> str:
-    kind = type(exc).__name__
-    return kind if kind.isidentifier() and len(kind) <= 64 else "Exception"
-
-
 _POSTGRES_TRANSACTION_SETTINGS = (
     "SET LOCAL lock_timeout=5000",
     "SET LOCAL statement_timeout=60000",
@@ -365,7 +361,7 @@ def _install_postgres_transaction_settings(engine) -> None:
 
 
 def _collector_preflight_failure_type(exc: BaseException) -> str:
-    kind = _safe_exception_kind(exc)
+    kind = safe_exception_type(exc)
     return (
         kind
         if kind in _COLLECTOR_PREFLIGHT_FAILURE_TYPES
@@ -508,7 +504,7 @@ class _PostgresCollectorLease:
             except Exception as exc:  # noqa: BLE001 - callback cannot kill monitor
                 logger.error(
                     "Collector lease loss callback failed (%s)",
-                    _safe_exception_kind(exc),
+                    safe_exception_type(exc),
                 )
 
     def _heartbeat_loop(self) -> None:
@@ -530,7 +526,7 @@ class _PostgresCollectorLease:
                     self._mark_lost("CollectorLeaseOwnershipLost")
                     return
             except Exception as exc:  # noqa: BLE001 - convert to sanitized state
-                self._mark_lost(_safe_exception_kind(exc))
+                self._mark_lost(safe_exception_type(exc))
                 return
 
     def close(self) -> None:
@@ -562,7 +558,7 @@ class _PostgresCollectorLease:
                 except Exception as exc:  # noqa: BLE001 - teardown is best effort
                     logger.warning(
                         "Could not release collector singleton lease (%s)",
-                        _safe_exception_kind(exc),
+                        safe_exception_type(exc),
                     )
                 finally:
                     try:
@@ -570,7 +566,7 @@ class _PostgresCollectorLease:
                     except Exception as exc:  # noqa: BLE001
                         logger.warning(
                             "Could not close collector lease connection (%s)",
-                            _safe_exception_kind(exc),
+                            safe_exception_type(exc),
                         )
             if engine is not None:
                 try:
@@ -578,7 +574,7 @@ class _PostgresCollectorLease:
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
                         "Could not dispose collector lease engine (%s)",
-                        _safe_exception_kind(exc),
+                        safe_exception_type(exc),
                     )
 
 
@@ -913,22 +909,29 @@ def _cycle_receipts_with_lineage(
     return result
 
 
+def _cycle_item_snapshot(item: dict) -> dict:
+    try:
+        metadata = (
+            json.loads(item["metadata_json"])
+            if item.get("metadata_json") is not None else {}
+        )
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("collection cycle item metadata is malformed") from exc
+    stored = {column: item.get(f"stored_{column}") for column in COLUMNS}
+    if stored.get("source") == "x" and isinstance(metadata, dict):
+        observed_author = metadata.get("author_username")
+        if isinstance(observed_author, str) and observed_author.strip():
+            stored["author"] = observed_author
+    if metadata:
+        stored["metadata"] = metadata
+    return stored
+
+
 def _verified_cycle_item_rows(rows: list[dict]) -> list[dict]:
     """Recompute each persisted raw ID from its exact point-in-time media row."""
     verified = []
     for item in rows:
-        try:
-            metadata = (
-                json.loads(item["metadata_json"])
-                if item.get("metadata_json") is not None else {}
-            )
-        except (TypeError, json.JSONDecodeError) as exc:
-            raise ValueError("collection cycle item metadata is malformed") from exc
-        stored = {
-            column: item.get(f"stored_{column}") for column in COLUMNS
-        }
-        if metadata:
-            stored["metadata"] = metadata
+        stored = _cycle_item_snapshot(item)
         if raw_content_id(stored) != item.get("raw_content_id"):
             raise ValueError("collection cycle raw-content replay detected tampering")
         verified.append({
@@ -936,6 +939,23 @@ def _verified_cycle_item_rows(rows: list[dict]) -> list[dict]:
             "raw_content_id": item.get("raw_content_id"),
         })
     return verified
+
+
+def _materialized_cycle_item_rows(rows: list[dict]) -> list[dict]:
+    """Return exact stored item snapshots after replaying their raw identities."""
+    _verified_cycle_item_rows(rows)
+    materialized = []
+    for item in rows:
+        row = _cycle_item_snapshot(item)
+        row["fetched_utc"] = item.get("observed_utc")
+        row["latest_observed_utc"] = item.get("server_terminal_utc")
+        row["latest_observed_utc_source"] = "server_terminal_utc"
+        materialized.append({
+            "fetch_run_id": item.get("fetch_run_id"),
+            "raw_content_id": item.get("raw_content_id"),
+            "row": row,
+        })
+    return materialized
 
 
 def _attach_collection_cycle_payloads(cycle: dict) -> dict:
@@ -1362,7 +1382,7 @@ def _coverage_reason(
     if not isinstance(collector_build_id, str) \
             or _COLLECTOR_BUILD_ID.fullmatch(collector_build_id) is None:
         return "untrusted_build"
-    if server_terminal > cutoff_utc:
+    if server_terminal >= cutoff_utc:
         return "incomplete"
     if cutoff_utc - server_terminal > max_age_seconds:
         return "stale"
@@ -1452,6 +1472,198 @@ def _coverage_result(
         "missing_query_slots": missing_slots,
         "cutoff_utc": cutoff_utc,
     }
+
+
+_COVERAGE_REPORT_KEYS = frozenset({
+    "complete", "sources", "missing_source_groups", "query_slots",
+    "missing_query_slots", "cutoff_utc",
+})
+_COVERAGE_QUERY_SLOT_KEYS = frozenset({
+    "provider", "query_key", "run", "allow_empty", "require_eligible",
+    "require_lineage", "healthy", "reason",
+})
+_COVERAGE_RUN_KEYS = frozenset({
+    *FETCH_RUN_COLUMNS,
+    "formal_eligible_evidence_ids",
+    "formal_eligible_lineage",
+})
+
+
+def _coverage_number(value: object, name: str) -> float:
+    try:
+        number = float(value) if not isinstance(value, bool) else math.nan
+    except (OverflowError, TypeError, ValueError):
+        number = math.nan
+    if not isinstance(value, (int, float)) or not math.isfinite(number):
+        raise ValueError(f"coverage {name} must be a finite number")
+    return number
+
+
+def _validate_coverage_run(
+    run: object, *, provider: str, cutoff_utc: float, query_key: str | None = None,
+    min_started_utc: float | None = None,
+) -> None:
+    """Validate one self-contained receipt copied into a coverage report."""
+    if not isinstance(run, dict) or set(run) != _COVERAGE_RUN_KEYS:
+        raise ValueError("coverage run does not have the canonical receipt shape")
+    if run["provider"] != provider or (
+        query_key is not None and run["query_key"] != query_key
+    ):
+        raise ValueError("coverage run differs from its provider/query wrapper")
+    if not isinstance(run["query_key"], str) or not run["query_key"]:
+        raise ValueError("coverage run lacks query provenance")
+    fetch_run_id = run["fetch_run_id"]
+    try:
+        canonical_run_id = str(uuid.UUID(fetch_run_id))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("coverage run ID is not a canonical UUID") from exc
+    if canonical_run_id != fetch_run_id:
+        raise ValueError("coverage run ID is not a canonical UUID")
+    if _terminal_receipt_reason(run) is not None:
+        raise ValueError("coverage run is not a coherent terminal receipt")
+    server_started = _coverage_number(
+        run["server_started_utc"], "run server start"
+    )
+    server_terminal = _coverage_number(
+        run["server_terminal_utc"], "run server terminal"
+    )
+    if server_started > server_terminal or server_terminal >= cutoff_utc:
+        raise ValueError("coverage run falls outside the strict cutoff")
+    if min_started_utc is not None and server_started < min_started_utc:
+        raise ValueError("coverage query run predates the required cycle")
+    collector_build_id = run["collector_build_id"]
+    if not isinstance(collector_build_id, str) \
+            or _COLLECTOR_BUILD_ID.fullmatch(collector_build_id) is None:
+        raise ValueError("coverage run lacks trusted collector build provenance")
+    decoded = _attach_formal_evidence_ids({
+        key: run[key] for key in FETCH_RUN_COLUMNS
+    })
+    if decoded != run:
+        raise ValueError("coverage run decoded lineage differs from its receipt")
+
+
+def validate_coverage_report(
+    report: object,
+    cutoff_utc: float,
+    required_source_groups: list[list[str]],
+    *,
+    max_age_seconds: float = 108000.0,
+    expected_query_slots: list[QuerySlot] | None = None,
+    allow_empty_query_slots: list[QuerySlot] | None = None,
+    require_eligible_query_slots: list[QuerySlot] | None = None,
+    require_lineage_query_slots: list[QuerySlot] | None = None,
+    min_started_utc: float | None = None,
+) -> None:
+    """Replay a persisted coverage report from its embedded terminal receipts.
+
+    This is deliberately pure: an artifact consumer can reject a forged or
+    truncated summary without database access and without trusting its stored
+    ``complete``/``healthy`` fields.
+    """
+    cutoff = _coverage_number(cutoff_utc, "cutoff")
+    max_age = _coverage_number(max_age_seconds, "maximum age")
+    if max_age <= 0:
+        raise ValueError("coverage maximum age must be positive")
+    lower_bound = None
+    if min_started_utc is not None:
+        lower_bound = _coverage_number(min_started_utc, "minimum start")
+        if lower_bound >= cutoff:
+            raise ValueError("coverage minimum start must precede its cutoff")
+    if not isinstance(required_source_groups, list) or any(
+        not isinstance(group, list)
+        or not group
+        or any(not isinstance(provider, str) or not provider for provider in group)
+        or len(group) != len(set(group))
+        for group in required_source_groups
+    ):
+        raise ValueError("coverage source groups must be non-empty unique string lists")
+
+    expected = _normalize_query_slots(expected_query_slots)
+    allow_empty = _normalize_query_slots(allow_empty_query_slots)
+    require_eligible = _normalize_query_slots(require_eligible_query_slots)
+    require_lineage = _normalize_query_slots(require_lineage_query_slots)
+    for supplied, normalized in (
+        (expected_query_slots, expected),
+        (allow_empty_query_slots, allow_empty),
+        (require_eligible_query_slots, require_eligible),
+        (require_lineage_query_slots, require_lineage),
+    ):
+        if supplied is not None and len(supplied) != len(normalized):
+            raise ValueError("coverage query-slot policies must be unique")
+    expected_set = set(expected)
+    if any(
+        not set(policy).issubset(expected_set)
+        for policy in (allow_empty, require_eligible, require_lineage)
+    ):
+        raise ValueError("coverage query-slot flags refer to an unexpected slot")
+
+    if not isinstance(report, dict) or set(report) != _COVERAGE_REPORT_KEYS:
+        raise ValueError("coverage report does not have the canonical core shape")
+    if not isinstance(report["complete"], bool):
+        raise ValueError("coverage completeness must be boolean")
+    if _coverage_number(report["cutoff_utc"], "report cutoff") != cutoff:
+        raise ValueError("coverage report cutoff differs from its snapshot")
+
+    expected_providers = {
+        provider for group in required_source_groups for provider in group
+    }
+    sources = report["sources"]
+    if not isinstance(sources, dict) or set(sources) != expected_providers:
+        raise ValueError("coverage source wrappers differ from the frozen policy")
+    for provider, run in sources.items():
+        if run is not None:
+            _validate_coverage_run(run, provider=provider, cutoff_utc=cutoff)
+
+    slots = report["query_slots"]
+    if not isinstance(slots, list) or len(slots) != len(expected):
+        raise ValueError("coverage query wrappers differ from the frozen policy")
+    query_statuses = []
+    allow_empty_set = set(allow_empty)
+    require_eligible_set = set(require_eligible)
+    require_lineage_set = set(require_lineage)
+    for slot, (provider, query_key) in zip(slots, expected, strict=True):
+        if not isinstance(slot, dict) or set(slot) != _COVERAGE_QUERY_SLOT_KEYS:
+            raise ValueError("coverage query wrapper is not canonical")
+        pair = (provider, query_key)
+        flags = {
+            "allow_empty": pair in allow_empty_set,
+            "require_eligible": pair in require_eligible_set,
+            "require_lineage": pair in require_lineage_set,
+        }
+        if slot["provider"] != provider or slot["query_key"] != query_key or any(
+            not isinstance(slot[name], bool) or slot[name] is not value
+            for name, value in flags.items()
+        ):
+            raise ValueError("coverage query wrapper differs from the frozen policy")
+        if not isinstance(slot["healthy"], bool) or (
+            slot["reason"] is not None and not isinstance(slot["reason"], str)
+        ):
+            raise ValueError("coverage query result is not canonical")
+        run = slot["run"]
+        if run is not None:
+            _validate_coverage_run(
+                run,
+                provider=provider,
+                query_key=query_key,
+                cutoff_utc=cutoff,
+                min_started_utc=lower_bound,
+            )
+        query_statuses.append({
+            "provider": provider,
+            "query_key": query_key,
+            "run": run,
+            **flags,
+        })
+
+    recomputed = _coverage_result(
+        cutoff_utc=cutoff,
+        required_source_groups=required_source_groups,
+        source_statuses=sources,
+        query_statuses=query_statuses,
+        max_age_seconds=max_age,
+    )
+    if report != recomputed:
+        raise ValueError("coverage report does not replay from its receipts")
 
 
 def _odds_asof_sql(theme_clause: str) -> str:
@@ -2716,7 +2928,8 @@ class SqliteMediaStore:
             "WHERE collection_cycle_id=?", (cycle_id,),
         ).fetchall() if row else []
         item_rows = self.conn.execute(
-            "SELECT item.fetch_run_id,item.raw_content_id,"
+            "SELECT item.fetch_run_id,item.raw_content_id,item.observed_utc,"
+            "run.server_terminal_utc,"
             + ",".join(
                 f"post.{column} AS stored_{column}" for column in COLUMNS
             )
@@ -2740,20 +2953,23 @@ class SqliteMediaStore:
             ),
         ) if row else None
 
-    def collection_cycle_identity_pairs(
-        self, cycle_kind: str,
-    ) -> list[tuple[str, str]]:
-        """Return every immutable protocol/collector pair seen for one cycle kind."""
+    def collection_cycle_identities(
+        self, cycle_kind: str, *, period_key: str,
+    ) -> list[dict[str, str]]:
+        """Return the exact same-period cycle IDs and narrow identities."""
         kind = _validated_cycle_text(cycle_kind, "kind", max_bytes=64)
         if _COLLECTION_CYCLE_KIND.fullmatch(kind) is None:
             raise ValueError("collection cycle kind must be a lowercase slug")
+        period = _validated_cycle_text(period_key, "period key", max_bytes=128)
+        self.conn.row_factory = sqlite3.Row
         rows = self.conn.execute(
-            "SELECT DISTINCT protocol_id,collector_semantics_id "
-            "FROM collection_cycles WHERE cycle_kind=? "
-            "ORDER BY protocol_id,collector_semantics_id",
-            (kind,),
+            "SELECT collection_cycle_id,protocol_id,collector_semantics_id "
+            "FROM collection_cycles WHERE cycle_kind=? AND period_key=? "
+            "ORDER BY collection_cycle_id",
+            (kind, period),
         ).fetchall()
-        return [(row[0], row[1]) for row in rows]
+        self.conn.row_factory = None
+        return [dict(row) for row in rows]
 
     def collection_cycle_slots(self, collection_cycle_id: str) -> list[dict]:
         cycle_id = _validated_collection_cycle_id(collection_cycle_id)
@@ -2795,6 +3011,39 @@ class SqliteMediaStore:
         return _verified_cycle_formal_lineage(
             [dict(row) for row in receipts], [dict(row) for row in items]
         )
+
+    def collection_cycle_item_rows(
+        self, collection_cycle_id: str, *, provider: str, query_key: str,
+    ) -> list[dict]:
+        """Replay exact stored rows for one child receipt of a valid terminal cycle."""
+        cycle_id = _validated_collection_cycle_id(collection_cycle_id)
+        provider, query_key = _normalize_query_slots([(provider, query_key)])[0]
+        cycle = self.collection_cycle(cycle_id)
+        if cycle is None or cycle.get("status") not in {"complete", "incomplete"} \
+                or not cycle.get("manifest_valid"):
+            raise ValueError("cycle item replay requires a valid terminal cycle")
+        self.conn.row_factory = sqlite3.Row
+        rows = self.conn.execute(
+            "SELECT item.fetch_run_id,item.raw_content_id,item.observed_utc,"
+            "run.server_terminal_utc,"
+            + ",".join(
+                f"post.{column} AS stored_{column}" for column in COLUMNS
+            )
+            + ",observation.metadata_json "
+            "FROM fetch_run_items AS item JOIN fetch_runs AS run "
+            "ON run.fetch_run_id=item.fetch_run_id "
+            "JOIN media_posts AS post ON post.source=item.source "
+            "AND post.external_id=item.external_id "
+            "LEFT JOIN media_observations AS observation "
+            "ON observation.source=item.source "
+            "AND observation.external_id=item.external_id "
+            "AND observation.observed_utc=item.observed_utc "
+            "WHERE run.collection_cycle_id=? AND run.provider=? "
+            "AND run.query_key=? ORDER BY item.raw_content_id,item.fetch_run_id",
+            (cycle_id, provider, query_key),
+        ).fetchall()
+        self.conn.row_factory = None
+        return _materialized_cycle_item_rows([dict(row) for row in rows])
 
     def _validate_cycle_fetch_binding(
         self, collection_cycle_id: str | None, provider: str,
@@ -3096,13 +3345,15 @@ class SqliteMediaStore:
         ``require_lineage_query_slots`` requires an exact canonical eligible-ID
         count/list while accepting ``0``/``[]`` as an observed absence;
         ``require_eligible_query_slots`` additionally requires at least one ID.
+        ``not_run`` means no terminal receipt existed before the strict cutoff;
+        a request that completed later cannot reveal its eventual outcome here.
         """
         statuses: dict[str, dict | None] = {}
         for group in required_source_groups:
             for provider in group:
                 row = self.conn.execute(
                     f"SELECT {','.join(FETCH_RUN_COLUMNS)} FROM fetch_runs "
-                    "WHERE provider=? AND server_terminal_utc<=? "
+                    "WHERE provider=? AND server_terminal_utc<? "
                     "ORDER BY server_terminal_utc DESC,fetch_run_id DESC LIMIT 1",
                     (provider, cutoff_utc),
                 ).fetchone()
@@ -3117,7 +3368,7 @@ class SqliteMediaStore:
         for provider, query_key in _normalize_query_slots(expected_query_slots):
             sql = (
                 f"SELECT {','.join(FETCH_RUN_COLUMNS)} FROM fetch_runs "
-                "WHERE provider=? AND query_key=? AND server_started_utc<=?"
+                "WHERE provider=? AND query_key=? AND server_terminal_utc<?"
             )
             params: list = [provider, query_key, cutoff_utc]
             if min_started_utc is not None:
@@ -3125,7 +3376,7 @@ class SqliteMediaStore:
                 params.append(min_started_utc)
             row = self.conn.execute(
                 sql
-                + " ORDER BY server_started_utc DESC,fetch_run_id DESC LIMIT 1",
+                + " ORDER BY server_terminal_utc DESC,fetch_run_id DESC LIMIT 1",
                 params,
             ).fetchone()
             run = (
@@ -4810,26 +5061,26 @@ class SqlAlchemyMediaStore:
             ),
         ) if row else None
 
-    def collection_cycle_identity_pairs(
-        self, cycle_kind: str,
-    ) -> list[tuple[str, str]]:
-        """Return every immutable protocol/collector pair seen for one cycle kind."""
+    def collection_cycle_identities(
+        self, cycle_kind: str, *, period_key: str,
+    ) -> list[dict[str, str]]:
+        """Return the exact same-period cycle IDs and narrow identities."""
         from sqlalchemy import select
 
         kind = _validated_cycle_text(cycle_kind, "kind", max_bytes=64)
         if _COLLECTION_CYCLE_KIND.fullmatch(kind) is None:
             raise ValueError("collection cycle kind must be a lowercase slug")
+        period = _validated_cycle_text(period_key, "period key", max_bytes=128)
         statement = select(
+            self.cycles.c.collection_cycle_id,
             self.cycles.c.protocol_id,
             self.cycles.c.collector_semantics_id,
         ).where(
-            self.cycles.c.cycle_kind == kind
-        ).distinct().order_by(
-            self.cycles.c.protocol_id,
-            self.cycles.c.collector_semantics_id,
-        )
+            self.cycles.c.cycle_kind == kind,
+            self.cycles.c.period_key == period,
+        ).order_by(self.cycles.c.collection_cycle_id)
         with self.engine.connect() as conn:
-            return [tuple(row) for row in conn.execute(statement).all()]
+            return [dict(row) for row in conn.execute(statement).mappings()]
 
     def collection_cycle_slots(self, collection_cycle_id: str) -> list[dict]:
         from sqlalchemy import case, select
@@ -4885,6 +5136,63 @@ class SqlAlchemyMediaStore:
                 self.fetch_items_table.c.fetch_run_id,
             )).mappings()]
         return _verified_cycle_formal_lineage(receipts, items)
+
+    def collection_cycle_item_rows(
+        self, collection_cycle_id: str, *, provider: str, query_key: str,
+    ) -> list[dict]:
+        """Replay exact stored rows for one child receipt of a valid terminal cycle."""
+        from sqlalchemy import and_, select
+
+        cycle_id = _validated_collection_cycle_id(collection_cycle_id)
+        provider, query_key = _normalize_query_slots([(provider, query_key)])[0]
+        cycle = self.collection_cycle(cycle_id)
+        if cycle is None or cycle.get("status") not in {"complete", "incomplete"} \
+                or not cycle.get("manifest_valid"):
+            raise ValueError("cycle item replay requires a valid terminal cycle")
+        statement = select(
+            self.fetch_items_table.c.fetch_run_id,
+            self.fetch_items_table.c.raw_content_id,
+            self.fetch_items_table.c.observed_utc,
+            self.fetches.c.server_terminal_utc,
+            *[
+                self.table.c[column].label(f"stored_{column}")
+                for column in COLUMNS
+            ],
+            self.observations.c.metadata_json.label("metadata_json"),
+        ).select_from(
+            self.fetch_items_table.join(
+                self.fetches,
+                self.fetches.c.fetch_run_id
+                == self.fetch_items_table.c.fetch_run_id,
+            ).join(
+                self.table,
+                and_(
+                    self.table.c.source == self.fetch_items_table.c.source,
+                    self.table.c.external_id
+                    == self.fetch_items_table.c.external_id,
+                ),
+            ).outerjoin(
+                self.observations,
+                and_(
+                    self.observations.c.source
+                    == self.fetch_items_table.c.source,
+                    self.observations.c.external_id
+                    == self.fetch_items_table.c.external_id,
+                    self.observations.c.observed_utc
+                    == self.fetch_items_table.c.observed_utc,
+                ),
+            )
+        ).where(
+            self.fetches.c.collection_cycle_id == cycle_id,
+            self.fetches.c.provider == provider,
+            self.fetches.c.query_key == query_key,
+        ).order_by(
+            self.fetch_items_table.c.raw_content_id,
+            self.fetch_items_table.c.fetch_run_id,
+        )
+        with self.engine.connect() as conn:
+            rows = [dict(row) for row in conn.execute(statement).mappings()]
+        return _materialized_cycle_item_rows(rows)
 
     def _validate_cycle_fetch_binding(
         self, conn, collection_cycle_id: str | None, provider: str,
@@ -5182,14 +5490,16 @@ class SqlAlchemyMediaStore:
             for provider in group:
                 stmt = select(self.fetches).where(and_(
                     self.fetches.c.provider == provider,
-                    self.fetches.c.server_terminal_utc <= cutoff_utc,
+                    self.fetches.c.server_terminal_utc < cutoff_utc,
                 )).order_by(
                     self.fetches.c.server_terminal_utc.desc(),
                     self.fetches.c.fetch_run_id.desc(),
                 ).limit(1)
                 with self.engine.connect() as conn:
                     row = conn.execute(stmt).mappings().first()
-                statuses[provider] = dict(row) if row else None
+                statuses[provider] = (
+                    _attach_formal_evidence_ids(dict(row)) if row else None
+                )
 
         allow_empty = set(_normalize_query_slots(allow_empty_query_slots))
         require_eligible = set(_normalize_query_slots(require_eligible_query_slots))
@@ -5199,7 +5509,7 @@ class SqlAlchemyMediaStore:
             clauses = [
                 self.fetches.c.provider == provider,
                 self.fetches.c.query_key == query_key,
-                self.fetches.c.server_started_utc <= cutoff_utc,
+                self.fetches.c.server_terminal_utc < cutoff_utc,
             ]
             if min_started_utc is not None:
                 clauses.append(
@@ -5209,7 +5519,7 @@ class SqlAlchemyMediaStore:
                 select(self.fetches)
                 .where(and_(*clauses))
                 .order_by(
-                    self.fetches.c.server_started_utc.desc(),
+                    self.fetches.c.server_terminal_utc.desc(),
                     self.fetches.c.fetch_run_id.desc(),
                 )
                 .limit(1)

@@ -33,25 +33,31 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import inspect
 import logging
 import math
 import os
 import re
+import secrets
 import signal
 import time
 from collections.abc import Mapping
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 
-from tradingagents import global_research, operations
+from tradingagents import global_research
+from tradingagents.collector_contract import (
+    COLLECTOR_POLICY as _GLOBAL_ONLY_COLLECTOR_POLICY,
+    DISCOVERY_POLICY as _DISCOVERY_POLICY,
+    discovery_policy_manifest,
+)
 from tradingagents.collector_health import (
     CollectorHealthState,
     start_collector_health_server,
 )
-from tradingagents.dataflows import media_sources, media_store
+from tradingagents.dataflows import media_store
 from tradingagents.dataflows.media_sources import (
     FETCHERS,
+    GLOBAL_X_ADAPTER_POLICY,
     KEYLESS_SOURCES,
     SELECTABLE_SOURCES,
     ProviderResponseError,
@@ -72,106 +78,120 @@ from tradingagents.global_research import (
     _raw_content_id,
     is_formally_eligible_evidence,
 )
-from tradingagents.operations import emit_alert
+from tradingagents.logging_utils import safe_exception_type as _exception_kind
+from tradingagents.operations import emit_alert, probe_alert_webhook
 from tradingagents.research_protocol import (
+    GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+    GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+    GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_MANIFEST,
+    GLOBAL_EVENT_V2_COMPATIBLE_COLLECTOR_IDENTITIES,
+    GLOBAL_EVENT_V2_CURRENT_COLLECTOR_IDENTITY,
     GLOBAL_EVENT_V2_PROTOCOL,
-    GLOBAL_EVENT_V2_PROTOCOL_ID,
     build_identity,
     canonical_json,
     content_id,
     global_news_query_slot_label,
 )
+from tradingagents.x_cycle import x_cycle_structural_state
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("media_poller")
 
 
-_GLOBAL_ONLY_COLLECTOR_POLICY_VERSION = 2
-_GLOBAL_ONLY_COLLECTOR_POLICY = (
-    f"global-only-editorial-and-trend-reaction-v{_GLOBAL_ONLY_COLLECTOR_POLICY_VERSION}"
-)
 _GLOBAL_ONLY_NEWS_INTERVAL_SECONDS = int(
     GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"]["collector_interval_seconds"]
 )
 _GLOBAL_ONLY_X_INTERVAL_SECONDS = int(
     GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_cycle_interval_seconds"]
 )
-# Filled with the content-derived value after the V2 surface was finalized.
-# Any content-addressed helper change must deliberately update this ID; bump the
-# policy version as well when the economic collection policy itself changes.
-_EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID = "collector_5d8f7d2a7c92e52be419ad17"
-
+_GLOBAL_X_TREND_LIMIT = int(GLOBAL_X_ADAPTER_POLICY["trends"]["result_limit"]["default"])
+_GLOBAL_X_SEARCH_LIMIT = int(
+    GLOBAL_X_ADAPTER_POLICY["recent_search"]["result_limit"]["default"]
+)
+_GLOBAL_X_TOPIC_LIMIT = int(
+    GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_search_requests_per_utc_day"]
+)
+if int(
+    GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_results_per_query"]
+) != _GLOBAL_X_SEARCH_LIMIT:
+    raise RuntimeError("formal X result limit differs from the adapter contract")
 # Coverage alerts are operational state, separate from the immutable evidence
 # ledger. Repeated identical incidents get one notification plus a daily reminder;
 # a transition back to complete coverage emits one recovery notification.
 _COVERAGE_ALERT_STATE_KEY = "poller:coverage_alert_unhealthy"
 _COVERAGE_ALERT_LAST_UTC_KEY = "poller:coverage_alert_last_utc"
-_COVERAGE_ALERT_FINGERPRINT_KEY = "poller:coverage_alert_fingerprint"
+_COVERAGE_ALERT_DELIVERED_KEY = "poller:coverage_alert_incident_delivered"
+_COVERAGE_ALERT_STARTED_UTC_KEY = "poller:coverage_alert_started_utc"
+_COVERAGE_ALERT_SEQUENCE_KEY = "poller:coverage_alert_occurrence_sequence"
+_COVERAGE_ALERT_INCIDENT_KEY = "poller:coverage_alert_incident_occurrence"
+_COVERAGE_ALERT_REMINDER_KEY = "poller:coverage_alert_reminder_occurrence"
+_COVERAGE_ALERT_RECOVERY_KEY = "poller:coverage_alert_recovery_occurrence"
+_COVERAGE_ALERT_REMINDER_ORDINAL_KEY = "poller:coverage_alert_reminder_ordinal"
+_COVERAGE_ALERT_PENDING_ORDINAL_KEY = "poller:coverage_alert_pending_reminder_ordinal"
+_COVERAGE_ALERT_ACKED_REMINDER_KEY = "poller:coverage_alert_acked_reminder"
+_COVERAGE_ALERT_X_CAUSE_KEY = "poller:coverage_alert_x_cause"
 _COVERAGE_ALERT_REMINDER_SECONDS = 24 * 60 * 60
 
 # Fatal runtime failures are retried in-process so Fly cannot turn a transient
-# database or lease incident into an unbounded restart/webhook storm. The health
-# endpoint remains fail-closed until a complete cycle succeeds.
+# database or lease incident into an unbounded restart/webhook storm. Readiness
+# recovers after any normally returned cycle; strict coverage health is separate.
 _RUNTIME_RETRY_INITIAL_SECONDS = 5.0
 _RUNTIME_RETRY_MAX_SECONDS = 300.0
 _RUNTIME_ALERT_MIN_INTERVAL_SECONDS = 60 * 60
 _RUNTIME_ALERT_REMINDER_SECONDS = 24 * 60 * 60
-_RUNTIME_FAILURE_STAGES = frozenset({
-    "daemon_startup",
-    "health_listener",
-    "store_startup",
-    "lease_acquisition",
-    "lease_contended",
-    "cycle",
-    "lease_lost",
-})
+_RUNTIME_FAILURE_STAGES = frozenset(
+    {
+        "daemon_startup",
+        "health_listener",
+        "store_startup",
+        "lease_acquisition",
+        "lease_contended",
+        "cycle",
+        "lease_lost",
+    }
+)
 
 
-# Topic discovery is deliberately entity-agnostic. It starts from ranked news
-# feeds and live trends instead of a watchlist of companies, politicians, or
-# products, then spends at most three recent-search calls on the day's strongest
-# cross-source stories.
-_DISCOVERY_CATEGORIES = ("world", "business", "technology")
-_QUERY_STOPWORDS = {
-    "a", "about", "according", "after", "against", "all", "amid", "an", "and", "are", "as",
-    "at", "be", "before", "but", "by", "can", "confirms", "could", "for", "from", "has",
-    "have", "how", "in", "into", "is", "it", "its", "may", "more", "new", "not",
-    "of", "on", "or", "over", "report", "reports", "says", "than", "that", "the", "their", "this",
-    "to", "up", "was", "what", "when", "where", "which", "who", "why", "will",
-    "with", "would",
-}
-_GENERIC_CAPITALIZED = {
-    "Analysis", "Breaking", "Exclusive", "Explainer", "Here", "How", "Live",
-    "My", "New", "Opinion", "The", "This", "Update", "What", "When", "Why",
-}
+_DISCOVERY_INPUTS = _DISCOVERY_POLICY["inputs"]
+_DISCOVERY_NORMALIZATION = _DISCOVERY_POLICY["normalization"]
+_DISCOVERY_STORY_GROUPING = _DISCOVERY_POLICY["story_grouping"]
+_DISCOVERY_TREND_MATCHING = _DISCOVERY_POLICY["trend_matching"]
+_DISCOVERY_QUERY = _DISCOVERY_POLICY["query"]
+_DISCOVERY_RANKING = _DISCOVERY_POLICY["ranking"]
+_DISCOVERY_ALLOCATION = _DISCOVERY_POLICY["allocation"]
+_DISCOVERY_AUDIT = _DISCOVERY_POLICY["audit_record"]
+_DISCOVERY_CATEGORIES = tuple(_DISCOVERY_INPUTS["categories"])
+_QUERY_STOPWORDS = frozenset(_DISCOVERY_NORMALIZATION["stopwords"])
+_GENERIC_CAPITALIZED = frozenset(_DISCOVERY_QUERY["generic_capitalized_terms"])
 _LOW_INFORMATION_HEADLINE = re.compile(
-    r"\b(best|deal|discount|guide|hands[- ]on|how to|review|rumor|versus|vs\.?|wishlist)\b",
-    re.IGNORECASE,
+    str(_DISCOVERY_INPUTS["low_information_pattern"]),
+    int(_DISCOVERY_INPUTS["low_information_flags"]),
 )
 
 _GLOBALNEWS_RETRY_POLICY = GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"][
     "globalnews_exception_retry_policy"
 ]
-_GLOBALNEWS_MAX_ATTEMPTS = int(
-    _GLOBALNEWS_RETRY_POLICY["max_attempts_per_query_cycle"]
-)
+_GLOBALNEWS_MAX_ATTEMPTS = int(_GLOBALNEWS_RETRY_POLICY["max_attempts_per_query_cycle"])
 _GLOBALNEWS_RETRY_DELAYS = tuple(
     float(value) for value in _GLOBALNEWS_RETRY_POLICY["delays_seconds"]
 )
 _GLOBALNEWS_CIRCUIT_FAILURE_SLOTS = int(
-    GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"][
-        "globalnews_cycle_circuit_breaker"
-    ]["failed_query_slots_before_open"]
+    GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"]["globalnews_cycle_circuit_breaker"][
+        "failed_query_slots_before_open"
+    ]
 )
-if _GLOBALNEWS_MAX_ATTEMPTS != 3 \
-        or len(_GLOBALNEWS_RETRY_DELAYS) != _GLOBALNEWS_MAX_ATTEMPTS - 1 \
-        or any(value < 0 or value > 10 for value in _GLOBALNEWS_RETRY_DELAYS) \
-        or _GLOBALNEWS_RETRY_POLICY.get("retry_on") \
-            != "provider_transient_exception_only" \
-        or _GLOBALNEWS_RETRY_POLICY.get("empty_response") \
-            != "terminal_observed_empty_without_retry":
+_GLOBALNEWS_QUERY_SLOT_COUNT = sum(
+    len(queries) for queries in GLOBAL_EVENT_V2_PROTOCOL["evidence"]["broad_news_queries"].values()
+)
+if (
+    _GLOBALNEWS_MAX_ATTEMPTS < 1
+    or len(_GLOBALNEWS_RETRY_DELAYS) != _GLOBALNEWS_MAX_ATTEMPTS - 1
+    or any(not math.isfinite(value) or value < 0 for value in _GLOBALNEWS_RETRY_DELAYS)
+    or sum(_GLOBALNEWS_RETRY_DELAYS) >= _GLOBAL_ONLY_NEWS_INTERVAL_SECONDS
+    or _GLOBALNEWS_RETRY_POLICY.get("retry_on") != "provider_transient_exception_only"
+    or _GLOBALNEWS_RETRY_POLICY.get("empty_response") != "terminal_observed_empty_without_retry"
+):
     raise RuntimeError("formal globalnews retry policy is malformed")
-if _GLOBALNEWS_CIRCUIT_FAILURE_SLOTS != 2:
+if not 1 <= _GLOBALNEWS_CIRCUIT_FAILURE_SLOTS <= _GLOBALNEWS_QUERY_SLOT_COUNT:
     raise RuntimeError("formal globalnews circuit-breaker policy is malformed")
 
 
@@ -198,19 +218,10 @@ def resolve_sources(
             sources.append("x")
     unknown = [s for s in sources if s not in FETCHERS]
     if unknown:
-        raise ValueError(f"unknown source(s): {','.join(unknown)}. "
-                         f"Choose from: {','.join(SELECTABLE_SOURCES)}")
+        raise ValueError(
+            f"unknown source(s): {','.join(unknown)}. Choose from: {','.join(SELECTABLE_SOURCES)}"
+        )
     return sources
-
-
-def _within(rows: list[dict], since: float | None) -> list[dict]:
-    """Return every discovered item; storage dedup makes polling incremental.
-
-    ``since`` is retained for API compatibility only. Filtering on publication
-    time discarded older stories first discovered after a cursor advanced.
-    Point-in-time consumers already constrain both publication and receipt time.
-    """
-    return rows
 
 
 def _watermark_key(provider: str, query_key: str) -> str:
@@ -219,18 +230,18 @@ def _watermark_key(provider: str, query_key: str) -> str:
 
 
 def _expected_query_slots(
-    tickers: list[str], sources: list[str], macro_themes: dict,
-    *, include_x_discovery: bool = False,
+    tickers: list[str],
+    sources: list[str],
+    macro_themes: dict,
+    *,
+    include_x_discovery: bool = False,
 ) -> list[tuple[str, str]]:
     """Return every exact provider/query slot configured for one cycle."""
     slots = [(source, ticker) for ticker in tickers for source in sources]
     for theme, spec in macro_themes.items():
+        slots.extend(("globalnews", f"{theme}:{query}") for query in spec.get("queries", []))
         slots.extend(
-            ("globalnews", f"{theme}:{query}") for query in spec.get("queries", [])
-        )
-        slots.extend(
-            ("polymarket", f"{theme}:{topic}")
-            for topic in spec.get("prediction_topics", [])
+            ("polymarket", f"{theme}:{topic}") for topic in spec.get("prediction_topics", [])
         )
     if include_x_discovery:
         slots.append(("trendnews", "ranked-global-discovery"))
@@ -239,10 +250,7 @@ def _expected_query_slots(
 
 def _globalnews_query_slots(macro_themes: dict) -> list[tuple[str, str]]:
     """Return the exact configured broad-news query slots."""
-    return [
-        slot for slot in _expected_query_slots([], [], macro_themes)
-        if slot[0] == "globalnews"
-    ]
+    return [slot for slot in _expected_query_slots([], [], macro_themes) if slot[0] == "globalnews"]
 
 
 def _global_only_news_themes() -> dict[str, dict[str, list[str]]]:
@@ -252,9 +260,7 @@ def _global_only_news_themes() -> dict[str, dict[str, list[str]]]:
             "queries": list(queries),
             "prediction_topics": [],
         }
-        for theme, queries in GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "broad_news_queries"
-        ].items()
+        for theme, queries in GLOBAL_EVENT_V2_PROTOCOL["evidence"]["broad_news_queries"].items()
     }
 
 
@@ -271,18 +277,11 @@ def _safe_alert_provider(provider: object) -> str:
     return f"unknown-{digest}"
 
 
-def _exception_kind(exc: BaseException) -> str:
-    """Return a bounded class label; exception messages can contain credentials."""
-    name = type(exc).__name__
-    return name if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name) else "Exception"
-
-
 def _runtime_failure_type(value: object) -> str:
     """Return only a bounded identifier supplied by trusted runtime machinery."""
     return (
         value
-        if isinstance(value, str)
-        and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", value)
+        if isinstance(value, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", value)
         else "Exception"
     )
 
@@ -312,7 +311,7 @@ def _collector_retry_delay(consecutive_failures: int) -> float:
     exponent = min(int(consecutive_failures) - 1, 30)
     return min(
         _RUNTIME_RETRY_MAX_SECONDS,
-        _RUNTIME_RETRY_INITIAL_SECONDS * (2 ** exponent),
+        _RUNTIME_RETRY_INITIAL_SECONDS * (2**exponent),
     )
 
 
@@ -323,15 +322,23 @@ class _CollectorRuntimeIncident:
         self._clock = time.monotonic if clock is None else clock
         self._alert = emit_alert if alert is None else alert
         self._active: tuple[str, str] | None = None
-        self._last_alerted: tuple[str, str] | None = None
-        self._last_alert_monotonic: float | None = None
+        self._incident_delivered = False
+        self._last_attempt_monotonic: float | None = None
+        self._occurrence_key: str | None = None
+        self._pending_reminder_key: str | None = None
+        self._reminder_number = 0
+        self._pending_recovery: tuple[str, str, str] | None = None
 
     @property
     def active(self) -> bool:
         return self._active is not None
 
     def mark_failure(
-        self, *, stage: str, error_type: str, retry_delay_seconds: float,
+        self,
+        *,
+        stage: str,
+        error_type: str,
+        retry_delay_seconds: float,
     ) -> bool:
         safe_stage = stage if stage in _RUNTIME_FAILURE_STAGES else "cycle"
         safe_error_type = _runtime_failure_type(error_type)
@@ -339,71 +346,120 @@ class _CollectorRuntimeIncident:
         next_incident = (safe_stage, safe_error_type)
         first_transition = self._active is None
         self._active = next_incident
-        since_last_alert = (
+        if first_transition:
+            # A new outage supersedes an undelivered recovery from the prior one.
+            self._pending_recovery = None
+            self._incident_delivered = False
+            self._last_attempt_monotonic = None
+            self._occurrence_key = secrets.token_hex(16)
+            self._pending_reminder_key = None
+            self._reminder_number = 0
+        since_last_attempt = (
             None
-            if self._last_alert_monotonic is None
-            else observed - self._last_alert_monotonic
+            if self._last_attempt_monotonic is None
+            else observed - self._last_attempt_monotonic
         )
-        reminder_due = (
-            self._last_alerted == next_incident
-            and since_last_alert is not None
-            and since_last_alert >= _RUNTIME_ALERT_REMINDER_SECONDS
-        )
-        changed_transition_due = (
-            self._last_alerted != next_incident
-            and since_last_alert is not None
-            and since_last_alert >= _RUNTIME_ALERT_MIN_INTERVAL_SECONDS
-        )
-        if not first_transition and not changed_transition_due and not reminder_due:
+        if not self._incident_delivered:
+            due = first_transition or (
+                since_last_attempt is not None
+                and since_last_attempt >= _RUNTIME_ALERT_MIN_INTERVAL_SECONDS
+            )
+            reminder = False
+            dedupe_key = f"{self._occurrence_key}:incident"
+        elif self._pending_reminder_key is not None:
+            due = (
+                since_last_attempt is not None
+                and since_last_attempt >= _RUNTIME_ALERT_MIN_INTERVAL_SECONDS
+            )
+            reminder = True
+            dedupe_key = self._pending_reminder_key
+        else:
+            due = (
+                since_last_attempt is not None
+                and since_last_attempt >= _RUNTIME_ALERT_REMINDER_SECONDS
+            )
+            reminder = due
+            if due:
+                self._reminder_number += 1
+                self._pending_reminder_key = (
+                    f"{self._occurrence_key}:reminder:{self._reminder_number}"
+                )
+            dedupe_key = self._pending_reminder_key
+        if not due:
             return False
+        self._last_attempt_monotonic = observed
+        delivered = False
         try:
-            self._alert(
-                "collector",
-                "runtime_unhealthy",
-                severity="critical",
-                details={
-                    "schema_version": 1,
-                    "failure_stage": safe_stage,
-                    "failure_type": safe_error_type,
-                    "retry_delay_seconds": float(retry_delay_seconds),
-                    "reminder": reminder_due,
-                },
+            delivered = bool(
+                self._alert(
+                    "collector",
+                    "runtime_unhealthy",
+                    severity="critical",
+                    details={
+                        "schema_version": 1,
+                        "failure_stage": safe_stage,
+                        "failure_type": safe_error_type,
+                        "retry_delay_seconds": float(retry_delay_seconds),
+                        "reminder": reminder,
+                    },
+                    dedupe_key=dedupe_key,
+                )
             )
         except Exception as exc:  # noqa: BLE001 - supervision must survive alert bugs
             logger.error(
                 "Collector runtime alert handler failed (%s)",
                 _exception_kind(exc),
             )
-        # Bound attempts even while the webhook is unavailable. Retrying on
-        # every exponential-backoff turn would recreate the alert storm this
-        # supervisor exists to prevent.
-        self._last_alerted = next_incident
-        self._last_alert_monotonic = observed
+        if delivered:
+            if reminder:
+                self._pending_reminder_key = None
+            else:
+                self._incident_delivered = True
         return True
 
     def mark_recovered(self) -> None:
-        if self._active is None:
+        if self._active is not None:
+            if self._incident_delivered:
+                prior_stage, prior_error_type = self._active
+                self._pending_recovery = (
+                    prior_stage,
+                    prior_error_type,
+                    f"{self._occurrence_key}:recovery",
+                )
+            self._clear_active()
+        if self._pending_recovery is None:
             return
-        prior_stage, prior_error_type = self._active
-        self._active = None
-        self._last_alerted = None
-        self._last_alert_monotonic = None
+        prior_stage, prior_error_type, dedupe_key = self._pending_recovery
+        delivered = False
         try:
-            self._alert(
-                "collector",
-                "runtime_recovered",
-                severity="info",
-                details={
-                    "schema_version": 1,
-                    "prior_failure_stage": prior_stage,
-                    "prior_failure_type": prior_error_type,
-                },
+            delivered = bool(
+                self._alert(
+                    "collector",
+                    "runtime_recovered",
+                    severity="info",
+                    details={
+                        "schema_version": 1,
+                        "prior_failure_stage": prior_stage,
+                        "prior_failure_type": prior_error_type,
+                    },
+                    dedupe_key=dedupe_key,
+                )
             )
         except Exception as exc:  # noqa: BLE001 - supervision must survive alert bugs
             logger.error(
                 "Collector recovery alert handler failed (%s)",
                 _exception_kind(exc),
             )
+        if delivered:
+            self._pending_recovery = None
+
+    def _clear_active(self) -> None:
+        self._active = None
+        self._incident_delivered = False
+        self._last_attempt_monotonic = None
+        self._occurrence_key = None
+        self._pending_reminder_key = None
+        self._reminder_number = 0
 
 
 def _sanitized_coverage_alert_details(coverage: dict) -> dict:
@@ -412,19 +468,30 @@ def _sanitized_coverage_alert_details(coverage: dict) -> dict:
     missing_periodic = coverage.get("missing_periodic_requirements") or []
     periodic = coverage.get("periodic_requirements") or {}
     x_daily_state = periodic.get("x_daily") if isinstance(periodic, dict) else None
-    if x_daily_state not in {"complete", "incomplete", "invalid", "missing", "running"}:
+    if x_daily_state not in {
+        "complete", "incomplete", "invalid", "missing", "running", "scheduled"
+    }:
         x_daily_state = None
     x_daily_missing = "x_daily" in missing_periodic
     periodic_x_providers = {"trendnews", "x", "xtrend"}
     fingerprint_missing = [
-        slot for slot in missing
+        slot
+        for slot in missing
         if not (x_daily_missing and slot.get("provider") in periodic_x_providers)
     ]
     slots = []
     reason_counts: dict[str, int] = {}
     allowed_reasons = {
-        "not_run", "empty", "failed", "running", "incomplete", "stale", "ineligible",
-        "invalid_lineage", "invalid_receipt", "unbound_lineage",
+        "not_run",
+        "empty",
+        "failed",
+        "running",
+        "incomplete",
+        "stale",
+        "ineligible",
+        "invalid_lineage",
+        "invalid_receipt",
+        "unbound_lineage",
         "collector_semantics_mismatch",
     }
     for slot in fingerprint_missing:
@@ -434,11 +501,13 @@ def _sanitized_coverage_alert_details(coverage: dict) -> dict:
         safe_reason = reason if reason in allowed_reasons else "unhealthy"
         reason_counts[safe_reason] = reason_counts.get(safe_reason, 0) + 1
         if len(slots) < 20:
-            slots.append({
-                "provider": _safe_alert_provider(provider),
-                "slot_id": _query_slot_id(str(provider), str(query_key)),
-                "reason": safe_reason,
-            })
+            slots.append(
+                {
+                    "provider": _safe_alert_provider(provider),
+                    "slot_id": _query_slot_id(str(provider), str(query_key)),
+                    "reason": safe_reason,
+                }
+            )
     query_slots = coverage.get("query_slots") or []
     expected_count = sum(
         not (x_daily_missing and slot.get("provider") in periodic_x_providers)
@@ -457,22 +526,106 @@ def _sanitized_coverage_alert_details(coverage: dict) -> dict:
     }
 
 
-def _coverage_alert_fingerprint(details: dict) -> float:
-    """Encode a stable incident identity in the store's numeric metadata type."""
-    digest = hashlib.sha256(canonical_json(details).encode("utf-8")).hexdigest()
-    # Twelve hex characters fit exactly in an IEEE-754 double, which is the
-    # common representation used by both poll-state backends.
-    return float(int(digest[:12], 16))
-
-
 def _update_coverage_alert_state(
-    store, *, coverage: dict, observed_utc: float,
+    store,
+    *,
+    coverage: dict,
+    observed_utc: float,
 ) -> None:
-    """Notify on coverage transitions, changed incidents, and daily reminders."""
+    """Notify once per unhealthy transition, daily while active, then on recovery."""
+    if (
+        isinstance(observed_utc, bool)
+        or not isinstance(observed_utc, (int, float))
+        or not math.isfinite(float(observed_utc))
+        or float(observed_utc) <= 0
+    ):
+        raise ValueError("coverage alert observation time must be positive and finite")
+    observed_utc = float(observed_utc)
+
+    def valid_timestamp(value: object) -> bool:
+        return (
+            not isinstance(value, bool)
+            and isinstance(value, (int, float))
+            and math.isfinite(float(value))
+            and float(value) > 0
+        )
+
+    def valid_counter(value: object, *, positive: bool = False) -> bool:
+        lower_bound = 1 if positive else 0
+        return (
+            not isinstance(value, bool)
+            and isinstance(value, (int, float))
+            and math.isfinite(float(value))
+            and float(value).is_integer()
+            and lower_bound <= float(value) <= 2**53 - 1
+        )
+
+    def next_occurrence() -> float:
+        candidates = [store.get_meta(_COVERAGE_ALERT_SEQUENCE_KEY)]
+        candidates.extend(
+            store.get_meta(key)
+            for key in (
+                _COVERAGE_ALERT_INCIDENT_KEY,
+                _COVERAGE_ALERT_REMINDER_KEY,
+                _COVERAGE_ALERT_RECOVERY_KEY,
+            )
+        )
+        prior = max(
+            (int(value) for value in candidates if valid_counter(value)),
+            default=0,
+        )
+        occurrence = max(prior, int(observed_utc)) + 1
+        if occurrence > 2**53 - 1:
+            raise ValueError("coverage alert occurrence sequence is exhausted")
+        store.set_meta(_COVERAGE_ALERT_SEQUENCE_KEY, float(occurrence))
+        return float(occurrence)
+
+    def dedupe_key(occurrence: object) -> str:
+        if not valid_counter(occurrence, positive=True):
+            raise ValueError("coverage alert occurrence identity is invalid")
+        return f"coverage-v2:{int(occurrence)}"
+
+    def clear_incident() -> None:
+        store.set_meta(_COVERAGE_ALERT_DELIVERED_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_STARTED_UTC_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_LAST_UTC_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_INCIDENT_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_REMINDER_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_RECOVERY_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_REMINDER_ORDINAL_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_ACKED_REMINDER_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_X_CAUSE_KEY, 0.0)
+
     previously_unhealthy = store.get_meta(_COVERAGE_ALERT_STATE_KEY) == 1.0
-    if coverage["complete"]:
-        delivered_incident = store.get_meta(_COVERAGE_ALERT_FINGERPRINT_KEY)
-        if previously_unhealthy and delivered_incident not in {None, 0.0}:
+    periodic = coverage.get("periodic_requirements") or {}
+    x_daily_state = periodic.get("x_daily") if isinstance(periodic, dict) else None
+    x_failed = x_daily_state in {"incomplete", "invalid", "missing", "running"}
+    x_caused_incident = store.get_meta(_COVERAGE_ALERT_X_CAUSE_KEY) == 1.0
+    if previously_unhealthy and x_failed and not x_caused_incident:
+        store.set_meta(_COVERAGE_ALERT_X_CAUSE_KEY, 1.0)
+        x_caused_incident = True
+    elif previously_unhealthy and x_daily_state == "complete" and x_caused_incident:
+        # Clear the gate as soon as durable coverage proves a later X cycle
+        # complete. If recovery delivery is interrupted, a scheduled cycle can
+        # safely retry that already-earned recovery occurrence.
+        store.set_meta(_COVERAGE_ALERT_X_CAUSE_KEY, 0.0)
+        x_caused_incident = False
+    if coverage.get("complete") is True:
+        if not previously_unhealthy:
+            return
+        if x_caused_incident:
+            # Before today's X window opens, ``scheduled`` is healthy for this
+            # cycle but is not evidence that yesterday's X outage recovered.
+            return
+        delivered_incident = store.get_meta(_COVERAGE_ALERT_DELIVERED_KEY) == 1.0
+        if delivered_incident:
+            recovery_occurrence = store.get_meta(_COVERAGE_ALERT_RECOVERY_KEY)
+            if not valid_counter(recovery_occurrence, positive=True):
+                recovery_occurrence = next_occurrence()
+                # Persist before delivery so transport and acknowledgement
+                # ambiguity can only retry the same receiver identity.
+                store.set_meta(_COVERAGE_ALERT_RECOVERY_KEY, recovery_occurrence)
             recovered = emit_alert(
                 "collector",
                 "query_slot_coverage_recovered",
@@ -481,394 +634,172 @@ def _update_coverage_alert_state(
                     "expected_query_slot_count": len(coverage.get("query_slots") or []),
                     "missing_query_slot_count": 0,
                 },
+                dedupe_key=dedupe_key(recovery_occurrence),
             )
             if not recovered:
                 return
+        # This flag is the durable incident boundary. Clear it first so a
+        # crash while cleaning auxiliary fields cannot merge a later outage
+        # into the incident whose recovery was already acknowledged.
         store.set_meta(_COVERAGE_ALERT_STATE_KEY, 0.0)
-        store.set_meta(_COVERAGE_ALERT_FINGERPRINT_KEY, 0.0)
+        clear_incident()
         return
 
+    incident_started_utc = store.get_meta(_COVERAGE_ALERT_STARTED_UTC_KEY)
+    if not previously_unhealthy or not valid_timestamp(incident_started_utc):
+        incident_started_utc = observed_utc
+        clear_incident()
+        store.set_meta(_COVERAGE_ALERT_STARTED_UTC_KEY, incident_started_utc)
+        incident_occurrence = next_occurrence()
+        store.set_meta(_COVERAGE_ALERT_INCIDENT_KEY, incident_occurrence)
+        if x_failed:
+            store.set_meta(_COVERAGE_ALERT_X_CAUSE_KEY, 1.0)
+        # Commit the incident only after its complete identity is durable.
+        store.set_meta(_COVERAGE_ALERT_STATE_KEY, 1.0)
+    else:
+        incident_occurrence = store.get_meta(_COVERAGE_ALERT_INCIDENT_KEY)
+        if not valid_counter(incident_occurrence, positive=True):
+            incident_occurrence = next_occurrence()
+            store.set_meta(_COVERAGE_ALERT_INCIDENT_KEY, incident_occurrence)
+
     details = _sanitized_coverage_alert_details(coverage)
-    fingerprint = _coverage_alert_fingerprint(details)
-    prior_fingerprint = store.get_meta(_COVERAGE_ALERT_FINGERPRINT_KEY)
-    last_alert_utc = store.get_meta(_COVERAGE_ALERT_LAST_UTC_KEY)
-    reminder_due = last_alert_utc is None or (
-        observed_utc - float(last_alert_utc) >= _COVERAGE_ALERT_REMINDER_SECONDS
-    )
-    if not previously_unhealthy or prior_fingerprint != fingerprint or reminder_due:
+    delivered_incident = store.get_meta(_COVERAGE_ALERT_DELIVERED_KEY) == 1.0
+    if not delivered_incident:
         delivered = emit_alert(
             "collector",
             "query_slot_coverage_incomplete",
             severity="warning",
             details=details,
+            dedupe_key=dedupe_key(incident_occurrence),
         )
-        # A failed webhook delivery must be retried on the next collection cycle
-        # instead of being suppressed for a full reminder interval.
         if delivered:
+            # Commit acknowledgement state before the next reminder can be
+            # allocated. A crash before either write retries this occurrence.
             store.set_meta(_COVERAGE_ALERT_LAST_UTC_KEY, observed_utc)
-            store.set_meta(_COVERAGE_ALERT_FINGERPRINT_KEY, fingerprint)
-    store.set_meta(_COVERAGE_ALERT_STATE_KEY, 1.0)
+            store.set_meta(_COVERAGE_ALERT_DELIVERED_KEY, 1.0)
+        return
+
+    last_alert_utc = store.get_meta(_COVERAGE_ALERT_LAST_UTC_KEY)
+    reminder_due = not valid_timestamp(last_alert_utc) or (
+        observed_utc - float(last_alert_utc) >= _COVERAGE_ALERT_REMINDER_SECONDS
+    )
+    reminder_occurrence = store.get_meta(_COVERAGE_ALERT_REMINDER_KEY)
+    pending_ordinal = store.get_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY)
+    delivered_ordinal = store.get_meta(_COVERAGE_ALERT_REMINDER_ORDINAL_KEY)
+    if not valid_counter(delivered_ordinal):
+        delivered_ordinal = 0.0
+        store.set_meta(_COVERAGE_ALERT_REMINDER_ORDINAL_KEY, delivered_ordinal)
+    expected_ordinal = int(delivered_ordinal) + 1
+    if expected_ordinal > 2**53 - 1:
+        raise ValueError("coverage alert reminder sequence is exhausted")
+
+    acked_reminder = store.get_meta(_COVERAGE_ALERT_ACKED_REMINDER_KEY)
+    if valid_counter(acked_reminder, positive=True):
+        same_pending = valid_counter(reminder_occurrence, positive=True) and int(
+            acked_reminder
+        ) == int(reminder_occurrence)
+        if (
+            same_pending
+            and valid_counter(pending_ordinal, positive=True)
+            and int(pending_ordinal) in {int(delivered_ordinal), expected_ordinal}
+        ):
+            if not valid_timestamp(last_alert_utc):
+                store.set_meta(_COVERAGE_ALERT_LAST_UTC_KEY, observed_utc)
+            store.set_meta(
+                _COVERAGE_ALERT_REMINDER_ORDINAL_KEY,
+                float(max(int(delivered_ordinal), int(pending_ordinal))),
+            )
+            store.set_meta(_COVERAGE_ALERT_REMINDER_KEY, 0.0)
+            store.set_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY, 0.0)
+            store.set_meta(_COVERAGE_ALERT_ACKED_REMINDER_KEY, 0.0)
+            return
+        store.set_meta(_COVERAGE_ALERT_ACKED_REMINDER_KEY, 0.0)
+
+    pending = valid_counter(reminder_occurrence, positive=True)
+    if pending and (
+        not valid_counter(pending_ordinal, positive=True)
+        or int(pending_ordinal) != expected_ordinal
+    ):
+        pending_ordinal = float(expected_ordinal)
+        store.set_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY, pending_ordinal)
+    elif (
+        not pending
+        and valid_counter(pending_ordinal, positive=True)
+        and int(pending_ordinal) > int(delivered_ordinal)
+    ):
+        # Resume allocation if the process stopped between the two durable
+        # writes that precede delivery.
+        pending_ordinal = float(expected_ordinal)
+        store.set_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY, pending_ordinal)
+        reminder_occurrence = next_occurrence()
+        store.set_meta(_COVERAGE_ALERT_REMINDER_KEY, reminder_occurrence)
+        pending = True
+    elif not pending and reminder_due:
+        pending_ordinal = float(expected_ordinal)
+        store.set_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY, pending_ordinal)
+        reminder_occurrence = next_occurrence()
+        store.set_meta(_COVERAGE_ALERT_REMINDER_KEY, reminder_occurrence)
+        pending = True
+    elif not pending and pending_ordinal not in (None, 0.0):
+        store.set_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY, 0.0)
+
+    if not pending:
+        return
+    delivered = emit_alert(
+        "collector",
+        "query_slot_coverage_incomplete",
+        severity="warning",
+        details={**details, "reminder_ordinal": int(pending_ordinal)},
+        dedupe_key=dedupe_key(reminder_occurrence),
+    )
+    if delivered:
+        store.set_meta(_COVERAGE_ALERT_LAST_UTC_KEY, observed_utc)
+        # This marker distinguishes a stale pending ordinal from a crash after
+        # the receiver acknowledged this exact reminder.
+        store.set_meta(_COVERAGE_ALERT_ACKED_REMINDER_KEY, reminder_occurrence)
+        store.set_meta(_COVERAGE_ALERT_REMINDER_ORDINAL_KEY, pending_ordinal)
+        store.set_meta(_COVERAGE_ALERT_REMINDER_KEY, 0.0)
+        store.set_meta(_COVERAGE_ALERT_PENDING_ORDINAL_KEY, 0.0)
+        # Clear the acknowledgement marker last. A crash before this point
+        # resumes this commit instead of allocating another reminder.
+        store.set_meta(_COVERAGE_ALERT_ACKED_REMINDER_KEY, 0.0)
 
 
-@lru_cache(maxsize=1)
 def collector_semantics_manifest() -> dict:
-    """Content-address every helper that can alter a global-only fetch receipt."""
-    components = {
-        "provider_response_error": media_sources.ProviderResponseError,
-        "provider_transient_error": media_sources.ProviderTransientError,
-        "provider_http_retry_classification": media_sources._is_transient_http_error,
-        "normalize_public_url": media_sources.normalize_public_url,
-        "publisher_domain": media_sources.publisher_domain,
-        "html_normalization": media_sources._strip_html,
-        "meaningful_text_contract": media_sources._has_meaningful_text,
-        "provider_metric_contract": media_sources._has_nonnegative_metrics,
-        "provider_bounded_read": media_sources._read_bounded,
-        "provider_json_request": media_sources._get_json,
-        "rss_response_contract": media_sources._parse_rss_response,
-        "rss_item_structure_contract": media_sources._rss_channel_items,
-        "x_response_contract": media_sources._x_response_items,
-        "iso_timestamp_parser": media_sources._iso_to_epoch,
-        "rfc822_timestamp_parser": media_sources._rfc822_to_epoch,
-        "google_news_provenance": media_sources._google_news_provenance,
-        "google_news_content_vintage": media_sources._google_news_content_vintage,
-        "google_news_item_contract": media_sources._google_news_item,
-        "media_row_projection": media_sources._row,
-        "company_authorship_classifier": media_sources.looks_company_authored,
-        "automation_risk": media_sources._automation_risk,
-        "x_search": media_sources._fetch_x_search,
-        "x_topic_fetch": media_sources.fetch_x_topic,
-        "x_trends_fetch": media_sources.fetch_x_trends,
-        "x_trend_response_normalization": _x_trend_media_rows,
-        "top_news_fetch": media_sources.fetch_top_news_headlines,
-        "global_news_fetch": media_sources.fetch_global_news,
-        "topic_key": _topic_key,
-        "semantic_terms": _semantic_terms,
-        "story_clustering": _same_story,
-        "trend_headline_match": _trend_matches_headline,
-        "headline_query": _headline_query,
-        "discovery_company_boundary": _looks_company_authored,
-        "topic_discovery": discover_x_topics,
-        "discovery_news_projection": _discovery_news_row,
-        "formal_discovery_grounding": _formally_grounded_discovery_topics,
-        "evidence_identity": _evidence_id,
-        "raw_content_identity": _raw_content_id,
-        "stable_bucket_assignment": global_research._stable_bucket_assignment,
-        "exact_query_slots": _formal_query_slots,
-        "assigned_query_slot": global_research._formal_query_slot,
-        "formal_company_boundary": global_research.is_company_authored_evidence,
-        "formal_publisher_normalization": global_research._publisher_key,
-        "formal_editorial_boundary": global_research.is_independent_editorial_evidence,
-        "formal_ineligibility": global_research.formal_evidence_ineligibility_reason,
-        "formal_eligibility": is_formally_eligible_evidence,
-        "identical_fetch_item_collapse": _collapse_identical_fetch_rows,
-        "collector_lease_guard": _assert_store_collector_lease,
-        "fetch_receipt_pipeline": _run_fetch,
-        "globalnews_retry_orchestration": _run_globalnews_query,
-        "globalnews_cycle_orchestration": poll_macro_once,
-        "cycle_coverage_contract": _check_cycle_query_coverage,
-        "collector_cycle_orchestration": run_cycle,
-        "collector_daemon_sleep": _sleep,
-        "collector_signal_handlers": _install_collector_signal_handlers,
-        "collector_runtime_failure": _CollectorRuntimeFailure,
-        "collector_runtime_failure_type": _runtime_failure_type,
-        "collector_retry_delay": _collector_retry_delay,
-        "collector_runtime_incident": _CollectorRuntimeIncident,
-        "collector_daemon_loop": poll_forever,
-        "collection_cycle_spec": media_store.collection_cycle_spec,
-        "collection_cycle_manifest": media_store._collection_cycle_manifest,
-        "collection_cycle_item_replay": media_store._verified_cycle_item_rows,
-        "sqlite_x_cycle_identity_inventory": (
-            media_store.SqliteMediaStore.collection_cycle_identity_pairs
-        ),
-        "sqlalchemy_x_cycle_identity_inventory": (
-            media_store.SqlAlchemyMediaStore.collection_cycle_identity_pairs
-        ),
-        "x_collection_cycle_identity_spec": (
-            _x_collection_cycle_spec_for_identity
-        ),
-        "x_collection_cycle_spec": _x_collection_cycle_spec,
-        "x_compatible_collection_cycle_specs": (
-            _x_compatible_collection_cycle_specs
-        ),
-        "x_collection_cycle_validation": _x_collection_cycle_state,
-        "x_daily_cycle_resolution": _x_daily_cycle_resolution,
-        "x_collection_cycle_manifest_slots": _x_manifest_slots,
-        "x_paid_request_budget": _x_request_budget_limits,
-        "x_paid_cycle_children": _poll_x_cycle_children,
-        "x_collection_cycle_orchestration": poll_x_topics_once,
-        "x_collection_cycle_due": _x_poll_due,
-        "x_daily_requirement_state": _x_daily_requirement_state,
-        "headline_publisher_normalization": _headline_without_publisher,
-        "formal_evidence_id_encoding": media_store._encoded_formal_evidence_ids,
-        "formal_content_lineage_encoding": media_store._encoded_formal_lineage,
-        "fetch_item_lineage": media_store._build_fetch_item_lineage,
-        "fetch_completion_validation": media_store._validate_fetch_completion,
-        "terminal_receipt_validation": media_store._terminal_receipt_reason,
-        "media_identity_coherence": media_store._media_rows_conflict,
-        "batch_media_coherence": media_store._validate_batch_media_coherence,
-        "sqlite_media_store": media_store.SqliteMediaStore.store,
-        "sqlite_atomic_media_store": media_store.SqliteMediaStore._store_in_transaction,
-        "sqlite_fetch_start": media_store.SqliteMediaStore.start_fetch,
-        "sqlite_budgeted_fetch_start": media_store.SqliteMediaStore.start_budgeted_fetch,
-        "sqlite_fetch_finish": media_store.SqliteMediaStore.finish_fetch,
-        "sqlite_terminal_transition": (
-            media_store.SqliteMediaStore._finish_fetch_in_transaction
-        ),
-        "sqlite_fetch_complete": media_store.SqliteMediaStore.complete_fetch,
-        "sqlite_fetch_read": media_store.SqliteMediaStore.fetch_runs,
-        "sqlite_cycle_start": media_store.SqliteMediaStore.start_collection_cycle,
-        "sqlite_cycle_declare": (
-            media_store.SqliteMediaStore.declare_collection_cycle_slots
-        ),
-        "sqlite_cycle_finish": media_store.SqliteMediaStore.finish_collection_cycle,
-        "sqlite_cycle_recover": media_store.SqliteMediaStore.recover_collection_cycle,
-        "sqlite_cycle_read": media_store.SqliteMediaStore.collection_cycle,
-        "sqlite_server_clock": media_store.SqliteMediaStore.server_observed_utc,
-        "postgres_collector_lease": media_store._PostgresCollectorLease,
-        "postgres_advisory_lock_held": (
-            media_store._advisory_lock_is_held_statement
-        ),
-        "postgres_store_initialization": media_store.SqlAlchemyMediaStore.__init__,
-        "postgres_column_type_family": (
-            media_store._collector_postgres_type_family
-        ),
-        "postgres_column_contract_authentication": (
-            media_store._collector_postgres_column_contract_valid
-        ),
-        "postgres_connect_args": media_store._postgres_connect_args,
-        "postgres_transaction_hook_install": (
-            media_store._install_postgres_transaction_settings
-        ),
-        "postgres_transaction_hook_apply": (
-            media_store._set_postgres_transaction_settings
-        ),
-        "postgres_collector_direct_url": (
-            media_store.SqlAlchemyMediaStore._collector_direct_database_url
-        ),
-        "postgres_collector_direct_engine": (
-            media_store.SqlAlchemyMediaStore._collector_direct_engine
-        ),
-        "postgres_session_affine_connection": (
-            media_store.SqlAlchemyMediaStore._session_affine_connection
-        ),
-        "postgres_acquire_collector_lease": (
-            media_store.SqlAlchemyMediaStore.acquire_collector_lease
-        ),
-        "postgres_collector_runtime_preflight": (
-            media_store.SqlAlchemyMediaStore.collector_runtime_preflight
-        ),
-        "postgres_media_store": media_store.SqlAlchemyMediaStore.store,
-        "postgres_atomic_media_store": (
-            media_store.SqlAlchemyMediaStore._store_in_transaction
-        ),
-        "postgres_fetch_start": media_store.SqlAlchemyMediaStore.start_fetch,
-        "postgres_budgeted_fetch_start": (
-            media_store.SqlAlchemyMediaStore.start_budgeted_fetch
-        ),
-        "postgres_fetch_finish": media_store.SqlAlchemyMediaStore.finish_fetch,
-        "postgres_terminal_transition": (
-            media_store.SqlAlchemyMediaStore._finish_fetch_in_transaction
-        ),
-        "postgres_fetch_complete": media_store.SqlAlchemyMediaStore.complete_fetch,
-        "postgres_fetch_read": media_store.SqlAlchemyMediaStore.fetch_runs,
-        "postgres_cycle_start": media_store.SqlAlchemyMediaStore.start_collection_cycle,
-        "postgres_cycle_declare": (
-            media_store.SqlAlchemyMediaStore.declare_collection_cycle_slots
-        ),
-        "postgres_cycle_finish": (
-            media_store.SqlAlchemyMediaStore.finish_collection_cycle
-        ),
-        "postgres_cycle_recover": (
-            media_store.SqlAlchemyMediaStore.recover_collection_cycle
-        ),
-        "postgres_cycle_read": media_store.SqlAlchemyMediaStore.collection_cycle,
-        "postgres_server_clock": media_store.SqlAlchemyMediaStore.server_observed_utc,
-        "collector_attempt_cleanup": _close_collector_attempt,
-        "collector_daemon_supervisor": _run_supervised_daemon,
-        "collector_preflight": _run_preflight,
-        "collector_main": main,
-        "collector_executable_boundary": _main_entrypoint,
-        "operations_alert_text_redaction": operations._redact_text,
-        "operations_alert_structure_redaction": operations.redact_sensitive,
-        "operations_alert_delivery": operations.emit_alert,
+    """Return the stable, declarative receipt and wire-format contract."""
+    manifest = deepcopy(GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_MANIFEST)
+    return {
+        **manifest,
+        "collector_semantics_id": content_id(manifest, prefix="collector_"),
     }
-    sources = {
-        name: hashlib.sha256(inspect.getsource(component).encode("utf-8")).hexdigest()
-        for name, component in components.items()
-    }
-    evidence = GLOBAL_EVENT_V2_PROTOCOL["evidence"]
-    manifest = {
-        "schema_version": 6,
-        "policy": _GLOBAL_ONLY_COLLECTOR_POLICY,
-        "components": sources,
-        "semantic_values": {
-            "collection_scope": {
-                "ticker_watchlist": False,
-                "ticker_sources": [],
-                "polymarket": False,
-                "broad_editorial_news": True,
-                "trend_derived_x_reaction": True,
-                "news_interval_seconds": _GLOBAL_ONLY_NEWS_INTERVAL_SECONDS,
-                "x_interval_seconds": _GLOBAL_ONLY_X_INTERVAL_SECONDS,
-            },
-            "broad_news_queries": evidence["broad_news_queries"],
-            "formal_allowed_sources": evidence["allowed_sources"],
-            "trendnews_role": evidence["trendnews_role"],
-            "independent_editorial_policy": evidence["independent_editorial_policy"],
-            "x_formal_policy": evidence["x_formal_policy"],
-            "fetch_receipt_evidence_lineage": evidence[
-                "fetch_receipt_evidence_lineage"
-            ],
-            "x_trend_woeids": evidence["x_trend_woeids"],
-            "x_daily_request_limits": {
-                "trends": evidence["max_x_trend_requests_per_utc_day"],
-                "search": evidence["max_x_search_requests_per_utc_day"],
-                "results_per_search": evidence["max_x_results_per_query"],
-            },
-            "x_cycle_recovery_stale_seconds": evidence[
-                "x_cycle_recovery_stale_seconds"
-            ],
-            "compatible_collector_identities": evidence[
-                "compatible_collector_identities"
-            ],
-            "allowed_observed_empty_providers": evidence["query_cycle"][
-                "allowed_observed_empty_providers"
-            ],
-            "globalnews_exception_retry_policy": evidence["query_cycle"][
-                "globalnews_exception_retry_policy"
-            ],
-            "globalnews_cycle_circuit_breaker": evidence["query_cycle"][
-                "globalnews_cycle_circuit_breaker"
-            ],
-            "provider_response_validation": evidence["query_cycle"][
-                "provider_response_validation"
-            ],
-            "provider_response_contract": {
-                "maximum_response_bytes": media_sources._MAX_PROVIDER_RESPONSE_BYTES,
-                "user_agent": media_sources._UA,
-                "x_recent_search_endpoint": media_sources._X_SEARCH,
-                "x_trends_endpoint": media_sources._X_TRENDS,
-                "x_required_post_metrics": media_sources._X_REQUIRED_POST_METRICS,
-                "x_required_user_metrics": media_sources._X_REQUIRED_USER_METRICS,
-                "global_news_endpoint": media_sources._GLOBAL_NEWS_RSS,
-                "top_news_feeds": media_sources._GOOGLE_TOP_NEWS_RSS,
-            },
-            "postgres_connection_contract": {
-                "prepare_threshold": media_store._postgres_connect_args()[
-                    "prepare_threshold"
-                ],
-                "transaction_settings": list(
-                    media_store._POSTGRES_TRANSACTION_SETTINGS
-                ),
-                "pool_recycle_seconds": media_store._POSTGRES_POOL_RECYCLE_SECONDS,
-                "collector_lease_heartbeat_seconds": (
-                    media_store._COLLECTOR_LEASE_HEARTBEAT_SECONDS
-                ),
-                "collector_advisory_lock_id": (
-                    media_store._COLLECTOR_ADVISORY_LOCK_ID
-                ),
-                "fly_mpg_pool_host_pattern": media_store._FLY_MPG_POOL_HOST.pattern,
-                "fly_mpg_direct_host_pattern": (
-                    media_store._FLY_MPG_DIRECT_HOST.pattern
-                ),
-                "local_postgres_hosts": sorted(media_store._LOCAL_POSTGRES_HOSTS),
-            },
-            "postgres_schema_contract": {
-                "check_constraint_definition_hashes": {
-                    f"{table}.{constraint}": sorted(hashes)
-                    for (table, constraint), hashes in sorted(
-                        media_store._COLLECTOR_CHECK_CONSTRAINT_HASHES.items()
-                    )
-                },
-                "column_type_families": {
-                    family: [
-                        {"type_oid": oid, "type_modifier": modifier}
-                        for oid, modifier in sorted(members)
-                    ]
-                    for family, members in sorted(
-                        media_store._COLLECTOR_POSTGRES_TYPE_FAMILIES.items()
-                    )
-                },
-                "column_metadata": {
-                    "nullability": "exact-model-match",
-                    "server_defaults": "forbidden",
-                    "collation": "built-in-type-default",
-                    "identity": "forbidden",
-                    "generated": "forbidden",
-                },
-            },
-            "runtime_supervision": {
-                "retry_initial_seconds": _RUNTIME_RETRY_INITIAL_SECONDS,
-                "retry_max_seconds": _RUNTIME_RETRY_MAX_SECONDS,
-                "alert_min_interval_seconds": (
-                    _RUNTIME_ALERT_MIN_INTERVAL_SECONDS
-                ),
-                "alert_reminder_seconds": _RUNTIME_ALERT_REMINDER_SECONDS,
-                "failure_stages": sorted(_RUNTIME_FAILURE_STAGES),
-                "retry_scope": "daemon-only",
-                "teardown_before_retry": True,
-                "recovery_boundary": "completed-cycle",
-            },
-            "release_preflight_alert_probe": {
-                "required_when_webhook_required": True,
-                "event": "release_preflight_probe",
-                "schema_version": 1,
-            },
-            "release_preflight_x_identity_history": {
-                "cycle_kind": "x-daily",
-                "accepted_pairs": "current-or-explicitly-compatible",
-                "scope": "all-observed-history",
-                "provider_calls": False,
-            },
-            "operations_alert_redaction_policy": {
-                "sensitive_key_parts": list(operations._SENSITIVE_KEY_PARTS),
-                "url_pattern": operations._URL.pattern,
-                "url_pattern_flags": int(operations._URL.flags),
-                "bearer_pattern": operations._BEARER.pattern,
-                "bearer_pattern_flags": int(operations._BEARER.flags),
-                "api_key_pattern": operations._API_KEY.pattern,
-                "api_key_pattern_flags": int(operations._API_KEY.flags),
-            },
-            "discovery_categories": list(_DISCOVERY_CATEGORIES),
-            "query_stopwords": sorted(_QUERY_STOPWORDS),
-            "generic_capitalized_terms": sorted(_GENERIC_CAPITALIZED),
-            "corporate_source_markers": list(media_sources._CORPORATE_SOURCE_MARKERS),
-            "editorial_source_markers": list(media_sources._EDITORIAL_SOURCE_MARKERS),
-            "first_party_headline_pattern": media_sources._FIRST_PARTY_HEADLINE.pattern,
-            "low_information_pattern": _LOW_INFORMATION_HEADLINE.pattern,
-        },
-    }
-    semantics_id = content_id(manifest, prefix="collector_")
-    if semantics_id != _EXPECTED_GLOBAL_ONLY_COLLECTOR_SEMANTICS_ID:
-        raise RuntimeError(
-            "global-only collector semantics changed without a policy version bump"
-        )
-    return {**manifest, "collector_semantics_id": semantics_id}
 
 
 def _check_cycle_query_coverage(
-    store, *, expected_query_slots: list[tuple[str, str]],
-    cycle_started_utc: float, cycle_completed_utc: float,
+    store,
+    *,
+    expected_query_slots: list[tuple[str, str]],
+    cycle_started_utc: float,
+    cycle_completed_utc: float,
     periodic_requirements: dict[str, str] | None = None,
 ) -> dict:
     """Persist a collector heartbeat and alert on partial per-query failures."""
     # These fetchers distinguish parsed empty responses from transport/auth
     # failures. Globalnews remains deliberately strict and is absent here.
     allowed_empty_providers = frozenset(
-        GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"][
-            "allowed_observed_empty_providers"
-        ]
+        GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"]["allowed_observed_empty_providers"]
     )
-    allow_empty = [
-        slot for slot in expected_query_slots if slot[0] in allowed_empty_providers
-    ]
+    allow_empty = [slot for slot in expected_query_slots if slot[0] in allowed_empty_providers]
     frozen_globalnews_slots = set(_globalnews_query_slots(_global_only_news_themes()))
     require_lineage = [
-        slot for slot in expected_query_slots
+        slot
+        for slot in expected_query_slots
         if slot in frozen_globalnews_slots or slot[0] == "trendnews"
     ]
+    # This is an operational post-cycle observation, not a model's point-in-time
+    # cutoff. Advance by one representable float so a receipt committed at the
+    # same clock tick is included while research cutoffs remain strictly before.
     coverage = store.coverage_report(
-        cycle_completed_utc,
+        math.nextafter(cycle_completed_utc, math.inf),
         [],
         expected_query_slots=expected_query_slots,
         allow_empty_query_slots=allow_empty,
@@ -879,21 +810,22 @@ def _check_cycle_query_coverage(
     if any(
         not isinstance(name, str)
         or name not in {"x_daily"}
-        or state not in {"complete", "incomplete", "invalid", "missing", "running"}
+        or state not in {
+            "complete", "incomplete", "invalid", "missing", "running", "scheduled"
+        }
         for name, state in periodic.items()
     ):
         raise ValueError("collector periodic requirement state is invalid")
     missing_periodic = sorted(
-        name for name, state in periodic.items() if state != "complete"
+        name for name, state in periodic.items()
+        if state not in {"complete", "scheduled"}
     )
     coverage["periodic_requirements"] = periodic
     coverage["missing_periodic_requirements"] = missing_periodic
     coverage["complete"] = bool(coverage["complete"] and not missing_periodic)
     heartbeat = "poller:last_success_utc" if coverage["complete"] else "poller:last_failure_utc"
     store.set_meta(heartbeat, cycle_completed_utc)
-    _update_coverage_alert_state(
-        store, coverage=coverage, observed_utc=cycle_completed_utc
-    )
+    _update_coverage_alert_state(store, coverage=coverage, observed_utc=cycle_completed_utc)
     return coverage
 
 
@@ -914,27 +846,24 @@ def _collapse_identical_fetch_rows(rows: list[dict], provider: str) -> list[dict
         identity = (row.get("source"), row.get("external_id"))
         metadata = row.get("metadata")
         provider_external_id = (
-            metadata.get("provider_external_id")
-            if isinstance(metadata, dict) else None
+            metadata.get("provider_external_id") if isinstance(metadata, dict) else None
         )
-        if provider in {"globalnews", "trendnews"} and isinstance(
-            provider_external_id, str
-        ) and provider_external_id:
+        if (
+            provider in {"globalnews", "trendnews"}
+            and isinstance(provider_external_id, str)
+            and provider_external_id
+        ):
             prior_vintage = provider_vintages.setdefault(
                 provider_external_id, row.get("external_id")
             )
             if prior_vintage != row.get("external_id"):
-                raise ValueError(
-                    f"{provider} response contained ambiguous provider revisions"
-                )
+                raise ValueError(f"{provider} response contained ambiguous provider revisions")
         fingerprint = _raw_content_id(row)
         if identity in fingerprints and (
             fingerprints[identity] != fingerprint
             or media_store._media_rows_conflict(collapsed[identity], row)
         ):
-            raise ValueError(
-                f"{provider} fetcher returned conflicting duplicate provenance"
-            )
+            raise ValueError(f"{provider} fetcher returned conflicting duplicate provenance")
         fingerprints.setdefault(identity, fingerprint)
         collapsed.setdefault(identity, dict(row))
         label_values = row.get("labels") or []
@@ -972,9 +901,16 @@ def _assert_store_collector_lease(store) -> None:
 
 
 def _run_fetch(
-    store, *, provider: str, query_key: str, fetch_fn,
-    labels: list[str] | None = None, odds: bool = False, cost_units: float = 0.0,
-    store_result: bool = True, formal_eligibility_fn=None,
+    store,
+    *,
+    provider: str,
+    query_key: str,
+    fetch_fn,
+    labels: list[str] | None = None,
+    odds: bool = False,
+    cost_units: float = 0.0,
+    store_result: bool = True,
+    formal_eligibility_fn=None,
     budget_limits: dict[str, float] | None = None,
     budget_metadata: dict | None = None,
     collection_cycle_id: str | None = None,
@@ -982,6 +918,7 @@ def _run_fetch(
     """Fetch, receipt-stamp, store, and audit one independent query."""
     _assert_store_collector_lease(store)
     if provider in {"globalnews", "trendnews", "x"} and formal_eligibility_fn is None:
+
         def _default_formal_eligibility(row, cutoff):
             return is_formally_eligible_evidence(row, as_of_utc=cutoff)
 
@@ -992,25 +929,31 @@ def _run_fetch(
     metadata = {
         "labels": labels or [],
         "kind": "odds" if odds else "media" if store_result else "request_receipt",
-        "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
-        "collector_semantics_id": collector_semantics_manifest()[
-            "collector_semantics_id"
-        ],
+        "protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+        "collector_semantics_id": GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
         **(budget_metadata or {}),
     }
     if cost_units > 0 and not budget_limits:
         raise ValueError("paid fetches require a durable atomic budget reservation")
     if budget_limits:
         fetch_run_id = store.start_budgeted_fetch(
-            provider, query_key, started, cursor_before=cursor_before,
-            metadata=metadata, budget_limits=budget_limits,
+            provider,
+            query_key,
+            started,
+            cursor_before=cursor_before,
+            metadata=metadata,
+            budget_limits=budget_limits,
             collection_cycle_id=collection_cycle_id,
         )
         if fetch_run_id is None:
             raise _FetchBudgetExceeded(f"{provider} request budget exhausted")
     else:
         fetch_run_id = store.start_fetch(
-            provider, query_key, started, cursor_before=cursor_before, metadata=metadata,
+            provider,
+            query_key,
+            started,
+            cursor_before=cursor_before,
+            metadata=metadata,
             collection_cycle_id=collection_cycle_id,
         )
     received = started
@@ -1022,8 +965,10 @@ def _run_fetch(
         _assert_store_collector_lease(store)
         if not isinstance(rows, list):
             raise TypeError(f"{provider} fetcher returned {type(rows).__name__}, expected list")
-        if store_result and not odds and any(
-            not isinstance(row, dict) or row.get("source") != provider for row in rows
+        if (
+            store_result
+            and not odds
+            and any(not isinstance(row, dict) or row.get("source") != provider for row in rows)
         ):
             raise ValueError(f"{provider} fetcher returned mismatched source provenance")
         formal_eligible_item_count = None
@@ -1037,25 +982,26 @@ def _run_fetch(
             ]
             rows = _collapse_identical_fetch_rows(rows, provider)
             if formal_eligibility_fn is not None:
-                formal_eligible_evidence_ids = sorted({
-                    _evidence_id(row)
-                    for row in rows
-                    if (
-                        provider != "globalnews"
-                        or query_key in _formal_query_slots(row)
-                    )
-                    # Decision cutoffs are strict. For this receipt's own
-                    # content projection, admit the exact response timestamp.
-                    and formal_eligibility_fn(
-                        row, math.nextafter(received, math.inf)
-                    )
-                })
+                formal_eligible_evidence_ids = sorted(
+                    {
+                        _evidence_id(row)
+                        for row in rows
+                        if (provider != "globalnews" or query_key in _formal_query_slots(row))
+                        # Decision cutoffs are strict. For this receipt's own
+                        # content projection, admit the exact response timestamp.
+                        and formal_eligibility_fn(row, math.nextafter(received, math.inf))
+                    }
+                )
                 formal_eligible_item_count = len(formal_eligible_evidence_ids)
         status = "success" if rows else "empty"
         cursor_after = received if rows else None
         inserted = store.complete_fetch(
-            fetch_run_id, rows=rows, status=status, received_utc=received,
-            completed_utc=time.time(), cost_units=cost_units,
+            fetch_run_id,
+            rows=rows,
+            status=status,
+            received_utc=received,
+            completed_utc=time.time(),
+            cost_units=cost_units,
             cursor_after=cursor_after,
             formal_eligible_item_count=formal_eligible_item_count,
             formal_eligible_evidence_ids=formal_eligible_evidence_ids,
@@ -1079,23 +1025,29 @@ def _run_fetch(
         if terminal_committed:
             raise AssertionError("terminal fetch work escaped its commit boundary") from exc
         store.finish_fetch(
-            fetch_run_id, status="failed", received_utc=received,
-            completed_utc=time.time(), item_count=0, inserted_count=0,
-            error=_exception_kind(exc), cost_units=cost_units,
+            fetch_run_id,
+            status="failed",
+            received_utc=received,
+            completed_utc=time.time(),
+            item_count=0,
+            inserted_count=0,
+            error=_exception_kind(exc),
+            cost_units=cost_units,
             formal_eligible_item_count=None,
             formal_eligible_evidence_ids=None,
         )
         raise
 
 
-def poll_once(store, tickers: list[str], sources: list[str],
-              now: float, since: float | None) -> None:
+def poll_once(store, tickers: list[str], sources: list[str]) -> None:
     for ticker in tickers:
         parts = []
         for src in sources:
             try:
                 _, inserted, status = _run_fetch(
-                    store, provider=src, query_key=ticker,
+                    store,
+                    provider=src,
+                    query_key=ticker,
                     fetch_fn=lambda captured, source=src, symbol=ticker: FETCHERS[source](
                         symbol, captured
                     ),
@@ -1105,14 +1057,16 @@ def poll_once(store, tickers: list[str], sources: list[str],
             except Exception as exc:  # independent query state must survive peer failures
                 logger.error(
                     "%s fetch slot %s failed (%s)",
-                    _safe_alert_provider(src), _query_slot_id(src, ticker), _exception_kind(exc),
+                    _safe_alert_provider(src),
+                    _query_slot_id(src, ticker),
+                    _exception_kind(exc),
                 )
                 parts.append(f"{src} failed")
         logger.info("%s: %s", ticker, " · ".join(parts))
         time.sleep(1.0)  # be polite between tickers
 
 
-def poll_macro_once(store, themes: dict, now: float, since: float | None) -> None:
+def poll_macro_once(store, themes: dict) -> None:
     """Snapshot the macro layer: per theme, global/theme news (windowed like the
     social sources) and live Polymarket odds. Odds are always stored — each poll
     is a fresh point in the probability time series. FRED is omitted (it's fully
@@ -1132,7 +1086,8 @@ def poll_macro_once(store, themes: dict, now: float, since: float | None) -> Non
                 globalnews_failure_slots += 1
                 logger.info(
                     "globalnews fetch slot %s unavailable (%s)",
-                    _query_slot_id("globalnews", f"{theme}:{query}"), _exception_kind(exc),
+                    _query_slot_id("globalnews", f"{theme}:{query}"),
+                    _exception_kind(exc),
                 )
                 if globalnews_failure_slots == _GLOBALNEWS_CIRCUIT_FAILURE_SLOTS:
                     logger.info(
@@ -1147,7 +1102,9 @@ def poll_macro_once(store, themes: dict, now: float, since: float | None) -> Non
         for topic in spec.get("prediction_topics", []):
             try:
                 _, inserted, _ = _run_fetch(
-                    store, provider="polymarket", query_key=f"{theme}:{topic}",
+                    store,
+                    provider="polymarket",
+                    query_key=f"{theme}:{topic}",
                     fetch_fn=lambda captured, p=topic, t=theme: fetch_polymarket_odds(
                         p, captured, t
                     ),
@@ -1157,10 +1114,10 @@ def poll_macro_once(store, themes: dict, now: float, since: float | None) -> Non
             except Exception as exc:
                 logger.error(
                     "polymarket fetch slot %s failed (%s)",
-                    _query_slot_id("polymarket", f"{theme}:{topic}"), _exception_kind(exc),
+                    _query_slot_id("polymarket", f"{theme}:{topic}"),
+                    _exception_kind(exc),
                 )
-        logger.info("macro[%s]: globalnews +%d · polymarket-odds +%d",
-                    theme, news_new, odds_new)
+        logger.info("macro[%s]: globalnews +%d · polymarket-odds +%d", theme, news_new, odds_new)
     if globalnews_skipped_slots:
         logger.info(
             "globalnews cycle circuit skipped %d remaining slots",
@@ -1209,13 +1166,13 @@ def _run_globalnews_query(
                     query,
                     captured,
                     theme,
-                    limit=int(GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                        "max_global_news_results_per_query"
-                    ]),
+                    limit=int(
+                        GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_global_news_results_per_query"]
+                    ),
                 ),
                 labels=[f"@{theme}", global_news_query_slot_label(theme, query)],
-                formal_eligibility_fn=lambda row, cutoff: (
-                    is_formally_eligible_evidence(row, as_of_utc=cutoff)
+                formal_eligibility_fn=lambda row, cutoff: is_formally_eligible_evidence(
+                    row, as_of_utc=cutoff
                 ),
                 budget_metadata={
                     "attempt_ordinal": attempt_ordinal,
@@ -1240,25 +1197,71 @@ def _run_globalnews_query(
 
 def _headline_without_publisher(title: str) -> str:
     """Remove Google News' trailing `` - Publisher`` attribution."""
-    return re.sub(r"\s+-\s+[^-]{2,80}$", "", title).strip()
+    return re.sub(str(_DISCOVERY_NORMALIZATION["publisher_suffix_pattern"]), "", title).strip()
+
+
+def _discovery_lower(text: str) -> str:
+    if _DISCOVERY_NORMALIZATION["case"] != "lower":
+        raise RuntimeError("discovery case-normalization policy is unsupported")
+    return text.lower()
+
+
+def _discovery_order_key(values: Mapping[str, object], order: object) -> tuple:
+    if not isinstance(order, tuple) or any(name not in values for name in order):
+        raise RuntimeError("discovery ordering policy is unsupported")
+    return tuple(values[name] for name in order)
+
+
+def _is_capitalized_anchor(token: str) -> bool:
+    if _DISCOVERY_QUERY["capitalization"] != "initial-or-internal-uppercase-v1":
+        raise RuntimeError("discovery capitalization policy is unsupported")
+    return token[0].isupper() or any(char.isupper() for char in token[1:])
+
+
+def _is_distinctive_anchor(token: str) -> bool:
+    if (
+        _DISCOVERY_QUERY["distinctive_token"]
+        != "digit-or-internal-uppercase-or-single-uppercase-v1"
+    ):
+        raise RuntimeError("discovery distinctive-token policy is unsupported")
+    return (
+        any(char.isdigit() for char in token)
+        or any(char.isupper() for char in token[1:])
+        or (len(token) == 1 and token.isupper())
+    )
 
 
 def _topic_key(text: str) -> str:
-    return " ".join(re.findall(r"[a-z0-9]+", _headline_without_publisher(text).lower()))
+    normalized = _discovery_lower(_headline_without_publisher(text))
+    return " ".join(re.findall(str(_DISCOVERY_NORMALIZATION["word_pattern"]), normalized))
 
 
 def _semantic_terms(text: str) -> set[str]:
     terms = set()
-    for token in re.findall(r"[a-z0-9]+", _headline_without_publisher(text).lower()):
-        if (len(token) < 3 and token not in {"ai", "us", "uk"}) or token in _QUERY_STOPWORDS:
+    normalized = _discovery_lower(_headline_without_publisher(text))
+    for token in re.findall(str(_DISCOVERY_NORMALIZATION["word_pattern"]), normalized):
+        if (
+            len(token) < int(_DISCOVERY_NORMALIZATION["semantic_min_chars"])
+            and token not in _DISCOVERY_NORMALIZATION["semantic_short_allowlist"]
+        ) or token in _QUERY_STOPWORDS:
             continue
         # Lightweight normalization is deterministic and avoids a large NLP
         # dependency in the 256 MB collector.
-        if token.startswith("launch"):
-            token = "launch"
-        elif token == "worldwide":
-            token = "world"
-        terms.add(token[:-1] if len(token) > 4 and token.endswith("s") else token)
+        token = next(
+            (
+                replacement
+                for prefix, replacement in _DISCOVERY_NORMALIZATION["semantic_prefix_aliases"]
+                if token.startswith(prefix)
+            ),
+            token,
+        )
+        token = dict(_DISCOVERY_NORMALIZATION["semantic_exact_aliases"]).get(token, token)
+        plural_suffix = str(_DISCOVERY_NORMALIZATION["plural_suffix"])
+        if len(token) >= int(_DISCOVERY_NORMALIZATION["plural_min_chars"]) and token.endswith(
+            plural_suffix
+        ):
+            token = token[: -len(plural_suffix)]
+        terms.add(token)
     return terms
 
 
@@ -1268,16 +1271,38 @@ def _same_story(left: str, right: str) -> bool:
         return False
     overlap = len(a & b)
     jaccard = overlap / len(a | b)
-    return jaccard >= 0.58 or (overlap >= 3 and jaccard >= 0.38)
+    return jaccard >= float(_DISCOVERY_STORY_GROUPING["primary_jaccard_min"]) or (
+        overlap >= int(_DISCOVERY_STORY_GROUPING["secondary_overlap_min"])
+        and jaccard >= float(_DISCOVERY_STORY_GROUPING["secondary_jaccard_min"])
+    )
 
 
 def _trend_matches_headline(trend: str, headline: str) -> bool:
-    trend_words = set(re.findall(r"[a-z0-9]+", trend.lower().lstrip("#")))
-    headline_words = set(re.findall(r"[a-z0-9]+", headline.lower()))
-    meaningful = {word for word in trend_words if len(word) >= 4 and word not in _QUERY_STOPWORDS}
+    word_pattern = str(_DISCOVERY_NORMALIZATION["word_pattern"])
+    trend_words = set(
+        re.findall(
+            word_pattern,
+            _discovery_lower(trend).lstrip(
+                str(_DISCOVERY_TREND_MATCHING["leading_chars_to_strip"])
+            ),
+        )
+    )
+    headline_words = set(re.findall(word_pattern, _discovery_lower(headline)))
+    meaningful = {
+        word
+        for word in trend_words
+        if len(word) >= int(_DISCOVERY_TREND_MATCHING["meaningful_min_chars"])
+        and word not in _QUERY_STOPWORDS
+    }
     if not meaningful:
         return False
-    needed = 1 if len(meaningful) == 1 else 2
+    needed = int(
+        _DISCOVERY_TREND_MATCHING[
+            "single_term_required_overlap"
+            if len(meaningful) == 1
+            else "multiple_term_required_overlap"
+        ]
+    )
     return len(meaningful & headline_words) >= needed
 
 
@@ -1289,12 +1314,12 @@ def _headline_query(title: str) -> str:
     avoiding a brittle exact-headline search.
     """
     headline = _headline_without_publisher(title)
-    tokens = re.findall(r"[A-Za-z][A-Za-z0-9&.'’+-]*", headline)
+    tokens = re.findall(str(_DISCOVERY_QUERY["token_pattern"]), headline)
     capitalized_runs: list[list[str]] = []
     run: list[str] = []
     for token in tokens:
-        is_capitalized = token[0].isupper() or any(char.isupper() for char in token[1:])
-        if is_capitalized and token.lower() not in _QUERY_STOPWORDS:
+        is_capitalized = _is_capitalized_anchor(token)
+        if is_capitalized and _discovery_lower(token) not in _QUERY_STOPWORDS:
             run.append(token)
         elif run:
             capitalized_runs.append(run)
@@ -1308,39 +1333,44 @@ def _headline_query(title: str) -> str:
             words = words[1:]
         if not words:
             continue
-        distinctive = [
-            word for word in words
-            if any(c.isdigit() for c in word)
-            or any(c.isupper() for c in word[1:])
-            or (len(word) == 1 and word.isupper())
-        ]
-        if len(words) > 3:
-            words = distinctive[:2] or words[:2]
-        phrase = " ".join(words[:3])
-        if len(words) > 1 or distinctive:
+        distinctive = [word for word in words if _is_distinctive_anchor(word)]
+        if len(words) >= int(_DISCOVERY_QUERY["long_run_min_words"]):
+            cap = int(_DISCOVERY_QUERY["long_run_word_cap"])
+            words = distinctive[:cap] or words[:cap]
+        phrase = " ".join(words[: int(_DISCOVERY_QUERY["phrase_word_cap"])])
+        if len(words) >= int(_DISCOVERY_QUERY["qualified_phrase_min_words"]) or distinctive:
             anchors.append((phrase, bool(distinctive)))
     anchors = sorted(
         set(anchors),
-        key=lambda value: (value[1], len(value[0].split()), len(value[0])),
+        key=lambda value: _discovery_order_key(
+            {
+                "distinctive-desc": value[1],
+                "word-count-desc": len(value[0].split()),
+                "character-count-desc": len(value[0]),
+            },
+            _DISCOVERY_QUERY["anchor_order"],
+        ),
         reverse=True,
     )
 
-    chosen = [anchors[0][0]] if anchors else []
-    anchor_words = {word.lower() for phrase in chosen for word in phrase.split()}
+    chosen = [phrase for phrase, _distinctive in anchors[: int(_DISCOVERY_QUERY["anchor_cap"])]]
+    anchor_words = {_discovery_lower(word) for phrase in chosen for word in phrase.split()}
     signals = [
-        token for token in tokens
-        if len(token) >= 4
-        and token.lower() not in _QUERY_STOPWORDS
-        and token.lower() not in anchor_words
+        token
+        for token in tokens
+        if len(token) >= int(_DISCOVERY_QUERY["signal_min_chars"])
+        and _discovery_lower(token) not in _QUERY_STOPWORDS
+        and _discovery_lower(token) not in anchor_words
         and token not in _GENERIC_CAPITALIZED
     ]
 
-    parts = [f'"{phrase.replace(chr(34), "")}"' for phrase in chosen]
-    if parts and len(parts) < 2 and signals:
+    quote = str(_DISCOVERY_QUERY["phrase_quote"])
+    parts = [f"{quote}{phrase.replace(quote, '')}{quote}" for phrase in chosen]
+    if parts and len(parts) < int(_DISCOVERY_QUERY["query_part_cap"]) and signals:
         parts.append(signals[0])
     if not parts:
-        parts = signals[:3]
-    return " ".join(parts)[:400]
+        parts = signals[: int(_DISCOVERY_QUERY["fallback_signal_cap"])]
+    return " ".join(parts)[: int(_DISCOVERY_QUERY["max_query_chars"])]
 
 
 def _looks_company_authored(headline: dict) -> bool:
@@ -1349,7 +1379,9 @@ def _looks_company_authored(headline: dict) -> bool:
 
 
 def discover_x_topics(
-    max_topics: int = 3, *, headlines: list[dict] | None = None,
+    max_topics: int,
+    *,
+    headlines: list[dict] | None = None,
     trends: list[dict] | None = None,
 ) -> list[dict]:
     """Select a small, diverse set of current high-information news topics.
@@ -1359,58 +1391,87 @@ def discover_x_topics(
     search on their own. One candidate per world/business/technology category
     maximizes coverage when the normal three-topic budget is used.
     """
-    headlines = fetch_top_news_headlines() if headlines is None else headlines
+    headlines = (
+        fetch_top_news_headlines(limit_per_feed=int(_DISCOVERY_INPUTS["ranked_feed_limit"]))
+        if headlines is None
+        else headlines
+    )
     if trends is None:
         trends = [
             trend
             for woeid in GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_trend_woeids"]
-            for trend in fetch_x_trends(int(woeid))
+            for trend in fetch_x_trends(int(woeid), limit=_GLOBAL_X_TREND_LIMIT)
         ]
     trend_names = [trend["name"] for trend in trends if trend.get("name")]
 
     grouped: dict[str, dict] = {}
+    if _DISCOVERY_STORY_GROUPING["resolution"] != "first-matching-input-group":
+        raise RuntimeError("discovery story-group resolution policy is unsupported")
+    if _DISCOVERY_ALLOCATION["representation_order"] != "configured-category-order":
+        raise RuntimeError("discovery representation policy is unsupported")
     for headline in headlines:
-        if _LOW_INFORMATION_HEADLINE.search(headline.get("title", "")) or \
-                _looks_company_authored(headline):
+        if (
+            bool(_DISCOVERY_INPUTS["exclude_low_information"])
+            and _LOW_INFORMATION_HEADLINE.search(headline.get("title", ""))
+        ) or (
+            bool(_DISCOVERY_INPUTS["exclude_company_authored"])
+            and _looks_company_authored(headline)
+        ):
             continue
         key = _topic_key(headline.get("title", ""))
         if not key:
             continue
         key = next(
-            (existing for existing, candidate in grouped.items()
-             if _same_story(candidate["title"], headline["title"])),
+            (
+                existing
+                for existing, candidate in grouped.items()
+                if _same_story(candidate["title"], headline["title"])
+            ),
             key,
         )
-        candidate = grouped.setdefault(key, {
-            **headline,
-            "categories": set(),
-            "regions": set(),
-            "ranks": {},
-            "lineage": [],
-        })
-        category = headline.get("category", "general")
+        candidate = grouped.setdefault(
+            key,
+            {
+                **headline,
+                "categories": set(),
+                "regions": set(),
+                "ranks": {},
+                "lineage": [],
+            },
+        )
+        category = headline.get("category", str(_DISCOVERY_RANKING["default_category"]))
         candidate["categories"].add(category)
-        candidate["regions"].add(headline.get("region", "unknown"))
-        candidate["lineage"].append({
-            key: headline.get(key) for key in (
-                "external_id", "title", "body", "created_utc", "publisher",
-                "metadata", "category", "region", "rank",
-            )
-        })
+        candidate["regions"].add(headline.get("region", str(_DISCOVERY_RANKING["default_region"])))
+        candidate["lineage"].append(
+            {key: headline.get(key) for key in _DISCOVERY_RANKING["lineage_fields"]}
+        )
+        missing_rank = int(_DISCOVERY_RANKING["missing_rank"])
         candidate["ranks"][category] = min(
-            candidate["ranks"].get(category, 10_000), headline.get("rank", 10_000)
+            candidate["ranks"].get(category, missing_rank),
+            headline.get("rank", missing_rank),
         )
 
     candidates = []
     for candidate in grouped.values():
         best_rank = min(candidate["ranks"].values())
-        cross_feed_bonus = 18 * (len(candidate["categories"]) - 1)
-        cross_region_bonus = 12 * (len(candidate["regions"]) - 1)
-        trend_bonus = 30 if any(
-            _trend_matches_headline(name, candidate["title"]) for name in trend_names
-        ) else 0
+        cross_feed_bonus = int(_DISCOVERY_RANKING["cross_feed_weight"]) * (
+            len(candidate["categories"]) - int(_DISCOVERY_RANKING["cross_source_baseline_count"])
+        )
+        cross_region_bonus = int(_DISCOVERY_RANKING["cross_region_weight"]) * (
+            len(candidate["regions"]) - int(_DISCOVERY_RANKING["cross_source_baseline_count"])
+        )
+        trend_bonus = (
+            int(_DISCOVERY_RANKING["trend_match_weight"])
+            if any(_trend_matches_headline(name, candidate["title"]) for name in trend_names)
+            else 0
+        )
         candidate["score"] = (
-            100 - min(best_rank, 20) * 4 + cross_feed_bonus + cross_region_bonus + trend_bonus
+            int(_DISCOVERY_RANKING["score_base"])
+            - min(best_rank, int(_DISCOVERY_RANKING["score_rank_cap"]))
+            * int(_DISCOVERY_RANKING["score_rank_weight"])
+            + cross_feed_bonus
+            + cross_region_bonus
+            + trend_bonus
         )
         candidate["query"] = _headline_query(candidate["title"])
         if candidate["query"]:
@@ -1420,50 +1481,270 @@ def discover_x_topics(
     used_keys = set()
     for category in _DISCOVERY_CATEGORIES:
         eligible = [
-            candidate for candidate in candidates
-            if category in candidate["categories"] and _topic_key(candidate["title"]) not in used_keys
+            candidate
+            for candidate in candidates
+            if category in candidate["categories"]
+            and _topic_key(candidate["title"]) not in used_keys
         ]
         if not eligible or len(chosen) >= max_topics:
             continue
-        best = min(eligible, key=lambda candidate: (
-            -(candidate["score"] - candidate["ranks"].get(category, 20) * 2),
-            -(candidate.get("created_utc") or 0),
-            _topic_key(candidate["title"]),
-            candidate["query"],
-        ))
-        best = {**best, "topic": f"trend_{category}", "category": category}
+        best = min(
+            eligible,
+            key=lambda candidate: _discovery_order_key(
+                {
+                    "category-adjusted-score-desc": -(
+                        candidate["score"]
+                        - candidate["ranks"].get(
+                            category,
+                            int(_DISCOVERY_RANKING["category_missing_rank"]),
+                        )
+                        * int(_DISCOVERY_RANKING["category_rank_weight"])
+                    ),
+                    "created-utc-desc": -(
+                        candidate.get("created_utc")
+                        or int(_DISCOVERY_RANKING["missing_created_utc"])
+                    ),
+                    "topic-key-asc": _topic_key(candidate["title"]),
+                    "query-asc": candidate["query"],
+                },
+                _DISCOVERY_ALLOCATION["category_candidate_order"],
+            ),
+        )
+        best = {
+            **best,
+            "topic": f"{_DISCOVERY_ALLOCATION['topic_prefix']}{category}",
+            "category": category,
+        }
         chosen.append(best)
         used_keys.add(_topic_key(best["title"]))
 
     if len(chosen) < max_topics:
-        remaining = sorted(candidates, key=lambda candidate: (
-            -candidate["score"],
-            -(candidate.get("created_utc") or 0),
-            _topic_key(candidate["title"]),
-            candidate["query"],
-        ))
+        remaining = sorted(
+            candidates,
+            key=lambda candidate: _discovery_order_key(
+                {
+                    "score-desc": -candidate["score"],
+                    "created-utc-desc": -(
+                        candidate.get("created_utc")
+                        or int(_DISCOVERY_RANKING["missing_created_utc"])
+                    ),
+                    "topic-key-asc": _topic_key(candidate["title"]),
+                    "query-asc": candidate["query"],
+                },
+                _DISCOVERY_ALLOCATION["remaining_candidate_order"],
+            ),
+        )
         for candidate in remaining:
             key = _topic_key(candidate["title"])
             if key in used_keys:
                 continue
             formal_categories = [
-                category for category in _DISCOVERY_CATEGORIES
+                category
+                for category in _DISCOVERY_CATEGORIES
                 if category in candidate["categories"]
             ]
             if not formal_categories:
                 continue
             category = min(
                 formal_categories,
-                key=lambda value: (
-                    candidate["ranks"].get(value, 10_000),
-                    _DISCOVERY_CATEGORIES.index(value),
+                key=lambda value: _discovery_order_key(
+                    {
+                        "rank-asc": candidate["ranks"].get(
+                            value, int(_DISCOVERY_RANKING["missing_rank"])
+                        ),
+                        "configured-category-order": (_DISCOVERY_CATEGORIES.index(value)),
+                    },
+                    _DISCOVERY_ALLOCATION["fallback_category_order"],
                 ),
             )
-            chosen.append({**candidate, "topic": f"trend_{category}", "category": category})
+            chosen.append(
+                {
+                    **candidate,
+                    "topic": f"{_DISCOVERY_ALLOCATION['topic_prefix']}{category}",
+                    "category": category,
+                }
+            )
             used_keys.add(key)
             if len(chosen) >= max_topics:
                 break
     return chosen
+
+
+def _group_x_search_topics(topics: list[dict]) -> list[dict]:
+    """Collapse identical derived queries before declaring or issuing requests."""
+    if _DISCOVERY_ALLOCATION["search_request_grouping"] != (
+        "exact-query-with-sorted-label-union-v1"
+    ) or _DISCOVERY_ALLOCATION["search_request_order"] != "query-asc":
+        raise RuntimeError("discovery request-grouping policy is unsupported")
+    grouped: dict[str, dict] = {}
+    for topic in topics:
+        query = topic.get("query")
+        topic_name = topic.get("topic")
+        category = topic.get("category")
+        external_id = topic.get("external_id")
+        if not all(
+            isinstance(value, str) and value
+            for value in (query, topic_name, category, external_id)
+        ):
+            raise ValueError("selected X topics require complete request provenance")
+        group = grouped.setdefault(
+            query,
+            {
+                "query_key": query,
+                "topic": topic_name,
+                "labels": set(),
+                "categories": set(),
+                "selected_external_ids": set(),
+            },
+        )
+        group["topic"] = min(group["topic"], topic_name)
+        group["labels"].add(f"@{topic_name}".upper())
+        group["categories"].add(category)
+        group["selected_external_ids"].add(external_id)
+    return [
+        {
+            **group,
+            "labels": sorted(group["labels"]),
+            "categories": sorted(group["categories"]),
+            "selected_external_ids": sorted(group["selected_external_ids"]),
+        }
+        for _query, group in sorted(grouped.items())
+    ]
+
+
+def _discovery_topic_decision(topic: dict) -> dict:
+    return {
+        key: deepcopy(topic.get(key))
+        for key in _DISCOVERY_AUDIT["selected_topic_fields"]
+    }
+
+
+def _discovery_input_headline(headline: dict) -> dict:
+    metadata = headline.get("metadata")
+    return {
+        **{
+            key: deepcopy(headline.get(key))
+            for key in _DISCOVERY_AUDIT["headline_fields"]
+        },
+        "metadata": {
+            key: deepcopy(metadata.get(key)) if isinstance(metadata, dict) else None
+            for key in _DISCOVERY_AUDIT["headline_metadata_fields"]
+        },
+    }
+
+
+def _x_discovery_decision_manifest(
+    *,
+    collection_cycle_id: str,
+    captured_utc: float,
+    max_topics: int,
+    headlines: list[dict],
+    trends: list[dict],
+    topics: list[dict],
+    search_requests: list[dict],
+) -> dict:
+    if (
+        not isinstance(collection_cycle_id, str)
+        or re.fullmatch(r"cycle_[0-9a-f]{24}", collection_cycle_id) is None
+        or isinstance(captured_utc, bool)
+        or not isinstance(captured_utc, (int, float))
+        or not math.isfinite(float(captured_utc))
+        or isinstance(max_topics, bool)
+        or not isinstance(max_topics, int)
+        or max_topics
+        != int(GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_search_requests_per_utc_day"])
+        or any(not isinstance(item, dict) for item in headlines)
+        or any(not isinstance(item, dict) for item in trends)
+    ):
+        raise ValueError("X discovery decision parameters are invalid")
+    payload = {
+        "schema_version": 1,
+        "collection_cycle_id": collection_cycle_id,
+        "collection_protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+        "collector_semantics_id": GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+        "discovery_policy_id": content_id(
+            discovery_policy_manifest(), prefix="discovery_policy_"
+        ),
+        "captured_utc": float(captured_utc),
+        "max_topics": max_topics,
+        "discovery_input": {
+            "headlines": [
+                _discovery_input_headline(headline) for headline in headlines
+            ],
+            "trends": [
+                {key: deepcopy(trend.get(key)) for key in _DISCOVERY_AUDIT["trend_fields"]}
+                for trend in trends
+            ],
+        },
+        "selected_topics": [_discovery_topic_decision(topic) for topic in topics],
+        "search_requests": deepcopy(search_requests),
+    }
+    return {
+        "discovery_decision_id": content_id(payload, prefix="xdiscovery_"),
+        **payload,
+    }
+
+
+def validate_x_discovery_decision(manifest: dict) -> None:
+    """Replay a stored query-free input and require its exact selection decision."""
+    if not isinstance(manifest, dict):
+        raise ValueError("X discovery decision must be a mapping")
+    payload = {
+        key: value for key, value in manifest.items()
+        if key != "discovery_decision_id"
+    }
+    if manifest.get("discovery_decision_id") != content_id(
+        payload, prefix="xdiscovery_"
+    ):
+        raise ValueError("X discovery decision identity is invalid")
+    inputs = manifest.get("discovery_input")
+    headlines = inputs.get("headlines") if isinstance(inputs, dict) else None
+    trends = inputs.get("trends") if isinstance(inputs, dict) else None
+    captured = manifest.get("captured_utc")
+    max_topics = manifest.get("max_topics")
+    if not isinstance(headlines, list) or not isinstance(trends, list):
+        raise ValueError("X discovery decision input is malformed")
+    topics = _formally_grounded_discovery_topics(
+        discover_x_topics(
+            max_topics=max_topics,
+            headlines=deepcopy(headlines),
+            trends=deepcopy(trends),
+        ),
+        captured,
+    )
+    expected = _x_discovery_decision_manifest(
+        collection_cycle_id=manifest.get("collection_cycle_id"),
+        captured_utc=captured,
+        max_topics=max_topics,
+        headlines=headlines,
+        trends=trends,
+        topics=topics,
+        search_requests=_group_x_search_topics(topics),
+    )
+    if manifest != expected:
+        raise ValueError("X discovery decision does not replay from its immutable input")
+
+
+def x_discovery_decision_row(manifest: dict) -> dict:
+    validate_x_discovery_decision(manifest)
+    captured = manifest["captured_utc"]
+    decision_id = manifest["discovery_decision_id"]
+    return {
+        "source": "trendnews",
+        "external_id": decision_id,
+        "ticker": "@X_DISCOVERY_AUDIT",
+        "subreddit": None,
+        "author": None,
+        "sentiment": None,
+        "created_utc": captured,
+        "title": "Query-free X discovery decision",
+        "body": canonical_json(manifest),
+        "fetched_utc": captured,
+        "metadata": {
+            "evidence_role": "query_free_discovery_decision",
+            "discovery_decision_id": decision_id,
+        },
+    }
 
 
 def _discovery_news_row(topic: dict, now: float, headline: dict | None = None) -> dict:
@@ -1483,9 +1764,7 @@ def _discovery_news_row(topic: dict, now: float, headline: dict | None = None) -
     }
 
 
-def _formally_grounded_discovery_topics(
-    topics: list[dict], captured_utc: float
-) -> list[dict]:
+def _formally_grounded_discovery_topics(topics: list[dict], captured_utc: float) -> list[dict]:
     """Keep topics grounded in recent, independent editorial discovery lineage.
 
     Discovery rows are deliberately stored as ``trendnews`` provenance, which
@@ -1497,8 +1776,11 @@ def _formally_grounded_discovery_topics(
     search, but the discovery headline itself never crosses the forecast
     boundary.
     """
-    if isinstance(captured_utc, bool) or not isinstance(captured_utc, (int, float)) \
-            or not math.isfinite(float(captured_utc)):
+    if (
+        isinstance(captured_utc, bool)
+        or not isinstance(captured_utc, (int, float))
+        or not math.isfinite(float(captured_utc))
+    ):
         raise ValueError("discovery capture time must be finite")
     captured = float(captured_utc)
     lookback = float(GLOBAL_EVENT_V2_PROTOCOL["evidence"]["lookback_days"] * 86400)
@@ -1537,13 +1819,9 @@ def _formally_grounded_discovery_topics(
 def _x_request_budget_limits(category: str, now: float, request_key: str) -> dict[str, float]:
     """Return aggregate and idempotency counters for one paid X request."""
     if category == "trend":
-        limit = int(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_trend_requests_per_utc_day"]
-        )
+        limit = int(GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_trend_requests_per_utc_day"])
     elif category == "search":
-        limit = int(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_search_requests_per_utc_day"]
-        )
+        limit = int(GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_search_requests_per_utc_day"])
     else:
         raise ValueError("unknown X budget category")
     day = datetime.fromtimestamp(now, timezone.utc).strftime("%Y-%m-%d")
@@ -1556,7 +1834,10 @@ def _x_request_budget_limits(category: str, now: float, request_key: str) -> dic
 
 
 def _x_trend_media_rows(
-    trends: list[dict], *, woeid: int, captured_utc: float,
+    trends: list[dict],
+    *,
+    woeid: int,
+    captured_utc: float,
 ) -> list[dict]:
     """Persist every ranked trend response item as discovery-only provenance."""
     if not isinstance(trends, list):
@@ -1584,222 +1865,135 @@ def _x_trend_media_rows(
             "tweet_count": count,
             "captured_utc": captured,
         }
-        rows.append({
-            "source": "xtrend",
-            "external_id": content_id(snapshot, prefix="xtrend_"),
-            "ticker": f"@X_TREND_{int(woeid)}",
-            "subreddit": None,
-            "author": None,
-            "sentiment": None,
-            "created_utc": captured,
-            "title": name,
-            "body": canonical_json(snapshot),
-            "fetched_utc": captured,
-            "metadata": {
-                "evidence_role": "discovery_only",
-                "woeid": int(woeid),
-                "rank": rank,
-                "tweet_count": count,
-            },
-        })
+        rows.append(
+            {
+                "source": "xtrend",
+                "external_id": content_id(snapshot, prefix="xtrend_"),
+                "ticker": f"@X_TREND_{int(woeid)}",
+                "subreddit": None,
+                "author": None,
+                "sentiment": None,
+                "created_utc": captured,
+                "title": name,
+                "body": canonical_json(snapshot),
+                "fetched_utc": captured,
+                "metadata": {
+                    "evidence_role": "discovery_only",
+                    "woeid": int(woeid),
+                    "rank": rank,
+                    "tweet_count": count,
+                },
+            }
+        )
     return rows
 
 
 def _x_collection_cycle_spec_for_identity(
     now: float,
-    max_topics: int,
-    *,
-    protocol_id: str,
-    collector_semantics_id: str,
+    identity: Mapping,
 ) -> dict:
     """Rebuild one exact daily X identity before any provider request starts."""
     if isinstance(now, bool) or not isinstance(now, (int, float)) or not math.isfinite(now):
         raise ValueError("X collection cycle time must be finite")
     period_key = datetime.fromtimestamp(float(now), timezone.utc).strftime("%Y-%m-%d")
-    static_slots = [
-        ("xtrend", f"woeid:{int(woeid)}")
-        for woeid in GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_trend_woeids"]
-    ] + [("trendnews", "ranked-global-discovery")]
     return media_store.collection_cycle_spec(
         cycle_kind="x-daily",
         period_key=period_key,
-        protocol_id=protocol_id,
-        collector_semantics_id=collector_semantics_id,
-        expected_static_slots=static_slots,
-        max_dynamic_slots=max_topics,
+        protocol_id=identity["protocol_id"],
+        collector_semantics_id=identity["collector_semantics_id"],
+        expected_static_slots=identity["x_daily_static_slots"],
+        max_dynamic_slots=identity["x_daily_max_dynamic_slots"],
     )
+
+
+def _x_start_window_open(now: float) -> bool:
+    return _x_start_window_state(now) == "open"
+
+
+def _x_start_window_state(now: float) -> str:
+    if (
+        isinstance(now, bool)
+        or not isinstance(now, (int, float))
+        or not math.isfinite(float(now))
+    ):
+        raise ValueError("X collection cycle time must be finite")
+    value = float(now)
+    day = datetime.fromtimestamp(value, timezone.utc)
+    start = datetime.combine(
+        day.date(), datetime.min.time(), tzinfo=timezone.utc
+    ).timestamp()
+    next_day = datetime.combine(
+        day.date() + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
+    ).timestamp()
+    earliest = float(
+        GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+            "x_cycle_start_earliest_utc_seconds"
+        ]
+    )
+    minimum = float(
+        GLOBAL_EVENT_V2_PROTOCOL["evidence"][
+            "x_cycle_start_minimum_remaining_utc_seconds"
+        ]
+    )
+    if (
+        not math.isfinite(earliest)
+        or not math.isfinite(minimum)
+        or earliest < 0
+        or minimum <= 0
+        or earliest >= 86400 - minimum
+    ):
+        raise ValueError("X cycle start-window policy is invalid")
+    if value - start < earliest:
+        return "scheduled"
+    return "open" if next_day - value >= minimum else "closed"
 
 
 def _x_collection_cycle_spec(now: float, max_topics: int) -> dict:
     """Return the current daily X identity before any provider request starts."""
-    return _x_collection_cycle_spec_for_identity(
-        now,
-        max_topics,
-        protocol_id=GLOBAL_EVENT_V2_PROTOCOL_ID,
-        collector_semantics_id=collector_semantics_manifest()[
-            "collector_semantics_id"
-        ],
-    )
+    if max_topics != GLOBAL_EVENT_V2_CURRENT_COLLECTOR_IDENTITY["x_daily_max_dynamic_slots"]:
+        raise ValueError("X topic limit does not match the current collector identity")
+    return _x_collection_cycle_spec_for_identity(now, GLOBAL_EVENT_V2_CURRENT_COLLECTOR_IDENTITY)
 
 
-def _x_compatible_collection_cycle_specs(
-    now: float, max_topics: int
-) -> list[dict]:
+def _x_compatible_collection_cycle_specs(now: float) -> list[dict]:
     """Rebuild only the protocol's explicitly allowlisted prior X identities."""
-    identities = GLOBAL_EVENT_V2_PROTOCOL["evidence"].get(
-        "compatible_collector_identities"
-    )
-    if not isinstance(identities, list):
-        raise ValueError("compatible collector identities must be a list")
-    current_pair = (
-        GLOBAL_EVENT_V2_PROTOCOL_ID,
-        collector_semantics_manifest()["collector_semantics_id"],
-    )
-    seen: set[tuple[str, str]] = set()
     specs = []
-    for entry in identities:
-        if not isinstance(entry, Mapping) or set(entry) != {
-            "protocol_id", "collector_semantics_id", "reason",
-        }:
-            raise ValueError("compatible collector identity has an invalid shape")
-        protocol_id = entry.get("protocol_id")
-        semantics_id = entry.get("collector_semantics_id")
-        reason = entry.get("reason")
-        if not isinstance(protocol_id, str) or re.fullmatch(
-            r"protocol_[0-9a-f]{24}", protocol_id
-        ) is None:
-            raise ValueError("compatible collector protocol ID is invalid")
-        if not isinstance(semantics_id, str) or re.fullmatch(
-            r"collector_[0-9a-f]{24}", semantics_id
-        ) is None:
-            raise ValueError("compatible collector semantics ID is invalid")
-        if not isinstance(reason, str) or not reason.strip():
-            raise ValueError("compatible collector identity requires a reason")
-        pair = (protocol_id, semantics_id)
-        if pair == current_pair or pair in seen:
-            raise ValueError("compatible collector identities must be prior and unique")
-        seen.add(pair)
-        specs.append(_x_collection_cycle_spec_for_identity(
-            now,
-            max_topics,
-            protocol_id=protocol_id,
-            collector_semantics_id=semantics_id,
-        ))
+    for identity in GLOBAL_EVENT_V2_COMPATIBLE_COLLECTOR_IDENTITIES:
+        specs.append(_x_collection_cycle_spec_for_identity(now, identity))
     return specs
 
 
 def _x_collection_cycle_state(spec: dict, cycle: Mapping | None) -> str:
-    """Validate one exact X cycle and its required paid-trend receipts."""
-    if cycle is None:
-        return "missing"
-    if (
-        cycle.get("identity_valid") is not True
-        or cycle.get("identity") != spec["identity"]
-    ):
-        return "invalid"
-    status = cycle.get("status")
-    if status == "running":
-        return "running"
-    if status not in {"complete", "incomplete"}:
-        return "invalid"
-    manifest = cycle.get("manifest")
-    if cycle.get("manifest_valid") is not True or not isinstance(manifest, Mapping):
-        return "invalid"
-    identity = spec["identity"]
-    expected_manifest_values = {
-        "collection_cycle_id": spec["collection_cycle_id"],
-        "cycle_kind": identity["cycle_kind"],
-        "period_key": identity["period_key"],
-        "protocol_id": identity["protocol_id"],
-        "collector_semantics_id": identity["collector_semantics_id"],
-        "status": status,
-        "expected_static_slots": identity["expected_static_slots"],
-    }
-    if any(manifest.get(key) != value for key, value in expected_manifest_values.items()):
-        return "invalid"
-    dynamic_slots = manifest.get("expected_dynamic_slots")
-    receipts = manifest.get("slot_receipts")
-    if not isinstance(dynamic_slots, list) or not isinstance(receipts, list):
-        return "invalid"
-    if len(dynamic_slots) > int(identity["max_dynamic_slots"]) or any(
-        not isinstance(slot, Mapping)
-        or set(slot) != {"provider", "query_key"}
-        or not isinstance(slot.get("provider"), str)
-        or not isinstance(slot.get("query_key"), str)
-        for slot in dynamic_slots
-    ):
-        return "invalid"
-    expected_slots = [
-        (slot["provider"], slot["query_key"])
-        for slot in identity["expected_static_slots"] + dynamic_slots
-    ]
-    receipt_slots: list[tuple[str, str]] = []
-    for receipt in receipts:
-        if not isinstance(receipt, Mapping):
-            return "invalid"
-        provider = receipt.get("provider")
-        query_key = receipt.get("query_key")
-        receipt_status = receipt.get("status")
-        if (
-            not isinstance(provider, str)
-            or not isinstance(query_key, str)
-            or receipt_status not in {"success", "empty", "failed", "missing"}
-        ):
-            return "invalid"
-        receipt_slots.append((provider, query_key))
-    if (
-        len(expected_slots) != len(set(expected_slots))
-        or len(receipt_slots) != len(set(receipt_slots))
-        or set(receipt_slots) != set(expected_slots)
-    ):
-        return "invalid"
-    if status == "complete" and any(
-        receipt.get("status") not in {"success", "empty"}
-        for receipt in receipts
-    ):
-        return "invalid"
-    required_trend_slots = {
-        ("xtrend", f"woeid:{int(woeid)}")
-        for woeid in GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_trend_woeids"]
-    }
-    trend_receipts = [
-        receipt for receipt in receipts if receipt.get("provider") == "xtrend"
-    ]
-    successful_trend_slots = {
-        (receipt.get("provider"), receipt.get("query_key"))
-        for receipt in trend_receipts
-        if receipt.get("status") == "success"
-        and isinstance(receipt.get("fetch_run_id"), str)
-    }
-    if (
-        len(trend_receipts) != len(required_trend_slots)
-        or successful_trend_slots != required_trend_slots
-    ):
-        return "incomplete"
-    return str(status)
+    """Return the shared operational/formal structural state."""
+    return x_cycle_structural_state(spec, cycle)
 
 
 def _x_daily_cycle_resolution(store, now: float, max_topics: int) -> dict:
     """Resolve one same-day attempt, preferring current over prior identities.
 
     Any exact allowlisted prior attempt blocks creation of a fresh paid identity.
-    When more than one prior identity exists, select the first present cycle in
-    the frozen compatibility registry.  This is the same precedence rule used
-    by the research projection and never depends on terminal status or content.
+    When more than one prior identity exists, select the newest present
+    compatible cycle. This is the same precedence rule used by the research
+    projection and never depends on terminal status or content.
     """
     current_spec = _x_collection_cycle_spec(now, max_topics)
-    compatible_specs = _x_compatible_collection_cycle_specs(now, max_topics)
+    compatible_specs = _x_compatible_collection_cycle_specs(now)
 
     try:
         current_cycle = store.collection_cycle(current_spec["collection_cycle_id"])
     except ValueError:
         return {
-            "origin": "current", "spec": current_spec, "cycle": None,
-            "state": "invalid", "blocks_new_paid_cycle": True,
+            "origin": "current",
+            "spec": current_spec,
+            "cycle": None,
+            "state": "invalid",
+            "blocks_new_paid_cycle": True,
         }
     if current_cycle is not None:
         return {
-            "origin": "current", "spec": current_spec, "cycle": current_cycle,
+            "origin": "current",
+            "spec": current_spec,
+            "cycle": current_cycle,
             "state": _x_collection_cycle_state(current_spec, current_cycle),
             "blocks_new_paid_cycle": True,
         }
@@ -1809,18 +2003,41 @@ def _x_daily_cycle_resolution(store, now: float, max_topics: int) -> dict:
             cycle = store.collection_cycle(spec["collection_cycle_id"])
         except ValueError:
             return {
-                "origin": "compatible", "spec": spec, "cycle": None,
-                "state": "invalid", "blocks_new_paid_cycle": True,
+                "origin": "compatible",
+                "spec": spec,
+                "cycle": None,
+                "state": "invalid",
+                "blocks_new_paid_cycle": True,
             }
         if cycle is not None:
             return {
-                "origin": "compatible", "spec": spec, "cycle": cycle,
+                "origin": "compatible",
+                "spec": spec,
+                "cycle": cycle,
                 "state": _x_collection_cycle_state(spec, cycle),
                 "blocks_new_paid_cycle": True,
             }
+    period_key = current_spec["identity"]["period_key"]
+    try:
+        observed_cycles = store.collection_cycle_identities("x-daily", period_key=period_key)
+    except (AttributeError, TypeError, ValueError):
+        observed_cycles = None
+    if not isinstance(observed_cycles, list) or observed_cycles:
+        # An unrecognized or unreadable same-day identity is never admissible,
+        # but it still blocks another paid attempt until an operator resolves it.
+        return {
+            "origin": "unknown",
+            "spec": current_spec,
+            "cycle": None,
+            "state": "invalid",
+            "blocks_new_paid_cycle": True,
+        }
     return {
-        "origin": None, "spec": current_spec, "cycle": None,
-        "state": "missing", "blocks_new_paid_cycle": False,
+        "origin": None,
+        "spec": current_spec,
+        "cycle": None,
+        "state": "missing",
+        "blocks_new_paid_cycle": False,
     }
 
 
@@ -1838,8 +2055,13 @@ def _x_manifest_slots(cycle: Mapping) -> list[tuple[str, str]]:
 
 
 def _poll_x_cycle_children(
-    store, *, now: float, limit: int, max_topics: int,
-    collection_cycle_id: str, expected_slots: list[tuple[str, str]],
+    store,
+    *,
+    now: float,
+    limit: int,
+    max_topics: int,
+    collection_cycle_id: str,
+    expected_slots: list[tuple[str, str]],
     discovery_headlines: list[dict],
 ) -> list[tuple[str, str]]:
     """Execute one cycle's children after its immutable parent is durable.
@@ -1856,34 +2078,37 @@ def _poll_x_cycle_children(
             trend_box: dict[str, list[dict]] = {}
 
             def fetch_trends(captured, *, location=woeid, result=trend_box):
-                result["raw"] = fetch_x_trends(location)
-                return _x_trend_media_rows(
-                    result["raw"], woeid=location, captured_utc=captured
-                )
+                result["raw"] = fetch_x_trends(location, limit=_GLOBAL_X_TREND_LIMIT)
+                return _x_trend_media_rows(result["raw"], woeid=location, captured_utc=captured)
 
             _run_fetch(
-                store, provider="xtrend", query_key=query_key, fetch_fn=fetch_trends,
-                labels=[f"@X_TREND_{woeid}"], cost_units=1.0,
+                store,
+                provider="xtrend",
+                query_key=query_key,
+                fetch_fn=fetch_trends,
+                labels=[f"@X_TREND_{woeid}"],
+                cost_units=1.0,
                 budget_limits=_x_request_budget_limits("trend", now, query_key),
                 budget_metadata={"budget_category": "trend"},
                 collection_cycle_id=collection_cycle_id,
             )
             trends.extend(trend_box.get("raw", []))
         except _FetchBudgetExceeded:
-            logger.warning("X trend request budget already reserved; skipping %s", query_key)
+            logger.info("X trend request budget already reserved; skipping %s", query_key)
         except (ProviderTransientError, ProviderResponseError) as exc:
             logger.info(
                 "xtrend slot %s unavailable (%s); stopping paid cycle",
-                _query_slot_id("xtrend", query_key), _exception_kind(exc),
+                _query_slot_id("xtrend", query_key),
+                _exception_kind(exc),
             )
             return expected_slots
         except Exception:
             raise
 
-    topics_box: dict[str, list[dict]] = {}
+    discovery_box: dict[str, list[dict]] = {}
 
     def discover(captured):
-        topics_box["topics"] = _formally_grounded_discovery_topics(
+        topics = _formally_grounded_discovery_topics(
             discover_x_topics(
                 max_topics=max_topics,
                 headlines=discovery_headlines,
@@ -1891,18 +2116,32 @@ def _poll_x_cycle_children(
             ),
             captured,
         )
+        search_requests = _group_x_search_topics(topics)
+        decision = _x_discovery_decision_manifest(
+            collection_cycle_id=collection_cycle_id,
+            captured_utc=captured,
+            max_topics=max_topics,
+            headlines=discovery_headlines,
+            trends=trends,
+            topics=topics,
+            search_requests=search_requests,
+        )
+        discovery_box["topics"] = topics
+        discovery_box["search_requests"] = search_requests
         return [
             _discovery_news_row(topic, captured, headline)
-            for topic in topics_box["topics"]
+            for topic in topics
             for headline in (topic.get("lineage") or [topic])
-        ]
+        ] + [x_discovery_decision_row(decision)]
 
     try:
         _, _, discovery_status = _run_fetch(
-            store, provider="trendnews", query_key="ranked-global-discovery",
+            store,
+            provider="trendnews",
+            query_key="ranked-global-discovery",
             fetch_fn=discover,
-            formal_eligibility_fn=lambda row, cutoff: (
-                is_formally_eligible_evidence(row, as_of_utc=cutoff)
+            formal_eligibility_fn=lambda row, cutoff: is_formally_eligible_evidence(
+                row, as_of_utc=cutoff
             ),
             collection_cycle_id=collection_cycle_id,
         )
@@ -1915,61 +2154,65 @@ def _poll_x_cycle_children(
         return expected_slots
     except Exception:
         raise
-    topics = topics_box.get("topics", [])
-    if discovery_status != "success":
-        logger.warning("X discovery returned no eligible global topics; daily cursor unchanged")
+    topics = discovery_box.get("topics", [])
+    search_requests = discovery_box.get("search_requests", [])
+    if discovery_status != "success" or not topics:
+        logger.info("X discovery returned no eligible global topics; daily cursor unchanged")
         return expected_slots
 
-    dynamic_slots = list(dict.fromkeys(("x", topic["query"]) for topic in topics))
+    dynamic_slots = [("x", request["query_key"]) for request in search_requests]
     store.declare_collection_cycle_slots(
         collection_cycle_id, dynamic_slots, declared_utc=time.time()
     )
     expected_slots.extend(dynamic_slots)
-    for topic in topics:
+    for request in search_requests:
         inserted = 0
         status = "failed"
         try:
             _, inserted, status = _run_fetch(
-                store, provider="x", query_key=topic["query"],
-                fetch_fn=lambda captured, item=topic: fetch_x_topic(
-                    item["topic"], item["query"], captured, limit=limit
+                store,
+                provider="x",
+                query_key=request["query_key"],
+                fetch_fn=lambda captured, item=request: fetch_x_topic(
+                    item["topic"], item["query_key"], captured, limit=limit
                 ),
-                labels=[f"@{topic['topic']}"], cost_units=1.0,
+                labels=request["labels"],
+                cost_units=1.0,
                 budget_limits=_x_request_budget_limits(
-                    "search", now, topic["query"]
+                    "search", now, request["query_key"]
                 ),
                 budget_metadata={"budget_category": "search"},
                 collection_cycle_id=collection_cycle_id,
             )
         except _FetchBudgetExceeded:
-            logger.warning("X daily search budget exhausted; skipping remaining topics")
-            emit_alert(
-                "collector", "x_daily_budget_exhausted", severity="warning",
-                details={
-                    "limit": int(GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                        "max_x_search_requests_per_utc_day"
-                    ])
-                },
-            )
+            logger.info("X daily search budget reached; stopping paid cycle")
             break
         except (ProviderTransientError, ProviderResponseError) as exc:
             logger.info(
                 "x discovery slot %s unavailable (%s); stopping paid cycle",
-                _query_slot_id("x", topic["query"]), _exception_kind(exc),
+                _query_slot_id("x", request["query_key"]),
+                _exception_kind(exc),
             )
             break
         except Exception:
             raise
         logger.info(
             "x-discovery[%s]: %s · slot=%s · x %s +%d",
-            topic["category"], _headline_without_publisher(topic["title"]),
-            _query_slot_id("x", topic["query"]), status, inserted,
+            ",".join(request["categories"]),
+            ",".join(request["selected_external_ids"]),
+            _query_slot_id("x", request["query_key"]),
+            status,
+            inserted,
         )
     return expected_slots
 
 
-def poll_x_topics_once(store, now: float, limit: int = 10,
-                       max_topics: int = 3) -> list[tuple[str, str]]:
+def poll_x_topics_once(
+    store,
+    now: float,
+    limit: int = _GLOBAL_X_SEARCH_LIMIT,
+    max_topics: int = _GLOBAL_X_TOPIC_LIMIT,
+) -> list[tuple[str, str]]:
     """Discover today's broad stories and capture bounded public X discussion."""
     evidence_policy = GLOBAL_EVENT_V2_PROTOCOL["evidence"]
     if max_topics != int(evidence_policy["max_x_search_requests_per_utc_day"]):
@@ -1977,11 +2220,11 @@ def poll_x_topics_once(store, now: float, limit: int = 10,
     if limit != int(evidence_policy["max_x_results_per_query"]):
         raise ValueError("X result count must exactly match the frozen protocol")
     resolution = _x_daily_cycle_resolution(store, now, max_topics)
+    if resolution["origin"] == "unknown":
+        raise ValueError("same-day X collection identity is not recognized")
     if resolution["origin"] == "compatible":
         if resolution["state"] != "complete" or resolution["cycle"] is None:
-            raise ValueError(
-                "same-day compatible X collection cycle is not uniquely complete"
-            )
+            raise ValueError("same-day compatible X collection cycle is not uniquely complete")
         store.set_meta("last_x_poll_utc", now)
         return _x_manifest_slots(resolution["cycle"])
     if resolution["origin"] == "current" and resolution["cycle"] is None:
@@ -1996,9 +2239,11 @@ def poll_x_topics_once(store, now: float, limit: int = 10,
             observed_utc = store.server_observed_utc()
             stale_seconds = float(evidence_policy["x_cycle_recovery_stale_seconds"])
             server_started = existing.get("server_started_utc")
-            if isinstance(server_started, bool) or not isinstance(
-                server_started, (int, float)
-            ) or not math.isfinite(float(server_started)):
+            if (
+                isinstance(server_started, bool)
+                or not isinstance(server_started, (int, float))
+                or not math.isfinite(float(server_started))
+            ):
                 raise ValueError("running X cycle lacks a server start observation")
             if observed_utc - float(server_started) < stale_seconds:
                 # Another worker may still own this exact daily attempt. A
@@ -2013,7 +2258,8 @@ def poll_x_topics_once(store, now: float, limit: int = 10,
                 minimum_age_seconds=stale_seconds,
             )
             if _x_collection_cycle_state(spec, existing) not in {
-                "complete", "incomplete",
+                "complete",
+                "incomplete",
             }:
                 raise ValueError("recovered X collection cycle manifest is invalid")
         elif resolution["state"] not in {"complete", "incomplete"}:
@@ -2021,17 +2267,35 @@ def poll_x_topics_once(store, now: float, limit: int = 10,
         store.set_meta("last_x_poll_utc", now)
         return _x_manifest_slots(existing)
 
+    if not _x_start_window_open(now):
+        return [
+            (slot["provider"], slot["query_key"])
+            for slot in spec["identity"]["expected_static_slots"]
+        ]
+
     # Validate the complete free discovery snapshot before creating the
     # once-per-day parent or spending a paid X request.  A free-feed outage can
     # therefore be retried on the next ordinary cycle without either biasing a
     # terminal daily manifest or wasting the paid budget.
     try:
-        discovery_headlines = fetch_top_news_headlines()
+        discovery_headlines = fetch_top_news_headlines(
+            limit_per_feed=int(_DISCOVERY_INPUTS["ranked_feed_limit"])
+        )
     except (ProviderTransientError, ProviderResponseError) as exc:
         logger.info(
             "top-news precheck unavailable (%s); paid X cycle not started",
             _exception_kind(exc),
         )
+        return [
+            (slot["provider"], slot["query_key"])
+            for slot in spec["identity"]["expected_static_slots"]
+        ]
+    observed_now = store.server_observed_utc()
+    if (
+        _x_collection_cycle_spec(observed_now, max_topics)["collection_cycle_id"]
+        != collection_cycle_id
+        or not _x_start_window_open(observed_now)
+    ):
         return [
             (slot["provider"], slot["query_key"])
             for slot in spec["identity"]["expected_static_slots"]
@@ -2046,8 +2310,7 @@ def poll_x_topics_once(store, now: float, limit: int = 10,
             raise
         return poll_x_topics_once(store, now=now, limit=limit, max_topics=max_topics)
     expected_slots = [
-        (slot["provider"], slot["query_key"])
-        for slot in spec["identity"]["expected_static_slots"]
+        (slot["provider"], slot["query_key"]) for slot in spec["identity"]["expected_static_slots"]
     ]
     try:
         return _poll_x_cycle_children(
@@ -2060,74 +2323,60 @@ def poll_x_topics_once(store, now: float, limit: int = 10,
             discovery_headlines=discovery_headlines,
         )
     finally:
-        cycle = store.finish_collection_cycle(
-            collection_cycle_id, completed_utc=time.time()
-        )
+        cycle = store.finish_collection_cycle(collection_cycle_id, completed_utc=time.time())
         # Terminal complete and incomplete cycles are both once-per-day attempts.
         # Retrying an incomplete paid cycle would bias availability and could
         # duplicate billed reads; the exact incomplete manifest remains visible.
         store.set_meta("last_x_poll_utc", now)
         logger.info(
             "x-cycle %s: %s · manifest=%s",
-            collection_cycle_id, cycle["status"], cycle["manifest_id"],
+            collection_cycle_id,
+            cycle["status"],
+            cycle["manifest_id"],
         )
-
-
-def _x_poll_due(store, now: float, interval: int) -> bool:
-    expected_interval = int(
-        GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_cycle_interval_seconds"]
-    )
-    if interval != expected_interval:
-        raise ValueError("X cycle interval must exactly match the frozen protocol")
-    max_topics = int(
-        GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_search_requests_per_utc_day"]
-    )
-    resolution = _x_daily_cycle_resolution(store, now, max_topics)
-    # Only a missing attempt or the current identity's running parent can do
-    # work. Any prior compatible attempt is observed but never reissued.
-    return resolution["origin"] is None or (
-        resolution["origin"] == "current"
-        and resolution["state"] == "running"
-    )
 
 
 def _x_daily_requirement_state(store, now: float, max_topics: int) -> str:
     """Return the fail-closed state of today's exact, frozen X collection cycle."""
-    return str(_x_daily_cycle_resolution(store, now, max_topics)["state"])
+    resolution = _x_daily_cycle_resolution(store, now, max_topics)
+    if resolution["state"] == "missing" and _x_start_window_state(now) == "scheduled":
+        return "scheduled"
+    return str(resolution["state"])
 
 
-def run_cycle(store, tickers: list[str], sources: list[str], macro_themes: dict,
-              x_enabled: bool = False, x_interval: int = 86400,
-              x_limit: int = 10, x_topic_limit: int = 3,
-              force_x: bool = False) -> dict:
+def run_cycle(
+    store,
+    tickers: list[str],
+    sources: list[str],
+    macro_themes: dict,
+    x_enabled: bool = False,
+    x_interval: int = _GLOBAL_ONLY_X_INTERVAL_SECONDS,
+    x_limit: int = _GLOBAL_X_SEARCH_LIMIT,
+    x_topic_limit: int = _GLOBAL_X_TOPIC_LIMIT,
+    force_x: bool = False,
+) -> dict:
     """One cycle with independent provider/query receipts and watermarks."""
-    since = None
     cycle_started = store.server_observed_utc()
     now = cycle_started
     if x_enabled and x_interval != int(
         GLOBAL_EVENT_V2_PROTOCOL["evidence"]["x_cycle_interval_seconds"]
     ):
         raise ValueError("X cycle interval must exactly match the frozen protocol")
-    x_resolution = (
-        _x_daily_cycle_resolution(store, now, x_topic_limit)
-        if x_enabled else None
-    )
-    x_due = bool(x_enabled and (
-        (
-            force_x
-            and x_resolution["origin"] != "compatible"
-        )
-        or (
-            not force_x
-            and (
-                x_resolution["origin"] is None
-                or (
-                    x_resolution["origin"] == "current"
-                    and x_resolution["state"] == "running"
+    x_resolution = _x_daily_cycle_resolution(store, now, x_topic_limit) if x_enabled else None
+    x_due = bool(
+        x_enabled
+        and _x_start_window_open(now)
+        and (
+            (force_x and x_resolution["origin"] in {None, "current"})
+            or (
+                not force_x
+                and (
+                    x_resolution["origin"] is None
+                    or (x_resolution["origin"] == "current" and x_resolution["state"] == "running")
                 )
             )
         )
-    ))
+    )
     expected_slots = _expected_query_slots(
         tickers,
         sources,
@@ -2135,21 +2384,19 @@ def run_cycle(store, tickers: list[str], sources: list[str], macro_themes: dict,
         include_x_discovery=bool(x_due and x_resolution["origin"] is None),
     )
     if sources:
-        poll_once(store, tickers, sources, now, since)
+        poll_once(store, tickers, sources)
     if macro_themes:
-        poll_macro_once(store, macro_themes, now, since)
+        poll_macro_once(store, macro_themes)
     if x_due:
-        x_slots = poll_x_topics_once(
-            store, now, limit=x_limit, max_topics=x_topic_limit
-        ) or []
+        x_slots = poll_x_topics_once(store, now, limit=x_limit, max_topics=x_topic_limit) or []
         if x_resolution["origin"] is None:
             expected_slots.extend(x_slots)
     cycle_completed = store.server_observed_utc()
-    periodic_requirements = (
-        {"x_daily": _x_daily_requirement_state(store, now, x_topic_limit)}
-        if x_enabled
-        else {}
-    )
+    periodic_requirements = {}
+    if x_enabled:
+        periodic_requirements["x_daily"] = _x_daily_requirement_state(
+            store, now, x_topic_limit
+        )
     coverage = _check_cycle_query_coverage(
         store,
         expected_query_slots=list(dict.fromkeys(expected_slots)),
@@ -2183,23 +2430,39 @@ def _install_collector_signal_handlers(stop: dict) -> None:
     signal.signal(signal.SIGTERM, _handle)
 
 
-def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
-                 macro_themes: dict, clock: TradingClock | None = None,
-                 x_enabled: bool = False, x_interval: int = 86400,
-                 x_limit: int = 10, x_topic_limit: int = 3,
-                 *, health_state: CollectorHealthState | None = None,
-                 lease_guard=None, stop: dict | None = None,
-                 on_cycle_success=None) -> None:
+def poll_forever(
+    store,
+    tickers: list[str],
+    sources: list[str],
+    interval: int,
+    macro_themes: dict,
+    clock: TradingClock | None = None,
+    x_enabled: bool = False,
+    x_interval: int = _GLOBAL_ONLY_X_INTERVAL_SECONDS,
+    x_limit: int = _GLOBAL_X_SEARCH_LIMIT,
+    x_topic_limit: int = _GLOBAL_X_TOPIC_LIMIT,
+    *,
+    health_state: CollectorHealthState | None = None,
+    lease_guard=None,
+    stop: dict | None = None,
+    on_cycle_terminal=None,
+) -> None:
     if stop is None:
         stop = {"flag": False}
         _install_collector_signal_handlers(stop)
 
-    x_label = (f" + X discovery (up to {x_topic_limit} topics) every {x_interval}s"
-               if x_enabled else "")
-    logger.info("Polling %s [%s]%s%s every %ds%s. Ctrl-C / SIGTERM to stop.",
-                ",".join(tickers), ",".join(sources),
-                " + macro" if macro_themes else "", x_label, interval,
-                " during extended trading hours" if clock else "")
+    x_label = (
+        f" + X discovery (up to {x_topic_limit} topics) every {x_interval}s" if x_enabled else ""
+    )
+    logger.info(
+        "Polling %s [%s]%s%s every %ds%s. Ctrl-C / SIGTERM to stop.",
+        ",".join(tickers),
+        ",".join(sources),
+        " + macro" if macro_themes else "",
+        x_label,
+        interval,
+        " during extended trading hours" if clock else "",
+    )
     while not stop["flag"]:
         try:
             if clock is not None and not clock.is_polling_time():
@@ -2230,14 +2493,13 @@ def poll_forever(store, tickers: list[str], sources: list[str], interval: int,
                 lease_guard.assert_held()
             if health_state is not None:
                 health_state.mark_cycle(coverage, completed_utc=time.time())
-            if coverage.get("complete") is True and on_cycle_success is not None:
-                on_cycle_success()
+            if on_cycle_terminal is not None:
+                on_cycle_terminal()
             _sleep(interval, stop, lease_guard=lease_guard)
         except Exception as exc:  # noqa: BLE001 - sanitize before terminating
             error_kind = _exception_kind(exc)
             lease_lost = bool(
-                lease_guard is not None
-                and not bool(getattr(lease_guard, "is_held", False))
+                lease_guard is not None and not bool(getattr(lease_guard, "is_held", False))
             )
             failure_type = "CollectorLeaseLost" if lease_lost else error_kind
             if health_state is not None:
@@ -2275,8 +2537,12 @@ def print_stats(store) -> None:
     if odds:
         print(f"\n{'THEME':<14} {'MARKETS':>7} {'SNAPSHOTS':>9}  EARLIEST → LATEST (capture, UTC)")
         for theme, n_markets, n_snap, lo, hi in odds:
-            lo_s = datetime.fromtimestamp(lo, timezone.utc).strftime("%Y-%m-%d %H:%M") if lo else "?"
-            hi_s = datetime.fromtimestamp(hi, timezone.utc).strftime("%Y-%m-%d %H:%M") if hi else "?"
+            lo_s = (
+                datetime.fromtimestamp(lo, timezone.utc).strftime("%Y-%m-%d %H:%M") if lo else "?"
+            )
+            hi_s = (
+                datetime.fromtimestamp(hi, timezone.utc).strftime("%Y-%m-%d %H:%M") if hi else "?"
+            )
             print(f"{theme:<14} {n_markets:>7} {n_snap:>9}  {lo_s} → {hi_s}")
 
 
@@ -2284,23 +2550,22 @@ def print_window(store, ticker: str, end: str, days: int) -> None:
     rows = store.window(ticker, end, days)
     print(f"{ticker.upper()} — {len(rows)} items in the {days}d window ending {end}:")
     for r in rows:
-        ts = (datetime.fromtimestamp(r["created_utc"], timezone.utc).strftime("%Y-%m-%d %H:%M")
-              if r.get("created_utc") else "?")
+        ts = (
+            datetime.fromtimestamp(r["created_utc"], timezone.utc).strftime("%Y-%m-%d %H:%M")
+            if r.get("created_utc")
+            else "?"
+        )
         tag = r.get("sentiment") or (f"r/{r['subreddit']}" if r.get("subreddit") else "")
         text = (r.get("title") or r.get("body") or "").replace("\n", " ")[:120]
         print(f"  [{ts} · {r['source']:<10} {tag:<10}] {text}")
 
 
 def _x_cycle_audit_projection(store, period_date) -> dict:
-    midnight = datetime.combine(
-        period_date, datetime.min.time(), tzinfo=timezone.utc
-    ).timestamp()
+    midnight = datetime.combine(period_date, datetime.min.time(), tzinfo=timezone.utc).timestamp()
     resolution = _x_daily_cycle_resolution(
         store,
         midnight,
-        int(GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "max_x_search_requests_per_utc_day"
-        ]),
+        int(GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_search_requests_per_utc_day"]),
     )
     cycle = resolution["cycle"]
     if resolution["origin"] is None:
@@ -2332,11 +2597,13 @@ def _x_cycle_audit_projection(store, period_date) -> dict:
         "terminal_utc": terminal,
         "trend_requests": sum(
             row.get("provider") == "xtrend" and row.get("fetch_run_id") is not None
-            for row in receipts if isinstance(row, dict)
+            for row in receipts
+            if isinstance(row, dict)
         ),
         "search_requests": sum(
             row.get("provider") == "x" and row.get("fetch_run_id") is not None
-            for row in receipts if isinstance(row, dict)
+            for row in receipts
+            if isinstance(row, dict)
         ),
         "posts_returned": sum(
             int(row.get("item_count") or 0)
@@ -2358,12 +2625,20 @@ def print_audit(store, *, include_history: bool = False) -> None:
         expected_query_slots=expected_slots,
         require_lineage_query_slots=expected_slots,
     )
-    print(f"collector_coverage_complete={str(coverage['complete']).lower()}")
+    current_x_state = _x_daily_requirement_state(
+        store, now, _GLOBAL_X_TOPIC_LIMIT
+    )
+    overall_complete = bool(
+        coverage["complete"] and current_x_state in {"complete", "scheduled"}
+    )
+    print(f"collector_coverage_complete={str(overall_complete).lower()}")
     print(f"collector_expected_query_slots={len(coverage['query_slots'])}")
     print(f"collector_missing_query_slots={len(coverage['missing_query_slots'])}")
     today = datetime.fromtimestamp(now, timezone.utc).date()
     for label, period in (("current", today), ("prior", today - timedelta(days=1))):
         x_cycle = _x_cycle_audit_projection(store, period)
+        if label == "current":
+            x_cycle["state"] = current_x_state
         print(f"collector_x_{label}_period={x_cycle['period']}")
         print(f"collector_x_{label}_state={x_cycle['state']}")
         print(f"collector_x_{label}_terminal_utc={x_cycle['terminal_utc'] or 'none'}")
@@ -2410,46 +2685,88 @@ def _configured_integer(values: Mapping[str, str], name: str) -> int | None:
 def _collector_max_age_seconds() -> float:
     query_cycle = GLOBAL_EVENT_V2_PROTOCOL["evidence"]["query_cycle"]
     return float(
-        query_cycle["collector_interval_seconds"]
-        + query_cycle["cycle_start_grace_seconds"]
+        query_cycle["collector_interval_seconds"] + query_cycle["cycle_start_grace_seconds"]
     )
 
 
 def _build_parser(env: Mapping[str, str] | None = None) -> argparse.ArgumentParser:
     values = os.environ if env is None else env
     p = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--tickers", default=values.get("MEDIA_POLLER_TICKERS"),
-                   help="Comma-separated tickers (env: MEDIA_POLLER_TICKERS)")
-    p.add_argument("--sources", default=values.get("MEDIA_POLLER_SOURCES"),
-                   help="Comma-separated subset of: " + ",".join(SELECTABLE_SOURCES)
-                        + " (env: MEDIA_POLLER_SOURCES). Default: keyless + 'x' if token set.")
-    p.add_argument("--db", default=values.get("MEDIA_DB_URL"),
-                   help="Store URL/path (env: MEDIA_DB_URL). Default: local SQLite.")
-    p.add_argument("--interval", type=int,
-                   default=_configured_integer(values, "MEDIA_POLLER_INTERVAL"),
-                   help="Seconds between news cycles (env: MEDIA_POLLER_INTERVAL)")
-    p.add_argument("--x-interval", type=int,
-                   default=_configured_integer(values, "MEDIA_POLLER_X_INTERVAL"),
-                   help="Seconds between X discovery cycles (env: MEDIA_POLLER_X_INTERVAL)")
-    p.add_argument("--x-topics", type=int,
-                   default=int(values.get("MEDIA_POLLER_X_TOPICS", "3")),
-                   help="Maximum discovered topics per X cycle (default 3)")
-    p.add_argument("--x-limit", type=int,
-                   default=int(values.get("MEDIA_POLLER_X_LIMIT", "10")),
-                   help="Results per broad X query (X API minimum/default: 10)")
-    p.add_argument("--once", action="store_true", default=_env_bool("MEDIA_POLLER_ONCE", values),
-                   help="Poll once and exit (env: MEDIA_POLLER_ONCE)")
-    p.add_argument("--no-macro", dest="macro", action="store_false", default=True,
-                   help="Skip the macro snapshot (Polymarket odds + theme news). "
-                        "Macro is on by default; it captures unrecoverable data.")
-    trading_default = (values.get("MEDIA_POLLER_TRADING_HOURS", "true").strip().lower()
-                       not in ("0", "false", "no", "off"))
-    p.add_argument("--no-trading-hours", dest="trading_hours", action="store_false",
-                   default=trading_default,
-                   help="Poll around the clock instead of gating to market hours. "
-                        "By default the daemon polls only during the extended US session "
-                        "(04:00–20:00 ET) on NYSE trading days (env: MEDIA_POLLER_TRADING_HOURS).")
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--tickers",
+        default=values.get("MEDIA_POLLER_TICKERS"),
+        help="Comma-separated tickers (env: MEDIA_POLLER_TICKERS)",
+    )
+    p.add_argument(
+        "--sources",
+        default=values.get("MEDIA_POLLER_SOURCES"),
+        help="Comma-separated subset of: "
+        + ",".join(SELECTABLE_SOURCES)
+        + " (env: MEDIA_POLLER_SOURCES). Default: keyless + 'x' if token set.",
+    )
+    p.add_argument(
+        "--db",
+        default=values.get("MEDIA_DB_URL"),
+        help="Store URL/path (env: MEDIA_DB_URL). Default: local SQLite.",
+    )
+    p.add_argument(
+        "--interval",
+        type=int,
+        default=_configured_integer(values, "MEDIA_POLLER_INTERVAL"),
+        help="Seconds between news cycles (env: MEDIA_POLLER_INTERVAL)",
+    )
+    p.add_argument(
+        "--x-interval",
+        type=int,
+        default=_configured_integer(values, "MEDIA_POLLER_X_INTERVAL"),
+        help="Seconds between X discovery cycles (env: MEDIA_POLLER_X_INTERVAL)",
+    )
+    p.add_argument(
+        "--x-topics",
+        type=int,
+        default=int(values.get("MEDIA_POLLER_X_TOPICS", str(_GLOBAL_X_TOPIC_LIMIT))),
+        help=f"Maximum discovered topics per X cycle (default {_GLOBAL_X_TOPIC_LIMIT})",
+    )
+    p.add_argument(
+        "--x-limit",
+        type=int,
+        default=int(values.get("MEDIA_POLLER_X_LIMIT", str(_GLOBAL_X_SEARCH_LIMIT))),
+        help=(
+            "Results per broad X query "
+            f"(X API configured default: {_GLOBAL_X_SEARCH_LIMIT})"
+        ),
+    )
+    p.add_argument(
+        "--once",
+        action="store_true",
+        default=_env_bool("MEDIA_POLLER_ONCE", values),
+        help="Poll once and exit (env: MEDIA_POLLER_ONCE)",
+    )
+    p.add_argument(
+        "--no-macro",
+        dest="macro",
+        action="store_false",
+        default=True,
+        help="Skip the macro snapshot (Polymarket odds + theme news). "
+        "Macro is on by default; it captures unrecoverable data.",
+    )
+    trading_default = values.get("MEDIA_POLLER_TRADING_HOURS", "true").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+    p.add_argument(
+        "--no-trading-hours",
+        dest="trading_hours",
+        action="store_false",
+        default=trading_default,
+        help="Poll around the clock instead of gating to market hours. "
+        "By default the daemon polls only during the extended US session "
+        "(04:00–20:00 ET) on NYSE trading days (env: MEDIA_POLLER_TRADING_HOURS).",
+    )
     p.add_argument("--stats", action="store_true", help="Print collection stats and exit")
     p.add_argument("--audit", action="store_true", help="Print current collector health and exit")
     p.add_argument(
@@ -2538,8 +2855,44 @@ def _run_alert_test(parser: argparse.ArgumentParser) -> None:
         },
     )
     if not delivered:
-        parser.error("collector alert webhook test was not delivered")
+        parser.exit(2, "collector alert test failed\n")
     print(canonical_json({"component": "collector", "delivered": True}))
+
+
+def _preflight_x_cycle_is_known(spec: Mapping, cycle: object) -> bool:
+    """Admit an authenticated older terminal shape so a repair can deploy."""
+    if not isinstance(cycle, Mapping):
+        return False
+    identity = spec.get("identity")
+    if (
+        not isinstance(identity, Mapping)
+        or cycle.get("identity_valid") is not True
+        or cycle.get("identity") != identity
+        or cycle.get("collection_cycle_id") != spec.get("collection_cycle_id")
+        or any(
+            cycle.get(key) != identity.get(key)
+            for key in (
+                "cycle_kind",
+                "period_key",
+                "protocol_id",
+                "collector_semantics_id",
+            )
+        )
+    ):
+        return False
+    state = x_cycle_structural_state(spec, cycle)
+    if state in {"running", "complete", "incomplete"}:
+        return True
+    if state != "invalid" or cycle.get("status") not in {"complete", "incomplete"}:
+        return False
+    manifest = cycle.get("manifest")
+    return bool(
+        isinstance(manifest, Mapping)
+        and manifest.get("collection_cycle_id") == cycle.get("collection_cycle_id")
+        and manifest.get("status") == cycle.get("status")
+        and cycle.get("manifest_id")
+        == media_store._content_addressed_json_id("cycle_manifest_", manifest)
+    )
 
 
 def _run_preflight(
@@ -2547,110 +2900,131 @@ def _run_preflight(
     args: argparse.Namespace,
     env: Mapping[str, str],
 ) -> None:
-    """Run the database-read-only release gate and optional webhook probe."""
-    if (env.get("MEDIA_AUTO_MIGRATE") or "").strip().lower() not in {
-        "0", "false", "no", "off",
-    }:
-        parser.error("collector preflight requires MEDIA_AUTO_MIGRATE=false")
-    webhook_required_raw = (env.get("MEDIA_REQUIRE_ALERT_WEBHOOK") or "").strip().lower()
-    if webhook_required_raw and webhook_required_raw not in {
-        "1", "true", "yes", "on", "0", "false", "no", "off",
-    }:
-        parser.error("MEDIA_REQUIRE_ALERT_WEBHOOK must be an explicit boolean")
-    webhook_required = webhook_required_raw in {"1", "true", "yes", "on"}
-    if webhook_required and not (
-        env.get("TRADINGAGENTS_ALERT_WEBHOOK_URL") or ""
-    ).strip():
-        parser.error("collector preflight requires the configured alert webhook")
-    if args.health_port is None or not 1 <= args.health_port <= 65535:
-        parser.error("collector preflight requires a valid MEDIA_HEALTH_PORT")
-
-    configured_db = args.db or env.get("DATABASE_URL")
-    if not (configured_db or "").strip():
-        parser.error("collector preflight requires a configured PostgreSQL database")
+    """Run the database-read-only release gate and silent webhook probe."""
     store = None
     try:
+        if (env.get("MEDIA_AUTO_MIGRATE") or "").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }:
+            raise ValueError("automatic migration must be disabled")
+        webhook_setting = (env.get("MEDIA_REQUIRE_ALERT_WEBHOOK") or "").strip().lower()
+        if webhook_setting not in {
+            "",
+            "1",
+            "true",
+            "yes",
+            "on",
+            "0",
+            "false",
+            "no",
+            "off",
+        }:
+            raise ValueError("alert webhook requirement must be boolean")
+        webhook_required = webhook_setting in {"1", "true", "yes", "on"}
+        if webhook_required and not (env.get("TRADINGAGENTS_ALERT_WEBHOOK_URL") or "").strip():
+            raise ValueError("required alert webhook is not configured")
+        if args.health_port is None or not 1 <= args.health_port <= 65535:
+            raise ValueError("health port is invalid")
+        configured_db = args.db or env.get("DATABASE_URL")
+        if not (configured_db or "").strip():
+            raise ValueError("PostgreSQL database is not configured")
+
         semantics_id = collector_semantics_manifest()["collector_semantics_id"]
-        expected_id = GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "expected_collector_semantics_id"
-        ]
-        if semantics_id != expected_id:
-            raise RuntimeError("collector semantics do not match the frozen protocol")
+        if semantics_id != GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID:
+            raise RuntimeError("collector semantics do not match the protocol")
         store = open_store(configured_db, auto_migrate=False)
-        preflight = store.collector_runtime_preflight(
+        database_contract = store.collector_runtime_preflight(
             direct_url=(env.get("MEDIA_DB_DIRECT_URL") or "").strip() or None
         )
-        if preflight.get("ready") is not True:
-            logger.error(
-                "Collector database preflight rejected the release: %s",
-                canonical_json(preflight),
-            )
+        if database_contract.get("ready") is not True:
             raise RuntimeError("collector database contract is not ready")
-        max_topics = int(GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-            "max_x_search_requests_per_utc_day"
-        ])
-        accepted_specs = [
-            _x_collection_cycle_spec(0.0, max_topics),
-            *_x_compatible_collection_cycle_specs(0.0, max_topics),
+
+        server_now = store.server_observed_utc()
+        if (
+            isinstance(server_now, bool)
+            or not isinstance(server_now, (int, float))
+            or not math.isfinite(float(server_now))
+        ):
+            raise RuntimeError("collector database clock is invalid")
+        period_key = datetime.fromtimestamp(float(server_now), timezone.utc).date().isoformat()
+        expected_specs = [
+            _x_collection_cycle_spec(
+                float(server_now),
+                int(GLOBAL_EVENT_V2_CURRENT_COLLECTOR_IDENTITY["x_daily_max_dynamic_slots"]),
+            ),
+            *_x_compatible_collection_cycle_specs(float(server_now)),
         ]
-        accepted_pairs = {
-            (
+        expected_by_id = {spec["collection_cycle_id"]: spec for spec in expected_specs}
+        if len(expected_by_id) != len(expected_specs):
+            raise RuntimeError("X collection compatibility identities are duplicated")
+        observed_cycles = store.collection_cycle_identities("x-daily", period_key=period_key)
+        if (
+            not isinstance(observed_cycles, list)
+            or any(
+                not isinstance(item, dict)
+                or set(item)
+                != {
+                    "collection_cycle_id",
+                    "protocol_id",
+                    "collector_semantics_id",
+                }
+                or not all(isinstance(value, str) for value in item.values())
+                for item in observed_cycles
+            )
+            or len(observed_cycles)
+            != len({item["collection_cycle_id"] for item in observed_cycles})
+        ):
+            raise RuntimeError("today's X collection identity inventory is invalid")
+        repair_compatible_cycle_count = 0
+        for observed in observed_cycles:
+            spec = expected_by_id.get(observed["collection_cycle_id"])
+            if spec is None or (observed["protocol_id"], observed["collector_semantics_id"]) != (
                 spec["identity"]["protocol_id"],
                 spec["identity"]["collector_semantics_id"],
-            )
-            for spec in accepted_specs
-        }
-        observed_pairs = store.collection_cycle_identity_pairs("x-daily")
-        if (
-            not isinstance(observed_pairs, list)
-            or any(
-                not isinstance(pair, (list, tuple))
-                or len(pair) != 2
-                or not all(isinstance(value, str) for value in pair)
-                for pair in observed_pairs
-            )
-            or len(observed_pairs) != len({tuple(pair) for pair in observed_pairs})
-            or any(tuple(pair) not in accepted_pairs for pair in observed_pairs)
-        ):
-            raise RuntimeError("collector X identity history is not compatible")
-        x_identity_pair_count = len(observed_pairs)
-        collector_build_id = build_identity()
+            ):
+                raise RuntimeError("today's X collection identity is not compatible")
+            cycle = store.collection_cycle(observed["collection_cycle_id"])
+            if not _preflight_x_cycle_is_known(spec, cycle):
+                raise RuntimeError("today's X collection cycle is structurally invalid")
+            if x_cycle_structural_state(spec, cycle) == "invalid":
+                repair_compatible_cycle_count += 1
+
         alert_probe_delivered = False
         if webhook_required:
-            alert_probe_delivered = bool(emit_alert(
-                "collector",
-                "release_preflight_probe",
-                severity="info",
-                details={
-                    "schema_version": 1,
-                    "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
-                    "collector_semantics_id": semantics_id,
-                    "collector_build_id": collector_build_id,
-                    "database_contract_ready": True,
-                    "x_identity_history_compatible": True,
-                    "x_identity_pair_count": x_identity_pair_count,
-                },
-            ))
+            alert_probe_delivered = bool(probe_alert_webhook())
             if not alert_probe_delivered:
-                raise RuntimeError("collector alert preflight probe was not delivered")
-        print(canonical_json({
-            "schema_version": 2,
-            "status": "ok",
-            "protocol_id": GLOBAL_EVENT_V2_PROTOCOL_ID,
-            "collector_semantics_id": semantics_id,
-            "collector_build_id": collector_build_id,
-            "database_contract": preflight,
-            "x_identity_history_compatible": True,
-            "x_identity_pair_count": x_identity_pair_count,
-            "health_port": args.health_port,
-            "alert_webhook_required": webhook_required,
-            "alert_probe_delivered": alert_probe_delivered,
-        }))
-    except Exception as exc:  # noqa: BLE001 - never render a DSN or DB error string
-        parser.error(f"collector preflight failed ({_exception_kind(exc)})")
+                raise RuntimeError("collector alert receiver contract is not ready")
+        print(
+            canonical_json(
+                {
+                    "schema_version": 4,
+                    "status": "ok",
+                    "collection_protocol_id": GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+                    "collector_semantics_id": semantics_id,
+                    "collector_build_id": build_identity(),
+                    "database_contract": database_contract,
+                    "x_identity_period": period_key,
+                    "x_identity_inventory_valid": True,
+                    "x_identity_cycle_count": len(observed_cycles),
+                    "x_repair_compatible_cycle_count": repair_compatible_cycle_count,
+                    "x_evidence_health_validated": False,
+                    "health_port": args.health_port,
+                    "alert_webhook_required": webhook_required,
+                    "alert_probe_delivered": alert_probe_delivered,
+                }
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 - never render configuration or DB text
+        parser.exit(2, f"collector preflight failed ({_exception_kind(exc)})\n")
     finally:
         if store is not None:
-            store.close()
+            try:
+                store.close()
+            except Exception as exc:  # noqa: BLE001 - keep diagnostics sanitized
+                logger.error("Collector preflight cleanup failed (%s)", _exception_kind(exc))
 
 
 def _close_collector_attempt(store, lease_guard) -> None:
@@ -2703,9 +3077,7 @@ def _run_supervised_daemon(
                 if health_state is not None and health_server is None:
                     if health_port is None:
                         raise RuntimeError("health listener port is unavailable")
-                    health_server = start_collector_health_server(
-                        health_state, port=health_port
-                    )
+                    health_server = start_collector_health_server(health_state, port=health_port)
                     logger.info(
                         "Private collector health listener started on port %d",
                         health_port,
@@ -2745,7 +3117,7 @@ def _run_supervised_daemon(
                     x_interval,
                 )
 
-                def _on_cycle_success() -> None:
+                def _on_cycle_terminal() -> None:
                     nonlocal consecutive_failures
                     consecutive_failures = 0
                     incident.mark_recovered()
@@ -2765,34 +3137,29 @@ def _run_supervised_daemon(
                     health_state=health_state,
                     lease_guard=collector_lease,
                     stop=stop,
-                    on_cycle_success=_on_cycle_success,
+                    on_cycle_terminal=_on_cycle_terminal,
                 )
             except _CollectorRuntimeFailure as exc:
                 failure = exc
             except Exception as exc:  # noqa: BLE001 - sanitize and retry daemon only
-                failure = _CollectorRuntimeFailure(
-                    failure_stage, _exception_kind(exc)
-                )
+                failure = _CollectorRuntimeFailure(failure_stage, _exception_kind(exc))
             finally:
                 _close_collector_attempt(store, collector_lease)
 
             if stop["flag"]:
                 break
             if failure is None:
-                failure = _CollectorRuntimeFailure(
-                    "cycle", "UnexpectedDaemonReturn"
-                )
+                failure = _CollectorRuntimeFailure("cycle", "UnexpectedDaemonReturn")
             consecutive_failures += 1
             retry_delay = _collector_retry_delay(consecutive_failures)
             if health_state is not None:
                 health_state.mark_failure(failure.error_type)
-            transition_or_reminder = incident.mark_failure(
+            incident.mark_failure(
                 stage=failure.stage,
                 error_type=failure.error_type,
                 retry_delay_seconds=retry_delay,
             )
-            log = logger.error if transition_or_reminder else logger.info
-            log(
+            logger.info(
                 "Collector runtime unhealthy at %s (%s); retrying in %.0fs",
                 failure.stage,
                 failure.error_type,
@@ -2842,25 +3209,15 @@ def main(argv: list[str] | None = None) -> None:
         if args.trading_hours:
             p.error("--global-only requires --no-trading-hours for global coverage")
         if args.interval is None or args.x_interval is None:
-            p.error(
-                "--global-only requires explicit --interval and --x-interval cadence"
-            )
+            p.error("--global-only requires explicit --interval and --x-interval cadence")
         if args.interval != _GLOBAL_ONLY_NEWS_INTERVAL_SECONDS:
-            p.error(
-                "--global-only news interval must match the versioned collector policy"
-            )
+            p.error("--global-only news interval must match the versioned collector policy")
         if args.x_interval != _GLOBAL_ONLY_X_INTERVAL_SECONDS:
-            p.error(
-                "--global-only X interval must match the versioned collector policy"
-            )
+            p.error("--global-only X interval must match the versioned collector policy")
         expected_topics = int(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"][
-                "max_x_search_requests_per_utc_day"
-            ]
+            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_search_requests_per_utc_day"]
         )
-        expected_limit = int(
-            GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_results_per_query"]
-        )
+        expected_limit = int(GLOBAL_EVENT_V2_PROTOCOL["evidence"]["max_x_results_per_query"])
         if args.x_topics != expected_topics or args.x_limit != expected_limit:
             p.error("--global-only X request bounds must match the collector policy")
         if not args.once:
@@ -2869,9 +3226,7 @@ def main(argv: list[str] | None = None) -> None:
             except ValueError as exc:
                 p.error(str(exc))
             if not collection_enabled:
-                p.error(
-                    "global collection is paused; set MEDIA_COLLECTION_ENABLED=true"
-                )
+                p.error("global collection is paused; set MEDIA_COLLECTION_ENABLED=true")
         macro_themes = _global_only_news_themes()
     else:
         if args.interval is None:
@@ -2883,17 +3238,17 @@ def main(argv: list[str] | None = None) -> None:
     x_selected = "x" in sources
     ticker_sources = [source for source in sources if source != "x"]
     if ticker_sources and not tickers:
-        p.error(
-            "--tickers (or MEDIA_POLLER_TICKERS) is required for ticker-specific sources"
-        )
+        p.error("--tickers (or MEDIA_POLLER_TICKERS) is required for ticker-specific sources")
 
     x_token_configured = bool((env.get("X_BEARER_TOKEN") or "").strip())
     if x_selected and not x_token_configured:
         p.error("X_BEARER_TOKEN is required when source 'x' is configured")
     x_enabled = bool(x_selected and x_token_configured)
     if "truthsocial" in sources and not env.get("TRUTHSOCIAL_TOKEN"):
-        logger.warning("source 'truthsocial' selected but TRUTHSOCIAL_TOKEN is unset — "
-                       "Cloudflare will likely block it.")
+        logger.warning(
+            "source 'truthsocial' selected but TRUTHSOCIAL_TOKEN is unset — "
+            "Cloudflare will likely block it."
+        )
     if not ticker_sources and not macro_themes and not x_enabled:
         p.error("no enabled ticker, macro, or X collection source")
 
@@ -2910,26 +3265,11 @@ def main(argv: list[str] | None = None) -> None:
         collector_lease = None
         try:
             if args.global_only and getattr(store, "dialect", None) == "postgresql":
-
-                def _on_one_shot_lease_loss(failure_type: str) -> None:
-                    emit_alert(
-                        "collector",
-                        "singleton_lease_lost",
-                        severity="critical",
-                        details={
-                            "singleton_enforced": True,
-                            "failure_type": _runtime_failure_type(failure_type),
-                        },
-                    )
-
                 collector_lease = store.acquire_collector_lease(
                     direct_url=direct_url,
-                    on_loss=_on_one_shot_lease_loss,
                 )
                 if collector_lease is None:
-                    raise RuntimeError(
-                        "another global collector owns the singleton lease"
-                    )
+                    raise RuntimeError("another global collector owns the singleton lease")
                 store._collector_lease_guard = collector_lease
             logger.info(
                 "Store: %s · news themes: %d · news cadence: %ds · X cadence: %ds",
@@ -2957,17 +3297,15 @@ def main(argv: list[str] | None = None) -> None:
     if args.health_port is not None:
         if not 1 <= args.health_port <= 65535:
             p.error("--health-port must be between 1 and 65535")
-        static_query_slots = _expected_query_slots(
-            tickers, ticker_sources, macro_themes
-        )
+        static_query_slots = _expected_query_slots(tickers, ticker_sources, macro_themes)
         health_state = CollectorHealthState(
             max_age_seconds=_collector_max_age_seconds(),
             expected_query_slot_ids={
-                _query_slot_id(provider, query_key)
-                for provider, query_key in static_query_slots
+                _query_slot_id(provider, query_key) for provider, query_key in static_query_slots
             },
             build_revision=(env.get("GIT_REVISION") or "").strip() or None,
             machine_id=(env.get("FLY_MACHINE_ID") or "").strip() or None,
+            deployment_nonce=((env.get("COLLECTOR_DEPLOYMENT_NONCE") or "").strip() or None),
         )
     _run_supervised_daemon(
         db_url=args.db,
@@ -2989,6 +3327,7 @@ def main(argv: list[str] | None = None) -> None:
 
 def _main_entrypoint() -> None:
     """Exit nonzero without printing credential-bearing exception details."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     try:
         main()
     except Exception as exc:  # noqa: BLE001 - sanitize the executable boundary

@@ -1,5 +1,7 @@
 import logging
 
+from tradingagents.logging_utils import safe_exception_type
+
 from .alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
@@ -14,6 +16,7 @@ from .alpha_vantage import (
 from .config import get_config
 from .errors import (
     NoMarketDataError,
+    VendorError,
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
@@ -200,11 +203,16 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except VendorRateLimitError:
-            logger.warning("Vendor %r rate-limited for %s; trying next vendor.", vendor, method)
+        except VendorRateLimitError as exc:
+            logger.info(
+                "Vendor %r rate-limited for %s (%s); trying next vendor",
+                vendor, method, safe_exception_type(exc),
+            )
+            if first_error is None:
+                first_error = exc
             continue
         except VendorNotConfiguredError as e:
-            logger.warning("Vendor %r not configured for %s; trying next vendor.", vendor, method)
+            logger.info("Vendor %r not configured for %s; trying next vendor", vendor, method)
             if first_error is None:
                 first_error = e  # Surface it if no other vendor can serve the call.
             continue
@@ -212,26 +220,19 @@ def route_to_vendor(method: str, *args, **kwargs):
             last_no_data = e  # No data here; another configured vendor may have it
             continue
         except Exception as e:
-            # Don't let one vendor's failure crash the call when another can
-            # serve it, but never swallow silently: a broken primary must be
-            # visible in the logs (#989), not hidden behind a fallback's verdict.
-            logger.warning("Vendor %r failed for %s: %s", vendor, method, e)
+            # Keep a failed primary visible without turning a successful
+            # fallback into a warning or rendering opaque provider text.
+            logger.info(
+                "Vendor %r failed for %s (%s); trying next vendor",
+                vendor, method, safe_exception_type(e),
+            )
             if first_error is None:
                 first_error = e
             continue
 
-    # If any vendor reported "no data", the symbol is genuinely unavailable.
-    # Return one explicit, instructive sentinel rather than a vendor-specific
-    # empty string, so the agent reports "unavailable" instead of inventing a
-    # value. This takes precedence over incidental fallback errors.
-    if last_no_data is not None:
-        if first_error is not None:
-            # A vendor also hit a real error; surface it in logs so the no-data
-            # verdict can't hide a broken primary (network/auth/etc.).
-            logger.warning(
-                "Returning NO_DATA for %s, but a vendor errored earlier: %s",
-                method, first_error,
-            )
+    # A clean no-data verdict is only possible when every attempted vendor was
+    # observed successfully. If one failed, the aggregate result is unknown.
+    if first_error is None and last_no_data is not None:
         sym = last_no_data.symbol
         canonical = last_no_data.canonical
         resolved = "" if canonical == sym else f" (resolved to '{canonical}')"
@@ -246,17 +247,24 @@ def route_to_vendor(method: str, *args, **kwargs):
             f"fabricate values — report that data is unavailable for this symbol."
         )
 
-    # No vendor returned data and none reported clean "no data" — surface the
-    # first real error (e.g. the primary vendor's network failure). Optional
-    # enrichment categories degrade to a sentinel instead, so flavour data can't
-    # abort the run.
+    # No vendor succeeded and at least one had a real failure. That failure
+    # makes any peer's empty result inconclusive. Optional enrichment categories
+    # degrade to a sentinel instead of aborting the run.
     if first_error is not None:
         if category in OPTIONAL_CATEGORIES:
-            logger.warning("Optional %s unavailable for %s: %s", category, method, first_error)
+            logger.warning(
+                "Optional %s unavailable for %s (%s)",
+                category, method, safe_exception_type(first_error),
+            )
             return (
                 f"DATA_UNAVAILABLE: optional {category} could not be retrieved "
-                f"({first_error}). Proceed without it; do not fabricate values."
+                "from any configured vendor. Proceed without it; do not fabricate values."
             )
-        raise first_error
+        if isinstance(first_error, VendorError):
+            raise first_error
+        raise VendorError(
+            f"All configured vendors failed for {method} "
+            f"({safe_exception_type(first_error)})"
+        ) from None
 
     raise RuntimeError(f"No available vendor for '{method}'")

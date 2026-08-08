@@ -1,8 +1,11 @@
-"""Frozen economic contract and identities for the global-event experiment.
+"""Frozen contracts and identities for the global-event experiment.
 
-The protocol identity changes only when the economic experiment changes.  Code,
-container, dependency, and operational changes belong to the build identity so
-ordinary reliability work cannot silently fork (or silently alter) a strategy.
+The full experiment identity binds the economic design, current collection and
+storage contracts, and ordered machine-readable compatibility history. Narrow
+collection and semantics identities determine evidence compatibility; the build
+identity records code, container, and dependency provenance. Operational changes
+that do not affect these contracts, and human compatibility notes, do not alter
+the experiment identity.
 """
 
 from __future__ import annotations
@@ -12,18 +15,63 @@ import json
 import os
 import re
 from collections.abc import Mapping
+from copy import deepcopy
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
+from tradingagents.collector_contract import (
+    COLLECTOR_COMPATIBILITY_PRECEDENCE,
+    collection_protocol_manifest,
+    collector_identity_history_manifest,
+    collector_semantics_manifest,
+    validated_collector_identity_history,
+    x_daily_cycle_shape,
+)
+from tradingagents.dataflows.media_sources import GLOBAL_X_ADAPTER_POLICY
+
 
 def canonical_json(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
 
 
 def content_id(value: Any, *, prefix: str = "") -> str:
     digest = hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
     return f"{prefix}{digest[:24]}"
+
+
+def experiment_protocol_manifest(
+    protocol: Mapping[str, Any],
+    *,
+    collection_protocol_id: str,
+    collector_semantics_id: str,
+    collector_identity_history: tuple[Mapping[str, Any], ...],
+) -> dict[str, Any]:
+    """Bind the economic protocol to its current evidence contract."""
+    manifest = deepcopy(dict(protocol))
+    evidence = manifest.get("evidence")
+    if isinstance(evidence, dict):
+        for compatibility_key in (
+            "compatible_collector_identities",
+            "collection_protocol_id",
+            "expected_collector_semantics_id",
+        ):
+            evidence.pop(compatibility_key, None)
+    manifest["collection_contract"] = {
+        "collection_protocol_id": collection_protocol_id,
+        "collector_semantics_id": collector_semantics_id,
+        "compatible_identity_history": collector_identity_history_manifest(
+            collector_identity_history[:-1]
+        ),
+        "compatibility_precedence": COLLECTOR_COMPATIBILITY_PRECEDENCE,
+    }
+    return manifest
 
 
 GLOBAL_EVENT_V2_BROAD_NEWS_QUERIES: dict[str, list[str]] = {
@@ -161,42 +209,6 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
                 "polymarket", "trendnews", "x",
             ],
         },
-        "expected_collector_semantics_id": "collector_5d8f7d2a7c92e52be419ad17",
-        # Earlier collectors used the same economic experiment but predated
-        # stricter operational/provider contracts. Keep only their exact pairs
-        # readable so already-captured, item-lineage-verified evidence is not
-        # discarded; the current formal boundary still rejects malformed rows.
-        "compatible_collector_identities": [
-            {
-                "protocol_id": "protocol_b4c36948d856e9a82e7167bb",
-                "collector_semantics_id": "collector_f6aaca9c1014887d9e78da82",
-                "reason": (
-                    "pre-ordered-compatible-resolution collector retained only when "
-                    "its exact immutable cycle and item lineage verifies"
-                ),
-            },
-            {
-                "protocol_id": "protocol_1b393c51cbc64acb34fa4014",
-                "collector_semantics_id": "collector_fa2421d5a25636de4f035323",
-                "reason": (
-                    "pre-provider-contract collector retained only when its exact "
-                    "immutable receipt and per-item lineage verifies"
-                ),
-            },
-            {
-                "protocol_id": "protocol_485a418d45d44de9c0f45a94",
-                "collector_semantics_id": "collector_cf5b90da1cd4d7db969389ee",
-                "reason": (
-                    "pre-content-vintage collector retained only when its exact "
-                    "immutable receipt and per-item content lineage verifies"
-                ),
-            },
-            {
-                "protocol_id": "protocol_7382464b4f6a755d767f2699",
-                "collector_semantics_id": "collector_aec83e329b85d5bf8654b2eb",
-                "reason": "pre-simplification collector with equivalent evidence semantics",
-            }
-        ],
         "fetch_receipt_evidence_lineage": {
             "version": "atomic-provider-snapshot-content-v3",
             "persisted_item_lineage": "every stored media response item",
@@ -321,10 +333,14 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
         },
         "x_cycle_interval_seconds": 86400,
         "x_cycle_recovery_stale_seconds": 900,
+        "x_cycle_start_earliest_utc_seconds": 75600,
+        "x_cycle_start_minimum_remaining_utc_seconds": 900,
         "x_trend_woeids": [1, 23424977],
         "max_x_trend_requests_per_utc_day": 2,
         "max_x_search_requests_per_utc_day": 3,
-        "max_x_results_per_query": 10,
+        "max_x_results_per_query": int(
+            GLOBAL_X_ADAPTER_POLICY["recent_search"]["result_limit"]["default"]
+        ),
         "x_billing_accounting": {
             "cost_units_meaning": (
                 "one durable paid-request reservation, charged when the receipt starts; "
@@ -346,12 +362,28 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
             "nominal_max_usd_per_day_before_deduplication": 1.05,
         },
         "x_formal_policy": {
-            "version": "topic-diverse-public-reaction-v2-immutable-author",
+            "version": "topic-diverse-public-reaction-v4-profile-screened",
             "required_evidence_role": "unverified_public_reaction",
             "required_immutable_author_id": True,
             "required_account_created_utc": True,
             "required_automation_signals_complete": True,
-            "excluded_verified_types": ["business", "government"],
+            "required_profile_screening_complete": True,
+            "known_verified_types": list(
+                GLOBAL_X_ADAPTER_POLICY["recent_search"]["known_verified_types"]
+            ),
+            "excluded_verified_types": list(
+                GLOBAL_X_ADAPTER_POLICY["recent_search"]["excluded_verified_types"]
+            ),
+            "organization_signal_flags": list(
+                GLOBAL_X_ADAPTER_POLICY["recent_search"]["profile_screening"][
+                    "flags"
+                ]
+            ),
+            "exclude_any_organization_signal": True,
+            "profile_screening_limitation": (
+                "deterministic conservative profile signals reduce but cannot prove "
+                "that every remaining unverified account is an unaffiliated person"
+            ),
             "topic_labels": [
                 "@TREND_WORLD", "@TREND_BUSINESS", "@TREND_TECHNOLOGY",
             ],
@@ -359,12 +391,14 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
                 "lexicographically-smallest-sha256-source-nul-external-id-nul-topic"
             ),
             "max_automation_risk": 0.30,
-            "required_author_metrics": [
-                "followers_count", "following_count", "tweet_count",
-            ],
-            "required_engagement_metrics": [
-                "like_count", "reply_count", "retweet_count", "quote_count",
-            ],
+            "required_author_metrics": list(
+                GLOBAL_X_ADAPTER_POLICY["recent_search"][
+                    "required_user_metrics"
+                ].values()
+            ),
+            "required_engagement_metrics": list(
+                GLOBAL_X_ADAPTER_POLICY["recent_search"]["required_post_metrics"]
+            ),
             "engagement_weights": {
                 "like_count": 1,
                 "reply_count": 2,
@@ -500,6 +534,13 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
         },
         "price_capture": {
             "vendor_class": "research-only market-data adapter",
+            "exploratory_history_adapter": {
+                "provider_id": "yfinance-adjusted-daily-open",
+                "provenance_schema_version": 1,
+                "price_semantics": "provider adjusted regular-session daily Open",
+                "cash_return": 0.0,
+                "use": "exploratory only; mutable history is not a confirmatory price receipt",
+            },
             "open_semantics": (
                 "yfinance unadjusted and adjusted regular-session daily-bar Open as first "
                 "persisted from the captured response; not an independently authenticated "
@@ -823,7 +864,144 @@ GLOBAL_EVENT_V2_PROTOCOL: dict[str, Any] = {
     },
 }
 
-GLOBAL_EVENT_V2_PROTOCOL_ID = content_id(GLOBAL_EVENT_V2_PROTOCOL, prefix="protocol_")
+GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_MANIFEST = collection_protocol_manifest(
+    GLOBAL_EVENT_V2_PROTOCOL["evidence"]
+)
+GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID = content_id(
+    GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_MANIFEST,
+    prefix="protocol_",
+)
+GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_MANIFEST = collector_semantics_manifest(
+    GLOBAL_EVENT_V2_PROTOCOL["evidence"]
+)
+GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID = content_id(
+    GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_MANIFEST,
+    prefix="collector_",
+)
+
+# Append each deployed identity here. During an unreleased migration, replace
+# its provisional final row instead of preserving identities that never ran.
+# The derived-current pin makes either omission fail at import time.
+_GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS = (
+    ("xtrend", "woeid:1"),
+    ("xtrend", "woeid:23424977"),
+    ("trendnews", "ranked-global-discovery"),
+)
+_GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS = 3
+GLOBAL_EVENT_V2_COLLECTOR_IDENTITY_HISTORY = validated_collector_identity_history(
+    [
+        {
+            "protocol_id": "protocol_7382464b4f6a755d767f2699",
+            "collector_semantics_id": "collector_aec83e329b85d5bf8654b2eb",
+            "x_daily_static_slots": _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS,
+            "x_daily_max_dynamic_slots": (
+                _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS
+            ),
+            "reason": "pre-simplification collector with equivalent evidence semantics",
+        },
+        {
+            "protocol_id": "protocol_485a418d45d44de9c0f45a94",
+            "collector_semantics_id": "collector_cf5b90da1cd4d7db969389ee",
+            "x_daily_static_slots": _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS,
+            "x_daily_max_dynamic_slots": (
+                _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS
+            ),
+            "reason": (
+                "pre-content-vintage collector retained only when its exact "
+                "immutable receipt and per-item content lineage verifies"
+            ),
+        },
+        {
+            "protocol_id": "protocol_1b393c51cbc64acb34fa4014",
+            "collector_semantics_id": "collector_fa2421d5a25636de4f035323",
+            "x_daily_static_slots": _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS,
+            "x_daily_max_dynamic_slots": (
+                _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS
+            ),
+            "reason": (
+                "pre-provider-contract collector retained only when its exact "
+                "immutable receipt and per-item lineage verifies"
+            ),
+        },
+        {
+            "protocol_id": "protocol_b4c36948d856e9a82e7167bb",
+            "collector_semantics_id": "collector_f6aaca9c1014887d9e78da82",
+            "x_daily_static_slots": _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS,
+            "x_daily_max_dynamic_slots": (
+                _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS
+            ),
+            "reason": (
+                "pre-ordered-compatible-resolution collector retained only when "
+                "its exact immutable cycle and item lineage verifies"
+            ),
+        },
+        {
+            "protocol_id": "protocol_09b9f5ad4b015b24a553e7f4",
+            "collector_semantics_id": "collector_5d8f7d2a7c92e52be419ad17",
+            "x_daily_static_slots": _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS,
+            "x_daily_max_dynamic_slots": (
+                _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS
+            ),
+            "reason": (
+                "collector before collection identity was separated from the "
+                "full experiment identity"
+            ),
+        },
+        {
+            "protocol_id": "protocol_79b64af05d79c66399d66385",
+            "collector_semantics_id": "collector_c985ba5adc18bbcbc5f329f3",
+            "x_daily_static_slots": _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS,
+            "x_daily_max_dynamic_slots": (
+                _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS
+            ),
+            "reason": "collector before topic-discovery behavior was fully declared",
+        },
+        {
+            "protocol_id": "protocol_b19d2d7e9a3bdc6bd398d66c",
+            "collector_semantics_id": "collector_f4ed952ec4c96058c0e7d5a8",
+            "x_daily_static_slots": _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_STATIC_SLOTS,
+            "x_daily_max_dynamic_slots": (
+                _GLOBAL_EVENT_V2_HISTORICAL_X_DAILY_MAX_DYNAMIC_SLOTS
+            ),
+            "reason": (
+                "current late-window query-free discovery, exact-cycle labels, "
+                "official-account screening, and X Post metric normalization"
+            ),
+        },
+    ],
+    current_identity=(
+        GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+        GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+    ),
+    current_x_daily_cycle_shape=x_daily_cycle_shape(
+        GLOBAL_EVENT_V2_PROTOCOL["evidence"]
+    ),
+)
+GLOBAL_EVENT_V2_LEGACY_COLLECTOR_IDENTITIES = (
+    GLOBAL_EVENT_V2_COLLECTOR_IDENTITY_HISTORY[:-1]
+)
+GLOBAL_EVENT_V2_CURRENT_COLLECTOR_IDENTITY = (
+    GLOBAL_EVENT_V2_COLLECTOR_IDENTITY_HISTORY[-1]
+)
+# The ledger stays chronological for append-only maintenance. Selection order is
+# explicit and outcome-blind: current first, then compatible rows newest-first.
+GLOBAL_EVENT_V2_COMPATIBLE_COLLECTOR_IDENTITIES = tuple(
+    reversed(GLOBAL_EVENT_V2_LEGACY_COLLECTOR_IDENTITIES)
+)
+
+# Forecast, portfolio, evaluation, and promotion artifacts retain the complete
+# experiment identity. It binds current collection/storage semantics and the
+# ordered compatible pairs with their frozen X shapes, but not explanatory notes.
+GLOBAL_EVENT_V2_PROTOCOL_MANIFEST = experiment_protocol_manifest(
+    GLOBAL_EVENT_V2_PROTOCOL,
+    collection_protocol_id=GLOBAL_EVENT_V2_COLLECTION_PROTOCOL_ID,
+    collector_semantics_id=GLOBAL_EVENT_V2_COLLECTOR_SEMANTICS_ID,
+    collector_identity_history=GLOBAL_EVENT_V2_COLLECTOR_IDENTITY_HISTORY,
+)
+GLOBAL_EVENT_V2_PROTOCOL_ID = content_id(
+    GLOBAL_EVENT_V2_PROTOCOL_MANIFEST,
+    prefix="protocol_",
+)
 
 
 _FLY_DEPLOYMENT_IMAGE_REF = re.compile(

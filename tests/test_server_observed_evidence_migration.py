@@ -239,7 +239,8 @@ def test_postgres_rejects_caller_backdating_for_fetches_and_cycles():
         finally:
             store.close()
         assert not before["complete"]
-        assert before["missing_query_slots"][0]["reason"] == "incomplete"
+        assert before["missing_query_slots"][0]["reason"] == "not_run"
+        assert before["query_slots"][0]["run"] is None
         assert after["complete"]
     finally:
         engine.dispose()

@@ -49,7 +49,7 @@ def _coerce(value: str, reference):
         if normalized in _BOOL_FALSE:
             return False
         raise ValueError(
-            f"expected a boolean ({'/'.join(_BOOL_TRUE + _BOOL_FALSE)}), got {value!r}"
+            f"expected a boolean ({'/'.join(_BOOL_TRUE + _BOOL_FALSE)})"
         )
     if isinstance(reference, int) and not isinstance(reference, bool):
         return int(value)
@@ -66,8 +66,18 @@ def _apply_env_overrides(config: dict) -> dict:
             continue
         try:
             config[key] = _coerce(raw, config.get(key))
-        except ValueError as exc:
-            raise ValueError(f"Invalid value for {env_var}: {exc}") from exc
+        except ValueError:
+            if isinstance(config.get(key), bool):
+                expected = f"a boolean ({'/'.join(_BOOL_TRUE + _BOOL_FALSE)})"
+            elif isinstance(config.get(key), int):
+                expected = "an integer"
+            elif isinstance(config.get(key), float):
+                expected = "a number"
+            else:
+                expected = "a valid value"
+            raise ValueError(
+                f"Invalid value for {env_var}; expected {expected}"
+            ) from None
     return config
 
 
