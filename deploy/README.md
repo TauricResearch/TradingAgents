@@ -9,7 +9,7 @@ from that one fact.
 | Option | Verdict | Why |
 |---|---|---|
 | **Oracle Cloud Always Free VM** | ✅ **use this** | A real VM: persistent disk, a long-running process, cron-accurate scheduling. Free with no expiry. |
-| Cloudflare Workers / Pages | ❌ cannot host | Workers are request-scoped with a CPU ceiling. There is no persistent process to run APScheduler in, and Pyodide will not carry pandas + langgraph + lightgbm. |
+| Cloudflare Workers / Pages | ❌ cannot host | Workers are request-scoped with a CPU ceiling. There is no persistent process to run APScheduler in, and Pyodide will not carry pandas + langgraph + the SQLAlchemy async stack. |
 | Cloudflare D1 | ❌ not a drop-in | D1 speaks HTTP; SQLAlchemy + aiosqlite need the SQLite *file* protocol. Swapping it is a data-layer rewrite, not a config change. |
 | **Cloudflare Tunnel** | ✅ **use this** | The genuinely useful Cloudflare piece: HTTPS to the VM with **zero inbound ports open**, plus Zero Trust auth in front of a dashboard that has none. |
 | Your own Windows box + Tunnel | ✅ viable, zero setup | Free and already paid for. It stops when the machine sleeps — which is exactly how a month of observations gets lost. |
@@ -25,7 +25,7 @@ Taken from the running app, not estimated:
 | RAM, steady state | **~336 MB** |
 | `assistant.db` | 0.34 MB, growing **~3 MB/year** |
 | `~/.tradingagents` total | 26 MB |
-| Cold start | ~35s (pandas + langgraph + lightgbm imports) |
+| Cold start | ~35s (pandas + langgraph imports) |
 
 It fits the 1 GB AMD micro. Prefer an **Ampere A1** shape if capacity allows, so
 a backtest can run without competing with the scheduler for memory.
@@ -49,8 +49,13 @@ a backtest can run without competing with the scheduler for memory.
 ### 2. Prepare the OS (one time)
 
 ```bash
-sudo apt update && sudo apt install -y python3.12 python3.12-venv python3-pip git sqlite3
-# The 1GB AMD shape needs swap or pip will OOM while building wheels.
+sudo apt update
+# Ubuntu 24.04 already ships Python 3.12 as `python3` — do NOT add deadsnakes.
+python3 --version                       # expect 3.12.x
+sudo apt install -y python3-venv python3-pip git sqlite3
+
+# Swap. Resolving pandas + langchain + langgraph at once spikes well past idle,
+# and pip gets OOM-killed on the 1 GB AMD shape without it.
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
 sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
@@ -58,17 +63,57 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 ### 3. Install the app (one time)
 
+**Use `venv` on the server, not conda** — even if you use conda locally. Conda
+adds a ~400 MB installer and its own resolver for zero benefit here: every
+dependency is a plain PyPI wheel, and the systemd unit points at a fixed
+interpreter path. `venv` keeps that path stable and obvious.
+
 ```bash
 git clone <your-fork> ~/TradingAgents && cd ~/TradingAgents
-python3.12 -m venv .venv
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
 .venv/bin/pip install -e ".[dev,assistant]"
 ```
+
+> Private fork? Either use a deploy key (`ssh-keygen` on the VM, add the public
+> key to the repo's Deploy Keys) or clone over HTTPS with a personal access
+> token. A plain `git clone` of a private repo will hang on a password prompt.
 
 Copy your `.env` across — **never commit it**:
 
 ```bash
+# from your Windows machine, in the repo directory
 scp .env ubuntu@<vm-ip>:~/TradingAgents/.env
 ssh ubuntu@<vm-ip> 'chmod 600 ~/TradingAgents/.env'
+```
+
+### 3b. Bring your existing history across (one time) — DO NOT SKIP
+
+The app creates a **fresh, empty** database on first run. Deploy without this
+step and you silently restart the experiment from zero: the July–August
+paper-trading history, all six seeded books, the signal record, and the equity
+snapshots that the whole scoreboard is computed from.
+
+Stop the local app first — copying a live SQLite file can capture a torn page.
+
+```bash
+# on Windows, with the local app STOPPED
+sqlite3 "$HOME/.tradingagents/assistant.db" ".backup 'assistant-migrate.db'"
+scp assistant-migrate.db ubuntu@<vm-ip>:/tmp/
+
+# on the VM, BEFORE the first service start
+mkdir -p ~/.tradingagents
+mv /tmp/assistant-migrate.db ~/.tradingagents/assistant.db
+sqlite3 ~/.tradingagents/assistant.db "pragma integrity_check;"   # expect: ok
+sqlite3 ~/.tradingagents/assistant.db \
+  "select label, round(cash,2) from paper_account;"               # expect 6 books
+```
+
+Optionally bring the markdown reports too — they are only read for display, so
+losing them costs history, not correctness:
+
+```bash
+scp -r "$HOME/.tradingagents/logs" ubuntu@<vm-ip>:~/.tradingagents/
 ```
 
 ### 4. Run it as a service (one time)
@@ -83,6 +128,49 @@ journalctl -u tradingagents -f
 
 The unit binds to **127.0.0.1 only**. Nothing is reachable from the internet
 yet, which is deliberate.
+
+**Verify it actually works before moving on** — a service that starts and then
+errors on every run looks identical to a healthy one from `systemctl status`:
+
+```bash
+# 1. process is up and listening
+curl -s localhost:8000/health | python3 -m json.tool | head -20
+
+# 2. all six books survived the migration, with their history
+curl -s localhost:8000/portfolio \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); \
+    [print(f\"{b['label']:<12} \${b['equity_usd'] or 0:>10,.2f}  {b['return_pct']}\") for b in d['books']]"
+
+# 3. the LLM is reachable from the VM (this is the step that catches a
+#    missing or mis-copied .env — the app starts fine without API keys)
+cd ~/TradingAgents && .venv/bin/python scripts/smoke_structured_output.py google
+
+# 4. scheduler registered its jobs
+journalctl -u tradingagents --since "5 min ago" | grep -i "scheduled slot"
+```
+
+**How to read step 2.** The four `core_*` books legitimately start at exactly
+$10,000 — they are new arms and hold nothing until the first sweep runs. The
+tell is the two older books:
+
+| Book | Fresh DB (migration skipped) | Migrated correctly |
+|---|---|---|
+| `strategic` | $10,000.00 | your real equity (**not** a round number) |
+| `tactical` | $10,000.00 | your real equity |
+| `core_*` ×4 | $10,000.00 | $10,000.00 — **expected either way** |
+
+If `strategic` and `tactical` both read exactly $10,000.00, you are looking at a
+fresh database: stop the service, redo step 3b, start again. A faster check that
+does not depend on reading equity:
+
+```bash
+sqlite3 ~/.tradingagents/assistant.db \
+  "select (select count(*) from signals) as signals,
+          (select count(*) from trades) as trades,
+          (select count(*) from equity_snapshots) as snapshots;"
+```
+
+All three zero means a fresh database.
 
 ### 5. Expose it via Cloudflare Tunnel (one time)
 
@@ -142,9 +230,12 @@ plain copy can capture a torn page that only fails when you try to restore it.
 ```bash
 cd ~/TradingAgents && git pull && .venv/bin/pip install -e ".[dev,assistant]"
 sudo systemctl restart tradingagents
+journalctl -u tradingagents --since "2 min ago" | tail -20   # confirm clean start
 ```
 
-State lives in `~/.tradingagents/`, so it survives updates untouched.
+State lives in `~/.tradingagents/`, so it survives updates untouched. Prefer
+restarting **outside market hours**: APScheduler rebuilds its job store empty on
+start, so anything scheduled during the restart window is skipped, not backfilled.
 
 ## Failure modes
 
