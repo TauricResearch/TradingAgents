@@ -46,10 +46,19 @@ class AssistantSettings(BaseSettings):
     # Throttled to match deep-analysis capacity: adds queue for initiation
     # runs, so the faucet must not outrun the drain (~1/day ≈ initiation
     # budget under the weekly cap).
-    screener_max_adds: int = Field(default=1, ge=0, le=10)
+    # Raised from 1: the old value was tuned so the watchlist could not outrun
+    # the LLM's ability to analyse it ("the faucet must not outrun the drain").
+    # The drain was the Ollama budget. At 1 add/day against a 21-day expiry the
+    # list barely moved, so a ticker that started performing could wait weeks
+    # for a seat.
+    screener_max_adds: int = Field(default=3, ge=0, le=10)
     # Satellite seats only — core (hand-picked giants/ETFs) live outside this
     # cap and never expire.
-    screener_satellite_cap: int = Field(default=10, ge=1)
+    # Wider is better for statistics: effective sample size comes from DISTINCT
+    # names, not from analysing the same ones more often — repeat looks at one
+    # ticker are correlated observations, which is exactly what made the July
+    # screener finding evaporate.
+    screener_satellite_cap: int = Field(default=20, ge=1)
     # Screener picks that stayed boring (weekly tier, no position, Hold) for
     # this many days fall off the list; the screener can re-discover them.
     screener_expiry_days: int = Field(default=21, ge=1)
@@ -142,11 +151,17 @@ class AssistantSettings(BaseSettings):
     # This global cap is the safety net: no matter how slots are configured,
     # at most this many ticker-runs happen per UTC day — protects a limited
     # LLM quota (e.g. Ollama cloud free tier) from a misconfigured schedule.
-    assistant_daily_run_budget: int = Field(default=10, ge=1)
+    # Sized for DATA VOLUME, not for quota preservation. The Ollama weekly cap
+    # that these were built around is gone; the binding constraint now is the
+    # opposite — August's verdict was unprovable at an effective sample size of
+    # 3.19, so an unused slot costs an observation we cannot get back. These
+    # remain as a guard against a misconfigured schedule or a retry loop, not
+    # as a throttle on ambition.
+    assistant_daily_run_budget: int = Field(default=30, ge=1)
     # Weekly governor on top of the daily one: with Ollama cloud free tier a
     # deep run costs ~8-9% of the weekly allowance, so ~11 runs/week is the
     # sustainable ceiling. A violent Monday can't starve Friday.
-    assistant_weekly_run_budget: int = Field(default=11, ge=1)
+    assistant_weekly_run_budget: int = Field(default=200, ge=1)
 
     # --- Telegram ---
     telegram_bot_token: str = ""

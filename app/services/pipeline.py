@@ -197,13 +197,22 @@ async def _select_candidates(market: Market | None, batch_size: int) -> list:
         movers = await _event_movers(candidates)
         take(movers)
 
-    # P5: heartbeat for the stalest ticker — but never with scarce budget.
-    if len(picked) < batch_size and await weekly_budget_used_fraction() < 0.7:
+    # P5: heartbeat — backfill the slot with the STALEST tickers so the budget
+    # is actually spent. Previously this took exactly one ticker and switched
+    # off at 70% weekly usage, both written when Ollama's weekly cap made every
+    # run precious. That scarcity is gone, and the binding constraint on the
+    # experiment is now the opposite problem: too few observations. August's
+    # verdict was unprovable at an effective sample size of 3.19, so an idle
+    # slot is a wasted day, not a saving.
+    #
+    # A reserve is still kept so a burst of heartbeats cannot starve the
+    # position reviews and screener initiations that arrive later in the week.
+    if len(picked) < batch_size and await weekly_budget_used_fraction() < 0.9:
         stalest = sorted(
             (t for t in rows if t.symbol not in seen),
             key=lambda t: (_naive(t.last_run_at) or datetime.min),
         )
-        take(stalest[:1])
+        take(stalest)
 
     return picked
 

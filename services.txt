@@ -1,0 +1,178 @@
+Region
+Region identifier
+Subscription status
+US Midwest (Chicago) - Home Region
+us-chicago-1
+Subscribed
+
+Australia East (Sydney)
+ap-sydney-1
+Not subscribed
+
+Australia Southeast (Melbourne)
+ap-melbourne-1
+Not subscribed
+
+Brazil East (Sao Paulo)
+sa-saopaulo-1
+Not subscribed
+
+Brazil Southeast (Vinhedo)
+sa-vinhedo-1
+Not subscribed
+
+Canada Southeast (Montreal)
+ca-montreal-1
+Not subscribed
+
+Canada Southeast (Toronto)
+ca-toronto-1
+Not subscribed
+
+Chile Central (Santiago)
+sa-santiago-1
+Not subscribed
+
+Chile West (Valparaiso)
+sa-valparaiso-1
+Not subscribed
+
+Colombia Central (Bogota)
+sa-bogota-1
+Not subscribed
+
+France Central (Paris)
+eu-paris-1
+Not subscribed
+
+France South (Marseille)
+eu-marseille-1
+Not subscribed
+
+Germany Central (Frankfurt)
+eu-frankfurt-1
+Not subscribed
+
+India South (Hyderabad)
+ap-hyderabad-1
+Not subscribed
+
+India West (Mumbai)
+ap-mumbai-1
+Not subscribed
+
+Indonesia North (Batam)
+ap-batam-1
+Not subscribed
+
+Israel Central (Jerusalem)
+il-jerusalem-1
+Not subscribed
+
+Italy North (Turin)
+eu-turin-1
+Not subscribed
+
+Italy Northwest (Milan)
+eu-milan-1
+Not subscribed
+
+Japan Central (Osaka)
+ap-osaka-1
+Not subscribed
+
+Japan East (Tokyo)
+ap-tokyo-1
+Not subscribed
+
+Malaysia West 2 (Kulai)
+ap-kulai-2
+Not subscribed
+
+Mexico Central (Queretaro)
+mx-queretaro-1
+Not subscribed
+
+Mexico Northeast (Monterrey)
+mx-monterrey-1
+Not subscribed
+
+Morocco West (Casablanca)
+af-casablanca-1
+Not subscribed
+
+Netherlands Northwest (Amsterdam)
+eu-amsterdam-1
+Not subscribed
+
+Saudi Arabia Central (Riyadh)
+me-riyadh-1
+Not subscribed
+
+Saudi Arabia West (Jeddah)
+me-jeddah-1
+Not subscribed
+
+Singapore (Singapore)
+ap-singapore-1
+Not subscribed
+
+Singapore West (Singapore)
+ap-singapore-2
+Not subscribed
+
+South Africa Central (Johannesburg)
+af-johannesburg-1
+Not subscribed
+
+South Korea Central (Seoul)
+ap-seoul-1
+Not subscribed
+
+South Korea North (Chuncheon)
+ap-chuncheon-1
+Not subscribed
+
+Spain Central (Madrid 3)
+eu-madrid-3
+Not subscribed
+
+Spain Central (Madrid)
+eu-madrid-1
+Not subscribed
+
+Sweden Central (Stockholm)
+eu-stockholm-1
+Not subscribed
+
+Switzerland North (Zurich)
+eu-zurich-1
+Not subscribed
+
+UAE Central (Abu Dhabi)
+me-abudhabi-1
+Not subscribed
+
+UAE East (Dubai)
+me-dubai-1
+Not subscribed
+
+UK South (London)
+uk-london-1
+Not subscribed
+
+UK West (Newport)
+uk-cardiff-1
+Not subscribed
+
+US East (Ashburn)
+us-ashburn-1
+Not subscribed
+
+US West (Phoenix)
+us-phoenix-1
+Not subscribed
+
+US West (San Jose)
+us-sanjose-1
+Not subscribed

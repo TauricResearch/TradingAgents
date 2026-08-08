@@ -71,3 +71,60 @@ class TestVolatilityScaling:
         assert event_threshold_pct(2.0) == pytest.approx(6.0)
         assert event_threshold_pct(9.0) == 10.0   # ceiling
         assert event_threshold_pct(None) == 5.0
+
+
+class TestBudgetIsSizedForData:
+    """The caps exist as a bug guard now, not as a quota throttle.
+
+    Every limit in this system was originally sized around Ollama's weekly cap,
+    which no longer applies. The binding constraint is the opposite: August's
+    verdict was unprovable at an effective sample size of 3.19, so an unused
+    slot costs an observation that cannot be recovered later.
+    """
+
+    def test_heartbeat_backfills_the_whole_slot(self):
+        """P5 took exactly one ticker, so slots ran short whenever few were due."""
+        import inspect
+
+        from app.services import pipeline
+
+        source = inspect.getsource(pipeline._select_candidates)
+        assert "take(stalest)" in source, (
+            "the heartbeat must backfill to batch_size; take(stalest[:1]) leaves "
+            "the slot short every time fewer tickers are due than requested"
+        )
+
+    def test_heartbeat_reserve_is_not_restrictive(self):
+        """The 0.7 gate switched the backfill off for a third of the week."""
+        import inspect
+
+        from app.services import pipeline
+
+        source = inspect.getsource(pipeline._select_candidates)
+        assert "< 0.9" in source, (
+            "the heartbeat reserve should keep a small buffer for late-week "
+            "position reviews, not idle the scheduler once 70% is spent"
+        )
+
+    def test_weekly_budget_exceeds_the_schedule(self):
+        """The cap must not bind before the slots do, or runs get silently dropped."""
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        # 6 slots x 4 tickers x 5 weekdays = 120 potential weekday runs.
+        assert settings.assistant_weekly_run_budget >= 120, (
+            "weekly budget must cover the configured schedule, else the guard "
+            "becomes a throttle and slots fail late in the week"
+        )
+        assert settings.assistant_daily_run_budget >= 24
+
+    def test_screener_can_react_within_days(self):
+        """At 1 add/day against a 21-day expiry the watchlist barely moved."""
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        assert settings.screener_max_adds >= 3
+        assert settings.screener_satellite_cap >= 20, (
+            "effective sample size comes from DISTINCT names; repeat looks at "
+            "the same ticker are correlated observations"
+        )
