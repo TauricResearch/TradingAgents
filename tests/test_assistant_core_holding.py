@@ -184,3 +184,29 @@ class TestCoreTrendFilter:
     def test_2008_case(self):
         """SPY fell below its 200d average in Jan 2008, well before the worst."""
         assert not self.holds_core(1_330.0, 1_450.0, filter_on=True)
+
+
+class TestHeartbeat:
+    """A dead process cannot report that it died — hence an EXTERNAL monitor."""
+
+    def test_disabled_when_url_unset(self):
+        """No URL configured must be a silent no-op, never an error."""
+        import asyncio
+
+        from app.services.heartbeat import send_heartbeat
+
+        # Default settings have no heartbeat URL, so this returns False cleanly.
+        assert asyncio.run(send_heartbeat()) is False
+
+    def test_monitor_failure_never_raises(self, monkeypatch):
+        """Monitoring must not take down the scheduler it watches."""
+        import asyncio
+
+        import app.services.heartbeat as hb
+
+        class _Settings:
+            assistant_heartbeat_url = "https://hc-ping.example.invalid/nope"
+
+        monkeypatch.setattr(hb, "get_settings", lambda: _Settings())
+        # An unresolvable host must return False rather than propagate.
+        assert asyncio.run(hb.send_heartbeat()) is False

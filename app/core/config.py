@@ -59,6 +59,12 @@ class AssistantSettings(BaseSettings):
     # existing accounts.
     paper_starting_cash: float = Field(default=10_000.0, gt=0)
 
+    # --- Liveness ---
+    # External dead-man's switch. A dead process cannot report that it died, so
+    # the scheduler pings this URL each pass and the monitor alerts when the
+    # pings STOP. Unset = disabled. Free options: healthchecks.io, cronitor.
+    assistant_heartbeat_url: str = ""
+
     # --- Index core (capital deployment) ---
     # Against an SPY benchmark, idle cash is an unfunded short: every dollar
     # not invested loses the equity risk premium. Both books measurably

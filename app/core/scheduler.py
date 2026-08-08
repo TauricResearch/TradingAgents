@@ -20,6 +20,7 @@ from app.domain import Market
 from app.models.base import session_factory
 from app.repositories.schedule import ScheduleRepository
 from app.services.core_holding import sweep_all_books
+from app.services.heartbeat import send_heartbeat
 from app.services.paper_broker import check_stops
 from app.services.pipeline import run_slot
 from app.services.screener import run_screener
@@ -71,6 +72,18 @@ def build_scheduler() -> AsyncIOScheduler:
         max_instances=1,
         misfire_grace_time=1800,
     )
+    # Liveness ping. Runs on the same cadence as the monitor so a stalled
+    # scheduler is detected in minutes, not days. No-op when unconfigured.
+    if get_settings().assistant_heartbeat_url.strip():
+        scheduler.add_job(
+            send_heartbeat,
+            "interval",
+            minutes=5,
+            id="heartbeat",
+            name="liveness heartbeat",
+            coalesce=True,
+            max_instances=1,
+        )
     # Index-core sweep: park idle cash in the benchmark before the close, so
     # uncommitted capital earns the equity risk premium instead of nothing.
     # Runs before the equity snapshot so the scoreboard reflects the swept

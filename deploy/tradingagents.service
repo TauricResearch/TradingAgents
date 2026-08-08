@@ -1,0 +1,63 @@
+[Unit]
+Description=TradingAgents assistant (dashboard + scheduler)
+Documentation=https://github.com/TauricResearch/TradingAgents
+# The scheduler fires market-hours jobs, so it must not start before the clock
+# and network are actually up — a unit that starts too early registers jobs
+# against a wrong wall clock and silently misfires the first day.
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/TradingAgents
+
+# Secrets live in .env (chmod 600). EnvironmentFile keeps them out of the unit
+# file and out of `ps`, and a missing file is fatal rather than silently
+# starting with no API keys — which would look like a working service that
+# errors every run.
+EnvironmentFile=/home/ubuntu/TradingAgents/.env
+
+# Bind to loopback only. Public access goes through the Cloudflare tunnel, so
+# nothing is exposed even if the Oracle security list is misconfigured. This is
+# defence in depth: the dashboard has NO built-in auth and shows portfolio data.
+ExecStart=/home/ubuntu/TradingAgents/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 --no-access-log
+
+# APScheduler jobs are in-process, so a crash loses the schedule until restart.
+Restart=always
+RestartSec=10
+# Don't give up after repeated crashes — an unattended box has nobody to run
+# `systemctl reset-failed`, and a burst of yfinance failures shouldn't retire
+# the service permanently.
+StartLimitIntervalSec=0
+
+# 35s of imports (pandas + langgraph + lightgbm) before the port opens.
+TimeoutStartSec=180
+# Let an in-flight LLM analysis finish rather than truncating a run mid-graph.
+TimeoutStopSec=120
+KillSignal=SIGINT
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tradingagents
+
+# Timestamps are stored UTC (see CLAUDE.md) and every schedule slot carries its
+# own tz, so the host stays UTC. Setting the host to a local zone would not
+# change behaviour but makes journal timestamps harder to reconcile with the DB.
+Environment=TZ=UTC
+Environment=PYTHONUNBUFFERED=1
+
+# Hardening. The app writes only to ~/.tradingagents and reads the repo.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home/ubuntu/.tradingagents /home/ubuntu/TradingAgents
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
