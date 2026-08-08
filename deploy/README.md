@@ -239,6 +239,29 @@ already owns the symbol) and the book would sit ~48% in idle cash — the exact
 drag the core exists to remove. VOO tracks the same index, so exposure is
 identical and the collision is impossible.
 
+## Waiting for Ampere capacity
+
+Oracle publishes no capacity signal, has no status page for it, and offers no
+alerting. The only way to know a slot has opened is to attempt a launch and see
+whether it errors — reports range from hours to several weeks, with no pattern
+you can plan around.
+
+`deploy/watch-for-capacity.py` does that on a loop and pings the Telegram bot
+the assistant already uses the moment it lands. A failed attempt is a rejected
+API call, not a resource, so it costs nothing to leave running.
+
+```bash
+# one-time: install and configure the OCI CLI, then fill in the two OCIDs
+# at the top of the script (get them from Cloud Shell — see step 1 below)
+python deploy/watch-for-capacity.py              # every 15 min
+python deploy/watch-for-capacity.py --once       # single attempt, to test setup
+```
+
+It tries every availability domain each round, since capacity is per-AD. It
+stops on any NON-capacity error — a bad OCID, a zero quota, an auth failure —
+because those never resolve by waiting, and hammering the API for days would
+just hide the real problem.
+
 ## Traps worth knowing before you start
 
 | Trap | Why it bites |
