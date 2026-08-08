@@ -229,3 +229,4 @@ reports/
 # memory-bank MCP local state
 memory-bank/
 .gstack/
+capacity-watch.log
