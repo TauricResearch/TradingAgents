@@ -72,10 +72,17 @@ DISPLAY_NAME = _env("OCI_DISPLAY_NAME", "tradingagents-vm")
 # Ampere is available in every AD, so try each one — capacity is per-AD.
 AVAILABILITY_DOMAINS: list[str] = []   # empty = discover automatically
 
-# "Out of capacity" is the only error worth retrying. Anything else — a bad
-# OCID, a quota of zero, an auth failure — will never fix itself, so stop and
-# say so rather than hammering the API for days.
+# Transient conditions worth retrying. Everything else — a bad OCID, a quota of
+# zero, an auth failure — will never fix itself, so stop and say so rather than
+# hammering the API for days.
+#
+# TooManyRequests belongs here: Oracle throttles the launch API when polled
+# hard, and a watch that dies on a 429 defeats its own purpose. It is handled
+# with a longer backoff than a capacity miss, because continuing to poll at the
+# normal rate is what provoked it.
 _RETRYABLE = ("out of host capacity", "outofcapacity", "out of capacity")
+_THROTTLED = ("toomanyrequests", "too many requests", "rate limit")
+_THROTTLE_BACKOFF_SECONDS = 300
 
 
 def _oci_binary() -> str:
@@ -227,7 +234,13 @@ def attempt(image_id: str, ad: str) -> tuple[bool, str]:
     lowered = combined.lower()
     if any(marker in lowered for marker in _RETRYABLE):
         return False, "out of capacity"
-    # A non-capacity error will not resolve by waiting — surface it.
+    if any(marker in lowered for marker in _THROTTLED):
+        # Back off HERE rather than returning, so the pause happens before the
+        # next AD is tried instead of after the whole round.
+        _log(f"throttled by Oracle — backing off {_THROTTLE_BACKOFF_SECONDS}s")
+        time.sleep(_THROTTLE_BACKOFF_SECONDS)
+        return False, "throttled (backed off)"
+    # A non-transient error will not resolve by waiting — surface it.
     raise RuntimeError(combined.strip()[:600])
 
 
