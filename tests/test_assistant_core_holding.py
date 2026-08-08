@@ -210,3 +210,75 @@ class TestHeartbeat:
         monkeypatch.setattr(hb, "get_settings", lambda: _Settings())
         # An unresolvable host must return False rather than propagate.
         assert asyncio.run(hb.send_heartbeat()) is False
+
+
+class TestCoreIsProtected:
+    """Regression guard for the invariant that had NO enforcement.
+
+    `core_holding.py` documents "core positions are never stopped out, and are
+    sold only to fund a satellite signal" — but three independent paths could
+    liquidate the benchmark:
+
+      1. the trailing-stop ratchet wrote a 12% stop onto the tactical core row,
+         and check_stops then sold the benchmark on an ordinary pullback;
+      2. run_tactical counted core in `held`, and since CORE_ETF (SPY) is itself
+         a core-category watchlist name it sits in the universe — a rule
+         `signal == 0` on SPY exited the benchmark;
+      3. _paper_sell had no guard, so an LLM Sell/Underweight on CORE_ETF
+         liquidated the strategic core.
+
+    Selling the core on a drawdown reintroduces exactly the cash drag the
+    module exists to remove, so each chokepoint is asserted here.
+    """
+
+    def test_ratchet_skips_core_rows(self):
+        """Chokepoint 1: the stop ratchet must never see a core position."""
+        import inspect
+
+        from app.services import paper_broker
+
+        source = inspect.getsource(paper_broker.check_stops)
+        assert "is_core" in source, (
+            "check_stops must filter core rows out before the trailing-stop "
+            "ratchet can write a stop onto the benchmark"
+        )
+
+    def test_tactical_held_excludes_core(self):
+        """Chokepoint 2: a rule exit on SPY must not sell the core."""
+        import inspect
+
+        from app.services.tactical import engine
+
+        source = inspect.getsource(engine.run_tactical)
+        assert "is_core" in source, (
+            "run_tactical's `held` must exclude core, or a signal==0 on "
+            "CORE_ETF exits the benchmark and core eats a max-positions seat"
+        )
+
+    def test_paper_sell_refuses_core(self):
+        """Chokepoint 3: an LLM Sell on CORE_ETF must not liquidate the core."""
+        import inspect
+
+        from app.services import paper_broker
+
+        source = inspect.getsource(paper_broker._paper_sell)
+        assert "is_core" in source, (
+            "_paper_sell must refuse core positions — only ensure_cash may "
+            "sell the benchmark, and only to fund a satellite entry"
+        )
+
+    def test_account_type_column_fits_every_book_label(self):
+        """`core_trend` (10) and `core_jepi` (9) overflowed String(8).
+
+        Silent truncation on SQLite; a write failure on any other backend.
+        """
+        from app.models.entities import Position, Trade
+        from app.services.books import BOOKS
+
+        longest = max(len(spec.position_type) for spec in BOOKS.values())
+        for model in (Position, Trade):
+            width = model.__table__.c.account_type.type.length
+            assert width >= longest, (
+                f"{model.__name__}.account_type is String({width}) but the "
+                f"longest book position_type is {longest} chars"
+            )

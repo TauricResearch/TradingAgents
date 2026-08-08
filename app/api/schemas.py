@@ -179,6 +179,7 @@ class PortfolioResponse(BaseModel):
     core_etf: str = "SPY"
     core_enabled: bool = True
     core_trend_filter: bool = False     # crash insurance; costs ~3-5pp/yr when on
+    core_trend_window: int = 200        # the moving-average length the filter uses
     core_defensive: bool = False        # True when the filter has moved to cash
     # Backward-compat mirrors of the strategic book (dashboard v1 fields)
     cash_usd: float

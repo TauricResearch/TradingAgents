@@ -41,7 +41,7 @@ from .reflection import Reflector
 from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
-logger_fallback = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _apply_llm_fallback(config: dict, deep_llm, quick_llm):
@@ -73,16 +73,14 @@ def _apply_llm_fallback(config: dict, deep_llm, quick_llm):
         fallback = create_llm_client(provider=provider, model=model, **kwargs).get_llm()
     except Exception:
         # A broken fallback must never take the primary path down with it.
-        logger_fallback.warning(
+        logger.warning(
             "LLM fallback %s/%s could not be constructed; continuing without it",
             provider, model, exc_info=True,
         )
         return deep_llm, quick_llm
 
-    logger_fallback.info("LLM fallback armed: %s/%s", provider, model)
+    logger.info("LLM fallback armed: %s/%s", provider, model)
     return deep_llm.with_fallbacks([fallback]), quick_llm.with_fallbacks([fallback])
-
-logger = logging.getLogger(__name__)
 
 
 def _coerce_max_retries(value):

@@ -110,7 +110,7 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             i.value_usd or 0.0
             for i in book_positions
             if (i.note or "").strip().lower() == "core"
-        ) or None
+        )
         # Realised P&L is invisible in a positions-only view, which is exactly
         # how a book showing five green positions can still be losing money.
         closed = [
@@ -145,6 +145,7 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
         core_etf=settings.core_etf,
         core_enabled=settings.core_enabled,
         core_trend_filter=settings.core_trend_filter,
+        core_trend_window=settings.core_trend_window,
         core_defensive=(settings.core_trend_filter and not await core_trend_ok("strategic")),
         cash_usd=strategic.cash_usd,
         starting_cash_usd=strategic.starting_cash_usd,

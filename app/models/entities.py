@@ -108,7 +108,10 @@ class Position(Base):
     __tablename__ = "positions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    account_type: Mapped[str] = mapped_column(String(8), index=True)  # paper | real
+    # paper | tactical | real | one per core_* forward-test arm (see
+    # app/services/books.py). Wide enough for 'core_trend'/'core_jepi' — SQLite
+    # ignores VARCHAR length, but any other backend would reject them at 8.
+    account_type: Mapped[str] = mapped_column(String(16), index=True)
     symbol: Mapped[str] = mapped_column(String(32), index=True)
     market: Mapped[str] = mapped_column(String(16))
     currency: Mapped[str] = mapped_column(String(8), default="USD")  # quote currency
@@ -126,7 +129,7 @@ class Trade(Base):
     __tablename__ = "trades"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    account_type: Mapped[str] = mapped_column(String(8), index=True)
+    account_type: Mapped[str] = mapped_column(String(16), index=True)
     symbol: Mapped[str] = mapped_column(String(32), index=True)
     side: Mapped[str] = mapped_column(String(4))  # buy | sell
     quantity: Mapped[float] = mapped_column(Float)

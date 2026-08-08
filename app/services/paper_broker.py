@@ -107,6 +107,7 @@ async def _position_value_usd(position: Position) -> float | None:
 # app/services/books.py, which also holds each arm's core ETF and trend
 # setting. Re-exported here because most call sites already import it.
 from app.services.books import BOOK_POSITION_TYPE  # noqa: E402
+from app.services.core_holding import is_core  # noqa: E402
 
 
 async def paper_equity_usd(book: str = "strategic") -> float | None:
@@ -170,11 +171,21 @@ async def _paper_buy(
     # With an index core, uncommitted capital is invested rather than idle, so
     # a signal must free its own funding first. Selling only the shortfall
     # keeps the rest of the book in the benchmark.
-    from app.services.broker_rules import BUY_ALLOCATION
+    #
+    # Both skip conditions are re-checked here, BEFORE any core is liquidated:
+    # funding an order that is then skipped would dump the core into idle cash
+    # and leave it there until the next sweep — the exact drag the core exists
+    # to remove. The authoritative checks still run inside the transaction.
+    from app.services.broker_rules import BUY_ALLOCATION, MIN_ORDER_USD
     from app.services.core_holding import ensure_cash
 
+    async with session_factory()() as session:
+        if await PortfolioRepository(session).get_position("paper", symbol) is not None:
+            logger.info("Paper book already holds %s; not adding on %s", symbol, rating)
+            return None
+
     target_pct = BUY_ALLOCATION.get(category, BUY_ALLOCATION["satellite"]).get(rating, 0.0)
-    if target_pct > 0:
+    if equity * target_pct >= MIN_ORDER_USD:
         await ensure_cash("strategic", equity * target_pct)
 
     async with session_factory()() as session, session.begin():
@@ -226,6 +237,14 @@ async def _paper_sell(
         account = await repo.get_account(book)
         position = await repo.get_position(BOOK_POSITION_TYPE[book], symbol)
         if account is None or position is None:
+            return None
+        # The index core is the benchmark, not a bet: it is never stopped out,
+        # target-sold, or exited on a rating. Only core_holding may sell it,
+        # and only to fund a satellite entry. Without this guard a Sell rating
+        # (or a rule exit) on CORE_ETF — which sits on the watchlist — would
+        # liquidate the book back into the cash drag the core exists to remove.
+        if is_core(position):
+            logger.info("Refusing to sell the %s index core (%s): %s", book, symbol, reason)
             return None
         rate = await usd_rate(position.currency)
         if rate is None or rate <= 0:
@@ -387,9 +406,14 @@ async def check_stops() -> list[str]:
     events: list[str] = []
     async with session_factory()() as session:
         positions = await PortfolioRepository(session).list_positions()
+        # Index-core rows are excluded outright. They carry no stop or target
+        # by construction, and leaving them in would let the trailing-stop
+        # ratchet below WRITE one onto the tactical book's core and then
+        # liquidate the benchmark on an ordinary 12% pullback.
         snapshot = [
             (p.id, p.account_type, p.symbol, p.stop_loss, p.price_target)
             for p in positions
+            if not is_core(p)
         ]
 
     # One batched request reprices every open position per pass.

@@ -38,6 +38,7 @@ the cash drag this module exists to remove.
 from __future__ import annotations
 
 import logging
+import time
 
 from app.core.config import get_settings
 from app.models.base import session_factory
@@ -48,6 +49,13 @@ logger = logging.getLogger(__name__)
 
 #: Marker written to ``Position.note`` identifying a benchmark placeholder.
 CORE_NOTE = "core"
+
+#: (symbol, window) -> (verdict, fetched_monotonic). A 200-day average moves
+#: once a day, but GET /portfolio asks for it on every 60s dashboard poll —
+#: without this each poll costs a Yahoo request for a value that cannot have
+#: changed. Short enough that the pre-close sweep still sees a fresh read.
+_TREND_CACHE: dict[tuple[str, int], tuple[bool | None, float]] = {}
+_TREND_TTL_SECONDS = 900
 
 
 def is_core(position: Position) -> bool:
@@ -70,6 +78,10 @@ def _trend_ok_sync(symbol: str, window: int) -> bool | None:
     """
     import yfinance as yf
 
+    cached = _TREND_CACHE.get((symbol, window))
+    if cached is not None and time.monotonic() - cached[1] < _TREND_TTL_SECONDS:
+        return cached[0]
+
     try:
         hist = yf.Ticker(symbol).history(period=f"{window + 60}d", auto_adjust=True)
     except Exception:
@@ -78,7 +90,9 @@ def _trend_ok_sync(symbol: str, window: int) -> bool | None:
     closes = hist.get("Close")
     if closes is None or len(closes) < window:
         return None
-    return float(closes.iloc[-1]) > float(closes.iloc[-window:].mean())
+    verdict = float(closes.iloc[-1]) > float(closes.iloc[-window:].mean())
+    _TREND_CACHE[(symbol, window)] = (verdict, time.monotonic())
+    return verdict
 
 
 async def core_trend_ok(book: str = "strategic") -> bool:
@@ -181,10 +195,23 @@ async def sweep_idle_cash(book: str = "strategic") -> str | None:
         if investable < settings.core_min_trade_usd:
             return None
 
+        # A conviction position already open on the core ETF (the LLM can rate
+        # SPY, and it is on the watchlist) owns that (account_type, symbol)
+        # slot. Adding a second row would make PortfolioRepository.get_position
+        # — a scalar_one_or_none — raise MultipleResultsFound on every later
+        # lookup, breaking buys, sells and the sweep itself for that book.
+        existing_any = await repo.get_position(BOOK_POSITION_TYPE[book], symbol)
+        if existing_any is not None and not is_core(existing_any):
+            logger.warning(
+                "Core sweep skipped for %s: %s is already held as a signal position",
+                book, symbol,
+            )
+            return None
+
         quantity = investable / price
         account.cash -= investable
 
-        existing = await _core_position(repo, book, symbol)
+        existing = existing_any
         if existing is not None:
             # Weighted-average the cost basis so P&L stays honest across adds.
             total_qty = existing.quantity + quantity
@@ -281,22 +308,3 @@ async def sweep_all_books() -> list[str]:
         logger.info("Core sweep: %s", "; ".join(events))
     return events
 
-
-async def core_weight_pct(book: str = "strategic") -> float | None:
-    """Share of book equity currently held in the core ETF, for reporting."""
-    from app.services.paper_broker import BOOK_POSITION_TYPE, live_price, paper_equity_usd
-
-    equity = await paper_equity_usd(book)
-    if not equity:
-        return None
-    async with session_factory()() as session:
-        repo = PortfolioRepository(session)
-        positions = await repo.list_positions(BOOK_POSITION_TYPE[book])
-    etf = core_etf_for(book)
-    core = [p for p in positions if is_core(p) and p.symbol == etf]
-    if not core:
-        return 0.0
-    price = await live_price(etf)
-    if price is None:
-        return None
-    return sum(p.quantity for p in core) * price / equity * 100.0

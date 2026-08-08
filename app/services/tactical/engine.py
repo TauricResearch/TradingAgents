@@ -70,7 +70,17 @@ async def _tactical_buy(symbol: str, rule: str) -> str | None:
         stop = round(price * (1 - default_stop_pct(vol) / 100), 4)
 
     from app.services.core_holding import ensure_cash
-    await ensure_cash("tactical", equity * settings.tactical_size_pct)
+
+    # Re-check the skip conditions BEFORE liquidating core to fund the order:
+    # funding a buy that is then skipped would leave the book in idle cash
+    # until the next sweep. The authoritative checks still run in the
+    # transaction below.
+    alloc_target = equity * settings.tactical_size_pct
+    async with session_factory()() as session:
+        if await PortfolioRepository(session).get_position("tactical", symbol) is not None:
+            return None
+    if alloc_target >= 50:
+        await ensure_cash("tactical", alloc_target)
 
     async with session_factory()() as session, session.begin():
         repo = PortfolioRepository(session)
@@ -134,12 +144,19 @@ async def run_tactical() -> list[str]:
         logger.error("Unknown tactical rule %r; available: %s", rule, list(RULES))
         return []
 
+    from app.services.core_holding import is_core
     from app.services.notifier import Notifier
 
     universe = await _universe()
     async with session_factory()() as session:
         repo = PortfolioRepository(session)
-        held = {p.symbol for p in await repo.list_positions("tactical")}
+        # The index core is excluded: it is not a rule position. Counting it
+        # would consume a max-positions seat, and — because CORE_ETF (SPY) is
+        # itself a 'core'-category watchlist name and therefore in the
+        # universe — a `signal == 0` on it would exit the benchmark.
+        held = {
+            p.symbol for p in await repo.list_positions("tactical") if not is_core(p)
+        }
 
     # Daily-loss circuit breaker: compare live equity to today's snapshot.
     equity = await paper_equity_usd("tactical")
