@@ -207,8 +207,13 @@ async def sweep_idle_cash(book: str = "strategic") -> str | None:
             )
             return None
 
+        # Even the core pays a spread; SPY/VOO are 2bps, not free.
+        from app.services.broker_rules import apply_cost
+
+        fee = apply_cost(investable, symbol, "us", "core")
+        investable -= fee
         quantity = investable / price
-        account.cash -= investable
+        account.cash -= investable + fee
 
         existing = existing_any
         if existing is not None:

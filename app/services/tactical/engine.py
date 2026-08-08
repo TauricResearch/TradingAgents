@@ -1,5 +1,13 @@
-"""Live tactical engine: applies the configured rule to the core US universe
-and trades the tactical paper book — no LLM anywhere in this path.
+"""Live tactical engine: applies the configured rule to the watchlist and
+trades the tactical paper book — no LLM anywhere in this path.
+
+Universe is controlled by ``TACTICAL_UNIVERSE`` and defaults to "all", i.e.
+the SAME pool the LLM sees. That is a fairness choice, not a profit one:
+with the rule restricted to 7 US large caps and the LLM seeing 25 names, a
+divergence between the two books could not be attributed to the engine rather
+than the universe. Measured on the screener picks the rule returns Sharpe 0.25
+against 0.33 for a zero-skill exposure-matched blend — it loses there exactly
+as it loses on large caps.
 
 DISABLED BY DEFAULT (``tactical_rule`` empty): the 10-year backtest
 (scripts/backtest_tactical.py) showed none of the rule library beating
@@ -24,7 +32,13 @@ from app.models.base import session_factory
 from app.models.entities import Position, Trade
 from app.repositories.portfolio import PortfolioRepository
 from app.repositories.watchlist import WatchlistRepository
-from app.services.paper_broker import _paper_sell, live_price, paper_equity_usd
+from app.services.broker_rules import apply_cost, currency_for_market
+from app.services.paper_broker import (
+    _paper_sell,
+    live_price,
+    paper_equity_usd,
+    usd_rate,
+)
 from app.services.tactical.rules import RULES
 from app.services.volatility import daily_volatility_pct_sync, default_stop_pct
 
@@ -42,8 +56,8 @@ def _history_sync(symbol: str):
     return df if not df.empty else None
 
 
-async def _universe() -> list[str]:
-    """Core US tickers (stocks + ETFs) — liquid names the rules were tested on.
+async def _universe() -> list[tuple[str, str, str]]:
+    """Candidate (symbol, market, category) triples the rule may trade.
 
     CORE_ETF is excluded. It is the book's cash-parking vehicle, and a symbol
     cannot coherently be both a rule bet and the place idle cash rests:
@@ -58,24 +72,44 @@ async def _universe() -> list[str]:
 
     Excluding it keeps the book readable as "rule positions + benchmark core".
     """
-    core_etf = get_settings().core_etf.strip().upper()
+    settings = get_settings()
+    core_etf = settings.core_etf.strip().upper()
+    scope = settings.tactical_universe.strip().lower()
     async with session_factory()() as session:
         rows = await WatchlistRepository(session).list_all()
+
+    def in_scope(t) -> bool:
+        if scope == "us_core":
+            return t.market == Market.US.value and t.category == "core"
+        if scope == "us_all":
+            return t.market == Market.US.value
+        return True  # "all" — the same pool the LLM sees
+
     return [
-        t.symbol for t in rows
-        if t.market == Market.US.value
-        and t.category == "core"
-        and t.tier != "paused"
-        and t.symbol.upper() != core_etf
+        (t.symbol, t.market, t.category)
+        for t in rows
+        if in_scope(t) and t.tier != "paused" and t.symbol.upper() != core_etf
     ]
 
 
-async def _tactical_buy(symbol: str, rule: str) -> str | None:
+async def _tactical_buy(symbol: str, rule: str, market: str, category: str) -> str | None:
+    """Open a rule position. ``market``/``category`` come from the watchlist row.
+
+    They must not be assumed: once ``tactical_universe`` widens beyond US core,
+    the book can hold ``.NS`` names priced in INR and crypto, and hardcoding
+    USD/us would book an Indian fill at the wrong currency and undercharge its
+    spread by 7x.
+    """
     price = await live_price(symbol)
     equity = await paper_equity_usd("tactical")
     if price is None or equity is None:
         return None
     settings = get_settings()
+    currency = currency_for_market(Market(market))
+    rate = await usd_rate(currency)
+    if rate is None or rate <= 0:
+        logger.warning("Tactical buy skipped for %s: no FX rate for %s", symbol, currency)
+        return None
     # A trend rule needs a WIDER stop than a volatility stop gives it. The
     # fixed 2.5x-vol stop fired on noise long before the trend broke, so both
     # 2026 stop-outs (AMZN, LLY) were re-entered higher days later and the
@@ -111,19 +145,21 @@ async def _tactical_buy(symbol: str, rule: str) -> str | None:
         if alloc < 50:
             logger.info("Tactical buy skipped for %s: insufficient cash", symbol)
             return None
-        quantity = alloc / price
-        account.cash -= alloc
+        # alloc is USD; quantity is in the instrument's own currency.
+        quantity = (alloc * rate) / price
+        fee = apply_cost(alloc, symbol, market, category)
+        account.cash -= alloc + fee
         await repo.add_position(Position(
-            account_type="tactical", symbol=symbol, market=Market.US.value,
-            currency="USD", quantity=quantity, avg_price=price, stop_loss=stop,
+            account_type="tactical", symbol=symbol, market=market,
+            currency=currency, quantity=quantity, avg_price=price, stop_loss=stop,
             note=f"rule {rule}",
         ))
         await repo.add_trade(Trade(
             account_type="tactical", symbol=symbol, side="buy",
-            quantity=quantity, price=price, currency="USD",
+            quantity=quantity, price=price, currency=currency,
             reason=f"tactical {rule}",
         ))
-    return f"bought {quantity:.4f} {symbol} @ {price:,.2f} (≈${alloc:,.0f})"
+    return f"bought {quantity:.4f} {symbol} @ {price:,.2f} {currency} (≈${alloc:,.0f})"
 
 
 async def _in_cooldown(symbol: str, days: int) -> bool:
@@ -193,7 +229,7 @@ async def run_tactical() -> list[str]:
                            settings.tactical_daily_loss_cap_pct)
 
     actions: list[str] = []
-    for symbol in universe:
+    for symbol, market, category in universe:
         df = await asyncio.to_thread(_history_sync, symbol)
         if df is None or len(df) < 260:
             continue
@@ -209,7 +245,7 @@ async def run_tactical() -> list[str]:
             if await _in_cooldown(symbol, settings.tactical_reentry_cooldown_days):
                 logger.info("Tactical entry for %s suppressed: re-entry cooldown", symbol)
                 continue
-            summary = await _tactical_buy(symbol, rule)
+            summary = await _tactical_buy(symbol, rule, market, category)
             if summary:
                 held.add(symbol)
                 actions.append(summary)

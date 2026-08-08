@@ -342,3 +342,76 @@ class TestEveryBookCanDeploy:
             "_universe must exclude CORE_ETF, or the rule double-counts "
             "benchmark exposure and blocks its own core sweep"
         )
+
+
+class TestTransactionCosts:
+    """The paper book charged nothing while the backtest gate charged 5bps.
+
+    That made every reported paper return gross and non-comparable to the gate
+    that decides whether a rule may trade at all — and it flatters exactly the
+    small, illiquid names the screener surfaces, which the rule can now buy.
+    """
+
+    def test_liquid_etfs_are_cheapest(self):
+        from app.services.broker_rules import cost_bps
+
+        for etf in ("SPY", "VOO", "QQQ", "JEPI"):
+            assert cost_bps(etf, "us", "core") <= cost_bps("NVDA", "us", "core")
+
+    def test_small_caps_cost_more_than_large_caps(self):
+        """A $200M nanocap does not trade at mega-cap spreads."""
+        from app.services.broker_rules import cost_bps
+
+        assert cost_bps("CDNL", "us", "satellite") > cost_bps("NVDA", "us", "core")
+
+    def test_india_costs_most(self):
+        """NSE adds STT and stamp duty on top of a wider spread."""
+        from app.services.broker_rules import cost_bps
+
+        assert cost_bps("CUPID.NS", "india", "satellite") > cost_bps(
+            "CDNL", "us", "satellite"
+        )
+
+    def test_cost_scales_with_notional(self):
+        from app.services.broker_rules import apply_cost
+
+        assert apply_cost(2_000, "NVDA", "us", "core") == pytest.approx(
+            2 * apply_cost(1_000, "NVDA", "us", "core")
+        )
+
+    def test_no_fill_is_free(self):
+        """Regression: every path charged $0.00 before this existed."""
+        from app.services.broker_rules import apply_cost
+
+        for sym, mkt, cat in [("SPY", "us", "core"), ("CDNL", "us", "satellite"),
+                              ("CUPID.NS", "india", "satellite"), ("BTC-USD", "crypto", "core")]:
+            assert apply_cost(1_000, sym, mkt, cat) > 0, f"{sym} trades for free"
+
+
+class TestTacticalUniverseScope:
+    """Both engines must be able to see the same candidates."""
+
+    def test_default_scope_matches_the_llm_pool(self):
+        from app.core.config import get_settings
+
+        assert get_settings().tactical_universe == "all", (
+            "with a narrower rule universe than the LLM's, a divergence between "
+            "the books cannot be attributed to the engine rather than the pool"
+        )
+
+    def test_scopes_are_nested(self):
+        """us_core subset of us_all subset of all — no scope adds a name."""
+        import asyncio
+
+        from app.core.config import get_settings
+        from app.services.tactical.engine import _universe
+
+        seen = {}
+        for scope in ("us_core", "us_all", "all"):
+            get_settings.cache_clear()
+            import os
+            os.environ["TACTICAL_UNIVERSE"] = scope
+            seen[scope] = {s for s, _, _ in asyncio.run(_universe())}
+        os.environ.pop("TACTICAL_UNIVERSE", None)
+        get_settings.cache_clear()
+        assert seen["us_core"] <= seen["us_all"] <= seen["all"]

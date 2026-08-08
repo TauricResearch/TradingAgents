@@ -16,6 +16,7 @@ from app.models.base import session_factory
 from app.models.entities import Position, Trade
 from app.repositories.portfolio import PortfolioRepository
 from app.services.broker_rules import (
+    apply_cost,
     buy_quantity,
     currency_for_market,
     parse_level,
@@ -201,7 +202,10 @@ async def _paper_buy(
             logger.info("Paper buy skipped for %s: insufficient cash for a meaningful order", symbol)
             return None
         cost_usd = quantity * price / rate
-        account.cash -= cost_usd
+        # Charge the spread. Without this the paper book reports gross returns
+        # while the backtest gate charges 5bps, so the two are not comparable.
+        fee = apply_cost(cost_usd, symbol, market.value, category)
+        account.cash -= cost_usd + fee
         await repo.add_position(Position(
             account_type="paper",
             symbol=symbol,
@@ -222,6 +226,16 @@ async def _paper_buy(
         f"bought {pretty_qty} {symbol} @ {price:,.2f} {currency} "
         f"(≈${cost_usd:,.0f}, {rating})"
     )
+
+
+def _category_of(position) -> str:
+    """Cost tier for a held row: core placeholders and rule positions on the
+    US large-cap set price as 'core'; screener picks price as 'satellite'."""
+    from app.services.core_holding import is_core
+
+    if is_core(position):
+        return "core"
+    return "core" if (position.note or "").startswith("rule ") else "satellite"
 
 
 async def _paper_sell(
@@ -256,8 +270,10 @@ async def _paper_sell(
         if quantity <= 0:
             return None
         proceeds_usd = quantity * price / rate
-        pnl_usd = quantity * (price - position.avg_price) / rate
-        account.cash += proceeds_usd
+        fee = apply_cost(proceeds_usd, symbol, position.market, _category_of(position))
+        # P&L is net of the exit cost, so realised numbers are spendable ones.
+        pnl_usd = quantity * (price - position.avg_price) / rate - fee
+        account.cash += proceeds_usd - fee
         position.quantity -= quantity
         if position.quantity * price / rate < 1.0:  # fully (or effectively) closed
             await repo.remove_position(position)

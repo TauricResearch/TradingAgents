@@ -104,6 +104,16 @@ class AssistantSettings(BaseSettings):
     # was 1.6pp worse on drawdown and 2.19pp worse on CAGR, so even its
     # crash-protection claim did not survive the right control.
     tactical_rule: str = ""
+    # Which names the rule may trade. "us_core" is the original 7-name US
+    # large-cap set the rule was backtested on; "all" gives it the SAME pool the
+    # LLM sees, so both engines face identical candidates and any divergence is
+    # attributable to the engine rather than to the universe.
+    #
+    # Widening does NOT create alpha — measured on the screener picks the rule
+    # returned Sharpe 0.25 against 0.33 for a zero-skill exposure-matched blend,
+    # losing just as it does on large caps. It makes the comparison fair, which
+    # is a different and still worthwhile thing.
+    tactical_universe: str = "all"          # us_core | us_all | all
     tactical_size_pct: float = Field(default=0.10, gt=0, le=0.25)
     tactical_max_positions: int = Field(default=8, ge=1, le=20)
     tactical_daily_loss_cap_pct: float = Field(default=3.0, gt=0)

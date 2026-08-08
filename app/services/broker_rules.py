@@ -93,3 +93,45 @@ def buy_quantity(
 
 def sell_quantity(rating: str, held_quantity: float) -> float:
     return held_quantity * SELL_FRACTION.get(rating, 0.0)
+
+
+# --- Transaction costs -------------------------------------------------------
+# The paper broker charged NOTHING while the backtest charged 5bps/side, so
+# every reported paper return was gross and the two were not comparable. That
+# gap stops being cosmetic once the tactical rule can trade screener picks:
+# a $200M nanocap does not cost what SPY costs, and a rule that round-trips
+# ~30 times per name pays that spread on every leg.
+#
+# Figures are commission-free-broker reality: effective half-spread plus
+# slippage, not headline commission. Deliberately conservative — under-charging
+# flatters exactly the small, illiquid names the screener surfaces.
+COST_BPS_LIQUID_ETF = 2      # SPY / VOO / QQQ — penny-wide, huge volume
+COST_BPS_US_LARGE = 5        # mega-cap equities; matches the backtest gate
+COST_BPS_US_SMALL = 25       # screener picks: wider spreads, thinner books
+COST_BPS_INDIA = 35          # NSE: spread + STT + stamp duty + exchange fees
+COST_BPS_CRYPTO = 10         # major pairs on a retail venue
+
+_LIQUID_ETFS = frozenset({"SPY", "VOO", "QQQ", "IWM", "SSO", "JEPI", "GLD", "SLV", "AGG"})
+
+
+def cost_bps(symbol: str, market: str, category: str = "satellite") -> float:
+    """Round-trip-per-side cost in basis points for a paper fill.
+
+    Keyed on what actually drives cost — venue and liquidity — rather than on
+    the book placing the trade, so the same name costs the same everywhere.
+    """
+    sym = (symbol or "").upper()
+    mkt = (market or "").lower()
+    if sym in _LIQUID_ETFS:
+        return COST_BPS_LIQUID_ETF
+    if mkt == "crypto":
+        return COST_BPS_CRYPTO
+    if mkt == "india":
+        return COST_BPS_INDIA
+    # Screener picks are small caps by construction; core names are large caps.
+    return COST_BPS_US_LARGE if category == "core" else COST_BPS_US_SMALL
+
+
+def apply_cost(notional_usd: float, symbol: str, market: str, category: str = "satellite") -> float:
+    """Cost in USD charged on one side of a fill."""
+    return abs(notional_usd) * cost_bps(symbol, market, category) / 10_000
