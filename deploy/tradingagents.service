@@ -6,6 +6,11 @@ Documentation=https://github.com/TauricResearch/TradingAgents
 # against a wrong wall clock and silently misfires the first day.
 After=network-online.target time-sync.target
 Wants=network-online.target
+# Never stop retrying. This is a [Unit] option since systemd v230 — placed in
+# [Service] it is silently ignored, the default 5-starts-per-10s limit applies,
+# and a crash burst wedges the unit in `failed` forever on a box with nobody
+# there to run `systemctl reset-failed`.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -21,17 +26,19 @@ EnvironmentFile=/home/ubuntu/TradingAgents/.env
 
 # Bind to loopback only. Public access goes through the Cloudflare tunnel, so
 # nothing is exposed even if the Oracle security list is misconfigured. This is
-# defence in depth: the dashboard has NO built-in auth and shows portfolio data.
+# defence in depth: the dashboard has NO built-in auth, exposes portfolio data,
+# and has 14 mutating endpoints — including POST /runs/{market}, which spends
+# LLM quota.
+#
+# EXACTLY ONE WORKER. Never add --workers, and never run a second copy of this
+# unit: APScheduler lives in-process, so a second worker double-fires every job
+# — duplicate paper trades, duplicate alerts, double the LLM spend.
 ExecStart=/home/ubuntu/TradingAgents/.venv/bin/uvicorn app.main:app \
     --host 127.0.0.1 --port 8000 --no-access-log
 
 # APScheduler jobs are in-process, so a crash loses the schedule until restart.
 Restart=always
 RestartSec=10
-# Don't give up after repeated crashes — an unattended box has nobody to run
-# `systemctl reset-failed`, and a burst of yfinance failures shouldn't retire
-# the service permanently.
-StartLimitIntervalSec=0
 
 # 35s of imports (pandas + langgraph + lightgbm) before the port opens.
 TimeoutStartSec=180

@@ -34,12 +34,17 @@ a backtest can run without competing with the scheduler for memory.
 
 ### 1. Create the VM (one time)
 
-- Shape: `VM.Standard.A1.Flex` (Arm), 1–2 OCPU / 6–12 GB. Fall back to
-  `VM.Standard.E2.1.Micro` (AMD, 1 GB) if you hit *"Out of host capacity"* —
-  Ampere is frequently exhausted in popular regions.
-- Image: Ubuntu 24.04.
+- Shape: `VM.Standard.A1.Flex` (Arm), **2 OCPU / 12 GB — not 4/24**. Oracle
+  halved the Always Free Ampere allowance in June 2026 and stops instances that
+  exceed it. If you already own a larger A1, resize it now; it costs nothing.
+  Fall back to `VM.Standard.E2.1.Micro` (AMD, 1 GB) if you hit *"Out of host
+  capacity"* — Ampere is frequently exhausted in popular regions, and that error
+  means Oracle has no stock, not that you misconfigured something.
+- Image: **Ubuntu 24.04, aarch64** — ships Python 3.12, so no deadsnakes needed.
 - Boot volume: 50 GB (the venv is 1–2 GB; the default is plenty).
 - Save the SSH private key at creation. It is not retrievable afterwards.
+- **Do not add an ingress rule.** The default (SSH only) is correct — the app is
+  reached through the tunnel, not through an open port.
 
 ### 2. Prepare the OS (one time)
 
@@ -121,6 +126,16 @@ crontab -e
 
 Uses `sqlite3 .backup`, not `cp` — the monitor writes every 60 seconds and a
 plain copy can capture a torn page that only fails when you try to restore it.
+
+## Traps worth knowing before you start
+
+| Trap | Why it bites |
+|---|---|
+| **`--workers >1`** | APScheduler runs *in-process*. A second worker double-fires every job — duplicate paper trades, duplicate alerts, double LLM spend. Exactly one worker, always. |
+| **The `Dockerfile`** | Its `ENTRYPOINT` launches the analysis **CLI**, not the assistant service. `docker run` boots the wrong process with nothing listening. Use systemd + venv. |
+| **Restart ≠ sleep** | `CLAUDE.md` says a missed slot fires within the hour — that's true for laptop *sleep*, where the process stays resident. After a **restart** the job store is rebuilt empty, so jobs missed while the service was down are **not** backfilled. Restart outside market hours when you can. |
+| **A tunnel without Access** | is just a public URL. The dashboard has no auth and 14 mutating endpoints, one of which spends LLM quota. Add the Access policy in the same sitting. |
+| **yfinance cache growth** | Refetches write new dated files rather than overwriting. `find ~/.tradingagents/cache -mtime +90 -delete` quarterly. |
 
 ### Updating (repeated)
 
