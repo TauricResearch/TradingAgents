@@ -230,3 +230,10 @@ reports/
 memory-bank/
 .gstack/
 capacity-watch.log
+
+# Portable runtime state: assistant.db, reports, vendor cache, reflection
+# memory, and copied credentials. Lives inside the repo (instead of
+# ~/.tradingagents) so the whole experiment travels on one drive — see
+# new_pc.md. Never commit it: it holds the paper-trading history AND, if you
+# followed the credential steps, private keys.
+data/
