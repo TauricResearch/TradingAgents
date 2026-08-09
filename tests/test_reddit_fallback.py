@@ -132,12 +132,12 @@ class TestRss429Backoff:
         slept.assert_called_once()         # backed off before retrying
         assert len(posts) == 2
 
-    def test_429_twice_gives_up_after_one_retry(self):
+    def test_429_thrice_gives_up_after_two_retries(self):
         err = HTTPError("url", 429, "Too Many Requests", {}, None)
-        with patch.object(reddit, "urlopen", side_effect=[err, err]) as op, \
+        with patch.object(reddit, "urlopen", side_effect=[err, err, err]) as op, \
              patch.object(reddit.time, "sleep"):
             posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
-        assert op.call_count == 2          # one retry, then gives up cleanly
+        assert op.call_count == 3          # initial + 2 retries, then gives up cleanly
         assert posts == []
 
     def test_retry_after_header_is_honoured(self):

@@ -105,14 +105,16 @@ def _fetch_subreddit_rss(
     sub: str,
     limit: int,
     timeout: float,
-    _retry: bool = True,
+    _retries_left: int = 2,
 ) -> list[dict]:
     """Default path: parse the public Atom search feed for a subreddit.
 
     Carries no score / comment counts, so those fields are left None and the
     post is tagged ``source="rss"`` for honest display. On a 429 (Reddit's
-    per-IP rate limit) we back off once — honouring ``Retry-After`` when
-    present — before giving up, so a transient burst doesn't blank the feed.
+    per-IP rate limit) we back off exponentially — honouring ``Retry-After``
+    when present, capped at 30s — up to ``_retries_left`` times before giving
+    up, so a transient burst across several subreddits doesn't blank the
+    whole feed (issue #1193).
     """
     url = _RSS.format(sub=sub, qs=_search_qs(ticker, limit))
     req = Request(url, headers={"User-Agent": _UA})
@@ -120,14 +122,15 @@ def _fetch_subreddit_rss(
         with urlopen(req, timeout=timeout) as resp:
             root = SafeET.fromstring(resp.read())
     except HTTPError as exc:
-        if exc.code == 429 and _retry:
-            wait = _retry_after_seconds(exc) or 5.0
+        if exc.code == 429 and _retries_left > 0:
+            wait = _retry_after_seconds(exc) or min(5.0 * (3 - _retries_left), 30.0)
             logger.warning(
-                "Reddit RSS 429 for r/%s · %s — backing off %.1fs then retrying once",
-                sub, ticker, wait,
+                "Reddit RSS 429 for r/%s · %s — backing off %.1fs then retrying "
+                "(%d left)",
+                sub, ticker, wait, _retries_left,
             )
             time.sleep(wait)
-            return _fetch_subreddit_rss(ticker, sub, limit, timeout, _retry=False)
+            return _fetch_subreddit_rss(ticker, sub, limit, timeout, _retries_left - 1)
         logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
         return []
     except (OSError, http.client.HTTPException, SafeET.ParseError, EntitiesForbidden) as exc:
