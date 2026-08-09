@@ -23,12 +23,14 @@ import json
 import logging
 import re
 import time
-import xml.etree.ElementTree as ET
 from collections.abc import Iterable
 from datetime import datetime
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+from defusedxml import ElementTree as SafeET
+from defusedxml.common import EntitiesForbidden
 
 from .symbol_utils import crypto_base
 
@@ -42,6 +44,14 @@ _RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
 # JSON search endpoint 403s, so no browser-spoofing is needed.
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
+
+# Reddit's Atom feed is third-party XML we do not control; parse it with
+# defusedxml (a drop-in ElementTree replacement) so a malicious or
+# compromised feed cannot smuggle an XXE payload (external entity or
+# billion-laughs) into the process (issue #1206, semgrep bandit.B313–B320).
+# defusedxml denies external entity resolution and entity expansion by
+# construction (forbid_entities=True, forbid_external=True by default),
+# which is stronger than relying on the stdlib parser's current defaults.
 
 # Default subreddits ordered roughly by signal density for ticker-specific
 # discussion. wallstreetbets has the most volume but most noise; stocks /
@@ -108,7 +118,7 @@ def _fetch_subreddit_rss(
     req = Request(url, headers={"User-Agent": _UA})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            root = ET.fromstring(resp.read())
+            root = SafeET.fromstring(resp.read())
     except HTTPError as exc:
         if exc.code == 429 and _retry:
             wait = _retry_after_seconds(exc) or 5.0
@@ -120,9 +130,12 @@ def _fetch_subreddit_rss(
             return _fetch_subreddit_rss(ticker, sub, limit, timeout, _retry=False)
         logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
         return []
-    except (OSError, http.client.HTTPException, ET.ParseError) as exc:
+    except (OSError, http.client.HTTPException, SafeET.ParseError, EntitiesForbidden) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
-        # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).
+        # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024);
+        # EntitiesForbidden is raised by defusedxml when a feed smuggles an
+        # external entity (XXE, issue #1206) — treat it like any other
+        # unparseable feed and degrade instead of raising.
         logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
         return []
 

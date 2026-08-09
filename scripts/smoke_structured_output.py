@@ -28,15 +28,16 @@ from tradingagents.agents.managers.research_manager import create_research_manag
 from tradingagents.agents.trader.trader import create_trader
 from tradingagents.graph.signal_processing import SignalProcessor
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.testing.smoke_helpers import check_structure, require_api_key, run_agent_call
 
 PROVIDER_DEFAULTS = {
-    "openai": ("gpt-5.4-mini", None),
-    "google": ("gemini-3.5-flash", None),
-    "anthropic": ("claude-sonnet-4-6", None),
-    "deepseek": ("deepseek-v4-flash", None),
-    "qwen": ("qwen3.7-plus", None),
-    "glm": ("glm-5", None),
-    "xai": ("grok-4.3", None),
+    "openai": ("gpt-5.4-mini", "OPENAI_API_KEY"),
+    "google": ("gemini-3.5-flash", "GOOGLE_API_KEY"),
+    "anthropic": ("claude-sonnet-4-6", "ANTHROPIC_API_KEY"),
+    "deepseek": ("deepseek-v4-flash", "DEEPSEEK_API_KEY"),
+    "qwen": ("qwen3.7-plus", "DASHSCOPE_API_KEY"),
+    "glm": ("glm-5", "ZHIPU_API_KEY"),
+    "xai": ("grok-4.3", "XAI_API_KEY"),
 }
 
 
@@ -109,13 +110,16 @@ def main() -> int:
     parser.add_argument("--quick-model", default=None, help="Override quick_think_llm")
     args = parser.parse_args()
 
-    default_model, _ = PROVIDER_DEFAULTS[args.provider]
+    default_model, key_env = PROVIDER_DEFAULTS[args.provider]
     deep_model = args.deep_model or default_model
     quick_model = args.quick_model or default_model
 
     print(f"Provider: {args.provider}")
     print(f"Deep model:  {deep_model}")
     print(f"Quick model: {quick_model}")
+
+    # Fail fast with a clear message when the provider credential is absent.
+    require_api_key(key_env, args.provider)
 
     # Build the LLM clients via the framework's factory.
     deep_client = create_llm_client(provider=args.provider, model=deep_model)
@@ -125,25 +129,30 @@ def main() -> int:
 
     # 1) Research Manager
     rm = create_research_manager(deep_llm)
-    rm_result = rm(_make_rm_state())
+    rm_result = run_agent_call("Research Manager", lambda: rm(_make_rm_state()))
     investment_plan = rm_result["investment_plan"]
     _print_section("[1] Research Manager — investment_plan", investment_plan)
 
     # 2) Trader (consumes RM's plan)
     trader = create_trader(quick_llm)
-    trader_result = trader(_make_trader_state(investment_plan))
+    trader_result = run_agent_call(
+        "Trader", lambda: trader(_make_trader_state(investment_plan))
+    )
     trader_plan = trader_result["trader_investment_plan"]
     _print_section("[2] Trader — trader_investment_plan", trader_plan)
 
     # 3) Portfolio Manager (consumes both)
     pm = create_portfolio_manager(deep_llm)
-    pm_result = pm(_make_pm_state(investment_plan, trader_plan))
+    pm_result = run_agent_call(
+        "Portfolio Manager",
+        lambda: pm(_make_pm_state(investment_plan, trader_plan)),
+    )
     final_decision = pm_result["final_trade_decision"]
     _print_section("[3] Portfolio Manager — final_trade_decision", final_decision)
 
     # 4) SignalProcessor extracts the rating with zero LLM calls.
     sp = SignalProcessor()
-    rating = sp.process_signal(final_decision)
+    rating = run_agent_call("SignalProcessor", lambda: sp.process_signal(final_decision))
     _print_section("[4] SignalProcessor → rating", rating)
 
     # 5) Lightweight checks: each rendered output should carry the expected
@@ -155,16 +164,18 @@ def main() -> int:
         ("Portfolio Manager", final_decision, ["**Rating**:", "**Executive Summary**:", "**Investment Thesis**:"]),
     ]
     print("\n" + "=" * 70 + "\nStructure checks\n" + "=" * 70)
-    failures = 0
+    failures: list[str] = []
     for name, text, required in checks:
-        for marker in required:
-            ok = marker in text
-            print(f"  {'PASS' if ok else 'FAIL'}  {name}: contains {marker!r}")
-            failures += int(not ok)
+        section_failures = check_structure(name, text, required)
+        for failure in section_failures:
+            print(f"  FAIL  {failure}")
+        if not section_failures:
+            print(f"  PASS  {name}: all required markers present")
+        failures.extend(section_failures)
 
     print()
     if failures:
-        print(f"Smoke FAILED: {failures} structure check(s) missing.")
+        print(f"Smoke FAILED: {len(failures)} structure check(s) missing.")
         return 1
     print("Smoke PASSED: structured output → rendered markdown chain works for", args.provider)
     return 0
