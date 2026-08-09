@@ -14,6 +14,45 @@ Related docs: [`README.md`](README.md) (framework), [`app/README.md`](app/README
 
 ---
 
+## Prompt for Claude on the new machine
+
+Open Claude Code **inside the repo** (`cd` to the folder holding `pyproject.toml`, then
+run `claude`) so it picks up `CLAUDE.md` automatically, and paste this:
+
+```text
+Set this machine up to resume the TradingAgents assistant. Read new_pc.md and follow it
+from Phase 2 onward — Phase 1 was already completed on the old PC, so data/ is populated
+and .env already has the path overrides.
+
+What you need to know before you start:
+
+- This is a LIVE paper-trading experiment being resumed, not a fresh install. data/assistant.db
+  holds about a month of history — six books, real balances, open positions. It must survive.
+- The failure mode to defend against is silent: if the app cannot find data/assistant.db it
+  creates an empty one, and the dashboard renders, the scheduler starts, and /health returns ok
+  while the history is gone. Six books at exactly $10,000 with zero trades means it happened.
+- Run `python scripts/verify_migration.py` BEFORE starting uvicorn and again after. It must
+  report data\assistant.db (not a path under ~/.tradingagents), 8 populated tables, and the
+  strategic and tactical books holding cash other than exactly 10,000.00.
+- uvicorn must be launched from the repo root — .env uses relative paths so the drive works
+  under any letter, which also means the wrong working directory silently opens the wrong DB.
+- The drive letter WILL differ from the old machine. Never hardcode it.
+
+Do the work, then report back: the drive letter you used, whether ~/.oci/config's key_file
+line needed correcting for this username, the verify_migration output, and the /health job
+count (expect 12, or 13 if ASSISTANT_HEARTBEAT_URL is set).
+
+Ask me before installing anything system-wide or modifying .env. Do not run
+scripts/migrate_to_repo.py on this machine — it copies FROM ~/.tradingagents INTO data/ and
+would overwrite the history I just brought over with whatever empty state exists here.
+```
+
+That last instruction matters: `migrate_to_repo.py` is a one-way old-PC→drive tool. On a
+fresh machine `~/.tradingagents` either doesn't exist (the script exits safely) or holds an
+unrelated empty database (it would overwrite your real one).
+
+---
+
 ## 0. What travels, and what does not
 
 | What | Lives at | On the drive today? |

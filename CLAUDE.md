@@ -30,13 +30,25 @@ services, DB access in repositories, routes thin.
 - Copy `.env.example` → `.env`. Framework config via `TRADINGAGENTS_*` env vars
   (provider, models, API keys — keys auto-detected); assistant config via `ASSISTANT_*`
   (e.g. `ASSISTANT_DAILY_RUN_BUDGET`, default 4 ticker-runs/day).
-- Runtime data lives in `~/.tradingagents/`: `assistant.db` (SQLite signal history),
-  `logs/reports/` (markdown analysis reports).
+- Runtime data lives in **`data/`** (repo-relative): `assistant.db` (SQLite signal
+  history), `logs/` (markdown reports), `cache/`, `memory/` (agent reflection state).
+  Set by `ASSISTANT_DB_URL` + `TRADINGAGENTS_RESULTS_DIR`/`_CACHE_DIR`/`_MEMORY_LOG_PATH`
+  in `.env`; without those it falls back to `~/.tradingagents/`.
+- **Launch uvicorn from the repo root.** Those paths are relative — which is what lets the
+  whole experiment live on an external drive and mount under any letter — so a different
+  working directory silently points the app at a different (empty) database.
 - The uvicorn process must be running for scheduled slots to fire; a run missed while
   the machine slept fires within an hour of wake-up.
 
 ## Gotchas
 
+- **Setting up on a new machine**: follow `new_pc.md` — it is the full runbook (Python env,
+  data restore, OCI, verification). The experiment is *resumed*, never reinstalled.
+- **A missing database fails silently.** Point the app anywhere without `assistant.db` and
+  SQLAlchemy creates an empty one: the dashboard renders, the scheduler starts, `/health`
+  returns `ok`, and a month of paper-trading history is simply gone. Six books at exactly
+  $10,000 with zero trades is the tell. `python scripts/verify_migration.py` is the check —
+  run it before and after anything that touches the DB location.
 - **Windows `.env`**: write BOM-free — PowerShell 5.1 `-Encoding utf8` corrupts the first key.
 - **LLM budget**: default schedule respects the Ollama-cloud free tier (~10–12 full runs/week);
   slots analyze the *stalest* due tickers first, so the watchlist still rotates fully.

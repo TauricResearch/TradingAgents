@@ -36,7 +36,20 @@ DEST = Path("data")
 _TREES = ("logs", "cache", "memory")
 
 
-def copy_database() -> tuple[bool, str]:
+def _row_total(path: Path) -> int:
+    """Total rows across every table, as a crude 'how much history is here' measure."""
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        return sum(
+            con.execute(f"select count(*) from {name}").fetchone()[0]
+            for (name,) in con.execute(
+                "select name from sqlite_master where type='table'")
+        )
+    finally:
+        con.close()
+
+
+def copy_database(force: bool = False) -> tuple[bool, str]:
     """Snapshot assistant.db consistently, even with the service running."""
     src = SOURCE / "assistant.db"
     if not src.exists():
@@ -44,6 +57,20 @@ def copy_database() -> tuple[bool, str]:
 
     dest = DEST / "assistant.db"
     dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # Guard against the destructive direction: run on a *new* machine, where
+    # ~/.tradingagents is a fresh empty database, this would overwrite the real
+    # history that just arrived on the drive. Refuse when the destination holds
+    # more than the source rather than silently destroying it.
+    if dest.exists() and not force:
+        src_rows, dest_rows = _row_total(src), _row_total(dest)
+        if dest_rows > src_rows:
+            return False, (
+                f"refusing to overwrite: {dest} has {dest_rows:,} rows but the source "
+                f"{src} has only {src_rows:,}. This script copies FROM ~/.tradingagents "
+                f"INTO data/ — on a machine you have already migrated to, that is "
+                f"backwards and would destroy history. Pass --force if you are certain."
+            )
 
     source_con = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
     dest_con = sqlite3.connect(str(dest))
@@ -120,6 +147,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--with-secrets", action="store_true",
                         help="also copy OCI API key and the VM SSH keypair")
+    parser.add_argument("--force", action="store_true",
+                        help="overwrite data/assistant.db even if it holds more history "
+                             "than the source (dangerous — see the guard in copy_database)")
     args = parser.parse_args()
 
     if not Path("app").is_dir() or not Path("pyproject.toml").exists():
@@ -134,7 +164,7 @@ def main() -> int:
     print(f"dest   : {DEST.resolve()}")
     print()
 
-    ok, detail = copy_database()
+    ok, detail = copy_database(force=args.force)
     print(f"database : {'OK  ' + detail if ok else 'FAILED  ' + detail}")
     if not ok:
         return 1
