@@ -120,10 +120,21 @@ def core_etf_for(book: str) -> str:
     """The ETF this book's idle cash rests in."""
     from app.services.books import spec
 
-    # An empty spec ETF means "follow the CORE_ETF setting" (strategic only);
-    # every other arm pins its own, because a passive control whose holding
-    # could change under it is not a control.
-    return spec(book).core_etf or get_settings().core_etf
+    # An empty spec ETF means "follow the settings" (strategic only); every
+    # other arm pins its own, because a passive control whose holding could
+    # change under it is not a control.
+    pinned = spec(book).core_etf
+    if pinned:
+        return pinned
+    settings = get_settings()
+    # STRATEGIC_CORE_ETF lets the strategic book park somewhere the LLM never
+    # trades. Without it, the LLM buying the core ETF as a conviction position
+    # blocks the sweep outright and the book idles in cash — see the comment on
+    # AssistantSettings.strategic_core_etf. Empty falls back to CORE_ETF, the
+    # original behaviour.
+    if book == "strategic" and settings.strategic_core_etf.strip():
+        return settings.strategic_core_etf.strip().upper()
+    return settings.core_etf
 
 
 async def _exit_core(book: str, reason: str) -> str | None:

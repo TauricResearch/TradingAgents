@@ -112,9 +112,11 @@ COST_BPS_INDIA = 35          # NSE: spread + STT + stamp duty + exchange fees
 COST_BPS_CRYPTO = 10         # major pairs on a retail venue
 
 _LIQUID_ETFS = frozenset(
-    # IVV is here because it is a third S&P 500 tracker used as a book's core:
-    # two arms cannot share a core symbol without colliding in get_position.
-    {"SPY", "VOO", "IVV", "QQQ", "IWM", "SSO", "JEPI", "GLD", "SLV", "AGG"}
+    # IVV and VV are here because they are further large-cap index trackers used
+    # as book cores: two arms cannot share a core symbol without colliding in
+    # get_position, so each needs its own ticker at the same 2bps cost tier.
+    # (SPLG deliberately absent — it returns no price data from this feed.)
+    {"SPY", "VOO", "IVV", "VV", "QQQ", "IWM", "SSO", "JEPI", "GLD", "SLV", "AGG"}
 )
 
 

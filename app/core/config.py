@@ -86,6 +86,25 @@ class AssistantSettings(BaseSettings):
     # rather than zero.
     core_enabled: bool = True
     core_etf: str = "SPY"
+    # Strategic-only override for where THAT book parks idle cash.
+    #
+    # Why it exists: the LLM can rate and buy the core ETF itself (SPY is on the
+    # watchlist). When it does, the sweep refuses to add a second row for the
+    # same (book, symbol) — get_position is a scalar_one_or_none, so a duplicate
+    # would raise MultipleResultsFound and break that book's buys, sells and
+    # sweeps. Measured consequence on 2026-08-10: strategic held SPY as a
+    # conviction position and sat on $4,058.95 (40.1% of the book) in cash while
+    # every other arm idled ~5%. That is a bookkeeping artefact being scored as
+    # strategy performance.
+    #
+    # Set STRATEGIC_CORE_ETF to a DIFFERENT large-cap tracker the LLM never sees
+    # so the two roles cannot collide. VV is the measured best SPY proxy this
+    # feed prices (corr 0.9978, tracking error 0.87%/yr); IVV and VOO are also
+    # exact S&P 500 trackers but are already pinned to the tactical arms.
+    # Leave it EMPTY to restore the original behaviour of following CORE_ETF —
+    # the tactical arms are unaffected either way, since they pin their own ETF
+    # in app/services/books.py.
+    strategic_core_etf: str = ""
     # Crash insurance on the core: hold the benchmark only while it trades
     # above its long-term average, else sit in cash. Measured on SPY
     # 1993-2026, this is the ONLY timing rule tested that beat an

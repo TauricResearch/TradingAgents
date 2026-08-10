@@ -295,7 +295,6 @@ class TestEveryBookCanDeploy:
     """
 
     def test_no_book_parks_cash_in_a_symbol_its_rule_trades(self):
-        from app.core.config import get_settings
         from app.services.books import BOOKS
         from app.services.core_holding import core_etf_for
 
@@ -309,9 +308,53 @@ class TestEveryBookCanDeploy:
             "book sits in idle cash"
         )
         assert tactical_core, "every book needs a core vehicle"
-        # And the global setting still drives the strategic book.
-        assert strategic_core == get_settings().core_etf
         assert BOOKS["tactical"].core_etf, "tactical must pin its own ETF"
+
+    def test_strategic_core_is_not_a_symbol_the_llm_can_buy(self):
+        """The same collision, for the book nobody pinned.
+
+        The assertion here used to be `strategic_core == CORE_ETF`, which locked
+        in the bug: CORE_ETF is SPY, SPY is a seeded watchlist name, so the LLM
+        could rate and buy it as a conviction position — and then the sweep had
+        to refuse (one row per (book, symbol); a duplicate makes get_position's
+        scalar_one_or_none raise). Measured 2026-08-10: strategic sat on
+        $4,058.95, 40.1% of the book, while every other arm idled ~5%.
+
+        STRATEGIC_CORE_ETF exists to break that tie, so the invariant worth
+        holding is "strategic parks somewhere the LLM never trades", not
+        "strategic follows CORE_ETF".
+        """
+        from app.services.core_holding import core_etf_for
+        from app.services.seed import SEED_SYMBOLS
+
+        strategic_core = core_etf_for("strategic")
+        assert strategic_core, "strategic needs a core vehicle"
+        assert strategic_core.upper() not in {s.upper() for s in SEED_SYMBOLS}, (
+            f"strategic parks cash in {strategic_core}, which is a seeded "
+            "watchlist name — the LLM can buy it as a conviction position and "
+            "permanently block this book's sweep. Set STRATEGIC_CORE_ETF to a "
+            "tracker that is not on the watchlist."
+        )
+
+    def test_strategic_core_override_falls_back_to_the_global_setting(self):
+        """Empty STRATEGIC_CORE_ETF must restore the original behaviour."""
+        from app.core.config import AssistantSettings
+        from app.services import core_holding
+
+        base = AssistantSettings(core_etf="SPY", strategic_core_etf="")
+        override = AssistantSettings(core_etf="SPY", strategic_core_etf="vv")
+
+        original = core_holding.get_settings
+        try:
+            core_holding.get_settings = lambda: base
+            assert core_holding.core_etf_for("strategic") == "SPY"
+            core_holding.get_settings = lambda: override
+            # Upper-cased, so a lowercase .env value still matches held symbols.
+            assert core_holding.core_etf_for("strategic") == "VV"
+            # Pinned arms ignore the override entirely.
+            assert core_holding.core_etf_for("tactical") == "VOO"
+        finally:
+            core_holding.get_settings = original
 
     def test_every_book_resolves_a_core_etf(self):
         from app.services.books import BOOKS
