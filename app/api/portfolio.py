@@ -6,6 +6,7 @@ Indian holdings — the same data the analysis engine sees.
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -18,7 +19,7 @@ from app.models.base import get_session
 from app.models.entities import Position, Trade
 from app.repositories.portfolio import PortfolioRepository
 from app.services.broker_rules import currency_for_market
-from app.services.paper_broker import live_price, usd_rate
+from app.services.paper_broker import _batch_prices_sync, live_price, usd_rate
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,19 @@ router = APIRouter(tags=["portfolio"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-async def _to_item(position: Position) -> PositionItem:
-    price = await live_price(position.symbol)
+async def _to_item(
+    position: Position, prices: dict[str, float] | None = None
+) -> PositionItem:
+    # ``prices`` comes from ONE batched Yahoo request covering every open
+    # position. Falling back to the per-symbol fetch keeps single-position
+    # callers working, but the dashboard must never take that path: at a
+    # few-second refresh, one call per position is rate-limited within
+    # minutes — and it would starve the stop monitor, which shares this cache.
+    price = (
+        prices.get(position.symbol)
+        if prices is not None
+        else await live_price(position.symbol)
+    )
     rate = await usd_rate(position.currency)
     value = pnl = pct = None
     if price is not None and rate:
@@ -54,7 +66,18 @@ async def _to_item(position: Position) -> PositionItem:
     )
 
 
+#: Benchmark is a daily-close figure, so refetching it on every dashboard poll
+#: buys nothing and costs one Yahoo request per refresh.
+_BENCH_CACHE: dict[str, tuple[float | None, float]] = {}
+_BENCH_TTL_SECONDS = 300
+
+
 async def _benchmark_return_pct(since: datetime) -> float | None:
+    key = since.date().isoformat()
+    cached = _BENCH_CACHE.get(key)
+    if cached is not None and time.monotonic() - cached[1] < _BENCH_TTL_SECONDS:
+        return cached[0]
+
     def fetch() -> float | None:
         import yfinance as yf
 
@@ -65,10 +88,14 @@ async def _benchmark_return_pct(since: datetime) -> float | None:
         return (last - first) / first * 100
 
     try:
-        return await asyncio.to_thread(fetch)
+        value = await asyncio.to_thread(fetch)
     except Exception:
         logger.exception("Benchmark fetch failed")
-        return None
+        value = None
+    # Cached even when None: a failing fetch retried every few seconds is the
+    # fastest way to earn a rate limit.
+    _BENCH_CACHE[key] = (value, time.monotonic())
+    return value
 
 
 @router.get("/portfolio", response_model=PortfolioResponse)
@@ -80,7 +107,10 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
 
     repo = PortfolioRepository(session)
     positions = await repo.list_positions()
-    items = [await _to_item(p) for p in positions]
+    prices = await asyncio.to_thread(
+        _batch_prices_sync, sorted({p.symbol for p in positions})
+    )
+    items = [await _to_item(p, prices) for p in positions]
     real = [i for i in items if i.account_type == "real"]
 
     settings = get_settings()
@@ -111,6 +141,15 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             for i in book_positions
             if (i.note or "").strip().lower() == "core"
         )
+        # Mark-to-market on everything still open. None (rather than 0.0) when a
+        # price is missing, so a data outage reads as "unknown" instead of
+        # "flat" — a book with a stale feed must not look break-even.
+        # An empty book is 0.00, not unknown — only a missing price is unknown.
+        unrealised = (
+            sum(i.pnl_usd for i in book_positions)
+            if all(i.pnl_usd is not None for i in book_positions)
+            else None
+        )
         # Realised P&L is invisible in a positions-only view, which is exactly
         # how a book showing five green positions can still be losing money.
         closed = [
@@ -132,6 +171,8 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             realised_pnl_usd=sum(t.realized_pnl_usd or 0.0 for t in closed),
             closed_trades=len(closed),
             winning_trades=sum(1 for t in closed if (t.realized_pnl_usd or 0) > 0),
+            unrealised_pnl_usd=unrealised,
+            open_positions=len(book_positions),
         ))
     if not books:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No paper books yet")
