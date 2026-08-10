@@ -32,15 +32,24 @@ _ARTICLES = [
 ]
 
 
+# Payload marker for a body that isn't JSON at all (an HTML error page).
+_NOT_JSON = object()
+
+
 class _Response:
     """Minimal stand-in for ``requests.Response``."""
 
-    def __init__(self, payload=None, status_code=200, text=""):
-        self._payload = payload if payload is not None else {}
+    _SENTINEL = object()
+
+    def __init__(self, payload=_SENTINEL, status_code=200, text="", headers=None):
+        self._payload = {} if payload is self._SENTINEL else payload
         self.status_code = status_code
         self.text = text
+        self.headers = headers or {}
 
     def json(self):
+        if self._payload is _NOT_JSON:
+            raise ValueError("no JSON body")
         return self._payload
 
     def raise_for_status(self):
@@ -50,6 +59,10 @@ class _Response:
 
 def _ok(articles=_ARTICLES):
     return _Response({"success": True, "data": {"news": list(articles)}})
+
+
+def _empty():
+    return _Response({"success": True, "data": {"news": []}})
 
 
 @pytest.mark.unit
@@ -131,7 +144,7 @@ class FirecrawlFormattingTests(unittest.TestCase):
     @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
     def test_empty_result_raises_so_the_chain_continues(self):
         with mock.patch.object(
-            firecrawl_news.requests, "post", return_value=_Response({"data": {"news": []}})
+            firecrawl_news.requests, "post", return_value=_empty()
         ), self.assertRaises(NoNewsError) as ctx:
             firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
         self.assertEqual(
@@ -153,6 +166,137 @@ class FirecrawlFormattingTests(unittest.TestCase):
 
 
 @pytest.mark.unit
+@mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
+class FirecrawlRetryTests(unittest.TestCase):
+    """Firecrawl documents 408/429/500/502/503/504 as transient.
+
+    It is usually the last vendor in a chain, so a throttling burst that isn't
+    ridden out costs the run its news coverage outright.
+    """
+
+    def setUp(self):
+        config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+        # Assert on the delays instead of serving them.
+        sleep = mock.patch.object(firecrawl_news.time, "sleep")
+        self.sleep = sleep.start()
+        self.addCleanup(sleep.stop)
+
+    def tearDown(self):
+        config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+
+    def _post(self, *responses):
+        return mock.patch.object(firecrawl_news.requests, "post", side_effect=responses)
+
+    def test_throttled_then_served(self):
+        throttled = _Response(status_code=429, text="slow down", headers={"Retry-After": "3"})
+        with self._post(throttled, _ok()):
+            out = firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+
+        self.assertIn("### Chipmaker beats estimates", out)
+        self.sleep.assert_called_once_with(3.0)  # Retry-After honoured, not the curve
+
+    def test_transient_5xx_then_served(self):
+        with self._post(_Response(status_code=503, text="down"), _ok()):
+            out = firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+
+        self.assertIn("### Chipmaker beats estimates", out)
+        self.sleep.assert_called_once_with(firecrawl_news.BASE_RETRY_DELAY)
+
+    def test_backoff_doubles_without_a_retry_after_header(self):
+        with self._post(*[_Response(status_code=500, text="boom")] * 3), \
+                self.assertRaises(requests.HTTPError):
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+
+        self.assertEqual([c.args[0] for c in self.sleep.call_args_list], [2.0, 4.0])
+
+    def test_retries_are_bounded(self):
+        # MAX_RETRIES retries, then the typed error — never an unbounded loop.
+        posts = [_Response(status_code=429, text="slow down")] * (firecrawl_news.MAX_RETRIES + 1)
+        with self._post(*posts) as post, \
+                self.assertRaises(firecrawl_news.FirecrawlRateLimitError):
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+
+        self.assertEqual(post.call_count, firecrawl_news.MAX_RETRIES + 1)
+        self.assertEqual(self.sleep.call_count, firecrawl_news.MAX_RETRIES)
+
+    def test_outsized_retry_after_is_capped(self):
+        # A server asking for an hour must not stall the analysis run.
+        throttled = _Response(status_code=429, headers={"Retry-After": "3600"})
+        with self._post(throttled, _ok()):
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+        self.sleep.assert_called_once_with(firecrawl_news.MAX_RETRY_DELAY)
+
+    def test_http_date_retry_after_falls_back_to_the_curve(self):
+        # Retry-After's HTTP-date form isn't parsed; back off rather than guess.
+        throttled = _Response(
+            status_code=429, headers={"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+        )
+        with self._post(throttled, _ok()):
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+        self.sleep.assert_called_once_with(firecrawl_news.BASE_RETRY_DELAY)
+
+    def test_rejected_key_is_not_retried(self):
+        # A rejected key will be rejected again; failing fast keeps the chain moving.
+        with self._post(_Response(status_code=401, text="unauthorized")) as post, \
+                self.assertRaises(firecrawl_news.FirecrawlNotConfiguredError):
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+
+        self.assertEqual(post.call_count, 1)
+        self.sleep.assert_not_called()
+
+    def test_non_retryable_4xx_is_not_retried(self):
+        with self._post(_Response(status_code=400, text="bad request")) as post, \
+                self.assertRaises(requests.HTTPError):
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+
+        self.assertEqual(post.call_count, 1)
+
+
+@pytest.mark.unit
+@mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
+class FirecrawlResponseValidationTests(unittest.TestCase):
+    """An unreadable body is a fault, never a quiet news window.
+
+    The callers turn an empty result into ``NoNewsError``, so anything that
+    silently degrades to "no articles" would report a client-side failure to the
+    analyst as a market that had nothing to say.
+    """
+
+    def setUp(self):
+        config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+
+    def tearDown(self):
+        config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+
+    def _assert_rejects(self, payload):
+        with mock.patch.object(
+            firecrawl_news.requests, "post", return_value=_Response(payload)
+        ), self.assertRaises(firecrawl_news.FirecrawlResponseError) as ctx:
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+        # Specifically not NoNewsError, which would end the chain as "quiet week".
+        self.assertNotIsInstance(ctx.exception, NoNewsError)
+
+    def test_unsuccessful_body_is_rejected(self):
+        self._assert_rejects({"success": False, "error": "something broke"})
+
+    def test_missing_success_flag_is_rejected(self):
+        self._assert_rejects({"data": {"news": []}})
+
+    def test_missing_or_malformed_news_list_is_rejected(self):
+        self._assert_rejects({"success": True})
+        self._assert_rejects({"success": True, "data": {}})
+        self._assert_rejects({"success": True, "data": {"news": None}})
+        self._assert_rejects({"success": True, "data": "not-a-dict"})
+
+    def test_non_json_body_is_rejected(self):
+        with mock.patch.object(
+            firecrawl_news.requests, "post",
+            return_value=_Response(_NOT_JSON, text="<html>gateway</html>"),
+        ), self.assertRaises(firecrawl_news.FirecrawlResponseError):
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+
+
+@pytest.mark.unit
 class FirecrawlErrorTests(unittest.TestCase):
     def setUp(self):
         config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
@@ -163,30 +307,6 @@ class FirecrawlErrorTests(unittest.TestCase):
     @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": ""})
     def test_missing_key_raises_not_configured(self):
         with self.assertRaises(firecrawl_news.FirecrawlNotConfiguredError):
-            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
-
-    @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
-    def test_rate_limit_is_classified(self):
-        with mock.patch.object(
-            firecrawl_news.requests, "post",
-            return_value=_Response(status_code=429, text="too many requests"),
-        ), self.assertRaises(firecrawl_news.FirecrawlRateLimitError):
-            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
-
-    @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
-    def test_rejected_key_is_not_confused_with_an_outage(self):
-        # A bad key must read as "vendor unavailable" (skip to the next vendor);
-        # a 5xx must stay a hard error so a broken primary is loud.
-        with mock.patch.object(
-            firecrawl_news.requests, "post",
-            return_value=_Response(status_code=401, text="unauthorized"),
-        ), self.assertRaises(firecrawl_news.FirecrawlNotConfiguredError):
-            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
-
-        with mock.patch.object(
-            firecrawl_news.requests, "post",
-            return_value=_Response(status_code=503, text="upstream down"),
-        ), self.assertRaises(requests.HTTPError):
             firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
 
 
@@ -265,12 +385,38 @@ class FirecrawlRoutingTests(unittest.TestCase):
         set_config({"tool_vendors": {"get_news": "yfinance,firecrawl"}})
 
         with self._yahoo_returning([]), mock.patch.object(
-            firecrawl_news.requests, "post", return_value=_Response({"data": {"news": []}})
+            firecrawl_news.requests, "post", return_value=_empty()
         ):
             out = interface.route_to_vendor("get_news", "AAPL", "2026-03-01", "2026-03-08")
 
         self.assertEqual(out, "No news found for AAPL")
         self.assertNotIn("NO_DATA_AVAILABLE", out)
+
+    @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
+    def test_unreadable_response_fails_loudly_rather_than_reading_as_no_news(self):
+        set_config({"tool_vendors": {"get_news": "firecrawl"}})
+
+        with mock.patch.object(
+            firecrawl_news.requests, "post",
+            return_value=_Response({"success": False, "error": "broke"}),
+        ), self.assertRaises(firecrawl_news.FirecrawlResponseError):
+            interface.route_to_vendor("get_news", "AAPL", "2026-03-01", "2026-03-08")
+
+    @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
+    def test_a_broken_fallback_is_logged_even_when_the_primary_had_no_news(self):
+        # Established router behaviour (#989) applied to the news path: the
+        # reported outcome is still "no news" — no vendor produced any — but the
+        # fallback's failure must leave a trace instead of vanishing.
+        set_config({"tool_vendors": {"get_news": "yfinance,firecrawl"}})
+
+        with self._yahoo_returning([]), mock.patch.object(
+            firecrawl_news.requests, "post",
+            return_value=_Response({"success": False, "error": "broke"}),
+        ), self.assertLogs("tradingagents.dataflows.interface", level="WARNING") as logs:
+            out = interface.route_to_vendor("get_news", "AAPL", "2026-03-01", "2026-03-08")
+
+        self.assertEqual(out, "No news found for AAPL")
+        self.assertTrue(any("errored earlier" in m for m in logs.output))
 
     def test_missing_key_falls_through_to_the_next_vendor(self):
         set_config({"tool_vendors": {"get_news": "firecrawl,yfinance"}})

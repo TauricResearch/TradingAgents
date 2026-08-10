@@ -27,13 +27,19 @@ treats it as "unavailable" rather than a hard crash.
 import logging
 import os
 import re
+import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import requests
 
 from .config import get_config
-from .errors import NoNewsError, VendorNotConfiguredError, VendorRateLimitError
+from .errors import (
+    NoNewsError,
+    VendorError,
+    VendorNotConfiguredError,
+    VendorRateLimitError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +48,21 @@ FIRECRAWL_API_BASE = "https://api.firecrawl.dev/v2"
 # Network timeout (seconds). Higher than the other vendors' 30: a search is a
 # live web query plus aggregation, and an empty result set alone takes ~6s.
 REQUEST_TIMEOUT = 60
+
+# Statuses Firecrawl documents as transient
+# (https://docs.firecrawl.dev/api-reference/errors).
+RETRYABLE_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
+
+# Bounded backoff: two retries, doubling from 2s. Deliberately tighter than
+# ``yf_retry``'s budget — each attempt can already take REQUEST_TIMEOUT, and news
+# sits on the interactive path, so the worst case is two waits rather than a
+# multi-minute stall.
+MAX_RETRIES = 2
+BASE_RETRY_DELAY = 2.0
+
+# Ceiling on a server-supplied ``Retry-After``, matching the Reddit vendor: an
+# outsized or malformed header must not stall an analysis run.
+MAX_RETRY_DELAY = 30.0
 
 # Snippets are page extracts and can run to several paragraphs of markdown.
 # Cap them so a news report stays within a sensible share of the agent prompt.
@@ -62,7 +83,19 @@ class FirecrawlNotConfiguredError(VendorNotConfiguredError):
 
 
 class FirecrawlRateLimitError(VendorRateLimitError):
-    """Raised when the Firecrawl API rate limit is exceeded."""
+    """Raised when the Firecrawl API rate limit is exceeded, retries included."""
+
+
+class FirecrawlResponseError(VendorError):
+    """Raised when Firecrawl returns a body this client cannot interpret.
+
+    Intentionally not one of the router's typed reactions: an uninterpretable
+    response is a real fault, so the generic handler logs it, tries the next
+    vendor, and surfaces it if none can serve the call. Kept distinct from
+    ``NoNewsError`` because a ``success: false`` body or a shape change is not a
+    quiet news window — reporting it as "no news" would tell the analyst the
+    market was silent when the client merely failed to read the answer.
+    """
 
 
 def get_api_key() -> str:
@@ -91,30 +124,94 @@ def _date_range_tbs(start_date: str, end_date: str) -> str:
     )
 
 
+def _retry_delay(response, attempt: int) -> float:
+    """Seconds to wait before retrying ``response``.
+
+    Firecrawl sends ``Retry-After`` (in seconds) on a 429; honour it when
+    present, otherwise back off exponentially. The header's HTTP-date form is
+    not parsed — it falls back to the curve rather than guessing at a date.
+    """
+    header = (response.headers or {}).get("Retry-After")
+    if header:
+        try:
+            return min(float(header), MAX_RETRY_DELAY)
+        except (TypeError, ValueError):
+            pass
+    return min(BASE_RETRY_DELAY * (2**attempt), MAX_RETRY_DELAY)
+
+
+def _news_results(response) -> list[dict]:
+    """Extract ``data.news`` from a 2xx body, rejecting anything else.
+
+    Strict on purpose. The callers turn an empty list into ``NoNewsError``, so
+    treating an unreadable body as "no results" would report a client-side
+    failure to the analyst as a genuinely quiet news window — and, with Firecrawl
+    last in a chain, silently cost the run its news coverage.
+    """
+    try:
+        payload = response.json()
+    except ValueError as e:
+        raise FirecrawlResponseError(
+            f"Firecrawl returned a non-JSON body: {response.text[:200]}"
+        ) from e
+
+    if not isinstance(payload, dict) or payload.get("success") is not True:
+        raise FirecrawlResponseError(
+            f"Firecrawl search did not succeed: {str(payload)[:200]}"
+        )
+
+    data = payload.get("data")
+    news = data.get("news") if isinstance(data, dict) else None
+    if not isinstance(news, list):
+        raise FirecrawlResponseError(
+            f"Firecrawl response has no 'data.news' list: {str(payload)[:200]}"
+        )
+    return news
+
+
 def _search_news(query: str, start_date: str, end_date: str, limit: int) -> list[dict]:
-    """POST /search restricted to news results inside the date window."""
+    """POST /search restricted to news results inside the date window.
+
+    Transient statuses are retried with bounded backoff before the error is
+    raised. Firecrawl is typically the *last* vendor in a chain, so there is
+    nothing left to fall through to: a throttling burst that isn't ridden out
+    costs the run its news coverage outright.
+    """
     payload = {
         "query": query,
         "sources": [{"type": "news"}],
         "limit": limit,
         "tbs": _date_range_tbs(start_date, end_date),
     }
-    response = requests.post(
-        f"{FIRECRAWL_API_BASE}/search",
-        json=payload,
-        headers={"Authorization": f"Bearer {get_api_key()}"},
-        timeout=REQUEST_TIMEOUT,
-    )
+    headers = {"Authorization": f"Bearer {get_api_key()}"}
+
+    for attempt in range(MAX_RETRIES + 1):
+        response = requests.post(
+            f"{FIRECRAWL_API_BASE}/search",
+            json=payload,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
+        )
+        if response.status_code not in RETRYABLE_STATUSES or attempt == MAX_RETRIES:
+            break
+        delay = _retry_delay(response, attempt)
+        logger.warning(
+            "Firecrawl returned %s for %r; retrying in %.1fs (attempt %d/%d).",
+            response.status_code, query, delay, attempt + 1, MAX_RETRIES,
+        )
+        time.sleep(delay)
+
     if response.status_code == 429:
         raise FirecrawlRateLimitError(f"Firecrawl rate limit exceeded: {response.text}")
     if response.status_code in (401, 403):
         # Distinguish a bad/expired key from a real outage: the router can skip
-        # to the next vendor for "not configured" but must not hide a 5xx.
+        # to the next vendor for "not configured" but must not hide a 5xx. Not
+        # retried — a rejected key will be rejected again.
         raise FirecrawlNotConfiguredError(
             f"Firecrawl API key rejected ({response.status_code}): {response.text}"
         )
     response.raise_for_status()
-    return response.json().get("data", {}).get("news") or []
+    return _news_results(response)
 
 
 def _clean_snippet(snippet: str) -> str:

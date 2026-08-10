@@ -172,9 +172,15 @@ searches the open web instead, and works well chained behind the default:
 ```python
 import copy
 
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+
 config = copy.deepcopy(DEFAULT_CONFIG)  # .copy() is shallow: nested dicts would be shared
 config["tool_vendors"]["get_news"] = "yfinance,firecrawl"        # ticker news
 config["tool_vendors"]["get_global_news"] = "yfinance,firecrawl" # macro headlines
+
+ta = TradingAgentsGraph(config=config)
+_, decision = ta.propagate("NVDA", "2026-01-15")
 ```
 
 Chained this way Yahoo stays the primary and Firecrawl is consulted only when it
