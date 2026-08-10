@@ -38,6 +38,7 @@ the cash drag this module exists to remove.
 from __future__ import annotations
 
 import logging
+import math
 import time
 
 from app.core.config import get_settings
@@ -88,9 +89,19 @@ def _trend_ok_sync(symbol: str, window: int) -> bool | None:
         logger.warning("Trend check failed for %s", symbol, exc_info=True)
         return None
     closes = hist.get("Close")
-    if closes is None or len(closes) < window:
+    if closes is None:
         return None
-    verdict = float(closes.iloc[-1]) > float(closes.iloc[-window:].mean())
+    # dropna first: `NaN > mean` is False, which this would report as
+    # "defensive" and liquidate the core on a merely missing bar.
+    closes = closes.dropna()
+    if len(closes) < window:
+        return None
+    last = float(closes.iloc[-1])
+    average = float(closes.iloc[-window:].mean())
+    if not (math.isfinite(last) and math.isfinite(average)):
+        logger.warning("Trend check for %s non-finite; holding core", symbol)
+        return None
+    verdict = last > average
     _TREND_CACHE[(symbol, window)] = (verdict, time.monotonic())
     return verdict
 
@@ -127,11 +138,8 @@ def core_etf_for(book: str) -> str:
     if pinned:
         return pinned
     settings = get_settings()
-    # STRATEGIC_CORE_ETF lets the strategic book park somewhere the LLM never
-    # trades. Without it, the LLM buying the core ETF as a conviction position
-    # blocks the sweep outright and the book idles in cash — see the comment on
-    # AssistantSettings.strategic_core_etf. Empty falls back to CORE_ETF, the
-    # original behaviour.
+    # STRATEGIC_CORE_ETF parks the LLM book somewhere the LLM never trades;
+    # empty falls back to CORE_ETF. See AssistantSettings.strategic_core_etf.
     if book == "strategic" and settings.strategic_core_etf.strip():
         return settings.strategic_core_etf.strip().upper()
     return settings.core_etf

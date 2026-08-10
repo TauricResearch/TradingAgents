@@ -15,6 +15,7 @@ a limited LLM quota (e.g. Ollama cloud free tier) in one day.
 
 import asyncio
 import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -227,9 +228,14 @@ def _price_move_since_sync(symbol: str, since) -> float | None:
         history = yf.Ticker(normalize_symbol(symbol)).history(
             start=since.date().isoformat()
         )
-        if len(history) < 2:
+        closes = history["Close"].dropna() if not history.empty else None
+        if closes is None or len(closes) < 2:
             return None
-        first, last = float(history["Close"].iloc[0]), float(history["Close"].iloc[-1])
+        first, last = float(closes.iloc[0]), float(closes.iloc[-1])
+        # NaN fails every threshold comparison silently, so an unpriced ticker
+        # would simply never register as a mover.
+        if not (math.isfinite(first) and math.isfinite(last)) or first <= 0:
+            return None
         return (last - first) / first * 100
     except Exception:
         logger.warning("Price-move check failed for %s", symbol)

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import RunTriggeredResponse, SignalItem
+from app.core.logging import log_task_exception
 from app.domain import Market
 from app.models.base import get_session
 from app.repositories.signals import SignalRepository
@@ -49,9 +50,10 @@ async def trigger_ticker_run(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Daily run budget exhausted — raise ASSISTANT_DAILY_RUN_BUDGET or wait for tomorrow",
         )
-    task = asyncio.create_task(run_ticker(ticker.symbol))
+    task = asyncio.create_task(run_ticker(ticker.symbol), name=f"run_ticker:{ticker.symbol}")
     _background_runs.add(task)
     task.add_done_callback(_background_runs.discard)
+    task.add_done_callback(log_task_exception)
     logger.info("Manual analysis triggered for %s", ticker.symbol)
     return RunTriggeredResponse(market=ticker.symbol)
 
@@ -64,8 +66,9 @@ async def trigger_run(market: Market) -> RunTriggeredResponse:
     Progress lands in logs, Telegram, and the email digest. The pipeline's
     internal lock serializes this with any scheduled run already in flight.
     """
-    task = asyncio.create_task(run_market(market, include_weekly=True))
+    task = asyncio.create_task(run_market(market, include_weekly=True), name=f"run_market:{market.value}")
     _background_runs.add(task)
     task.add_done_callback(_background_runs.discard)
+    task.add_done_callback(log_task_exception)
     logger.info("Manual run triggered for %s", market.value)
     return RunTriggeredResponse(market=market.value)

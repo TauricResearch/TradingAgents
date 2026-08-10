@@ -47,13 +47,9 @@ _PRICE_CACHE: dict[str, float] = {}
 def _usable_price(value: object, symbol: str) -> float | None:
     """A price we can actually trade on, or None.
 
-    yfinance returns float('nan') for a symbol it cannot price — NOT None. Every
-    guard in this codebase was `if price is None`, which NaN passes straight
-    through, and NaN then propagates silently: quantity = alloc / nan is nan,
-    and SQLite rejects it with "NOT NULL constraint failed". On 2026-08-10 a
-    single NaN on AEGISVOPAK.NS aborted an entire rule pass, and one NaN-priced
-    holding made paper_equity_usd return NaN, which killed the equity snapshot
-    for EVERY book that day. Reject it here so it can never leave this module.
+    yfinance returns NaN — not None — for a bar it cannot price, and `is None`
+    guards let it through. NaN then reaches SQLite as a NOT NULL violation that
+    aborts the caller's whole transaction, so it is rejected here instead.
     """
     try:
         price = float(value)  # type: ignore[arg-type]
@@ -75,24 +71,28 @@ def _live_price_sync(symbol: str) -> float | None:
 
     from tradingagents.dataflows.symbol_utils import normalize_symbol
 
-    try:
-        history = yf.Ticker(normalize_symbol(symbol)).history(period="5d")
-        if not history.empty:
-            # dropna() before taking the last bar. Yahoo appends a row for the
-            # CURRENT day with a NaN close whenever that session's daily bar is
-            # not published yet — which is every US afternoon for .NS tickers,
-            # since NSE closed hours earlier. Reading iloc[-1] blindly returned
-            # NaN for every Indian name, and the only reason it ever looked fine
-            # is that the dashboard's batched polling had already filled
-            # _PRICE_CACHE, so the fallback below silently covered it. The batch
-            # path has always done this; this one never did.
+    ticker = yf.Ticker(normalize_symbol(symbol))
+    # Intraday first, matching _batch_prices_sync. Yahoo publishes every minute
+    # of an NSE session but leaves that day's DAILY close NaN for hours, so the
+    # daily path alone returned a days-old price for .NS names while the batched
+    # path had today's — two code paths disagreeing on the same symbol.
+    for period, interval in (("1d", "1m"), ("5d", None)):
+        try:
+            history = (
+                ticker.history(period=period, interval=interval) if interval
+                else ticker.history(period=period)
+            )
+            if history.empty:
+                continue
             closes = history["Close"].dropna()
-            price = _usable_price(closes.iloc[-1], symbol) if not closes.empty else None
+            if closes.empty:
+                continue
+            price = _usable_price(closes.iloc[-1], symbol)
             if price is not None:
                 _PRICE_CACHE[symbol] = price
                 return price
-    except Exception:
-        logger.warning("Live price fetch failed for %s", symbol)
+        except Exception:
+            logger.warning("Live price fetch failed for %s (period=%s)", symbol, period)
     cached = _PRICE_CACHE.get(symbol)
     if cached is not None:
         logger.info("Using last known price for %s: %.4f", symbol, cached)
@@ -102,17 +102,9 @@ def _live_price_sync(symbol: str) -> float | None:
 def _usd_rate_sync(currency: str) -> float | None:
     """Quote-currency units per USD, live via yfinance (cached ~30 min).
 
-    Freshest source first: an intraday bar beats yesterday's close, and every
-    .NS position is marked through this rate, so a stale rate silently misprices
-    a third of the watchlist.
-
-    Carries the same NaN discipline as the price path, for the same reason. The
-    old version did ``float(history["Close"].iloc[-1])`` with no dropna and no
-    finite check, so Yahoo's unpublished current-day row (a NaN close) became a
-    NaN rate — and then CACHED it for 30 minutes. Callers guard with
-    ``rate is None or rate <= 0``, and ``nan <= 0`` is False, so a NaN rate flows
-    straight into ``quantity = alloc * rate / price`` and lands as a NOT NULL
-    violation that aborts the caller's whole pass.
+    Intraday first, daily as fallback: every .NS position is marked through this
+    rate, so a previous close silently misprices a third of the watchlist. Same
+    NaN rejection as the price path — a NaN rate used to get cached for 30 min.
     """
     if currency == "USD":
         return 1.0
@@ -202,9 +194,8 @@ async def paper_equity_usd(book: str = "strategic") -> float | None:
             rate = await usd_rate(position.currency) or 1.0
             value = position.quantity * position.avg_price / rate
         if not math.isfinite(value):
-            # Cost basis itself is corrupt (a NaN got persisted). Reporting None
-            # beats returning NaN: callers already handle None, whereas NaN
-            # silently poisons equity, snapshots and every downstream percentage.
+            # None over NaN: callers handle None, whereas NaN poisons equity,
+            # snapshots and every percentage downstream.
             logger.error("Non-finite value for %s in %s; equity unavailable",
                          position.symbol, book)
             return None

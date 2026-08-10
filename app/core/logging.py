@@ -1,10 +1,29 @@
 """Structured JSON logging with a per-pipeline-run correlation id."""
 
+import asyncio
 import json
 import logging
 import sys
 from contextvars import ContextVar
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
+
+
+def log_task_exception(task: asyncio.Task) -> None:
+    """done-callback that surfaces a fire-and-forget task's failure.
+
+    ``add_done_callback(set.discard)`` alone never retrieves the exception, so a
+    crashed background task is invisible until an eventual "Task exception was
+    never retrieved" at GC time — which is how weeks of screener failures left
+    no trace.
+    """
+    if task.cancelled():
+        logger.error("Background task %s cancelled", task.get_name())
+        return
+    error = task.exception()
+    if error is not None:
+        logger.error("Background task %s failed", task.get_name(), exc_info=error)
 
 # Set by the pipeline at the start of each market run; every log line emitted
 # during that run (including from tradingagents internals) carries the id.

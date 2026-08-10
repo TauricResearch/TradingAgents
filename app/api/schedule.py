@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import ScheduleSlotCreate, ScheduleSlotItem, ScheduleSlotUpdate
+from app.core.logging import log_task_exception
 from app.core.scheduler import parse_hhmm, sync_slot_jobs
 from app.domain import Market
 from app.models.base import get_session
@@ -76,9 +77,10 @@ async def delete_slot(slot_id: int, request: Request, session: SessionDep) -> No
 
 
 def _schedule_resync(scheduler) -> None:
-    task = asyncio.create_task(sync_slot_jobs(scheduler))
+    task = asyncio.create_task(sync_slot_jobs(scheduler), name="sync_slot_jobs")
     _manual_runs.add(task)
     task.add_done_callback(_manual_runs.discard)
+    task.add_done_callback(log_task_exception)
 
 
 @router.patch("/{slot_id}", response_model=ScheduleSlotItem)
@@ -137,8 +139,9 @@ async def run_slot_now(slot_id: int, session: SessionDep) -> dict:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Slot is disabled; enable it first"
         )
-    task = asyncio.create_task(run_slot(slot_id))
+    task = asyncio.create_task(run_slot(slot_id), name=f"run_slot:{slot_id}")
     _manual_runs.add(task)
     task.add_done_callback(_manual_runs.discard)
+    task.add_done_callback(log_task_exception)
     logger.info("Manual run triggered for slot %r", slot.label)
     return {"slot": slot.label, "status": "started"}

@@ -79,12 +79,19 @@ async def _benchmark_return_pct(since: datetime) -> float | None:
         return cached[0]
 
     def fetch() -> float | None:
+        import math
+
         import yfinance as yf
 
         history = yf.Ticker("SPY").history(start=since.date().isoformat())
-        if len(history) < 2:
+        closes = history["Close"].dropna() if not history.empty else None
+        if closes is None or len(closes) < 2:
             return None
-        first, last = float(history["Close"].iloc[0]), float(history["Close"].iloc[-1])
+        first, last = float(closes.iloc[0]), float(closes.iloc[-1])
+        # NaN here would serialise as literal NaN — invalid JSON, so the whole
+        # dashboard fails to parse rather than one number being wrong.
+        if not (math.isfinite(first) and math.isfinite(last)) or first <= 0:
+            return None
         return (last - first) / first * 100
 
     try:

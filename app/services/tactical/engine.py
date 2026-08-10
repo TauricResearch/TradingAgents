@@ -118,9 +118,8 @@ async def _tactical_buy(
     position_type = BOOK_POSITION_TYPE[book]
     price = await live_price(symbol)
     equity = await paper_equity_usd(book)
-    # isfinite, not just `is None`: yfinance hands back NaN for a symbol it
-    # cannot price, and NaN reaches the INSERT as a NOT NULL violation that
-    # aborts the whole pass for this book (seen on AEGISVOPAK.NS, 2026-08-10).
+    # isfinite, not just `is None`: a NaN price reaches the INSERT as a NOT NULL
+    # violation that aborts this book's entire pass.
     if price is None or equity is None:
         return None
     if not math.isfinite(price) or price <= 0 or not math.isfinite(equity):
@@ -168,12 +167,9 @@ async def _tactical_buy(
         if alloc < MIN_ORDER_USD:
             logger.info("%s buy skipped for %s: insufficient cash", book, symbol)
             return None
-        # Reserve the fee out of the allocation, not out of thin air. Capping
-        # alloc at `cash` and then debiting `alloc + fee` overdraws by exactly
-        # the fee whenever a buy consumes the remaining balance — which is how
-        # tactical and tactical_donchian both ended 2026-08-10 with slightly
-        # NEGATIVE cash (-1.38 and -1.75). Cost is proportional to notional, so
-        # recomputing once after shrinking converges.
+        # Reserve the fee out of the allocation: capping alloc at cash and then
+        # debiting alloc + fee overdraws by the fee. Cost is proportional to
+        # notional, so one recompute after shrinking converges.
         fee = apply_cost(alloc, symbol, market, category)
         if alloc + fee > account.cash:
             alloc = max(0.0, account.cash - fee)
@@ -273,16 +269,10 @@ async def run_tactical(book: str = "tactical") -> list[str]:
             logger.warning("%s circuit breaker: down >%s%% today — entries blocked",
                            book, settings.tactical_daily_loss_cap_pct)
 
-    # Capital, not the counter, is the real ceiling: size_pct x max_positions
-    # cannot exceed the investable fraction of equity. Past that point the
-    # remaining slots either fill with sub-$50 dust or not at all, because
-    # `alloc = min(equity * size_pct, account.cash)` silently shrinks as cash
-    # depletes — so the configured diversification target is quietly missed.
-    #
-    # Clamped here rather than as an AssistantSettings validator on purpose:
-    # that model is shared by every subsystem, so a cross-field validator would
-    # turn a tactical-only misconfiguration into a startup crash for the whole
-    # assistant service.
+    # Capital is the real ceiling, not the counter: past floor(investable /
+    # size_pct) the remaining slots fill with dust or not at all. Clamped here
+    # rather than as a settings validator, which would turn a tactical-only
+    # misconfiguration into a startup crash for the whole service.
     investable_pct = 100.0 - settings.core_cash_buffer_pct
     capital_cap = max(1, int(investable_pct // (settings.tactical_size_pct * 100)))
     position_cap = min(settings.tactical_max_positions, capital_cap)
@@ -358,10 +348,8 @@ async def record_equity_snapshots() -> None:
     recorded = 0
     for book in BOOKS:
         equity = await paper_equity_usd(book)
-        # Per-book try/except AND an isfinite check: one book's bad price used to
-        # raise on INSERT and abort the loop, so a single NaN cost EVERY book its
-        # snapshot that day — i.e. a hole in the equity curve the scoreboard is
-        # built on. One arm's data problem must not blind the others.
+        # Per-book isolation: one bad price used to abort the loop, costing every
+        # book its snapshot — a hole in the curve the scoreboard is built on.
         if equity is None or not math.isfinite(equity):
             logger.error("No usable equity for %s; snapshot skipped", book)
             continue
