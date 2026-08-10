@@ -1119,7 +1119,11 @@ refresh();
 // returned. On any latency spike that stacks overlapping requests forever.
 // Measuring elapsed time and sleeping the remainder holds a true 5s cadence
 // when Yahoo is quick and degrades to back-to-back when it is slow.
-const REFRESH_MS = 5000;
+// 60s, not 5s. 5s was chosen to make cent-level drift visible while someone was
+// actually watching; for an unattended multi-week run it is ~12 Yahoo calls a
+// minute forever, and it was what kept _PRICE_CACHE warm enough to hide the
+// .NS NaN bug for weeks. A human refreshes manually when they want a tick.
+const REFRESH_MS = 60000;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 (async function poll() {
   await sleep(REFRESH_MS);          // the refresh() above already painted once
