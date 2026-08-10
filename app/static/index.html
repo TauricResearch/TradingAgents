@@ -23,6 +23,12 @@
        reordered — a filter that hides a book must not repaint the others. */
     --book-strategic:  #2a78d6;
     --book-tactical:   #c2570a;
+    /* Seventh arm, added after the six-colour validation above. Deliberately a
+       DARKER shade of the tactical orange rather than a new hue: the two rule
+       arms are siblings, and separating them by lightness instead of hue is the
+       one axis that survives every CVD type. The checker guarantee in the
+       comment above covers the original six — re-run it if more arms land. */
+    --book-tactical_donchian: #8a3d07;
     --book-core_spy:   #00998c;
     --book-core_trend: #8a5cd6;
     --book-core_2x:    #c2417f;
@@ -318,12 +324,12 @@
 
     <div class="subhead">🧠 Strategic positions <span class="sub">(LLM signals, auto-traded at live prices)</span></div>
     <table class="data"><thead><tr>
-      <th>Symbol</th><th>Qty</th><th>Avg price</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Since</th>
+      <th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Since</th>
     </tr></thead><tbody id="paperBody"></tbody></table>
 
     <div class="subhead">⚡ Tactical positions <span class="sub" id="tacticalSub">(rule-based)</span></div>
     <table class="data"><thead><tr>
-      <th>Symbol</th><th>Qty</th><th>Avg price</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Rule</th><th>Since</th>
+      <th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Rule</th><th>Since</th>
     </tr></thead><tbody id="tacticalBody"></tbody></table>
 
     <div class="subhead">💼 Real holdings <span class="sub">(what you actually own — alerts include your P&amp;L)</span></div>
@@ -923,6 +929,13 @@ async function loadPortfolio() {
       ? `<span class="${cls(b.realised_pnl_usd)}">${b.realised_pnl_usd >= 0 ? "+" : "−"}$${Math.abs(b.realised_pnl_usd).toFixed(0)}</span>` +
         `<div class="lead">${b.winning_trades}/${b.closed_trades} won</div>`
       : `<span class="lead">no closed trades</span>`;
+    // Live mark-to-market. This is the half of P&L that actually moves between
+    // refreshes; realised sits still for days between closes, which makes a
+    // realised-only scoreboard look broken while the book is working.
+    const up = b.unrealised_pnl_usd == null
+      ? `<span class="lead">—</span>`
+      : `<span class="${cls(b.unrealised_pnl_usd)}">${b.unrealised_pnl_usd >= 0 ? "+" : "−"}$${Math.abs(b.unrealised_pnl_usd).toFixed(2)}</span>` +
+        `<div class="lead">${b.open_positions} open</div>`;
     return `<tr class="${isControl ? "control" : ""}">
       <td><span class="swatch" style="background:var(--book-${b.label})"></span>
         <span class="book-name">${esc(b.label)}</span>${b.enabled ? "" : ' <i class="lead">off</i>'}
@@ -932,6 +945,7 @@ async function loadPortfolio() {
       <td class="vs-control ${isControl ? "" : cls(vs)}">${isControl ? "—" : fmtRet(vs)}</td>
       <td>${usd(b.equity_usd)}</td>
       <td>${inv}</td>
+      <td>${up}</td>
       <td>${rp}</td>
       <td style="width:110px">${sparkline(equityHistory[b.label], `--book-${b.label}`)}</td>
     </tr>`;
@@ -948,7 +962,7 @@ async function loadPortfolio() {
     `<table class="scoreboard">
       <thead><tr>
         <th>book</th><th>core</th><th>return</th><th>vs control</th>
-        <th>equity</th><th>invested</th><th>realised</th><th>equity curve</th>
+        <th>equity</th><th>invested</th><th>live P&amp;L</th><th>realised</th><th>equity curve</th>
       </tr></thead>
       <tbody>
         ${pf.books.map(row).join("")}
@@ -957,7 +971,7 @@ async function loadPortfolio() {
           <div class="book-desc">benchmark since the books opened</div></td>
           <td class="tier">SPY</td>
           <td class="${cls(bench)}"><b>${fmtRet(bench)}</b></td>
-          <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+          <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </tbody>
     </table>
     <div class="caveat">${coreNote} One month of data cannot separate skill from
@@ -972,6 +986,7 @@ async function loadPortfolio() {
       <td class="tier">${fmtWhen(p.opened_at)}</td></tr>`).join("")
     : `<tr><td colspan="9" class="empty">No strategic positions yet — the first Buy/Overweight signal opens one automatically.</td></tr>`;
 
+  const tactical = pf.books.find(b => b.label === "tactical");
   const tacticalPositions = tactical ? tactical.positions : [];
   $("tacticalSub").textContent = pf.tactical_rule
     ? `(rule: ${pf.tactical_rule}, end-of-day passes)`
@@ -980,9 +995,10 @@ async function loadPortfolio() {
     <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
       <td class="num">${px(p.avg_price)} ${esc(p.currency)}</td><td class="num">${px(p.last_price)}</td>
       <td class="num">${usd(p.value_usd)}</td><td class="num">${pnlCell(p.pnl_usd, p.pnl_pct)}</td>
-      <td class="num tier">${px(p.stop_loss)}</td><td class="tier">${esc(p.note ?? "")}</td>
+      <td class="num tier">${px(p.stop_loss)}</td><td class="num tier">${px(p.price_target)}</td>
+      <td class="tier">${esc(p.note ?? "")}</td>
       <td class="tier">${fmtWhen(p.opened_at)}</td></tr>`).join("")
-    : `<tr><td colspan="9" class="empty">${pf.tactical_rule ? "No tactical positions — the rule sees no setups right now." : "Tactical book idle by design: every tested rule lost to buy-and-hold over 10 years (see scripts/backtest_tactical.py)."}</td></tr>`;
+    : `<tr><td colspan="10" class="empty">${pf.tactical_rule ? "No tactical positions — the rule sees no setups right now." : "Tactical book idle by design: every tested rule lost to buy-and-hold over 10 years (see scripts/backtest_tactical.py)."}</td></tr>`;
 
   $("realBody").innerHTML = pf.real_positions.length ? pf.real_positions.map(p => `
     <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
@@ -1093,7 +1109,26 @@ document.addEventListener("keydown", e => {
 route();
 loadSlots();
 refresh();
-setInterval(refresh, 60000);
+// 5s cadence. Safe only because /portfolio reprices every position in ONE
+// batched Yahoo request and caches the benchmark — one call per refresh, not
+// one per position. Yahoo's finest bar is 1m, so this polls the same 1m bar
+// several times; the last bar does move intraday, which is what shows up here.
+//
+// Self-pacing rather than setInterval: a batched repricing round-trip runs
+// ~3s, and setInterval fires regardless of whether the previous refresh
+// returned. On any latency spike that stacks overlapping requests forever.
+// Measuring elapsed time and sleeping the remainder holds a true 5s cadence
+// when Yahoo is quick and degrades to back-to-back when it is slow.
+const REFRESH_MS = 5000;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+(async function poll() {
+  await sleep(REFRESH_MS);          // the refresh() above already painted once
+  for (;;) {
+    const started = Date.now();
+    try { await refresh(); } catch { /* transient: keep polling */ }
+    await sleep(Math.max(500, REFRESH_MS - (Date.now() - started)));
+  }
+})();
 </script>
 </body>
 </html>
