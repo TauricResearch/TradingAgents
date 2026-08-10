@@ -123,7 +123,7 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
     settings = get_settings()
     books: list[BookSummary] = []
     oldest_created = None
-    from app.services.books import BOOKS
+    from app.services.books import BOOKS, rule_for
 
     for label in BOOKS:
         account = await repo.get_account(label)
@@ -163,6 +163,8 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             t for t in await repo.list_trades(limit=500, account_type=position_type)
             if t.side == "sell"
         ]
+        # Pinned rule for the arms that have one, else the configured default.
+        rule = rule_for(label, settings.tactical_rule).strip() if BOOKS[label].rule_driven else ""
         books.append(BookSummary(
             label=label,
             starting_cash_usd=account.starting_cash,
@@ -170,9 +172,11 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             equity_usd=equity,
             return_pct=return_pct,
             positions=book_positions,
-            enabled=(label != "tactical") or bool(settings.tactical_rule.strip()),
+            enabled=(not BOOKS[label].rule_driven) or bool(rule),
             core_etf=core_etf_for(label),
             description=BOOKS[label].description,
+            rule=rule,
+            active=BOOKS[label].active,
             invested_pct=invested_pct,
             core_value_usd=core_value,
             realised_pnl_usd=sum(t.realized_pnl_usd or 0.0 for t in closed),

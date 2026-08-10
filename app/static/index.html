@@ -256,6 +256,16 @@
   .holdrow input { font: inherit; padding: 6px 9px; border: 1px solid var(--border);
                    border-radius: 6px; background: var(--page); color: var(--ink); }
   .subhead { font-size: 12px; color: var(--ink-2); font-weight: 650; margin: 14px 0 6px; }
+  /* Collapsible position tables. <details> so the toggle needs no JS and the
+     open/closed state survives the 60s refresh, which only rewrites tbody. */
+  .booksec > summary { font-size: 12px; color: var(--ink-2); font-weight: 650;
+                       margin: 14px 0 6px; cursor: pointer; list-style: none;
+                       display: flex; align-items: baseline; gap: 6px; }
+  .booksec > summary::-webkit-details-marker { display: none; }
+  .booksec > summary::before { content: "▾"; color: var(--muted); width: 11px; }
+  .booksec:not([open]) > summary::before { content: "▸"; }
+  .booksec > summary:hover { color: var(--ink); }
+  .booksec > summary .count { margin-left: auto; color: var(--muted); font-weight: 500; }
   footer { text-align: center; color: var(--muted); font-size: 11.5px; padding: 8px 0 24px; }
 </style>
 </head>
@@ -319,18 +329,43 @@
 
 <div class="page" id="page-portfolio">
   <section>
-    <h2>Scoreboard <span class="sub">— six books, same capital, same day. Every arm is scored against <b>core_spy</b>, the passive control</span></h2>
+    <h2>Scoreboard <span class="sub">— <span id="bookCount">all</span> books, same capital, same day. Every arm is scored against <b>core_spy</b>, the passive control</span></h2>
     <div class="tiles" id="tiles"></div>
 
-    <div class="subhead">🧠 Strategic positions <span class="sub">(LLM signals, auto-traded at live prices)</span></div>
-    <table class="data"><thead><tr>
-      <th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Since</th>
-    </tr></thead><tbody id="paperBody"></tbody></table>
+    <details class="booksec" id="sec-strategic" open>
+      <summary>🧠 Strategic positions <span class="sub">(LLM signals, auto-traded at live prices)</span>
+        <span class="count" id="strategicCount"></span></summary>
+      <table class="data"><thead><tr>
+        <th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Since</th>
+      </tr></thead><tbody id="paperBody"></tbody></table>
+    </details>
 
-    <div class="subhead">⚡ Tactical positions <span class="sub" id="tacticalSub">(rule-based)</span></div>
-    <table class="data"><thead><tr>
-      <th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Rule</th><th>Since</th>
-    </tr></thead><tbody id="tacticalBody"></tbody></table>
+    <details class="booksec" id="sec-tactical" open>
+      <summary>⚡ Tactical positions <span class="sub" id="tacticalSub">(rule-based)</span>
+        <span class="count" id="tacticalCount"></span></summary>
+      <table class="data"><thead><tr>
+        <th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Note</th><th>Since</th>
+      </tr></thead><tbody id="tacticalBody"></tbody></table>
+    </details>
+
+    <details class="booksec" id="sec-donchian" open>
+      <summary>⚡ Tactical · Donchian positions <span class="sub" id="donchianSub">(rule-based)</span>
+        <span class="count" id="donchianCount"></span></summary>
+      <table class="data"><thead><tr>
+        <th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Target</th><th>Note</th><th>Since</th>
+      </tr></thead><tbody id="donchianBody"></tbody></table>
+    </details>
+
+    <!-- One row per core arm rather than four dropdowns: they hold a single
+         pinned ETF each, and the point of showing them is to prove the sweep
+         actually bought it. Collapsed by default. -->
+    <details class="booksec" id="sec-core">
+      <summary>🧱 Index core books <span class="sub">(pinned ETF only — no signals, no rules)</span>
+        <span class="count" id="coreCount"></span></summary>
+      <table class="data"><thead><tr>
+        <th>Book</th><th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Since</th>
+      </tr></thead><tbody id="coreBody"></tbody></table>
+    </details>
 
     <div class="subhead">💼 Real holdings <span class="sub">(what you actually own — alerts include your P&amp;L)</span></div>
     <div class="holdrow">
@@ -957,6 +992,7 @@ async function loadPortfolio() {
       ? `<b style="color:var(--critical)">DEFENSIVE</b> — ${esc(pf.core_etf)} is below its ${pf.core_trend_window ?? 200}-day average, so the trend-filtered core is sitting in cash.`
       : `Idle cash rests in <b>${esc(pf.core_etf)}</b>${pf.core_trend_filter ? " · trend filter armed" : ""}.`;
 
+  $("bookCount").textContent = pf.books.length;
   $("tiles").className = "tiles board";
   $("tiles").innerHTML =
     `<table class="scoreboard">
@@ -978,27 +1014,59 @@ async function loadPortfolio() {
       luck — the spread on a $10k book is roughly ±$500 of market noise, so read
       <b>vs control</b>, not the raw return.</div>`;
 
-  $("paperBody").innerHTML = pf.paper_positions.length ? pf.paper_positions.map(p => `
-    <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
-      <td class="num">${px(p.avg_price)} ${esc(p.currency)}</td><td class="num">${px(p.last_price)}</td>
-      <td class="num">${usd(p.value_usd)}</td><td class="num">${pnlCell(p.pnl_usd, p.pnl_pct)}</td>
-      <td class="num tier">${px(p.stop_loss)}</td><td class="num tier">${px(p.price_target)}</td>
-      <td class="tier">${fmtWhen(p.opened_at)}</td></tr>`).join("")
-    : `<tr><td colspan="9" class="empty">No strategic positions yet — the first Buy/Overweight signal opens one automatically.</td></tr>`;
+  // One renderer for all three position tables: they differ only by the Note
+  // column, which is meaningless for a book the LLM trades.
+  const posRows = (positions, withNote, empty) => positions.length
+    ? positions.map(p => `
+      <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
+        <td class="num">${px(p.avg_price)} ${esc(p.currency)}</td><td class="num">${px(p.last_price)}</td>
+        <td class="num">${usd(p.value_usd)}</td><td class="num">${pnlCell(p.pnl_usd, p.pnl_pct)}</td>
+        <td class="num tier">${px(p.stop_loss)}</td><td class="num tier">${px(p.price_target)}</td>
+        ${withNote ? `<td class="tier">${esc(p.note ?? "")}</td>` : ""}
+        <td class="tier">${fmtWhen(p.opened_at)}</td></tr>`).join("")
+    : `<tr><td colspan="${withNote ? 10 : 9}" class="empty">${empty}</td></tr>`;
 
-  const tactical = pf.books.find(b => b.label === "tactical");
-  const tacticalPositions = tactical ? tactical.positions : [];
-  $("tacticalSub").textContent = pf.tactical_rule
-    ? `(rule: ${pf.tactical_rule}, end-of-day passes)`
-    : "(disabled — no rule passed the 10-year backtest gate; enable deliberately via TACTICAL_RULE in .env)";
-  $("tacticalBody").innerHTML = tacticalPositions.length ? tacticalPositions.map(p => `
-    <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
+  // Live P&L in the header, so a collapsed section still says how it is doing.
+  const countLabel = (b) => {
+    if (!b) return "—";
+    const n = b.positions.length;
+    const pnl = b.unrealised_pnl_usd == null ? ""
+      : ` · <span class="${cls(b.unrealised_pnl_usd)}">${b.unrealised_pnl_usd >= 0 ? "+" : "−"}$${Math.abs(b.unrealised_pnl_usd).toFixed(2)}</span>`;
+    return `${n} open${pnl}`;
+  };
+
+  $("paperBody").innerHTML = posRows(pf.paper_positions, false,
+    "No strategic positions yet — the first Buy/Overweight signal opens one automatically.");
+  $("strategicCount").innerHTML = countLabel(pf.books.find(b => b.label === "strategic"));
+
+  // Both rule arms render identically; only the rule and the DOM ids differ.
+  for (const [label, ids] of [
+    ["tactical", { body: "tacticalBody", sub: "tacticalSub", count: "tacticalCount" }],
+    ["tactical_donchian", { body: "donchianBody", sub: "donchianSub", count: "donchianCount" }],
+  ]) {
+    const book = pf.books.find(b => b.label === label);
+    const rule = book ? book.rule : "";
+    $(ids.sub).textContent = rule
+      ? `(rule: ${rule}, end-of-day passes)`
+      : "(disabled — set TACTICAL_RULE in .env to enable)";
+    $(ids.body).innerHTML = posRows(book ? book.positions : [], true, rule
+      ? "No positions — the rule sees no setups right now."
+      : "Idle by design: every tested rule lost to buy-and-hold over 10 years (see scripts/backtest_tactical.py).");
+    $(ids.count).innerHTML = countLabel(book);
+  }
+
+  const coreBooks = pf.books.filter(b => !b.active);
+  const coreRows = coreBooks.flatMap(b => b.positions.map(p => ({ book: b.label, p })));
+  $("coreBody").innerHTML = coreRows.length ? coreRows.map(({ book, p }) => `
+    <tr><td><span class="swatch" style="background:var(--book-${book})"></span>
+        <span class="book-name">${esc(book)}</span></td>
+      <td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
       <td class="num">${px(p.avg_price)} ${esc(p.currency)}</td><td class="num">${px(p.last_price)}</td>
       <td class="num">${usd(p.value_usd)}</td><td class="num">${pnlCell(p.pnl_usd, p.pnl_pct)}</td>
-      <td class="num tier">${px(p.stop_loss)}</td><td class="num tier">${px(p.price_target)}</td>
-      <td class="tier">${esc(p.note ?? "")}</td>
       <td class="tier">${fmtWhen(p.opened_at)}</td></tr>`).join("")
-    : `<tr><td colspan="10" class="empty">${pf.tactical_rule ? "No tactical positions — the rule sees no setups right now." : "Tactical book idle by design: every tested rule lost to buy-and-hold over 10 years (see scripts/backtest_tactical.py)."}</td></tr>`;
+    : `<tr><td colspan="8" class="empty">No core positions — if this stays empty the cash sweep is not running.</td></tr>`;
+  const coreOpen = coreBooks.filter(b => b.positions.length).length;
+  $("coreCount").textContent = `${coreOpen}/${coreBooks.length} books holding`;
 
   $("realBody").innerHTML = pf.real_positions.length ? pf.real_positions.map(p => `
     <tr><td><b>${esc(p.symbol)}</b></td><td class="num">${qty(p.quantity)}</td>
@@ -1104,6 +1172,15 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && $("detail").classList.contains("open")) {
     $("detail").classList.remove("open");
   }
+});
+
+// Remember which position tables were collapsed. Three tables plus the
+// scoreboard make the page long, and re-collapsing after every reload is the
+// kind of friction that stops someone checking it daily.
+document.querySelectorAll("details.booksec").forEach(d => {
+  const key = `collapse:${d.id}`;
+  if (localStorage.getItem(key) === "closed") d.open = false;
+  d.addEventListener("toggle", () => localStorage.setItem(key, d.open ? "open" : "closed"));
 });
 
 route();

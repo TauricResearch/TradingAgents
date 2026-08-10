@@ -169,6 +169,8 @@ class BookSummary(BaseModel):
     open_positions: int = 0
     core_etf: str = "SPY"
     description: str = ""
+    rule: str = ""                  # rule-driven arms only; "" for LLM/core arms
+    active: bool = True             # False for arms that only hold their core
 
 
 class EquityPoint(BaseModel):
