@@ -7,6 +7,7 @@ so the portfolio's P&L measures the signals themselves.
 
 import asyncio
 import logging
+import math
 import time
 from datetime import datetime, timezone
 
@@ -43,6 +44,27 @@ _FX_TTL_SECONDS = 1800
 _PRICE_CACHE: dict[str, float] = {}
 
 
+def _usable_price(value: object, symbol: str) -> float | None:
+    """A price we can actually trade on, or None.
+
+    yfinance returns float('nan') for a symbol it cannot price — NOT None. Every
+    guard in this codebase was `if price is None`, which NaN passes straight
+    through, and NaN then propagates silently: quantity = alloc / nan is nan,
+    and SQLite rejects it with "NOT NULL constraint failed". On 2026-08-10 a
+    single NaN on AEGISVOPAK.NS aborted an entire rule pass, and one NaN-priced
+    holding made paper_equity_usd return NaN, which killed the equity snapshot
+    for EVERY book that day. Reject it here so it can never leave this module.
+    """
+    try:
+        price = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(price) or price <= 0:
+        logger.warning("Unusable price for %s: %r", symbol, value)
+        return None
+    return price
+
+
 def _live_price_sync(symbol: str) -> float | None:
     """Latest traded price in the instrument's quote currency (real market data).
 
@@ -56,9 +78,19 @@ def _live_price_sync(symbol: str) -> float | None:
     try:
         history = yf.Ticker(normalize_symbol(symbol)).history(period="5d")
         if not history.empty:
-            price = float(history["Close"].iloc[-1])
-            _PRICE_CACHE[symbol] = price
-            return price
+            # dropna() before taking the last bar. Yahoo appends a row for the
+            # CURRENT day with a NaN close whenever that session's daily bar is
+            # not published yet — which is every US afternoon for .NS tickers,
+            # since NSE closed hours earlier. Reading iloc[-1] blindly returned
+            # NaN for every Indian name, and the only reason it ever looked fine
+            # is that the dashboard's batched polling had already filled
+            # _PRICE_CACHE, so the fallback below silently covered it. The batch
+            # path has always done this; this one never did.
+            closes = history["Close"].dropna()
+            price = _usable_price(closes.iloc[-1], symbol) if not closes.empty else None
+            if price is not None:
+                _PRICE_CACHE[symbol] = price
+                return price
     except Exception:
         logger.warning("Live price fetch failed for %s", symbol)
     cached = _PRICE_CACHE.get(symbol)
@@ -128,12 +160,19 @@ async def paper_equity_usd(book: str = "strategic") -> float | None:
     total = account.cash
     for position in positions:
         value = await _position_value_usd(position)
-        if value is None:
+        if value is None or not math.isfinite(value):
             logger.warning("No live value for %s; using cost basis", position.symbol)
             rate = await usd_rate(position.currency) or 1.0
             value = position.quantity * position.avg_price / rate
+        if not math.isfinite(value):
+            # Cost basis itself is corrupt (a NaN got persisted). Reporting None
+            # beats returning NaN: callers already handle None, whereas NaN
+            # silently poisons equity, snapshots and every downstream percentage.
+            logger.error("Non-finite value for %s in %s; equity unavailable",
+                         position.symbol, book)
+            return None
         total += value
-    return total
+    return total if math.isfinite(total) else None
 
 
 async def execute_signal(
@@ -345,7 +384,11 @@ def _batch_prices_sync(symbols: list[str]) -> dict[str, float]:
                 )
                 closes = closes.dropna()
                 if not closes.empty:
-                    price = float(closes.iloc[-1])
+                    # dropna() removes NaN rows, but a fully-NaN column can still
+                    # yield one; _usable_price is the belt to that braces.
+                    price = _usable_price(closes.iloc[-1], original)
+                    if price is None:
+                        continue
                     prices[original] = price
                     _PRICE_CACHE[original] = price
             except (KeyError, TypeError, IndexError):

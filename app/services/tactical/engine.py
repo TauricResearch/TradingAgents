@@ -24,6 +24,7 @@ circuit breaker that blocks new entries (exits always allowed).
 
 import asyncio
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import get_settings
@@ -117,7 +118,14 @@ async def _tactical_buy(
     position_type = BOOK_POSITION_TYPE[book]
     price = await live_price(symbol)
     equity = await paper_equity_usd(book)
+    # isfinite, not just `is None`: yfinance hands back NaN for a symbol it
+    # cannot price, and NaN reaches the INSERT as a NOT NULL violation that
+    # aborts the whole pass for this book (seen on AEGISVOPAK.NS, 2026-08-10).
     if price is None or equity is None:
+        return None
+    if not math.isfinite(price) or price <= 0 or not math.isfinite(equity):
+        logger.warning("%s buy skipped for %s: unusable price/equity (%r/%r)",
+                       book, symbol, price, equity)
         return None
     settings = get_settings()
     currency = currency_for_market(Market(market))
@@ -332,10 +340,20 @@ async def record_equity_snapshots() -> None:
     today = datetime.now(timezone.utc).date().isoformat()
     from app.services.books import BOOKS
 
+    recorded = 0
     for book in BOOKS:
         equity = await paper_equity_usd(book)
-        if equity is None:
+        # Per-book try/except AND an isfinite check: one book's bad price used to
+        # raise on INSERT and abort the loop, so a single NaN cost EVERY book its
+        # snapshot that day — i.e. a hole in the equity curve the scoreboard is
+        # built on. One arm's data problem must not blind the others.
+        if equity is None or not math.isfinite(equity):
+            logger.error("No usable equity for %s; snapshot skipped", book)
             continue
-        async with session_factory()() as session, session.begin():
-            await PortfolioRepository(session).record_snapshot(book, today, equity)
-    logger.info("Equity snapshots recorded for %s", today)
+        try:
+            async with session_factory()() as session, session.begin():
+                await PortfolioRepository(session).record_snapshot(book, today, equity)
+            recorded += 1
+        except Exception:
+            logger.exception("Snapshot failed for %s", book)
+    logger.info("Equity snapshots recorded for %s: %d/%d books", today, recorded, len(BOOKS))
