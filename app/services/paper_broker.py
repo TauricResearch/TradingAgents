@@ -100,24 +100,61 @@ def _live_price_sync(symbol: str) -> float | None:
 
 
 def _usd_rate_sync(currency: str) -> float | None:
-    """Quote-currency units per USD, live via yfinance (cached ~30 min)."""
+    """Quote-currency units per USD, live via yfinance (cached ~30 min).
+
+    Freshest source first: an intraday bar beats yesterday's close, and every
+    .NS position is marked through this rate, so a stale rate silently misprices
+    a third of the watchlist.
+
+    Carries the same NaN discipline as the price path, for the same reason. The
+    old version did ``float(history["Close"].iloc[-1])`` with no dropna and no
+    finite check, so Yahoo's unpublished current-day row (a NaN close) became a
+    NaN rate — and then CACHED it for 30 minutes. Callers guard with
+    ``rate is None or rate <= 0``, and ``nan <= 0`` is False, so a NaN rate flows
+    straight into ``quantity = alloc * rate / price`` and lands as a NOT NULL
+    violation that aborts the caller's whole pass.
+    """
     if currency == "USD":
         return 1.0
     cached = _FX_CACHE.get(currency)
     if cached and time.monotonic() - cached[1] < _FX_TTL_SECONDS:
         return cached[0]
+
     import yfinance as yf
 
-    try:
-        history = yf.Ticker(f"USD{currency}=X").history(period="5d")
-        if history.empty:
-            return None
-        rate = float(history["Close"].iloc[-1])
-        _FX_CACHE[currency] = (rate, time.monotonic())
-        return rate
-    except Exception:
-        logger.exception("FX rate fetch failed for %s", currency)
-        return None
+    pair = f"USD{currency}=X"
+    ticker = yf.Ticker(pair)
+    for period, interval in (("1d", "1m"), ("5d", None)):
+        try:
+            history = (
+                ticker.history(period=period, interval=interval) if interval
+                else ticker.history(period=period)
+            )
+            if history.empty:
+                continue
+            closes = history["Close"].dropna()
+            if closes.empty:
+                continue
+            rate = _usable_price(closes.iloc[-1], pair)
+            if rate is None:
+                continue
+            _FX_CACHE[currency] = (rate, time.monotonic())
+            logger.info("FX %s = %.4f as of %s", pair, rate, closes.index[-1])
+            return rate
+        except Exception:
+            logger.warning("FX fetch failed for %s (period=%s)", pair, period)
+
+    # A stale-but-real rate beats None: None makes every position in that
+    # currency unpriceable, which reads as a book with no value at all.
+    if cached:
+        age_min = (time.monotonic() - cached[1]) / 60
+        logger.warning(
+            "No fresh FX for %s; using cached %.4f (%.0f min old)",
+            currency, cached[0], age_min,
+        )
+        return cached[0]
+    logger.error("No FX rate available for %s — positions in it cannot be marked", currency)
+    return None
 
 
 async def live_price(symbol: str) -> float | None:
@@ -202,7 +239,10 @@ async def _paper_buy(
     price = await live_price(symbol)
     rate = await usd_rate(currency)
     equity = await paper_equity_usd()
-    if price is None or rate is None or equity is None:
+    # rate <= 0 checked explicitly: it is a divisor below, and the other call
+    # sites already guard it. usd_rate cannot return NaN any more, but a zero
+    # would still divide by zero here.
+    if price is None or rate is None or rate <= 0 or equity is None:
         logger.warning("Paper buy skipped for %s: no live price/FX", symbol)
         return None
 
