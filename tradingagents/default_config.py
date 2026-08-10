@@ -134,13 +134,19 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "news_data": "yfinance",             # Options: alpha_vantage, yfinance (+ firecrawl per tool, see below)
         "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
         "prediction_markets": "polymarket",  # Options: polymarket (keyless)
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        # Firecrawl (needs FIRECRAWL_API_KEY) covers get_news / get_global_news
+        # only, so set it per tool rather than for the whole news_data category,
+        # which also serves get_insider_transactions. It searches the open web
+        # instead of one vendor's wire — useful as a fallback for tickers Yahoo
+        # and Alpha Vantage cover thinly.
+        # Example: "get_news": "yfinance,firecrawl",
     },
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all

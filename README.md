@@ -145,6 +145,7 @@ export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export FIRECRAWL_API_KEY=...       # Firecrawl (optional web-search news vendor)
 ```
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
@@ -159,6 +160,38 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
 ```
+
+### News from a web search (Firecrawl)
+
+News defaults to Yahoo Finance, with Alpha Vantage as an alternative. Both return
+one provider's wire, so a ticker they cover thinly — a non-US listing, a small cap,
+anything whose coverage sits in trade press or a company newsroom — reads as "no
+news" rather than "nothing happened". [Firecrawl](https://docs.firecrawl.dev)
+searches the open web instead, and works well chained behind the default:
+
+```python
+import copy
+
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+config = copy.deepcopy(DEFAULT_CONFIG)  # .copy() is shallow: nested dicts would be shared
+config["tool_vendors"]["get_news"] = "yfinance,firecrawl"        # ticker news
+config["tool_vendors"]["get_global_news"] = "yfinance,firecrawl" # macro headlines
+
+ta = TradingAgentsGraph(config=config)
+_, decision = ta.propagate("NVDA", "2026-01-15")
+```
+
+Chained this way Yahoo stays the primary and Firecrawl is consulted only when it
+comes back empty or fails.
+
+Set `FIRECRAWL_API_KEY` ([get a key](https://www.firecrawl.dev)); without it the
+vendor reports itself unavailable and the chain falls through to the next one.
+Queries are pinned to the analysis window server-side, so a historical run cannot
+pull in articles published after its end date. Firecrawl serves `get_news` and
+`get_global_news` only — set it per tool as above rather than on the whole
+`news_data` category, which also covers `get_insider_transactions`.
 
 ### CLI Usage
 

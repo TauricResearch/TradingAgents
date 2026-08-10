@@ -14,8 +14,13 @@ from .alpha_vantage import (
 from .config import get_config
 from .errors import (
     NoMarketDataError,
+    NoNewsError,
     VendorNotConfiguredError,
     VendorRateLimitError,
+)
+from .firecrawl_news import (
+    get_global_news_firecrawl,
+    get_news_firecrawl,
 )
 from .fred import get_macro_data as get_fred_macro_data
 from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
@@ -82,6 +87,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "firecrawl",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -124,10 +130,12 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "firecrawl": get_news_firecrawl,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "firecrawl": get_global_news_firecrawl,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
@@ -193,6 +201,7 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_chain = all_available_vendors
 
     last_no_data: NoMarketDataError | None = None
+    first_no_news: NoNewsError | None = None
     first_error: Exception | None = None
     for vendor in vendor_chain:
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -210,6 +219,14 @@ def route_to_vendor(method: str, *args, **kwargs):
             continue
         except NoMarketDataError as e:
             last_no_data = e  # No data here; another configured vendor may have it
+            continue
+        except NoNewsError as e:
+            # An empty news window is not a failure, so nothing is logged — but it
+            # must not end the chain either: one wire having no articles is exactly
+            # when a broader-coverage vendor earns its place (e.g.
+            # tool_vendors={"get_news": "yfinance,firecrawl"}).
+            if first_no_news is None:
+                first_no_news = e  # Keep the primary's wording if nobody has news.
             continue
         except Exception as e:
             # Don't let one vendor's failure crash the call when another can
@@ -245,6 +262,18 @@ def route_to_vendor(method: str, *args, **kwargs):
             f"not covered, or the vendor returned stale data. Do not estimate or "
             f"fabricate values — report that data is unavailable for this symbol."
         )
+
+    # No vendor in the chain had articles. Return the primary's own message
+    # rather than the market-data sentinel above: an empty news window carries no
+    # verdict on the symbol, so "may be invalid, delisted, or stale" would be a
+    # false claim for a ticker that simply had a quiet week.
+    if first_no_news is not None:
+        if first_error is not None:
+            logger.warning(
+                "Returning no-news for %s, but a vendor errored earlier: %s",
+                method, first_error,
+            )
+        return str(first_no_news)
 
     # No vendor returned data and none reported clean "no data" — surface the
     # first real error (e.g. the primary vendor's network failure). Optional
