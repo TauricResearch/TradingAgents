@@ -237,3 +237,8 @@ capacity-watch.log
 # new_pc.md. Never commit it: it holds the paper-trading history AND, if you
 # followed the credential steps, private keys.
 data/
+
+# Migration fingerprints from scripts/verify_migration.py --json. Point-in-time
+# diagnostics, regenerable in one command, and stale the moment a trade lands —
+# a committed copy would read as 'history lost' on a later diff.
+*_move.json

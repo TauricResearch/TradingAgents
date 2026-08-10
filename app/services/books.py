@@ -43,6 +43,15 @@ class BookSpec:
     #: False for arms that only trade their core (no signals, no rules).
     active: bool
     description: str
+    #: True for arms driven by a mechanical rule rather than by the LLM. These
+    #: are the arms that carry a trailing stop; the strategic book's stops come
+    #: from the model's own decision text instead.
+    rule_driven: bool = False
+    #: Rule name for a rule-driven arm. Empty means "follow TACTICAL_RULE", so
+    #: the original tactical book stays user-configurable. Every ADDITIONAL rule
+    #: arm pins its own, for the same reason the core arms pin their ETF: an arm
+    #: whose rule can change under you is not a comparison.
+    rule: str = ""
 
 
 BOOKS: dict[str, BookSpec] = {
@@ -58,6 +67,22 @@ BOOKS: dict[str, BookSpec] = {
     "tactical": BookSpec(
         "tactical", "tactical", "VOO", False, True,
         "rule-based trend entries over an index core",
+        rule_driven=True,
+    ),
+    # Second rule arm. Donchian beat trend_following on every measured axis over
+    # 10y/22 names with real per-market costs — more money ($43.6k vs $41.4k on
+    # $10k), more realised profit ($491 vs $410 per 2 months), 46% vs 32% wins,
+    # and a shallower drawdown (-19% vs -26%). But its edge over a random-entry
+    # twin was +0.03 Sharpe, i.e. inside noise, so timing skill is UNPROVEN.
+    # Running it as its own arm is how that gets settled with data.
+    #
+    # IVV, not SPY or VOO: a third S&P 500 tracker, because two books sharing a
+    # core symbol makes get_position (scalar_one_or_none) raise
+    # MultipleResultsFound and permanently blocks that book's sweep.
+    "tactical_donchian": BookSpec(
+        "tactical_donchian", "tac_donchian", "IVV", False, True,
+        "rule-based 55/20 breakout over an index core",
+        rule_driven=True, rule="donchian_breakout",
     ),
     "core_spy": BookSpec(
         "core_spy", "core_spy", "SPY", False, False,
@@ -79,6 +104,26 @@ BOOKS: dict[str, BookSpec] = {
 
 #: Legacy mapping kept for existing call sites.
 BOOK_POSITION_TYPE: dict[str, str] = {k: v.position_type for k, v in BOOKS.items()}
+
+#: Reverse lookup: Position.account_type -> book label. Lets the stop monitor and
+#: the trailing-stop ratchet resolve which book a row belongs to instead of
+#: hardcoding book names, so a new arm wires itself in by being added above.
+POSITION_TYPE_BOOK: dict[str, str] = {v.position_type: k for k, v in BOOKS.items()}
+
+#: Position types whose book trades automatically (stop/target exits allowed).
+AUTO_POSITION_TYPES: frozenset[str] = frozenset(
+    s.position_type for s in BOOKS.values() if s.active
+)
+
+#: Position types that carry a ratcheting trailing stop (rule-driven arms only).
+RULE_POSITION_TYPES: frozenset[str] = frozenset(
+    s.position_type for s in BOOKS.values() if s.rule_driven
+)
+
+
+def rule_for(book: str, configured: str = "") -> str:
+    """The rule a book trades. Pinned in the spec, else the configured default."""
+    return spec(book).rule or configured
 
 
 def spec(book: str) -> BookSpec:

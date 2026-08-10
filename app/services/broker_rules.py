@@ -111,7 +111,11 @@ COST_BPS_US_SMALL = 25       # screener picks: wider spreads, thinner books
 COST_BPS_INDIA = 35          # NSE: spread + STT + stamp duty + exchange fees
 COST_BPS_CRYPTO = 10         # major pairs on a retail venue
 
-_LIQUID_ETFS = frozenset({"SPY", "VOO", "QQQ", "IWM", "SSO", "JEPI", "GLD", "SLV", "AGG"})
+_LIQUID_ETFS = frozenset(
+    # IVV is here because it is a third S&P 500 tracker used as a book's core:
+    # two arms cannot share a core symbol without colliding in get_position.
+    {"SPY", "VOO", "IVV", "QQQ", "IWM", "SSO", "JEPI", "GLD", "SLV", "AGG"}
+)
 
 
 def cost_bps(symbol: str, market: str, category: str = "satellite") -> float:

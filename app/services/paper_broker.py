@@ -107,7 +107,12 @@ async def _position_value_usd(position: Position) -> float | None:
 # Book label -> the account_type its positions/trades carry. Defined in
 # app/services/books.py, which also holds each arm's core ETF and trend
 # setting. Re-exported here because most call sites already import it.
-from app.services.books import BOOK_POSITION_TYPE  # noqa: E402
+from app.services.books import (  # noqa: E402
+    AUTO_POSITION_TYPES,
+    BOOK_POSITION_TYPE,
+    POSITION_TYPE_BOOK,
+    RULE_POSITION_TYPES,
+)
 from app.services.core_holding import is_core  # noqa: E402
 
 
@@ -376,7 +381,9 @@ async def _ratchet_trailing_stops(
     trail = settings.tactical_trail_pct / 100.0
     updates: dict[int, float] = {}
     for pos_id, account_type, symbol, stop, _target in snapshot:
-        if account_type != "tactical":
+        # Every rule-driven arm, not just the original tactical book — a second
+        # rule arm with no ratchet would silently run fixed entry stops.
+        if account_type not in RULE_POSITION_TYPES:
             continue
         price = prices.get(symbol)
         if price is None:
@@ -454,7 +461,7 @@ async def check_stops() -> list[str]:
         breach = None  # (kind, level)
         if stop and price <= stop:
             breach = ("stop-loss", stop)
-        elif target and account_type in ("paper", "tactical") and price >= target:
+        elif target and account_type in AUTO_POSITION_TYPES and price >= target:
             breach = ("target", target)
         if breach is None:
             _pending_breaches.pop((pos_id, "stop-loss"), None)
@@ -469,8 +476,8 @@ async def check_stops() -> list[str]:
             )
             continue
 
-        if account_type in ("paper", "tactical"):
-            book = "strategic" if account_type == "paper" else "tactical"
+        if account_type in AUTO_POSITION_TYPES:
+            book = POSITION_TYPE_BOOK[account_type]
             reason = f"{kind} {level:,.2f} hit"
             summary = await _paper_sell(symbol, "all", reason=reason, book=book)
             if summary:

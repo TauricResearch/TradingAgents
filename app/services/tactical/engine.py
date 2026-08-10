@@ -32,7 +32,8 @@ from app.models.base import session_factory
 from app.models.entities import Position, Trade
 from app.repositories.portfolio import PortfolioRepository
 from app.repositories.watchlist import WatchlistRepository
-from app.services.broker_rules import apply_cost, currency_for_market
+from app.services.books import BOOK_POSITION_TYPE, rule_for
+from app.services.broker_rules import MIN_ORDER_USD, apply_cost, currency_for_market
 from app.services.paper_broker import (
     _paper_sell,
     live_price,
@@ -56,7 +57,7 @@ def _history_sync(symbol: str):
     return df if not df.empty else None
 
 
-async def _universe() -> list[tuple[str, str, str]]:
+async def _universe(book: str = "tactical") -> list[tuple[str, str, str]]:
     """Candidate (symbol, market, category) triples the rule may trade.
 
     CORE_ETF is excluded. It is the book's cash-parking vehicle, and a symbol
@@ -73,7 +74,15 @@ async def _universe() -> list[tuple[str, str, str]]:
     Excluding it keeps the book readable as "rule positions + benchmark core".
     """
     settings = get_settings()
-    core_etf = settings.core_etf.strip().upper()
+    # THIS book's core ETF, not the global CORE_ETF setting. The tactical book
+    # parks in VOO while the setting says SPY, so the old global lookup excluded
+    # the wrong symbol: had VOO ever reached the watchlist, the rule could have
+    # opened a VOO position, and get_position (scalar_one_or_none) would then
+    # raise MultipleResultsFound against the sweep's own core row — permanently
+    # blocking that book from deploying idle cash.
+    from app.services.core_holding import core_etf_for
+
+    core_etf = core_etf_for(book).strip().upper()
     scope = settings.tactical_universe.strip().lower()
     async with session_factory()() as session:
         rows = await WatchlistRepository(session).list_all()
@@ -92,16 +101,22 @@ async def _universe() -> list[tuple[str, str, str]]:
     ]
 
 
-async def _tactical_buy(symbol: str, rule: str, market: str, category: str) -> str | None:
+async def _tactical_buy(
+    symbol: str, rule: str, market: str, category: str, book: str = "tactical"
+) -> str | None:
     """Open a rule position. ``market``/``category`` come from the watchlist row.
 
     They must not be assumed: once ``tactical_universe`` widens beyond US core,
     the book can hold ``.NS`` names priced in INR and crypto, and hardcoding
     USD/us would book an Indian fill at the wrong currency and undercharge its
     spread by 7x.
+
+    ``book`` selects which rule arm is trading, so a second rule book shares
+    this code rather than forking it.
     """
+    position_type = BOOK_POSITION_TYPE[book]
     price = await live_price(symbol)
-    equity = await paper_equity_usd("tactical")
+    equity = await paper_equity_usd(book)
     if price is None or equity is None:
         return None
     settings = get_settings()
@@ -129,52 +144,54 @@ async def _tactical_buy(symbol: str, rule: str, market: str, category: str) -> s
     # transaction below.
     alloc_target = equity * settings.tactical_size_pct
     async with session_factory()() as session:
-        if await PortfolioRepository(session).get_position("tactical", symbol) is not None:
+        if await PortfolioRepository(session).get_position(position_type, symbol) is not None:
             return None
-    if alloc_target >= 50:
-        await ensure_cash("tactical", alloc_target)
+    if alloc_target >= MIN_ORDER_USD:
+        await ensure_cash(book, alloc_target)
 
     async with session_factory()() as session, session.begin():
         repo = PortfolioRepository(session)
-        account = await repo.get_account("tactical")
+        account = await repo.get_account(book)
         if account is None:
             return None
-        if await repo.get_position("tactical", symbol) is not None:
+        if await repo.get_position(position_type, symbol) is not None:
             return None
         alloc = min(equity * settings.tactical_size_pct, account.cash)
-        if alloc < 50:
-            logger.info("Tactical buy skipped for %s: insufficient cash", symbol)
+        if alloc < MIN_ORDER_USD:
+            logger.info("%s buy skipped for %s: insufficient cash", book, symbol)
             return None
         # alloc is USD; quantity is in the instrument's own currency.
         quantity = (alloc * rate) / price
         fee = apply_cost(alloc, symbol, market, category)
         account.cash -= alloc + fee
         await repo.add_position(Position(
-            account_type="tactical", symbol=symbol, market=market,
+            account_type=position_type, symbol=symbol, market=market,
             currency=currency, quantity=quantity, avg_price=price, stop_loss=stop,
             note=f"rule {rule}",
         ))
         await repo.add_trade(Trade(
-            account_type="tactical", symbol=symbol, side="buy",
+            account_type=position_type, symbol=symbol, side="buy",
             quantity=quantity, price=price, currency=currency,
             reason=f"tactical {rule}",
         ))
     return f"bought {quantity:.4f} {symbol} @ {price:,.2f} {currency} (≈${alloc:,.0f})"
 
 
-async def _in_cooldown(symbol: str, days: int) -> bool:
-    """True when this symbol was sold from the tactical book within ``days``.
+async def _in_cooldown(symbol: str, days: int, book: str = "tactical") -> bool:
+    """True when this symbol was sold from ``book`` within ``days``.
 
     Without this the rule re-buys whatever the stop just sold: in Jul 2026
     both AMZN and LLY were stopped out and re-entered within days at HIGHER
     prices, turning noise into realised losses on the round trip.
+
+    Scoped per book, so one arm's stop-out does not block another arm's entry.
     """
     if days <= 0:
         return False
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     async with session_factory()() as session:
         trades = await PortfolioRepository(session).list_trades(
-            limit=500, account_type="tactical"
+            limit=500, account_type=BOOK_POSITION_TYPE[book]
         )
     for trade in trades:
         if trade.symbol != symbol or trade.side != "sell" or trade.executed_at is None:
@@ -188,45 +205,70 @@ async def _in_cooldown(symbol: str, days: int) -> bool:
     return False
 
 
-async def run_tactical() -> list[str]:
-    """One end-of-day tactical pass. Returns human-readable action summaries."""
+async def run_tactical(book: str = "tactical") -> list[str]:
+    """One end-of-day pass for one rule arm. Returns action summaries.
+
+    ``book`` selects the arm. Its rule is pinned in the book spec, falling back
+    to TACTICAL_RULE for the original tactical book so that stays configurable.
+    """
     settings = get_settings()
-    rule = settings.tactical_rule.strip()
+    position_type = BOOK_POSITION_TYPE[book]
+    rule = rule_for(book, settings.tactical_rule.strip()).strip()
     if not rule:
         return []  # disabled — the backtest gate was not passed by default
     if rule not in RULES:
-        logger.error("Unknown tactical rule %r; available: %s", rule, list(RULES))
+        logger.error("Unknown rule %r for %s; available: %s", rule, book, list(RULES))
         return []
 
     from app.services.core_holding import is_core
     from app.services.notifier import Notifier
 
-    universe = await _universe()
+    universe = await _universe(book)
     async with session_factory()() as session:
         repo = PortfolioRepository(session)
         # The index core is excluded: it is not a rule position. Counting it
-        # would consume a max-positions seat, and — because CORE_ETF (SPY) is
-        # itself a 'core'-category watchlist name and therefore in the
+        # would consume a max-positions seat, and — because the core ETF can
+        # itself be a 'core'-category watchlist name and therefore in the
         # universe — a `signal == 0` on it would exit the benchmark.
         held = {
-            p.symbol for p in await repo.list_positions("tactical") if not is_core(p)
+            p.symbol for p in await repo.list_positions(position_type) if not is_core(p)
         }
 
     # Daily-loss circuit breaker: compare live equity to today's snapshot.
-    equity = await paper_equity_usd("tactical")
+    equity = await paper_equity_usd(book)
     block_entries = False
     if equity is not None:
         today = datetime.now(timezone.utc).date().isoformat()
         async with session_factory()() as session:
-            snapshots = await PortfolioRepository(session).list_snapshots("tactical", limit=2)
+            snapshots = await PortfolioRepository(session).list_snapshots(book, limit=2)
         baseline = next(
             (s.equity_usd for s in snapshots if s.snapshot_date == today),
             snapshots[-1].equity_usd if snapshots else None,
         )
         if baseline and equity < baseline * (1 - settings.tactical_daily_loss_cap_pct / 100):
             block_entries = True
-            logger.warning("Tactical circuit breaker: down >%s%% today — entries blocked",
-                           settings.tactical_daily_loss_cap_pct)
+            logger.warning("%s circuit breaker: down >%s%% today — entries blocked",
+                           book, settings.tactical_daily_loss_cap_pct)
+
+    # Capital, not the counter, is the real ceiling: size_pct x max_positions
+    # cannot exceed the investable fraction of equity. Past that point the
+    # remaining slots either fill with sub-$50 dust or not at all, because
+    # `alloc = min(equity * size_pct, account.cash)` silently shrinks as cash
+    # depletes — so the configured diversification target is quietly missed.
+    #
+    # Clamped here rather than as an AssistantSettings validator on purpose:
+    # that model is shared by every subsystem, so a cross-field validator would
+    # turn a tactical-only misconfiguration into a startup crash for the whole
+    # assistant service.
+    investable_pct = 100.0 - settings.core_cash_buffer_pct
+    capital_cap = max(1, int(investable_pct // (settings.tactical_size_pct * 100)))
+    position_cap = min(settings.tactical_max_positions, capital_cap)
+    if position_cap < settings.tactical_max_positions:
+        logger.info(
+            "Tactical cap clamped %d -> %d: %.0f%% investable at %.0f%% per position",
+            settings.tactical_max_positions, position_cap,
+            investable_pct, settings.tactical_size_pct * 100,
+        )
 
     actions: list[str] = []
     for symbol, market, category in universe:
@@ -240,18 +282,18 @@ async def run_tactical() -> list[str]:
             continue
 
         if signal == 1 and symbol not in held:
-            if block_entries or len(held) >= settings.tactical_max_positions:
+            if block_entries or len(held) >= position_cap:
                 continue
-            if await _in_cooldown(symbol, settings.tactical_reentry_cooldown_days):
-                logger.info("Tactical entry for %s suppressed: re-entry cooldown", symbol)
+            if await _in_cooldown(symbol, settings.tactical_reentry_cooldown_days, book):
+                logger.info("%s entry for %s suppressed: re-entry cooldown", book, symbol)
                 continue
-            summary = await _tactical_buy(symbol, rule, market, category)
+            summary = await _tactical_buy(symbol, rule, market, category, book)
             if summary:
                 held.add(symbol)
                 actions.append(summary)
         elif signal == 0 and symbol in held:
             summary = await _paper_sell(
-                symbol, "all", reason=f"tactical {rule} exit", book="tactical"
+                symbol, "all", reason=f"tactical {rule} exit", book=book
             )
             if summary:
                 held.discard(symbol)
@@ -260,10 +302,29 @@ async def run_tactical() -> list[str]:
     if actions:
         notifier = Notifier(settings)
         await notifier.send_telegram(
-            "⚡ <b>Tactical (" + rule + ")</b>\n" + "\n".join("· " + a for a in actions)
+            f"⚡ <b>{book} ({rule})</b>\n" + "\n".join("· " + a for a in actions)
         )
-    logger.info("Tactical pass done: %d action(s)", len(actions))
+    logger.info("%s pass done: %d action(s)", book, len(actions))
     return actions
+
+
+async def run_all_tactical() -> list[str]:
+    """Scheduler entry point: one pass per rule-driven arm.
+
+    Each arm is isolated the same way sweep_all_books isolates the core sweep —
+    one book raising must not stop the others from trading.
+    """
+    from app.services.books import BOOKS
+
+    events: list[str] = []
+    for label, book_spec in BOOKS.items():
+        if not book_spec.rule_driven:
+            continue
+        try:
+            events.extend(f"{label}: {a}" for a in await run_tactical(label))
+        except Exception:
+            logger.exception("Tactical pass failed for %s", label)
+    return events
 
 
 async def record_equity_snapshots() -> None:

@@ -25,7 +25,7 @@ from app.services.oci_capacity import check_capacity, is_configured
 from app.services.paper_broker import check_stops
 from app.services.pipeline import run_slot
 from app.services.screener import run_screener
-from app.services.tactical.engine import record_equity_snapshots, run_tactical
+from app.services.tactical.engine import record_equity_snapshots, run_all_tactical
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +64,11 @@ def build_scheduler() -> AsyncIOScheduler:
     # TACTICAL_RULE is explicitly set) + daily equity snapshots for the
     # scoreboard. Neither touches the LLM budget.
     scheduler.add_job(
-        run_tactical,
+        run_all_tactical,
         CronTrigger(day_of_week="mon-fri", hour=15, minute=50,
                     timezone=pytz.timezone("America/New_York")),
         id="tactical",
-        name="tactical rule pass",
+        name="tactical rule passes (all rule arms)",
         coalesce=True,
         max_instances=1,
         misfire_grace_time=1800,
