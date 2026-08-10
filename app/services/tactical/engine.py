@@ -168,9 +168,24 @@ async def _tactical_buy(
         if alloc < MIN_ORDER_USD:
             logger.info("%s buy skipped for %s: insufficient cash", book, symbol)
             return None
+        # Reserve the fee out of the allocation, not out of thin air. Capping
+        # alloc at `cash` and then debiting `alloc + fee` overdraws by exactly
+        # the fee whenever a buy consumes the remaining balance — which is how
+        # tactical and tactical_donchian both ended 2026-08-10 with slightly
+        # NEGATIVE cash (-1.38 and -1.75). Cost is proportional to notional, so
+        # recomputing once after shrinking converges.
+        fee = apply_cost(alloc, symbol, market, category)
+        if alloc + fee > account.cash:
+            alloc = max(0.0, account.cash - fee)
+            fee = apply_cost(alloc, symbol, market, category)
+            if alloc < MIN_ORDER_USD:
+                logger.info(
+                    "%s buy skipped for %s: cash %.2f cannot cover order + fee",
+                    book, symbol, account.cash,
+                )
+                return None
         # alloc is USD; quantity is in the instrument's own currency.
         quantity = (alloc * rate) / price
-        fee = apply_cost(alloc, symbol, market, category)
         account.cash -= alloc + fee
         await repo.add_position(Position(
             account_type=position_type, symbol=symbol, market=market,
