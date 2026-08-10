@@ -3,9 +3,12 @@
 import asyncio
 import json
 import logging
+import os
 import sys
 from contextvars import ContextVar
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +50,29 @@ class JsonFormatter(logging.Formatter):
 
 
 def configure_logging(level: int = logging.INFO) -> None:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter())
     root = logging.getLogger()
     root.handlers.clear()
-    root.addHandler(handler)
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(JsonFormatter())
+    root.addHandler(console)
+
+    # Optional durable log. stdout alone scrolls away with the terminal, so on an
+    # unattended run a failing job leaves no traceback to read afterwards —
+    # which is exactly how weeks of screener failures went unnoticed.
+    path = os.environ.get("ASSISTANT_LOG_FILE", "").strip()
+    if path:
+        try:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            rotating = RotatingFileHandler(
+                path, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+            )
+            rotating.setFormatter(JsonFormatter())
+            root.addHandler(rotating)
+        except OSError:
+            # Never let logging setup stop the service from starting.
+            logger.exception("Could not open ASSISTANT_LOG_FILE %r", path)
+
     root.setLevel(level)
     # Third-party chatter that drowns out the signal at INFO.
     for noisy in ("httpx", "httpcore", "urllib3", "apscheduler.executors"):
