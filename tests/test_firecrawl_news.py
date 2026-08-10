@@ -12,8 +12,9 @@ import requests
 
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
-from tradingagents.dataflows import firecrawl_news, interface
+from tradingagents.dataflows import firecrawl_news, interface, yfinance_news
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.errors import NoNewsError
 
 _ARTICLES = [
     {
@@ -128,12 +129,14 @@ class FirecrawlFormattingTests(unittest.TestCase):
         self.assertTrue(capped.endswith("..."))
 
     @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
-    def test_empty_result_says_so_instead_of_an_empty_body(self):
+    def test_empty_result_raises_so_the_chain_continues(self):
         with mock.patch.object(
             firecrawl_news.requests, "post", return_value=_Response({"data": {"news": []}})
-        ):
-            out = firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
-        self.assertEqual(out, "No news found for NVDA between 2026-03-01 and 2026-03-08")
+        ), self.assertRaises(NoNewsError) as ctx:
+            firecrawl_news.get_news_firecrawl("NVDA", "2026-03-01", "2026-03-08")
+        self.assertEqual(
+            str(ctx.exception), "No news found for NVDA between 2026-03-01 and 2026-03-08"
+        )
 
     @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
     def test_global_news_dedupes_across_queries(self):
@@ -195,6 +198,28 @@ class FirecrawlRoutingTests(unittest.TestCase):
     def tearDown(self):
         config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
 
+    @staticmethod
+    def _yahoo_returning(articles):
+        """Patch the real yfinance news path to return ``articles``."""
+        stock = mock.Mock()
+        stock.get_news.return_value = articles
+        return mock.patch.multiple(
+            yfinance_news,
+            yf=mock.Mock(Ticker=mock.Mock(return_value=stock)),
+            yf_retry=lambda fn: fn(),
+        )
+
+    @staticmethod
+    def _yahoo_raising(exc):
+        """Patch the real yfinance news path to fail the way a live outage does."""
+        stock = mock.Mock()
+        stock.get_news.side_effect = exc
+        return mock.patch.multiple(
+            yfinance_news,
+            yf=mock.Mock(Ticker=mock.Mock(return_value=stock)),
+            yf_retry=lambda fn: fn(),
+        )
+
     def test_registered_for_both_news_methods(self):
         self.assertIn("firecrawl", interface.VENDOR_LIST)
         self.assertIs(
@@ -206,23 +231,46 @@ class FirecrawlRoutingTests(unittest.TestCase):
             firecrawl_news.get_global_news_firecrawl,
         )
 
-    def test_chained_behind_yfinance_it_serves_the_fallback(self):
-        # The documented setup: Firecrawl picks up tickers the default covers thinly.
+    @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
+    def test_quiet_yahoo_window_reaches_firecrawl(self):
+        # The documented setup, exercised through the real vendor functions and
+        # the real router: Yahoo has nothing for this ticker, so Firecrawl — the
+        # vendor configured precisely for that case — must get its turn. A vendor
+        # that returned "No news found..." as a string would end the chain here.
         set_config({"tool_vendors": {"get_news": "yfinance,firecrawl"}})
 
-        def _no_news(*a, **k):
-            raise requests.ConnectionError("yahoo down")
-
-        with mock.patch.dict(
-            interface.VENDOR_METHODS,
-            {"get_news": {
-                "yfinance": _no_news,
-                "firecrawl": lambda *a, **k: "FIRECRAWL_NEWS",
-            }},
-            clear=False,
+        with self._yahoo_returning([]), mock.patch.object(
+            firecrawl_news.requests, "post", return_value=_ok()
         ):
             out = interface.route_to_vendor("get_news", "AAPL", "2026-03-01", "2026-03-08")
-        self.assertEqual(out, "FIRECRAWL_NEWS")
+
+        self.assertIn("### Chipmaker beats estimates (source: reuters.com)", out)
+
+    @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
+    def test_yahoo_outage_reaches_firecrawl(self):
+        # A fetch failure must not read as a valid empty report either.
+        set_config({"tool_vendors": {"get_news": "yfinance,firecrawl"}})
+
+        with self._yahoo_raising(requests.ConnectionError("yahoo down")), \
+                mock.patch.object(firecrawl_news.requests, "post", return_value=_ok()):
+            out = interface.route_to_vendor("get_news", "AAPL", "2026-03-01", "2026-03-08")
+
+        self.assertIn("### Chipmaker beats estimates (source: reuters.com)", out)
+
+    @mock.patch.dict("os.environ", {"FIRECRAWL_API_KEY": "test-key"})
+    def test_whole_chain_empty_returns_the_primary_message(self):
+        # Genuinely quiet week: the analyst gets the primary's wording back, not
+        # a raised exception and not the "may be invalid, delisted" market-data
+        # sentinel — an empty news window says nothing about the symbol.
+        set_config({"tool_vendors": {"get_news": "yfinance,firecrawl"}})
+
+        with self._yahoo_returning([]), mock.patch.object(
+            firecrawl_news.requests, "post", return_value=_Response({"data": {"news": []}})
+        ):
+            out = interface.route_to_vendor("get_news", "AAPL", "2026-03-01", "2026-03-08")
+
+        self.assertEqual(out, "No news found for AAPL")
+        self.assertNotIn("NO_DATA_AVAILABLE", out)
 
     def test_missing_key_falls_through_to_the_next_vendor(self):
         set_config({"tool_vendors": {"get_news": "firecrawl,yfinance"}})

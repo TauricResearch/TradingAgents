@@ -170,10 +170,15 @@ news" rather than "nothing happened". [Firecrawl](https://docs.firecrawl.dev)
 searches the open web instead, and works well chained behind the default:
 
 ```python
-config = DEFAULT_CONFIG.copy()
+import copy
+
+config = copy.deepcopy(DEFAULT_CONFIG)  # .copy() is shallow: nested dicts would be shared
 config["tool_vendors"]["get_news"] = "yfinance,firecrawl"        # ticker news
 config["tool_vendors"]["get_global_news"] = "yfinance,firecrawl" # macro headlines
 ```
+
+Chained this way Yahoo stays the primary and Firecrawl is consulted only when it
+comes back empty or fails.
 
 Set `FIRECRAWL_API_KEY` ([get a key](https://www.firecrawl.dev)); without it the
 vendor reports itself unavailable and the chain falls through to the next one.

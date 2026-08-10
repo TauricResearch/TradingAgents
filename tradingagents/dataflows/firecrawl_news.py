@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 import requests
 
 from .config import get_config
-from .errors import VendorNotConfiguredError, VendorRateLimitError
+from .errors import NoNewsError, VendorNotConfiguredError, VendorRateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -157,12 +157,16 @@ def get_news_firecrawl(ticker: str, start_date: str, end_date: str) -> str:
 
     Returns:
         Formatted string containing news articles
+
+    Raises:
+        NoNewsError: The search returned nothing in the window, so the router
+            can try the next vendor in the chain.
     """
     limit = get_config()["news_article_limit"]
     articles = _search_news(f"{ticker} stock news", start_date, end_date, limit)
 
     if not articles:
-        return f"No news found for {ticker} between {start_date} and {end_date}"
+        raise NoNewsError(f"No news found for {ticker} between {start_date} and {end_date}")
 
     return _format_articles(f"{ticker} News, from {start_date} to {end_date}", articles)
 
@@ -183,6 +187,10 @@ def get_global_news_firecrawl(
 
     Returns:
         Formatted string containing global news articles
+
+    Raises:
+        NoNewsError: The search returned nothing in the window, so the router
+            can try the next vendor in the chain.
     """
     config = get_config()
     if look_back_days is None:
@@ -209,7 +217,7 @@ def get_global_news_firecrawl(
             break
 
     if not all_news:
-        return f"No global news found between {start_date} and {curr_date}"
+        raise NoNewsError(f"No global news found between {start_date} and {curr_date}")
 
     return _format_articles(
         f"Global Market News, from {start_date} to {curr_date}", all_news[:limit]

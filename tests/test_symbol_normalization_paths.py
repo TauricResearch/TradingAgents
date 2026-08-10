@@ -6,6 +6,7 @@ the news path: a broker symbol like XAUUSD must resolve to the same Yahoo symbol
 hit the right instrument instead of failing/mismatching.
 """
 import pandas as pd
+import pytest
 
 import tradingagents.agents.utils.agent_utils as au
 import tradingagents.dataflows.yfinance_news as ynews
@@ -68,7 +69,11 @@ def test_news_lookup_normalizes_symbol(monkeypatch):
     monkeypatch.setattr(ynews.yf, "Ticker", FakeTicker)
     monkeypatch.setattr(ynews, "yf_retry", lambda fn: fn())
 
-    out = ynews.get_news_yfinance("XAUUSD", "2025-01-01", "2025-01-10")
+    # An empty window raises so the router can try the next vendor; the message
+    # it carries is what the analyst ends up seeing.
+    with pytest.raises(ynews.NoNewsError) as excinfo:
+        ynews.get_news_yfinance("XAUUSD", "2025-01-01", "2025-01-10")
+    out = str(excinfo.value)
 
     assert seen["symbol"] == "GC=F"   # news queried with the canonical symbol
     assert "XAUUSD" in out            # the user's ticker stays in the report

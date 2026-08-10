@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
+import tradingagents.agents.analysts.sentiment_analyst as sentiment_analyst_module
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
@@ -367,6 +368,25 @@ def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = N
 
 @pytest.mark.unit
 class TestSentimentAnalystAgent:
+    @pytest.fixture(autouse=True)
+    def _stub_sentiment_sources(self, monkeypatch):
+        """Keep structured-agent unit tests independent of live data providers."""
+        monkeypatch.setattr(
+            sentiment_analyst_module.get_news,
+            "func",
+            lambda *args, **kwargs: "No news available for this test.",
+        )
+        monkeypatch.setattr(
+            sentiment_analyst_module,
+            "fetch_stocktwits_messages",
+            lambda *args, **kwargs: "No StockTwits messages available for this test.",
+        )
+        monkeypatch.setattr(
+            sentiment_analyst_module,
+            "fetch_reddit_posts",
+            lambda *args, **kwargs: "No Reddit posts available for this test.",
+        )
+
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
         report = SentimentReport(

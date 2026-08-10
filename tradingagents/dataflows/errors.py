@@ -7,6 +7,7 @@ these (or a thin vendor-named subclass) and needs no new ``except`` clause.
 
     VendorError
     ├── NoMarketDataError          no usable rows (empty result OR stale data)
+    ├── NoNewsError                empty news window -> next vendor, keep wording
     ├── VendorRateLimitError       transient throttle -> skip to next vendor
     └── VendorNotConfiguredError   missing API key/config -> vendor unavailable
 
@@ -41,6 +42,26 @@ class NoMarketDataError(VendorError):
         if detail:
             msg += f": {detail}"
         super().__init__(msg)
+
+
+class NoNewsError(VendorError):
+    """A news vendor found no articles in the requested window.
+
+    A distinct router reaction from ``NoMarketDataError``, not a synonym: an
+    empty news window is ordinary — a quiet week, or a wire that simply does not
+    follow this ticker — and says nothing about whether the symbol is valid, so
+    the "may be invalid, delisted, or stale" market-data sentinel would be
+    actively misleading. The router tries the next vendor in the chain and, if
+    none has articles, returns this error's own message verbatim.
+
+    Returning the empty case as a plain string instead would end the chain: the
+    router treats any returned value as success, so a vendor with no news would
+    mask a later vendor that has some.
+    """
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
 
 
 class VendorRateLimitError(VendorError):
