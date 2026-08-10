@@ -13,7 +13,11 @@ Score components (0–100+):
   a candidate for missing data.
 """
 
+import logging
+import math
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -49,8 +53,18 @@ MIN_SCORE_TO_ADD = 55.0
 
 
 def _scaled(value: float | None, cap: float, points: float) -> float:
-    """Linear score: ``value`` (fraction) earns up to ``points`` at ``cap``."""
-    if value is None or value <= 0:
+    """Linear score: ``value`` (fraction) earns up to ``points`` at ``cap``.
+
+    Non-finite input scores zero. NaN is the case that matters: yfinance returns
+    NaN (not None) for a metric it cannot compute — routinely for .NS tickers
+    whose 3-month return is unavailable. ``NaN <= 0`` is False so NaN used to
+    reach the arithmetic, and ``min(nan/cap, 1.0)`` is nan, which then poisoned
+    the whole composite. A NaN score reached the INSERT as
+    "NOT NULL constraint failed: screener_results.score" and rolled back the
+    ENTIRE run — losing all ~25 result rows and every watchlist add with them.
+    That is why the screener appeared to do nothing while the code was fine.
+    """
+    if value is None or not math.isfinite(value) or value <= 0:
         return 0.0
     return min(value / cap, 1.0) * points
 
@@ -106,17 +120,28 @@ def anomaly_score(m: CandidateMetrics) -> float | None:
     # together is a far stronger read than one routine purchase.
     if m.insider_cluster:
         score += 8
+    # Final backstop: a NaN anywhere above makes the total NaN, and callers test
+    # `score is not None` — which NaN passes. Return None so "unscoreable" takes
+    # the path that already exists for it.
+    if not math.isfinite(score):
+        logger.warning("Non-finite score for %s; treating as unscoreable", m.symbol)
+        return None
     return round(score, 1)
 
 
 def describe(m: CandidateMetrics) -> str:
     """One-line human summary used in Telegram alerts and the dashboard."""
+    # `_finite` rather than `is not None`: NaN metrics otherwise render as
+    # "3M +nan%" in Telegram alerts and on the dashboard.
+    def _finite(value: float | None) -> bool:
+        return value is not None and math.isfinite(value)
+
     parts: list[str] = []
-    if m.revenue_growth is not None:
+    if _finite(m.revenue_growth):
         parts.append(f"revenue {m.revenue_growth * 100:+.0f}%")
-    if m.earnings_growth is not None:
+    if _finite(m.earnings_growth):
         parts.append(f"earnings {m.earnings_growth * 100:+.0f}%")
-    if m.return_3m is not None:
+    if _finite(m.return_3m):
         parts.append(f"3M {m.return_3m * 100:+.0f}%")
     if m.insider_cluster:
         parts.append("insider cluster buy")

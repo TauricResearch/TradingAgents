@@ -18,6 +18,8 @@ overwhelmingly manipulation-driven; the watchlist's majors stay curated.
 import asyncio
 import json
 import logging
+import math
+import time
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import get_settings
@@ -178,6 +180,41 @@ def _enrich_sync(symbol: str) -> CandidateMetrics:
     )
 
 
+#: Ceiling for one pass. A pass is network-bound (yfinance enrichment plus
+#: throttled SEC calls) and had no ceiling at all: on 2026-08-10 one ran 28+
+#: minutes with neither a completion nor an error. That is worse than failing,
+#: because the scheduled job holds max_instances=1 — one hung run means every
+#: later run is skipped silently, the watchlist stops growing, and nothing says
+#: so. 15 minutes is ~3x the observed healthy runtime.
+RUN_TIMEOUT_SECONDS = 900
+
+
+async def run_screener_guarded() -> list[dict]:
+    """``run_screener`` with a hard time budget and an outcome that gets logged.
+
+    The single entry point for both the scheduler and the manual endpoint, so
+    neither can reintroduce an unbounded, silent run.
+    """
+    started = time.monotonic()
+    try:
+        results = await asyncio.wait_for(run_screener(), timeout=RUN_TIMEOUT_SECONDS)
+    except TimeoutError:
+        logger.error(
+            "Screener run ABORTED at the %ds ceiling — see the last 'enrich'/'EDGAR' "
+            "line above for the step it was stuck on", RUN_TIMEOUT_SECONDS,
+        )
+        return []
+    except Exception:
+        logger.exception("Screener run FAILED after %.0fs", time.monotonic() - started)
+        return []
+    logger.info(
+        "Screener run finished in %.0fs: %d result(s), %d added",
+        time.monotonic() - started, len(results),
+        sum(1 for r in results if r.get("added")),
+    )
+    return results
+
+
 async def expire_stale_picks() -> list[str]:
     """Drop screener picks that stayed boring past the expiry window.
 
@@ -224,13 +261,21 @@ async def _edgar_refine(
     from app.services.edgar import fetch_dilution_sync, fetch_insider_activity_sync
 
     refined: list[tuple[float, CandidateMetrics]] = []
+    edgar_started = time.monotonic()
     for rank, (score, metrics) in enumerate(scored):
         if rank >= top_n or metrics.market != Market.US.value:
             refined.append((score, metrics))
             continue
+        step = time.monotonic()
         try:
             dilution = await asyncio.to_thread(fetch_dilution_sync, metrics.symbol)
+            logger.info("EDGAR dilution %s: %.1fs", metrics.symbol, time.monotonic() - step)
+            insider_started = time.monotonic()
             insider = await asyncio.to_thread(fetch_insider_activity_sync, metrics.symbol)
+            logger.info(
+                "EDGAR insider %s: %.1fs", metrics.symbol,
+                time.monotonic() - insider_started,
+            )
         except Exception:
             logger.warning("EDGAR refinement failed for %s", metrics.symbol)
             refined.append((score, metrics))
@@ -248,6 +293,7 @@ async def _edgar_refine(
         new_score = anomaly_score(updated)
         refined.append((new_score if new_score is not None else score, updated))
     refined.sort(key=lambda pair: pair[0], reverse=True)
+    logger.info("EDGAR refinement done in %.1fs", time.monotonic() - edgar_started)
     return refined
 
 
@@ -259,7 +305,12 @@ async def run_screener() -> list[dict]:
     # Drain before filling: expire stale picks so seats free up.
     await expire_stale_picks()
 
+    collect_started = time.monotonic()
+    logger.info("Screener: collecting candidates")
     us_candidates, india_candidates = await asyncio.to_thread(_collect_candidates_sync)
+    logger.info(
+        "Screener: collection done in %.1fs", time.monotonic() - collect_started
+    )
     async with session_factory()() as session:
         watchlist_repo = WatchlistRepository(session)
         existing = {t.symbol for t in await watchlist_repo.list_all()}
@@ -275,12 +326,33 @@ async def run_screener() -> list[dict]:
         len(us_candidates), len(india_candidates), len(fresh_us), len(fresh_india),
     )
 
+    # Per-symbol progress at INFO. This whole run hung silently for 28+ minutes
+    # inside the server on 2026-08-10 with only its opening line logged, which
+    # made it impossible to tell enrichment from EDGAR from the DB write. Each
+    # step now announces itself and its elapsed time, so the next hang names
+    # the symbol it died on.
     scored: list[tuple[float, CandidateMetrics]] = []
-    for symbol in fresh:
+    enrich_started = time.monotonic()
+    for index, symbol in enumerate(fresh, start=1):
+        step = time.monotonic()
         metrics = await asyncio.to_thread(_enrich_sync, symbol)
         score = anomaly_score(metrics)
+        # anomaly_score now guarantees finite-or-None, but check anyway: a NaN
+        # reaching the INSERT rolls back the whole run and loses every row.
+        if score is not None and not math.isfinite(score):
+            logger.error("Discarding non-finite score for %s", symbol)
+            score = None
+        logger.info(
+            "Screener enrich %d/%d %s: %.1fs score=%s",
+            index, len(fresh), symbol, time.monotonic() - step,
+            f"{score:.1f}" if score is not None else "none",
+        )
         if score is not None:
             scored.append((score, metrics))
+    logger.info(
+        "Screener enrichment done: %d/%d scored in %.1fs",
+        len(scored), len(fresh), time.monotonic() - enrich_started,
+    )
     scored.sort(key=lambda pair: pair[0], reverse=True)
 
     # Second pass: primary-source EDGAR refinement (dilution guard + insider
@@ -291,6 +363,14 @@ async def run_screener() -> list[dict]:
 
     capacity = max(0, settings.screener_satellite_cap - satellite_count)
     budget = min(settings.screener_max_adds, capacity)
+    # Logged because "rows written but nothing added" was unexplained for three
+    # weeks (Jul 21 - Aug 7) and budget is the only state that can cause it.
+    logger.info(
+        "Screener adds: budget=%d (max_adds=%d, cap=%d, satellites=%d), "
+        "threshold=%.1f, top score=%.1f",
+        budget, settings.screener_max_adds, settings.screener_satellite_cap,
+        satellite_count, MIN_SCORE_TO_ADD, scored[0][0] if scored else float("nan"),
+    )
     notifier = Notifier(settings)
     results: list[dict] = []
 

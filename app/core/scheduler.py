@@ -24,7 +24,7 @@ from app.services.heartbeat import send_heartbeat
 from app.services.oci_capacity import check_capacity, is_configured
 from app.services.paper_broker import check_stops
 from app.services.pipeline import run_slot
-from app.services.screener import run_screener
+from app.services.screener import run_screener_guarded
 from app.services.tactical.engine import record_equity_snapshots, run_all_tactical
 
 logger = logging.getLogger(__name__)
@@ -127,7 +127,7 @@ def build_scheduler() -> AsyncIOScheduler:
     # APIs — no LLM cost, exempt from the run budget.
     if get_settings().screener_enabled:
         scheduler.add_job(
-            run_screener,
+            run_screener_guarded,
             CronTrigger(day_of_week="mon-fri", hour=6, minute=0,
                         timezone=pytz.timezone("America/Chicago")),
             id="screener",
