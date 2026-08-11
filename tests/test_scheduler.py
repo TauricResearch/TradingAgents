@@ -263,6 +263,37 @@ def test_heartbeat_clock_programming_error_is_reraised_without_completion(
     assert "analysis" not in scheduler._deferred_until
 
 
+def test_heartbeat_programming_error_wins_without_deferral_when_service_also_fails(
+    fake_service, state, monkeypatch
+):
+    from tradingagents import scheduler as scheduler_module
+
+    scheduler_thread = threading.current_thread()
+    heartbeat_called = threading.Event()
+
+    def clock():
+        if threading.current_thread() is not scheduler_thread:
+            heartbeat_called.set()
+            raise ValueError("invalid heartbeat clock")
+        return NOW
+
+    class FailingService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            self.analysis_calls.append(due_time)
+            assert heartbeat_called.wait(timeout=1)
+            raise RuntimeError("service also failed")
+
+    service = FailingService(fake_service.settings)
+    scheduler = AutomationScheduler(service, state, now=clock, sleep=lambda _: None)
+    monkeypatch.setattr(scheduler_module, "MAX_HEARTBEAT_SECONDS", 0.01)
+
+    with pytest.raises(ValueError, match="invalid heartbeat clock"):
+        scheduler.run_once(now=NOW)
+
+    assert state.last_task_run("analysis") is None
+    assert "analysis" not in scheduler._deferred_until
+
+
 def test_short_configured_interval_is_not_stretched_by_lease(settings, state):
     service = FakeService(replace(settings, analysis_interval_minutes=5))
     scheduler = AutomationScheduler(service, state, now=lambda: NOW, sleep=lambda _: None)

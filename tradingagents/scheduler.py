@@ -148,16 +148,28 @@ class AutomationScheduler:
             ttl_seconds,
             self._now,
         )
+        operation_error: Exception | None = None
         try:
             heartbeat.start()
             operation(due_time)
-        except Exception:
-            failed_at = max(lease_time, self._now())
-            self._deferred_until[task] = failed_at + timedelta(minutes=interval_minutes)
-            logger.exception("Automation %s task failed", task)
-            return
+        except Exception as error:
+            operation_error = error
         finally:
             ownership_lost = heartbeat.stop()
+
+        if operation_error is not None:
+            failed_at = max(lease_time, self._now())
+            self._deferred_until[task] = failed_at + timedelta(minutes=interval_minutes)
+            logger.error(
+                "Automation %s task failed",
+                task,
+                exc_info=(
+                    type(operation_error),
+                    operation_error,
+                    operation_error.__traceback__,
+                ),
+            )
+            return
 
         completed_at = max(lease_time, self._now())
         if ownership_lost:
