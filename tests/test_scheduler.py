@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -86,6 +87,16 @@ def test_held_lease_prevents_duplicate_analysis(fake_service, state):
     assert fake_service.analysis_calls == []
 
 
+def test_short_configured_interval_is_not_stretched_by_lease(settings, state):
+    service = FakeService(replace(settings, analysis_interval_minutes=5))
+    scheduler = AutomationScheduler(service, state, now=lambda: NOW, sleep=lambda _: None)
+
+    scheduler.run_once()
+    scheduler.run_once(now=NOW + timedelta(minutes=5))
+
+    assert service.analysis_calls == [NOW, NOW + timedelta(minutes=5)]
+
+
 def test_failed_analysis_is_not_marked_and_does_not_block_positions(fake_service, state, caplog):
     fake_service.analysis_error = RuntimeError("temporary failure")
     scheduler = AutomationScheduler(fake_service, state, now=lambda: NOW, sleep=lambda _: None)
@@ -111,6 +122,24 @@ def test_failed_analysis_is_deferred_to_its_next_interval(fake_service, state):
     assert state.last_task_run("analysis") == NOW + timedelta(minutes=30)
 
 
+def test_failed_analysis_remains_deferred_after_scheduler_restart(settings, state):
+    failed_service = FakeService(settings)
+    failed_service.analysis_error = RuntimeError("temporary failure")
+    AutomationScheduler(failed_service, state, now=lambda: NOW, sleep=lambda _: None).run_once()
+
+    restarted_service = FakeService(settings)
+    restarted = AutomationScheduler(
+        restarted_service,
+        state,
+        now=lambda: NOW + timedelta(minutes=15),
+        sleep=lambda _: None,
+    )
+    restarted.run_once()
+    restarted.run_once(now=NOW + timedelta(minutes=30))
+
+    assert restarted_service.analysis_calls == [NOW + timedelta(minutes=30)]
+
+
 def test_foreground_loop_stops_cleanly_on_keyboard_interrupt(fake_service, state):
     sleeps = []
 
@@ -127,6 +156,25 @@ def test_foreground_loop_stops_cleanly_on_keyboard_interrupt(fake_service, state
     scheduler.run_forever()
 
     assert sleeps == [60]
+
+
+def test_foreground_sleep_uses_fresh_time_after_cycle(fake_service, state):
+    times = iter((NOW, NOW + timedelta(minutes=29, seconds=30)))
+    sleeps = []
+
+    def interrupt(seconds):
+        sleeps.append(seconds)
+        raise KeyboardInterrupt
+
+    scheduler = AutomationScheduler(
+        fake_service,
+        state,
+        now=lambda: next(times),
+        sleep=interrupt,
+    )
+    scheduler.run_forever()
+
+    assert sleeps == [30]
 
 
 def test_batch_cli_lazily_delegates_without_prompting(monkeypatch):
@@ -201,3 +249,25 @@ def test_missing_alpaca_credentials_name_variables_without_values(monkeypatch):
 
     assert "ALPACA_API_KEY" in str(error.value)
     assert "ALPACA_SECRET_KEY" in str(error.value)
+
+
+def test_missing_credential_error_does_not_echo_present_secret(monkeypatch):
+    from tradingagents import scheduler
+
+    monkeypatch.setattr(
+        scheduler,
+        "DEFAULT_CONFIG",
+        dict(
+            scheduler.DEFAULT_CONFIG,
+            watchlist="AAPL,MSFT,NVDA,AMZN,META,GOOG,TSLA",
+            automation_state_path="unused.db",
+        ),
+    )
+    monkeypatch.delenv("ALPACA_API_KEY", raising=False)
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "sentinel-must-not-appear")
+
+    with pytest.raises(ValueError) as error:
+        scheduler.build_service_from_config()
+
+    assert "ALPACA_API_KEY" in str(error.value)
+    assert "sentinel-must-not-appear" not in str(error.value)

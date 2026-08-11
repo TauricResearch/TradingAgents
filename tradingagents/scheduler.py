@@ -13,7 +13,6 @@ from tradingagents.execution import AlpacaBroker
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 logger = logging.getLogger(__name__)
-LEASE_TTL_SECONDS = 900
 
 
 class AutomationScheduler:
@@ -52,7 +51,7 @@ class AutomationScheduler:
             while True:
                 due_time = self._now()
                 self.run_once(now=due_time)
-                self._sleep(self._sleep_seconds(due_time))
+                self._sleep(self._sleep_seconds(self._now()))
         except KeyboardInterrupt:
             logger.info("Automation stopped by operator")
 
@@ -71,7 +70,7 @@ class AutomationScheduler:
                 task,
                 self._owner,
                 due_time,
-                LEASE_TTL_SECONDS,
+                interval_minutes * 60,
             ):
                 self._deferred_until[task] = due_time + timedelta(seconds=60)
                 return
