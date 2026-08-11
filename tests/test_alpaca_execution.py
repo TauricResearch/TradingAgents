@@ -49,6 +49,55 @@ def test_paper_is_selected_explicitly_on_sdk_client(monkeypatch):
     assert calls == [("key", "secret", True)]
 
 
+@pytest.mark.parametrize("live_ack", ["", "wrong"])
+def test_live_idempotent_submit_rejects_bad_ack_before_lookup(live_ack):
+    calls = []
+    client = SimpleNamespace(
+        get_order_by_client_id=lambda client_order_id: calls.append("lookup"),
+        submit_order=lambda order_data: calls.append("submit"),
+    )
+    broker = AlpacaBroker("key", "secret", mode="live", live_ack=live_ack, client=client)
+    spec = OrderRequestSpec("AAPL", Decimal("1"), "buy", "day", "stable-client-id")
+
+    with pytest.raises(ValueError, match="live acknowledgment"):
+        broker.submit_idempotent(spec)
+    assert calls == []
+
+
+def test_live_direct_submit_rejects_missing_ack_before_sdk_request(monkeypatch):
+    monkeypatch.setattr(
+        "tradingagents.execution._market_order_request_class",
+        lambda: pytest.fail("must not build a live order without acknowledgment"),
+    )
+    broker = AlpacaBroker("key", "secret", mode="live", live_ack="", client=SimpleNamespace())
+    spec = OrderRequestSpec("AAPL", Decimal("1"), "buy", "day", "stable-client-id")
+
+    with pytest.raises(ValueError, match="live acknowledgment"):
+        broker.submit(spec)
+
+
+def test_exact_live_ack_allows_direct_submission(monkeypatch):
+    class FakeMarketOrderRequest:
+        def __init__(self, **fields):
+            self.fields = fields
+
+    monkeypatch.setattr(
+        "tradingagents.execution._market_order_request_class",
+        lambda: FakeMarketOrderRequest,
+    )
+    client = SimpleNamespace(submit_order=lambda order_data: SimpleNamespace(id="live-order"))
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        mode="live",
+        live_ack="I_UNDERSTAND_LIVE_ORDERS",
+        client=client,
+    )
+    spec = OrderRequestSpec("AAPL", Decimal("1"), "buy", "day", "stable-client-id")
+
+    assert broker.submit(spec) == "live-order"
+
+
 def test_missing_credentials_fail_without_echoing_values():
     with pytest.raises(RuntimeError) as error:
         AlpacaBroker("", "super-secret-value", mode="paper", client=SimpleNamespace())
@@ -120,6 +169,18 @@ def test_positions_preserve_long_and_short_signs():
     }
 
 
+def test_position_without_market_value_fails_closed():
+    client = SimpleNamespace(
+        get_all_positions=lambda: [
+            SimpleNamespace(symbol="AAPL", side=_enum("long"), market_value=None)
+        ]
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+
+    with pytest.raises(RuntimeError, match="market value"):
+        broker.positions()
+
+
 def test_latest_price_maps_sdk_trade_price():
     client = SimpleNamespace(
         get_latest_trade=lambda symbol: SimpleNamespace(symbol=symbol, price="101.25")
@@ -186,6 +247,43 @@ def test_open_order_exposure_uses_remaining_qty_and_signed_side():
     }
 
 
+def test_partially_filled_notional_order_uses_remaining_exposure():
+    client = SimpleNamespace(
+        get_orders=lambda: [
+            SimpleNamespace(
+                symbol="AAPL",
+                side=_enum("buy"),
+                notional="200",
+                qty=None,
+                filled_qty="0.5",
+                filled_avg_price="100",
+            )
+        ]
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+
+    assert broker.open_order_exposure({}) == {"AAPL": Decimal("150.0")}
+
+
+def test_ambiguous_notional_fill_fails_closed():
+    client = SimpleNamespace(
+        get_orders=lambda: [
+            SimpleNamespace(
+                symbol="AAPL",
+                side=_enum("buy"),
+                notional="200",
+                qty=None,
+                filled_qty="0.5",
+                filled_avg_price=None,
+            )
+        ]
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+
+    with pytest.raises(RuntimeError, match="remaining exposure"):
+        broker.open_order_exposure({})
+
+
 def test_unshortable_asset_rejects_negative_target_without_submission():
     client = SimpleNamespace(submit_order=lambda **kwargs: pytest.fail("must not submit"))
     broker = AlpacaBroker("key", "secret", mode="paper", client=client)
@@ -201,6 +299,23 @@ def test_unshortable_asset_rejects_negative_target_without_submission():
     intent = OrderIntent("BTC-USD", "sell", Decimal("500"), Decimal("-500"))
     with pytest.raises(ValueError, match="not shortable"):
         broker.prepare_order(intent, asset, Decimal("50000"), "cycle-1")
+
+
+def test_crypto_negative_target_is_rejected_even_if_capability_claims_shortable():
+    broker = AlpacaBroker("key", "secret", mode="paper", client=SimpleNamespace())
+    malformed_crypto = AssetInfo(
+        "BTC/USD",
+        "crypto",
+        True,
+        True,
+        True,
+        Decimal("0.0001"),
+        Decimal("0.0001"),
+    )
+    intent = OrderIntent("BTC-USD", "sell", Decimal("500"), Decimal("-500"))
+
+    with pytest.raises(ValueError, match="crypto.*short"):
+        broker.prepare_order(intent, malformed_crypto, Decimal("50000"), "cycle-1")
 
 
 def test_prepare_order_uses_asset_time_in_force_and_stable_client_id():
@@ -242,6 +357,27 @@ def test_crypto_order_uses_gtc_and_trade_increment():
     assert spec.symbol == "BTC/USD"
     assert spec.time_in_force == "gtc"
     assert spec.qty == Decimal("0.0010")
+
+
+def test_non_fractionable_equity_rounds_down_to_whole_shares():
+    broker = AlpacaBroker("key", "secret", mode="paper", client=SimpleNamespace())
+    equity = AssetInfo(
+        "AAPL",
+        "us_equity",
+        True,
+        True,
+        False,
+        Decimal("0.001"),
+        Decimal("0.001"),
+    )
+    spec = broker.prepare_order(
+        OrderIntent("AAPL", "buy", Decimal("150"), Decimal("150")),
+        equity,
+        Decimal("100"),
+        "cycle-1",
+    )
+
+    assert spec.qty == Decimal("1")
 
 
 @pytest.mark.parametrize("price", [Decimal("0"), Decimal("-1")])

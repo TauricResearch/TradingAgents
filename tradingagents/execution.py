@@ -136,13 +136,15 @@ def _crypto_latest_trade_request_class():
 
 
 class AlpacaBroker:
-    def __init__(self, key: str, secret: str, mode: str, client=None):
+    def __init__(self, key: str, secret: str, mode: str, client=None, live_ack: str = ""):
         validate_execution_mode(mode, auto_execute=False, live_ack="")
         if not key or not secret:
             raise RuntimeError("Alpaca credentials are required")
 
         self._key = key
         self._secret = secret
+        self._mode = mode
+        self._live_ack = live_ack
         self._client = client
         if self._client is None:
             self._client = _trading_client_class()(key, secret, paper=mode == "paper")
@@ -199,6 +201,8 @@ class AlpacaBroker:
         positions = {}
         for raw in self._client.get_all_positions():
             side = _enum_text(raw.side).lower()
+            if raw.market_value is None:
+                raise RuntimeError(f"Alpaca position market value is unavailable for {raw.symbol}")
             value = abs(_decimal(raw.market_value))
             if side == "short":
                 value = -value
@@ -212,18 +216,38 @@ class AlpacaBroker:
         exposure: dict[str, Decimal] = {}
         for raw in self._client.get_orders():
             symbol = _internal_symbol(raw.symbol)
+            raw_qty = getattr(raw, "qty", None)
+            raw_filled_qty = getattr(raw, "filled_qty", None)
+            if raw_filled_qty is None:
+                raise RuntimeError(f"remaining exposure is unavailable for open order {symbol}")
             order = BrokerOpenOrder(
                 symbol=symbol,
                 side=_enum_text(raw.side).lower(),
-                qty=_decimal(getattr(raw, "qty", None)),
-                filled_qty=_decimal(getattr(raw, "filled_qty", None)),
+                qty=_decimal(raw_qty),
+                filled_qty=_decimal(raw_filled_qty),
             )
             notional = getattr(raw, "notional", None)
-            if notional is not None:
-                remaining_notional = abs(_decimal(notional))
-            else:
-                remaining_qty = max(order.qty - order.filled_qty, Decimal("0"))
+            if raw_qty is not None:
+                remaining_qty = order.qty - order.filled_qty
+                if remaining_qty < 0:
+                    raise RuntimeError(f"remaining exposure is invalid for open order {symbol}")
                 remaining_notional = remaining_qty * _decimal(prices[order.symbol])
+            elif notional is not None:
+                original_notional = abs(_decimal(notional))
+                if order.filled_qty == 0:
+                    remaining_notional = original_notional
+                else:
+                    filled_avg_price = getattr(raw, "filled_avg_price", None)
+                    if filled_avg_price is None:
+                        raise RuntimeError(
+                            f"remaining exposure is unavailable for open order {symbol}"
+                        )
+                    filled_value = order.filled_qty * _decimal(filled_avg_price)
+                    remaining_notional = original_notional - filled_value
+                    if remaining_notional < 0:
+                        raise RuntimeError(f"remaining exposure is invalid for open order {symbol}")
+            else:
+                raise RuntimeError(f"remaining exposure is unavailable for open order {symbol}")
             if order.side == "sell":
                 remaining_notional = -remaining_notional
             elif order.side != "buy":
@@ -271,8 +295,11 @@ class AlpacaBroker:
             raise ValueError(f"asset {asset.symbol} is not tradable")
         if intent.side not in ("buy", "sell"):
             raise ValueError("order side must be buy or sell")
-        if intent.target_notional < 0 and not asset.shortable:
-            raise ValueError(f"asset {asset.symbol} is not shortable")
+        if intent.target_notional < 0:
+            if asset.asset_class == "crypto":
+                raise ValueError("crypto assets are not shortable")
+            if not asset.shortable:
+                raise ValueError(f"asset {asset.symbol} is not shortable")
 
         price = _decimal(price)
         if price <= 0:
@@ -280,6 +307,8 @@ class AlpacaBroker:
         if intent.notional <= 0:
             raise ValueError("order notional must be positive")
         increment = asset.min_trade_increment
+        if not asset.fractionable:
+            increment = max(increment, Decimal("1"))
         if increment <= 0 or asset.min_order_size <= 0:
             raise ValueError("asset order increments must be positive")
         qty = (intent.notional / price / increment).to_integral_value(
@@ -305,6 +334,7 @@ class AlpacaBroker:
         )
 
     def submit(self, spec: OrderRequestSpec) -> str:
+        self._validate_submission()
         request = _market_order_request_class()(
             symbol=spec.symbol,
             qty=float(spec.qty),
@@ -333,7 +363,11 @@ class AlpacaBroker:
         return str(order_id)
 
     def submit_idempotent(self, spec: OrderRequestSpec) -> str:
+        self._validate_submission()
         existing_order_id = self.find_order_by_client_id(spec.client_order_id)
         if existing_order_id is not None:
             return existing_order_id
         return self.submit(spec)
+
+    def _validate_submission(self) -> None:
+        validate_execution_mode(self._mode, auto_execute=True, live_ack=self._live_ack)
