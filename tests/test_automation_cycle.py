@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -49,6 +50,7 @@ class FakeBroker:
         self.buying_power = Decimal("10000")
         self.market_open = True
         self.now = NOW
+        self.clock_times = []
         self.trading_blocked = False
         self.status = "ACTIVE"
         self.position_values = {}
@@ -62,6 +64,8 @@ class FakeBroker:
 
     def broker_time(self):
         self.reads.append("broker_time")
+        if self.clock_times:
+            self.now = self.clock_times.pop(0)
         return self.now
 
     def equity_market_is_open(self):
@@ -148,10 +152,14 @@ class ServiceHarness:
         self.graph_failures = set()
         self.graph_calls = []
         self.factory_calls = []
+        self.factory_failures_remaining = 0
         self.ratings = dict(RATINGS if ratings is None else ratings)
 
         def graph_factory(analysts):
             self.factory_calls.append(tuple(analysts))
+            if self.factory_failures_remaining:
+                self.factory_failures_remaining -= 1
+                raise RuntimeError("graph construction failed")
             return FakeGraph(self.ratings, self.graph_failures, self.graph_calls)
 
         self.service = AutomationCycleService(settings, state, broker, graph_factory)
@@ -479,6 +487,87 @@ def test_broker_clock_drives_decision_and_position_timestamps(service):
     assert {record.analyzed_at for record in decisions.values()} == {broker_now}
     assert {record.trade_date for record in decisions.values()} == {"2026-08-12"}
     assert service.state.latest_position_snapshot().captured_at == broker_now
+    assert service.broker.submitted == []
+
+
+def test_advancing_clock_uses_post_analysis_time_for_freshness(service):
+    service.seed_all_decisions(NOW)
+    service.broker.clock_times = [
+        NOW,
+        NOW,
+        NOW + timedelta(minutes=5),
+        NOW + timedelta(minutes=10),
+        NOW + timedelta(minutes=15),
+        NOW + timedelta(minutes=20),
+        NOW + timedelta(minutes=25),
+        NOW + timedelta(minutes=121),
+    ]
+
+    result = service.run_analysis_cycle(NOW)
+    records = service.state.fresh_decisions(
+        ("AAPL", "MSFT", "NVDA"),
+        NOW + timedelta(minutes=121),
+        500,
+    )
+
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason == "waiting for fresh decisions for all 7 symbols"
+    assert {symbol: record.analyzed_at for symbol, record in records.items()} == {
+        "AAPL": NOW + timedelta(minutes=5),
+        "MSFT": NOW + timedelta(minutes=15),
+        "NVDA": NOW + timedelta(minutes=25),
+    }
+    assert "account" not in service.broker.reads
+    assert service.broker.submitted == []
+
+
+def test_snapshot_and_intents_use_capture_boundary_broker_times(warmed_service):
+    snapshot_time = NOW + timedelta(minutes=10)
+    intent_time = NOW + timedelta(minutes=11)
+    warmed_service.broker.clock_times = [
+        NOW,
+        NOW,
+        NOW + timedelta(minutes=1),
+        NOW + timedelta(minutes=2),
+        NOW + timedelta(minutes=3),
+        NOW + timedelta(minutes=4),
+        NOW + timedelta(minutes=5),
+        NOW + timedelta(minutes=6),
+        snapshot_time,
+        intent_time,
+    ]
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    assert result.order_intents
+    assert warmed_service.state.latest_position_snapshot().captured_at == snapshot_time
+    with sqlite3.connect(warmed_service.state.path) as connection:
+        created_at = connection.execute(
+            "SELECT DISTINCT created_at FROM order_intents WHERE cycle_id = ?",
+            (result.cycle_id,),
+        ).fetchall()
+    assert created_at == [(intent_time.isoformat(),)]
+    assert warmed_service.broker.submitted == []
+
+
+def test_graph_factory_failure_records_symbol_and_continues_partition(service):
+    service.factory_failures_remaining = 1
+
+    result = service.run_analysis_cycle(NOW)
+
+    assert result.analyzed_symbols == ("MSFT", "NVDA")
+    assert result.failed_symbols == ("AAPL",)
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason == "analysis failed for: AAPL"
+    assert service.factory_calls == [
+        ("market", "social", "news", "fundamentals"),
+        ("market", "social", "news", "fundamentals"),
+    ]
+    assert service.graph_calls == [
+        ("MSFT", "2026-08-11", "stock"),
+        ("NVDA", "2026-08-11", "stock"),
+    ]
+    assert service.state.get_batch_index() == 1
     assert service.broker.submitted == []
 
 

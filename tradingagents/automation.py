@@ -127,7 +127,6 @@ class AutomationCycleService:
                 "fewer than 2 eligible symbols in current partition",
             )
 
-        broker_date = broker_time.date().isoformat()
         graphs: dict[tuple[str, ...], object] = {}
         analyzed = []
         failed = []
@@ -136,16 +135,21 @@ class AutomationCycleService:
             analysts = ("market", "social", "news")
             if asset_type == "stock":
                 analysts += ("fundamentals",)
-            if analysts not in graphs:
-                graphs[analysts] = self.graph_factory(analysts)
-            graph = graphs[analysts]
             try:
+                graph_time = self.broker.broker_time()
+                _require_aware(graph_time)
+                broker_date = graph_time.date().isoformat()
+                if analysts not in graphs:
+                    graphs[analysts] = self.graph_factory(analysts)
+                graph = graphs[analysts]
                 final_state, rating = graph.propagate(symbol, broker_date, asset_type)
                 report_path = graph.save_reports(final_state, symbol)
+                decision_time = self.broker.broker_time()
+                _require_aware(decision_time)
                 self.state.save_decision(
                     symbol,
                     rating,
-                    broker_time,
+                    decision_time,
                     broker_date,
                     str(report_path),
                 )
@@ -155,11 +159,23 @@ class AutomationCycleService:
                 analyzed.append(symbol)
 
         self.state.advance_batch_index((batch_index + 1) % 3)
-        decisions = self.state.fresh_decisions(
-            self.settings.watchlist,
-            broker_time,
-            self.settings.decision_max_age_minutes,
-        )
+        try:
+            freshness_time = self.broker.broker_time()
+            _require_aware(freshness_time)
+            decisions = self.state.fresh_decisions(
+                self.settings.watchlist,
+                freshness_time,
+                self.settings.decision_max_age_minutes,
+            )
+        except Exception as error:
+            return CycleResult(
+                cycle_id,
+                tuple(analyzed),
+                tuple(failed),
+                (),
+                (),
+                f"broker read failed: {error}",
+            )
         if failed:
             return CycleResult(
                 cycle_id,
@@ -196,7 +212,9 @@ class AutomationCycleService:
                     account_error,
                 )
             positions = self.broker.positions()
-            self.state.record_position_snapshot(broker_time, account.cash, positions)
+            snapshot_time = self.broker.broker_time()
+            _require_aware(snapshot_time)
+            self.state.record_position_snapshot(snapshot_time, account.cash, positions)
             targets = conviction_targets(
                 {symbol: decisions[symbol].rating for symbol in self.settings.watchlist},
                 account.cash,
@@ -224,7 +242,19 @@ class AutomationCycleService:
                 f"broker read failed: {error}",
             )
 
-        self.state.record_order_intents(cycle_id, broker_time, intents)
+        try:
+            intent_time = self.broker.broker_time()
+            _require_aware(intent_time)
+        except Exception as error:
+            return CycleResult(
+                cycle_id,
+                tuple(analyzed),
+                tuple(failed),
+                (),
+                (),
+                f"broker read failed: {error}",
+            )
+        self.state.record_order_intents(cycle_id, intent_time, intents)
         if not self.settings.auto_execute:
             for intent in intents:
                 self.state.update_order_intent(cycle_id, intent.symbol, "planned")
