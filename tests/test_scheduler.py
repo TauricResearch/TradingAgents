@@ -110,6 +110,47 @@ def test_long_analysis_uses_fresh_lease_time_for_following_positions(settings, s
     assert state.last_task_run("positions") == NOW
 
 
+def test_position_deadline_failure_after_long_analysis_defers_from_fresh_time(
+    settings, state, monkeypatch
+):
+    current = {"value": NOW}
+    long_settings = replace(
+        settings,
+        analysis_interval_minutes=60,
+        position_interval_minutes=30,
+    )
+
+    class ClockAdvancingService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            self.analysis_calls.append(due_time)
+            current["value"] += timedelta(minutes=31)
+
+    real_last_task_run = state.last_task_run
+    failed = False
+
+    def flaky_last_task_run(task):
+        nonlocal failed
+        if task == "positions" and not failed:
+            failed = True
+            raise sqlite3.OperationalError("late positions deadline failure")
+        return real_last_task_run(task)
+
+    monkeypatch.setattr(state, "last_task_run", flaky_last_task_run)
+    service = ClockAdvancingService(long_settings)
+    scheduler = AutomationScheduler(
+        service,
+        state,
+        now=lambda: current["value"],
+        sleep=lambda _: None,
+    )
+
+    scheduler.run_once(now=NOW)
+
+    assert service.position_calls == []
+    assert scheduler._deferred_until["positions"] == NOW + timedelta(minutes=61)
+    assert scheduler._sleep_seconds(current["value"]) == 60
+
+
 def test_held_lease_prevents_duplicate_analysis(fake_service, state):
     assert state.try_acquire_lease("analysis", "other", NOW, 900)
     scheduler = AutomationScheduler(fake_service, state, now=lambda: NOW, sleep=lambda _: None)
@@ -190,6 +231,36 @@ def test_renewing_owner_blocks_forced_scheduler_past_initial_ttl(tmp_path, setti
 
         second_scheduler.run_once(now=current["value"], force_analysis=True)
         assert second_service.analysis_calls == [current["value"]]
+
+
+def test_heartbeat_clock_programming_error_is_reraised_without_completion(
+    fake_service, state, monkeypatch
+):
+    from tradingagents import scheduler as scheduler_module
+
+    scheduler_thread = threading.current_thread()
+    heartbeat_called = threading.Event()
+
+    def clock():
+        if threading.current_thread() is not scheduler_thread:
+            heartbeat_called.set()
+            raise ValueError("invalid heartbeat clock")
+        return NOW
+
+    class WaitingService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            self.analysis_calls.append(due_time)
+            assert heartbeat_called.wait(timeout=1)
+
+    service = WaitingService(fake_service.settings)
+    scheduler = AutomationScheduler(service, state, now=clock, sleep=lambda _: None)
+    monkeypatch.setattr(scheduler_module, "MAX_HEARTBEAT_SECONDS", 0.01)
+
+    with pytest.raises(ValueError, match="invalid heartbeat clock"):
+        scheduler.run_once(now=NOW)
+
+    assert state.last_task_run("analysis") is None
+    assert "analysis" not in scheduler._deferred_until
 
 
 def test_short_configured_interval_is_not_stretched_by_lease(settings, state):

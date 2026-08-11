@@ -34,6 +34,7 @@ class _LeaseHeartbeat:
         self._now = now
         self._stop = threading.Event()
         self._lost = threading.Event()
+        self._error: Exception | None = None
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def start(self) -> None:
@@ -42,6 +43,8 @@ class _LeaseHeartbeat:
     def stop(self) -> bool:
         self._stop.set()
         self._thread.join()
+        if self._error is not None:
+            raise self._error
         return self._lost.is_set()
 
     def _run(self) -> None:
@@ -58,9 +61,12 @@ class _LeaseHeartbeat:
                         self._lost.set()
                         logger.error("Automation %s lease ownership was lost", self._task)
                         return
-        except Exception:
+        except sqlite3.Error:
             self._lost.set()
             logger.exception("Automation %s lease heartbeat failed", self._task)
+        except Exception as error:
+            self._lost.set()
+            self._error = error
 
 
 class AutomationScheduler:
@@ -113,10 +119,14 @@ class AutomationScheduler:
         due_time: datetime,
         force: bool = False,
     ) -> None:
-        if not force and due_time < self._deadline(task, interval_minutes, due_time):
+        runtime_now = self._now()
+        if runtime_now.tzinfo is None or runtime_now.utcoffset() is None:
+            raise ValueError("scheduler runtime timestamp must be timezone-aware")
+        runtime_time = max(due_time, runtime_now)
+        if not force and runtime_time < self._deadline(task, interval_minutes, runtime_time):
             return
         ttl_seconds = interval_minutes * 60
-        lease_time = max(due_time, self._now())
+        lease_time = runtime_time
         try:
             if not self.state.try_acquire_lease(
                 task,
