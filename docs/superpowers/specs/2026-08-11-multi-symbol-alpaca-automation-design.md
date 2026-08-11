@@ -82,8 +82,9 @@ recorded, while the remaining symbols still run. The failed decision is not repl
 fabricated rating.
 
 Each symbol is analyzed sequentially. The runner detects the existing stock or crypto asset
-mode and uses the existing analyst filtering rules. It creates or reuses graph instances only
-at this orchestration boundary; `propagate(ticker, trade_date, asset_type)` stays unchanged.
+mode and uses the existing analyst filtering rules. Within one batch it constructs at most one
+graph for each required analyst set and reuses that graph sequentially for matching symbols.
+`propagate(ticker, trade_date, asset_type)` stays unchanged.
 
 ## Scheduling and Market Eligibility
 
@@ -91,8 +92,10 @@ at this orchestration boundary; `propagate(ticker, trade_date, asset_type)` stay
 external scheduler and exits successfully without analysis when no configured market is open.
 
 `tradingagents automate` runs a local foreground loop. It aligns cycles to the configured
-analysis interval and acquires a SQLite lease before each cycle so a foreground process and a
-cron invocation cannot execute the same cycle concurrently.
+intervals and acquires a SQLite lease before each due analysis or position task so a foreground
+process and a cron invocation cannot execute the same task concurrently. Analysis and position
+tracking keep independent last-run timestamps; when their configured intervals differ, the loop
+wakes for whichever task is due first.
 
 For Alpaca US equities, the adapter's market clock controls eligibility. Equity analysis,
 allocation, execution, and position snapshots occur only while that market is open. Alpaca
