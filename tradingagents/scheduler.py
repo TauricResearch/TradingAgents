@@ -1,5 +1,6 @@
 import logging
 import os
+import sqlite3
 import sys
 import threading
 import time
@@ -79,6 +80,8 @@ class AutomationScheduler:
 
     def run_once(self, now: datetime | None = None, force_analysis: bool = False) -> None:
         due_time = self._now() if now is None else now
+        if due_time.tzinfo is None or due_time.utcoffset() is None:
+            raise ValueError("scheduler timestamp must be timezone-aware")
         self._run_task(
             "analysis",
             self.service.settings.analysis_interval_minutes,
@@ -113,17 +116,18 @@ class AutomationScheduler:
         if not force and due_time < self._deadline(task, interval_minutes, due_time):
             return
         ttl_seconds = interval_minutes * 60
+        lease_time = max(due_time, self._now())
         try:
             if not self.state.try_acquire_lease(
                 task,
                 self._owner,
-                due_time,
+                lease_time,
                 ttl_seconds,
             ):
-                self._deferred_until[task] = due_time + timedelta(seconds=60)
+                self._deferred_until[task] = lease_time + timedelta(seconds=60)
                 return
-        except Exception:
-            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+        except sqlite3.Error:
+            self._deferred_until[task] = lease_time + timedelta(minutes=interval_minutes)
             logger.exception("Automation %s lease acquisition failed", task)
             return
 
@@ -138,31 +142,32 @@ class AutomationScheduler:
             heartbeat.start()
             operation(due_time)
         except Exception:
-            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+            failed_at = max(lease_time, self._now())
+            self._deferred_until[task] = failed_at + timedelta(minutes=interval_minutes)
             logger.exception("Automation %s task failed", task)
             return
         finally:
             ownership_lost = heartbeat.stop()
 
+        completed_at = max(lease_time, self._now())
         if ownership_lost:
-            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+            self._deferred_until[task] = completed_at + timedelta(minutes=interval_minutes)
             logger.error("Automation %s completion skipped after lease loss", task)
             return
 
         try:
-            completed_at = max(due_time, self._now())
             completed = self.state.complete_task_run(
                 task,
                 self._owner,
                 ran_at=due_time,
                 completed_at=completed_at,
             )
-        except Exception:
-            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+        except sqlite3.Error:
+            self._deferred_until[task] = completed_at + timedelta(minutes=interval_minutes)
             logger.exception("Automation %s completion failed", task)
             return
         if not completed:
-            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+            self._deferred_until[task] = completed_at + timedelta(minutes=interval_minutes)
             logger.error("Automation %s stale completion was rejected", task)
             return
         self._deferred_until.pop(task, None)
@@ -170,7 +175,7 @@ class AutomationScheduler:
     def _deadline(self, task: str, interval_minutes: int, now: datetime) -> datetime:
         try:
             last_run = self.state.last_task_run(task)
-        except Exception:
+        except sqlite3.Error:
             deferred_until = now + timedelta(minutes=interval_minutes)
             self._deferred_until[task] = deferred_until
             logger.exception("Automation %s deadline read failed", task)

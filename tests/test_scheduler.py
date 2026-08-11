@@ -83,6 +83,33 @@ def test_position_interval_can_be_due_before_analysis(fake_service, state):
     assert fake_service.position_calls == [NOW]
 
 
+def test_long_analysis_uses_fresh_lease_time_for_following_positions(settings, state):
+    current = {"value": NOW}
+    long_settings = replace(
+        settings,
+        analysis_interval_minutes=60,
+        position_interval_minutes=30,
+    )
+
+    class ClockAdvancingService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            self.analysis_calls.append(due_time)
+            current["value"] += timedelta(minutes=31)
+
+    service = ClockAdvancingService(long_settings)
+    scheduler = AutomationScheduler(
+        service,
+        state,
+        now=lambda: current["value"],
+        sleep=lambda _: None,
+    )
+
+    scheduler.run_once(now=NOW)
+
+    assert service.position_calls == [NOW]
+    assert state.last_task_run("positions") == NOW
+
+
 def test_held_lease_prevents_duplicate_analysis(fake_service, state):
     assert state.try_acquire_lease("analysis", "other", NOW, 900)
     scheduler = AutomationScheduler(fake_service, state, now=lambda: NOW, sleep=lambda _: None)
@@ -200,6 +227,38 @@ def test_failed_analysis_is_deferred_to_its_next_interval(fake_service, state):
     assert state.last_task_run("analysis") == NOW + timedelta(minutes=30)
 
 
+def test_long_failed_task_defers_from_failure_time(settings, state):
+    current = {"value": NOW}
+
+    class LongFailingService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            self.analysis_calls.append(due_time)
+            current["value"] += timedelta(minutes=31)
+            if len(self.analysis_calls) == 1:
+                raise RuntimeError("late failure")
+
+    service = LongFailingService(settings)
+    scheduler = AutomationScheduler(
+        service,
+        state,
+        now=lambda: current["value"],
+        sleep=lambda _: None,
+    )
+
+    scheduler.run_once(now=NOW)
+    scheduler.run_once(now=current["value"])
+    scheduler.run_once(now=NOW + timedelta(minutes=61))
+
+    assert service.analysis_calls == [NOW, NOW + timedelta(minutes=61)]
+
+
+def test_invalid_scheduler_timestamp_is_not_treated_as_transient_state_io(fake_service, state):
+    scheduler = AutomationScheduler(fake_service, state, sleep=lambda _: None)
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        scheduler.run_once(now=datetime(2026, 8, 11, 14, 0))
+
+
 def test_failed_analysis_remains_deferred_after_scheduler_restart(settings, state):
     failed_service = FakeService(settings)
     failed_service.analysis_error = RuntimeError("temporary failure")
@@ -262,7 +321,7 @@ def test_foreground_loop_stops_cleanly_on_keyboard_interrupt(fake_service, state
 
 
 def test_foreground_sleep_uses_fresh_time_after_cycle(fake_service, state):
-    times = iter((NOW, NOW, NOW, NOW + timedelta(minutes=29, seconds=30)))
+    times = iter((NOW, NOW, NOW, NOW, NOW, NOW + timedelta(minutes=29, seconds=30)))
     sleeps = []
 
     def interrupt(seconds):
