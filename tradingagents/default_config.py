@@ -8,6 +8,17 @@ _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 # of the existing default, so users can keep writing plain strings in
 # their .env file.
 _ENV_OVERRIDES = {
+    "TRADINGAGENTS_WATCHLIST":            "watchlist",
+    "TRADINGAGENTS_BATCH_SIZE":           "batch_size",
+    "TRADINGAGENTS_ANALYSIS_INTERVAL_MINUTES": "analysis_interval_minutes",
+    "TRADINGAGENTS_POSITION_INTERVAL_MINUTES": "position_interval_minutes",
+    "TRADINGAGENTS_MAX_CASH_ALLOCATION":  "max_cash_allocation",
+    "TRADINGAGENTS_DECISION_MAX_AGE_MINUTES": "decision_max_age_minutes",
+    "TRADINGAGENTS_REBALANCE_THRESHOLD_USD": "rebalance_threshold_usd",
+    "TRADINGAGENTS_AUTOMATION_STATE_PATH": "automation_state_path",
+    "TRADINGAGENTS_AUTO_EXECUTE":         "auto_execute",
+    "TRADINGAGENTS_ALPACA_MODE":          "alpaca_mode",
+    "TRADINGAGENTS_LIVE_TRADING_ACK":     "live_trading_ack",
     "TRADINGAGENTS_LLM_PROVIDER":         "llm_provider",
     "TRADINGAGENTS_DEEP_THINK_LLM":       "deep_think_llm",
     "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
@@ -73,6 +84,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
     "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md")),
+    "watchlist": "",
+    "batch_size": 3,
+    "analysis_interval_minutes": 30,
+    "position_interval_minutes": 30,
+    "max_cash_allocation": 0.30,
+    "decision_max_age_minutes": 120,
+    "rebalance_threshold_usd": 10.0,
+    "automation_state_path": os.path.join(_TRADINGAGENTS_HOME, "automation", "state.db"),
+    "auto_execute": False,
+    "alpaca_mode": "paper",
+    "live_trading_ack": "",
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.

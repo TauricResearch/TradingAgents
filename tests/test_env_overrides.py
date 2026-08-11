@@ -28,6 +28,26 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
 
 
+def test_automation_overrides(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_WATCHLIST="AAPL,MSFT,NVDA,AMZN,META,GOOG,TSLA",
+        TRADINGAGENTS_BATCH_SIZE="2",
+        TRADINGAGENTS_ANALYSIS_INTERVAL_MINUTES="30",
+        TRADINGAGENTS_POSITION_INTERVAL_MINUTES="30",
+        TRADINGAGENTS_MAX_CASH_ALLOCATION="0.25",
+        TRADINGAGENTS_AUTO_EXECUTE="true",
+        TRADINGAGENTS_ALPACA_MODE="live",
+    )
+    assert dc.DEFAULT_CONFIG["watchlist"].startswith("AAPL,MSFT")
+    assert dc.DEFAULT_CONFIG["batch_size"] == 2
+    assert dc.DEFAULT_CONFIG["analysis_interval_minutes"] == 30
+    assert dc.DEFAULT_CONFIG["position_interval_minutes"] == 30
+    assert dc.DEFAULT_CONFIG["max_cash_allocation"] == 0.25
+    assert dc.DEFAULT_CONFIG["auto_execute"] is True
+    assert dc.DEFAULT_CONFIG["alpaca_mode"] == "live"
+
+
 def test_string_overrides(monkeypatch):
     dc = _reload_with_env(
         monkeypatch,
