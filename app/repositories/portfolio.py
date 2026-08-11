@@ -70,14 +70,20 @@ class PortfolioRepository:
         return trade
 
     async def list_trades(
-        self, limit: int = 100, account_type: str | None = None
+        self, limit: int | None = 100, account_type: str | None = None
     ) -> list[Trade]:
+        """Newest first. ``limit=None`` returns every trade.
+
+        Callers that total something (realised P&L, win counts) must pass None:
+        a cap there silently understates the answer instead of failing.
+        """
         query = select(Trade)
         if account_type is not None:
             query = query.where(Trade.account_type == account_type)
-        result = await self._session.execute(
-            query.order_by(Trade.executed_at.desc()).limit(limit)
-        )
+        query = query.order_by(Trade.executed_at.desc())
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self._session.execute(query)
         return list(result.scalars())
 
     # --- equity snapshots ---

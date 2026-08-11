@@ -160,7 +160,7 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
         # Realised P&L is invisible in a positions-only view, which is exactly
         # how a book showing five green positions can still be losing money.
         closed = [
-            t for t in await repo.list_trades(limit=500, account_type=position_type)
+            t for t in await repo.list_trades(limit=None, account_type=position_type)
             if t.side == "sell"
         ]
         # Pinned rule for the arms that have one, else the configured default.
@@ -280,5 +280,5 @@ async def close_holding(position_id: int, session: SessionDep) -> TradeItem:
 
 @router.get("/trades", response_model=list[TradeItem])
 async def trades(session: SessionDep) -> list[TradeItem]:
-    records = await PortfolioRepository(session).list_trades(limit=100)
+    records = await PortfolioRepository(session).list_trades(limit=None)
     return [TradeItem.model_validate(t) for t in records]

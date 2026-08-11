@@ -380,10 +380,13 @@
       <th>Symbol</th><th>Qty</th><th>Avg price</th><th>Last</th><th>Value</th><th>P&amp;L</th><th>Stop</th><th>Since</th><th></th>
     </tr></thead><tbody id="realBody"></tbody></table>
 
-    <div class="subhead">Trades</div>
-    <table class="data"><thead><tr>
-      <th>When</th><th>Book</th><th>Side</th><th>Symbol</th><th>Qty @ price</th><th>Reason</th><th>Realized P&amp;L</th>
-    </tr></thead><tbody id="tradeBody"></tbody></table>
+    <details class="booksec" id="sec-trades" open>
+      <summary>🧾 Trades <span class="sub">(every trade, newest first)</span>
+        <span class="count" id="tradeCount"></span></summary>
+      <table class="data"><thead><tr>
+        <th>When</th><th>Book</th><th>Side</th><th>Symbol</th><th>Qty @ price</th><th>Reason</th><th>Realized P&amp;L</th>
+      </tr></thead><tbody id="tradeBody"></tbody></table>
+    </details>
   </section>
 </div>
 
@@ -1098,7 +1101,8 @@ $("hAdd").addEventListener("click", async () => {
 async function loadTrades() {
   let ts;
   try { ts = await api("/trades"); } catch { return; }
-  $("tradeBody").innerHTML = ts.length ? ts.slice(0, 20).map(t => `
+  $("tradeCount").textContent = ts.length ? `${ts.length} trades` : "";
+  $("tradeBody").innerHTML = ts.length ? ts.map(t => `
     <tr><td class="tier">${fmtWhen(t.executed_at)}</td>
       <td><span class="book-tag">${t.account_type}</span></td>
       <td>${t.side === "buy" ? "🟢 buy" : "🔴 sell"}</td>
