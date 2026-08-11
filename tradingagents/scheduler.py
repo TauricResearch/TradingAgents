@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import threading
 import time
 import uuid
 from collections.abc import Callable, Mapping
@@ -13,6 +14,52 @@ from tradingagents.execution import AlpacaBroker
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 logger = logging.getLogger(__name__)
+MAX_HEARTBEAT_SECONDS = 60.0
+
+
+class _LeaseHeartbeat:
+    def __init__(
+        self,
+        path,
+        task: str,
+        owner: str,
+        ttl_seconds: int,
+        now: Callable[[], datetime],
+    ) -> None:
+        self._path = path
+        self._task = task
+        self._owner = owner
+        self._ttl_seconds = ttl_seconds
+        self._now = now
+        self._stop = threading.Event()
+        self._lost = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def stop(self) -> bool:
+        self._stop.set()
+        self._thread.join()
+        return self._lost.is_set()
+
+    def _run(self) -> None:
+        interval = min(MAX_HEARTBEAT_SECONDS, self._ttl_seconds / 3)
+        try:
+            with AutomationState(self._path) as state:
+                while not self._stop.wait(interval):
+                    if not state.renew_lease(
+                        self._task,
+                        self._owner,
+                        self._now(),
+                        self._ttl_seconds,
+                    ):
+                        self._lost.set()
+                        logger.error("Automation %s lease ownership was lost", self._task)
+                        return
+        except Exception:
+            self._lost.set()
+            logger.exception("Automation %s lease heartbeat failed", self._task)
 
 
 class AutomationScheduler:
@@ -65,25 +112,69 @@ class AutomationScheduler:
     ) -> None:
         if not force and due_time < self._deadline(task, interval_minutes, due_time):
             return
+        ttl_seconds = interval_minutes * 60
         try:
             if not self.state.try_acquire_lease(
                 task,
                 self._owner,
                 due_time,
-                interval_minutes * 60,
+                ttl_seconds,
             ):
                 self._deferred_until[task] = due_time + timedelta(seconds=60)
                 return
+        except Exception:
+            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+            logger.exception("Automation %s lease acquisition failed", task)
+            return
+
+        heartbeat = _LeaseHeartbeat(
+            self.state.path,
+            task,
+            self._owner,
+            ttl_seconds,
+            self._now,
+        )
+        try:
+            heartbeat.start()
             operation(due_time)
-            self.state.mark_task_run(task, due_time)
         except Exception:
             self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
             logger.exception("Automation %s task failed", task)
-        else:
-            self._deferred_until.pop(task, None)
+            return
+        finally:
+            ownership_lost = heartbeat.stop()
+
+        if ownership_lost:
+            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+            logger.error("Automation %s completion skipped after lease loss", task)
+            return
+
+        try:
+            completed_at = max(due_time, self._now())
+            completed = self.state.complete_task_run(
+                task,
+                self._owner,
+                ran_at=due_time,
+                completed_at=completed_at,
+            )
+        except Exception:
+            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+            logger.exception("Automation %s completion failed", task)
+            return
+        if not completed:
+            self._deferred_until[task] = due_time + timedelta(minutes=interval_minutes)
+            logger.error("Automation %s stale completion was rejected", task)
+            return
+        self._deferred_until.pop(task, None)
 
     def _deadline(self, task: str, interval_minutes: int, now: datetime) -> datetime:
-        last_run = self.state.last_task_run(task)
+        try:
+            last_run = self.state.last_task_run(task)
+        except Exception:
+            deferred_until = now + timedelta(minutes=interval_minutes)
+            self._deferred_until[task] = deferred_until
+            logger.exception("Automation %s deadline read failed", task)
+            return deferred_until
         deadline = now if last_run is None else last_run + timedelta(minutes=interval_minutes)
         deferred_until = self._deferred_until.get(task)
         if deferred_until is not None and deferred_until > deadline:

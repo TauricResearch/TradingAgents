@@ -283,6 +283,78 @@ class AutomationState:
             self._connection.rollback()
             raise
 
+    def renew_lease(
+        self,
+        task: str,
+        owner: str,
+        now: datetime,
+        ttl_seconds: int,
+    ) -> bool:
+        _timestamp(now)
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            row = self._connection.execute(
+                "SELECT owner, expires_at FROM leases WHERE task = ?", (task,)
+            ).fetchone()
+            if row is None or row[0] != owner or datetime.fromisoformat(row[1]) <= now:
+                self._connection.rollback()
+                return False
+            expires_at = now + timedelta(seconds=ttl_seconds)
+            self._connection.execute(
+                "UPDATE leases SET expires_at = ? WHERE task = ? AND owner = ?",
+                (_timestamp(expires_at), task, owner),
+            )
+            self._connection.commit()
+            return True
+        except Exception:
+            self._connection.rollback()
+            raise
+
+    def release_lease(self, task: str, owner: str) -> bool:
+        with self._connection:
+            cursor = self._connection.execute(
+                "DELETE FROM leases WHERE task = ? AND owner = ?",
+                (task, owner),
+            )
+        return cursor.rowcount == 1
+
+    def complete_task_run(
+        self,
+        task: str,
+        owner: str,
+        ran_at: datetime,
+        completed_at: datetime,
+    ) -> bool:
+        ran_at_text = _timestamp(ran_at)
+        _timestamp(completed_at)
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            row = self._connection.execute(
+                "SELECT owner, expires_at FROM leases WHERE task = ?", (task,)
+            ).fetchone()
+            if row is None or row[0] != owner or datetime.fromisoformat(row[1]) <= completed_at:
+                self._connection.rollback()
+                return False
+            self._connection.execute(
+                """
+                INSERT INTO task_runs (task, ran_at) VALUES (?, ?)
+                ON CONFLICT(task) DO UPDATE SET ran_at = excluded.ran_at
+                """,
+                (task, ran_at_text),
+            )
+            cursor = self._connection.execute(
+                "DELETE FROM leases WHERE task = ? AND owner = ?",
+                (task, owner),
+            )
+            if cursor.rowcount != 1:
+                self._connection.rollback()
+                return False
+            self._connection.commit()
+            return True
+        except Exception:
+            self._connection.rollback()
+            raise
+
 
 def _timestamp(value: datetime) -> str:
     if value.tzinfo is None or value.utcoffset() is None:

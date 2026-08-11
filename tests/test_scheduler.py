@@ -1,3 +1,6 @@
+import sqlite3
+import threading
+import time
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
@@ -87,6 +90,81 @@ def test_held_lease_prevents_duplicate_analysis(fake_service, state):
     assert fake_service.analysis_calls == []
 
 
+def test_renewing_owner_blocks_forced_scheduler_past_initial_ttl(tmp_path, settings, monkeypatch):
+    from tradingagents import scheduler as scheduler_module
+
+    path = tmp_path / "shared-state.db"
+    short_settings = replace(
+        settings,
+        analysis_interval_minutes=1,
+        state_path=path,
+    )
+    current = {"value": NOW}
+    started = threading.Event()
+    release = threading.Event()
+    errors = []
+
+    class BlockingService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            self.analysis_calls.append(due_time)
+            started.set()
+            if not release.wait(timeout=2):
+                raise TimeoutError("test did not release blocking analysis")
+
+    first_service = BlockingService(short_settings)
+
+    def run_first():
+        try:
+            with AutomationState(path) as first_state:
+                AutomationScheduler(
+                    first_service,
+                    first_state,
+                    now=lambda: current["value"],
+                    sleep=lambda _: None,
+                ).run_once(now=NOW)
+        except BaseException as error:
+            errors.append(error)
+
+    monkeypatch.setattr(scheduler_module, "MAX_HEARTBEAT_SECONDS", 0.01)
+    first_thread = threading.Thread(target=run_first)
+    first_thread.start()
+    assert started.wait(timeout=1)
+
+    for elapsed_seconds in (30, 60, 90, 120):
+        current["value"] = NOW + timedelta(seconds=elapsed_seconds)
+        expected_expiry = current["value"] + timedelta(minutes=1)
+        renewal_deadline = time.monotonic() + 2
+        while True:
+            with sqlite3.connect(path) as connection:
+                row = connection.execute(
+                    "SELECT expires_at FROM leases WHERE task = 'analysis'"
+                ).fetchone()
+            if row is not None and datetime.fromisoformat(row[0]) >= expected_expiry:
+                break
+            if time.monotonic() >= renewal_deadline:
+                raise AssertionError("analysis lease heartbeat did not extend ownership")
+            time.sleep(0.01)
+
+    second_service = FakeService(short_settings)
+    with AutomationState(path) as second_state:
+        second_scheduler = AutomationScheduler(
+            second_service,
+            second_state,
+            now=lambda: current["value"],
+            sleep=lambda _: None,
+        )
+        second_scheduler.run_once(now=current["value"], force_analysis=True)
+        assert second_service.analysis_calls == []
+
+        release.set()
+        first_thread.join(timeout=2)
+        assert not first_thread.is_alive()
+        assert errors == []
+
+        second_scheduler.run_once(now=current["value"], force_analysis=True)
+        assert second_service.analysis_calls == [current["value"]]
+
+
 def test_short_configured_interval_is_not_stretched_by_lease(settings, state):
     service = FakeService(replace(settings, analysis_interval_minutes=5))
     scheduler = AutomationScheduler(service, state, now=lambda: NOW, sleep=lambda _: None)
@@ -140,6 +218,31 @@ def test_failed_analysis_remains_deferred_after_scheduler_restart(settings, stat
     assert restarted_service.analysis_calls == [NOW + timedelta(minutes=30)]
 
 
+def test_run_once_deadline_read_failure_logs_and_defers_task(
+    fake_service, state, monkeypatch, caplog
+):
+    real_last_task_run = state.last_task_run
+    failed = False
+
+    def flaky_last_task_run(task):
+        nonlocal failed
+        if task == "analysis" and not failed:
+            failed = True
+            raise sqlite3.OperationalError("temporary deadline read failure")
+        return real_last_task_run(task)
+
+    monkeypatch.setattr(state, "last_task_run", flaky_last_task_run)
+    scheduler = AutomationScheduler(fake_service, state, now=lambda: NOW, sleep=lambda _: None)
+
+    scheduler.run_once()
+    scheduler.run_once(now=NOW + timedelta(minutes=15))
+    scheduler.run_once(now=NOW + timedelta(minutes=30))
+
+    assert fake_service.analysis_calls == [NOW + timedelta(minutes=30)]
+    assert fake_service.position_calls == [NOW, NOW + timedelta(minutes=30)]
+    assert "temporary deadline read failure" in caplog.text
+
+
 def test_foreground_loop_stops_cleanly_on_keyboard_interrupt(fake_service, state):
     sleeps = []
 
@@ -159,7 +262,7 @@ def test_foreground_loop_stops_cleanly_on_keyboard_interrupt(fake_service, state
 
 
 def test_foreground_sleep_uses_fresh_time_after_cycle(fake_service, state):
-    times = iter((NOW, NOW + timedelta(minutes=29, seconds=30)))
+    times = iter((NOW, NOW, NOW, NOW + timedelta(minutes=29, seconds=30)))
     sleeps = []
 
     def interrupt(seconds):
@@ -175,6 +278,44 @@ def test_foreground_sleep_uses_fresh_time_after_cycle(fake_service, state):
     scheduler.run_forever()
 
     assert sleeps == [30]
+
+
+def test_foreground_sleep_deadline_read_failure_defers_without_busy_loop(
+    fake_service, state, monkeypatch, caplog
+):
+    real_last_task_run = state.last_task_run
+    reads = 0
+
+    def flaky_last_task_run(task):
+        nonlocal reads
+        reads += 1
+        if reads == 3:
+            raise sqlite3.OperationalError("temporary sleep deadline failure")
+        return real_last_task_run(task)
+
+    current = {"value": NOW}
+    sleeps = []
+
+    def advance_then_interrupt(seconds):
+        sleeps.append(seconds)
+        if len(sleeps) == 1:
+            current["value"] += timedelta(minutes=30)
+            return
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(state, "last_task_run", flaky_last_task_run)
+    scheduler = AutomationScheduler(
+        fake_service,
+        state,
+        now=lambda: current["value"],
+        sleep=advance_then_interrupt,
+    )
+
+    scheduler.run_forever()
+
+    assert fake_service.analysis_calls == [NOW, NOW + timedelta(minutes=30)]
+    assert all(0 < seconds <= 60 for seconds in sleeps)
+    assert "temporary sleep deadline failure" in caplog.text
 
 
 def test_batch_cli_lazily_delegates_without_prompting(monkeypatch):

@@ -39,6 +39,78 @@ def test_cycle_lease_allows_only_one_owner_until_expiry(tmp_path):
     assert owner_b.try_acquire_lease("analysis", "owner-b", NOW + timedelta(seconds=900), 900)
 
 
+def test_lease_owner_mismatch_cannot_renew_release_or_complete(tmp_path):
+    path = tmp_path / "state.db"
+    owner_a = AutomationState(path)
+    owner_b = AutomationState(path)
+
+    assert owner_a.try_acquire_lease("analysis", "owner-a", NOW, 60)
+    assert not owner_b.renew_lease("analysis", "owner-b", NOW + timedelta(seconds=30), 60)
+    assert not owner_b.release_lease("analysis", "owner-b")
+    assert not owner_b.complete_task_run(
+        "analysis",
+        "owner-b",
+        ran_at=NOW,
+        completed_at=NOW + timedelta(seconds=30),
+    )
+    assert owner_a.last_task_run("analysis") is None
+
+    assert owner_a.renew_lease("analysis", "owner-a", NOW + timedelta(seconds=30), 60)
+    assert owner_a.complete_task_run(
+        "analysis",
+        "owner-a",
+        ran_at=NOW,
+        completed_at=NOW + timedelta(seconds=30),
+    )
+    assert owner_a.last_task_run("analysis") == NOW
+    assert owner_b.try_acquire_lease("analysis", "owner-b", NOW + timedelta(seconds=30), 60)
+
+
+def test_expired_lease_owner_cannot_renew_or_complete_stale_run(tmp_path):
+    path = tmp_path / "state.db"
+    state = AutomationState(path)
+
+    assert state.try_acquire_lease("analysis", "owner-a", NOW, 60)
+    expired_at = NOW + timedelta(seconds=60)
+    assert not state.renew_lease("analysis", "owner-a", expired_at, 60)
+    assert not state.complete_task_run(
+        "analysis",
+        "owner-a",
+        ran_at=NOW,
+        completed_at=expired_at,
+    )
+    assert state.last_task_run("analysis") is None
+
+
+def test_previous_owner_cannot_complete_after_expiry_takeover(tmp_path):
+    path = tmp_path / "state.db"
+    owner_a = AutomationState(path)
+    owner_b = AutomationState(path)
+
+    assert owner_a.try_acquire_lease("analysis", "owner-a", NOW, 60)
+    takeover_time = NOW + timedelta(seconds=60)
+    assert owner_b.try_acquire_lease("analysis", "owner-b", takeover_time, 60)
+
+    assert not owner_a.complete_task_run(
+        "analysis",
+        "owner-a",
+        ran_at=NOW,
+        completed_at=takeover_time,
+    )
+    assert owner_a.last_task_run("analysis") is None
+
+
+def test_only_lease_owner_can_release_active_lease(tmp_path):
+    path = tmp_path / "state.db"
+    owner_a = AutomationState(path)
+    owner_b = AutomationState(path)
+
+    assert owner_a.try_acquire_lease("positions", "owner-a", NOW, 60)
+    assert not owner_b.release_lease("positions", "owner-b")
+    assert owner_a.release_lease("positions", "owner-a")
+    assert owner_b.try_acquire_lease("positions", "owner-b", NOW, 60)
+
+
 def test_position_snapshot_preserves_decimal_strings_and_sorted_json(tmp_path):
     path = tmp_path / "state.db"
     state = AutomationState(path)
