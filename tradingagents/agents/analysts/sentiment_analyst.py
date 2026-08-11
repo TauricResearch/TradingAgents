@@ -24,7 +24,7 @@ See: https://github.com/TauricResearch/TradingAgents/issues/557
 See: https://github.com/TauricResearch/TradingAgents/issues/796
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -48,6 +48,18 @@ def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
 
 
+def _is_historical_date(trade_date: str) -> bool:
+    """Return whether ``trade_date`` precedes the current UTC date."""
+    return datetime.strptime(trade_date, "%Y-%m-%d").date() < datetime.now(timezone.utc).date()
+
+
+def _historical_social_placeholder(source: str, end_date: str) -> str:
+    return (
+        f"<{source} unavailable for historical analysis ending {end_date}: "
+        "the source provides current data only>"
+    )
+
+
 def create_sentiment_analyst(llm):
     """Create a sentiment analyst node for the trading graph.
 
@@ -64,12 +76,16 @@ def create_sentiment_analyst(llm):
         start_date = _seven_days_back(end_date)
         instrument_context = get_instrument_context_from_state(state)
 
-        # Pre-fetch all three sources. Each fetcher degrades gracefully and
-        # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
+        # Pre-fetch the date-bounded news source. The social endpoints expose
+        # only current data, so using them for a backtest would introduce
+        # look-ahead bias; keep their absence explicit in the prompt instead.
         news_block = get_news.func(ticker, start_date, end_date)
-        stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
-        reddit_block = fetch_reddit_posts(ticker)
+        if _is_historical_date(end_date):
+            stocktwits_block = _historical_social_placeholder("StockTwits", end_date)
+            reddit_block = _historical_social_placeholder("Reddit", end_date)
+        else:
+            stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
+            reddit_block = fetch_reddit_posts(ticker)
 
         system_message = _build_system_message(
             ticker=ticker,
@@ -91,8 +107,7 @@ def create_sentiment_analyst(llm):
                     # prompt, so tool-range wording would only invite a
                     # hallucinated tool call (#1130).
                     " Today's date is {current_date}; treat it as 'now' for all analysis. {instrument_context}"
-                    " " + NO_EXTERNAL_TOOLS +
-                    "\n{system_message}",
+                    " " + NO_EXTERNAL_TOOLS + "\n{system_message}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -144,14 +159,14 @@ Institutional framing. Fact-driven, slower-moving signal.
 {news_block}
 <end_of_news>
 
-### StockTwits messages — retail-trader social platform indexed by cashtag
+### StockTwits messages — current retail-trader stream indexed by cashtag
 Fast-moving signal. Each message carries a user-labeled sentiment tag (Bullish / Bearish / no-label) plus the message body.
 
 <start_of_stocktwits>
 {stocktwits_block}
 <end_of_stocktwits>
 
-### Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)
+### Reddit posts — current trailing-week feed from r/wallstreetbets, r/stocks, r/investing
 Community discussion. Engagement signal via upvote score and comment count. Subreddit character matters (r/wallstreetbets is often contrarian/exuberant; r/stocks more measured; r/investing longer-term).
 
 <start_of_reddit>
@@ -201,6 +216,7 @@ def create_social_media_analyst(llm):
         Import :func:`create_sentiment_analyst` directly instead.
     """
     import warnings
+
     warnings.warn(
         "create_social_media_analyst is deprecated and will be removed in a "
         "future version. Use create_sentiment_analyst instead.",
