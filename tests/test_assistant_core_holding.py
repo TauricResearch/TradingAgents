@@ -8,6 +8,8 @@ These cover the two defects measured in the Jul-Aug 2026 paper run:
      book closed 2 trades for 2 losses.
 """
 
+import asyncio
+
 import pytest
 
 from app.services.core_holding import CORE_NOTE, is_core
@@ -474,37 +476,137 @@ class TestCapacityWatchIsQuiet:
         monkeypatch.setattr(cap, "_env", lambda key, default="": default)
         assert cap.is_configured() is False
 
-    def test_routine_outcomes_send_nothing(self):
-        """'unavailable' and 'throttled' must not notify."""
-        import inspect
+    @staticmethod
+    def _harness(monkeypatch, outcomes):
+        """Drive check_capacity through a scripted list of (status, detail).
+
+        Returns (run, sent) where run() performs one check and sent collects the
+        notifications. Behavioural rather than source-text assertions: the
+        previous version of these tests read check_capacity's source, so it
+        passed while the watch was silently killing itself on a network blip.
+        """
+        import app.services.oci_capacity as cap
+
+        sent: list[str] = []
+        script = list(outcomes)
+
+        monkeypatch.setattr(cap, "_disabled_reason", None)
+        monkeypatch.setattr(cap, "_launched", False)
+        monkeypatch.setattr(cap, "_consecutive_errors", 0)
+        monkeypatch.setattr(cap, "is_configured", lambda: True)
+        monkeypatch.setattr(cap, "_try_launch_sync", lambda: script.pop(0))
+
+        async def fake_notify(message):
+            sent.append(message)
+
+        monkeypatch.setattr(cap, "_notify", fake_notify)
+        return (lambda: asyncio.run(cap.check_capacity())), sent
+
+    @pytest.mark.parametrize("status", ["unavailable", "throttled"])
+    def test_routine_outcomes_send_nothing(self, monkeypatch, status):
+        """The expected answer, ~288 times a day, must stay silent."""
+        run, sent = self._harness(monkeypatch, [(status, "")] * 3)
+        assert [run() for _ in range(3)] == [status] * 3
+        assert sent == []
+
+    def test_transient_network_failure_does_not_disable(self, monkeypatch):
+        """A dropped packet says nothing about capacity.
+
+        This is the 2026-08-11 regression: "The connection to endpoint timed
+        out." matched no known condition, so it read as permanent and ended a
+        watch that had been healthy for 12 hours.
+        """
+        import app.services.oci_capacity as cap
+
+        run, sent = self._harness(
+            monkeypatch, [("transient", "timed out")] * 10 + [("unavailable", "")]
+        )
+        for _ in range(10):
+            assert run() == "transient"
+        assert cap._disabled_reason is None, "a network blip must not disable the watch"
+        assert sent == []
+        assert run() == "unavailable", "the watch must still be live afterwards"
+
+    def test_endpoint_timeout_is_classified_transient(self):
+        """The exact string Oracle's CLI returned, so the fix cannot regress."""
+        import app.services.oci_capacity as cap
+
+        assert cap._classify("The connection to endpoint timed out.") == "transient"
+        assert cap._classify("Out of host capacity.") == "retry"
+        assert cap._classify("TooManyRequests") == "throttled"
+        # A real misconfiguration must NOT be excused as transient.
+        assert cap._classify("NotAuthorizedOrNotFound") is None
+
+    def test_cli_timeout_reaches_check_capacity_as_transient(self, monkeypatch, tmp_path):
+        """End to end from the CLI's own output, not a hand-fed status.
+
+        Verbatim stderr from the 2026-08-11 failure. Classifying it correctly
+        inside _try_launch_sync is what actually keeps the watch alive.
+        """
+        import subprocess
 
         import app.services.oci_capacity as cap
 
-        source = inspect.getsource(cap.check_capacity)
-        # The only _notify calls are in the launched and error branches.
-        after_error = source.split('if status == "error"')[-1]
-        assert "_notify" in source.split('if status == "launched"')[1].split("return")[0]
-        assert "_notify" in after_error.split("return")[0]
-        # Nothing after the error branch notifies — that is the quiet path.
-        tail = after_error.split("return status")[-1]
-        assert "_notify" not in tail
+        stderr = (
+            '{\n    "client_version": "Oracle-PythonCLI/3.90.1",\n'
+            '    "message": "The connection to endpoint timed out.",\n'
+            '    "target_service": "CLI"\n}'
+        )
+        key = tmp_path / "oci_ta.pub"
+        key.write_text("ssh-rsa AAAA test")
 
-    def test_permanent_error_disables_itself(self):
-        """A bad OCID repeats forever; say it once, then stop."""
-        import inspect
+        monkeypatch.setattr(cap, "_oci", lambda: "oci")
+        monkeypatch.setattr(cap, "_env", lambda k, d="": {
+            "OCI_COMPARTMENT_ID": "ocid1.compartment.oc1..aaa",
+            "OCI_SUBNET_ID": "ocid1.subnet.oc1..bbb",
+            "OCI_SSH_PUBLIC_KEY_PATH": str(key),
+        }.get(k, d))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(
+            a[0] if a else [], 1, "", stderr))
 
+        assert cap._try_launch_sync()[0] == "transient"
+
+    def test_one_hard_error_does_not_disable(self, monkeypatch):
         import app.services.oci_capacity as cap
 
-        source = inspect.getsource(cap.check_capacity)
-        assert "_disabled_reason = detail" in source
-        assert "_disabled_reason" in source.split("async def check_capacity")[0] or True
+        run, sent = self._harness(monkeypatch, [("error", "weird")] * 2)
+        run()
+        assert cap._disabled_reason is None
+        assert sent == []
 
-    def test_stops_after_launching(self):
+    def test_repeated_hard_error_disables_once(self, monkeypatch):
+        """A bad OCID fails identically forever; say it once, then stop."""
+        import app.services.oci_capacity as cap
+
+        n = cap._MAX_CONSECUTIVE_ERRORS
+        run, sent = self._harness(monkeypatch, [("error", "NotAuthorized")] * (n + 3))
+        for _ in range(n):
+            run()
+        assert cap._disabled_reason == "NotAuthorized"
+        assert len(sent) == 1
+        # Further ticks are skipped, so the same alert is never repeated.
+        assert run() == "skipped"
+        assert len(sent) == 1
+
+    def test_success_resets_the_error_count(self, monkeypatch):
+        """Occasional errors spread over months must not accumulate into a kill."""
+        import app.services.oci_capacity as cap
+
+        n = cap._MAX_CONSECUTIVE_ERRORS
+        run, _ = self._harness(
+            monkeypatch, [("error", "x"), ("unavailable", "")] * (n + 2)
+        )
+        for _ in range(2 * (n + 2)):
+            run()
+        assert cap._disabled_reason is None
+
+    def test_stops_after_launching(self, monkeypatch):
         """Once the VM exists there is nothing left to watch."""
-        import inspect
-
         import app.services.oci_capacity as cap
 
-        source = inspect.getsource(cap.check_capacity)
-        assert "_launched = True" in source
-        assert "if _launched" in source
+        run, sent = self._harness(monkeypatch, [("launched", "eu-ad-1"), ("error", "x")])
+        assert run() == "launched"
+        assert cap._launched is True
+        assert len(sent) == 1
+        assert run() == "skipped"
+        assert len(sent) == 1

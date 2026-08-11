@@ -19,8 +19,14 @@ import argparse
 import asyncio
 import math
 import sqlite3
+import sys
 import time
 from datetime import datetime
+from pathlib import Path
+
+# Running a file puts scripts/ on sys.path, not the repo root, so `import app`
+# fails unless the project happens to be installed editable in this env.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytz
 

@@ -36,10 +36,40 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _RETRYABLE = ("out of host capacity", "outofcapacity", "out of capacity")
 _THROTTLED = ("toomanyrequests", "too many requests", "rate limit")
 
+#: Network-level failures, which say nothing about capacity and resolve on their
+#: own. Unclassified they read as permanent, and one dropped packet then kills a
+#: watch that is meant to run for months — which is exactly what happened on
+#: 2026-08-11: "The connection to endpoint timed out." disabled it after 12
+#: healthy hours, and it stayed dead until the next restart.
+_TRANSIENT = (
+    "connection to endpoint timed out", "connection timed out", "connect timeout",
+    "read timeout", "timed out", "connection aborted", "connection reset",
+    "temporary failure in name resolution", "could not resolve host",
+    "service unavailable", "bad gateway", "gateway timeout", "connectionerror",
+)
+
+#: Consecutive hard errors tolerated before the watch gives up. A misconfigured
+#: OCID fails identically every time and trips this quickly; a one-off API
+#: hiccup does not.
+_MAX_CONSECUTIVE_ERRORS = 3
+
 #: Set once a permanent error is seen, so the job stops re-running a request
 #: that cannot succeed. Cleared only by restarting the service.
 _disabled_reason: str | None = None
 _launched = False
+_consecutive_errors = 0
+
+
+def _classify(blob: str) -> str | None:
+    """'retry' | 'throttled' | 'transient' for known conditions, else None."""
+    blob = blob.lower()
+    if any(m in blob for m in _RETRYABLE):
+        return "retry"
+    if any(m in blob for m in _THROTTLED):
+        return "throttled"
+    if any(m in blob for m in _TRANSIENT):
+        return "transient"
+    return None
 
 
 def _env(key: str, default: str = "") -> str:
@@ -108,7 +138,10 @@ def _try_launch_sync() -> tuple[str, str]:
     ])
     image = out.strip()
     if code != 0 or not image.startswith("ocid1.image"):
-        return "error", (err or out).strip()[:300]
+        blob = (err or out).strip()
+        if _classify(blob) == "transient":
+            return "transient", blob[:300]
+        return "error", blob[:300]
 
     code, out, err = run([
         "iam", "availability-domain", "list", "-c", compartment, "--query", "data[].name",
@@ -116,10 +149,13 @@ def _try_launch_sync() -> tuple[str, str]:
     try:
         ads = [a for a in json.loads(out) if a]
     except Exception:
-        return "error", (err or out).strip()[:300]
+        blob = (err or out).strip()
+        if _classify(blob) == "transient":
+            return "transient", blob[:300]
+        return "error", blob[:300]
 
     key = key_path.read_text().strip()
-    throttled = False
+    throttled = transient = False
     for ad in ads:
         code, out, err = run([
             "compute", "instance", "launch",
@@ -133,20 +169,25 @@ def _try_launch_sync() -> tuple[str, str]:
         ])
         if code == 0:
             return "launched", ad
-        blob = (out + err).lower()
-        if any(m in blob for m in _RETRYABLE):
+        kind = _classify(out + err)
+        if kind == "retry":
             continue
-        if any(m in blob for m in _THROTTLED):
+        if kind == "throttled":
             throttled = True
+            continue
+        if kind == "transient":
+            transient = True
             continue
         return "error", (err or out).strip()[:300]
 
+    if transient:
+        return "transient", ""
     return ("throttled", "") if throttled else ("unavailable", "")
 
 
 async def check_capacity() -> str:
     """One capacity check. Alerts only on a state change worth acting on."""
-    global _disabled_reason, _launched
+    global _disabled_reason, _launched, _consecutive_errors
 
     if _launched or _disabled_reason or not is_configured():
         return "skipped"
@@ -155,17 +196,34 @@ async def check_capacity() -> str:
 
     if status == "launched":
         _launched = True
+        _consecutive_errors = 0
         logger.info("Oracle Ampere capacity found — instance launched in %s", detail)
         await _notify(
             f"✅ Oracle Ampere capacity found — your VM is now running in {detail}."
         )
         return status
 
+    if status == "transient":
+        # A network failure says nothing about capacity. Retry next tick.
+        _consecutive_errors = 0
+        logger.warning("Oracle capacity check: transient network failure, will retry")
+        return status
+
     if status == "error":
         # A permanent error repeats forever if left alone, so say it ONCE and
-        # stop rather than sending the same stack trace every few minutes.
+        # stop rather than sending the same stack trace every few minutes. But
+        # only after it has repeated: a single odd response used to end the
+        # watch for the life of the process.
+        _consecutive_errors += 1
+        if _consecutive_errors < _MAX_CONSECUTIVE_ERRORS:
+            logger.warning(
+                "Oracle capacity check failed (%d/%d before giving up): %s",
+                _consecutive_errors, _MAX_CONSECUTIVE_ERRORS, detail,
+            )
+            return status
         _disabled_reason = detail
-        logger.error("Capacity watch disabled: %s", detail)
+        logger.error("Capacity watch disabled after %d consecutive failures: %s",
+                     _consecutive_errors, detail)
         await _notify(
             "⚠️ Oracle capacity watch stopped — it needs attention. "
             "See the server log for details."
@@ -173,6 +231,7 @@ async def check_capacity() -> str:
         return status
 
     # unavailable / throttled: expected, frequent, and not worth a message.
+    _consecutive_errors = 0
     logger.info("Oracle Ampere capacity check: %s", status)
     return status
 
