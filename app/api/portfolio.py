@@ -109,7 +109,7 @@ async def _benchmark_return_pct(since: datetime) -> float | None:
 async def portfolio(session: SessionDep) -> PortfolioResponse:
     from app.api.schemas import BookSummary
     from app.core.config import get_settings
-    from app.services.core_holding import core_etf_for, core_trend_ok
+    from app.services.core_holding import core_etf_for, core_trend_ok, is_core_trade
     from app.services.paper_broker import BOOK_POSITION_TYPE
 
     repo = PortfolioRepository(session)
@@ -159,10 +159,14 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
         )
         # Realised P&L is invisible in a positions-only view, which is exactly
         # how a book showing five green positions can still be losing money.
-        closed = [
+        sells = [
             t for t in await repo.list_trades(limit=None, account_type=position_type)
             if t.side == "sell"
         ]
+        # Realised P&L counts every sell (it is real money), but the win rate
+        # counts only strategy exits — a core rotation is bookkeeping, not a call.
+        core_sells = [t for t in sells if is_core_trade(t.reason)]
+        closed = [t for t in sells if not is_core_trade(t.reason)]
         # Pinned rule for the arms that have one, else the configured default.
         rule = rule_for(label, settings.tactical_rule).strip() if BOOKS[label].rule_driven else ""
         books.append(BookSummary(
@@ -179,9 +183,11 @@ async def portfolio(session: SessionDep) -> PortfolioResponse:
             active=BOOKS[label].active,
             invested_pct=invested_pct,
             core_value_usd=core_value,
-            realised_pnl_usd=sum(t.realized_pnl_usd or 0.0 for t in closed),
+            realised_pnl_usd=sum(t.realized_pnl_usd or 0.0 for t in sells),
             closed_trades=len(closed),
             winning_trades=sum(1 for t in closed if (t.realized_pnl_usd or 0) > 0),
+            core_rotations=len(core_sells),
+            core_realised_pnl_usd=sum(t.realized_pnl_usd or 0.0 for t in core_sells),
             unrealised_pnl_usd=unrealised,
             open_positions=len(book_positions),
         ))

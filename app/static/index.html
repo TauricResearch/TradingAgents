@@ -963,10 +963,17 @@ async function loadPortfolio() {
     const isControl = b.label === "core_spy";
     const inv = b.invested_pct == null ? "—"
       : `<span${b.invested_pct < 70 ? ' style="color:var(--critical)"' : ""}>${b.invested_pct.toFixed(0)}%</span>`;
+    // The win rate counts strategy exits only. Core rotations are shown
+    // separately rather than folded in: an arm that swept its core 13 times and
+    // never closed a position used to read "4/13 won", which is not a win rate.
+    const money = `<span class="${cls(b.realised_pnl_usd)}">${b.realised_pnl_usd >= 0 ? "+" : "−"}$${Math.abs(b.realised_pnl_usd).toFixed(0)}</span>`;
+    const rotations = b.core_rotations
+      ? `<div class="lead">+${b.core_rotations} core rotation${b.core_rotations === 1 ? "" : "s"}</div>` : "";
     const rp = b.closed_trades
-      ? `<span class="${cls(b.realised_pnl_usd)}">${b.realised_pnl_usd >= 0 ? "+" : "−"}$${Math.abs(b.realised_pnl_usd).toFixed(0)}</span>` +
-        `<div class="lead">${b.winning_trades}/${b.closed_trades} won</div>`
-      : `<span class="lead">no closed trades</span>`;
+      ? money + `<div class="lead">${b.winning_trades}/${b.closed_trades} exit${b.closed_trades === 1 ? "" : "s"} won</div>` + rotations
+      : (b.core_rotations
+          ? money + `<div class="lead">no exits yet</div>` + rotations
+          : `<span class="lead">no closed trades</span>`);
     // Live mark-to-market. This is the half of P&L that actually moves between
     // refreshes; realised sits still for days between closes, which makes a
     // realised-only scoreboard look broken while the book is working.

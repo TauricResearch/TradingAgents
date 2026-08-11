@@ -64,6 +64,17 @@ def is_core(position: Position) -> bool:
     return (position.note or "").strip().lower() == CORE_NOTE
 
 
+def is_core_trade(reason: str | None) -> bool:
+    """True for a core sweep/rotation rather than a strategy decision.
+
+    Trade carries no note column, so the reason string is the only marker —
+    which is why every core reason starts with CORE_NOTE. Mixing these into a
+    win rate makes it meaningless: an arm that rotated its core 13 times and
+    never once exited a position reads as "4/13 won".
+    """
+    return (reason or "").strip().lower().startswith(CORE_NOTE)
+
+
 async def _core_position(repo: PortfolioRepository, book: str, symbol: str) -> Position | None:
     from app.services.paper_broker import BOOK_POSITION_TYPE
 
@@ -197,8 +208,10 @@ async def sweep_idle_cash(book: str = "strategic") -> str | None:
     # core already held. This is the defensive half — it is what converts a
     # -46% drawdown into -12%, and it only earns that in a genuine crash.
     if not await core_trend_ok(book):
+        # Prefixed "core": is_core_trade reads the reason string, and this exit
+        # would otherwise be the one core trade that fails to identify itself.
         return await _exit_core(
-            book, f"{symbol} below {settings.core_trend_window}d average"
+            book, f"core exit: {symbol} below {settings.core_trend_window}d average"
         )
 
     buffer_usd = equity * settings.core_cash_buffer_pct / 100.0
@@ -269,6 +282,11 @@ async def ensure_cash(book: str, needed_usd: float) -> float:
 
     A satellite entry calls this before sizing so the core never blocks a
     signal. Selling only the shortfall keeps the rest of the book invested.
+
+    Raises exactly ``needed_usd``, not needed + fee, so a buy funded this way
+    leaves cash at minus one transaction fee (cents). Deliberate: the next buy's
+    MIN_ORDER_USD check then declines, so the overdraft is bounded at one fee and
+    the next sell clears it. A book sitting at -1.75 is this, not a leak.
     """
     from app.services.paper_broker import BOOK_POSITION_TYPE, live_price
 

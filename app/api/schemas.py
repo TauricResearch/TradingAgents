@@ -159,9 +159,14 @@ class BookSummary(BaseModel):
     # because most of the capital sat in cash earning nothing.
     invested_pct: float | None = None
     core_value_usd: float | None = None
-    realised_pnl_usd: float = 0.0   # closed trades — hidden by a positions-only view
+    realised_pnl_usd: float = 0.0   # ALL sells — real money, core rotations included
+    # Strategy exits only. Core sweeps are excluded because they are accounting,
+    # not decisions: counting them made tactical_donchian read "4/13 won" when it
+    # had closed 13 core rotations and not one position.
     closed_trades: int = 0
     winning_trades: int = 0
+    core_rotations: int = 0
+    core_realised_pnl_usd: float = 0.0
     # Open-position P&L, marked to the live price. Realised only moves when a
     # trade closes — days or weeks apart — so a scoreboard showing realised
     # alone looks frozen while the book is in fact moving every refresh.
