@@ -250,6 +250,7 @@ class AutomationState:
         now: datetime,
         ttl_seconds: int,
     ) -> bool:
+        _timestamp(now)
         try:
             self._connection.execute("BEGIN IMMEDIATE")
             row = self._connection.execute(
@@ -276,4 +277,6 @@ class AutomationState:
 
 
 def _timestamp(value: datetime) -> str:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("timestamp must be timezone-aware")
     return value.isoformat()
