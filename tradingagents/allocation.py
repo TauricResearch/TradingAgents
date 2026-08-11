@@ -19,12 +19,16 @@ class OrderIntent:
 
 
 def conviction_targets(decisions, cash, max_cash_allocation):
+    max_cash_allocation = Decimal(str(max_cash_allocation))
+    if not Decimal("0") < max_cash_allocation <= Decimal("0.30"):
+        raise ValueError("max_cash_allocation must be greater than 0 and at most 0.30")
+
     try:
         scores = {symbol: RATING_SCORES[rating] for symbol, rating in decisions.items()}
     except KeyError as error:
         raise ValueError(f"unsupported rating: {error.args[0]}") from error
 
-    gross_budget = max(Decimal(str(cash)), Decimal("0")) * Decimal(str(max_cash_allocation))
+    gross_budget = max(Decimal(str(cash)), Decimal("0")) * max_cash_allocation
     score_total = sum(abs(score) for score in scores.values())
     if score_total == 0:
         return {symbol: Decimal("0") for symbol in decisions}

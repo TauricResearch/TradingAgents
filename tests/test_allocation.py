@@ -24,6 +24,43 @@ def test_conviction_targets_normalize_signed_weights_with_thirty_percent_cap():
     assert sum(abs(value) for value in targets.values()) == Decimal("3000")
 
 
+@pytest.mark.parametrize(
+    "max_cash_allocation",
+    [Decimal("0"), Decimal("-0.01"), Decimal("0.3001")],
+)
+def test_conviction_targets_reject_invalid_cash_allocation_caps(
+    max_cash_allocation,
+):
+    with pytest.raises(ValueError, match="max_cash_allocation"):
+        conviction_targets(
+            {"AAPL": "Buy"},
+            cash=Decimal("1000"),
+            max_cash_allocation=max_cash_allocation,
+        )
+
+
+def test_conviction_targets_accept_thirty_percent_cash_allocation_cap():
+    assert conviction_targets(
+        {"AAPL": "Buy"},
+        cash=Decimal("1000"),
+        max_cash_allocation=Decimal("0.30"),
+    ) == {"AAPL": Decimal("300.00")}
+
+
+def test_underweight_has_half_the_absolute_weight_of_buy_and_sell():
+    targets = conviction_targets(
+        {"AAPL": "Buy", "MSFT": "Underweight", "TSLA": "Sell"},
+        cash=Decimal("1000"),
+        max_cash_allocation=Decimal("0.30"),
+    )
+
+    assert targets == {
+        "AAPL": Decimal("120"),
+        "MSFT": Decimal("-60"),
+        "TSLA": Decimal("-120"),
+    }
+
+
 def test_non_positive_cash_and_all_hold_produce_zero_targets():
     assert conviction_targets({"AAPL": "Buy"}, Decimal("0"), Decimal("0.30"))["AAPL"] == 0
     assert conviction_targets({"AAPL": "Hold"}, Decimal("1000"), Decimal("0.30"))["AAPL"] == 0
