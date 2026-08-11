@@ -212,6 +212,13 @@ class AutomationState:
         ).fetchone()
         return row[0]
 
+    def order_intent_statuses(self, cycle_id: str) -> dict[str, str]:
+        rows = self._connection.execute(
+            "SELECT symbol, status FROM order_intents WHERE cycle_id = ? ORDER BY symbol",
+            (cycle_id,),
+        ).fetchall()
+        return dict(rows)
+
     def update_order_intent(
         self,
         cycle_id: str,
