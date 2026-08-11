@@ -115,6 +115,7 @@ class AutomationState:
         now: datetime,
         max_age_minutes: int,
     ) -> dict[str, DecisionRecord]:
+        _timestamp(now)
         if not symbols:
             return {}
         placeholders = ", ".join("?" for _ in symbols)

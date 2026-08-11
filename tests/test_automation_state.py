@@ -109,6 +109,11 @@ def _acquire_lease_with_naive_now(state):
     return state.try_acquire_lease("analysis", "owner-b", NAIVE_NOW, 900)
 
 
+def _load_fresh_decision_with_naive_now(state):
+    state.save_decision("AAPL", "Buy", NOW, "2026-08-11", "/reports/aapl.md")
+    return state.fresh_decisions(("AAPL",), NAIVE_NOW, 120)
+
+
 @pytest.mark.parametrize(
     "operation",
     [
@@ -137,6 +142,14 @@ def _acquire_lease_with_naive_now(state):
         pytest.param(
             _acquire_lease_with_naive_now,
             id="lease",
+        ),
+        pytest.param(
+            _load_fresh_decision_with_naive_now,
+            id="fresh-decisions",
+        ),
+        pytest.param(
+            lambda state: state.fresh_decisions((), NAIVE_NOW, 120),
+            id="fresh-decisions-empty",
         ),
     ],
 )
