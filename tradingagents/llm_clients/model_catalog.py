@@ -57,6 +57,21 @@ _QWEN_MODELS: dict[str, list[ModelOption]] = {
     ],
 }
 
+_AGENTROUTER_MODELS: dict[str, list[ModelOption]] = {
+    "quick": [
+        ("Opus 5", "claude-opus-5"),
+        ("Opus 4.8", "claude-opus-4-8"),
+        ("gpt 5.6 sol", "gpt-5.6-sol"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("Opus 5", "claude-opus-5"),
+        ("Opus 4.8", "claude-opus-4-8"),
+        ("gpt 5.6 sol", "gpt-5.6-sol"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
 
 # Shared model list for MiniMax's global and CN endpoints (same IDs).
 # Full official lineup per platform.minimax.io/docs/api-reference/text-openai-api.
@@ -188,6 +203,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "nvidia": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
+    "agentrouter": _AGENTROUTER_MODELS,
 }
 
 

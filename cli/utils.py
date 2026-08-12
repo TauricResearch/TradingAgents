@@ -355,6 +355,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("AgentRouter", "agentrouter", "https://agentrouter.org/v1"),
         ("Mistral", "mistral", "https://api.mistral.ai/v1"),
         ("Kimi (Moonshot)", "kimi", "https://api.moonshot.ai/v1"),
         ("Groq", "groq", "https://api.groq.com/openai/v1"),
@@ -686,3 +687,4 @@ def ask_output_language() -> str:
         ).ask() or "").strip() or "English"
 
     return choice
+    

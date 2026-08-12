@@ -126,7 +126,7 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
             reasoning = choice.get("message", {}).get("reasoning_content")
             if reasoning is not None:
                 generation.message.additional_kwargs["reasoning_content"] = reasoning
-        return chat_result
+        return chat_result    
 
 
 class MinimaxChatOpenAI(NormalizedChatOpenAI):
@@ -220,6 +220,7 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "minimax":    ProviderSpec(base_url="https://api.minimax.io/v1", chat_class=MinimaxChatOpenAI),
     "minimax-cn": ProviderSpec(base_url="https://api.minimaxi.com/v1", chat_class=MinimaxChatOpenAI),
     "openrouter": ProviderSpec(base_url="https://openrouter.ai/api/v1"),
+    "agentrouter": ProviderSpec(base_url="https://agentrouter.org/v1"),
     "mistral":    ProviderSpec(base_url="https://api.mistral.ai/v1"),
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
@@ -328,6 +329,13 @@ class OpenAIClient(BaseLLMClient):
             if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
                 continue
             llm_kwargs[key] = self.kwargs[key]
+            
+        if self.provider == "agentrouter":
+            llm_kwargs["default_headers"] = {
+                "Originator": "codex_cli_rs",
+                "User-Agent": "codex_cli_rs/0.114.0 (Windows 10.0.26100; x86_64)",
+                "Version": "0.114.0",
+            }
 
         # The subclass (provider quirks) comes from the registry spec.
         return chat_cls(**llm_kwargs)
