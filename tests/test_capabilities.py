@@ -33,7 +33,7 @@ class TestExactIdMatches:
 
 @pytest.mark.unit
 class TestPatternMatches:
-    """Forward-compat regex patterns catch unknown DeepSeek and MiniMax variants."""
+    """Forward-compat regex patterns catch known provider model families."""
 
     def test_future_deepseek_v5_inherits_thinking_quirks(self):
         caps = get_capabilities("deepseek-v5-flash")
@@ -48,24 +48,27 @@ class TestPatternMatches:
         caps = get_capabilities("deepseek-reasoner-pro")
         assert caps.supports_tool_choice is False
 
-    def test_minimax_m3_inherits_thinking_quirks(self):
-        caps = get_capabilities("MiniMax-M3")
+    def test_future_minimax_m2_variant_inherits_thinking_quirks(self):
+        caps = get_capabilities("MiniMax-M2.9-highspeed")
         assert caps.supports_tool_choice is False
-
-    def test_future_minimax_m4_highspeed_inherits_thinking_quirks(self):
-        caps = get_capabilities("MiniMax-M4-highspeed")
-        assert caps.supports_tool_choice is False
+        assert caps.thinking_modes == ("always_on",)
 
 
 @pytest.mark.unit
 class TestMinimaxExactMatches:
-    """MiniMax M2.x models reject langchain's function-spec dict tool_choice
-    (official API enum: none/auto only)."""
+    """MiniMax M-series capabilities vary by model generation."""
+
+    def test_m3_supports_configurable_thinking(self):
+        caps = get_capabilities("MiniMax-M3")
+        assert caps.supports_tool_choice is False
+        assert caps.requires_reasoning_split is True
+        assert caps.thinking_modes == ("adaptive", "disabled")
 
     def test_m2_7_rejects_tool_choice(self):
         caps = get_capabilities("MiniMax-M2.7")
         assert caps.supports_tool_choice is False
         assert caps.supports_json_mode is False  # only MiniMax-Text-01 supports json_object
+        assert caps.thinking_modes == ("always_on",)
 
     def test_m2_7_highspeed_rejects_tool_choice(self):
         assert get_capabilities("MiniMax-M2.7-highspeed").supports_tool_choice is False
@@ -81,9 +84,6 @@ class TestMinimaxExactMatches:
         # land in reasoning_details instead of content (#826).
         for model in ("MiniMax-M2.7", "MiniMax-M2.5-highspeed", "MiniMax-M2"):
             assert get_capabilities(model).requires_reasoning_split is True
-
-    def test_future_m3_inherits_reasoning_split(self):
-        assert get_capabilities("MiniMax-M3-highspeed").requires_reasoning_split is True
 
     def test_non_reasoning_minimax_does_not_get_reasoning_split(self):
         # Coding Plan, MiniMax-Text-01, and any non-M2-prefixed MiniMax model
