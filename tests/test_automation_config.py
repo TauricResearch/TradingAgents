@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from tradingagents.automation import AutomationSettings, partition_watchlist
+from tradingagents.default_config import _ENV_OVERRIDES
 
 
 def _config(**overrides):
@@ -46,3 +47,27 @@ def test_partition_patterns_cover_every_symbol_once():
     symbols = ("A", "B", "C", "D", "E", "F", "G")
     assert partition_watchlist(symbols, 3) == (("A", "B", "C"), ("D", "E"), ("F", "G"))
     assert partition_watchlist(symbols, 2) == (("A", "B"), ("C", "D"), ("E", "F", "G"))
+
+
+def test_env_example_documents_every_automation_override():
+    text = Path(".env.example").read_text()
+    automation_vars = {
+        name
+        for name, key in _ENV_OVERRIDES.items()
+        if key
+        in {
+            "watchlist",
+            "batch_size",
+            "analysis_interval_minutes",
+            "position_interval_minutes",
+            "max_cash_allocation",
+            "decision_max_age_minutes",
+            "rebalance_threshold_usd",
+            "automation_state_path",
+            "auto_execute",
+            "alpaca_mode",
+            "live_trading_ack",
+        }
+    }
+    assert automation_vars
+    assert all(name in text for name in automation_vars)

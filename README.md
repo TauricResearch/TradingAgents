@@ -193,6 +193,85 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### Alpaca automation
+
+The non-interactive Alpaca path requires exactly seven unique, comma-separated symbols. It
+keeps the existing single-symbol graph unchanged and analyzes each symbol sequentially. With
+`TRADINGAGENTS_BATCH_SIZE=3`, persisted batches rotate `3, 2, 2`; with a batch size of `2`, they
+rotate `2, 2, 3`. Analysis and position tracking have independent 30-minute default cadences.
+
+Install the optional Alpaca dependency, create a local configuration, then run one batch or the
+foreground loop:
+
+```bash
+pip install -e ".[alpaca]"
+cp .env.example .env
+tradingagents batch
+tradingagents automate
+```
+
+Set `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` in `.env` to credentials for the environment named
+by `TRADINGAGENTS_ALPACA_MODE`. Paper and live credentials are different. Also set
+`TRADINGAGENTS_WATCHLIST` to exactly seven unique symbols. Keep these safe defaults for the
+first full three-batch warm-up:
+
+```dotenv
+TRADINGAGENTS_AUTO_EXECUTE=false
+TRADINGAGENTS_ALPACA_MODE=paper
+```
+
+Dry-run mode still analyzes symbols and persists order plans, but submits nothing. Trading does
+not plan or submit orders until all seven symbols have successful decisions no older than
+`TRADINGAGENTS_DECISION_MAX_AGE_MINUTES` (120 minutes by default). Review the dry-run plans in
+the SQLite state database at `~/.tradingagents/automation/state.db`, or set
+`TRADINGAGENTS_AUTOMATION_STATE_PATH` to an absolute path.
+
+The allocator maps Buy/Overweight/Hold/Underweight/Sell to signed conviction targets, where
+Hold targets zero exposure. Managed gross target notional cannot exceed 30% of current positive
+Alpaca cash; the configured percentage may be lowered but not raised above `0.30`. Current
+positions and outstanding open-order exposure are reconciled toward each target, rather than
+adding the allocation again on every cycle.
+
+After reviewing dry-run plans, enable automatic paper orders with:
+
+```dotenv
+TRADINGAGENTS_AUTO_EXECUTE=true
+TRADINGAGENTS_ALPACA_MODE=paper
+```
+
+Live submission requires live Alpaca credentials and all three values below. The acknowledgment
+must match exactly:
+
+```dotenv
+TRADINGAGENTS_AUTO_EXECUTE=true
+TRADINGAGENTS_ALPACA_MODE=live
+TRADINGAGENTS_LIVE_TRADING_ACK=I_UNDERSTAND_LIVE_ORDERS
+```
+
+The adapter supports active, tradable Alpaca US equities and crypto. It skips untradable assets
+and unsupported short targets without reallocating their budget. Equity shorts require Alpaca
+to mark the asset shortable; Alpaca crypto is long-or-flat because crypto shorts are not
+permitted. Orders are market orders, so neither environment guarantees a fill at the reference
+price. Paper fills are simulations and do not reproduce live liquidity, latency, slippage, or
+partial fills.
+
+For a persistent local process, leave `tradingagents automate` running in the foreground. Each
+due analysis or position task holds a renewable SQLite lease, and deterministic Alpaca client
+order IDs protect retries from duplicate submission. Alternatively, schedule the one-shot
+command with cron:
+
+```cron
+*/30 * * * * cd /absolute/path/to/TradingAgents && /absolute/path/to/venv/bin/tradingagents batch >> ~/.tradingagents/automation/cron.log 2>&1
+```
+
+`tradingagents batch` checks market eligibility and the same SQLite lease itself, so overlapping
+cron and foreground invocations do not run the same task concurrently. US-equity work waits for
+Alpaca's market clock; crypto remains eligible continuously.
+
+Emergency stop: stop the foreground process (for example, with Ctrl-C) and set
+`TRADINGAGENTS_AUTO_EXECUTE=false` before the next run. Environment configuration is read at
+process startup, so restart an existing process after changing `.env`.
+
 ## TradingAgents Package
 
 ### Implementation Details
