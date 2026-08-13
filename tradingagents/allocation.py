@@ -32,10 +32,7 @@ def conviction_targets(decisions, cash, max_cash_allocation):
     score_total = sum(abs(score) for score in scores.values())
     if score_total == 0:
         return {symbol: Decimal("0") for symbol in decisions}
-    return {
-        symbol: gross_budget * score / score_total
-        for symbol, score in scores.items()
-    }
+    return {symbol: gross_budget * score / score_total for symbol, score in scores.items()}
 
 
 def reconcile_targets(targets, positions, open_orders, threshold):
@@ -48,7 +45,5 @@ def reconcile_targets(targets, positions, open_orders, threshold):
         )
         delta = target - effective
         if abs(delta) >= threshold and delta != 0:
-            intents.append(
-                OrderIntent(symbol, "buy" if delta > 0 else "sell", abs(delta), target)
-            )
+            intents.append(OrderIntent(symbol, "buy" if delta > 0 else "sell", abs(delta), target))
     return intents

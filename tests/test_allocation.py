@@ -98,17 +98,16 @@ def test_unknown_rating_is_rejected():
     [(Decimal("500"), "sell"), (Decimal("-500"), "buy")],
 )
 def test_hold_target_closes_long_or_short(position, expected_side):
-    intents = reconcile_targets(
-        {"AAPL": Decimal("0")}, {"AAPL": position}, {}, Decimal("10")
-    )
+    intents = reconcile_targets({"AAPL": Decimal("0")}, {"AAPL": position}, {}, Decimal("10"))
     assert intents[0].side == expected_side
     assert intents[0].notional == Decimal("500")
 
 
 def test_delta_below_threshold_is_suppressed():
-    assert reconcile_targets(
-        {"AAPL": Decimal("100")}, {"AAPL": Decimal("95")}, {}, Decimal("10")
-    ) == []
+    assert (
+        reconcile_targets({"AAPL": Decimal("100")}, {"AAPL": Decimal("95")}, {}, Decimal("10"))
+        == []
+    )
 
 
 def test_public_boundaries_convert_floats_via_string_and_preserve_input_order():
