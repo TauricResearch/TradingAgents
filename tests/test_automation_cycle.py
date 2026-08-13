@@ -677,3 +677,88 @@ def test_next_cycle_reuses_persisted_unresolved_client_order_id(tmp_path):
 
     second = [spec for spec in broker.submitted if spec.symbol == "AAPL"][-1]
     assert second.client_order_id == first_id
+
+
+def test_resolved_reused_id_retires_historical_error(tmp_path):
+    path = tmp_path / "resolved-restart.db"
+    broker = FakeBroker()
+    broker.submit_failures.add("AAPL")
+    with AutomationState(path) as state:
+        first = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), state, broker
+        )
+        first.seed_all_decisions()
+        first_result = first.run_analysis_cycle(NOW)
+
+    broker.submit_failures.clear()
+    with AutomationState(path) as state:
+        restarted = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), state, broker
+        )
+        restarted.run_analysis_cycle(NOW.replace(minute=30))
+        historical_status = state._connection.execute(
+            "SELECT status FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
+            (first_result.cycle_id,),
+        ).fetchone()[0]
+
+    assert historical_status == "retired"
+
+
+def test_ambiguous_reused_id_remains_reusable(tmp_path):
+    path = tmp_path / "ambiguous-restart.db"
+    broker = FakeBroker()
+    broker.submit_failures.add("AAPL")
+    with AutomationState(path) as state:
+        first = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), state, broker
+        )
+        first.seed_all_decisions()
+        first_result = first.run_analysis_cycle(NOW)
+        first_id = state._connection.execute(
+            "SELECT client_order_id FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
+            (first_result.cycle_id,),
+        ).fetchone()[0]
+
+    with AutomationState(path) as state:
+        restarted = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), state, broker
+        )
+        second_result = restarted.run_analysis_cycle(NOW.replace(minute=30))
+        aapl_intent = next(
+            intent for intent in second_result.order_intents if intent.symbol == "AAPL"
+        )
+        historical_status = state._connection.execute(
+            "SELECT status FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
+            (first_result.cycle_id,),
+        ).fetchone()[0]
+
+        assert historical_status == "error"
+        assert state.unresolved_client_order_id(aapl_intent) == first_id
+
+
+def test_later_rebalance_with_different_delta_gets_fresh_id(tmp_path):
+    path = tmp_path / "later-rebalance.db"
+    broker = FakeBroker()
+    broker.submit_failures.add("AAPL")
+    with AutomationState(path) as state:
+        first = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), state, broker
+        )
+        first.seed_all_decisions()
+        first_result = first.run_analysis_cycle(NOW)
+        first_id = state._connection.execute(
+            "SELECT client_order_id FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
+            (first_result.cycle_id,),
+        ).fetchone()[0]
+
+    broker.submit_failures.clear()
+    broker.position_values["AAPL"] = Decimal("100")
+    with AutomationState(path) as state:
+        restarted = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), state, broker
+        )
+        result = restarted.run_analysis_cycle(NOW.replace(minute=30))
+
+    submitted = [spec for spec in broker.submitted if spec.symbol == "AAPL"][-1]
+    assert submitted.client_order_id != first_id
+    assert "order-AAPL" in result.submitted_order_ids

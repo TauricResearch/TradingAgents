@@ -353,10 +353,9 @@ class AutomationCycleService:
                 )
             else:
                 submitted_ids.append(order_id)
-                self.state.update_order_intent(
+                self.state.mark_order_intent_submitted(
                     cycle_id,
                     intent.symbol,
-                    "submitted",
                     spec.client_order_id,
                 )
 

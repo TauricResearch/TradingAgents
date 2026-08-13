@@ -259,6 +259,18 @@ def test_open_order_exposure_ignores_symbols_outside_priced_universe():
     assert broker.open_order_exposure({"AAPL": Decimal("100")}) == {"AAPL": Decimal("100")}
 
 
+def test_open_order_exposure_ignores_malformed_order_outside_priced_universe():
+    client = SimpleNamespace(
+        get_orders=lambda: [
+            SimpleNamespace(symbol="OTHER", side=_enum("buy"), qty="bad", filled_qty=None),
+            SimpleNamespace(symbol="AAPL", side=_enum("buy"), qty="1", filled_qty="0"),
+        ]
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+
+    assert broker.open_order_exposure({"AAPL": Decimal("100")}) == {"AAPL": Decimal("100")}
+
+
 def test_partially_filled_notional_order_uses_remaining_exposure():
     client = SimpleNamespace(
         get_orders=lambda: [
@@ -274,7 +286,7 @@ def test_partially_filled_notional_order_uses_remaining_exposure():
     )
     broker = AlpacaBroker("key", "secret", mode="paper", client=client)
 
-    assert broker.open_order_exposure({}) == {"AAPL": Decimal("150.0")}
+    assert broker.open_order_exposure({"AAPL": Decimal("100")}) == {"AAPL": Decimal("150.0")}
 
 
 def test_ambiguous_notional_fill_fails_closed():
@@ -293,7 +305,7 @@ def test_ambiguous_notional_fill_fails_closed():
     broker = AlpacaBroker("key", "secret", mode="paper", client=client)
 
     with pytest.raises(RuntimeError, match="remaining exposure"):
-        broker.open_order_exposure({})
+        broker.open_order_exposure({"AAPL": Decimal("100")})
 
 
 def test_unshortable_asset_rejects_negative_target_without_submission():

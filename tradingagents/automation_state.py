@@ -223,13 +223,36 @@ class AutomationState:
         row = self._connection.execute(
             """
             SELECT client_order_id FROM order_intents
-            WHERE symbol = ? AND side = ? AND target_notional = ?
+            WHERE symbol = ? AND side = ? AND notional = ? AND target_notional = ?
               AND status = 'error' AND client_order_id IS NOT NULL
             ORDER BY created_at DESC LIMIT 1
             """,
-            (intent.symbol, intent.side, str(intent.target_notional)),
+            (intent.symbol, intent.side, str(intent.notional), str(intent.target_notional)),
         ).fetchone()
         return row[0] if row else None
+
+    def mark_order_intent_submitted(
+        self,
+        cycle_id: str,
+        symbol: str,
+        client_order_id: str,
+    ) -> None:
+        with self._connection:
+            self._connection.execute(
+                """
+                UPDATE order_intents SET status = 'retired'
+                WHERE client_order_id = ? AND status = 'error'
+                  AND NOT (cycle_id = ? AND symbol = ?)
+                """,
+                (client_order_id, cycle_id, symbol),
+            )
+            self._connection.execute(
+                """
+                UPDATE order_intents SET status = 'submitted', client_order_id = ?
+                WHERE cycle_id = ? AND symbol = ?
+                """,
+                (client_order_id, cycle_id, symbol),
+            )
 
     def update_order_intent(
         self,

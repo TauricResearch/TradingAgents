@@ -216,6 +216,8 @@ class AlpacaBroker:
         exposure: dict[str, Decimal] = {}
         for raw in self._client.get_orders():
             symbol = _internal_symbol(raw.symbol)
+            if symbol not in prices:
+                continue
             raw_qty = getattr(raw, "qty", None)
             raw_filled_qty = getattr(raw, "filled_qty", None)
             if raw_filled_qty is None:
