@@ -36,16 +36,24 @@ def test_automation_overrides(monkeypatch):
         TRADINGAGENTS_ANALYSIS_INTERVAL_MINUTES="30",
         TRADINGAGENTS_POSITION_INTERVAL_MINUTES="30",
         TRADINGAGENTS_MAX_CASH_ALLOCATION="0.25",
+        TRADINGAGENTS_DECISION_MAX_AGE_MINUTES="90",
+        TRADINGAGENTS_REBALANCE_THRESHOLD_USD="12.5",
+        TRADINGAGENTS_AUTOMATION_STATE_PATH="/tmp/automation.db",
         TRADINGAGENTS_AUTO_EXECUTE="true",
         TRADINGAGENTS_ALPACA_MODE="live",
+        TRADINGAGENTS_LIVE_TRADING_ACK="ack",
     )
     assert dc.DEFAULT_CONFIG["watchlist"].startswith("AAPL,MSFT")
     assert dc.DEFAULT_CONFIG["batch_size"] == 2
     assert dc.DEFAULT_CONFIG["analysis_interval_minutes"] == 30
     assert dc.DEFAULT_CONFIG["position_interval_minutes"] == 30
     assert dc.DEFAULT_CONFIG["max_cash_allocation"] == 0.25
+    assert dc.DEFAULT_CONFIG["decision_max_age_minutes"] == 90
+    assert dc.DEFAULT_CONFIG["rebalance_threshold_usd"] == 12.5
+    assert dc.DEFAULT_CONFIG["automation_state_path"] == "/tmp/automation.db"
     assert dc.DEFAULT_CONFIG["auto_execute"] is True
     assert dc.DEFAULT_CONFIG["alpaca_mode"] == "live"
+    assert dc.DEFAULT_CONFIG["live_trading_ack"] == "ack"
 
 
 def test_string_overrides(monkeypatch):
@@ -79,8 +87,16 @@ def test_int_coercion(monkeypatch):
 @pytest.mark.parametrize(
     "raw,expected",
     [
-        ("true", True), ("True", True), ("1", True), ("yes", True), ("on", True),
-        ("false", False), ("False", False), ("0", False), ("no", False), ("off", False),
+        ("true", True),
+        ("True", True),
+        ("1", True),
+        ("yes", True),
+        ("on", True),
+        ("false", False),
+        ("False", False),
+        ("0", False),
+        ("no", False),
+        ("off", False),
     ],
 )
 def test_bool_coercion(monkeypatch, raw, expected):

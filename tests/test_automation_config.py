@@ -43,6 +43,23 @@ def test_settings_reject_allocation_above_thirty_percent():
         AutomationSettings.from_config(_config(max_cash_allocation=0.31))
 
 
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ({"batch_size": 4}, "batch_size must be 2 or 3"),
+        ({"alpaca_mode": "sandbox"}, "alpaca_mode must be paper or live"),
+        ({"analysis_interval_minutes": 0}, "intervals and decision age must be positive"),
+        ({"position_interval_minutes": 0}, "intervals and decision age must be positive"),
+        ({"decision_max_age_minutes": 0}, "intervals and decision age must be positive"),
+        ({"max_cash_allocation": 0}, "max_cash_allocation must be greater than 0"),
+        ({"rebalance_threshold_usd": -1}, "rebalance_threshold_usd must be non-negative"),
+    ],
+)
+def test_settings_reject_other_invalid_automation_values(override, message):
+    with pytest.raises(ValueError, match=message):
+        AutomationSettings.from_config(_config(**override))
+
+
 def test_partition_patterns_cover_every_symbol_once():
     symbols = ("A", "B", "C", "D", "E", "F", "G")
     assert partition_watchlist(symbols, 3) == (("A", "B", "C"), ("D", "E"), ("F", "G"))

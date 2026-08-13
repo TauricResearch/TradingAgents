@@ -280,6 +280,36 @@ def test_crypto_remains_eligible_while_equity_market_is_closed(tmp_path):
         state.close()
 
 
+def test_warmed_mixed_watchlist_only_executes_crypto_while_equity_market_is_closed(tmp_path):
+    symbols = ("BTC-USD", "ETH-USD", "AAPL", "MSFT", "NVDA", "AMZN", "META")
+    ratings = {symbol: RATINGS[symbol] for symbol in symbols}
+    state = AutomationState(tmp_path / "mixed-closed.db")
+    broker = FakeBroker()
+    broker.market_open = False
+    harness = ServiceHarness(
+        _settings(
+            tmp_path,
+            watchlist=symbols,
+            auto_execute=True,
+            state_path=tmp_path / "mixed-closed.db",
+        ),
+        state,
+        broker,
+        ratings,
+    )
+    harness.seed_all_decisions()
+    try:
+        result = harness.run_analysis_cycle(NOW)
+        assert {intent.symbol for intent in result.order_intents} == {"BTC-USD", "ETH-USD"}
+        assert {spec.symbol for spec in broker.submitted} == {"BTC/USD", "ETH/USD"}
+        assert not any(
+            read.startswith("price:") and not read.endswith("-USD") for read in broker.reads
+        )
+        assert sum(abs(intent.target_notional) for intent in result.order_intents) < Decimal("3000")
+    finally:
+        state.close()
+
+
 def test_one_symbol_eligibility_defers_whole_partition(tmp_path):
     symbols = ("BTC-USD", "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG")
     ratings = {symbol: RATINGS[symbol] for symbol in symbols}
@@ -614,5 +644,36 @@ def test_ambiguous_submit_is_recorded_without_direct_retry(tmp_path):
         assert broker.submit_attempts.count("AAPL") == 1
         assert all(spec.symbol != "AAPL" for spec in broker.submitted)
         assert state.order_intent_statuses(result.cycle_id)["AAPL"] == "error"
+        row = state._connection.execute(
+            "SELECT client_order_id FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
+            (result.cycle_id,),
+        ).fetchone()
+        assert row[0].startswith("ta-")
     finally:
         state.close()
+
+
+def test_next_cycle_reuses_persisted_unresolved_client_order_id(tmp_path):
+    path = tmp_path / "restart-submit.db"
+    broker = FakeBroker()
+    broker.submit_failures.add("AAPL")
+    with AutomationState(path) as state:
+        first = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), state, broker
+        )
+        first.seed_all_decisions()
+        first_result = first.run_analysis_cycle(NOW)
+        first_id = state._connection.execute(
+            "SELECT client_order_id FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
+            (first_result.cycle_id,),
+        ).fetchone()[0]
+
+    broker.submit_failures.clear()
+    with AutomationState(path) as restarted_state:
+        restarted = ServiceHarness(
+            _settings(tmp_path, auto_execute=True, state_path=path), restarted_state, broker
+        )
+        restarted.run_analysis_cycle(NOW.replace(minute=30))
+
+    second = [spec for spec in broker.submitted if spec.symbol == "AAPL"][-1]
+    assert second.client_order_id == first_id

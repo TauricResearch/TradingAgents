@@ -247,6 +247,18 @@ def test_open_order_exposure_uses_remaining_qty_and_signed_side():
     }
 
 
+def test_open_order_exposure_ignores_symbols_outside_priced_universe():
+    client = SimpleNamespace(
+        get_orders=lambda: [
+            SimpleNamespace(symbol="OTHER", side=_enum("buy"), qty="2", filled_qty="0"),
+            SimpleNamespace(symbol="AAPL", side=_enum("buy"), qty="1", filled_qty="0"),
+        ]
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+
+    assert broker.open_order_exposure({"AAPL": Decimal("100")}) == {"AAPL": Decimal("100")}
+
+
 def test_partially_filled_notional_order_uses_remaining_exposure():
     client = SimpleNamespace(
         get_orders=lambda: [
@@ -466,3 +478,74 @@ def test_uncertain_lookup_failure_is_never_followed_by_submission():
 
     with pytest.raises(TimeoutError, match="uncertain"):
         broker.submit_idempotent(spec)
+
+
+def test_timeout_after_accept_is_resolved_by_second_client_id_lookup(monkeypatch):
+    lookups = iter((None, SimpleNamespace(id="accepted-order")))
+
+    class FakeMarketOrderRequest:
+        def __init__(self, **fields):
+            self.fields = fields
+
+    client = SimpleNamespace(
+        get_order_by_client_id=lambda client_order_id: next(lookups),
+        submit_order=lambda order_data: (_ for _ in ()).throw(TimeoutError("timed out")),
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._market_order_request_class", lambda: FakeMarketOrderRequest
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+    spec = OrderRequestSpec("AAPL", Decimal("1"), "buy", "day", "stable-client-id")
+
+    assert broker.submit_idempotent(spec) == "accepted-order"
+
+
+def test_submit_timeout_with_confirmed_second_lookup_absence_is_not_resubmitted(monkeypatch):
+    lookups = []
+
+    class FakeMarketOrderRequest:
+        def __init__(self, **fields):
+            self.fields = fields
+
+    client = SimpleNamespace(
+        get_order_by_client_id=lambda client_order_id: lookups.append(client_order_id),
+        submit_order=lambda order_data: (_ for _ in ()).throw(TimeoutError("timed out")),
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._market_order_request_class", lambda: FakeMarketOrderRequest
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+    spec = OrderRequestSpec("AAPL", Decimal("1"), "buy", "day", "stable-client-id")
+
+    with pytest.raises(TimeoutError, match="timed out"):
+        broker.submit_idempotent(spec)
+    assert lookups == ["stable-client-id", "stable-client-id"]
+
+
+def test_submit_timeout_with_ambiguous_second_lookup_stays_unresolved(monkeypatch):
+    calls = 0
+
+    class FakeMarketOrderRequest:
+        def __init__(self, **fields):
+            self.fields = fields
+
+    def lookup(client_order_id):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return None
+        raise ConnectionError("lookup ambiguous")
+
+    client = SimpleNamespace(
+        get_order_by_client_id=lookup,
+        submit_order=lambda order_data: (_ for _ in ()).throw(TimeoutError("timed out")),
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._market_order_request_class", lambda: FakeMarketOrderRequest
+    )
+    broker = AlpacaBroker("key", "secret", mode="paper", client=client)
+    spec = OrderRequestSpec("AAPL", Decimal("1"), "buy", "day", "stable-client-id")
+
+    with pytest.raises(ConnectionError, match="lookup ambiguous"):
+        broker.submit_idempotent(spec)
+    assert calls == 2

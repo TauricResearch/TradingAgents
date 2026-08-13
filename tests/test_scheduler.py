@@ -8,7 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 import cli.main as cli_main
-from tradingagents.automation import AutomationSettings
+from tradingagents.automation import AutomationSettings, CycleResult
 from tradingagents.automation_state import AutomationState
 from tradingagents.scheduler import AutomationScheduler
 
@@ -314,6 +314,30 @@ def test_failed_analysis_is_not_marked_and_does_not_block_positions(fake_service
     assert state.last_task_run("positions") == NOW
     assert fake_service.position_calls == [NOW]
     assert "temporary failure" in caplog.text
+
+
+def test_analysis_cycle_result_is_logged_concisely(settings, state, caplog):
+    class ResultService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            self.analysis_calls.append(due_time)
+            return CycleResult(
+                "cycle-1",
+                ("BTC-USD",),
+                ("ETH-USD",),
+                (),
+                ("order-1",),
+                "submission errors: ETH-USD",
+            )
+
+    scheduler = AutomationScheduler(ResultService(settings), state, now=lambda: NOW)
+    with caplog.at_level("INFO"):
+        scheduler.run_once()
+
+    assert "cycle=cycle-1" in caplog.text
+    assert "analyzed=BTC-USD" in caplog.text
+    assert "failed=ETH-USD" in caplog.text
+    assert "submitted=order-1" in caplog.text
+    assert "submission errors: ETH-USD" in caplog.text
 
 
 def test_failed_analysis_is_deferred_to_its_next_interval(fake_service, state):

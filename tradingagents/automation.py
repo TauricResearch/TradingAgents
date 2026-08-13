@@ -1,5 +1,5 @@
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -215,14 +215,14 @@ class AutomationCycleService:
             snapshot_time = self.broker.broker_time()
             _require_aware(snapshot_time)
             self.state.record_position_snapshot(snapshot_time, account.cash, positions)
-            targets = conviction_targets(
+            all_targets = conviction_targets(
                 {symbol: decisions[symbol].rating for symbol in self.settings.watchlist},
                 account.cash,
                 self.settings.max_cash_allocation,
             )
-            prices = {
-                symbol: self.broker.latest_price(symbol) for symbol in self.settings.watchlist
-            }
+            executable = self._market_eligible_symbols(self.settings.watchlist)
+            targets = {symbol: all_targets[symbol] for symbol in executable}
+            prices = {symbol: self.broker.latest_price(symbol) for symbol in executable}
             open_orders = self.broker.open_order_exposure(prices)
             intents = tuple(
                 reconcile_targets(
@@ -311,6 +311,9 @@ class AutomationCycleService:
                         prices[intent.symbol],
                         cycle_id,
                     )
+                    unresolved_id = self.state.unresolved_client_order_id(intent)
+                    if unresolved_id is not None:
+                        spec = replace(spec, client_order_id=unresolved_id)
                 except ValueError:
                     skipped.append(intent.symbol)
                     self.state.update_order_intent(cycle_id, intent.symbol, "skipped")
@@ -332,11 +335,22 @@ class AutomationCycleService:
         submitted_ids = []
         submission_errors = []
         for intent, spec in prepared:
+            self.state.update_order_intent(
+                cycle_id,
+                intent.symbol,
+                "pending",
+                spec.client_order_id,
+            )
             try:
                 order_id = self.broker.submit_idempotent(spec)
             except Exception:
                 submission_errors.append(intent.symbol)
-                self.state.update_order_intent(cycle_id, intent.symbol, "error")
+                self.state.update_order_intent(
+                    cycle_id,
+                    intent.symbol,
+                    "error",
+                    spec.client_order_id,
+                )
             else:
                 submitted_ids.append(order_id)
                 self.state.update_order_intent(
@@ -377,11 +391,14 @@ class AutomationCycleService:
         self.state.record_position_snapshot(broker_time, account.cash, positions)
 
     def _eligible_symbols(self, partition: tuple[str, ...]) -> tuple[str, ...]:
-        has_equity = any(detect_asset_type(symbol).value == "stock" for symbol in partition)
+        return self._market_eligible_symbols(partition)
+
+    def _market_eligible_symbols(self, symbols: tuple[str, ...]) -> tuple[str, ...]:
+        has_equity = any(detect_asset_type(symbol).value == "stock" for symbol in symbols)
         equity_open = self.broker.equity_market_is_open() if has_equity else False
         return tuple(
             symbol
-            for symbol in partition
+            for symbol in symbols
             if detect_asset_type(symbol).value == "crypto" or equity_open
         )
 

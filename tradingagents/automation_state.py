@@ -219,6 +219,18 @@ class AutomationState:
         ).fetchall()
         return dict(rows)
 
+    def unresolved_client_order_id(self, intent: OrderIntent) -> str | None:
+        row = self._connection.execute(
+            """
+            SELECT client_order_id FROM order_intents
+            WHERE symbol = ? AND side = ? AND target_notional = ?
+              AND status = 'error' AND client_order_id IS NOT NULL
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (intent.symbol, intent.side, str(intent.target_notional)),
+        ).fetchone()
+        return row[0] if row else None
+
     def update_order_intent(
         self,
         cycle_id: str,

@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 
-from tradingagents.automation import AutomationCycleService, AutomationSettings
+from tradingagents.automation import AutomationCycleService, AutomationSettings, CycleResult
 from tradingagents.automation_state import AutomationState
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.execution import AlpacaBroker
@@ -151,7 +151,17 @@ class AutomationScheduler:
         operation_error: Exception | None = None
         try:
             heartbeat.start()
-            operation(due_time)
+            result = operation(due_time)
+            if isinstance(result, CycleResult):
+                logger.info(
+                    "Automation %s result cycle=%s analyzed=%s failed=%s submitted=%s outcome=%s",
+                    task,
+                    result.cycle_id,
+                    ",".join(result.analyzed_symbols) or "none",
+                    ",".join(result.failed_symbols) or "none",
+                    ",".join(result.submitted_order_ids) or "none",
+                    result.trade_suppressed_reason or "completed",
+                )
         except Exception as error:
             operation_error = error
         finally:

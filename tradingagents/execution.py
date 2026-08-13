@@ -228,6 +228,8 @@ class AlpacaBroker:
             )
             notional = getattr(raw, "notional", None)
             if raw_qty is not None:
+                if order.symbol not in prices:
+                    continue
                 remaining_qty = order.qty - order.filled_qty
                 if remaining_qty < 0:
                     raise RuntimeError(f"remaining exposure is invalid for open order {symbol}")
@@ -367,7 +369,13 @@ class AlpacaBroker:
         existing_order_id = self.find_order_by_client_id(spec.client_order_id)
         if existing_order_id is not None:
             return existing_order_id
-        return self.submit(spec)
+        try:
+            return self.submit(spec)
+        except Exception as submission_error:
+            existing_order_id = self.find_order_by_client_id(spec.client_order_id)
+            if existing_order_id is not None:
+                return existing_order_id
+            raise submission_error
 
     def _validate_submission(self) -> None:
         validate_execution_mode(self._mode, auto_execute=True, live_ack=self._live_ack)
