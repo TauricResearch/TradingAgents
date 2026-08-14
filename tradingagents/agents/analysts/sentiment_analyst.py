@@ -68,8 +68,12 @@ def create_sentiment_analyst(llm):
         # returns a string (no exceptions surface from here), so the LLM
         # always sees something — either real data or a clear placeholder.
         news_block = get_news.func(ticker, start_date, end_date)
-        stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
-        reddit_block = fetch_reddit_posts(ticker)
+        stocktwits_block = fetch_stocktwits_messages(
+            ticker, limit=30, start_date=start_date, end_date=end_date
+        )
+        reddit_block = fetch_reddit_posts(
+            ticker, start_date=start_date, end_date=end_date
+        )
 
         system_message = _build_system_message(
             ticker=ticker,
@@ -137,7 +141,7 @@ def _build_system_message(
 
 ## Data sources (pre-fetched, in this prompt)
 
-### News headlines — Yahoo Finance, past 7 days
+### News headlines — Yahoo Finance, {start_date} to {end_date}
 Institutional framing. Fact-driven, slower-moving signal.
 
 <start_of_news>
@@ -151,7 +155,7 @@ Fast-moving signal. Each message carries a user-labeled sentiment tag (Bullish /
 {stocktwits_block}
 <end_of_stocktwits>
 
-### Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)
+### Reddit posts — r/wallstreetbets, r/stocks, r/investing ({start_date} to {end_date})
 Community discussion. Engagement signal via upvote score and comment count. Subreddit character matters (r/wallstreetbets is often contrarian/exuberant; r/stocks more measured; r/investing longer-term).
 
 <start_of_reddit>

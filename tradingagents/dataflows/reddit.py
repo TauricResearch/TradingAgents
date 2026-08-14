@@ -25,7 +25,7 @@ import re
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -57,6 +57,41 @@ def _search_qs(ticker: str, limit: int) -> str:
         "t": "week",  # last 7 days
         "limit": limit,
     })
+
+
+def _window_epochs(start_date: str | None, end_date: str | None) -> tuple[float | None, float | None]:
+    """UTC window [start midnight, end+1 day midnight) for inclusive date bounds.
+
+    ``end_date`` stays inclusive for the whole day (mirrors the yfinance-news
+    convention: a post timestamped anywhere on ``end_date`` belongs to the
+    window; anything on the following midnight does not).
+    """
+    start_ts = None
+    if start_date:
+        start_ts = datetime.strptime(start_date, "%Y-%m-%d").replace(
+            tzinfo=timezone.utc
+        ).timestamp()
+    end_ts = None
+    if end_date:
+        end_ts = (
+            datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            + timedelta(days=1)
+        ).timestamp()
+    return start_ts, end_ts
+
+
+def _in_window(epoch: float | None, start_ts: float | None, end_ts: float | None) -> bool:
+    """True when ``epoch`` is in [start_ts, end_ts).
+
+    Undated rows are excluded from a dated window (they could be anything,
+    including future posts); in live mode with no window they are kept,
+    mirroring the yfinance-news convention.
+    """
+    if epoch is None:
+        return start_ts is None and end_ts is None
+    if start_ts is not None and epoch < start_ts:
+        return False
+    return not (end_ts is not None and epoch >= end_ts)
 
 
 def _iso_to_timestamp(iso_str: str | None) -> float | None:
@@ -194,6 +229,8 @@ def fetch_reddit_posts(
     limit_per_sub: int = 5,
     timeout: float = 10.0,
     inter_request_delay: float = 1.0,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> str:
     """Fetch recent Reddit posts mentioning ``ticker`` across finance
     subreddits and return them as a formatted plaintext block.
@@ -201,23 +238,36 @@ def fetch_reddit_posts(
     ``inter_request_delay`` paces the (now RSS-only) per-subreddit requests to
     stay under Reddit's public per-IP rate limit; combined with the RSS-first
     path it makes 429s rare even when several analyses run back-to-back.
+
+    When ``start_date`` / ``end_date`` are provided (e.g. a historical
+    backtest trade date), posts timestamped outside the window are dropped and
+    a window-specific placeholder is returned when nothing survives the
+    filter -- Reddit's public search only serves recent posts, so a historical
+    analysis must not present today's posts as historical signal (#1220).
     """
     # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
     # ("BTC") so the query actually matches discussion instead of near-nothing.
     ticker = crypto_base(ticker) or ticker
+    start_ts, end_ts = _window_epochs(start_date, end_date)
+    window_label = "past 7 days"
+    if start_date and end_date:
+        window_label = f"{start_date} to {end_date}"
+    elif end_date:
+        window_label = f"through {end_date}"
     blocks = []
     total_posts = 0
     for i, sub in enumerate(subreddits):
         if i > 0:
             time.sleep(inter_request_delay)
         posts = _fetch_subreddit(ticker, sub, limit_per_sub, timeout)
+        posts = [p for p in posts if _in_window(p.get("created_utc"), start_ts, end_ts)]
         total_posts += len(posts)
         if not posts:
-            blocks.append(f"r/{sub}: <no posts found mentioning {ticker.upper()} in the past 7 days>")
+            blocks.append(f"r/{sub}: <no posts found mentioning {ticker.upper()} in the {window_label}>")
             continue
 
         via_rss = any(p.get("source") == "rss" for p in posts)
-        header = f"r/{sub} — {len(posts)} recent posts mentioning {ticker.upper()}"
+        header = f"r/{sub} — {len(posts)} posts in the {window_label} mentioning {ticker.upper()}"
         header += " (via RSS feed; scores/comments unavailable):" if via_rss else ":"
         lines = [header]
         for p in posts:
@@ -245,6 +295,6 @@ def fetch_reddit_posts(
     if total_posts == 0:
         return (
             f"<no Reddit posts found mentioning {ticker.upper()} across "
-            f"{', '.join(f'r/{s}' for s in subreddits)} in the past 7 days>"
+            f"{', '.join(f'r/{s}' for s in subreddits)} in the {window_label}>"
         )
     return "\n\n".join(blocks)
