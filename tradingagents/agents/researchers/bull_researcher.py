@@ -24,14 +24,33 @@ def create_bull_researcher(llm):
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
 
+        if current_response.strip():
+            engagement_instruction = (
+                "- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, "
+                "addressing concerns thoroughly and showing why the bull perspective holds stronger merit.\n"
+                "- Engagement: Present your argument in a conversational style, engaging directly with the bear "
+                "analyst's points and debating effectively rather than just listing data.\n\n"
+                f"Last bear argument: {current_response}\n"
+                "Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage "
+                "in a dynamic debate that demonstrates the strengths of the bull position."
+            )
+        else:
+            # The debate opens with this speaker: no bear argument exists yet,
+            # so prompting a rebuttal makes the model fabricate one (#1176).
+            engagement_instruction = (
+                "- This is the opening statement of the debate: the bear analyst has not spoken yet. Do not claim, "
+                "paraphrase, or rebut any bear argument, because none exists yet.\n"
+                "- Present your bull case on its own merits, using the provided research and data as evidence.\n\n"
+                "Open with a clear statement of your position, then support it with the strongest available evidence."
+            )
+
         prompt = f"""You are a Bull Analyst advocating for investing in the {target_label}. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
 Key points to focus on:
 - Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
 - Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
 - Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
-- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
-- Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
+{engagement_instruction}
 
 Resources available:
 {instrument_context}
@@ -40,8 +59,6 @@ Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
 Conversation history of the debate: {history}
-Last bear argument: {current_response}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
 """ + get_language_instruction()
 
         response = llm.invoke(prompt)
