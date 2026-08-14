@@ -10,7 +10,7 @@
 |---|--------|-------------|----------------|----|
 | A1 | ✅ Done | Fix look-ahead bias in social-sentiment pipeline | [#1220](https://github.com/TauricResearch/TradingAgents/issues/1220) | [#1232](https://github.com/TauricResearch/TradingAgents/pull/1232) |
 | A2 | 🚧 Planned | Reproducible backtesting / evaluation harness | [#119](https://github.com/TauricResearch/TradingAgents/issues/119) | — |
-| A3 | 📋 Planned | Fix first-speaker fabrication in multi-agent debates | [#1176](https://github.com/TauricResearch/TradingAgents/issues/1176) | — |
+| A3 | ✅ Done | Fix first-speaker fabrication in multi-agent debates | [#1176](https://github.com/TauricResearch/TradingAgents/issues/1176) | [#1233](https://github.com/TauricResearch/TradingAgents/pull/1233) |
 
 ## A1: Look-ahead bias fix
 - **Problem**: historical runs fed today's StockTwits/Reddit posts into the
