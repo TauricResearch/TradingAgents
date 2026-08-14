@@ -22,6 +22,7 @@ from tradingagents.agents.schemas import (
     SentimentReport,
     TraderAction,
     TraderProposal,
+    render_pm_decision,
     render_research_plan,
     render_sentiment_report,
     render_trader_proposal,
@@ -120,6 +121,28 @@ class TestRenderResearchPlan:
             )
             md = render_research_plan(p)
             assert f"**Recommendation**: {rating.value}" in md
+
+
+@pytest.mark.unit
+class TestRenderPortfolioDecision:
+    def test_supporting_evidence_ids_render_when_present(self):
+        d = PortfolioDecision(
+            rating=PortfolioRating.BUY,
+            executive_summary="Build a starter position.",
+            investment_thesis="The verified market snapshot supports the setup.",
+            supporting_evidence_ids=["EVD-MKT-TEST", "EVD-NEWS-TEST"],
+        )
+        md = render_pm_decision(d)
+        assert "**Supporting Evidence IDs**: EVD-MKT-TEST, EVD-NEWS-TEST" in md
+
+    def test_supporting_evidence_ids_render_none_when_absent(self):
+        d = PortfolioDecision(
+            rating=PortfolioRating.HOLD,
+            executive_summary="Wait for confirmation.",
+            investment_thesis="The debate is balanced.",
+        )
+        md = render_pm_decision(d)
+        assert "**Supporting Evidence IDs**: None" in md
 
 
 # ---------------------------------------------------------------------------

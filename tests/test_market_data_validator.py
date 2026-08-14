@@ -23,6 +23,25 @@ def _sample_ohlcv() -> pd.DataFrame:
 
 @pytest.mark.unit
 class TestVerifiedSnapshot:
+    def test_payload_excludes_future_rows_and_is_structured(self, monkeypatch):
+        data = pd.concat([
+            _sample_ohlcv(),
+            pd.DataFrame({"Date": [pd.Timestamp("2026-06-01")], "Open": [999.0],
+                          "High": [999.0], "Low": [999.0], "Close": [999.0], "Volume": [999]}),
+        ], ignore_index=True)
+        monkeypatch.setattr(validator, "load_ohlcv", lambda s, d: data)
+
+        payload = validator.build_verified_market_snapshot_payload("cof", "2026-05-13")
+
+        assert payload["symbol"] == "COF"
+        assert payload["requested_date"] == "2026-05-13"
+        assert payload["latest_date"] == "2026-05-13"
+        assert payload["latest_ohlcv"]["Close"] != 999.0
+        assert payload["look_back_days"] <= 30
+        assert 0 < len(payload["recent_closes"]) <= 30
+        assert payload["recent_closes"][-1]["Date"] == "2026-05-13"
+        assert "boll_lb" in payload["indicators"]
+
     def test_excludes_future_rows(self, monkeypatch):
         data = pd.concat([
             _sample_ohlcv(),
@@ -61,6 +80,16 @@ class TestVerifiedSnapshot:
         # last-N closes table has at most 30 data rows
         close_rows = [ln for ln in snap.splitlines() if ln.startswith("| 2026-")]
         assert 0 < len(close_rows) <= 30
+
+    def test_markdown_renderer_preserves_key_sections(self, monkeypatch):
+        monkeypatch.setattr(validator, "load_ohlcv", lambda s, d: _sample_ohlcv())
+
+        snap = validator.build_verified_market_snapshot("COF", "2026-05-20")
+
+        assert "## Verified market data snapshot for COF" in snap
+        assert "### Latest verified OHLCV row" in snap
+        assert "### Verified technical indicators (latest row)" in snap
+        assert "### Recent verified closes" in snap
 
 
 @pytest.mark.unit

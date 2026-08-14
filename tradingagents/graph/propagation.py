@@ -22,6 +22,18 @@ class Propagator:
         asset_type: str = "stock",
         past_context: str = "",
         instrument_context: str = "",
+        evidence_ledger: dict[str, Any] | None = None,
+        evidence_summary: str = "",
+        quantitative_anchors: list[dict[str, Any]] | None = None,
+        math_guardrail_events: list[dict[str, Any]] | None = None,
+        citation_verification: dict[str, Any] | None = None,
+        evidence_warnings: list[str] | None = None,
+        evidence_strict_mode: str = "warn",
+        evidence_strict_blocked: bool = False,
+        evidence_decision_status: str = "actionable",
+        evidence_actionable: bool = True,
+        evidence_blocking_reasons: list[str] | None = None,
+        original_final_trade_decision: str | None = None,
     ) -> dict[str, Any]:
         """Create the initial state for the agent graph.
 
@@ -66,6 +78,18 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "evidence_ledger": evidence_ledger or {"items": []},
+            "evidence_summary": evidence_summary,
+            "quantitative_anchors": list(quantitative_anchors or []),
+            "math_guardrail_events": list(math_guardrail_events or []),
+            "citation_verification": citation_verification,
+            "evidence_warnings": list(evidence_warnings or []),
+            "evidence_strict_mode": evidence_strict_mode,
+            "evidence_strict_blocked": evidence_strict_blocked,
+            "evidence_decision_status": evidence_decision_status,
+            "evidence_actionable": evidence_actionable,
+            "evidence_blocking_reasons": list(evidence_blocking_reasons or []),
+            "original_final_trade_decision": original_final_trade_decision,
         }
 
     def get_graph_args(self, callbacks: list | None = None) -> dict[str, Any]:
