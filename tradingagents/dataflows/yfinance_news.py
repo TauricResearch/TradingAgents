@@ -69,33 +69,43 @@ def _extract_article_data(article: dict) -> dict:
         }
 
 
-def _in_news_window(pub_date, start_dt, end_dt) -> bool:
-    """Whether an article belongs in the half-open window ``[start, end + 1 day)``.
+def _in_news_window(pub_date, start_dt, end_dt, *, precise_end: bool = False) -> bool:
+    """Whether an article belongs in a date-only or precise half-open window.
 
-    Every operand is normalized to UTC, and the upper bound is exclusive so an
-    article stamped exactly at midnight after ``end_dt`` cannot leak into a
-    historical run (#1126). An undated article is kept only when the window
-    reaches the present (live run) — in a historical/backtest window it's
-    excluded, since we can't prove it isn't future news (#992/#1007).
+    Date-only callers include all of ``end_dt``; market-session callers use the
+    exact end timestamp. Every operand is normalized to UTC. An undated article
+    is kept only when the window reaches the present because historical news
+    cannot otherwise be proven look-ahead safe (#992/#1007/#1126).
     """
     end = _as_utc(end_dt)
+    upper_bound = end if precise_end else end + timedelta(days=1)
     if pub_date is not None:
-        return _as_utc(start_dt) <= _as_utc(pub_date) < end + timedelta(days=1)
+        return _as_utc(start_dt) <= _as_utc(pub_date) < upper_bound
     return end >= datetime.now(timezone.utc) - timedelta(days=1)
+
+
+def _news_bound(value: str | datetime) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime.strptime(value, "%Y-%m-%d")
+
+
+def _news_bound_label(value: str | datetime) -> str:
+    return value.isoformat(timespec="minutes") if isinstance(value, datetime) else value
 
 
 def get_news_yfinance(
     ticker: str,
-    start_date: str,
-    end_date: str,
+    start_date: str | datetime,
+    end_date: str | datetime,
 ) -> str:
     """
     Retrieve news for a specific stock ticker using yfinance.
 
     Args:
         ticker: Stock ticker symbol (e.g., "AAPL")
-        start_date: Start date in yyyy-mm-dd format
-        end_date: End date in yyyy-mm-dd format
+        start_date: Start date or timezone-aware market-session boundary.
+        end_date: End date or timezone-aware market-session boundary.
 
     Returns:
         Formatted string containing news articles
@@ -113,9 +123,11 @@ def get_news_yfinance(
         if not news:
             return f"No news found for {ticker}{resolved}"
 
-        # Parse date range for filtering
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        start_dt = _news_bound(start_date)
+        end_dt = _news_bound(end_date)
+        precise_window = isinstance(start_date, datetime) or isinstance(end_date, datetime)
+        start_label = _news_bound_label(start_date)
+        end_label = _news_bound_label(end_date)
 
         news_str = ""
         filtered_count = 0
@@ -124,7 +136,9 @@ def get_news_yfinance(
             data = _extract_article_data(article)
 
             # Keep only articles within the requested window (look-ahead safe).
-            if not _in_news_window(data["pub_date"], start_dt, end_dt):
+            if not _in_news_window(
+                data["pub_date"], start_dt, end_dt, precise_end=precise_window
+            ):
                 continue
 
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
@@ -136,9 +150,9 @@ def get_news_yfinance(
             filtered_count += 1
 
         if filtered_count == 0:
-            return f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
+            return f"No news found for {ticker}{resolved} between {start_label} and {end_label}"
 
-        return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
+        return f"## {ticker}{resolved} News, from {start_label} to {end_label}:\n\n{news_str}"
 
     except Exception as e:
         return f"Error fetching news for {ticker}: {str(e)}"
@@ -148,6 +162,9 @@ def get_global_news_yfinance(
     curr_date: str,
     look_back_days: int | None = None,
     limit: int | None = None,
+    *,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
@@ -158,6 +175,8 @@ def get_global_news_yfinance(
             ``global_news_lookback_days`` from the active config.
         limit: Maximum number of articles to return. ``None`` falls back to
             ``global_news_article_limit`` from the active config.
+        start_time: Optional precise lower bound for market-session mode.
+        end_time: Optional precise exclusive upper bound for market-session mode.
 
     Returns:
         Formatted string containing global news articles
@@ -200,10 +219,19 @@ def get_global_news_yfinance(
         if not all_news:
             return f"No global news found for {curr_date}"
 
-        # Calculate date range
-        curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-        start_dt = curr_dt - relativedelta(days=look_back_days)
-        start_date = start_dt.strftime("%Y-%m-%d")
+        if (start_time is None) != (end_time is None):
+            raise ValueError("start_time and end_time must be provided together")
+        precise_window = start_time is not None
+        if precise_window:
+            start_dt = start_time
+            curr_dt = end_time
+            start_label = _news_bound_label(start_dt)
+            end_label = _news_bound_label(curr_dt)
+        else:
+            curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+            start_dt = curr_dt - relativedelta(days=look_back_days)
+            start_label = start_dt.strftime("%Y-%m-%d")
+            end_label = curr_date
 
         news_str = ""
         kept = 0
@@ -211,7 +239,9 @@ def get_global_news_yfinance(
             # Extract uniformly (flat + nested) and apply the same look-ahead-safe
             # window filter, so flat articles can't leak future news (#1007).
             data = _extract_article_data(article)
-            if not _in_news_window(data["pub_date"], start_dt, curr_dt):
+            if not _in_news_window(
+                data["pub_date"], start_dt, curr_dt, precise_end=precise_window
+            ):
                 continue
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
@@ -224,9 +254,9 @@ def get_global_news_yfinance(
         # All candidates fell outside the window -> say so rather than return an
         # empty-bodied report (#993).
         if kept == 0:
-            return f"No global news found between {start_date} and {curr_date}"
+            return f"No global news found between {start_label} and {end_label}"
 
-        return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
+        return f"## Global Market News, from {start_label} to {end_label}:\n\n{news_str}"
 
     except Exception as e:
         return f"Error fetching global news: {str(e)}"

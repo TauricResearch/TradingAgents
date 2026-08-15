@@ -116,6 +116,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
     "global_news_article_limit": 10,      # max articles for global/macro news
     "global_news_lookback_days": 7,       # macro news lookback window
+    # Existing date lookbacks remain the default. Set mode to ``market_session``
+    # to collect only between actual US-equity session boundaries.
+    "news_window": {
+        "mode": "lookback",
+        "exchange": "NYSE",
+        "start_anchor": "previous_market_close",
+        "start_offset_minutes": 60,
+        "end_anchor": "current_market_open",
+        "end_offset_minutes": -60,
+    },
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [

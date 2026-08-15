@@ -1,4 +1,5 @@
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
+from .config import get_config
 
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
@@ -23,7 +24,14 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_global_news(curr_date, look_back_days: int = 7, limit: int = 50) -> dict[str, str] | str:
+def get_global_news(
+    curr_date,
+    look_back_days: int | None = 7,
+    limit: int | None = 50,
+    *,
+    start_time=None,
+    end_time=None,
+) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
@@ -38,15 +46,23 @@ def get_global_news(curr_date, look_back_days: int = 7, limit: int = 50) -> dict
     """
     from datetime import datetime, timedelta
 
-    # Calculate start date
-    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-    start_dt = curr_dt - timedelta(days=look_back_days)
-    start_date = start_dt.strftime("%Y-%m-%d")
+    config = get_config()
+    if look_back_days is None:
+        look_back_days = config["global_news_lookback_days"]
+    if limit is None:
+        limit = config["global_news_article_limit"]
+
+    if (start_time is None) != (end_time is None):
+        raise ValueError("start_time and end_time must be provided together")
+    if start_time is None:
+        curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        start_time = curr_dt - timedelta(days=look_back_days)
+        end_time = curr_date
 
     params = {
         "topics": "financial_markets,economy_macro,economy_monetary",
-        "time_from": format_datetime_for_api(start_date),
-        "time_to": format_datetime_for_api(curr_date),
+        "time_from": format_datetime_for_api(start_time),
+        "time_to": format_datetime_for_api(end_time),
         "limit": str(limit),
     }
 
