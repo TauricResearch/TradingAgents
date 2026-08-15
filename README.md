@@ -233,6 +233,34 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Market-session news windows
+
+News uses the existing date lookback by default. US-equity strategies can opt
+into exchange-session boundaries instead:
+
+```python
+config = DEFAULT_CONFIG.copy()
+config["news_window"] = {
+    "mode": "market_session",
+    "exchange": "NYSE",  # NYSE and NASDAQ are supported
+    "start_anchor": "previous_market_close",
+    "start_offset_minutes": 60,
+    "end_anchor": "current_market_open",
+    "end_offset_minutes": -60,
+}
+```
+
+This example collects news from the previous session's actual close plus 60
+minutes through the target session's actual open minus 60 minutes. The exchange
+calendar accounts for weekends, US market holidays, early closes, and daylight
+saving time. If the analysis date is not a trading session, the latest session
+on or before that date is used so a historical run never moves its cutoff into
+the future.
+
+Alpha Vantage receives minute-precision UTC bounds. Yahoo Finance does not
+accept a news time range, so TradingAgents fetches the available articles and
+post-filters their publication timestamps to the same precise window.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.

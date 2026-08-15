@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 
 import pandas as pd
@@ -51,6 +51,8 @@ def format_datetime_for_api(date_input) -> str:
             except ValueError:
                 raise ValueError(f"Unsupported date format: {date_input}") from None
     elif isinstance(date_input, datetime):
+        if date_input.tzinfo is not None:
+            date_input = date_input.astimezone(timezone.utc)
         return date_input.strftime("%Y%m%dT%H%M")
     else:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")

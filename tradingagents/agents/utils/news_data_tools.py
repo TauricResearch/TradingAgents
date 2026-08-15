@@ -2,7 +2,13 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.news_window import resolve_news_window
+
+
+def _market_session_window(target_date: str):
+    return resolve_news_window(target_date, get_config().get("news_window"))
 
 
 @tool
@@ -13,7 +19,9 @@ def get_news(
 ) -> str:
     """
     Retrieve news data for a given ticker symbol.
-    Uses the configured news_data vendor.
+    Uses the configured news_data vendor. In market-session mode, ``end_date``
+    selects the target session and the configured session bounds replace the
+    supplied date-only range.
     Args:
         ticker (str): Ticker symbol
         start_date (str): Start date in yyyy-mm-dd format
@@ -21,6 +29,9 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
+    window = _market_session_window(end_date)
+    if window is not None:
+        return route_to_vendor("get_news", ticker, window.start, window.end)
     return route_to_vendor("get_news", ticker, start_date, end_date)
 
 @tool
@@ -33,7 +44,8 @@ def get_global_news(
     Retrieve global news data.
     Uses the configured news_data vendor. Defaults for look_back_days and
     limit come from DEFAULT_CONFIG (global_news_lookback_days,
-    global_news_article_limit); pass explicit values to override.
+    global_news_article_limit); pass explicit values to override. Market-session
+    mode replaces the lookback with precise exchange-session boundaries.
 
     Args:
         curr_date (str): Current date in yyyy-mm-dd format
@@ -43,6 +55,16 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
+    window = _market_session_window(curr_date)
+    if window is not None:
+        return route_to_vendor(
+            "get_global_news",
+            curr_date,
+            look_back_days,
+            limit,
+            start_time=window.start,
+            end_time=window.end,
+        )
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool
