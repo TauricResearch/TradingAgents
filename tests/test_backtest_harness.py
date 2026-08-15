@@ -135,6 +135,29 @@ def test_run_backtest_writes_csv_and_summary(monkeypatch, tmp_path):
 
 
 @pytest.mark.unit
+def test_run_backtest_merges_defaults_when_config_is_empty_dict(monkeypatch):
+    # Regression: the CLI passes config={} when no provider/model flags are
+    # given; run_backtest must fall back to DEFAULT_CONFIG for every other key
+    # instead of handing TradingAgentsGraph a one-key dict (#1234).
+    captured = {}
+
+    def fake_factory(config):
+        captured["config"] = config
+        return _FakeGraph(config)
+
+    monkeypatch.setattr(backtest, "TradingAgentsGraph", fake_factory)
+    df, _ = backtest.run_backtest(
+        tickers=["NVDA"],
+        dates=["2024-01-01"],
+        config={},
+    )
+    assert len(df) == 1
+    assert captured["config"]["data_cache_dir"]
+    assert captured["config"]["llm_provider"]
+    assert captured["config"]["memory_log_path"] is None
+
+
+@pytest.mark.unit
 def test_run_backtest_records_failures_and_continues(monkeypatch):
     monkeypatch.setattr(backtest, "TradingAgentsGraph", _FlakyGraph)
     df, _ = backtest.run_backtest(

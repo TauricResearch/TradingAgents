@@ -77,12 +77,12 @@ def run_backtest(
     Returns:
         ``(results_df, markdown_summary)``.
     """
-    if config is None:
-        cfg = DEFAULT_CONFIG.copy()
-        cfg["memory_log_path"] = None
-    else:
-        cfg = dict(config)
-        cfg.setdefault("memory_log_path", None)
+    cfg = DEFAULT_CONFIG.copy()
+    if config:
+        cfg.update(config)
+    # Backtests stay out of the persistent decision log unless the caller
+    # explicitly opts in with a memory_log_path of their own.
+    cfg["memory_log_path"] = (config or {}).get("memory_log_path")
 
     graph = TradingAgentsGraph(config=cfg)
     rows: list[dict] = []
