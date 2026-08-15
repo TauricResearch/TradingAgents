@@ -169,6 +169,34 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+### Saved CLI preferences
+
+If you use the CLI interactively, you can save the settings that normally stay
+the same between runs:
+
+```bash
+tradingagents config set             # configure and save provider/model settings
+tradingagents config show            # display saved settings
+tradingagents analyze                 # reuse saved settings for a new analysis
+tradingagents analyze --configure    # run setup again and replace saved settings
+tradingagents config reset            # remove saved settings
+```
+
+Saved preferences are stored at `~/.tradingagents/preferences.json`. They cover
+the provider, models, research depth, output language, and provider-specific
+reasoning options. The ticker, analysis date, and analyst team remain per-run
+choices. Explicit `TRADINGAGENTS_*` environment variables take precedence over
+saved preferences, and API keys remain in the environment or `.env` file rather
+than in the preferences file.
+
+The legacy root form remains supported, so `tradingagents --checkpoint` and
+`tradingagents --no-checkpoint` are equivalent to the corresponding options on
+`tradingagents analyze`. If `TRADINGAGENTS_LLM_PROVIDER` changes the provider
+from the one saved in preferences, the CLI does not mix provider-specific
+models, endpoints, or reasoning settings: matching environment overrides are
+used, otherwise the new provider's defaults are selected. Custom-only providers
+require matching model environment variables or `--configure`.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.

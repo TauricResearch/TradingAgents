@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import sys
 
+import pytest
+import questionary
 from typer.testing import CliRunner
 
 import cli.main as m
@@ -55,3 +57,108 @@ def test_unrelated_errors_still_propagate(monkeypatch):
     monkeypatch.setattr(m, "run_analysis", _boom)
     result = CliRunner().invoke(m.app, [])
     assert isinstance(result.exception, ValueError)
+
+
+def test_default_callback_does_not_run_for_subcommands(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        m,
+        "run_analysis",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    result = CliRunner().invoke(m.app, ["config", "show"])
+
+    assert result.exit_code == 0
+    assert calls == []
+
+
+def test_analyze_subcommand_runs_analysis_once(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        m,
+        "run_analysis",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    result = CliRunner().invoke(m.app, ["analyze"])
+
+    assert result.exit_code == 0
+    assert calls == [((), {"checkpoint": None, "configure": False})]
+
+
+@pytest.mark.parametrize(
+    ("option", "checkpoint"),
+    [("--checkpoint", True), ("--no-checkpoint", False)],
+)
+def test_root_analysis_preserves_legacy_checkpoint_options(monkeypatch, option, checkpoint):
+    calls = []
+    monkeypatch.setattr(
+        m,
+        "run_analysis",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    result = CliRunner().invoke(m.app, [option])
+
+    assert result.exit_code == 0
+    assert calls == [((), {"checkpoint": checkpoint, "configure": False})]
+
+
+def test_root_analysis_preserves_clear_checkpoint_option(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        m,
+        "_run_analysis_command",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    result = CliRunner().invoke(m.app, ["--clear-checkpoints"])
+
+    assert result.exit_code == 0
+    assert calls == [
+        {
+            "checkpoint": None,
+            "clear_checkpoints": True,
+            "configure": False,
+        }
+    ]
+
+
+def test_config_set_translates_missing_console(monkeypatch):
+    class _NoConsole(Exception):
+        pass
+
+    monkeypatch.setattr(m, "_NO_CONSOLE_ERRORS", (_NoConsole,))
+    monkeypatch.setattr(
+        m,
+        "ask_output_language",
+        lambda: (_ for _ in ()).throw(_NoConsole("no console")),
+    )
+
+    result = CliRunner().invoke(m.app, ["config", "set"])
+
+    assert result.exit_code == 1
+    assert "no Windows console available" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_config_reset_translates_missing_console(monkeypatch, tmp_path):
+    class _NoConsole(Exception):
+        pass
+
+    preferences_path = tmp_path / "preferences.json"
+    preferences_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(m, "PREFERENCES_PATH", preferences_path)
+    monkeypatch.setattr(m, "_NO_CONSOLE_ERRORS", (_NoConsole,))
+    monkeypatch.setattr(
+        questionary,
+        "confirm",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(_NoConsole("no console")),
+    )
+
+    result = CliRunner().invoke(m.app, ["config", "reset"])
+
+    assert result.exit_code == 1
+    assert "no Windows console available" in result.output
+    assert "Traceback" not in result.output

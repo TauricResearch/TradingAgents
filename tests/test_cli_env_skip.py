@@ -144,6 +144,47 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
         prompt_effort.assert_not_called()
         self.assertEqual(sel["openai_reasoning_effort"], "high")
 
+    def test_provider_env_only_keeps_matching_reasoning_setting(self):
+        import cli.main as m
+
+        env = {
+            "TRADINGAGENTS_LLM_PROVIDER": "google",
+            "TRADINGAGENTS_GOOGLE_THINKING_LEVEL": "high",
+            "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "high",
+            "TRADINGAGENTS_ANTHROPIC_EFFORT": "low",
+            "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
+        }
+        fake_cfg = dict(m.DEFAULT_CONFIG)
+        fake_cfg.update({
+            "llm_provider": "google",
+            "google_thinking_level": "high",
+            "openai_reasoning_effort": "high",
+            "anthropic_effort": "low",
+            "output_language": "English",
+        })
+
+        with mock.patch.dict(os.environ, env, clear=False), \
+             mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
+             mock.patch.object(
+                 m,
+                 "load_preferences_result",
+                 return_value=mock.Mock(status="missing", preferences=None),
+             ), \
+             mock.patch.object(m, "fetch_announcements", return_value=None), \
+             mock.patch.object(m, "display_announcements"), \
+             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
+             mock.patch.object(m, "select_analysts", return_value=[]), \
+             mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m, "ensure_api_key"), \
+             mock.patch.object(m, "select_shallow_thinking_agent", return_value="gemini-3.5-flash"), \
+             mock.patch.object(m, "select_deep_thinking_agent", return_value="gemini-3.1-pro-preview"):
+            sel = m.get_user_selections()
+
+        self.assertEqual(sel["google_thinking_level"], "high")
+        self.assertIsNone(sel["openai_reasoning_effort"])
+        self.assertIsNone(sel["anthropic_effort"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Saved CLI preferences.** Interactive users can persist provider, model,
+  research-depth, language, and reasoning settings in
+  `~/.tradingagents/preferences.json`, reuse them on later runs, inspect them
+  with `config show`, update them with `config set`, or clear them with
+  `config reset`.
+
+### Fixed
+
+- Preserved the legacy root analysis options alongside the explicit `analyze`
+  command and applied the Windows no-console guard consistently to analysis and
+  preference commands.
+- Prevented incomplete or newer-version preference files from being silently
+  reused or overwritten, and kept provider changes from combining incompatible
+  saved models, endpoints, or reasoning settings.
+- Avoided the first-run save prompt in non-interactive sessions and stopped
+  cleanly when the saved-preferences prompt is cancelled.
+
 ## [0.3.1] — 2026-07-05
 
 Correctness and stability patch: data look-ahead, graph-router crash-safety,
