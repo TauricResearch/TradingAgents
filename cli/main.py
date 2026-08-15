@@ -20,6 +20,16 @@ from rich.table import Table
 from rich.text import Text
 
 from cli.announcements import display_announcements, fetch_announcements
+from cli.preferences import (
+    PREFERENCES_PATH,
+    clear_preferences,
+    config_to_preferences,
+    display_preferences_summary,
+    load_preferences_result,
+    preferences_to_selections,
+    prompt_use_preferences,
+    save_preferences,
+)
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
     ask_anthropic_effort,
@@ -69,7 +79,106 @@ app = typer.Typer(
     name="TradingAgents",
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
+    invoke_without_command=True,
 )
+
+
+def _run_with_console_guard(callback, *args, **kwargs):
+    try:
+        return callback(*args, **kwargs)
+    except _NO_CONSOLE_ERRORS:
+        # A terminal with no console buffer cannot host the interactive prompts.
+        # Emit one actionable line on stderr instead of a prompt_toolkit
+        # traceback; plain text, since rich may not render here either (#1138).
+        typer.echo(
+            "Error: no Windows console available. The interactive CLI needs a real "
+            "console buffer — run it from Windows Terminal, PowerShell, or cmd.exe "
+            "rather than a piped or embedded terminal.",
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+
+
+def _run_analysis_with_console_guard(
+    checkpoint: bool | None = None,
+    configure: bool = False,
+):
+    return _run_with_console_guard(
+        run_analysis,
+        checkpoint=checkpoint,
+        configure=configure,
+    )
+
+
+def _run_analysis_command(
+    checkpoint: bool | None = None,
+    clear_checkpoints: bool = False,
+    configure: bool = False,
+):
+    if clear_checkpoints:
+        from tradingagents.graph.checkpointer import clear_all_checkpoints
+
+        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
+        console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+    return _run_analysis_with_console_guard(
+        checkpoint=checkpoint,
+        configure=configure,
+    )
+
+
+def _resolve_provider_selection(
+    provider: str, backend_url: str | None
+) -> tuple[str, str | None]:
+    """Resolve the provider's region, endpoint, and credentials in one path."""
+    if provider == "qwen":
+        provider, backend_url = ask_qwen_region()
+    elif provider == "minimax":
+        provider, backend_url = ask_minimax_region()
+    elif provider == "glm":
+        provider, backend_url = ask_glm_region()
+
+    backend_url = resolve_backend_url(
+        provider,
+        backend_url,
+        env_url=DEFAULT_CONFIG["backend_url"],
+    )
+
+    if provider == "openai_compatible" and not backend_url:
+        backend_url = prompt_openai_compatible_url()
+    if provider == "ollama":
+        confirm_ollama_endpoint(backend_url)
+
+    ensure_api_key(provider)
+    return provider, backend_url
+
+
+@app.callback()
+def _default(
+    ctx: typer.Context,
+    checkpoint: bool | None = typer.Option(
+        None,
+        "--checkpoint/--no-checkpoint",
+        help="Enable/disable checkpoint-resume for the default analysis command.",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="Delete all saved checkpoints before the default analysis command.",
+    ),
+    configure: bool = typer.Option(
+        False,
+        "--configure",
+        "-C",
+        help="Ignore saved preferences and run the full interactive setup.",
+    ),
+):
+    """Run the interactive analysis (default action when no subcommand is specified)."""
+    if ctx.invoked_subcommand is None:
+        _run_analysis_command(
+            checkpoint=checkpoint,
+            clear_checkpoints=clear_checkpoints,
+            configure=configure,
+        )
 
 
 # Create a deque to store recent messages with a maximum length
@@ -492,8 +601,12 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def get_user_selections():
-    """Get all user selections before starting the analysis display."""
+def get_user_selections(configure: bool = False):
+    """Get all user selections before starting the analysis display.
+
+    When saved preferences exist and ``configure`` is False, a summary is shown
+    and the user is asked whether to reuse, skip (one-off), or reconfigure.
+    """
     # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
@@ -523,6 +636,21 @@ def get_user_selections():
     announcements = fetch_announcements()
     display_announcements(console, announcements)
 
+    # Check for saved preferences (skip when --configure is passed)
+    prefs = None
+    prefs_action = None
+    prefs_status = "missing"
+    if not configure:
+        prefs_result = load_preferences_result()
+        prefs_status = prefs_result.status
+        prefs = prefs_result.preferences
+        if prefs:
+            display_preferences_summary(prefs)
+            prefs_action = prompt_use_preferences() if sys.stdin.isatty() else "use"
+            if prefs_action is None:
+                console.print("[yellow]Cancelled.[/yellow]")
+                raise typer.Exit(code=1)
+
     # Create a boxed questionnaire for each step
     def create_question_box(title, prompt, default=None):
         box_content = f"[bold]{title}[/bold]\n"
@@ -544,6 +672,75 @@ def get_user_selections():
             return value
         console.print(create_question_box(box_title, box_body))
         return prompt_fn()
+
+    # If the user chose to reuse saved preferences, skip the full questionnaire
+    # and only ask for the per-run values (ticker, date, analysts).
+    if prefs_action == "use":
+        try:
+            selections = preferences_to_selections(prefs, defaults=DEFAULT_CONFIG)
+        except ValueError as exc:
+            console.print(f"[red]Cannot reuse saved preferences: {exc}[/red]")
+            raise typer.Exit(code=1) from None
+
+        # Step 1: Ticker symbol
+        console.print(
+            create_question_box(
+                "Step 1: Ticker Symbol",
+                "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
+                "SPY",
+            )
+        )
+        selected_ticker = get_ticker()
+        asset_type = detect_asset_type(selected_ticker)
+        if asset_type.value != "stock":
+            console.print(
+                f"[green]Detected asset type:[/green] {asset_type.value}"
+            )
+
+        # Step 2: Analysis date
+        default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        console.print(
+            create_question_box(
+                "Step 2: Analysis Date",
+                "Enter the analysis date (YYYY-MM-DD)",
+                default_date,
+            )
+        )
+        analysis_date = get_analysis_date()
+
+        # Step 4: Select analysts (no step 3 — language is from prefs)
+        console.print(
+            create_question_box(
+                "Step 3: Analysts Team",
+                "Select your LLM analyst agents for the analysis"
+            )
+        )
+        selected_analysts = select_analysts(asset_type)
+        console.print(
+            f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
+        )
+
+        # Confirm the API key for the saved provider is available
+        ensure_api_key(selections["llm_provider"])
+
+        return {
+            "ticker": selected_ticker,
+            "asset_type": asset_type.value,
+            "analysis_date": analysis_date,
+            "analysts": selected_analysts,
+            "research_depth": selections["research_depth"],
+            "max_debate_rounds": selections["max_debate_rounds"],
+            "max_risk_discuss_rounds": selections["max_risk_discuss_rounds"],
+            "llm_provider": selections["llm_provider"],
+            "backend_url": selections["backend_url"],
+            "shallow_thinker": selections["shallow_thinker"],
+            "deep_thinker": selections["deep_thinker"],
+            "google_thinking_level": selections.get("google_thinking_level"),
+            "openai_reasoning_effort": selections.get("openai_reasoning_effort"),
+            "anthropic_effort": selections.get("anthropic_effort"),
+            "output_language": selections.get("output_language", "English"),
+            "_prefs_action": None,
+        }
 
     # Step 1: Ticker symbol
     console.print(
@@ -643,36 +840,10 @@ def get_user_selections():
         )
         selected_llm_provider, backend_url = select_llm_provider()
 
-        # Providers with regional endpoints prompt for the region as a secondary
-        # step so the main dropdown stays clean (mainland China and international
-        # accounts cannot share API keys).
-        if selected_llm_provider == "qwen":
-            selected_llm_provider, backend_url = ask_qwen_region()
-        elif selected_llm_provider == "minimax":
-            selected_llm_provider, backend_url = ask_minimax_region()
-        elif selected_llm_provider == "glm":
-            selected_llm_provider, backend_url = ask_glm_region()
-
-        # Honor an explicit env backend URL even when the provider was chosen
-        # interactively, so it isn't overwritten by the menu default (#978).
-        backend_url = resolve_backend_url(
-            selected_llm_provider, backend_url, env_url=DEFAULT_CONFIG["backend_url"]
+        selected_llm_provider, backend_url = _resolve_provider_selection(
+            selected_llm_provider,
+            backend_url,
         )
-
-        # The generic OpenAI-compatible endpoint has no default; ask for it if
-        # neither the menu nor the environment supplied one.
-        if selected_llm_provider == "openai_compatible" and not backend_url:
-            backend_url = prompt_openai_compatible_url()
-
-        # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
-        # before model selection so it's obvious where we're connecting.
-        if selected_llm_provider == "ollama":
-            confirm_ollama_endpoint(backend_url)
-
-        # Confirm the provider's API key is present; prompt the user to paste
-        # one and persist it to .env if it's missing, so the analysis run
-        # doesn't fail later at the first API call.
-        ensure_api_key(selected_llm_provider)
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
     if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
@@ -702,9 +873,12 @@ def get_user_selections():
 
     provider_lower = selected_llm_provider.lower()
     if provider_from_env:
-        thinking_level = DEFAULT_CONFIG["google_thinking_level"]
-        reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
-        anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
+        if provider_lower == "google":
+            thinking_level = DEFAULT_CONFIG["google_thinking_level"]
+        elif provider_lower == "openai":
+            reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
+        elif provider_lower == "anthropic":
+            anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
     elif provider_lower == "google":
         thinking_level = thinking_value_or_prompt(
             "TRADINGAGENTS_GOOGLE_THINKING_LEVEL", "google_thinking_level",
@@ -724,12 +898,28 @@ def get_user_selections():
             "Configure Claude effort level", ask_anthropic_effort,
         )
 
+    # Determine whether to save preferences after the run:
+    #   "reconfigure" — user chose to reconfigure or passed --configure → auto-save
+    #   "first_time"  — no preferences file existed → prompt to save
+    #   "skip"        — user chose one-off → don't save
+    #   None          — preferences were reused → don't save (already handled above)
+    if configure or prefs_action == "reconfigure":
+        _prefs_action = "reconfigure"
+    elif prefs_action == "skip":
+        _prefs_action = "skip"
+    elif prefs_action is None and prefs is None and prefs_status == "missing":
+        _prefs_action = "first_time"
+    else:
+        _prefs_action = None
+
     return {
         "ticker": selected_ticker,
         "asset_type": asset_type.value,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
+        "max_debate_rounds": selected_research_depth,
+        "max_risk_discuss_rounds": selected_research_depth,
         "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
@@ -738,6 +928,7 @@ def get_user_selections():
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
+        "_prefs_action": _prefs_action,
     }
 
 
@@ -982,9 +1173,13 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     # (TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
     # interactive selection — leave the env-applied value in place (#977).
     if not os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS"):
-        config["max_debate_rounds"] = selections["research_depth"]
+        config["max_debate_rounds"] = selections.get(
+            "max_debate_rounds", selections["research_depth"]
+        )
     if not os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"):
-        config["max_risk_discuss_rounds"] = selections["research_depth"]
+        config["max_risk_discuss_rounds"] = selections.get(
+            "max_risk_discuss_rounds", selections["research_depth"]
+        )
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
@@ -1001,11 +1196,27 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None):
+def run_analysis(checkpoint: bool | None = None, configure: bool = False):
     # First get all user selections
-    selections = get_user_selections()
+    selections = get_user_selections(configure=configure)
 
     config = _build_run_config(selections, checkpoint)
+
+    # Save preferences when applicable
+    _prefs_action = selections.pop("_prefs_action", None)
+    if _prefs_action == "reconfigure":
+        # Auto-save — user explicitly chose to reconfigure or passed --configure
+        if save_preferences(config_to_preferences(config)):
+            console.print("[green]✓ Preferences saved. Future runs will use these settings.[/green]")
+    elif _prefs_action == "first_time" and sys.stdin.isatty():
+        # Prompt to save after first run
+        import questionary
+        save_choice = questionary.confirm(
+            "Save these settings as your defaults for future runs?",
+            default=True,
+        ).ask()
+        if save_choice and save_preferences(config_to_preferences(config)):
+            console.print("[green]✓ Preferences saved. Future runs will use these settings.[/green]")
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1293,24 +1504,138 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    configure: bool = typer.Option(
+        False,
+        "--configure",
+        "-C",
+        help="Ignore saved preferences and run the full interactive setup. "
+        "New selections will be saved as preferences.",
+    ),
 ):
-    if clear_checkpoints:
-        from tradingagents.graph.checkpointer import clear_all_checkpoints
-        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
-        console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    try:
-        run_analysis(checkpoint=checkpoint)
-    except _NO_CONSOLE_ERRORS:
-        # A terminal with no console buffer cannot host the interactive prompts.
-        # Emit one actionable line on stderr instead of a prompt_toolkit
-        # traceback; plain text, since rich may not render here either (#1138).
-        typer.echo(
-            "Error: no Windows console available. The interactive CLI needs a real "
-            "console buffer — run it from Windows Terminal, PowerShell, or cmd.exe "
-            "rather than a piped or embedded terminal.",
-            err=True,
+    _run_analysis_command(
+        checkpoint=checkpoint,
+        clear_checkpoints=clear_checkpoints,
+        configure=configure,
+    )
+
+
+config_app = typer.Typer(help="Manage saved preferences for future runs")
+app.add_typer(config_app, name="config")
+
+
+@config_app.command(name="show")
+def config_show():
+    """Display current saved preferences."""
+    result = load_preferences_result()
+    if result.status == "missing":
+        console.print("[yellow]No saved preferences found.[/yellow]")
+        console.print(
+            "Run 'tradingagents config set' to configure and save your preferences."
         )
-        raise typer.Exit(code=1) from None
+    elif result.status == "future":
+        console.print(
+            "[yellow]Saved preferences require a newer TradingAgents version. "
+            "Upgrade before reusing them.[/yellow]"
+        )
+    elif result.status == "invalid":
+        console.print(
+            "[yellow]Saved preferences are invalid or incomplete. "
+            "Run 'tradingagents config set' to replace them.[/yellow]"
+        )
+    else:
+        display_preferences_summary(result.preferences)
+
+
+def _config_set_impl():
+    """Interactively configure and save preferences (no analysis run)."""
+
+    def _box(title, prompt, default=None):
+        box_content = f"[bold]{title}[/bold]\n[dim]{prompt}[/dim]"
+        if default:
+            box_content += f"\n[dim]Default: {default}[/dim]"
+        return Panel(box_content, border_style="blue", padding=(1, 2))
+
+    # Output language
+    console.print(_box("Output Language", "Select the language for analyst reports and final decision"))
+    output_language = ask_output_language()
+
+    # Research depth
+    console.print(_box("Research Depth", "Select your research depth level"))
+    research_depth = select_research_depth()
+
+    # LLM Provider
+    console.print(_box("LLM Provider", "Select your LLM provider"))
+    llm_provider, backend_url = select_llm_provider()
+    llm_provider, backend_url = _resolve_provider_selection(
+        llm_provider,
+        backend_url,
+    )
+
+    # Thinking agents
+    console.print(_box("Thinking Agents", "Select your thinking agents for analysis"))
+    shallow = select_shallow_thinking_agent(llm_provider)
+    deep = select_deep_thinking_agent(llm_provider)
+
+    # Provider-specific reasoning config
+    thinking_level = None
+    reasoning_effort = None
+    anthropic_effort = None
+    provider_lower = llm_provider.lower()
+    if provider_lower == "google":
+        console.print(_box("Thinking Mode", "Configure Gemini thinking mode"))
+        thinking_level = ask_gemini_thinking_config()
+    elif provider_lower == "openai":
+        console.print(_box("Reasoning Effort", "Configure OpenAI reasoning effort level"))
+        reasoning_effort = ask_openai_reasoning_effort()
+    elif provider_lower == "anthropic":
+        console.print(_box("Effort Level", "Configure Claude effort level"))
+        anthropic_effort = ask_anthropic_effort()
+
+    prefs = {
+        "llm_provider": llm_provider.lower(),
+        "backend_url": backend_url,
+        "quick_think_llm": shallow,
+        "deep_think_llm": deep,
+        "output_language": output_language,
+        "max_debate_rounds": research_depth,
+        "max_risk_discuss_rounds": research_depth,
+        "google_thinking_level": thinking_level,
+        "openai_reasoning_effort": reasoning_effort,
+        "anthropic_effort": anthropic_effort,
+    }
+
+    if save_preferences(prefs):
+        console.print("\n[green]✓ Preferences saved successfully![/green]")
+        display_preferences_summary(prefs)
+
+
+@config_app.command(name="set")
+def config_set():
+    """Interactively configure and save preferences (no analysis run)."""
+    return _run_with_console_guard(_config_set_impl)
+
+
+def _config_reset_impl():
+    """Clear all saved preferences."""
+    import questionary
+    if not PREFERENCES_PATH.exists():
+        console.print("[yellow]No saved preferences to reset.[/yellow]")
+        return
+    confirm_clear = questionary.confirm(
+        "Clear all saved preferences?",
+        default=False,
+    ).ask()
+    if confirm_clear:
+        if clear_preferences():
+            console.print("[green]✓ Preferences cleared.[/green]")
+    else:
+        console.print("Cancelled.")
+
+
+@config_app.command(name="reset")
+def config_reset():
+    """Clear all saved preferences."""
+    return _run_with_console_guard(_config_reset_impl)
 
 
 if __name__ == "__main__":
