@@ -12,9 +12,8 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-import requests
-
 from .errors import VendorNotConfiguredError
+from .http_utils import raise_for_status, request_get
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +117,10 @@ def _resolve_series_id(indicator: str) -> str:
 def _request(path: str, params: dict) -> dict:
     """GET a FRED endpoint, surfacing FRED's JSON error body on a bad request."""
     api_params = {**params, "api_key": get_api_key(), "file_type": "json"}
-    response = requests.get(
+    # FRED only accepts the key as a query parameter, so every requests error
+    # would stringify with the key in it — and those strings reach the model and
+    # the saved report. request_get/raise_for_status redact before re-raising.
+    response = request_get(
         f"{FRED_API_BASE}/{path}", params=api_params, timeout=REQUEST_TIMEOUT
     )
     # FRED returns 400 with a JSON {"error_message": ...} for unknown series IDs
@@ -129,7 +131,7 @@ def _request(path: str, params: dict) -> dict:
         except ValueError:
             message = response.text
         raise ValueError(f"FRED request failed: {message}")
-    response.raise_for_status()
+    raise_for_status(response)
     return response.json()
 
 

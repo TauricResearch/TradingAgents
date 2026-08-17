@@ -4,9 +4,9 @@ from datetime import datetime
 from io import StringIO
 
 import pandas as pd
-import requests
 
 from .errors import VendorNotConfiguredError, VendorRateLimitError
+from .http_utils import raise_for_status, request_get
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -83,8 +83,11 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
 
-    response = requests.get(API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT)
-    response.raise_for_status()
+    # The key travels as a query parameter, so a raw requests error would carry
+    # it into the logs, the model's context, and the saved report; these helpers
+    # redact the URL before re-raising.
+    response = request_get(API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT)
+    raise_for_status(response)
 
     response_text = response.text
 
