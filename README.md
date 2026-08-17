@@ -302,3 +302,64 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+
+---
+
+## Run the web terminal locally (Indian equities)
+
+This repository includes a FastAPI + Next.js product layer around the existing TradingAgents engine. The engine is unchanged; the web app only wraps it.
+
+The terminal is a research aid. It does not place broker orders and does not promise profits.
+
+### 1. Python backend
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+cp .env.example .env
+```
+
+Put at least one LLM key in `.env` (the same keys the CLI uses), for example `OPENAI_API_KEY=...`.
+
+Optional web settings (defaults work locally):
+
+```bash
+APP_SECRET_KEY=change-me
+DATABASE_URL=sqlite:///./data/terminal.db
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+Start the API:
+
+```bash
+uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+Health check: http://127.0.0.1:8000/api/v1/health
+
+Default local login (change it after first sign-in):
+
+- email: `admin@local`
+- password: `admin123`
+
+### 2. Next.js UI
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:3000
+
+### 3. First research run
+
+1. Sign in.
+2. Open **Setup** and confirm provider + model (keys stay on the server).
+3. Search `RELIANCE.NS`.
+4. Click **ANALYZE**.
+5. Watch the live agent rail, then read Technical / Fundamental / Sentiment / News, the bull–bear debate, risk, and the final decision.
+6. Open **History** later; use **Evaluation** to score saved decisions against later prices when those prices exist.
+
+SQLite is the default database so you can run fully locally. Point `DATABASE_URL` at PostgreSQL when you want that. Redis is not required.

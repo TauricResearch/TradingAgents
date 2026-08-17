@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #07090d;
+  color: #e8eef4;
+}
+
+body {
+  background-image:
+    radial-gradient(1200px 500px at 10% -10%, rgba(200, 161, 90, 0.08), transparent 50%),
+    linear-gradient(180deg, #07090d 0%, #0b1016 100%);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #243140;
+  border-radius: 999px;
+}

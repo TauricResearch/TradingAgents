@@ -215,6 +215,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Web terminal
+data/
+frontend/node_modules/
+frontend/.next/
+
 # Cache
 **/data_cache/
 
