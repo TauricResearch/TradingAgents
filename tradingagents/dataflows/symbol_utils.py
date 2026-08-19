@@ -41,9 +41,20 @@ _FOREX_CURRENCIES = frozenset(
     }
 )
 
-# Crypto bases that brokers quote against USD without a separator.
+# Crypto bases recognized across vendors (yfinance, binance). Sourced from
+# CoinMarketCap's CMC20 index constituents (top 20 by market cap, excluding
+# stablecoins and wrapped/pegged tokens), cross-checked against Binance's
+# exchangeInfo endpoint for actual USDT pair availability as of 2026-08-19.
+# 2 of the 20 CMC20 constituents (HYPE, CC) have no corresponding Binance
+# USDT pair and are excluded. DOT (previously supported) has fallen out of
+# the CMC20 top 20 and is removed.
+# https://coinmarketcap.com/charts/cmc20/
 _CRYPTO_BASES = frozenset(
-    {"BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "LTC", "BCH", "DOT", "AVAX", "LINK"}
+    {
+        "BTC", "ETH", "BNB", "XRP", "SOL", "TRX", "DOGE", "ZEC",
+        "LINK", "ADA", "XLM", "BCH", "TON", "LTC", "HBAR", "AVAX",
+        "SUI", "SHIB",
+    }
 )
 
 # Explicit aliases for instruments whose broker symbol does not map to a
