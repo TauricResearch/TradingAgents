@@ -171,13 +171,11 @@ You will see a screen where you can select your desired tickers, analysis date, 
 
 ### Markets and tickers
 
-TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
+ARVEN TRADE defaults to Borsa Istanbul while retaining TradingAgents' existing foreign-market support. Company identity and the alpha benchmark resolve automatically per market.
 
-- US: `AAPL`, `SPY`
-- Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
-- India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
-- China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
-- Crypto: `BTC-USD`, `ETH-USD`
+- BIST: `THYAO.IS`, `ASELS.IS`, `TUPRS.IS`, `KCHOL.IS`, `GARAN.IS`, `AKBNK.IS`, `EREGL.IS`
+- BIST stocks use KAP disclosures and `^XU100` (BIST 100) as their performance benchmark.
+- Other Yahoo Finance exchange suffixes and crypto symbols remain supported.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -210,7 +208,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate("THYAO.IS", "2026-08-20")
 print(decision)
 ```
 
@@ -227,7 +225,7 @@ config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate("THYAO.IS", "2026-08-20")
 print(decision)
 ```
 
@@ -239,7 +237,7 @@ TradingAgents persists two kinds of state across runs.
 
 ### Decision log
 
-The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha versus the regional benchmark; `^XU100` for BIST), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
 
 Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
@@ -258,7 +256,7 @@ tradingagents analyze --clear-checkpoints    # reset before running
 config = DEFAULT_CONFIG.copy()
 config["checkpoint_enabled"] = True
 ta = TradingAgentsGraph(config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate("THYAO.IS", "2026-08-20")
 ```
 
 ## Reproducibility

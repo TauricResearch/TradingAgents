@@ -49,11 +49,15 @@ def test_int_coercion(monkeypatch):
         monkeypatch,
         TRADINGAGENTS_MAX_DEBATE_ROUNDS="3",
         TRADINGAGENTS_MAX_RISK_ROUNDS="2",
+        TRADINGAGENTS_KAP_LOOKBACK_DAYS="45",
+        TRADINGAGENTS_KAP_MAX_DISCLOSURES="7",
     )
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 3
     assert isinstance(dc.DEFAULT_CONFIG["max_debate_rounds"], int)
     assert dc.DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2
     assert isinstance(dc.DEFAULT_CONFIG["max_risk_discuss_rounds"], int)
+    assert dc.DEFAULT_CONFIG["kap_lookback_days"] == 45
+    assert dc.DEFAULT_CONFIG["kap_max_disclosures"] == 7
 
 
 @pytest.mark.parametrize(
@@ -79,6 +83,11 @@ def test_reasoning_thinking_overrides(monkeypatch):
     assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] == "high"
     assert dc.DEFAULT_CONFIG["google_thinking_level"] == "minimal"
     assert dc.DEFAULT_CONFIG["anthropic_effort"] == "low"
+
+
+def test_kap_enabled_env_override(monkeypatch):
+    dc = _reload_with_env(monkeypatch, TRADINGAGENTS_KAP_ENABLED="false")
+    assert dc.DEFAULT_CONFIG["kap_enabled"] is False
 
 
 def test_reasoning_effort_defaults_to_none(monkeypatch):

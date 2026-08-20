@@ -11,12 +11,13 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
+TICKER_INPUT_EXAMPLES = "THYAO.IS, ASELS.IS, TUPRS.IS"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
     ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
+    ("KAP Analyst", AnalystType.KAP),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
 
@@ -28,7 +29,7 @@ def is_valid_ticker_input(value: str) -> bool:
 
     Allows the characters Yahoo symbols use, including ``=`` for futures/forex
     like ``GC=F`` and ``EURUSD=X`` (#980), and ``^`` for indices. Empty input is
-    allowed (it defaults to SPY downstream).
+    allowed (it defaults to THYAO.IS downstream).
     """
     v = value.strip()
     return not v or (all(ch.isalnum() or ch in "._-^=" for ch in v) and len(v) <= 32)
@@ -45,7 +46,7 @@ def get_ticker() -> str:
         f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: (
             is_valid_ticker_input(x)
-            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F."
+            or "Please enter a valid ticker symbol, e.g. THYAO.IS, ASELS.IS, TUPRS.IS."
         ),
         style=questionary.Style(
             [
@@ -59,7 +60,7 @@ def get_ticker() -> str:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
-    return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
+    return normalize_ticker_symbol(ticker) if ticker.strip() else "THYAO.IS"
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
@@ -95,7 +96,7 @@ def filter_analysts_for_asset_type(
     return [
         analyst
         for analyst in analysts
-        if analyst != AnalystType.FUNDAMENTALS
+        if analyst not in {AnalystType.FUNDAMENTALS, AnalystType.KAP}
     ]
 
 
@@ -141,7 +142,7 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> list[AnalystType
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
         choices=[
-            questionary.Choice(display, value=value)
+            questionary.Choice(display, value=value, checked=True)
             for display, value in ANALYST_ORDER
             if value in available_analysts
         ],
@@ -655,7 +656,8 @@ def ask_output_language() -> str:
     choice = questionary.select(
         "Select Output Language:",
         choices=[
-            questionary.Choice("English (default)", "English"),
+            questionary.Choice("Turkish (Türkçe, default)", "Turkish"),
+            questionary.Choice("English", "English"),
             questionary.Choice("Chinese (中文)", "Chinese"),
             questionary.Choice("Japanese (日本語)", "Japanese"),
             questionary.Choice("Korean (한국어)", "Korean"),
@@ -675,14 +677,14 @@ def ask_output_language() -> str:
         ]),
     ).ask()
 
-    # Output language has a sensible default, so a cancel falls back to English
+    # Output language has a sensible default, so a cancel falls back to Turkish
     # rather than exiting the run (unlike the required model/provider prompts).
     if choice is None:
-        return "English"
+        return "Turkish"
     if choice == "custom":
         return (questionary.text(
             "Enter language name (e.g. Turkish, Vietnamese, Thai, Indonesian):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a language name.",
-        ).ask() or "").strip() or "English"
+        ).ask() or "").strip() or "Turkish"
 
     return choice

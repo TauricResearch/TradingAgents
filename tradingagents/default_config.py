@@ -19,6 +19,9 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
+    "TRADINGAGENTS_KAP_ENABLED":          "kap_enabled",
+    "TRADINGAGENTS_KAP_LOOKBACK_DAYS":    "kap_lookback_days",
+    "TRADINGAGENTS_KAP_MAX_DISCLOSURES":  "kap_max_disclosures",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -105,7 +108,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "checkpoint_enabled": False,
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
-    "output_language": "English",
+    "output_language": "Turkish",
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
@@ -116,6 +119,15 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
     "global_news_article_limit": 10,      # max articles for global/macro news
     "global_news_lookback_days": 7,       # macro news lookback window
+    # KAP disclosures (BIST only). These limits keep the analyst prompt compact.
+    "kap_enabled": True,
+    "kap_lookback_days": 30,
+    "kap_max_disclosures": 10,
+    "kap_timeout_seconds": 15.0,
+    "default_tickers": [
+        "THYAO.IS", "ASELS.IS", "TUPRS.IS", "KCHOL.IS",
+        "GARAN.IS", "AKBNK.IS", "EREGL.IS",
+    ],
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [
@@ -150,6 +162,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # while non-US tickers get their regional index automatically.
     "benchmark_ticker": None,
     "benchmark_map": {
+        ".IS":  "^XU100",      # Borsa Istanbul (BIST 100)
         ".NS":  "^NSEI",       # NSE India (Nifty 50)
         ".BO":  "^BSESN",      # BSE India (Sensex)
         ".T":   "^N225",       # Tokyo (Nikkei 225)

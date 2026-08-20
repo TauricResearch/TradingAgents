@@ -12,7 +12,7 @@ config = DEFAULT_CONFIG.copy()
 ta = TradingAgentsGraph(debug=True, config=config)
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+_, decision = ta.propagate("THYAO.IS", "2026-08-20")
 print(decision)
 
 # Memorize mistakes and reflect

@@ -7,6 +7,7 @@ class AnalystType(str, Enum):
     # back-compat; the user-facing label is "Sentiment Analyst".
     SOCIAL = "social"
     NEWS = "news"
+    KAP = "kap"
     FUNDAMENTALS = "fundamentals"
 
 

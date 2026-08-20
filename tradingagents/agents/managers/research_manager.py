@@ -20,6 +20,7 @@ def create_research_manager(llm):
     def research_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
         history = state["investment_debate_state"].get("history", "")
+        kap_report = state.get("kap_report", "KAP report unavailable or not applicable.")
 
         investment_debate_state = state["investment_debate_state"]
 
@@ -42,6 +43,11 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
 
 **Debate History:**
 {history}
+
+**KAP Disclosures Report:**
+{kap_report}
+
+Treat KAP as one input alongside technical, sentiment, news, fundamental, and risk evidence.
 
 {NO_EXTERNAL_TOOLS}""" + get_language_instruction()
 

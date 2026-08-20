@@ -14,6 +14,7 @@ def create_bear_researcher(llm):
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
+        kap_report = state.get("kap_report", "KAP report unavailable or not applicable.")
         fundamentals_report = state["fundamentals_report"]
         instrument_context = get_instrument_context_from_state(state)
         asset_type = state.get("asset_type", "stock")
@@ -40,6 +41,7 @@ Resources available:
 Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
+KAP disclosures report: {kap_report}
 {fundamentals_label}: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}

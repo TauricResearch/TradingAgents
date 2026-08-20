@@ -11,6 +11,7 @@ from tradingagents.agents import (
     create_bull_researcher,
     create_conservative_debator,
     create_fundamentals_analyst,
+    create_kap_analyst,
     create_market_analyst,
     create_msg_delete,
     create_neutral_debator,
@@ -59,7 +60,7 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=("market", "social", "news", "fundamentals")
+        self, selected_analysts=("market", "social", "news", "kap", "fundamentals")
     ):
         """Set up and compile the agent workflow graph.
 
@@ -68,6 +69,7 @@ class GraphSetup:
                 - "market": Market analyst
                 - "social": Social media analyst
                 - "news": News analyst
+                - "kap": KAP analyst for BIST disclosures
                 - "fundamentals": Fundamentals analyst
         """
         plan = build_analyst_execution_plan(selected_analysts)
@@ -76,6 +78,7 @@ class GraphSetup:
             "market": lambda: create_market_analyst(self.quick_thinking_llm),
             "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
             "news": lambda: create_news_analyst(self.quick_thinking_llm),
+            "kap": lambda: create_kap_analyst(self.quick_thinking_llm),
             "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
         }
 

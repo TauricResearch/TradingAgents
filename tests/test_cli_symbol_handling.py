@@ -3,8 +3,11 @@
 Regressions for #980 (validation rejected GC=F), #981 (BTCUSD misclassified as
 stock), #982 (BTC-USDT accepted but unpriceable on Yahoo).
 """
+from unittest import mock
+
 import pytest
 
+from cli import utils
 from cli.models import AssetType
 from cli.utils import detect_asset_type, is_valid_ticker_input, normalize_ticker_symbol
 from tradingagents.dataflows.symbol_utils import normalize_symbol
@@ -34,7 +37,7 @@ def test_normalize_symbol_crypto_and_passthrough(raw, expected):
     ("AAPL", True),
     ("0700.HK", True),
     ("^GSPC", True),
-    ("", True),                 # empty -> defaults to SPY downstream
+    ("", True),                 # empty -> defaults to THYAO.IS downstream
     ("bad symbol!", False),     # space + '!' rejected
     ("A" * 40, False),          # too long
 ])
@@ -60,3 +63,10 @@ def test_cli_normalize_delegates_to_data_layer():
     # CLI must produce the same canonical symbol the data path will price.
     for raw in ("XAUUSD", "BTCUSD", "btc-usdt", "AAPL"):
         assert normalize_ticker_symbol(raw) == normalize_symbol(raw)
+
+
+def test_blank_cli_ticker_defaults_to_bist():
+    prompt = mock.Mock()
+    prompt.ask.return_value = ""
+    with mock.patch.object(utils.questionary, "text", return_value=prompt):
+        assert utils.get_ticker() == "THYAO.IS"

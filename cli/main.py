@@ -87,6 +87,7 @@ class MessageBuffer:
         "market": "Market Analyst",
         "social": "Sentiment Analyst",
         "news": "News Analyst",
+        "kap": "KAP Analyst",
         "fundamentals": "Fundamentals Analyst",
     }
 
@@ -97,6 +98,7 @@ class MessageBuffer:
         "market_report": ("market", "Market Analyst"),
         "sentiment_report": ("social", "Sentiment Analyst"),
         "news_report": ("news", "News Analyst"),
+        "kap_report": ("kap", "KAP Analyst"),
         "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
@@ -205,6 +207,7 @@ class MessageBuffer:
                 "market_report": "Market Analysis",
                 "sentiment_report": "Social Sentiment",
                 "news_report": "News Analysis",
+                "kap_report": "KAP Analysis",
                 "fundamentals_report": "Fundamentals Analysis",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
@@ -221,7 +224,7 @@ class MessageBuffer:
         report_parts = []
 
         # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
+        analyst_sections = ["market_report", "sentiment_report", "news_report", "kap_report", "fundamentals_report"]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):
@@ -235,6 +238,10 @@ class MessageBuffer:
             if self.report_sections.get("news_report"):
                 report_parts.append(
                     f"### News Analysis\n{self.report_sections['news_report']}"
+                )
+            if self.report_sections.get("kap_report"):
+                report_parts.append(
+                    f"### KAP Analysis\n{self.report_sections['kap_report']}"
                 )
             if self.report_sections.get("fundamentals_report"):
                 report_parts.append(
@@ -318,6 +325,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             "Market Analyst",
             "Sentiment Analyst",
             "News Analyst",
+            "KAP Analyst",
             "Fundamentals Analyst",
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
@@ -549,8 +557,8 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
-            "SPY",
+            "BIST ticker girin (örn. THYAO.IS, ASELS.IS, TUPRS.IS)",
+            "THYAO.IS",
         )
     )
     selected_ticker = get_ticker()
@@ -778,6 +786,8 @@ def display_complete_report(final_state):
         analysts.append(("Sentiment Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts.append(("News Analyst", final_state["news_report"]))
+    if final_state.get("kap_report"):
+        analysts.append(("KAP Analyst", final_state["kap_report"]))
     if final_state.get("fundamentals_report"):
         analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
     if analysts:
@@ -834,17 +844,19 @@ def update_research_team_status(status):
 
 
 # Ordered list of analysts for status transitions
-ANALYST_ORDER = ["market", "social", "news", "fundamentals"]
+ANALYST_ORDER = ["market", "social", "news", "kap", "fundamentals"]
 ANALYST_AGENT_NAMES = {
     "market": "Market Analyst",
     "social": "Sentiment Analyst",
     "news": "News Analyst",
+    "kap": "KAP Analyst",
     "fundamentals": "Fundamentals Analyst",
 }
 ANALYST_REPORT_MAP = {
     "market": "market_report",
     "social": "sentiment_report",
     "news": "news_report",
+    "kap": "kap_report",
     "fundamentals": "fundamentals_report",
 }
 

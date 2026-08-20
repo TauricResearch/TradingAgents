@@ -19,6 +19,7 @@ class CryptoAssetModeTests(unittest.TestCase):
             AnalystType.MARKET,
             AnalystType.SOCIAL,
             AnalystType.NEWS,
+            AnalystType.KAP,
             AnalystType.FUNDAMENTALS,
         ]
 
@@ -36,6 +37,7 @@ class CryptoAssetModeTests(unittest.TestCase):
             AnalystType.MARKET,
             AnalystType.SOCIAL,
             AnalystType.NEWS,
+            AnalystType.KAP,
             AnalystType.FUNDAMENTALS,
         ]
 

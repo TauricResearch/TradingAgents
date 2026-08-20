@@ -20,6 +20,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_indicators,
     get_insider_transactions,
+    get_kap_disclosures,
     get_macro_indicators,
     get_news,
     get_prediction_markets,
@@ -42,6 +43,16 @@ from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
+
+
+def filter_enabled_analysts(selected_analysts, config: dict) -> tuple[str, ...]:
+    """Apply feature gates without changing caller-selected analyst ordering."""
+    enabled = tuple(
+        key for key in selected_analysts if key != "kap" or config.get("kap_enabled", True)
+    )
+    if not enabled:
+        raise ValueError("at least one enabled analyst must be selected")
+    return enabled
 
 
 def _coerce_max_retries(value):
@@ -67,7 +78,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=("market", "social", "news", "fundamentals"),
+        selected_analysts=("market", "social", "news", "kap", "fundamentals"),
         debug=False,
         config: dict[str, Any] = None,
         callbacks: list | None = None,
@@ -83,6 +94,8 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+
+        selected_analysts = filter_enabled_analysts(selected_analysts, self.config)
 
         # Update the interface's config
         set_config(self.config)
@@ -216,6 +229,7 @@ class TradingAgentsGraph:
                     get_prediction_markets,
                 ]
             ),
+            "kap": ToolNode([get_kap_disclosures]),
             "fundamentals": ToolNode(
                 [
                     # Fundamental analysis tools
