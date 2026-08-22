@@ -157,6 +157,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".L":   "^FTSE",       # London (FTSE 100)
         ".TO":  "^GSPTSE",     # Toronto (TSX Composite)
         ".AX":  "^AXJO",       # Australia (ASX 200)
+        ".SA":  "^BVSP",       # Brazil B3 (Ibovespa)
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         "":     "SPY",         # default for US-listed tickers (no suffix)
