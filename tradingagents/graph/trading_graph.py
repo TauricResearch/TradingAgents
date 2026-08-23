@@ -359,6 +359,53 @@ class TradingAgentsGraph:
             f"asset={asset_type}",
         ])
 
+    def setup_checkpoint(
+        self, company_name: str, trade_date: str, asset_type: str = "stock"
+    ) -> tuple[str, int | None] | None:
+        """Set up checkpointer context and compile graph if checkpointing is enabled."""
+        if not self.config.get("checkpoint_enabled"):
+            return None
+
+        self._checkpointer_ctx = get_checkpointer(
+            self.config["data_cache_dir"], company_name
+        )
+        saver = self._checkpointer_ctx.__enter__()
+        self.graph = self.workflow.compile(checkpointer=saver)
+
+        sig = self._run_signature(asset_type)
+        step = checkpoint_step(
+            self.config["data_cache_dir"], company_name, str(trade_date), sig
+        )
+        if step is not None:
+            logger.info(
+                "Resuming from step %d for %s on %s", step, company_name, trade_date
+            )
+        else:
+            logger.info("Starting fresh for %s on %s", company_name, trade_date)
+
+        tid = thread_id(company_name, str(trade_date), sig)
+        return tid, step
+
+    def clear_checkpoint(
+        self, company_name: str, trade_date: str, asset_type: str = "stock"
+    ) -> None:
+        """Clear saved checkpoint rows for this ticker+date+signature."""
+        if not self.config.get("checkpoint_enabled"):
+            return
+        clear_checkpoint(
+            self.config["data_cache_dir"],
+            company_name,
+            str(trade_date),
+            self._run_signature(asset_type),
+        )
+
+    def close_checkpoint(self) -> None:
+        """Exit checkpointer context and restore plain compiled graph."""
+        if self._checkpointer_ctx is not None:
+            self._checkpointer_ctx.__exit__(None, None, None)
+            self._checkpointer_ctx = None
+            self.graph = self.workflow.compile()
+
     def propagate(self, company_name, trade_date, asset_type: str = "stock"):
         """Run the trading agents graph for a company on a specific date.
 
@@ -374,32 +421,11 @@ class TradingAgentsGraph:
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)
 
-        # Recompile with a checkpointer if the user opted in.
-        if self.config.get("checkpoint_enabled"):
-            self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
-            )
-            saver = self._checkpointer_ctx.__enter__()
-            self.graph = self.workflow.compile(checkpointer=saver)
-
-            step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date),
-                self._run_signature(asset_type),
-            )
-            if step is not None:
-                logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
-                )
-            else:
-                logger.info("Starting fresh for %s on %s", company_name, trade_date)
-
+        self.setup_checkpoint(company_name, trade_date, asset_type=asset_type)
         try:
             return self._run_graph(company_name, trade_date, asset_type=asset_type)
         finally:
-            if self._checkpointer_ctx is not None:
-                self._checkpointer_ctx.__exit__(None, None, None)
-                self._checkpointer_ctx = None
-                self.graph = self.workflow.compile()
+            self.close_checkpoint()
 
     def save_reports(self, final_state, ticker, save_path=None) -> Path:
         """Write the markdown report tree for a completed run, like the CLI does.
@@ -473,11 +499,7 @@ class TradingAgentsGraph:
         )
 
         # Clear checkpoint on successful completion to avoid stale state.
-        if self.config.get("checkpoint_enabled"):
-            clear_checkpoint(
-                self.config["data_cache_dir"], company_name, str(trade_date),
-                self._run_signature(asset_type),
-            )
+        self.clear_checkpoint(company_name, trade_date, asset_type=asset_type)
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 

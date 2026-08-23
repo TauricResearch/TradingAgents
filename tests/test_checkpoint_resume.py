@@ -3,9 +3,12 @@
 import tempfile
 import unittest
 from typing import TypedDict
+from unittest import mock
 
 from langgraph.graph import END, StateGraph
 
+import cli.main as cli_main
+from cli.models import AnalystType
 from tradingagents.graph.checkpointer import (
     checkpoint_step,
     clear_checkpoint,
@@ -13,9 +16,11 @@ from tradingagents.graph.checkpointer import (
     has_checkpoint,
     thread_id,
 )
+from tradingagents.graph.propagation import Propagator
 
 # Mutable flag to simulate crash on first run
 _should_crash = False
+_analyst_calls = 0
 
 
 class _SimpleState(TypedDict):
@@ -23,13 +28,15 @@ class _SimpleState(TypedDict):
 
 
 def _node_a(state: _SimpleState) -> dict:
-    return {"count": state["count"] + 1}
+    global _analyst_calls
+    _analyst_calls += 1
+    return {"count": state.get("count", 0) + 1}
 
 
 def _node_b(state: _SimpleState) -> dict:
     if _should_crash:
         raise RuntimeError("simulated mid-analysis crash")
-    return {"count": state["count"] + 10}
+    return {"count": state.get("count", 0) + 10}
 
 
 def _build_graph() -> StateGraph:
@@ -212,6 +219,84 @@ class TestCheckpointSignature(unittest.TestCase):
         # Stable for identical inputs.
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
         self.assertEqual(base, g._run_signature("stock"))
+
+
+class TestCLICheckpointResume(unittest.TestCase):
+    def setUp(self):
+        global _should_crash, _analyst_calls
+        _should_crash = False
+        _analyst_calls = 0
+        self.tmpdir = tempfile.mkdtemp()
+        self.ticker = "TEST"
+        self.date = "2026-08-23"
+
+    def test_cli_checkpoint_crash_and_resume(self):
+        """When checkpoint=True, CLI must compile checkpointer, save state on crash,
+        resume on re-run, and clear checkpoint on success."""
+        global _should_crash
+
+        selections = {
+            "ticker": self.ticker,
+            "analysis_date": self.date,
+            "asset_type": "stock",
+            "analysts": [AnalystType.MARKET],
+            "research_depth": 1,
+            "shallow_thinker": "gpt-5.4-mini",
+            "deep_thinker": "gpt-5.5",
+            "backend_url": None,
+            "llm_provider": "openai",
+            "google_thinking_level": None,
+            "openai_reasoning_effort": None,
+            "anthropic_effort": None,
+            "output_language": "English",
+        }
+
+        test_workflow = _build_graph()
+
+        def _mock_graph_init(graph_self, selected_analysts, *args, **kwargs):
+            graph_self.selected_analysts = tuple(selected_analysts)
+            graph_self.config = kwargs.get("config", {})
+            graph_self.debug = True
+            graph_self._checkpointer_ctx = None
+            graph_self.workflow = test_workflow
+            graph_self.graph = test_workflow.compile()
+            graph_self.propagator = Propagator(max_recur_limit=100)
+
+        patched_config = dict(cli_main.DEFAULT_CONFIG, data_cache_dir=self.tmpdir, results_dir=self.tmpdir)
+
+        with mock.patch("cli.main.get_user_selections", return_value=selections), \
+            mock.patch.object(cli_main, "DEFAULT_CONFIG", patched_config), \
+            mock.patch("cli.main.TradingAgentsGraph.__init__", _mock_graph_init), \
+            mock.patch("cli.main.Live"), \
+            mock.patch("cli.main.typer.prompt", return_value="N"):
+
+            # Run 1: crash in trader node
+            _should_crash = True
+            with self.assertRaises(RuntimeError):
+                cli_main.run_analysis(checkpoint=True)
+            self.assertEqual(
+                _analyst_calls, 1, "Initial analyst node should run exactly once"
+            )
+
+            # Checkpoint MUST exist after crash
+            sig = f"analysts=market|debate={patched_config['max_debate_rounds']}|risk={patched_config['max_risk_discuss_rounds']}|asset=stock"
+            self.assertTrue(
+                has_checkpoint(self.tmpdir, self.ticker, self.date, sig),
+                "Checkpoint DB should have saved state for crashed run"
+            )
+
+            # Run 2: resume
+            _should_crash = False
+            cli_main.run_analysis(checkpoint=True)
+            self.assertEqual(
+                _analyst_calls, 1, "Resume should not rerun the completed analyst node"
+            )
+
+            # Checkpoint should be cleared after successful completion
+            self.assertFalse(
+                has_checkpoint(self.tmpdir, self.ticker, self.date, sig),
+                "Checkpoint should be cleared after successful completion"
+            )
 
 
 if __name__ == "__main__":
