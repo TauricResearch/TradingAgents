@@ -36,12 +36,18 @@ from cli.utils import (
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
+    select_discovery_regions,
     select_deep_thinking_agent,
     select_llm_provider,
     select_research_depth,
     select_shallow_thinking_agent,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.discovery import (
+    DiscoveryConfig,
+    discover_trending_stocks,
+    symbols_for_regions,
+)
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
@@ -545,15 +551,18 @@ def get_user_selections():
         console.print(create_question_box(box_title, box_body))
         return prompt_fn()
 
-    # Step 1: Ticker symbol
-    console.print(
-        create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
-            "SPY",
+    # Step 1: Discover or enter a ticker
+    if DEFAULT_CONFIG.get("discovery_enabled", True) and sys.stdin.isatty():
+        selected_ticker = prompt_for_discovery_ticker()
+    else:
+        console.print(
+            create_question_box(
+                "Step 1: Ticker Symbol",
+                "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK)",
+                "SPY",
+            )
         )
-    )
-    selected_ticker = get_ticker()
+        selected_ticker = get_ticker()
     asset_type = detect_asset_type(selected_ticker)
     # Only announce when it's not the default stock path, to avoid printing
     # "stock" on every run.
@@ -739,6 +748,61 @@ def get_user_selections():
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
     }
+
+
+def prompt_for_discovery_ticker(
+    discover_fn=discover_trending_stocks,
+    region_selector=None,
+):
+    """Display active stocks from selected regions and return a ticker."""
+    region_selector = region_selector or select_discovery_regions
+    console.print(Panel(
+        "[bold]Step 1: Trending Stocks[/bold]\n"
+        "[dim]Choose a ranked stock or enter another equity ticker[/dim]",
+        border_style="blue",
+        padding=(1, 2),
+    ))
+    try:
+        config = DiscoveryConfig(
+            lookback_days=DEFAULT_CONFIG.get("discovery_lookback_days", 20),
+            candidate_limit=DEFAULT_CONFIG.get("discovery_candidate_limit", 8),
+        )
+        candidates = discover_fn(
+            symbols=symbols_for_regions(region_selector()),
+            config=config,
+        )
+    except Exception as exc:
+        console.print(f"[yellow]Discovery unavailable; enter a ticker manually ({exc})[/yellow]")
+        candidates = []
+
+    if not candidates:
+        return get_ticker()
+
+    table = Table(title="Current market activity", show_lines=True)
+    table.add_column("#", justify="right", style="cyan")
+    table.add_column("Ticker", style="bold green")
+    table.add_column("Score", justify="right")
+    table.add_column("Price", justify="right")
+    table.add_column("Return", justify="right")
+    table.add_column("Reasons")
+    for index, candidate in enumerate(candidates, start=1):
+        table.add_row(
+            str(index),
+            candidate.symbol,
+            f"{candidate.score:.1f}",
+            f"{candidate.latest_price:.2f}",
+            f"{candidate.return_percent:+.1f}%",
+            "; ".join(candidate.reasons),
+        )
+    console.print(table)
+    choice = typer.prompt("Select a number or enter another ticker", default="1").strip()
+    if choice.isdigit() and 1 <= int(choice) <= len(candidates):
+        return candidates[int(choice) - 1].symbol
+    if choice:
+        from cli.utils import normalize_ticker_symbol
+
+        return normalize_ticker_symbol(choice)
+    return candidates[0].symbol
 
 
 def get_analysis_date():
