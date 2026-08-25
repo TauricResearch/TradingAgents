@@ -16,6 +16,10 @@ on:
         type: string
         description: "Service port"
 
+permissions:
+  packages: write
+  contents: read
+
 jobs:
   deploy:
     uses: mark-baumann/infrastruktur-deployment/.github/workflows/build-deploy.yml@master
