@@ -67,9 +67,23 @@ class TradingMemoryLog:
         """Return entries with outcome:pending (for Phase B)."""
         return [e for e in self.load_entries() if e.get("pending")]
 
-    def get_past_context(self, ticker: str, n_same: int = 5, n_cross: int = 3) -> str:
-        """Return formatted past context string for agent prompt injection."""
+    def get_past_context(
+        self,
+        ticker: str,
+        n_same: int = 5,
+        n_cross: int = 3,
+        as_of_date: str | None = None,
+    ) -> str:
+        """Return formatted past context string for agent prompt injection.
+
+        When ``as_of_date`` is given (YYYY-MM-DD), entries whose outcome
+        resolved on a later date are excluded. Their reflections encode
+        knowledge of prices the current run has not seen yet, so injecting
+        them would leak future information into a backtest (#1251).
+        """
         entries = [e for e in self.load_entries() if not e.get("pending")]
+        if as_of_date:
+            entries = [e for e in entries if self._date_key(e["date"]) <= self._date_key(as_of_date)]
         if not entries:
             return ""
 
@@ -216,6 +230,18 @@ class TradingMemoryLog:
         tmp_path.replace(self._log_path)
 
     # --- Helpers ---
+
+    @staticmethod
+    def _date_key(date_str: str) -> tuple:
+        """Parse a YYYY-MM-DD tag date into a comparable tuple.
+
+        Unparseable dates sort last so a malformed entry is never silently
+        trusted as point-in-time-safe context.
+        """
+        try:
+            return tuple(int(p) for p in date_str.split("-"))
+        except (ValueError, AttributeError):
+            return (9999, 12, 31)
 
     def _apply_rotation(self, blocks: list[str]) -> list[str]:
         """Drop oldest resolved blocks when their count exceeds max_entries.

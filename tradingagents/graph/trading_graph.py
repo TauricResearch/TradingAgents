@@ -418,9 +418,11 @@ class TradingAgentsGraph:
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
         """Execute the graph and write the resulting state to disk and memory log."""
-        # Initialize state — inject memory log context for PM and the
-        # deterministically resolved instrument identity for all agents.
-        past_context = self.memory_log.get_past_context(company_name)
+        # Inject memory log context for PM and the deterministically resolved
+        # instrument identity for all agents. as_of_date keeps lessons from
+        # outcomes that resolve after this run's trade date out of the prompt,
+        # so out-of-order backtests cannot leak future information (#1251).
+        past_context = self.memory_log.get_past_context(company_name, as_of_date=str(trade_date))
         instrument_context = self.resolve_instrument_context(company_name, asset_type)
         init_agent_state = self.propagator.create_initial_state(
             company_name,

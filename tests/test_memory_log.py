@@ -284,6 +284,52 @@ class TestTradingMemoryLogCore:
         assert "AAPL" not in ctx
         assert "META" in ctx
 
+    # Point-in-time guard (as_of_date)
+
+    def test_as_of_date_excludes_future_resolved_entries(self, tmp_path):
+        """An entry resolved after the current trade date must not leak in.
+
+        This is the lookahead guard: running date D1 after a later run for
+        D2 would otherwise inject D2's reflection (which encodes knowledge
+        of prices after D1) into the D1 prompt (#1251).
+        """
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "NVDA", "2026-01-05", "Buy NVDA.", "Past lesson.")
+        _seed_completed(tmp_path, "NVDA", "2026-01-20", "Sell NVDA.", "Future lesson.")
+        ctx = log.get_past_context("NVDA", as_of_date="2026-01-10")
+        assert "Past lesson." in ctx
+        assert "Future lesson." not in ctx
+
+    def test_as_of_date_includes_same_day_entry(self, tmp_path):
+        """Entries resolved on the as-of date itself are safe to include."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "NVDA", "2026-01-10", "Buy NVDA.", "Same-day lesson.")
+        ctx = log.get_past_context("NVDA", as_of_date="2026-01-10")
+        assert "Same-day lesson." in ctx
+
+    def test_as_of_date_applies_to_cross_ticker_too(self, tmp_path):
+        """Cross-ticker lessons are held to the same point-in-time rule."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "MSFT", "2026-01-20", "Buy MSFT.", "Future cross lesson.")
+        ctx = log.get_past_context("NVDA", as_of_date="2026-01-10")
+        assert ctx == ""
+
+    def test_no_as_of_date_keeps_all_entries(self, tmp_path):
+        """Without as_of_date the behaviour is unchanged (back-compat)."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "NVDA", "2026-01-05", "Buy NVDA.", "Old lesson.")
+        _seed_completed(tmp_path, "NVDA", "2026-01-20", "Sell NVDA.", "New lesson.")
+        ctx = log.get_past_context("NVDA")
+        assert "Old lesson." in ctx
+        assert "New lesson." in ctx
+
+    def test_unparseable_entry_date_is_excluded(self, tmp_path):
+        """A malformed tag date must never be trusted as point-in-time-safe."""
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "NVDA", "not-a-date", "Buy NVDA.", "Weird lesson.")
+        ctx = log.get_past_context("NVDA", as_of_date="2026-01-10")
+        assert ctx == ""
+
     # No-op when config is None
 
     def test_no_log_path_is_noop(self):
