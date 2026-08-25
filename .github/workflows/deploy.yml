@@ -23,6 +23,9 @@ permissions:
 jobs:
   deploy:
     uses: mark-baumann/infrastruktur-deployment/.github/workflows/build-deploy.yml@master
+    permissions:
+      packages: write
+      contents: read
     with:
       service_name: ${{ inputs.service_name || 'handels-agenten' }}
       port: ${{ inputs.port || '8503' }}
