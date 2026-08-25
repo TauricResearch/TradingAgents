@@ -164,6 +164,34 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> list[AnalystType
     return choices
 
 
+def select_discovery_regions(default_regions=("us", "europe")) -> list[str]:
+    """Select stock-market regions with Space and confirm with Enter."""
+    from tradingagents.discovery import DISCOVERY_REGION_LABELS, DISCOVERY_REGIONS
+
+    choices = questionary.checkbox(
+        "Select regions for stock discovery:",
+        choices=[
+            questionary.Choice(
+                DISCOVERY_REGION_LABELS[region],
+                value=region,
+                checked=region in default_regions,
+            )
+            for region in DISCOVERY_REGIONS
+        ],
+        instruction="\n- Press Space to select/unselect regions\n- Press 'a' to select/unselect all\n- Press Enter when done",
+        validate=lambda selected: len(selected) > 0 or "Select at least one region.",
+        style=questionary.Style(
+            [
+                ("checkbox-selected", "fg:green"),
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "noinherit"),
+                ("pointer", "noinherit"),
+            ]
+        ),
+    ).ask()
+    return choices or list(default_regions)
+
+
 def select_research_depth() -> int:
     """Select research depth using an interactive selection."""
 

@@ -19,6 +19,9 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
+    "TRADINGAGENTS_DISCOVERY_ENABLED":    "discovery_enabled",
+    "TRADINGAGENTS_DISCOVERY_LIMIT":     "discovery_candidate_limit",
+    "TRADINGAGENTS_DISCOVERY_LOOKBACK":  "discovery_lookback_days",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -125,6 +128,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
     ],
+    # Pre-analysis stock discovery. Regions are selected interactively in the CLI.
+    "discovery_enabled": True,
+    "discovery_candidate_limit": 8,
+    "discovery_lookback_days": 20,
+    "discovery_regions": ("us", "europe"),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category).
     # The configured value is the exact vendor chain — requests are NOT silently

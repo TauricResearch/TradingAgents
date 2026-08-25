@@ -169,6 +169,19 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+Before the analysis-date step, the CLI can show a ranked shortlist of active
+equities. First select one or more discovery regions with `Space`, then press
+`Enter` to search those markets. Available regions include the US, Europe,
+Canada, Latin America, Japan, China and Hong Kong, India, Australia, and South
+Korea. The shortlist uses recent price momentum, relative volume, and
+volatility to explain why each stock is currently active; it is a discovery
+heuristic, not a prediction or investment recommendation. Select a listed
+number or enter another supported equity ticker to continue with the normal
+analyst workflow. Disable it with
+`TRADINGAGENTS_DISCOVERY_ENABLED=false`, or tune the number of candidates and
+lookback window with `TRADINGAGENTS_DISCOVERY_LIMIT` and
+`TRADINGAGENTS_DISCOVERY_LOOKBACK`.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.

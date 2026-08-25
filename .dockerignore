@@ -1,6 +1,8 @@
 .git
 .venv
 .env
+.github/skills/
+.codegraph/
 .claude
 .idea
 .vscode
