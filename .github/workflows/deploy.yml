@@ -3,16 +3,14 @@ name: Deploy
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       service_name:
-        required: true
+        required: false
         type: string
         description: "Docker-Compose service name"
       port:
-        required: true
+        required: false
         type: string
         description: "Service port"
 
@@ -30,5 +28,5 @@ jobs:
       service_name: ${{ inputs.service_name || 'handels-agenten' }}
       port: ${{ inputs.port || '8503' }}
       app_file: "app/streamlit_app.py"
-      registry_token: ${{ secrets.DOCKER_PUSH_TOKEN }}
+    secrets: inherit
 
