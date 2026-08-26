@@ -1,6 +1,10 @@
 .git
 .venv
 .env
+.env.enterprise
+.env.*
+!.env.example
+!.env.enterprise.example
 .claude
 .idea
 .vscode

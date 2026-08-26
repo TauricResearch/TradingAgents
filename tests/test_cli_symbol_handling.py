@@ -34,9 +34,14 @@ def test_normalize_symbol_crypto_and_passthrough(raw, expected):
     ("AAPL", True),
     ("0700.HK", True),
     ("^GSPC", True),
+    ("XAUUSD+", True),          # broker CFD marker; data layer strips '+'
     ("", True),                 # empty -> defaults to SPY downstream
     ("bad symbol!", False),     # space + '!' rejected
     ("A" * 40, False),          # too long
+    ("..", False),              # path traversal
+    (".", False),
+    ("../etc", False),
+    ("a/b", False),
 ])
 def test_ticker_input_validation(value, ok):
     assert is_valid_ticker_input(value) is ok
