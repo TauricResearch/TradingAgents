@@ -67,9 +67,21 @@ class TradingMemoryLog:
         """Return entries with outcome:pending (for Phase B)."""
         return [e for e in self.load_entries() if e.get("pending")]
 
-    def get_past_context(self, ticker: str, n_same: int = 5, n_cross: int = 3) -> str:
-        """Return formatted past context string for agent prompt injection."""
+    def get_past_context(
+        self,
+        ticker: str,
+        n_same: int = 5,
+        n_cross: int = 3,
+        trade_date: str = None,
+    ) -> str:
+        """Return formatted past context string for agent prompt injection.
+
+        If trade_date is provided, only entries whose date is strictly before
+        trade_date (< trade_date) are included, preventing lookahead in backtests.
+        """
         entries = [e for e in self.load_entries() if not e.get("pending")]
+        if trade_date:
+            entries = [e for e in entries if e.get("date") and str(e["date"]) < str(trade_date)]
         if not entries:
             return ""
 

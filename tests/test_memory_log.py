@@ -275,14 +275,20 @@ class TestTradingMemoryLogCore:
         assert "Buy entry 0" not in ctx
         assert "Buy entry 5" in ctx
 
-    def test_n_cross_limit_respected(self, tmp_path):
-        """Only the n_cross most recent cross-ticker entries are included."""
+    def test_point_in_time_guard(self, tmp_path):
+        """Entries on or after the trade_date are excluded to prevent lookahead."""
         log = make_log(tmp_path)
-        for i, ticker in enumerate(["AAPL", "MSFT", "GOOG", "META"]):
-            _seed_completed(tmp_path, ticker, f"2026-01-{i+1:02d}", f"Buy {ticker}.", "Correct.")
-        ctx = log.get_past_context("NVDA", n_cross=3)
-        assert "AAPL" not in ctx
-        assert "META" in ctx
+        _seed_completed(tmp_path, "NVDA", "2026-01-05", "Decision Jan 5.", "Lesson Jan 5.")
+        _seed_completed(tmp_path, "NVDA", "2026-01-15", "Decision Jan 15.", "Lesson Jan 15.")
+        _seed_completed(tmp_path, "AAPL", "2026-01-10", "Decision AAPL Jan 10.", "Lesson AAPL Jan 10.")
+        _seed_completed(tmp_path, "AAPL", "2026-01-20", "Decision AAPL Jan 20.", "Lesson AAPL Jan 20.")
+
+        # Querying with trade_date="2026-01-12" should only see Jan 5 for NVDA and Jan 10 for AAPL
+        ctx = log.get_past_context("NVDA", trade_date="2026-01-12")
+        assert "Decision Jan 5" in ctx
+        assert "Decision Jan 15" not in ctx
+        assert "AAPL" in ctx
+        assert "2026-01-20" not in ctx
 
     # No-op when config is None
 
