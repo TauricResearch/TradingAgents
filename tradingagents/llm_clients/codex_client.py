@@ -20,7 +20,7 @@ from pydantic import Field
 from .base_client import BaseLLMClient
 from .claude_code_client import (
     _clone_model,
-    _extract_json_object,
+    _extract_tool_envelope,
     _format_messages_for_local_agent,
     _message_from_tool_json,
 )
@@ -60,16 +60,31 @@ def _codex_auth_guidance(error_msg: str) -> str:
 
 
 def _codex_auth_retry_enabled() -> bool:
-    return os.environ.get("TRADINGAGENTS_CODEX_AUTH_RETRY", "1").strip().lower() not in (
-        "0",
-        "false",
-        "no",
-        "off",
+    return os.environ.get("TRADINGAGENTS_CODEX_AUTH_RETRY", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _interactive_session() -> bool:
+    """Return true only when both the input and prompt streams are terminals."""
+
+    stdin = getattr(sys, "stdin", None)
+    stderr = getattr(sys, "stderr", None)
+    return bool(
+        stdin
+        and stderr
+        and callable(getattr(stdin, "isatty", None))
+        and callable(getattr(stderr, "isatty", None))
+        and stdin.isatty()
+        and stderr.isatty()
     )
 
 
 def _maybe_wait_for_codex_reauth(error_msg: str) -> bool:
-    if not _codex_auth_retry_enabled() or not sys.stdin.isatty():
+    if not _codex_auth_retry_enabled() or not _interactive_session():
         return False
 
     print(
@@ -79,7 +94,7 @@ def _maybe_wait_for_codex_reauth(error_msg: str) -> bool:
         "  codex login\n\n"
         "After the new account is authenticated, return here and press Enter "
         "to retry this TradingAgents model call once.\n"
-        "Set TRADINGAGENTS_CODEX_AUTH_RETRY=0 to disable this pause.\n",
+        "Interactive auth retry is enabled by TRADINGAGENTS_CODEX_AUTH_RETRY=1.\n",
         file=sys.stderr,
     )
     if error_msg:
@@ -210,7 +225,7 @@ class CodexChatModel(BaseChatModel):
         if not self.bound_tools:
             return AIMessage(content=output)
 
-        parsed = _extract_json_object(output)
+        parsed = _extract_tool_envelope(output)
         if not parsed:
             return AIMessage(content=output)
 

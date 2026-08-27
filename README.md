@@ -179,6 +179,12 @@ export TRADINGAGENTS_QUICK_THINK_LLM=gpt-5.4-mini
 This adapter runs Codex in ephemeral read-only mode and captures the final
 assistant message. TradingAgents still executes its own LangGraph tools.
 
+The required flags were verified against Claude Code 2.1.241 and Codex CLI
+0.130.0; a live ephemeral read-only Codex smoke call also passed with 0.150.1.
+If either CLI rejects an adapter flag, check its installed version with
+`claude --version` or `codex --version` and upgrade the CLI before using the
+experimental provider.
+
 If `tradingagents` was installed before switching to a branch or local checkout
 with these providers, reinstall it from the checkout so the CLI command loads
 the current adapter code:
@@ -200,11 +206,11 @@ codex logout
 codex login
 ```
 
-During an interactive TradingAgents run, the Codex provider pauses on this
-auth error so you can switch the global Codex account in another terminal. After
-running `codex logout` and `codex login`, return to TradingAgents and press
-Enter to retry the failed Codex call once. Set
-`TRADINGAGENTS_CODEX_AUTH_RETRY=0` to disable this pause in unattended runs.
+By default the provider fails fast instead of blocking a worker on `input()`.
+For a single interactive TradingAgents run, set
+`TRADINGAGENTS_CODEX_AUTH_RETRY=1`; when both input and error output are attached
+to a terminal, the provider pauses once so you can run `codex logout` and
+`codex login` elsewhere, then press Enter to retry the failed call once.
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 

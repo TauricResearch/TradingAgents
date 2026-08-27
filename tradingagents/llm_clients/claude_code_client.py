@@ -68,22 +68,20 @@ def _tool_schema(tool: Any) -> dict[str, Any]:
     }
 
 
-def _extract_json_object(text: str) -> Optional[dict[str, Any]]:
-    try:
-        parsed = json.loads(text)
-        return parsed if isinstance(parsed, dict) else None
-    except json.JSONDecodeError:
-        pass
+_TOOL_ENVELOPE_KEYS = frozenset({"content", "tool_calls"})
 
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return None
+
+def _extract_tool_envelope(text: str) -> Optional[dict[str, Any]]:
+    """Return a complete tool envelope, never JSON embedded in prose."""
+
     try:
-        parsed = json.loads(text[start : end + 1])
-        return parsed if isinstance(parsed, dict) else None
+        parsed = json.loads(text.strip())
     except json.JSONDecodeError:
         return None
+
+    if not isinstance(parsed, dict) or not _TOOL_ENVELOPE_KEYS.intersection(parsed):
+        return None
+    return parsed
 
 
 def _format_messages_for_local_agent(
@@ -220,7 +218,7 @@ class ClaudeCodeChatModel(BaseChatModel):
         if not self.bound_tools:
             return AIMessage(content=output)
 
-        parsed = _extract_json_object(output)
+        parsed = _extract_tool_envelope(output)
         if not parsed:
             return AIMessage(content=output)
 

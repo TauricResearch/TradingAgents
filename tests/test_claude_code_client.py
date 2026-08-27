@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
 from langchain_core.messages import HumanMessage
 
 from tradingagents.llm_clients.claude_code_client import ClaudeCodeClient
@@ -35,7 +36,8 @@ def test_claude_code_chat_model_invokes_print_mode(monkeypatch):
     args, kwargs = calls[0]
     assert args[:4] == ["claude-test", "-p", "--output-format", "text"]
     assert "--no-session-persistence" in args
-    assert "--tools" in args
+    tools_index = args.index("--tools")
+    assert args[tools_index + 1] == ""
     assert kwargs["timeout"] == 12
     assert "Human:\nhello" in kwargs["input"]
 
@@ -96,7 +98,7 @@ def test_claude_code_extra_args_use_tradingagents_env(monkeypatch):
 
 def test_claude_code_tool_call_json_becomes_langchain_tool_call(monkeypatch):
     payload = (
-        'result:\n{"content":"","tool_calls":'
+        '{"content":"","tool_calls":'
         '[{"name":"get_stock_data","args":{"ticker":"NVDA"}}]}'
     )
 
@@ -111,3 +113,26 @@ def test_claude_code_tool_call_json_becomes_langchain_tool_call(monkeypatch):
     assert result.content == ""
     assert result.tool_calls[0]["name"] == "get_stock_data"
     assert result.tool_calls[0]["args"] == {"ticker": "NVDA"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        'Recommended allocation: {"AAPL":0.4,"NVDA":0.6}. I recommend BUY.',
+        '{"AAPL":0.4,"NVDA":0.6}',
+        '```json\n{"content":"BUY"}\n```',
+    ],
+)
+def test_claude_code_non_envelope_json_is_not_dropped(monkeypatch, payload):
+    def fake_run(args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args, returncode=0, stdout=payload, stderr=""
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    llm = ClaudeCodeClient("sonnet").get_llm().bind_tools([DummyTool()])
+    result = llm.invoke([HumanMessage(content="recommend an allocation")])
+
+    assert result.content == payload
+    assert result.tool_calls == []
