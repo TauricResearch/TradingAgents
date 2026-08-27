@@ -20,6 +20,12 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.research import (
+    append_research_safety_block,
+    build_research_decision_record,
+    collect_evidence_context,
+    parse_research_signal,
+)
 
 
 def create_portfolio_manager(llm):
@@ -32,6 +38,12 @@ def create_portfolio_manager(llm):
         risk_debate_state = state["risk_debate_state"]
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+        evidence_context = collect_evidence_context(state)
+        evidence_section = (
+            f"**Analyst Evidence Ledgers (bounded excerpts):**\n{evidence_context}\n"
+            if evidence_context
+            else ""
+        )
 
         past_context = state.get("past_context", "")
         lessons_line = (
@@ -57,12 +69,19 @@ def create_portfolio_manager(llm):
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}
+{evidence_section}
 **Risk Analysts Debate History:**
 {history}
 
 ---
 
 Be decisive and ground every conclusion in specific evidence from the analysts.
+This output is research support only. Preserve the five-tier directional rating, but separately
+set Decision Status to No Trade, Data Insufficient, or Human Review Required when warranted.
+Provide a forecast/holding horizon, expected return range, calibrated confidence, observable
+invalidation conditions, key risks, and a compact evidence ledger. Label every ledger item as a
+Sourced Fact, Model Inference, or Data Unavailable and include source/as-of time when available.
+Do not propose an executable order or claim that position sizing is approved.
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 
@@ -73,6 +92,19 @@ Be decisive and ground every conclusion in specific evidence from the analysts.
             render_pm_decision,
             "Portfolio Manager",
         )
+
+        research_result = None
+        safety_policy = state.get("research_safety_policy")
+        if safety_policy is not None:
+            research_result = build_research_decision_record(
+                state,
+                final_trade_decision,
+                policy=safety_policy,
+            )
+            final_trade_decision = append_research_safety_block(
+                final_trade_decision,
+                research_result,
+            )
 
         new_risk_debate_state = {
             "judge_decision": final_trade_decision,
@@ -87,9 +119,16 @@ Be decisive and ground every conclusion in specific evidence from the analysts.
             "count": risk_debate_state["count"],
         }
 
-        return {
+        result = {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": final_trade_decision,
         }
+        if research_result is not None:
+            result["research_result"] = research_result
+            result["research_signal"] = parse_research_signal(
+                final_trade_decision,
+                research_result,
+            )
+        return result
 
     return portfolio_manager_node

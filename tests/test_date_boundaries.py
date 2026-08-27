@@ -40,6 +40,44 @@ def test_get_yfin_requests_inclusive_end(monkeypatch):
 
 
 @pytest.mark.unit
+def test_get_yfin_defensively_drops_rows_outside_requested_window(monkeypatch):
+    class FakeTicker:
+        def __init__(self, symbol):
+            pass
+
+        def history(self, start, end):
+            idx = pd.to_datetime(["2025-04-30", "2025-05-09", "2025-05-10"])
+            return pd.DataFrame(
+                {
+                    "Open": [1.0, 2.0, 999.0],
+                    "High": [1.0, 2.0, 999.0],
+                    "Low": [1.0, 2.0, 999.0],
+                    "Close": [1.0, 2.0, 999.0],
+                    "Volume": [1, 2, 999],
+                },
+                index=idx,
+            )
+
+    monkeypatch.setattr(yfin.yf, "Ticker", FakeTicker)
+    out = yfin.get_YFin_data_online("AAPL", "2025-05-01", "2025-05-09")
+    assert "2025-05-09" in out
+    assert "2025-04-30" not in out
+    assert "2025-05-10" not in out
+    assert "999.0" not in out
+
+
+@pytest.mark.unit
+def test_initial_state_rejects_future_analysis_date():
+    from datetime import date, timedelta
+
+    from tradingagents.graph.propagation import Propagator
+
+    future = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+    with pytest.raises(ValueError, match="future"):
+        Propagator().create_initial_state("AAPL", future)
+
+
+@pytest.mark.unit
 def test_load_ohlcv_requests_inclusive_end(monkeypatch, tmp_path):
     set_config({"data_cache_dir": str(tmp_path)})
     captured = {}

@@ -43,10 +43,24 @@ __all__ = [
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
     "get_language_instruction",
+    "EVIDENCE_CONTRACT_INSTRUCTION",
     "create_msg_delete",
 ]
 
 logger = logging.getLogger(__name__)
+
+
+EVIDENCE_CONTRACT_INSTRUCTION = """
+
+For every decision-relevant number or conclusion, distinguish among (1) a sourced fact,
+(2) your model inference, and (3) unavailable data. Never present an inference as a fact.
+End the report with a compact `## Evidence Ledger` Markdown table using these exact column
+headers: `Claim | Source | As Of | Evidence Type | Strength | Limitations`. Use the provider,
+document/article/series identifier, and observation or publication time shown by the tools.
+Evidence Type must be `Sourced Fact`, `Model Inference`, or `Data Unavailable`; Strength must
+be `High`, `Medium`, or `Low`. If provenance or timing is absent, say `unknown`, lower strength,
+and flag manual verification rather than inventing a citation.
+"""
 
 
 def get_language_instruction() -> str:
@@ -212,6 +226,5 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
 
 

@@ -1,5 +1,6 @@
 # TradingAgents/graph/propagation.py
 
+from datetime import date, datetime
 from typing import Any
 
 from tradingagents.agents.utils.agent_states import (
@@ -11,9 +12,21 @@ from tradingagents.agents.utils.agent_states import (
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(
+        self,
+        max_recur_limit=100,
+        *,
+        selected_analysts: tuple[str, ...] | list[str] | None = None,
+        research_safety_policy: dict[str, Any] | None = None,
+        research_run_metadata: dict[str, Any] | None = None,
+    ):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
+        self.selected_analysts = tuple(
+            selected_analysts or ("market", "social", "news", "fundamentals")
+        )
+        self.research_safety_policy = research_safety_policy
+        self.research_run_metadata = dict(research_run_metadata or {})
 
     def create_initial_state(
         self,
@@ -31,6 +44,9 @@ class Propagator:
         fall back to ticker-only context via
         ``get_instrument_context_from_state``.
         """
+        analysis_date = datetime.strptime(str(trade_date), "%Y-%m-%d").date()
+        if analysis_date > date.today():
+            raise ValueError("trade_date cannot be in the future")
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
@@ -38,6 +54,13 @@ class Propagator:
             "instrument_context": instrument_context,
             "trade_date": str(trade_date),
             "past_context": past_context,
+            "research_safety_policy": self.research_safety_policy,
+            "research_run_metadata": {
+                **self.research_run_metadata,
+                "selected_analysts": list(self.selected_analysts),
+            },
+            "research_result": {},
+            "research_signal": {},
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",

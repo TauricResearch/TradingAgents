@@ -33,6 +33,11 @@ from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree
+from tradingagents.research import (
+    RESEARCH_PROMPT_VERSION,
+    RESEARCH_SCHEMA_VERSION,
+    validate_research_safety_policy,
+)
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -83,6 +88,7 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self.selected_analysts = tuple(selected_analysts)
 
         # Update the interface's config
         set_config(self.config)
@@ -133,6 +139,20 @@ class TradingAgentsGraph:
 
         self.propagator = Propagator(
             max_recur_limit=self.config.get("max_recur_limit", 100),
+            selected_analysts=self.selected_analysts,
+            research_safety_policy=validate_research_safety_policy(
+                self.config.get("research_safety") or {}
+            ),
+            research_run_metadata={
+                "schema_version": RESEARCH_SCHEMA_VERSION,
+                "prompt_version": RESEARCH_PROMPT_VERSION,
+                "model_provider": self.config.get("llm_provider"),
+                "models": {
+                    "quick": self.config.get("quick_think_llm"),
+                    "deep": self.config.get("deep_think_llm"),
+                },
+                "data_vendors": dict(self.config.get("data_vendors", {})),
+            },
         )
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
@@ -141,9 +161,6 @@ class TradingAgentsGraph:
         self.curr_state = None
         self.ticker = None
         self.log_states_dict = {}  # date to full state dict
-
-        # Graph-shape-affecting run choices, kept for the checkpoint signature.
-        self.selected_analysts = tuple(selected_analysts)
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
@@ -470,6 +487,7 @@ class TradingAgentsGraph:
             ticker=company_name,
             trade_date=trade_date,
             final_trade_decision=final_state["final_trade_decision"],
+            research_result=final_state.get("research_result"),
         )
 
         # Clear checkpoint on successful completion to avoid stale state.
@@ -511,6 +529,8 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "research_result": final_state.get("research_result", {}),
+            "research_signal": final_state.get("research_signal", {}),
         }
 
         # Save to file. Reject ticker values that would escape the
@@ -526,3 +546,7 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def process_research_signal(self, full_signal, research_result=None):
+        """Return the rating plus deterministic research-only safety metadata."""
+        return self.signal_processor.process_research_signal(full_signal, research_result)

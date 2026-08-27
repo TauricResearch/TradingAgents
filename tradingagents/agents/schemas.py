@@ -21,7 +21,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
 # numeric field instead of omitting it. Coerce those to None so the structured
@@ -54,10 +54,10 @@ class PortfolioRating(str, Enum):
 class TraderAction(str, Enum):
     """3-tier transaction direction used by the Trader.
 
-    The Trader's job is to translate the Research Manager's investment plan
-    into a concrete transaction proposal: should the desk execute a Buy, a
-    Sell, or sit on Hold this round.  Position sizing and the nuanced
-    Overweight / Underweight calls happen later at the Portfolio Manager.
+    The Trader translates the Research Manager's investment plan into a
+    research-only transaction scenario: Buy, Sell, or Hold. Position sizing
+    and nuanced Overweight / Underweight views remain unexecuted research
+    suggestions for the Portfolio Manager and a human reviewer.
     """
 
     BUY = "Buy"
@@ -65,12 +65,148 @@ class TraderAction(str, Enum):
     SELL = "Sell"
 
 
+class DecisionStatus(str, Enum):
+    """Research disposition kept separate from the backwards-compatible rating.
+
+    A rating expresses the directional research view. The status says whether
+    the evidence is complete enough for a human to consider acting on it.
+    """
+
+    RESEARCH_COMPLETE = "Research Complete"
+    NO_TRADE = "No Trade"
+    DATA_INSUFFICIENT = "Data Insufficient"
+    HUMAN_REVIEW_REQUIRED = "Human Review Required"
+
+
+class DataQuality(str, Enum):
+    """Coarse quality assessment for the evidence used in a decision."""
+
+    HIGH = "High"
+    MEDIUM = "Medium"
+    LOW = "Low"
+    UNAVAILABLE = "Unavailable"
+    UNKNOWN = "Unknown"
+
+
+class EvidenceKind(str, Enum):
+    """Distinguish sourced observations from interpretation and missing data."""
+
+    SOURCED_FACT = "Sourced Fact"
+    MODEL_INFERENCE = "Model Inference"
+    DATA_UNAVAILABLE = "Data Unavailable"
+
+
+class EvidenceStrength(str, Enum):
+    """Evidence strength used by the lightweight provenance contract."""
+
+    HIGH = "High"
+    MEDIUM = "Medium"
+    LOW = "Low"
+
+
+class EvidenceItem(BaseModel):
+    """One auditable claim supporting or limiting a portfolio decision."""
+
+    claim: str = Field(description="Concise claim, number, or conclusion being relied upon.")
+    kind: EvidenceKind = Field(
+        description=(
+            "Exactly one of Sourced Fact / Model Inference / Data Unavailable. "
+            "Do not label an interpretation as a sourced fact."
+        ),
+    )
+    source: str | None = Field(
+        default=None,
+        description="Provider, report, filing, article, or series identifier; null if unavailable.",
+    )
+    as_of: str | None = Field(
+        default=None,
+        description="Observation/publication time or analysis cutoff; null if unknown.",
+    )
+    strength: EvidenceStrength = Field(
+        default=EvidenceStrength.LOW,
+        description="High / Medium / Low based on source quality, timeliness, and corroboration.",
+    )
+
+
+class _UncertaintyFields(BaseModel):
+    """Shared, optional forecast fields layered onto existing agent schemas."""
+
+    decision_status: DecisionStatus = Field(
+        default=DecisionStatus.RESEARCH_COMPLETE,
+        description=(
+            "Research disposition separate from direction. Use No Trade when a complete forecast "
+            "cannot be formed, Data Insufficient when required inputs are unavailable, and Human "
+            "Review Required for material unresolved evidence conflicts."
+        ),
+    )
+    time_horizon: str | None = Field(
+        default=None,
+        description="Forecast and suggested holding horizon, e.g. '20 trading days' or '3-6 months'.",
+    )
+    expected_return_low: float | None = Field(
+        default=None,
+        description="Lower bound of expected total return as a decimal (for example -0.05 = -5%).",
+    )
+    expected_return_high: float | None = Field(
+        default=None,
+        description="Upper bound of expected total return as a decimal (for example 0.12 = 12%).",
+    )
+    confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Calibrated confidence from 0 to 1, reduced for missing or weak evidence.",
+    )
+    invalidation_conditions: list[str] = Field(
+        default_factory=list,
+        description="Observable conditions that would invalidate the thesis or require reassessment.",
+    )
+
+    @field_validator("expected_return_low", "expected_return_high", mode="before")
+    @classmethod
+    def _nullish_return_to_none(cls, v):
+        return _coerce_optional_float(v)
+
+    @model_validator(mode="after")
+    def _return_bounds_are_ordered(self):
+        if (
+            self.expected_return_low is not None
+            and self.expected_return_high is not None
+            and self.expected_return_low > self.expected_return_high
+        ):
+            raise ValueError("expected_return_low must be <= expected_return_high")
+        return self
+
+
+def _format_percent(value: float) -> str:
+    return f"{value:+.1%}"
+
+
+def _append_uncertainty_fields(parts: list[str], value: _UncertaintyFields) -> None:
+    """Append optional uncertainty fields using stable, parser-friendly labels."""
+    parts.extend(["", f"**Decision Status**: {value.decision_status.value}"])
+    if value.time_horizon:
+        parts.extend(["", f"**Time Horizon**: {value.time_horizon}"])
+    if value.expected_return_low is not None and value.expected_return_high is not None:
+        parts.extend([
+            "",
+            "**Expected Return Range**: "
+            f"{_format_percent(value.expected_return_low)} to "
+            f"{_format_percent(value.expected_return_high)}",
+        ])
+    if value.confidence is not None:
+        parts.extend(["", f"**Confidence**: {value.confidence:.1%}"])
+    if value.invalidation_conditions:
+        parts.extend(["", "**Invalidation Conditions**:"])
+        parts.extend(f"- {condition}" for condition in value.invalidation_conditions)
+
+
 # ---------------------------------------------------------------------------
 # Research Manager
 # ---------------------------------------------------------------------------
 
 
-class ResearchPlan(BaseModel):
+class ResearchPlan(_UncertaintyFields):
     """Structured investment plan produced by the Research Manager.
 
     Hand-off to the Trader: the recommendation pins the directional view,
@@ -97,20 +233,25 @@ class ResearchPlan(BaseModel):
     strategic_actions: str = Field(
         description=(
             "Concrete steps for the trader to implement the recommendation, "
-            "including position sizing guidance consistent with the rating."
+            "including research-only sizing guidance consistent with the rating. "
+            "Do not describe an approved or executable order."
         ),
     )
 
 
 def render_research_plan(plan: ResearchPlan) -> str:
     """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
-    return "\n".join([
+    parts = [
         f"**Recommendation**: {plan.recommendation.value}",
+        "",
+        "**Research Use Only**: Yes",
         "",
         f"**Rationale**: {plan.rationale}",
         "",
         f"**Strategic Actions**: {plan.strategic_actions}",
-    ])
+    ]
+    _append_uncertainty_fields(parts, plan)
+    return "\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -118,13 +259,13 @@ def render_research_plan(plan: ResearchPlan) -> str:
 # ---------------------------------------------------------------------------
 
 
-class TraderProposal(BaseModel):
+class TraderProposal(_UncertaintyFields):
     """Structured transaction proposal produced by the Trader.
 
     The trader reads the Research Manager's investment plan and the analyst
-    reports, then turns them into a concrete transaction: what action to
-    take, the reasoning that justifies it, and the practical levels for
-    entry, stop-loss, and sizing.
+    reports, then turns them into a research scenario: the directional action,
+    reasoning, and hypothetical levels for entry, stop-loss, and sizing. It
+    does not create an order or control a real position.
     """
 
     action: TraderAction = Field(
@@ -165,6 +306,8 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
     parts = [
         f"**Action**: {proposal.action.value}",
         "",
+        "**Research Use Only**: Yes",
+        "",
         f"**Reasoning**: {proposal.reasoning}",
     ]
     if proposal.entry_price is not None:
@@ -173,6 +316,7 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
     if proposal.position_sizing:
         parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
+    _append_uncertainty_fields(parts, proposal)
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
@@ -185,7 +329,7 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
 # ---------------------------------------------------------------------------
 
 
-class PortfolioDecision(BaseModel):
+class PortfolioDecision(_UncertaintyFields):
     """Structured output produced by the Portfolio Manager.
 
     The model fills every field as part of its primary LLM call; no separate
@@ -217,9 +361,23 @@ class PortfolioDecision(BaseModel):
         default=None,
         description="Optional target price in the instrument's quote currency.",
     )
-    time_horizon: str | None = Field(
-        default=None,
-        description="Optional recommended holding period, e.g. '3-6 months'.",
+    data_quality: DataQuality = Field(
+        default=DataQuality.UNKNOWN,
+        description=(
+            "Overall quality of the provided evidence. Use Low or Unavailable when any required "
+            "analyst input is missing, live-only in a historical analysis, or not point-in-time safe."
+        ),
+    )
+    key_risks: list[str] = Field(
+        default_factory=list,
+        description="Material, decision-relevant risks stated as observable scenarios.",
+    )
+    evidence: list[EvidenceItem] = Field(
+        default_factory=list,
+        description=(
+            "Compact evidence ledger for the most important claims. Include source and as-of time "
+            "for sourced facts; explicitly mark model inference and unavailable data."
+        ),
     )
 
     @field_validator("price_target", mode="before")
@@ -239,14 +397,28 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     parts = [
         f"**Rating**: {decision.rating.value}",
         "",
+        "**Research Use Only**: Yes",
+        "",
         f"**Executive Summary**: {decision.executive_summary}",
         "",
         f"**Investment Thesis**: {decision.investment_thesis}",
     ]
     if decision.price_target is not None:
         parts.extend(["", f"**Price Target**: {decision.price_target}"])
-    if decision.time_horizon:
-        parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+    _append_uncertainty_fields(parts, decision)
+    parts.extend(["", f"**Data Quality**: {decision.data_quality.value}"])
+    if decision.key_risks:
+        parts.extend(["", "**Key Risks**:"])
+        parts.extend(f"- {risk}" for risk in decision.key_risks)
+    if decision.evidence:
+        parts.extend(["", "**Evidence Summary**:"])
+        for item in decision.evidence:
+            source = (item.source or "unavailable").replace("|", "/")
+            as_of = (item.as_of or "unknown").replace("|", "/")
+            parts.append(
+                f"- [{item.kind.value} | {item.strength.value} | {source} | {as_of}] "
+                f"{item.claim}"
+            )
     return "\n".join(parts)
 
 

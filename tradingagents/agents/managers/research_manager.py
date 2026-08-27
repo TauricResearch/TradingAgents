@@ -38,6 +38,11 @@ def create_research_manager(llm):
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
 
+This is research support only, not an instruction to trade. State a forecast/holding horizon,
+an expected return range, calibrated confidence, and observable invalidation conditions. Use
+Data Insufficient or No Trade when those cannot be supported by the supplied evidence. Any
+position sizing is a research scenario for human review, never an executable order.
+
 ---
 
 **Debate History:**
