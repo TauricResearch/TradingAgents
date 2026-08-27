@@ -1,4 +1,5 @@
-from .alpha_vantage_common import _make_api_request
+from .alpha_vantage_common import AlphaVantageNotConfiguredError, _make_api_request
+
 
 def get_indicator(
     symbol: str,
@@ -25,6 +26,7 @@ def get_indicator(
         String containing indicator values and description
     """
     from datetime import datetime
+
     from dateutil.relativedelta import relativedelta
 
     supported_indicators = {
@@ -98,21 +100,7 @@ def get_indicator(
                 "series_type": series_type,
                 "datatype": "csv"
             })
-        elif indicator == "macd":
-            data = _make_api_request("MACD", {
-                "symbol": symbol,
-                "interval": interval,
-                "series_type": series_type,
-                "datatype": "csv"
-            })
-        elif indicator == "macds":
-            data = _make_api_request("MACD", {
-                "symbol": symbol,
-                "interval": interval,
-                "series_type": series_type,
-                "datatype": "csv"
-            })
-        elif indicator == "macdh":
+        elif indicator == "macd" or indicator == "macds" or indicator == "macdh":
             data = _make_api_request("MACD", {
                 "symbol": symbol,
                 "interval": interval,
@@ -217,6 +205,11 @@ def get_indicator(
 
         return result_str
 
+    except AlphaVantageNotConfiguredError:
+        # Vendor unavailable (no API key). Let it propagate so the router can
+        # fall back / emit the no-data sentinel instead of returning this as a
+        # successful-looking error string.
+        raise
     except Exception as e:
         print(f"Error getting Alpha Vantage indicator data for {indicator}: {e}")
         return f"Error retrieving {indicator} data: {str(e)}"

@@ -8,8 +8,10 @@ import subprocess
 import sys
 import tempfile
 import threading
+from collections.abc import Iterable, Sequence
+from contextlib import suppress
 from pathlib import Path
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any
 
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -24,7 +26,6 @@ from .claude_code_client import (
     _format_messages_for_local_agent,
     _message_from_tool_json,
 )
-
 
 _CODEX_EXEC_LOCK = threading.Lock()
 
@@ -168,7 +169,7 @@ class CodexChatModel(BaseChatModel):
             "timeout": self.timeout,
         }
 
-    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> "CodexChatModel":
+    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> CodexChatModel:
         return _clone_model(self, bound_tools=tuple(tools))
 
     def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:
@@ -216,10 +217,8 @@ class CodexChatModel(BaseChatModel):
                     return output
             return completed.stdout.strip()
         finally:
-            try:
+            with suppress(OSError):
                 output_path.unlink(missing_ok=True)
-            except OSError:
-                pass
 
     def _message_from_output(self, output: str) -> AIMessage:
         if not self.bound_tools:
@@ -234,8 +233,8 @@ class CodexChatModel(BaseChatModel):
     def _generate(
         self,
         messages: list[BaseMessage],
-        stop: Optional[list[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
         output = self._run_codex(self._format_prompt(messages))

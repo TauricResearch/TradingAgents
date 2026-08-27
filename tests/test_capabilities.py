@@ -1,9 +1,10 @@
 """Unit tests for the LLM capability table."""
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from tradingagents.llm_clients.capabilities import (
-    ModelCapabilities,
     get_capabilities,
 )
 
@@ -47,7 +48,7 @@ class TestPatternMatches:
         caps = get_capabilities("deepseek-reasoner-pro")
         assert caps.supports_tool_choice is False
 
-    def test_future_minimax_m3_inherits_thinking_quirks(self):
+    def test_minimax_m3_inherits_thinking_quirks(self):
         caps = get_capabilities("MiniMax-M3")
         assert caps.supports_tool_choice is False
 
@@ -74,6 +75,22 @@ class TestMinimaxExactMatches:
 
     def test_m2_base_rejects_tool_choice(self):
         assert get_capabilities("MiniMax-M2").supports_tool_choice is False
+
+    def test_m2_x_requires_reasoning_split(self):
+        # M2.x reasoning models need reasoning_split=True so <think> blocks
+        # land in reasoning_details instead of content (#826).
+        for model in ("MiniMax-M2.7", "MiniMax-M2.5-highspeed", "MiniMax-M2"):
+            assert get_capabilities(model).requires_reasoning_split is True
+
+    def test_future_m3_inherits_reasoning_split(self):
+        assert get_capabilities("MiniMax-M3-highspeed").requires_reasoning_split is True
+
+    def test_non_reasoning_minimax_does_not_get_reasoning_split(self):
+        # Coding Plan, MiniMax-Text-01, and any non-M2-prefixed MiniMax model
+        # reject the reasoning_split kwarg via the openai SDK's strict
+        # validation (#826). Default capability has it disabled.
+        for model in ("minimax-text-01", "MiniMax-Coding-Plan", "abab6.5-chat"):
+            assert get_capabilities(model).requires_reasoning_split is False
 
 
 @pytest.mark.unit
@@ -103,5 +120,5 @@ class TestDefault:
 def test_capabilities_dataclass_is_frozen():
     """Capability rows are immutable so they can be safely shared."""
     caps = get_capabilities("deepseek-chat")
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         caps.supports_tool_choice = False  # type: ignore[misc]

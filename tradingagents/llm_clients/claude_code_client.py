@@ -14,7 +14,8 @@ import os
 import shlex
 import subprocess
 import uuid
-from typing import Any, Iterable, Optional, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -25,7 +26,7 @@ from pydantic import Field
 from .base_client import BaseLLMClient
 
 
-def _coerce_timeout(value: Optional[str], default: int) -> int:
+def _coerce_timeout(value: str | None, default: int) -> int:
     if not value:
         return default
     try:
@@ -71,7 +72,7 @@ def _tool_schema(tool: Any) -> dict[str, Any]:
 _TOOL_ENVELOPE_KEYS = frozenset({"content", "tool_calls"})
 
 
-def _extract_tool_envelope(text: str) -> Optional[dict[str, Any]]:
+def _extract_tool_envelope(text: str) -> dict[str, Any] | None:
     """Return a complete tool envelope, never JSON embedded in prose."""
 
     try:
@@ -152,7 +153,7 @@ class ClaudeCodeChatModel(BaseChatModel):
     model: str = "sonnet"
     command: str = "claude"
     timeout: int = 600
-    effort: Optional[str] = None
+    effort: str | None = None
     extra_args: Sequence[str] = Field(default_factory=tuple)
     bound_tools: Sequence[Any] = Field(default_factory=tuple)
 
@@ -169,7 +170,7 @@ class ClaudeCodeChatModel(BaseChatModel):
             "effort": self.effort,
         }
 
-    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> "ClaudeCodeChatModel":
+    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> ClaudeCodeChatModel:
         return _clone_model(self, bound_tools=tuple(tools))
 
     def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:
@@ -227,8 +228,8 @@ class ClaudeCodeChatModel(BaseChatModel):
     def _generate(
         self,
         messages: list[BaseMessage],
-        stop: Optional[list[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
         output = self._run_claude(self._format_prompt(messages))

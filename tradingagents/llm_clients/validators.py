@@ -2,22 +2,30 @@
 
 from .model_catalog import get_known_models
 
+# Providers whose model names are user-defined (local servers, relays, hosted
+# OpenAI-compatible endpoints serving many models), so any model string is
+# accepted without warning.
+_ANY_MODEL_PROVIDERS = (
+    "ollama", "openrouter", "openai_compatible",
+    "mistral", "kimi", "groq", "nvidia", "bedrock",
+    "claude-code", "codex",
+)
 
 VALID_MODELS = {
     provider: models
     for provider, models in get_known_models().items()
-    if provider not in ("ollama", "openrouter")
+    if provider not in _ANY_MODEL_PROVIDERS
 }
 
 
 def validate_model(provider: str, model: str) -> bool:
     """Check if model name is valid for the given provider.
 
-    For ollama, openrouter, claude-code, and codex - any model is accepted.
+    Providers in ``_ANY_MODEL_PROVIDERS`` accept arbitrary model names.
     """
     provider_lower = provider.lower()
 
-    if provider_lower in ("ollama", "openrouter", "claude-code", "codex"):
+    if provider_lower in _ANY_MODEL_PROVIDERS:
         return True
 
     if provider_lower not in VALID_MODELS:

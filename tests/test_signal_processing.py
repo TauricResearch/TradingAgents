@@ -13,7 +13,6 @@ import pytest
 from tradingagents.agents.utils.rating import RATINGS_5_TIER, parse_rating
 from tradingagents.graph.signal_processing import SignalProcessor
 
-
 # ---------------------------------------------------------------------------
 # Heuristic parser
 # ---------------------------------------------------------------------------
