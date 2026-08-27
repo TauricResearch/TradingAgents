@@ -170,6 +170,22 @@ class TradingAgentsGraph:
             if effort:
                 kwargs["effort"] = effort
 
+        elif provider == "claude-code":
+            command = self.config.get("claude_code_command")
+            if command:
+                kwargs["command"] = command
+            timeout = self.config.get("claude_code_timeout")
+            if timeout:
+                kwargs["timeout"] = timeout
+
+        elif provider == "codex":
+            command = self.config.get("codex_command")
+            if command:
+                kwargs["command"] = command
+            timeout = self.config.get("codex_timeout")
+            if timeout:
+                kwargs["timeout"] = timeout
+
         # Sampling temperature is cross-provider: forward it whenever set.
         # float() here so a value coming from a TRADINGAGENTS_TEMPERATURE env
         # string ("0.2") works the same as a programmatic float.

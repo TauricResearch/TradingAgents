@@ -147,6 +147,65 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
+Claude Code users can also pick the experimental `claude-code` provider to
+route LLM calls through the local `claude` CLI instead of an API key. This
+requires Claude Code to already be installed and authenticated:
+
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=claude-code
+export TRADINGAGENTS_DEEP_THINK_LLM=opus
+export TRADINGAGENTS_QUICK_THINK_LLM=sonnet
+```
+
+This adapter runs `claude -p` as a subprocess and disables Claude Code tools;
+TradingAgents still executes its own LangGraph tools. Use the Anthropic API
+provider for the most reliable production path.
+
+Codex users can pick the experimental `codex` provider to route LLM calls
+through the local `codex exec` CLI:
+
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=codex
+export TRADINGAGENTS_DEEP_THINK_LLM=gpt-5.5
+export TRADINGAGENTS_QUICK_THINK_LLM=gpt-5.4-mini
+```
+
+This adapter runs Codex in ephemeral read-only mode and captures the final
+assistant message. TradingAgents still executes its own LangGraph tools.
+
+The required flags were verified against Claude Code 2.1.241 and Codex CLI
+0.130.0; a live ephemeral read-only Codex smoke call also passed with 0.150.1.
+If either CLI rejects an adapter flag, check its installed version with
+`claude --version` or `codex --version` and upgrade the CLI before using the
+experimental provider.
+
+If `tradingagents` was installed before switching to a branch or local checkout
+with these providers, reinstall it from the checkout so the CLI command loads
+the current adapter code:
+
+```bash
+python3 -m pip install --user -e .
+python3 -c "import tradingagents, tradingagents.llm_clients.codex_client as c; print(tradingagents.__file__); print(c.__file__)"
+```
+
+Both printed paths should point at your current TradingAgents checkout. If they
+still point into `site-packages`, the installed command can keep running stale
+provider code and old Codex CLI flags.
+
+If Codex reports that the access token could not be refreshed or returns a
+`401 Unauthorized` websocket error, refresh the local Codex subscription login:
+
+```bash
+codex logout
+codex login
+```
+
+By default the provider fails fast instead of blocking a worker on `input()`.
+For a single interactive TradingAgents run, set
+`TRADINGAGENTS_CODEX_AUTH_RETRY=1`; when both input and error output are attached
+to a terminal, the provider pauses once so you can run `codex logout` and
+`codex login` elsewhere, then press Enter to retry the failed call once.
+
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-4-8-v1:0`.
@@ -221,7 +280,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
+config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, claude-code, codex, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint
 config["deep_think_llm"] = "gpt-5.5"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2

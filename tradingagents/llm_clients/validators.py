@@ -8,6 +8,7 @@ from .model_catalog import get_known_models
 _ANY_MODEL_PROVIDERS = (
     "ollama", "openrouter", "openai_compatible",
     "mistral", "kimi", "groq", "nvidia", "bedrock",
+    "claude-code", "codex",
 )
 
 VALID_MODELS = {
@@ -20,7 +21,7 @@ VALID_MODELS = {
 def validate_model(provider: str, model: str) -> bool:
     """Check if model name is valid for the given provider.
 
-    For ollama, openrouter, and openai_compatible - any model is accepted.
+    Providers in ``_ANY_MODEL_PROVIDERS`` accept arbitrary model names.
     """
     provider_lower = provider.lower()
 

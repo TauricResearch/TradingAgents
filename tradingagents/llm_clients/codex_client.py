@@ -1,0 +1,267 @@
+"""Experimental Codex CLI-backed chat model."""
+
+from __future__ import annotations
+
+import os
+import shlex
+import subprocess
+import sys
+import tempfile
+import threading
+from collections.abc import Iterable, Sequence
+from contextlib import suppress
+from pathlib import Path
+from typing import Any
+
+from langchain_core.callbacks.manager import CallbackManagerForLLMRun
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
+from pydantic import Field
+
+from .base_client import BaseLLMClient
+from .claude_code_client import (
+    _clone_model,
+    _extract_tool_envelope,
+    _format_messages_for_local_agent,
+    _message_from_tool_json,
+)
+
+_CODEX_EXEC_LOCK = threading.Lock()
+
+
+def _codex_raw_error(completed: subprocess.CompletedProcess[str]) -> str:
+    return completed.stderr.strip() or completed.stdout.strip()
+
+
+def _is_codex_auth_error(error_msg: str) -> bool:
+    auth_markers = (
+        "refresh token was already used",
+        "401 Unauthorized",
+        "could not be refreshed",
+    )
+    return any(marker in error_msg for marker in auth_markers)
+
+
+def _codex_error_message(completed: subprocess.CompletedProcess[str]) -> str:
+    error_msg = _codex_raw_error(completed)
+    if _is_codex_auth_error(error_msg):
+        return _codex_auth_guidance(error_msg)
+    return error_msg
+
+
+def _codex_auth_guidance(error_msg: str) -> str:
+    return (
+        f"{error_msg}\n\n"
+        "Codex CLI authentication failed. Run `codex logout` and then "
+        "`codex login` in your shell, then rerun TradingAgents. The Codex "
+        "provider serializes local `codex exec` calls, but it cannot repair "
+        "an already-invalid Codex refresh token."
+    )
+
+
+def _codex_auth_retry_enabled() -> bool:
+    return os.environ.get("TRADINGAGENTS_CODEX_AUTH_RETRY", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _interactive_session() -> bool:
+    """Return true only when both the input and prompt streams are terminals."""
+
+    stdin = getattr(sys, "stdin", None)
+    stderr = getattr(sys, "stderr", None)
+    return bool(
+        stdin
+        and stderr
+        and callable(getattr(stdin, "isatty", None))
+        and callable(getattr(stderr, "isatty", None))
+        and stdin.isatty()
+        and stderr.isatty()
+    )
+
+
+def _maybe_wait_for_codex_reauth(error_msg: str) -> bool:
+    if not _codex_auth_retry_enabled() or not _interactive_session():
+        return False
+
+    print(
+        "\nCodex CLI authentication failed.\n"
+        "To switch the global Codex account, open another terminal and run:\n"
+        "  codex logout\n"
+        "  codex login\n\n"
+        "After the new account is authenticated, return here and press Enter "
+        "to retry this TradingAgents model call once.\n"
+        "Interactive auth retry is enabled by TRADINGAGENTS_CODEX_AUTH_RETRY=1.\n",
+        file=sys.stderr,
+    )
+    if error_msg:
+        print(error_msg, file=sys.stderr)
+
+    try:
+        input("Press Enter to continue after Codex login is refreshed...")
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return True
+
+
+def _run_codex_subprocess(
+    args: list[str],
+    *,
+    prompt: str,
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    with _CODEX_EXEC_LOCK:
+        return subprocess.run(
+            args,
+            input=prompt,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+
+
+def _codex_completed_or_raise(
+    completed: subprocess.CompletedProcess[str],
+    *,
+    args: list[str],
+    prompt: str,
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    if completed.returncode == 0:
+        return completed
+
+    error_msg = completed.stderr.strip() or completed.stdout.strip()
+    if _is_codex_auth_error(error_msg) and _maybe_wait_for_codex_reauth(error_msg):
+        retried = _run_codex_subprocess(args, prompt=prompt, timeout=timeout)
+        if retried.returncode == 0:
+            return retried
+        completed = retried
+
+    raise RuntimeError(
+        "codex command failed with exit code "
+        f"{completed.returncode}: {_codex_error_message(completed)}"
+    )
+
+
+class CodexChatModel(BaseChatModel):
+    """LangChain chat model that shells out to ``codex exec``."""
+
+    model: str = "gpt-5.5"
+    command: str = "codex"
+    timeout: int = 600
+    extra_args: Sequence[str] = Field(default_factory=tuple)
+    bound_tools: Sequence[Any] = Field(default_factory=tuple)
+
+    @property
+    def _llm_type(self) -> str:
+        return "codex"
+
+    @property
+    def _identifying_params(self) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "command": self.command,
+            "timeout": self.timeout,
+        }
+
+    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> CodexChatModel:
+        return _clone_model(self, bound_tools=tuple(tools))
+
+    def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError(
+            "codex uses free-text fallback; native structured output is not supported"
+        )
+
+    def _format_prompt(self, messages: Iterable[BaseMessage]) -> str:
+        return _format_messages_for_local_agent(
+            messages,
+            self.bound_tools,
+            agent_name="Codex",
+        )
+
+    def _run_codex(self, prompt: str) -> str:
+        with tempfile.NamedTemporaryFile(prefix="tradingagents-codex-", delete=False) as tmp:
+            output_path = Path(tmp.name)
+
+        args = shlex.split(self.command) + [
+            "exec",
+            "--ephemeral",
+            "--sandbox",
+            "read-only",
+            "--color",
+            "never",
+            "--output-last-message",
+            str(output_path),
+            "--model",
+            self.model,
+            "-",
+        ]
+        args.extend(self.extra_args)
+
+        try:
+            completed = _run_codex_subprocess(args, prompt=prompt, timeout=self.timeout)
+            completed = _codex_completed_or_raise(
+                completed,
+                args=args,
+                prompt=prompt,
+                timeout=self.timeout,
+            )
+            if output_path.exists():
+                output = output_path.read_text(encoding="utf-8").strip()
+                if output:
+                    return output
+            return completed.stdout.strip()
+        finally:
+            with suppress(OSError):
+                output_path.unlink(missing_ok=True)
+
+    def _message_from_output(self, output: str) -> AIMessage:
+        if not self.bound_tools:
+            return AIMessage(content=output)
+
+        parsed = _extract_tool_envelope(output)
+        if not parsed:
+            return AIMessage(content=output)
+
+        return _message_from_tool_json(parsed, id_prefix="codex")
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        output = self._run_codex(self._format_prompt(messages))
+        if stop:
+            for marker in stop:
+                if marker in output:
+                    output = output.split(marker, 1)[0]
+                    break
+        message = self._message_from_output(output)
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+
+class CodexClient(BaseLLMClient):
+    """Client for routing TradingAgents calls through Codex CLI."""
+
+    def get_llm(self) -> Any:
+        command = self.kwargs.get("command") or "codex"
+        timeout = self.kwargs.get("timeout") or 600
+        extra_args = self.kwargs.get("extra_args")
+        if extra_args is None:
+            extra_args = tuple(shlex.split(os.environ.get("TRADINGAGENTS_CODEX_EXTRA_ARGS", "")))
+        return CodexChatModel(
+            model=self.model,
+            command=command,
+            timeout=int(timeout),
+            extra_args=tuple(extra_args),
+        )
+
+    def validate_model(self) -> bool:
+        return True
