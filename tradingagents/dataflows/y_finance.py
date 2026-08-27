@@ -21,7 +21,7 @@ def get_YFin_data_online(
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
 
-    datetime.strptime(start_date, "%Y-%m-%d")
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
     # Resolve broker/forex symbols to Yahoo's convention (XAUUSD+ -> GC=F).
@@ -34,6 +34,13 @@ def get_YFin_data_online(
     end_inclusive = (end_dt + relativedelta(days=1)).strftime("%Y-%m-%d")
     data = yf_retry(lambda: ticker.history(start=start_date, end=end_inclusive))
 
+    # Defensively enforce the requested window locally. A provider response is
+    # not trusted merely because the request contained start/end parameters.
+    if data.index.tz is not None:
+        data.index = data.index.tz_localize(None)
+    index_dates = pd.to_datetime(data.index, errors="coerce")
+    data = data[(index_dates >= start_dt) & (index_dates <= end_dt)]
+
     # Empty result means the symbol is unknown/delisted. Raise a typed error
     # instead of returning prose: the routing layer turns it into a single
     # unambiguous "no data" signal so the agent never fabricates a price.
@@ -41,10 +48,6 @@ def get_YFin_data_online(
         raise NoMarketDataError(
             symbol, canonical, f"no rows between {start_date} and {end_date}"
         )
-
-    # Remove timezone info from index for cleaner output
-    if data.index.tz is not None:
-        data.index = data.index.tz_localize(None)
 
     # Reject a stale frame (e.g. a year-old partial response) before it is
     # formatted into the report. Raises NoMarketDataError, which the router

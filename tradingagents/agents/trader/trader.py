@@ -33,6 +33,9 @@ def create_trader(llm):
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
                     "Anchor your reasoning in the analysts' reports and the research plan. "
+                    "This is a research proposal only and cannot set a real position or execute an order. "
+                    "Carry forward the horizon, expected return range, confidence, and invalidation "
+                    "conditions. Use Hold with No Trade or Data Insufficient when they are unsupported. "
                     + NO_EXTERNAL_TOOLS
                     + get_language_instruction()
                 ),

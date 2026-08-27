@@ -110,6 +110,22 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Deterministic research-only safety gate. This never executes a trade; it
+    # can only downgrade a directional rating to a non-actionable research state.
+    "research_safety": {
+        "enabled": True,
+        "min_confidence": 0.55,
+        "require_time_horizon": True,
+        "require_expected_return_range": True,
+        "require_invalidation_conditions": True,
+        "require_key_risks": True,
+        "require_sourced_evidence": True,
+        "block_on_any_unavailable_data": True,
+    },
+    # Explicit cost assumptions for the offline evaluation interface only.
+    "evaluation_transaction_cost_bps": 0.0,
+    "evaluation_slippage_bps": 0.0,
+    "evaluation_hold_band": 0.01,
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.

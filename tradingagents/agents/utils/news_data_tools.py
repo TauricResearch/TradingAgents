@@ -2,7 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
-from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.interface import route_to_vendor_with_provenance
 
 
 @tool
@@ -21,7 +21,7 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
-    return route_to_vendor("get_news", ticker, start_date, end_date)
+    return route_to_vendor_with_provenance("get_news", ticker, start_date, end_date)
 
 @tool
 def get_global_news(
@@ -43,11 +43,16 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
-    return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
+    return route_to_vendor_with_provenance(
+        "get_global_news", curr_date, look_back_days, limit
+    )
 
 @tool
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[
+        str | None, "analysis cutoff in yyyy-mm-dd format; historical snapshots are unavailable"
+    ] = None,
 ) -> str:
     """
     Retrieve insider transaction information about a company.
@@ -57,4 +62,8 @@ def get_insider_transactions(
     Returns:
         str: A report of insider transaction data
     """
-    return route_to_vendor("get_insider_transactions", ticker)
+    return route_to_vendor_with_provenance(
+        "get_insider_transactions",
+        ticker,
+        analysis_cutoff=curr_date,
+    )

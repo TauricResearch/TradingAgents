@@ -2,7 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
-from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.interface import route_to_vendor_with_provenance
 
 
 @tool
@@ -29,7 +29,11 @@ def get_indicators(
     results = []
     for ind in indicators:
         try:
-            results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
+            results.append(
+                route_to_vendor_with_provenance(
+                    "get_indicators", symbol, ind, curr_date, look_back_days
+                )
+            )
         except ValueError as e:
             results.append(str(e))
     return "\n\n".join(results)

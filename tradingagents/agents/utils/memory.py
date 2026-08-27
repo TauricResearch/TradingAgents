@@ -1,6 +1,8 @@
 """Append-only markdown decision log for TradingAgents."""
 
+import json
 import re
+from collections.abc import Mapping
 from pathlib import Path
 
 from tradingagents.agents.utils.rating import parse_rating
@@ -14,6 +16,9 @@ class TradingMemoryLog:
     # Precompiled patterns — avoids re-compilation on every load_entries() call
     _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
     _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*?)$", re.DOTALL)
+    _RESEARCH_METADATA_RE = re.compile(
+        r"RESEARCH_METADATA:\n([^\n]+)(?=\n\nDECISION:|\Z)",
+    )
 
     def __init__(self, config: dict = None):
         cfg = config or {}
@@ -32,6 +37,7 @@ class TradingMemoryLog:
         ticker: str,
         trade_date: str,
         final_trade_decision: str,
+        research_result: Mapping | None = None,
     ) -> None:
         """Append pending entry at end of propagate(). No LLM call."""
         if not self._log_path:
@@ -44,7 +50,18 @@ class TradingMemoryLog:
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+        metadata = self._compact_research_metadata(research_result)
+        metadata_block = (
+            "RESEARCH_METADATA:\n"
+            + json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+            + "\n\n"
+            if metadata
+            else ""
+        )
+        entry = (
+            f"{tag}\n\n{metadata_block}DECISION:\n"
+            f"{final_trade_decision}{self._SEPARATOR}"
+        )
         with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(entry)
 
@@ -278,7 +295,62 @@ class TradingMemoryLog:
         reflection_match = self._REFLECTION_RE.search(body)
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""
         entry["reflection"] = reflection_match.group(1).strip() if reflection_match else ""
+        metadata_match = self._RESEARCH_METADATA_RE.search(body)
+        entry["research_result"] = {}
+        if metadata_match:
+            try:
+                parsed_metadata = json.loads(metadata_match.group(1))
+                if isinstance(parsed_metadata, dict):
+                    entry["research_result"] = parsed_metadata
+            except json.JSONDecodeError:
+                pass
         return entry
+
+    @staticmethod
+    def _compact_research_metadata(research_result: Mapping | None) -> dict:
+        """Whitelist bounded audit fields; never serialize arbitrary run config/raw data."""
+        if not research_result:
+            return {}
+        scalar_keys = (
+            "schema_version",
+            "prompt_version",
+            "ticker",
+            "analysis_date",
+            "analysis_cutoff",
+            "model_provider",
+            "rating",
+            "decision_status",
+            "research_only",
+            "time_horizon",
+            "expected_return_low",
+            "expected_return_high",
+            "confidence",
+            "data_quality",
+        )
+        compact = {key: research_result.get(key) for key in scalar_keys}
+        models = dict(research_result.get("models") or {})
+        compact["models"] = {
+            key: str(models[key])[:200]
+            for key in ("quick", "deep")
+            if models.get(key) is not None
+        }
+        compact["invalidation_conditions"] = list(
+            research_result.get("invalidation_conditions") or []
+        )[:10]
+        compact["invalidation_conditions"] = [
+            str(value)[:500] for value in compact["invalidation_conditions"]
+        ]
+        compact["key_risks"] = [
+            str(value)[:500]
+            for value in list(research_result.get("key_risks") or [])[:10]
+        ]
+        safety = dict(research_result.get("safety_gate") or {})
+        compact["safety_gate"] = {
+            "passed": bool(safety.get("passed")),
+            "reasons": [str(value)[:500] for value in list(safety.get("reasons") or [])[:10]],
+        }
+        compact["evidence_count"] = len(research_result.get("evidence") or [])
+        return compact
 
     def _format_full(self, e: dict) -> str:
         raw = e["raw"] or "n/a"

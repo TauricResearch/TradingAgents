@@ -1001,6 +1001,35 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
+def _prepare_streaming_initial_state(graph, selections: dict) -> dict:
+    """Build CLI graph state with the same identity and memory context as propagate()."""
+    instrument_context = graph.resolve_instrument_context(
+        selections["ticker"], selections["asset_type"]
+    )
+    graph._resolve_pending_entries(selections["ticker"])
+    past_context = graph.memory_log.get_past_context(selections["ticker"])
+    return graph.propagator.create_initial_state(
+        selections["ticker"],
+        selections["analysis_date"],
+        asset_type=selections["asset_type"],
+        past_context=past_context,
+        instrument_context=instrument_context,
+    )
+
+
+def _persist_streamed_final_state(graph, selections: dict, final_state: dict) -> None:
+    """Mirror the completed-run persistence normally handled by _run_graph()."""
+    graph.curr_state = final_state
+    graph.ticker = selections["ticker"]
+    graph._log_state(selections["analysis_date"], final_state)
+    graph.memory_log.store_decision(
+        ticker=selections["ticker"],
+        trade_date=selections["analysis_date"],
+        final_trade_decision=final_state["final_trade_decision"],
+        research_result=final_state.get("research_result"),
+    )
+
+
 def run_analysis(checkpoint: bool | None = None):
     # First get all user selections
     selections = get_user_selections()
@@ -1114,15 +1143,9 @@ def run_analysis(checkpoint: bool | None = None):
         # Resolve the instrument identity once here so all agents anchor to
         # the real company (#814); the CLI builds state directly rather than
         # going through propagate(), so this must happen on the CLI path too.
-        instrument_context = graph.resolve_instrument_context(
-            selections["ticker"], selections["asset_type"]
-        )
-        init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"],
-            selections["analysis_date"],
-            asset_type=selections["asset_type"],
-            instrument_context=instrument_context,
-        )
+        # The CLI streams the graph directly, so explicitly mirror propagate()'s
+        # deterministic identity and memory preparation.
+        init_agent_state = _prepare_streaming_initial_state(graph, selections)
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
         args = graph.propagator.get_graph_args(callbacks=[stats_handler])
@@ -1236,6 +1259,11 @@ def run_analysis(checkpoint: bool | None = None):
         final_state = {}
         for chunk in trace:
             final_state.update(chunk)
+
+        # Streaming bypasses TradingAgentsGraph._run_graph(), including its
+        # state/memory write path. Persist the same bounded research record here
+        # so CLI and programmatic runs remain auditable and idempotent.
+        _persist_streamed_final_state(graph, selections, final_state)
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:

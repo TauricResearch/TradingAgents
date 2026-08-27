@@ -79,7 +79,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 </p>
 
 ### Trader Agent
-- Composes reports from the analysts and researchers to make informed trading decisions, determining the timing and magnitude of trades.
+- Composes reports from the analysts and researchers into a research-only transaction scenario, including timing, uncertainty, and invalidation conditions for human review.
 
 <p align="center">
   <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
@@ -87,7 +87,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Risk Management and Portfolio Manager
 - Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
+- The Portfolio Manager produces a final research rating and a separate safety-gated status. TradingAgents has no broker, order submission, or automatic execution path; a human remains responsible for any decision outside the framework.
 
 <p align="center">
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
@@ -210,8 +210,9 @@ from tradingagents.default_config import DEFAULT_CONFIG
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2026-01-15")
-print(decision)
+final_state, legacy_rating = ta.propagate("NVDA", "2026-01-15")
+print(legacy_rating)                    # Buy / Overweight / Hold / Underweight / Sell
+print(final_state["research_signal"])  # includes the deterministic non-trading status
 ```
 
 You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
@@ -227,11 +228,58 @@ config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
-print(decision)
+final_state, legacy_rating = ta.propagate("NVDA", "2026-01-15")
+print(final_state["research_result"])
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+### Research-only decision contract
+
+The legacy return value remains the five-tier rating for compatibility. It is not an execution instruction. The authoritative programmatic fields are `final_state["research_result"]` and the smaller `final_state["research_signal"]`. They preserve the rating while separately reporting one of `Research Complete`, `No Trade`, `Data Insufficient`, or `Human Review Required`, plus horizon, expected return range, confidence, data quality, risks, invalidation conditions, evidence, model/provider, and prompt/schema versions.
+
+The deterministic safety gate defaults to `No Trade` or human review when confidence is below the configured threshold or required forecast, risk, evidence, or data fields are missing. Configure it without changing the rating vocabulary:
+
+```python
+config = DEFAULT_CONFIG.copy()
+config["research_safety"] = {
+    **config["research_safety"],
+    "min_confidence": 0.65,
+    "block_on_any_unavailable_data": True,
+}
+```
+
+`ta.save_reports(...)` continues to write the existing Markdown tree and also writes a bounded `research_result.json` audit record. Data tools expose source, cutoff, fetch time, fallback attempts, and point-in-time limitations to the analysts. Live-only social, fundamentals-overview, insider, and prediction-market snapshots are excluded from historical analysis instead of being presented as historical facts.
+
+### Offline evaluation
+
+`tradingagents.evaluation` provides a local walk-forward recording interface. Callers supply already aligned out-of-sample prices; the evaluator performs no data fetch, model call, prompt update, parameter search, or trading action.
+
+```python
+from tradingagents.evaluation import (
+    EvaluationCosts,
+    EvaluationObservation,
+    ResearchPrediction,
+    evaluate_prediction,
+)
+
+prediction = ResearchPrediction.from_research_result(
+    final_state["research_result"], horizon_days=20, benchmark="SPY"
+)
+evaluation = evaluate_prediction(
+    prediction,
+    EvaluationObservation(
+        entry_price=100,
+        exit_price=106,
+        path_prices=[100, 97, 102, 106],
+        benchmark_entry_price=500,
+        benchmark_exit_price=515,
+    ),
+    costs=EvaluationCosts(transaction_cost_bps=10, slippage_bps=5),
+)
+```
+
+The resulting hit rate, interval coverage, benchmark excess return, and maximum adverse excursion are evaluation measurements only. They do not establish alpha.
 
 ## Persistence and Recovery
 
@@ -239,7 +287,7 @@ TradingAgents persists two kinds of state across runs.
 
 ### Decision log
 
-The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+The decision log is always on. Each completed run appends its decision and a bounded research metadata record to `~/.tradingagents/memory/trading_memory.md`. The metadata is whitelisted and does not include API keys or bulk raw provider payloads. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
 
 Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
@@ -267,7 +315,7 @@ TradingAgents is LLM-driven, so two runs of the same ticker and date can differ.
 
 Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-5.x family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
 
-Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
+Live data moves. A current-date analysis can see different news, StockTwits, Reddit, fundamentals overview, insider, and prediction-market snapshots as time passes. For a historical analysis, live-only sources are excluded and dated news/market data is locally filtered to the cutoff. Financial statements remain explicitly marked as availability-time unverified when the provider supplies only fiscal period dates rather than filing/publication dates.
 
 To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `TRADINGAGENTS_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. The current curated models are reasoning-first and largely ignore temperature, so for tighter reproducibility use a non-reasoning model, which you can set explicitly via the Custom model ID option.
 

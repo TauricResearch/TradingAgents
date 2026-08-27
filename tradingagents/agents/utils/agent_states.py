@@ -74,3 +74,7 @@ class AgentState(MessagesState):
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]
+    research_safety_policy: Annotated[dict, "Deterministic research safety gate configuration"]
+    research_run_metadata: Annotated[dict, "Non-secret model, provider, and schema metadata"]
+    research_result: Annotated[dict, "Machine-readable, research-only final decision record"]
+    research_signal: Annotated[dict, "Compact rating plus deterministic non-trading status"]

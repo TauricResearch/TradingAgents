@@ -24,13 +24,14 @@ See: https://github.com/TauricResearch/TradingAgents/issues/557
 See: https://github.com/TauricResearch/TradingAgents/issues/796
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.schemas import SentimentReport, render_sentiment_report
 from tradingagents.agents.utils.agent_utils import (
+    EVIDENCE_CONTRACT_INSTRUCTION,
     get_instrument_context_from_state,
     get_language_instruction,
     get_news,
@@ -40,12 +41,47 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.provenance import DataProvenance, DataResult, utc_now
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 
 
 def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
+
+
+def _social_data_block(source: str, trade_date: str, content: str | None = None) -> str:
+    """Wrap live social data or explicitly exclude it from historical analysis."""
+    historical = datetime.strptime(trade_date, "%Y-%m-%d").date() < date.today()
+    if historical:
+        status = "unavailable"
+        quality = "unavailable"
+        body = (
+            f"DATA_UNAVAILABLE: {source} exposes a live snapshot only and was excluded "
+            f"from historical analysis with cutoff {trade_date}. Do not use current posts "
+            "as evidence available at that historical date."
+        )
+    else:
+        status = "available"
+        quality = "medium"
+        body = content or f"DATA_UNAVAILABLE: {source} returned no content."
+        if content is None:
+            status = "unavailable"
+            quality = "unavailable"
+    return DataResult(
+        content=body,
+        provenance=DataProvenance(
+            method=f"fetch_{source.lower()}",
+            category="social_data",
+            source=None if historical else source,
+            status=status,
+            quality=quality,
+            analysis_cutoff=trade_date,
+            fetched_at=utc_now(),
+            point_in_time="live_snapshot_only",
+            attempted_sources=[] if historical else [{"source": source, "status": status}],
+        ),
+    ).render()
 
 
 def create_sentiment_analyst(llm):
@@ -68,8 +104,11 @@ def create_sentiment_analyst(llm):
         # returns a string (no exceptions surface from here), so the LLM
         # always sees something — either real data or a clear placeholder.
         news_block = get_news.func(ticker, start_date, end_date)
-        stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
-        reddit_block = fetch_reddit_posts(ticker)
+        historical = datetime.strptime(end_date, "%Y-%m-%d").date() < date.today()
+        stocktwits_content = None if historical else fetch_stocktwits_messages(ticker, limit=30)
+        reddit_content = None if historical else fetch_reddit_posts(ticker)
+        stocktwits_block = _social_data_block("StockTwits", end_date, stocktwits_content)
+        reddit_block = _social_data_block("Reddit", end_date, reddit_content)
 
         system_message = _build_system_message(
             ticker=ticker,
@@ -175,6 +214,8 @@ Community discussion. Engagement signal via upvote score and comment count. Subr
 7. **Identify catalysts and risks** that emerge across sources — news of upcoming earnings, product launches, competitive threats, macro headlines, etc.
 
 8. **Past sentiment is not predictive.** Frame your conclusions as signal for the trader to weigh alongside fundamentals and technicals, not as a price call.
+
+{EVIDENCE_CONTRACT_INSTRUCTION}
 
 ## Output fields
 

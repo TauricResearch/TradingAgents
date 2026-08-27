@@ -20,10 +20,21 @@ def _filter_reports_by_date(result, curr_date: str):
         return result
     for key in ("annualReports", "quarterlyReports"):
         if isinstance(payload.get(key), list):
-            payload[key] = [
-                r for r in payload[key]
-                if r.get("fiscalDateEnding", "") <= curr_date
-            ]
+            filtered = []
+            for report in payload[key]:
+                # Prefer a filing/report date when the provider supplies one:
+                # fiscal period-end alone does not prove the statement was
+                # public at the historical cutoff. Fall back to fiscalDateEnding
+                # for compatibility, while router provenance marks availability
+                # timing as unverified.
+                available_date = (
+                    report.get("reportedDate")
+                    or report.get("filingDate")
+                    or report.get("fiscalDateEnding")
+                )
+                if available_date and available_date <= curr_date:
+                    filtered.append(report)
+            payload[key] = filtered
     return json.dumps(payload)
 
 
@@ -61,4 +72,3 @@ def get_income_statement(ticker: str, freq: str = "quarterly", curr_date: str = 
     """Retrieve income statement data for a given ticker symbol using Alpha Vantage."""
     result = _make_api_request("INCOME_STATEMENT", {"symbol": ticker})
     return _filter_reports_by_date(result, curr_date)
-

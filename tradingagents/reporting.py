@@ -6,6 +6,7 @@ CLI and ``TradingAgentsGraph.save_reports`` both call this, so a headless / API
 run produces the same on-disk report tree a CLI run does.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -94,6 +95,24 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             portfolio_dir.mkdir(exist_ok=True)
             (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+
+    # Compact machine-readable audit record. This contains only curated run
+    # metadata and decision fields, not API keys or bulk raw provider payloads.
+    research_result = final_state.get("research_result")
+    if research_result:
+        (save_path / "research_result.json").write_text(
+            json.dumps(research_result, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        status = research_result.get("decision_status", "Unknown")
+        quality = research_result.get("data_quality", "Unknown")
+        sections.append(
+            "## VI. Research Audit Record\n\n"
+            f"- Research-only status: {status}\n"
+            f"- Data quality: {quality}\n"
+            f"- Schema version: {research_result.get('schema_version', 'unknown')}\n"
+            f"- Prompt version: {research_result.get('prompt_version', 'unknown')}"
+        )
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
