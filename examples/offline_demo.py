@@ -12,63 +12,120 @@ Usage:
 import argparse
 from typing import Dict, Any
 
+# Agent specifications detailing roles, responsibilities, and operational scope
+AGENT_REGISTRY: Dict[str, Dict[str, str]] = {
+    "Market Analyst": {
+        "role": "Technical & Quantitative Analysis",
+        "focus": "Evaluates price action, volume trends, moving averages (SMA), and momentum oscillators (RSI, MACD).",
+        "cadence": "Continuous market signal generation",
+    },
+    "Sentiment Analyst": {
+        "role": "Alternative Data & News Extraction",
+        "focus": "Extracts sentiment polarity from news feeds, social media disclosures, and market discourse.",
+        "cadence": "Real-time & event-driven processing",
+    },
+    "Fundamentals Analyst": {
+        "role": "Financial Statement & Valuation Audit",
+        "focus": "Evaluates balance sheets, operating margins, P/E multiples, and forward revenue guidance.",
+        "cadence": "Filing & earnings-driven analysis",
+    },
+    "Bull Researcher": {
+        "role": "Constructive Growth Advocate",
+        "focus": "Synthesizes positive catalysts, market share gains, competitive moats, and upside potential.",
+        "cadence": "Interactive debate synthesis",
+    },
+    "Bear Researcher": {
+        "role": "Downside & Vulnerability Skeptic",
+        "focus": "Challenges valuation multiples, capital expenditure expansion, and macroeconomic vulnerabilities.",
+        "cadence": "Interactive debate rebuttal",
+    },
+    "Risk Manager": {
+        "role": "Capital Preservation & Constraint Enforcement",
+        "focus": "Enforces volatility caps, maximum allowable drawdown limits, and portfolio allocation guards.",
+        "cadence": "Pre-trade risk audit & sizing",
+    },
+    "Portfolio Manager": {
+        "role": "Executive Capital Allocator",
+        "focus": "Synthesizes intelligence from analysts and researchers to formulate binding asset allocations.",
+        "cadence": "Final execution approval",
+    },
+}
+
 
 def run_offline_simulation(ticker: str = "NVDA", trade_date: str = "2024-05-10") -> Dict[str, Any]:
-    """Simulate the multi-agent trading decision pipeline."""
-    print("=" * 70)
-    print("TradingAgents Offline Demonstration")
-    print(f"Ticker: {ticker} | Date: {trade_date} | Mode: OFFLINE (Mocked)")
-    print("=" * 70)
+    """Simulate the multi-agent trading decision pipeline with agent profile context."""
+    print("=" * 75)
+    print("TradingAgents Offline Demonstration (Multi-Agent System)")
+    print(f"Target Ticker: {ticker} | Evaluation Date: {trade_date} | Mode: OFFLINE")
+    print("=" * 75)
 
-    # 1. Market Analyst Phase
-    print("\n[Phase 1] Multi-Source Intelligence & Analysis")
-    print("  -> Market Analyst: Processing OHLCV & technical indicators (SMA, RSI, MACD)...")
+    # 1. Multi-Source Intelligence & Analysis
+    print("\n[Phase 1] Multi-Source Intelligence & Analyst Team")
+    
+    ma = AGENT_REGISTRY["Market Analyst"]
+    print(f"  • {ma['role']} [Market Analyst]:")
+    print(f"    Responsibility: {ma['focus']}")
     market_report = (
         f"Technical Summary for {ticker}: 20-day SMA above 50-day SMA (bullish trend). "
-        f"RSI at 58.4 indicates healthy upward momentum without being overbought."
+        f"RSI at 58.4 indicates healthy upward momentum without overbought conditions."
     )
-    print(f"     [Result]: {market_report}")
+    print(f"    Signal Output: {market_report}\n")
 
-    print("  -> Sentiment Analyst: Aggregating social & community sentiment...")
+    sa = AGENT_REGISTRY["Sentiment Analyst"]
+    print(f"  • {sa['role']} [Sentiment Analyst]:")
+    print(f"    Responsibility: {sa['focus']}")
     sentiment_report = (
-        f"Social sentiment for {ticker} shows 78% positive mentions across monitored channels. "
-        f"Strong discussion volume surrounding latest product lineup announcements."
+        f"Sentiment Index for {ticker}: 78% positive polarity across financial news channels. "
+        f"Strong discussion volume surrounding latest hardware and datacenter announcements."
     )
-    print(f"     [Result]: {sentiment_report}")
+    print(f"    Signal Output: {sentiment_report}\n")
 
-    print("  -> Fundamentals Analyst: Analyzing financial metrics & valuation...")
+    fa = AGENT_REGISTRY["Fundamentals Analyst"]
+    print(f"  • {fa['role']} [Fundamentals Analyst]:")
+    print(f"    Responsibility: {fa['focus']}")
     fundamentals_report = (
-        f"Gross margins sustained at 74%. P/E ratio is premium relative to historical average, "
-        f"supported by robust forward revenue guidance and datacenter growth."
+        f"Fundamental Valuation for {ticker}: Gross margins sustained at 74%. Premium P/E ratio "
+        f"is defended by robust forward revenue guidance and enterprise datacenter acceleration."
     )
-    print(f"     [Result]: {fundamentals_report}")
+    print(f"    Signal Output: {fundamentals_report}")
 
     # 2. Bull vs Bear Researcher Debate
-    print("\n[Phase 2] Researcher Debate")
-    print("  -> Bull Researcher:")
+    print("\n[Phase 2] Researcher Debate (Adversarial Thesis Evaluation)")
+    
+    bull = AGENT_REGISTRY["Bull Researcher"]
+    print(f"  • {bull['role']} [Bull Researcher]:")
+    print(f"    Responsibility: {bull['focus']}")
     bull_case = (
-        f"Strong competitive moat in accelerated compute, high demand visibility into upcoming quarters, "
-        f"and robust pricing power outweigh short-term cyclical concerns."
+        f"Uncontested competitive moat in accelerated compute, deep customer lock-in, and multi-quarter "
+        f"order backlogs provide strong revenue visibility that justifies premium valuation."
     )
-    print(f"     [Argument]: {bull_case}")
+    print(f"    Argument: {bull_case}\n")
 
-    print("  -> Bear Researcher:")
+    bear = AGENT_REGISTRY["Bear Researcher"]
+    print(f"  • {bear['role']} [Bear Researcher]:")
+    print(f"    Responsibility: {bear['focus']}")
     bear_case = (
-        f"Elevated multiple leaves limited safety margin for supply chain disruptions or "
-        f"macro headwinds; potential margin compression if customer capex moderates."
+        f"Cyclical customer capex digestion risks and potential supply-chain constraints leave "
+        f"scant margin for error at current multiples; risk of sharp re-rating on any miss."
     )
-    print(f"     [Rebuttal]: {bear_case}")
+    print(f"    Rebuttal: {bear_case}")
 
     # 3. Risk Management & Portfolio Manager Assessment
     print("\n[Phase 3] Risk Management Assessment & Position Sizing")
+    rm = AGENT_REGISTRY["Risk Manager"]
+    print(f"  • {rm['role']} [Risk Manager]:")
+    print(f"    Responsibility: {rm['focus']}")
     risk_assessment = (
         "Volatility parameters within target bounds. Max draw-down constraint: 5.0%. "
         "Recommended position size capped at 3.5% portfolio weight with trailing stop."
     )
-    print(f"     [Risk Summary]: {risk_assessment}")
+    print(f"    Constraint Decision: {risk_assessment}")
 
     # 4. Final Executive Decision
     print("\n[Phase 4] Executive Portfolio Decision")
+    pm = AGENT_REGISTRY["Portfolio Manager"]
+    print(f"  • {pm['role']} [Portfolio Manager]:")
+    print(f"    Responsibility: {pm['focus']}")
     final_decision = {
         "ticker": ticker,
         "date": trade_date,
@@ -79,15 +136,16 @@ def run_offline_simulation(ticker: str = "NVDA", trade_date: str = "2024-05-10")
             f"Bull thesis confirmed by technical breakout and positive sentiment, with risk-adjusted "
             f"position sizing mitigating bear valuation concerns."
         ),
+        "agent_profiles": AGENT_REGISTRY,
     }
 
-    print(f"  -> Decision: {final_decision['action']}")
-    print(f"  -> Target Allocation: {final_decision['target_weight'] * 100:.1f}%")
-    print(f"  -> Confidence Score: {final_decision['confidence'] * 100:.0f}%")
-    print(f"  -> Executive Rationale: {final_decision['rationale']}")
-    print("\n" + "=" * 70)
+    print(f"    Decision Action   : {final_decision['action']}")
+    print(f"    Target Allocation : {final_decision['target_weight'] * 100:.1f}%")
+    print(f"    Confidence Score  : {final_decision['confidence'] * 100:.0f}%")
+    print(f"    Executive Thesis  : {final_decision['rationale']}")
+    print("\n" + "=" * 75)
     print("Offline demonstration completed successfully.")
-    print("=" * 70)
+    print("=" * 75)
 
     return final_decision
 
