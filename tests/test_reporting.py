@@ -48,3 +48,21 @@ def test_save_reports_defaults_under_results_dir(tmp_path):
     assert out.exists()
     assert out.parent.parent.name == "reports"  # results_dir/reports/AAPL_<stamp>/...
     assert out.parent.name.startswith("AAPL_")
+
+
+@pytest.mark.unit
+def test_write_report_tree_with_data_sources_and_trade_date(tmp_path):
+    state = _state()
+    state["trade_date"] = "2025-01-15"
+    state["data_sources"] = [
+        "Price: AAPL, 2024-07-15 to 2025-01-15 (6 months, 126 trading days)",
+        "News: 18 articles, 2025-01-08 to 2025-01-15",
+    ]
+    out = write_report_tree(state, "AAPL", tmp_path)
+    assert (tmp_path / "data_sources.md").exists()
+    sources_content = (tmp_path / "data_sources.md").read_text()
+    assert "Price: AAPL" in sources_content
+    complete = out.read_text()
+    assert "Trade Date: 2025-01-15" in complete
+    assert "## Data Sources" in complete
+    assert "Price: AAPL" in complete
