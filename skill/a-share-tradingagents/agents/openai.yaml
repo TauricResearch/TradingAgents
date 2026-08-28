@@ -1,0 +1,4 @@
+interface:
+  display_name: "A股智能仓位管理"
+  short_description: "A-share valuation, trend, position and risk analysis"
+  default_prompt: "Use $a-share-tradingagents to analyze an A-share position and recommend add, hold, reduce, or exit."

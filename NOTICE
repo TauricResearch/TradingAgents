@@ -1,0 +1,13 @@
+A-share TradingAgents
+
+This repository is a derivative work based on TauricResearch/TradingAgents:
+https://github.com/TauricResearch/TradingAgents
+
+The derivative adds an A-share data layer, China-market context, A-share
+trading rules and risk controls, portfolio-aware position actions, a
+valuation-trend-position matrix, related CLI changes, schemas, prompts, and
+tests. Modified Python source files carry a notice pointing to this file.
+
+The original and derivative source are distributed under the Apache License
+2.0 included in LICENSE. Screenshots are provided only as product-effect
+examples and do not constitute an investment-performance guarantee.
