@@ -339,3 +339,261 @@ def render_sentiment_report(report: SentimentReport) -> str:
         "",
         report.narrative,
     ])
+
+
+# ---------------------------------------------------------------------------
+# Derivatives Analyst
+# ---------------------------------------------------------------------------
+
+
+class DerivativeType(str, Enum):
+    """Types of derivative instruments."""
+
+    CALL = "Call"
+    PUT = "Put"
+    FUTURES = "Futures"
+    PERPETUAL = "Perpetual"
+    SPREAD = "Spread"
+    STRADDLE = "Straddle"
+    COLLAR = "Collar"
+
+
+class DerivativeStrategy(BaseModel):
+    """A single derivative strategy recommendation."""
+
+    instrument: str = Field(
+        description="The derivative instrument (e.g., 'AAPL Put $180', 'BTC Perpetual Short')"
+    )
+    derivative_type: DerivativeType = Field(
+        description="Type of derivative instrument"
+    )
+    purpose: str = Field(
+        description="Whether this is for INVESTMENT or HEDGING"
+    )
+    entry_price: float | None = Field(
+        default=None,
+        description="Recommended entry price or premium"
+    )
+    strike_price: float | None = Field(
+        default=None,
+        description="Strike price for options"
+    )
+    expiry: str | None = Field(
+        default=None,
+        description="Expiration date for options/futures"
+    )
+    delta: float | None = Field(
+        default=None,
+        description="Delta exposure"
+    )
+    theta_daily: float | None = Field(
+        default=None,
+        description="Daily time decay"
+    )
+    max_loss: float | None = Field(
+        default=None,
+        description="Maximum possible loss"
+    )
+    max_gain: float | None = Field(
+        default=None,
+        description="Maximum possible gain"
+    )
+    breakeven: float | None = Field(
+        default=None,
+        description="Breakeven price"
+    )
+    scoring: int = Field(
+        ge=0,
+        le=100,
+        description="Strategy score 0-100 based on risk/reward"
+    )
+    reasoning: str = Field(
+        description="Rationale for this strategy"
+    )
+
+
+def render_derivative_strategy(strategy: DerivativeStrategy) -> str:
+    """Render a DerivativeStrategy to markdown."""
+    parts = [
+        f"**Instrument**: {strategy.instrument} ({strategy.derivative_type.value})",
+        f"**Purpose**: {strategy.purpose}",
+    ]
+    if strategy.entry_price is not None:
+        parts.append(f"**Entry Price**: {strategy.entry_price}")
+    if strategy.strike_price is not None:
+        parts.append(f"**Strike**: {strategy.strike_price}")
+    if strategy.expiry:
+        parts.append(f"**Expiry**: {strategy.expiry}")
+    if strategy.delta is not None:
+        parts.append(f"**Delta**: {strategy.delta}")
+    if strategy.theta_daily is not None:
+        parts.append(f"**Theta (daily)**: {strategy.theta_daily}")
+    if strategy.max_loss is not None:
+        parts.append(f"**Max Loss**: {strategy.max_loss}")
+    if strategy.max_gain is not None:
+        parts.append(f"**Max Gain**: {strategy.max_gain}")
+    if strategy.breakeven is not None:
+        parts.append(f"**Breakeven**: {strategy.breakeven}")
+    parts.extend([
+        f"**Scoring**: {strategy.scoring}/100",
+        f"**Reasoning**: {strategy.reasoning}",
+    ])
+    return "\n".join(parts)
+
+
+class DerivativesReport(BaseModel):
+    """Structured derivatives report."""
+
+    strategies: list[DerivativeStrategy] = Field(
+        description="List of recommended derivative strategies"
+    )
+    overall_scoring: int = Field(
+        ge=0,
+        le=100,
+        description="Overall derivatives scoring 0-100"
+    )
+    narrative: str = Field(
+        description="Full derivatives analysis narrative"
+    )
+
+
+def render_derivatives_report(report: DerivativesReport) -> str:
+    """Render a DerivativesReport to markdown."""
+    parts = [
+        f"**Overall Derivatives Score**: {report.overall_scoring}/100",
+        "",
+        report.narrative,
+    ]
+    if report.strategies:
+        parts.append("\n## Recommended Strategies\n")
+        for i, strategy in enumerate(report.strategies, 1):
+            parts.append(f"### Strategy {i}\n")
+            parts.append(render_derivative_strategy(strategy))
+            parts.append("")
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Hedging Analyst
+# ---------------------------------------------------------------------------
+
+
+class HedgingType(str, Enum):
+    """Types of hedging strategies."""
+
+    PROTECTIVE_PUT = "Protective Put"
+    COVERED_CALL = "Covered Call"
+    COLLAR = "Collar"
+    SHORT_FUTURES = "Short Futures"
+    INVERSE_ETF = "Inverse ETF"
+    CROSS_ASSET = "Cross-Asset"
+    CRYPTO_HEDGE = "Crypto Hedge"
+
+
+class HedgingStrategy(BaseModel):
+    """A single hedging strategy recommendation."""
+
+    strategy_name: str = Field(
+        description="Name of the hedging strategy"
+    )
+    hedging_type: HedgingType = Field(
+        description="Type of hedging strategy"
+    )
+    instruments: list[str] = Field(
+        description="Instruments used for hedging (e.g., ['Put AAPL $180', 'GLD'])"
+    )
+    hedge_ratio: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Percentage of position to hedge (0.0 to 1.0)"
+    )
+    cost: float = Field(
+        description="Total cost of the hedge (premiums, margin, etc.)"
+    )
+    cost_percentage: float = Field(
+        description="Cost as percentage of protected position value"
+    )
+    max_loss: float = Field(
+        description="Maximum loss with hedge in place"
+    )
+    max_gain: float | None = Field(
+        default=None,
+        description="Maximum gain with hedge in place"
+    )
+    volatility_reduction: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Expected reduction in portfolio volatility (0-100%)"
+    )
+    correlations: dict[str, float] | None = Field(
+        default=None,
+        description="Relevant correlations (e.g., {'oil_transport': -0.85})"
+    )
+    scoring: int = Field(
+        ge=0,
+        le=100,
+        description="Strategy score 0-100 based on cost vs protection"
+    )
+    reasoning: str = Field(
+        description="Rationale for this hedging strategy"
+    )
+
+
+def render_hedging_strategy(strategy: HedgingStrategy) -> str:
+    """Render a HedgingStrategy to markdown."""
+    parts = [
+        f"**Strategy**: {strategy.strategy_name} ({strategy.hedging_type.value})",
+        f"**Instruments**: {', '.join(strategy.instruments)}",
+        f"**Hedge Ratio**: {strategy.hedge_ratio * 100:.0f}%",
+        f"**Cost**: ${strategy.cost:,.2f} ({strategy.cost_percentage:.2f}% of position)",
+        f"**Max Loss**: ${strategy.max_loss:,.2f}",
+    ]
+    if strategy.max_gain is not None:
+        parts.append(f"**Max Gain**: ${strategy.max_gain:,.2f}")
+    if strategy.volatility_reduction is not None:
+        parts.append(f"**Volatility Reduction**: {strategy.volatility_reduction * 100:.1f}%")
+    if strategy.correlations:
+        corr_str = ", ".join(f"{k}: {v:+.2f}" for k, v in strategy.correlations.items())
+        parts.append(f"**Correlations**: {corr_str}")
+    parts.extend([
+        f"**Scoring**: {strategy.scoring}/100",
+        f"**Reasoning**: {strategy.reasoning}",
+    ])
+    return "\n".join(parts)
+
+
+class HedgingReport(BaseModel):
+    """Structured hedging report."""
+
+    strategies: list[HedgingStrategy] = Field(
+        description="List of recommended hedging strategies"
+    )
+    overall_scoring: int = Field(
+        ge=0,
+        le=100,
+        description="Overall hedging scoring 0-100"
+    )
+    total_hedge_cost: float = Field(
+        description="Total cost of all recommended hedges"
+    )
+    narrative: str = Field(
+        description="Full hedging analysis narrative"
+    )
+
+
+def render_hedging_report(report: HedgingReport) -> str:
+    """Render a HedgingReport to markdown."""
+    parts = [
+        f"**Overall Hedging Score**: {report.overall_scoring}/100",
+        f"**Total Hedge Cost**: ${report.total_hedge_cost:,.2f}",
+        "",
+        report.narrative,
+    ]
+    if report.strategies:
+        parts.append("\n## Recommended Hedging Strategies\n")
+        for i, strategy in enumerate(report.strategies, 1):
+            parts.append(f"### Strategy {i}\n")
+            parts.append(render_hedging_strategy(strategy))
+            parts.append("")
+    return "\n".join(parts)
