@@ -112,8 +112,8 @@ class CarryTradeExecutor:
         self.use_paper = use_paper
         
         # Initialize Alpaca client
-        api_key = os.getenv("ALPACA_PAPER_KEY")
-        secret_key = os.getenv("ALPACA_PAPER_SECRET")
+        api_key = os.getenv("ALPACA_API_KEY")
+        secret_key = os.getenv("ALPACA_SECRET_KEY")
         
         if api_key and secret_key:
             self.client = TradingClient(
@@ -180,7 +180,16 @@ class CarryTradeExecutor:
             from alpaca.data.requests import StockLatestQuoteRequest
             
             request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
-            quote = self.data_client.get_stock_latest_quote(request)
+            quote_response = self.data_client.get_stock_latest_quote(request)
+            
+            # The response is a dict with symbol as key
+            if isinstance(quote_response, dict):
+                quote = quote_response.get(symbol)
+            else:
+                quote = quote_response
+            
+            if quote is None:
+                return None
             
             return {
                 "symbol": symbol,
@@ -341,7 +350,7 @@ class CarryTradeExecutor:
             # Get current price
             quote = self.get_quote(symbol)
             if not quote:
-                print(f"  ⚠️  Could not get quote for {symbol} - skipping")
+                print(f"  [WARN] Could not get quote for {symbol} - skipping")
                 continue
             
             current_price = (quote["bid_price"] + quote["ask_price"]) / 2
