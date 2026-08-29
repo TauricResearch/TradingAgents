@@ -80,7 +80,9 @@ class GlobalInterestRatesProvider:
     def get_health(self) -> Dict:
         """Check provider health"""
         try:
-            response = self._client.get("https://api.stlouisfed.org/fred/series?series_id=FEDFUNDS&api_key=DEMO_KEY&file_type=json")
+            # Use actual API key if available, otherwise use DEMO_KEY
+            api_key = self.fred_api_key if self.fred_api_key else "DEMO_KEY"
+            response = self._client.get(f"https://api.stlouisfed.org/fred/series?series_id=FEDFUNDS&api_key={api_key}&file_type=json")
             return {
                 "status": "healthy" if response.status_code == 200 else "degraded",
                 "provider": "global_interest_rates",
