@@ -42,11 +42,12 @@ class GlobalInterestRatesProvider:
     ECB_BASE = "https://data-api.ecb.europa.eu/service/data/FCBS"
     
     # Series IDs for FRED (free, no API key required for basic access)
+    # Only actual interest rate series, NOT CPI or other economic indicators
     FRED_SERIES = {
-        "US": "FEDFUNDS",      # Federal Funds Rate
-        "US_10Y": "DGS10",     # 10-Year Treasury
-        "US_2Y": "DGS2",       # 2-Year Treasury
-        "US_CPI": "CPIAUCSL",  # CPI
+        "US": "FEDFUNDS",      # Federal Funds Rate (policy rate)
+        "US_10Y": "DGS10",     # 10-Year Treasury (market rate)
+        "US_2Y": "DGS2",       # 2-Year Treasury (market rate)
+        # Note: CPIAUCSL is CPI, not an interest rate - removed
     }
     
     # ECB key interest rates (free, no API key)
@@ -144,14 +145,26 @@ class GlobalInterestRatesProvider:
                         data = response.json()
                         if "observations" in data and data["observations"]:
                             obs = data["observations"][0]
-                            rates[f"US_{name}"] = InterestRate(
+                            value = float(obs["value"])
+                            
+                            # Validate this is an interest rate (not CPI or other indicator)
+                            # Interest rates should be between 0 and 20% typically
+                            # CPI is typically around 100-400
+                            if value > 100:
+                                # This is likely CPI or another index, skip it
+                                print(f"[GlobalInterestRates] Skipping {name}: value {value} is not an interest rate")
+                                continue
+                            
+                            # Use the name directly (e.g., "US", "US_10Y", "US_2Y")
+                            rates[name] = InterestRate(
                                 country="US",
                                 currency="USD",
                                 central_bank="Federal Reserve",
-                                rate=float(obs["value"]),
-                                rate_type="policy_rate",
+                                rate=value,
+                                rate_type="policy_rate" if name == "US" else "market_rate",
                                 last_updated=obs.get("date", ""),
                                 source="FRED",
+                                notes=f"FRED series: {series_id}",
                             )
             except Exception as e:
                 print(f"[GlobalInterestRates] FRED {name} error: {e}")
