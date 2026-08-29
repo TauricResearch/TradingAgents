@@ -6,7 +6,7 @@ Prototypes for carry trade strategies across global markets.
 
 from datetime import datetime
 from typing import Dict, List, Optional
-from .models import ChainStrategy, ChainStep, StrategyType, RiskLevel, ExecutionMode
+from .models import ChainStrategy, ChainStep, ChainStepStatus
 
 
 class GlobalCarryStrategies:
@@ -24,78 +24,72 @@ class GlobalCarryStrategies:
         - Spread: ~5% annualized
         """
         return ChainStrategy(
+            chain_id="usd_brl_carry_001",
             name="USD_BRL_Carry",
             description="Fondeo en USD (tasa baja) e inversión en BRL (SELIC alta)",
-            strategy_type=StrategyType.CARRY_TRADE,
-            risk_level=RiskLevel.HIGH,
-            estimated_return=f"{horizon_months * 5 / 12:.1f}%",
-            estimated_duration=f"{horizon_months} months",
-            tags=["carry_trade", "emerging_market", "brazil"],
             steps=[
                 ChainStep(
-                    step_id="funding",
+                    step_id=1,
                     name="USD Funding",
                     description="Fondeo en USD al 5.5% (Federal Funds Rate)",
-                    action="borrow",
-                    parameters={
-                        "currency": "USD",
-                        "rate": 5.5,
-                        "amount": investment_amount,
-                        "horizon_months": horizon_months,
-                        "instrument": "USD money market",
-                    },
+                    market="US",
+                    provider="lumibot",
+                    symbol="USD",
+                    action="BORROW",
+                    notional=investment_amount,
                     depends_on=[],
                 ),
                 ChainStep(
-                    step_id="fx_conversion",
+                    step_id=2,
                     name="USD to BRL Conversion",
                     description="Conversión de USD a BRL al tipo de cambio spot",
-                    action="convert_fx",
-                    parameters={
-                        "from_currency": "USD",
-                        "to_currency": "BRL",
-                        "amount": investment_amount,
-                    },
-                    depends_on=["funding"],
+                    market="FOREX",
+                    provider="lumibot",
+                    symbol="USDBRL",
+                    action="CONVERT",
+                    notional=investment_amount,
+                    depends_on=[1],
                 ),
                 ChainStep(
-                    step_id="investment",
+                    step_id=3,
                     name="BRL Investment",
                     description="Inversión en BRL al 10.5% (SELIC)",
-                    action="invest",
-                    parameters={
-                        "currency": "BRL",
-                        "rate": 10.5,
-                        "amount": investment_amount,
-                        "horizon_months": horizon_months,
-                        "instrument": "Brazilian government bonds (Tesouro Selic)",
-                    },
-                    depends_on=["fx_conversion"],
+                    market="BR",
+                    provider="lumibot",
+                    symbol="BRL",
+                    action="INVEST",
+                    notional=investment_amount,
+                    depends_on=[2],
                 ),
                 ChainStep(
-                    step_id="monitoring",
+                    step_id=4,
                     name="Position Monitoring",
                     description="Monitoreo de posición y tipo de cambio",
-                    action="monitor",
-                    parameters={
-                        "check_interval": "daily",
-                        "stop_loss_fx": -0.05,
-                        "take_profit_spread": 0.02,
-                    },
-                    depends_on=["investment"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="USDBRL",
+                    action="MONITOR",
+                    depends_on=[3],
                 ),
                 ChainStep(
-                    step_id="exit",
+                    step_id=5,
                     name="Exit and Repatriation",
                     description="Salida de posición y repatriación de fondos",
-                    action="exit",
-                    parameters={
-                        "convert_back": True,
-                        "settle_funding": True,
-                    },
-                    depends_on=["monitoring"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="USD",
+                    action="EXIT",
+                    depends_on=[4],
                 ),
             ],
+            trigger_event="carry_trade_opportunity",
+            correlations={"usd_brl": -0.3},
+            total_notional=investment_amount,
+            max_drawdown=investment_amount * 0.05,
+            risk_reward_ratio=2.0,
+            scoring=75,
+            veredicto="APPROVE",
+            reasoning="High interest rate differential (5%) with manageable FX risk",
         )
     
     @staticmethod
@@ -110,80 +104,72 @@ class GlobalCarryStrategies:
         - Spread: ~49.75% annualized (VERY HIGH RISK)
         """
         return ChainStrategy(
+            chain_id="jpy_try_carry_001",
             name="JPY_TRY_Carry",
             description="Fondeo en JPY (tasa ultra-baja) e inversión en TRY (turbo carry)",
-            strategy_type=StrategyType.CARRY_TRADE,
-            risk_level=RiskLevel.CRITICAL,
-            estimated_return=f"{horizon_months * 49.75 / 12:.1f}%",
-            estimated_duration=f"{horizon_months} months",
-            tags=["carry_trade", "exotic", "turkey", "high_risk"],
             steps=[
                 ChainStep(
-                    step_id="funding",
+                    step_id=1,
                     name="JPY Funding",
                     description="Fondeo en JPY al 0.25% (Bank of Japan)",
-                    action="borrow",
-                    parameters={
-                        "currency": "JPY",
-                        "rate": 0.25,
-                        "amount": investment_amount,
-                        "horizon_months": horizon_months,
-                        "instrument": "JPY money market",
-                    },
+                    market="JP",
+                    provider="lumibot",
+                    symbol="JPY",
+                    action="BORROW",
+                    notional=investment_amount,
                     depends_on=[],
                 ),
                 ChainStep(
-                    step_id="fx_conversion",
+                    step_id=2,
                     name="JPY to TRY Conversion",
                     description="Conversión de JPY a TRY al tipo de cambio spot",
-                    action="convert_fx",
-                    parameters={
-                        "from_currency": "JPY",
-                        "to_currency": "TRY",
-                        "amount": investment_amount,
-                    },
-                    depends_on=["funding"],
+                    market="FOREX",
+                    provider="lumibot",
+                    symbol="JPYTRY",
+                    action="CONVERT",
+                    notional=investment_amount,
+                    depends_on=[1],
                 ),
                 ChainStep(
-                    step_id="investment",
+                    step_id=3,
                     name="TRY Investment",
                     description="Inversión en TRY al 50% (CBRT Policy Rate)",
-                    action="invest",
-                    parameters={
-                        "currency": "TRY",
-                        "rate": 50.0,
-                        "amount": investment_amount,
-                        "horizon_months": horizon_months,
-                        "instrument": "Turkish government bonds (Devlet Tahvili)",
-                    },
-                    depends_on=["fx_conversion"],
+                    market="TR",
+                    provider="lumibot",
+                    symbol="TRY",
+                    action="INVEST",
+                    notional=investment_amount,
+                    depends_on=[2],
                 ),
                 ChainStep(
-                    step_id="monitoring",
+                    step_id=4,
                     name="Position Monitoring",
                     description="Monitoreo intensivo de posición (alto riesgo)",
-                    action="monitor",
-                    parameters={
-                        "check_interval": "hourly",
-                        "stop_loss_fx": -0.10,
-                        "take_profit_spread": 0.05,
-                        "alert_threshold": "any",
-                    },
-                    depends_on=["investment"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="JPYTRY",
+                    action="MONITOR",
+                    depends_on=[3],
                 ),
                 ChainStep(
-                    step_id="exit",
+                    step_id=5,
                     name="Exit and Repatriation",
                     description="Salida de posición y repatriación de fondos",
-                    action="exit",
-                    parameters={
-                        "convert_back": True,
-                        "settle_funding": True,
-                        "urgency": "high",
-                    },
-                    depends_on=["monitoring"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="JPY",
+                    action="EXIT",
+                    depends_on=[4],
                 ),
             ],
+            trigger_event="carry_trade_opportunity",
+            correlations={"jpy_try": -0.7},
+            total_notional=investment_amount,
+            max_drawdown=investment_amount * 0.20,
+            risk_reward_ratio=1.5,
+            scoring=45,
+            veredicto="ADJUST",
+            reasoning="Extremely high spread but very high FX risk. Reduce position size to 10%.",
         )
     
     @staticmethod
@@ -198,66 +184,62 @@ class GlobalCarryStrategies:
         - Spread: ~2% annualized (moderate risk)
         """
         return ChainStrategy(
+            chain_id="eur_inr_carry_001",
             name="EUR_INR_Carry",
             description="Fondeo en EUR e inversión en INR (carry moderado)",
-            strategy_type=StrategyType.CARRY_TRADE,
-            risk_level=RiskLevel.MEDIUM,
-            estimated_return=f"{horizon_months * 2 / 12:.1f}%",
-            estimated_duration=f"{horizon_months} months",
-            tags=["carry_trade", "emerging_market", "india"],
             steps=[
                 ChainStep(
-                    step_id="funding",
+                    step_id=1,
                     name="EUR Funding",
                     description="Fondeo en EUR al 4.5% (ECB)",
-                    action="borrow",
-                    parameters={
-                        "currency": "EUR",
-                        "rate": 4.5,
-                        "amount": investment_amount,
-                        "horizon_months": horizon_months,
-                        "instrument": "EUR money market",
-                    },
+                    market="EU",
+                    provider="lumibot",
+                    symbol="EUR",
+                    action="BORROW",
+                    notional=investment_amount,
                     depends_on=[],
                 ),
                 ChainStep(
-                    step_id="fx_conversion",
+                    step_id=2,
                     name="EUR to INR Conversion",
                     description="Conversión de EUR a INR al tipo de cambio spot",
-                    action="convert_fx",
-                    parameters={
-                        "from_currency": "EUR",
-                        "to_currency": "INR",
-                        "amount": investment_amount,
-                    },
-                    depends_on=["funding"],
+                    market="FOREX",
+                    provider="lumibot",
+                    symbol="EURINR",
+                    action="CONVERT",
+                    notional=investment_amount,
+                    depends_on=[1],
                 ),
                 ChainStep(
-                    step_id="investment",
+                    step_id=3,
                     name="INR Investment",
                     description="Inversión en INR al 6.5% (RBI Repo Rate)",
-                    action="invest",
-                    parameters={
-                        "currency": "INR",
-                        "rate": 6.5,
-                        "amount": investment_amount,
-                        "horizon_months": horizon_months,
-                        "instrument": "Indian government bonds (G-Sec)",
-                    },
-                    depends_on=["fx_conversion"],
+                    market="IN",
+                    provider="lumibot",
+                    symbol="INR",
+                    action="INVEST",
+                    notional=investment_amount,
+                    depends_on=[2],
                 ),
                 ChainStep(
-                    step_id="exit",
+                    step_id=4,
                     name="Exit and Repatriation",
                     description="Salida de posición y repatriación de fondos",
-                    action="exit",
-                    parameters={
-                        "convert_back": True,
-                        "settle_funding": True,
-                    },
-                    depends_on=["investment"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="EUR",
+                    action="EXIT",
+                    depends_on=[3],
                 ),
             ],
+            trigger_event="carry_trade_opportunity",
+            correlations={"eur_inr": -0.2},
+            total_notional=investment_amount,
+            max_drawdown=investment_amount * 0.03,
+            risk_reward_ratio=3.0,
+            scoring=80,
+            veredicto="APPROVE",
+            reasoning="Moderate spread with low FX risk. Good risk-adjusted return.",
         )
     
     @staticmethod
@@ -271,67 +253,67 @@ class GlobalCarryStrategies:
         - Reduces single-currency risk
         """
         return ChainStrategy(
+            chain_id="multi_carry_basket_001",
             name="Multi_Currency_Carry_Basket",
             description="Canasta diversificada de carry trades en múltiples monedas",
-            strategy_type=StrategyType.CARRY_TRADE,
-            risk_level=RiskLevel.MEDIUM,
-            estimated_return=f"{horizon_months * 3.5 / 12:.1f}%",
-            estimated_duration=f"{horizon_months} months",
-            tags=["carry_trade", "diversified", "portfolio"],
             steps=[
                 ChainStep(
-                    step_id="allocation",
+                    step_id=1,
                     name="Portfolio Allocation",
                     description="Distribución del capital entre monedas objetivo",
-                    action="allocate",
-                    parameters={
-                        "allocations": {
-                            "BRL": 0.30,  # 30% - Brasil
-                            "MXN": 0.25,  # 25% - México
-                            "INR": 0.20,  # 20% - India
-                            "ZAR": 0.15,  # 15% - Sudáfrica
-                            "CLP": 0.10,  # 10% - Chile
-                        },
-                        "funding_currency": "USD",
-                        "total_amount": investment_amount,
-                    },
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="USD",
+                    action="ALLOCATE",
+                    notional=investment_amount,
                     depends_on=[],
                 ),
                 ChainStep(
-                    step_id="execution",
+                    step_id=2,
                     name="Multi-Currency Execution",
                     description="Ejecución simultánea en múltiples monedas",
-                    action="execute",
-                    parameters={
-                        "execution_type": "parallel",
-                        "slippage_tolerance": 0.001,
-                    },
-                    depends_on=["allocation"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="MULTI",
+                    action="EXECUTE",
+                    notional=investment_amount,
+                    depends_on=[1],
                 ),
                 ChainStep(
-                    step_id="rebalancing",
+                    step_id=3,
                     name="Dynamic Rebalancing",
                     description="Rebalanceo dinámico según condiciones de mercado",
-                    action="rebalance",
-                    parameters={
-                        "frequency": "weekly",
-                        "trigger": "volatility_spike",
-                        "rebalance_threshold": 0.05,
-                    },
-                    depends_on=["execution"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="MULTI",
+                    action="REBALANCE",
+                    depends_on=[2],
                 ),
                 ChainStep(
-                    step_id="exit",
+                    step_id=4,
                     name="Staggered Exit",
                     description="Salida escalonada para minimizar impacto de mercado",
-                    action="exit",
-                    parameters={
-                        "exit_type": "staggered",
-                        "exit_window_days": 5,
-                    },
-                    depends_on=["rebalancing"],
+                    market="GLOBAL",
+                    provider="lumibot",
+                    symbol="USD",
+                    action="EXIT",
+                    depends_on=[3],
                 ),
             ],
+            trigger_event="carry_trade_opportunity",
+            correlations={
+                "brl_usd": -0.3,
+                "mxn_usd": -0.25,
+                "inr_usd": -0.2,
+                "zar_usd": -0.35,
+                "clp_usd": -0.2,
+            },
+            total_notional=investment_amount,
+            max_drawdown=investment_amount * 0.08,
+            risk_reward_ratio=2.5,
+            scoring=70,
+            veredicto="APPROVE",
+            reasoning="Diversified carry basket reduces single-currency risk",
         )
     
     @staticmethod
@@ -345,9 +327,9 @@ class GlobalCarryStrategies:
         ]
     
     @staticmethod
-    def get_strategy_by_risk(risk_level: RiskLevel) -> List[ChainStrategy]:
-        """Get strategies filtered by risk level"""
-        return [
-            s for s in GlobalCarryStrategies.get_all_strategies()
-            if s.risk_level == risk_level
-        ]
+    def get_strategy_by_name(name: str) -> Optional[ChainStrategy]:
+        """Get strategy by name"""
+        for strategy in GlobalCarryStrategies.get_all_strategies():
+            if strategy.name == name:
+                return strategy
+        return None

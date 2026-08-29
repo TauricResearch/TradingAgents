@@ -15,263 +15,265 @@ Considers:
 """
 
 from typing import Annotated, Dict, List, Optional, Tuple
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.tools import tool
-
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.agent_states import AgentState
-from tradingagents.agents.utils.llm import create_llm
+import json
 
 
-SYSTEM_PROMPT = """You are a Global Carry Trade Analyst specializing in interest rate arbitrage across international markets.
-
-Your expertise:
-1. **Interest Rate Analysis**: Compare central bank policy rates across countries
-2. **FX Risk Assessment**: Evaluate currency volatility and correlation
-3. **Carry Trade Structuring**: Design optimal funding and investment strategies
-4. **Risk Management**: Identify and mitigate carry trade risks
-
-When analyzing carry trade opportunities:
-1. Compare interest rates across at least 5 major economies
-2. Calculate the interest rate differential (spread)
-3. Assess FX volatility and potential for currency depreciation
-4. Consider central bank policy direction (hiking/cutting/stable)
-5. Evaluate country risk and liquidity
-6. Calculate expected carry return after FX risk
-7. Recommend position sizing and risk limits
-
-Key metrics to report:
-- Interest Rate Differential (IRD): Target rate - Funding rate
-- FX Volatility: Annualized standard deviation of daily returns
-- Sharpe Ratio: Risk-adjusted return
-- Maximum Drawdown: Historical worst-case scenario
-- Correlation: How correlated are the currencies?
-
-Carry trade returns formula:
-Carry Return = (Interest Differential) + (FX Appreciation/Depreciation)
-
-Risk factors:
-- Currency depreciation can wipe out interest gains
-- Central bank policy changes (rate cuts reduce carry)
-- Liquidity crises (can't exit positions)
-- Political instability (capital controls)
-
-Always recommend:
-- Optimal funding currency (lowest effective rate)
-- Optimal target currency (highest risk-adjusted rate)
-- Position size (percentage of portfolio)
-- Stop-loss levels
-- Hedging strategy if needed"""
-
-
-def create_carry_trade_analyst(
-    model_name: str = None,
-    provider: str = None,
-):
-    """Create a carry trade analyst agent"""
+def analyze_carry_trade(
+    interest_rates: str,
+    fx_rates: str,
+    country_risks: str,
+    portfolio_size: float,
+) -> str:
+    """
+    Analyze carry trade opportunities across global markets.
     
-    model_name = model_name or DEFAULT_CONFIG.get("model_name", "gpt-4o-mini")
-    provider = provider or DEFAULT_CONFIG.get("provider", "openai")
+    Args:
+        interest_rates: JSON string with format: {"US": 5.5, "EU": 4.5, "JP": 0.25, ...}
+        fx_rates: JSON string with format: {"USD_EUR": 0.85, "USD_JPY": 145.0, ...}
+        country_risks: JSON string with format: {"US": "AAA", "EU": "AA+", ...}
+        portfolio_size: Total portfolio size in USD for position sizing
     
-    llm = create_llm(model_name=model_name, provider=provider)
+    Returns:
+        Carry trade analysis with recommendations
+    """
+    # Parse input data
+    rates = json.loads(interest_rates) if isinstance(interest_rates, str) else interest_rates
+    fx = json.loads(fx_rates) if isinstance(fx_rates, str) else fx_rates
+    risks = json.loads(country_risks) if isinstance(country_risks, str) else country_risks
     
-    @tool
-    def analyze_carry_trade(
-        interest_rates: Annotated[str, "JSON with interest rates by country"],
-        fx_rates: Annotated[str, "JSON with FX rates"],
-        country_risks: Annotated[str, "JSON with country risk ratings"],
-        portfolio_size: Annotated[float, "Portfolio size in USD"],
-    ) -> str:
-        """
-        Analyze carry trade opportunities across global markets.
-        
-        Args:
-            interest_rates: JSON string with format: {"US": 5.5, "EU": 4.5, "JP": 0.25, ...}
-            fx_rates: JSON string with format: {"USD_EUR": 0.85, "USD_JPY": 145.0, ...}
-            country_risks: JSON string with format: {"US": "AAA", "EU": "AA+", ...}
-            portfolio_size: Total portfolio size in USD for position sizing
-        
-        Returns:
-            Carry trade analysis with recommendations
-        """
-        prompt = f"""
-        Analyze carry trade opportunities with the following data:
-        
-        Interest Rates (annual %):
-        {interest_rates}
-        
-        FX Rates:
-        {fx_rates}
-        
-        Country Risk Ratings:
-        {country_risks}
-        
-        Portfolio Size: ${portfolio_size:,.0f} USD
-        
-        Provide:
-        1. Top 3 carry trade opportunities ranked by risk-adjusted return
-        2. For each opportunity:
-           - Funding currency and rate
-           - Target currency and rate
-           - Interest rate differential
-           - FX volatility assessment
-           - Expected carry return
-           - Risk score (1-10)
-           - Recommended position size
-        3. Overall portfolio recommendation
-        4. Risk warnings and hedging suggestions
-        """
-        
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=prompt),
-        ]
-        
-        response = llm.invoke(messages)
-        return response.content
+    # Calculate spreads
+    opportunities = []
+    countries = list(rates.keys())
     
-    @tool
-    def assess_fx_risk(
-        funding_currency: Annotated[str, "Currency to borrow in"],
-        target_currency: Annotated[str, "Currency to invest in"],
-        historical_volatility: Annotated[float, "Annualized FX volatility"],
-        correlation_with_market: Annotated[float, "Correlation with global markets"],
-    ) -> str:
-        """
-        Assess FX risk for a carry trade position.
-        
-        Args:
-            funding_currency: Currency code (e.g., "USD", "JPY")
-            target_currency: Currency code (e.g., "BRL", "MXN")
-            historical_volatility: Annualized volatility of the FX pair
-            correlation_with_market: Correlation with global equity market
-        
-        Returns:
-            FX risk assessment with mitigation strategies
-        """
-        prompt = f"""
-        Assess FX risk for carry trade:
-        
-        Funding Currency: {funding_currency}
-        Target Currency: {target_currency}
-        Historical Volatility: {historical_volatility:.2%}
-        Market Correlation: {correlation_with_market:.2f}
-        
-        Provide:
-        1. Risk level (Low/Medium/High/Critical)
-        2. Probability of FX depreciation exceeding interest gain
-        3. Maximum expected loss (worst case)
-        4. Recommended stop-loss level
-        5. Hedging strategy options:
-           - Natural hedge (revenue in target currency)
-           - Options hedge (put options on target currency)
-           - Cross-currency swap
-        6. Position sizing recommendation based on risk
-        """
-        
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=prompt),
-        ]
-        
-        response = llm.invoke(messages)
-        return response.content
+    for i, base_country in enumerate(countries):
+        for target_country in countries[i+1:]:
+            if base_country in rates and target_country in rates:
+                base_rate = rates[base_country]
+                target_rate = rates[target_country]
+                spread = target_rate - base_rate
+                
+                # Get risk rating
+                risk = risks.get(target_country, "Unknown")
+                
+                # Calculate position size based on risk
+                risk_score = {"AAA": 1, "AA+": 2, "AA": 3, "A+": 4, "A": 5}.get(risk, 5)
+                position_pct = max(5, 30 - (risk_score * 5))  # Lower risk = larger position
+                
+                opportunities.append({
+                    "funding": base_country,
+                    "target": target_country,
+                    "funding_rate": base_rate,
+                    "target_rate": target_rate,
+                    "spread": spread,
+                    "risk": risk,
+                    "position_pct": position_pct,
+                    "position_usd": portfolio_size * (position_pct / 100),
+                })
     
-    @tool
-    def design_carry_strategy(
-        funding_currency: Annotated[str, "Currency to fund in"],
-        target_currency: Annotated[str, "Currency to invest in"],
-        investment_horizon: Annotated[int, "Investment horizon in months"],
-        risk_tolerance: Annotated[str, "Risk tolerance: conservative, moderate, aggressive"],
-    ) -> str:
-        """
-        Design a complete carry trade strategy.
-        
-        Args:
-            funding_currency: Currency to borrow in
-            target_currency: Currency to invest in
-            investment_horizon: How long to hold the position (months)
-            risk_tolerance: Risk tolerance level
-        
-        Returns:
-            Detailed carry trade strategy
-        """
-        prompt = f"""
-        Design a carry trade strategy:
-        
-        Funding Currency: {funding_currency}
-        Target Currency: {target_currency}
-        Investment Horizon: {investment_horizon} months
-        Risk Tolerance: {risk_tolerance}
-        
-        Provide:
-        1. Strategy overview
-        2. Entry criteria and timing
-        3. Position sizing methodology
-        4. Funding structure (leverage, margin requirements)
-        5. Investment vehicle selection:
-           - Money market funds
-           - Government bonds
-           - Bank deposits
-           - ETFs
-        6. Exit strategy:
-           - Profit target
-           - Stop-loss level
-           - Time-based exit
-        7. Hedging approach
-        8. Monitoring and rebalancing plan
-        9. Tax considerations
-        10. Expected return range (base case, bull case, bear case)
-        """
-        
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=prompt),
-        ]
-        
-        response = llm.invoke(messages)
-        return response.content
+    # Sort by spread (highest first)
+    opportunities.sort(key=lambda x: x["spread"], reverse=True)
     
-    def analyst_node(state: AgentState) -> Dict:
-        """Carry trade analyst node for the graph"""
+    # Generate report
+    report = []
+    report.append("CARRY TRADE ANALYSIS REPORT")
+    report.append("=" * 50)
+    report.append(f"\nPortfolio Size: ${portfolio_size:,.0f} USD")
+    report.append(f"Opportunities Found: {len(opportunities)}\n")
+    
+    report.append("TOP 3 OPPORTUNITIES:")
+    report.append("-" * 50)
+    
+    for i, opp in enumerate(opportunities[:3], 1):
+        report.append(f"\n{i}. {opp['funding']} -> {opp['target']}")
+        report.append(f"   Funding Rate: {opp['funding_rate']:.2f}%")
+        report.append(f"   Target Rate: {opp['target_rate']:.2f}%")
+        report.append(f"   Spread: {opp['spread']:.2f}%")
+        report.append(f"   Risk Rating: {opp['risk']}")
+        report.append(f"   Position Size: {opp['position_pct']}% (${opp['position_usd']:,.0f})")
+    
+    report.append("\n" + "-" * 50)
+    report.append("RECOMMENDATIONS:")
+    report.append("-" * 50)
+    
+    if opportunities:
+        best = opportunities[0]
+        report.append(f"\n1. Best Opportunity: {best['funding']}/{best['target']}")
+        report.append(f"   - Borrow at {best['funding_rate']:.2f}% in {best['funding']}")
+        report.append(f"   - Invest at {best['target_rate']:.2f}% in {best['target']}")
+        report.append(f"   - Expected carry: {best['spread']:.2f}%")
         
-        # Get interest rates from data provider
-        interest_rates = state.get("global_interest_rates", {})
-        fx_rates = state.get("fx_rates", {})
-        country_risks = state.get("country_risks", {})
-        portfolio_size = state.get("portfolio_size", 100000)  # Default $100k
+        report.append("\n2. Risk Warnings:")
+        report.append("   - Currency depreciation can wipe out interest gains")
+        report.append("   - Central bank policy changes may reduce spread")
+        report.append("   - Liquidity risk in emerging market currencies")
         
-        # Format data for analysis
-        import json
-        
-        interest_rates_str = json.dumps(interest_rates, indent=2)
-        fx_rates_str = json.dumps(fx_rates, indent=2)
-        country_risks_str = json.dumps(country_risks, indent=2)
-        
-        # Run carry trade analysis
-        analysis = analyze_carry_trade.invoke({
-            "interest_rates": interest_rates_str,
-            "fx_rates": fx_rates_str,
-            "country_risks": country_risks_str,
-            "portfolio_size": portfolio_size,
-        })
-        
-        return {
-            "messages": state.get("messages", []) + [
-                HumanMessage(content=f"Carry Trade Analysis:\n\n{analysis}")
-            ],
-            "carry_trade_report": {
-                "analysis": analysis,
-                "interest_rates": interest_rates,
-                "fx_rates": fx_rates,
-                "country_risks": country_risks,
-                "portfolio_size": portfolio_size,
-                "timestamp": state.get("current_date", ""),
-            },
-        }
+        report.append("\n3. Hedging Suggestions:")
+        report.append("   - Consider FX forwards or options for partial hedge")
+        report.append("   - Diversify across multiple currency pairs")
+        report.append("   - Set stop-loss at -5% FX movement")
+    
+    return "\n".join(report)
+
+
+def assess_fx_risk(
+    funding_currency: str,
+    target_currency: str,
+    historical_volatility: float,
+    correlation_with_market: float,
+) -> str:
+    """
+    Assess FX risk for a carry trade position.
+    
+    Args:
+        funding_currency: Currency code (e.g., "USD", "JPY")
+        target_currency: Currency code (e.g., "BRL", "MXN")
+        historical_volatility: Annualized volatility of the FX pair
+        correlation_with_market: Correlation with global equity market
+    
+    Returns:
+        FX risk assessment with mitigation strategies
+    """
+    # Determine risk level
+    if historical_volatility < 0.05:
+        risk_level = "Low"
+    elif historical_volatility < 0.10:
+        risk_level = "Medium"
+    elif historical_volatility < 0.20:
+        risk_level = "High"
+    else:
+        risk_level = "Critical"
+    
+    # Calculate potential loss
+    max_loss = historical_volatility * 2  # 2 standard deviations
+    
+    report = []
+    report.append("FX RISK ASSESSMENT")
+    report.append("=" * 50)
+    report.append(f"\nFunding Currency: {funding_currency}")
+    report.append(f"Target Currency: {target_currency}")
+    report.append(f"Historical Volatility: {historical_volatility:.2%}")
+    report.append(f"Market Correlation: {correlation_with_market:.2f}")
+    report.append(f"\nRisk Level: {risk_level}")
+    report.append(f"Potential Max Loss (2σ): {max_loss:.2%}")
+    
+    report.append("\nMITIGATION STRATEGIES:")
+    report.append("-" * 50)
+    
+    if risk_level in ["High", "Critical"]:
+        report.append("\n1. Position Sizing: Reduce to 10-15% of portfolio")
+        report.append("2. Stop-Loss: Set at -5% FX movement")
+        report.append("3. Hedging: Use FX options or forwards")
+        report.append("4. Diversification: Spread across 3-5 currency pairs")
+    elif risk_level == "Medium":
+        report.append("\n1. Position Sizing: 15-25% of portfolio")
+        report.append("2. Stop-Loss: Set at -7% FX movement")
+        report.append("3. Monitoring: Daily review of FX rates")
+    else:
+        report.append("\n1. Position Sizing: Up to 30% of portfolio")
+        report.append("2. Stop-Loss: Set at -10% FX movement")
+        report.append("3. Monitoring: Weekly review sufficient")
+    
+    return "\n".join(report)
+
+
+def design_carry_strategy(
+    funding_currency: str,
+    target_currency: str,
+    investment_horizon: int,
+    risk_tolerance: str,
+) -> str:
+    """
+    Design a complete carry trade strategy.
+    
+    Args:
+        funding_currency: Currency to borrow in
+        target_currency: Currency to invest in
+        investment_horizon: How long to hold the position (months)
+        risk_tolerance: Risk tolerance level
+    
+    Returns:
+        Detailed carry trade strategy
+    """
+    report = []
+    report.append("CARRY TRADE STRATEGY DESIGN")
+    report.append("=" * 50)
+    report.append(f"\nFunding: {funding_currency}")
+    report.append(f"Investment: {target_currency}")
+    report.append(f"Horizon: {investment_horizon} months")
+    report.append(f"Risk Tolerance: {risk_tolerance}")
+    
+    report.append("\nSTRATEGY COMPONENTS:")
+    report.append("-" * 50)
+    
+    # Position sizing based on risk tolerance
+    position_sizes = {
+        "conservative": "10-15% of portfolio",
+        "moderate": "15-25% of portfolio",
+        "aggressive": "25-35% of portfolio",
+    }
+    
+    report.append(f"\n1. Position Size: {position_sizes.get(risk_tolerance, '15-25%')}")
+    report.append(f"2. Investment Horizon: {investment_horizon} months")
+    report.append("3. Entry Strategy:")
+    report.append("   - Wait for favorable FX rate (technical support)")
+    report.append("   - Enter position in tranches (3-4 tranches)")
+    report.append("   - Set initial stop-loss at -5%")
+    
+    report.append("\n4. Exit Strategy:")
+    report.append("   - Take profit at +10% FX movement")
+    report.append("   - Stop-loss at -5% FX movement")
+    report.append("   - Time-based exit at horizon completion")
+    report.append("   - Exit if interest rate differential narrows by >1%")
+    
+    report.append("\n5. Monitoring:")
+    report.append("   - Daily: FX rates and volatility")
+    report.append("   - Weekly: Central bank communications")
+    report.append("   - Monthly: Position performance review")
+    
+    report.append("\n6. Expected Returns (Base Case):")
+    report.append("   - Interest differential: ~5% annualized")
+    report.append("   - FX impact: ±3% (depending on currency movement)")
+    report.append("   - Net return: 2-8% annualized")
+    
+    return "\n".join(report)
+
+
+def analyst_node(state: Dict) -> Dict:
+    """Carry trade analyst node for the graph"""
+    
+    # Get interest rates from data provider
+    interest_rates = state.get("global_interest_rates", {})
+    fx_rates = state.get("fx_rates", {})
+    country_risks = state.get("country_risks", {})
+    portfolio_size = state.get("portfolio_size", 100000)  # Default $100k
+    
+    # Format data for analysis
+    interest_rates_str = json.dumps(interest_rates, indent=2)
+    fx_rates_str = json.dumps(fx_rates, indent=2)
+    country_risks_str = json.dumps(country_risks, indent=2)
+    
+    # Run carry trade analysis
+    analysis = analyze_carry_trade(
+        interest_rates_str,
+        fx_rates_str,
+        country_risks_str,
+        portfolio_size,
+    )
     
     return {
-        "tools": [analyze_carry_trade, assess_fx_risk, design_carry_strategy],
-        "node": analyst_node,
-        "name": "carry_trade_analyst",
+        "messages": state.get("messages", []) + [
+            {"role": "user", "content": f"Carry Trade Analysis:\n\n{analysis}"}
+        ],
+        "carry_trade_report": {
+            "analysis": analysis,
+            "interest_rates": interest_rates,
+            "fx_rates": fx_rates,
+            "country_risks": country_risks,
+            "portfolio_size": portfolio_size,
+            "timestamp": state.get("current_date", ""),
+        },
     }
+
+
+# For backward compatibility
+create_carry_trade_analyst = analyst_node

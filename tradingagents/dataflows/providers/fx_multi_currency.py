@@ -16,8 +16,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 from dataclasses import dataclass
 
-from .base import BaseProvider, ProviderError
-
 
 @dataclass
 class FXRate:
@@ -30,7 +28,7 @@ class FXRate:
     inverse_rate: Optional[float] = None
 
 
-class MultiCurrencyFXProvider(BaseProvider):
+class MultiCurrencyFXProvider:
     """Provider for multi-currency FX rates"""
     
     # Free API endpoints
@@ -46,7 +44,7 @@ class MultiCurrencyFXProvider(BaseProvider):
     ]
     
     def __init__(self, config: Optional[Dict] = None):
-        super().__init__(config)
+        config = config or {}
         self.exchangerate_api_key = config.get(
             "exchangerate_api_key",
             os.getenv("EXCHANGERATE_API_KEY", "")

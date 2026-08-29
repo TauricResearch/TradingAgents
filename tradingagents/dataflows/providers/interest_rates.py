@@ -20,8 +20,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 from dataclasses import dataclass
 
-from .base import BaseProvider, ProviderError, ProviderConnectionError, ProviderRateLimitError
-
 
 @dataclass
 class InterestRate:
@@ -36,7 +34,7 @@ class InterestRate:
     notes: str = ""
 
 
-class GlobalInterestRatesProvider(BaseProvider):
+class GlobalInterestRatesProvider:
     """Provider for global central bank interest rates"""
     
     # Free API endpoints
@@ -70,7 +68,7 @@ class GlobalInterestRatesProvider(BaseProvider):
     }
     
     def __init__(self, config: Optional[Dict] = None):
-        super().__init__(config)
+        config = config or {}
         self.fred_api_key = config.get("fred_api_key", os.getenv("FRED_API_KEY", ""))
         self.timeout = config.get("timeout", 10)
         self._client = httpx.Client(timeout=self.timeout)
