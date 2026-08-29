@@ -283,6 +283,37 @@ class GlobalInterestRatesProvider:
                 rate=8.25, rate_type="policy_rate",
                 last_updated="2026-08-01", source="fallback",
             ),
+            # NEW CURRENCIES FOR DIVERSIFIED BASKET
+            "PL": InterestRate(
+                country="PL", currency="PLN", central_bank="National Bank of Poland",
+                rate=5.75, rate_type="policy_rate",
+                last_updated="2026-08-01", source="fallback",
+                notes="NBP reference rate"
+            ),
+            "CO": InterestRate(
+                country="CO", currency="COP", central_bank="Banco de la República",
+                rate=12.00, rate_type="policy_rate",
+                last_updated="2026-08-01", source="fallback",
+                notes="Lending rate"
+            ),
+            "ID": InterestRate(
+                country="ID", currency="IDR", central_bank="Bank Indonesia",
+                rate=6.25, rate_type="policy_rate",
+                last_updated="2026-08-01", source="fallback",
+                notes="BI Rate"
+            ),
+            "TH": InterestRate(
+                country="TH", currency="THB", central_bank="Bank of Thailand",
+                rate=2.50, rate_type="policy_rate",
+                last_updated="2026-08-01", source="fallback",
+                notes="Policy rate"
+            ),
+            "PH": InterestRate(
+                country="PH", currency="PHP", central_bank="Bangko Sentral ng Pilipinas",
+                rate=6.50, rate_type="policy_rate",
+                last_updated="2026-08-01", source="fallback",
+                notes="Overnight reverse repurchase rate"
+            ),
         }
     
     def get_rate(self, country: str) -> Optional[InterestRate]:

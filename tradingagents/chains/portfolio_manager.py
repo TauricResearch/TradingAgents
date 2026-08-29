@@ -166,13 +166,18 @@ class CarryTradePortfolioManager:
         # Strategy 2: Diversified - Multi-currency basket
         diversified_return = 0
         
-        # Calculate weighted average for diversified strategy
+        # EXPANDED: 10 currencies for better diversification
         diversified_currencies = [
-            ("BR", 0.30),   # Brazil
-            ("MX", 0.25),   # Mexico
-            ("IN", 0.20),   # India
-            ("ZA", 0.15),   # South Africa
-            ("CL", 0.10),   # Chile
+            ("BR", 0.15),   # Brazil - SELIC 10.5%
+            ("MX", 0.15),   # Mexico - Banxico 11%
+            ("IN", 0.12),   # India - RBI 6.5%
+            ("ZA", 0.10),   # South Africa - SARB 8.25%
+            ("CL", 0.10),   # Chile - BCCh 6.5%
+            ("PL", 0.08),   # Poland - NBP 5.75%
+            ("CO", 0.08),   # Colombia - BanRep 12%
+            ("ID", 0.07),   # Indonesia - BI 6.25%
+            ("TH", 0.07),   # Thailand - BOT 2.5%
+            ("PH", 0.08),   # Philippines - BSP 6.5%
         ]
         
         for currency, weight in diversified_currencies:
@@ -181,8 +186,8 @@ class CarryTradePortfolioManager:
                 spread = currency_rate.rate - us_rate.rate
                 diversified_return += spread * weight
         
-        # Estimate diversified volatility
-        diversified_vol = 0.12  # Conservative estimate for basket
+        # Estimate diversified volatility (lower due to diversification)
+        diversified_vol = 0.10  # Lower volatility due to 10-currency basket
         
         strategies.append(StrategyAllocation(
             name="Diversified_Multi_Currency",
@@ -196,8 +201,8 @@ class CarryTradePortfolioManager:
             allocation_usd=self.total_portfolio_value * self.allocations["diversified"],
             fx_rate=1.0,  # Basket
             fx_volatility=diversified_vol,
-            expected_return=diversified_return * 0.8,  # Discount for execution
-            max_drawdown=8.0,
+            expected_return=diversified_return * 0.85,  # Discount for execution
+            max_drawdown=6.0,  # Lower due to diversification
         ))
         
         # Strategy 3: Aggressive - USD/TRY
