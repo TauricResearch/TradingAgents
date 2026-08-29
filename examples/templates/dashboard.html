@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carry Trade Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+            padding: 20px 30px;
+            border-bottom: 2px solid #e94560;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+        
+        .header .subtitle {
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+        
+        .header .timestamp {
+            color: #e94560;
+            font-weight: bold;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #0f3460;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .card h2 {
+            font-size: 18px;
+            color: #e94560;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        .card-full {
+            grid-column: 1 / -1;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        th {
+            background: #0f3460;
+            color: #e94560;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        
+        tr:hover {
+            background: rgba(233, 69, 96, 0.1);
+        }
+        
+        .rate-positive {
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        .rate-negative {
+            color: #f87171;
+            font-weight: bold;
+        }
+        
+        .signal-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .signal-strong-buy {
+            background: #166534;
+            color: #4ade80;
+        }
+        
+        .signal-buy {
+            background: #14532d;
+            color: #86efac;
+        }
+        
+        .signal-hold {
+            background: #713f12;
+            color: #fde047;
+        }
+        
+        .signal-weak {
+            background: #78350f;
+            color: #fdba74;
+        }
+        
+        .signal-avoid {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+        
+        .metric-box {
+            display: inline-block;
+            background: #0f3460;
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin: 5px;
+            min-width: 150px;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #a0a0a0;
+            text-transform: uppercase;
+        }
+        
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #e94560;
+            margin-top: 5px;
+        }
+        
+        .metric-value.positive {
+            color: #4ade80;
+        }
+        
+        .metrics-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .bar-chart {
+            margin-top: 10px;
+        }
+        
+        .bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .bar-label {
+            width: 100px;
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .bar-container {
+            flex: 1;
+            background: #0f3460;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 24px;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            transition: width 0.5s ease;
+        }
+        
+        .bar-fill.positive {
+            background: linear-gradient(90deg, #166534, #4ade80);
+        }
+        
+        .bar-fill.negative {
+            background: linear-gradient(90deg, #7f1d1d, #f87171);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #a0a0a0;
+        }
+        
+        .refresh-btn {
+            background: #e94560;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .refresh-btn:hover {
+            background: #c93553;
+        }
+        
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .auto-refresh label {
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Carry Trade Portfolio Dashboard</h1>
+        <div class="subtitle">
+            Real-time monitoring of global carry trade opportunities
+            <br>Last updated: <span id="lastUpdate" class="timestamp">Loading...</span>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Summary Metrics -->
+        <div class="metrics-container" id="metrics">
+            <div class="metric-box">
+                <div class="metric-label">Total Opportunities</div>
+                <div class="metric-value" id="totalOpportunities">--</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">Best Spread</div>
+                <div class="metric-value positive" id="bestSpread">--</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">Average Spread</div>
+                <div class="metric-value" id="avgSpread">--</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">Currencies Tracked</div>
+                <div class="metric-value" id="currenciesTracked">--</div>
+            </div>
+        </div>
+        
+        <!-- Main Grid -->
+        <div class="grid">
+            <!-- Carry Trade Opportunities -->
+            <div class="card card-full">
+                <h2>Carry Trade Opportunities</h2>
+                <div id="carryTrades">
+                    <div class="loading">Loading carry trade data...</div>
+                </div>
+            </div>
+            
+            <!-- Interest Rates -->
+            <div class="card">
+                <h2>Interest Rates by Country</h2>
+                <div id="interestRates">
+                    <div class="loading">Loading interest rates...</div>
+                </div>
+            </div>
+            
+            <!-- FX Rates -->
+            <div class="card">
+                <h2>USD Exchange Rates</h2>
+                <div id="fxRates">
+                    <div class="loading">Loading FX rates...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Refresh Controls -->
+        <div class="auto-refresh">
+            <label>
+                <input type="checkbox" id="autoRefresh" checked>
+                Auto-refresh every 30 seconds
+            </label>
+            <button class="refresh-btn" onclick="loadData()">Refresh Now</button>
+        </div>
+    </div>
+    
+    <script>
+        let refreshInterval;
+        
+        async function loadData() {
+            try {
+                // Fetch carry trades
+                const carryTradesResponse = await fetch('/api/carry-trades');
+                const carryTradesData = await carryTradesResponse.json();
+                renderCarryTrades(carryTradesData.carry_trades);
+                updateMetrics(carryTradesData.carry_trades);
+                
+                // Fetch interest rates
+                const ratesResponse = await fetch('/api/interest-rates');
+                const ratesData = await ratesResponse.json();
+                renderInterestRates(ratesData.rates);
+                
+                // Fetch FX rates
+                const fxResponse = await fetch('/api/fx-rates');
+                const fxData = await fxResponse.json();
+                renderFxRates(fxData.fx_rates);
+                
+                // Update timestamp
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+        
+        function renderCarryTrades(trades) {
+            const container = document.getElementById('carryTrades');
+            
+            if (!trades || trades.length === 0) {
+                container.innerHTML = '<div class="loading">No carry trade data available</div>';
+                return;
+            }
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Currency</th>
+                            <th>Central Bank</th>
+                            <th>Target Rate</th>
+                            <th>Funding Rate</th>
+                            <th>Spread</th>
+                            <th>FX Rate</th>
+                            <th>Volatility</th>
+                            <th>Risk-Adj Return</th>
+                            <th>Signal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            trades.forEach(trade => {
+                const spreadClass = trade.spread >= 0 ? 'rate-positive' : 'rate-negative';
+                const signalClass = getSignalClass(trade.signal);
+                
+                html += `
+                    <tr>
+                        <td><strong>${trade.currency}</strong></td>
+                        <td>${trade.central_bank}</td>
+                        <td>${trade.target_rate.toFixed(2)}%</td>
+                        <td>${trade.funding_rate.toFixed(2)}%</td>
+                        <td class="${spreadClass}">${trade.spread >= 0 ? '+' : ''}${trade.spread.toFixed(2)}%</td>
+                        <td>${trade.fx_rate ? trade.fx_rate.toFixed(4) : 'N/A'}</td>
+                        <td>${trade.fx_volatility.toFixed(1)}%</td>
+                        <td class="${trade.risk_adjusted_return >= 0 ? 'rate-positive' : 'rate-negative'}">${trade.risk_adjusted_return.toFixed(2)}%</td>
+                        <td><span class="signal-badge ${signalClass}">${trade.signal}</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function renderInterestRates(rates) {
+            const container = document.getElementById('interestRates');
+            
+            if (!rates || rates.length === 0) {
+                container.innerHTML = '<div class="loading">No interest rate data available</div>';
+                return;
+            }
+            
+            // Find max rate for scaling
+            const maxRate = Math.max(...rates.map(r => r.rate));
+            
+            let html = '<div class="bar-chart">';
+            
+            rates.forEach(rate => {
+                const width = (rate.rate / maxRate) * 100;
+                const isNegative = rate.rate < 0;
+                
+                html += `
+                    <div class="bar">
+                        <div class="bar-label">${rate.currency}</div>
+                        <div class="bar-container">
+                            <div class="bar-fill ${isNegative ? 'negative' : 'positive'}" style="width: ${width}%">
+                                ${rate.rate.toFixed(2)}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        function renderFxRates(fxRates) {
+            const container = document.getElementById('fxRates');
+            
+            if (!fxRates || Object.keys(fxRates).length === 0) {
+                container.innerHTML = '<div class="loading">No FX rate data available</div>';
+                return;
+            }
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pair</th>
+                            <th>Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Sort by rate (highest first)
+            const sortedPairs = Object.entries(fxRates).sort((a, b) => b[1] - a[1]);
+            
+            sortedPairs.forEach(([pair, rate]) => {
+                const displayPair = pair.replace('USD_', '/');
+                
+                html += `
+                    <tr>
+                        <td>${displayPair}</td>
+                        <td>${rate.toFixed(4)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function updateMetrics(trades) {
+            if (!trades || trades.length === 0) return;
+            
+            document.getElementById('totalOpportunities').textContent = trades.length;
+            
+            const bestSpread = Math.max(...trades.map(t => t.spread));
+            document.getElementById('bestSpread').textContent = `+${bestSpread.toFixed(2)}%`;
+            
+            const avgSpread = trades.reduce((sum, t) => sum + t.spread, 0) / trades.length;
+            document.getElementById('avgSpread').textContent = `${avgSpread >= 0 ? '+' : ''}${avgSpread.toFixed(2)}%`;
+            
+            document.getElementById('currenciesTracked').textContent = trades.length;
+        }
+        
+        function getSignalClass(signal) {
+            switch (signal) {
+                case 'STRONG BUY': return 'signal-strong-buy';
+                case 'BUY': return 'signal-buy';
+                case 'HOLD': return 'signal-hold';
+                case 'WEAK': return 'signal-weak';
+                case 'AVOID': return 'signal-avoid';
+                default: return 'signal-hold';
+            }
+        }
+        
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                refreshInterval = setInterval(loadData, 30000);
+            } else {
+                clearInterval(refreshInterval);
+            }
+        }
+        
+        // Initial load
+        loadData();
+        
+        // Set up auto-refresh
+        document.getElementById('autoRefresh').addEventListener('change', toggleAutoRefresh);
+        refreshInterval = setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
