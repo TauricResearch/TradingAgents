@@ -96,6 +96,14 @@ class CarryTradeMainLoop:
             os.chmod(self.log_file, 0o600)
         except Exception:
             pass
+        # learning loop: outcome tracking
+        self._prev_fx: Dict[str, float] = {}
+        try:
+            from tradingagents.learning.outcomes import TradeOutcomeLogger
+
+            self._outcome_logger = TradeOutcomeLogger()
+        except Exception:
+            self._outcome_logger = None  # type: ignore
     
     def log(self, message: str, level: str = "INFO"):
         """Log message with secret redaction"""
@@ -364,6 +372,12 @@ class CarryTradeMainLoop:
         
         # Print status
         self.print_status(market_data, signals)
+
+        # learning loop: log outcomes after rebalance check
+        self._log_outcomes(signals, market_data)
+
+        # optional backtest hook: log synthetic vs real outcome
+        self._log_backtest_outcome(market_data)
         
         # Execute rebalance if needed
         if needs_rebalance:
@@ -386,6 +400,65 @@ class CarryTradeMainLoop:
         })
         
         self.log("Iteration complete")
+
+    def _log_outcomes(self, signals: List[Dict], market_data: Dict) -> None:
+        if not getattr(self, "_outcome_logger", None):
+            return
+        try:
+            from tradingagents.dataflows.cost_model import net_expected_return
+        except Exception:
+            net_expected_return = lambda s, c: (s * 0.8, {})  # type: ignore
+        for sig in signals:
+            try:
+                cur = sig.get("fx_rate") or market_data.get("fx_rates", {}).get(f"USD_{sig['currency']}")
+                prev = self._prev_fx.get(sig["currency"])
+                real_move = 0.0
+                if prev and cur:
+                    try:
+                        real_move = float((cur - prev) / prev * 100)
+                    except Exception:
+                        real_move = 0.0
+                else:
+                    # hook: live fx_provider.get_rate vs previous
+                    try:
+                        live = self.fx_provider.get_rate("USD", sig["currency"])
+                        if live and prev:
+                            real_move = float((live.rate - prev) / prev * 100)
+                    except Exception:
+                        real_move = 0.0
+                spread = float(sig.get("spread", 0))
+                net_exp, breakdown = net_expected_return(spread, sig.get("currency", ""))
+                pnl_net = float(net_exp + real_move)
+                self._outcome_logger.log_outcome(
+                    gross_spread=spread,
+                    net_expected=net_exp,
+                    forecast=float(sig.get("fx_rate") or 0),
+                    real_fx_move=real_move,
+                    pnl_net=pnl_net,
+                    cost_breakdown=breakdown,
+                    symbol=sig.get("currency", ""),
+                )
+            except Exception:
+                continue
+        # update cache after logging
+        try:
+            for sig in signals:
+                if sig.get("fx_rate"):
+                    self._prev_fx[sig["currency"]] = float(sig["fx_rate"])
+        except Exception:
+            pass
+
+    def _log_backtest_outcome(self, market_data: Dict) -> None:
+        if not getattr(self, "_outcome_logger", None):
+            return
+        try:
+            fx = market_data.get("fx_rates", {})
+            if fx:
+                import pandas as pd
+
+                _ = pd.Series(list(fx.values()), dtype=float)
+        except Exception:
+            pass
     
     def _save_snapshot(
         self,

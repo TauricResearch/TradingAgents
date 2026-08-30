@@ -20,6 +20,11 @@ from tradingagents.dataflows.providers.fx_multi_currency import MultiCurrencyFXP
 from tradingagents.dataflows.providers.interest_rates import GlobalInterestRatesProvider
 
 try:
+    from tradingagents.learning.outcomes import TradeOutcomeLogger as _OutcomeLogger
+except ImportError:
+    _OutcomeLogger = None  # type: ignore
+
+try:
     from tradingagents.dataflows.cost_model import CostModel, ETF_FX_BETA, FX_SPREAD_BPS, net_expected_return
 
     _HAS_COST_MODEL = True
@@ -401,7 +406,9 @@ class CarryTradePortfolioManager:
         
         # Print summary
         self.print_portfolio_summary(strategies, metrics)
-        
+        # learning loop: log outcomes for each strategy
+        self._log_strategy_outcomes(strategies)
+
         # Return complete report
         return {
             "timestamp": datetime.now().isoformat(),
@@ -469,6 +476,34 @@ class CarryTradePortfolioManager:
         except Exception:
             cur_vol = None
         return apply_risk_overlay(w, max_leverage=max_leverage, stop_loss_vol=stop_loss_vol, current_vol=cur_vol)
+
+    def _log_strategy_outcomes(self, strategies: List[StrategyAllocation]) -> None:
+        if _OutcomeLogger is None:
+            return
+        # hook: real_fx_move via fx_provider vs previous cache
+        if not hasattr(self, "_prev_fx"):
+            self._prev_fx: Dict[str, float] = {}  # type: ignore
+        try:
+            logger = _OutcomeLogger()
+            for s in strategies:
+                sym = s.target_currency
+                cur = float(s.fx_rate) if s.fx_rate else 0.0
+                prev = self._prev_fx.get(sym)
+                if prev and cur:
+                    real_move = float((cur - prev) / prev * 100)
+                else:
+                    try:
+                        live = self.fx_provider.get_rate("USD", sym) if sym not in ("MULTI", "") else None
+                        real_move = float((live.rate - prev) / prev * 100) if live and prev else 0.0
+                    except Exception:
+                        real_move = 0.0
+                pnl_net = float(s.net_expected_return + real_move)
+                logger.log_outcome(gross_spread=float(s.spread), net_expected=float(s.net_expected_return), forecast=float(s.expected_return), real_fx_move=real_move, pnl_net=pnl_net, cost_breakdown=dict(s.cost_breakdown or {}), symbol=sym)
+            for s in strategies:
+                if s.fx_rate:
+                    self._prev_fx[s.target_currency] = float(s.fx_rate)
+        except Exception:
+            pass
 
     def close(self):
         """Close providers"""

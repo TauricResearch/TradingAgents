@@ -119,7 +119,7 @@ class CarryTradeEnv:
         else:
             pnl = 0.0
         cost = float(np.abs(w - self.prev_weights).sum() * self.tc)
-        reward = pnl - cost
+        reward = float(pnl - cost)  # pnl_net - cost as required
         self.prev_weights = w
         self.current_step += 1
         terminated = self.current_step >= self.n_steps - 1
@@ -128,3 +128,16 @@ class CarryTradeEnv:
         return obs, float(reward), bool(terminated), False, {"pnl": pnl, "cost": cost, "weights": w}
     def render(self) -> None:
         pass
+
+    def update_from_outcomes(self, outcomes: list) -> dict:
+        """Heuristic: if hit_rate <0.5 reduce effective allocation via tc penalty mock."""
+        if not outcomes:
+            return {}
+        pnls = [float(o.get("pnl_net", 0)) for o in outcomes]
+        hit = sum(1 for p in pnls if p > 0) / len(pnls) if pnls else 0.5
+        # simple: adjust transaction cost penalty for next episodes
+        if hit < 0.5:
+            self.tc = min(self.tc * 1.1, 0.01)
+        else:
+            self.tc = max(self.tc * 0.99, 0.0005)
+        return {"hit_rate": hit, "tc": self.tc}

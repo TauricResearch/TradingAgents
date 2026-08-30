@@ -76,12 +76,14 @@ class MeanVarianceAllocator(WeightAllocator):
         return _sanitize_weights(mu / (self.risk_aversion * var))
 
 class DRLAllocator(WeightAllocator):
-    """PPO/SAC stub; fallback equal-weight if SB3/gym missing. Obs= forecast+spread+momentum, action=weight delta."""
+    """PPO/SAC stub; fallback equal-weight if SB3/gym missing. Obs= forecast+spread+momentum, action=weight delta. Reward = pnl_net - cost."""
     def __init__(self, n_assets: int = 3, lookback: int = 30, model_name: str = "PPO") -> None:
         self.n_assets = max(1, int(n_assets))
         self.lookback = lookback
         self.model_name = model_name
         self._model = None
+        self._bias: dict[str, float] = {}
+        self._reward_fn = lambda pnl_net, cost: float(pnl_net - cost)
         if not _HAS_SB3:
             warnings.warn("stable-baselines3 not installed — DRLAllocator fallback to equal-weight")
         if not _HAS_GYM:
@@ -132,12 +134,49 @@ class DRLAllocator(WeightAllocator):
             try:
                 obs = self._build_observation(features)
                 act, _ = self._model.predict(obs, deterministic=True)  # type: ignore
-                return _sanitize_weights(np.asarray(act, dtype=float))
+                w = _sanitize_weights(np.asarray(act, dtype=float))
+                return self._apply_bias(w, features)
             except Exception as exc:
                 logger.warning("DRL predict failed (%s)", exc)
         n = self._infer_n_assets(features)
         self.n_assets = n
-        return _sanitize_weights(np.ones(n, dtype=float))
+        w = _sanitize_weights(np.ones(n, dtype=float))
+        return self._apply_bias(w, features)
+
+    def _apply_bias(self, w: np.ndarray, features) -> np.ndarray:
+        if not self._bias:
+            return w
+        # heuristic: reduce weight for symbols with hit_rate <0.5
+        if isinstance(features, pd.DataFrame):
+            cols = list(features.columns[: len(w)])
+            factors = np.array([self._bias.get(str(c), 1.0) for c in cols], dtype=float)
+            w = w * factors
+            return _sanitize_weights(w)
+        # ndarray: apply global factor (mean bias)
+        g = float(np.mean(list(self._bias.values()))) if self._bias else 1.0
+        if g < 1.0:
+            w = w * g
+            # renormalize to keep sum 1
+            return _sanitize_weights(w)
+        return w
+
+    def update_from_outcomes(self, outcomes: list) -> dict:
+        """Heuristic learning: if hit_rate <0.5 reduce allocation to that currency."""
+        if not outcomes:
+            return {}
+        groups: dict[str, list] = {}
+        for o in outcomes:
+            sym = str(o.get("symbol", "") or o.get("currency", "") or "unknown")
+            groups.setdefault(sym, []).append(o)
+        for sym, rows in groups.items():
+            pnls = [float(r.get("pnl_net", 0)) for r in rows]
+            hit = sum(1 for p in pnls if p > 0) / len(pnls) if pnls else 0.5
+            # reward = pnl_net - cost is already used for pnl_net; heuristic scales
+            self._bias[sym] = 0.7 if hit < 0.5 else min(1.2, 1.0 + (hit - 0.5))
+        return dict(self._bias)
+
+    def compute_reward(self, pnl_net: float, cost: float) -> float:
+        return self._reward_fn(float(pnl_net), float(cost))
     def load_model(self, path: str) -> None:
         if not _HAS_SB3:
             warnings.warn("SB3 not installed — cannot load model")
