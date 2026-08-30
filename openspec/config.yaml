@@ -1,0 +1,6 @@
+artifact_store: hybrid
+project: TradingAgents
+test_runner: pytest
+strict_tdd: false
+stack: python, langgraph, langchain
+
