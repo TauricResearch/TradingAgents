@@ -60,11 +60,57 @@ def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+def _backfill_latest_nan_bar(data: pd.DataFrame, canonical: str) -> pd.DataFrame:
+    """If the latest daily candle returned by yfinance has NaN prices (common for the
+    current or unfinalized trading session), backfill using single-day history or fast_info.
+    """
+    if data is None or data.empty or "Close" not in data.columns:
+        return data
+    if not pd.isna(data["Close"].iloc[-1]):
+        return data
+
+    last_idx = data.index[-1]
+    # Try fetching 1d history first
+    try:
+        t = yf.Ticker(canonical)
+        h1 = t.history(period="1d")
+        if not h1.empty and not pd.isna(h1["Close"].iloc[-1]):
+            for col in ["Open", "High", "Low", "Close", "Volume"]:
+                if col in h1.columns and col in data.columns:
+                    data.loc[last_idx, col] = h1[col].iloc[-1]
+            return data
+    except Exception:
+        pass
+
+    # Fallback to fast_info
+    try:
+        t = yf.Ticker(canonical)
+        fi = t.fast_info
+        last_price = getattr(fi, "last_price", None)
+        if last_price is not None and not pd.isna(last_price):
+            data.loc[last_idx, "Close"] = last_price
+            if "Open" in data.columns and pd.isna(data["Open"].iloc[-1]):
+                data.loc[last_idx, "Open"] = getattr(fi, "open", last_price)
+            if "High" in data.columns and pd.isna(data["High"].iloc[-1]):
+                data.loc[last_idx, "High"] = getattr(fi, "day_high", last_price)
+            if "Low" in data.columns and pd.isna(data["Low"].iloc[-1]):
+                data.loc[last_idx, "Low"] = getattr(fi, "day_low", last_price)
+            if "Volume" in data.columns and pd.isna(data["Volume"].iloc[-1]):
+                data.loc[last_idx, "Volume"] = getattr(fi, "last_volume", 0)
+    except Exception:
+        pass
+
+    return data
+
+
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
     data = _ensure_date_column(data)
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"])
+    if hasattr(data["Date"].dt, "tz") and data["Date"].dt.tz is not None:
+        data["Date"] = data["Date"].dt.tz_localize(None)
+    data["Date"] = data["Date"].dt.normalize()
 
     price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
     data[price_cols] = data[price_cols].apply(pd.to_numeric, errors="coerce")
@@ -128,7 +174,12 @@ def _assert_ohlcv_not_stale(
         )
 
 
-def _needs_same_day_refresh(data_file, curr_date_dt, today_date) -> bool:
+def _needs_same_day_refresh(
+    data_file: str,
+    curr_date_dt: pd.Timestamp,
+    today_date: pd.Timestamp,
+    cached_df: pd.DataFrame | None = None,
+) -> bool:
     """Whether a cached frame must be refetched to reflect the requested day.
 
     The cache file is keyed per day, so without this a run started before the
@@ -139,8 +190,24 @@ def _needs_same_day_refresh(data_file, curr_date_dt, today_date) -> bool:
     price. Row inspection cannot tell a partial bar from a final one, so the TTL
     governs every current-day cache. Historical requests always reuse the cache,
     since those rows are immutable.
+
+    If the cache's last row has a NaN Close or is missing the requested historical
+    weekday bar because it was created before the session completed, refresh is
+    also triggered when past the TTL (#1201).
     """
+    if (
+        cached_df is not None
+        and not cached_df.empty
+        and "Close" in cached_df.columns
+        and pd.isna(cached_df["Close"].iloc[-1])
+    ):
+        return True
+
     if curr_date_dt.date() < today_date.date():
+        if cached_df is not None and not cached_df.empty:
+            dates = _coerce_ohlcv_dates(cached_df)
+            if not dates.empty and dates.max().date() < curr_date_dt.date():
+                return time.time() - os.path.getmtime(data_file) > OHLCV_CACHE_TTL_SECONDS
         return False
     return time.time() - os.path.getmtime(data_file) > OHLCV_CACHE_TTL_SECONDS
 
@@ -159,10 +226,10 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     safe_symbol = safe_ticker_component(canonical)
 
     config = get_config()
-    curr_date_dt = pd.to_datetime(curr_date)
+    curr_date_dt = pd.to_datetime(curr_date).normalize()
 
     # Cache uses a fixed window (5y to today) so one file per symbol.
-    today_date = pd.Timestamp.today()
+    today_date = pd.Timestamp.today().normalize()
     start_date = today_date - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
     # yfinance ``end`` is EXCLUSIVE; request tomorrow so today's row is included
@@ -187,7 +254,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         if (
             not cached.empty
             and "Close" in cached.columns
-            and not _needs_same_day_refresh(data_file, curr_date_dt, today_date)
+            and not _needs_same_day_refresh(data_file, curr_date_dt, today_date, cached)
         ):
             data = cached
 
@@ -201,6 +268,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             auto_adjust=True,
         ))
         downloaded = _ensure_date_column(downloaded.reset_index())
+        downloaded = _backfill_latest_nan_bar(downloaded, canonical)
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
             raise NoMarketDataError(

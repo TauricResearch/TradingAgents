@@ -39,7 +39,11 @@ def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
     df = data.copy()
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df = df.dropna(subset=["Date"])
-    df = df[df["Date"] <= pd.to_datetime(curr_date)].sort_values("Date")
+    if hasattr(df["Date"].dt, "tz") and df["Date"].dt.tz is not None:
+        df["Date"] = df["Date"].dt.tz_localize(None)
+    df["Date"] = df["Date"].dt.normalize()
+    cutoff = pd.to_datetime(curr_date).normalize()
+    df = df[df["Date"] <= cutoff].sort_values("Date")
     if df.empty:
         raise ValueError(f"No OHLCV rows on or before {curr_date} for {symbol}.")
     return df

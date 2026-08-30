@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 from .stockstats_utils import (
     StockstatsUtils,
     _assert_ohlcv_not_stale,
+    _backfill_latest_nan_bar,
     filter_financials_by_date,
     load_ohlcv,
     yf_retry,
@@ -45,6 +46,9 @@ def get_YFin_data_online(
     # Remove timezone info from index for cleaner output
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
+
+    # Backfill NaN prices on the latest row if it is unfinalized (#1201)
+    data = _backfill_latest_nan_bar(data, canonical)
 
     # Reject a stale frame (e.g. a year-old partial response) before it is
     # formatted into the report. Raises NoMarketDataError, which the router
