@@ -14,7 +14,7 @@ _SECRET_KEYS = (
     "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "FRED_API_KEY",
     "BYMA_TOKEN", "ALPHA_VANTAGE_API_KEY",
 )
-_REDACT_RE = re.compile(r"(" + "|".join(re.escape(k) for k in _SECRET_KEYS) + r")\s*[:=]\s*['\"]?[^'\"\s,}]+['\"]?", re.IGNORECASE)
+_REDACT_RE = re.compile(r"(" + "|".join(re.escape(k) for k in _SECRET_KEYS) + r"|api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[^'\"\s,}\n]+['\"]?", re.IGNORECASE)
 
 
 def redact(text: str) -> str:

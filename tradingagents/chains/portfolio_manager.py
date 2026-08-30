@@ -19,6 +19,19 @@ from enum import Enum
 from tradingagents.dataflows.providers.fx_multi_currency import MultiCurrencyFXProvider
 from tradingagents.dataflows.providers.interest_rates import GlobalInterestRatesProvider
 
+try:
+    from tradingagents.dataflows.cost_model import CostModel, ETF_FX_BETA, FX_SPREAD_BPS, net_expected_return
+
+    _HAS_COST_MODEL = True
+except ImportError:
+    _HAS_COST_MODEL = False
+    CostModel = None  # type: ignore
+    ETF_FX_BETA = {}  # type: ignore
+    FX_SPREAD_BPS = {}  # type: ignore
+
+    def net_expected_return(spread, currency, cost_model=None, beta=None):  # type: ignore
+        return spread * 0.8, {}
+
 # TimesFM integration point — optional forecast-aware sizing (Step 1 hardening).
 # No hard dependency: gracefully degrades when forecasting module or timesfm
 # package is not installed.
@@ -63,6 +76,8 @@ class StrategyAllocation:
     expected_return: float
     max_drawdown: float
     status: str = "active"
+    cost_breakdown: Dict = field(default_factory=dict)
+    net_expected_return: float = 0.0
 
 
 @dataclass
@@ -163,9 +178,8 @@ class CarryTradePortfolioManager:
             brl_vol = volatility.get("USD_BRL", 0.15)
             
             spread = br_rate.rate - us_rate.rate
-            # More realistic expected return calculation
-            # Assume 50% of volatility is downside risk
-            expected_return = spread * 0.8  # Discount for execution costs and slippage
+            net_ret, breakdown = net_expected_return(spread, "BRL")
+            expected_return = net_ret
             
             strategies.append(StrategyAllocation(
                 name="Conservative_USD_BRL",
@@ -181,6 +195,8 @@ class CarryTradePortfolioManager:
                 fx_volatility=brl_vol,
                 expected_return=expected_return,
                 max_drawdown=5.0,
+                cost_breakdown=breakdown,
+                net_expected_return=net_ret,
             ))
         
         # Strategy 2: Diversified - Multi-currency basket
@@ -209,6 +225,7 @@ class CarryTradePortfolioManager:
         # Estimate diversified volatility (lower due to diversification)
         diversified_vol = 0.10  # Lower volatility due to 10-currency basket
         
+        net_div, div_breakdown = net_expected_return(diversified_return, "MULTI")
         strategies.append(StrategyAllocation(
             name="Diversified_Multi_Currency",
             risk_level=RiskLevel.MODERATE,
@@ -221,8 +238,10 @@ class CarryTradePortfolioManager:
             allocation_usd=self.total_portfolio_value * self.allocations["diversified"],
             fx_rate=1.0,  # Basket
             fx_volatility=diversified_vol,
-            expected_return=diversified_return * 0.85,  # Discount for execution
+            expected_return=net_div,
             max_drawdown=6.0,  # Lower due to diversification
+            cost_breakdown=div_breakdown,
+            net_expected_return=net_div,
         ))
         
         # Strategy 3: Aggressive - USD/TRY
@@ -233,8 +252,8 @@ class CarryTradePortfolioManager:
             try_vol = volatility.get("USD_TRY", 0.25)
             
             spread = tr_rate.rate - us_rate.rate
-            # Higher discount for aggressive strategy due to higher risk
-            expected_return = spread * 0.7  # More discount for higher risk
+            net_try, try_breakdown = net_expected_return(spread, "TRY")
+            expected_return = net_try
             
             strategies.append(StrategyAllocation(
                 name="Aggressive_USD_TRY",
@@ -250,6 +269,8 @@ class CarryTradePortfolioManager:
                 fx_volatility=try_vol,
                 expected_return=expected_return,
                 max_drawdown=20.0,
+                cost_breakdown=try_breakdown,
+                net_expected_return=net_try,
             ))
         
         return strategies
@@ -274,6 +295,7 @@ class CarryTradePortfolioManager:
             "sharpe_ratio": sharpe_ratio,
             "strategies_count": len(strategies),
             "total_allocation": sum(s.allocation_pct for s in strategies),
+            "cost_breakdown": {s.name: s.cost_breakdown for s in strategies},
         }
     
     def generate_execution_plan(self, strategies: List[StrategyAllocation]) -> List[Dict]:

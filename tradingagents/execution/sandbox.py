@@ -9,8 +9,9 @@ import textwrap
 from pathlib import Path
 
 _SECRET_KEYS = ("ALPACA_API_KEY", "ALPACA_SECRET_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "FRED_API_KEY", "BYMA_TOKEN", "ALPHA_VANTAGE_API_KEY")
-_SECRET_RE = re.compile(r"(" + "|".join(_SECRET_KEYS) + r")(\s*[:=]\s*)(['\"]?)([^'\"\s,;\)\}\n]+)(['\"]?)", re.IGNORECASE)
-_BLOCKED_RE = re.compile(r"\b(__import__|eval\s*\(|exec\s*\(|open\s*\(|socket|subprocess|os\.system|os\.popen|urllib|requests\.)")
+_GENERIC_RE = r"api[_-]?key|secret|token|password"
+_SECRET_RE = re.compile(r"(" + "|".join(_SECRET_KEYS) + r"|" + _GENERIC_RE + r")(\s*[:=]\s*)(['\"]?)([^'\"\s,;\)\}\n]+)(['\"]?)", re.IGNORECASE)
+_BLOCKED_RE = re.compile(r"(__import__|chr\s*\(|getattr\s*\(|getattr|eval\s*\(|exec\s*\(|open\s*\(|socket|subprocess|os\.system|os\.popen|urllib|requests\.)")
 
 
 def _redact_code(code: str) -> str:
@@ -54,9 +55,9 @@ def run_in_sandbox(code: str, timeout: int = 30) -> dict:
         pass
     except Exception:
         pass
-    # Fallback: subprocess with timeout
+    # Fallback: subprocess with timeout — deny by default unless E2B/Boxlite configured
     if isinstance(code, str) and _BLOCKED_RE.search(code):
-        pass
+        return {"success": False, "output": "", "error": "blocked: disallowed pattern"}
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:

@@ -28,17 +28,35 @@ class BacktestResult:
     num_trades: int
     equity_curve: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))
     method: str = "unknown"
+    net_sharpe: float = 0.0
 
 
 class VectorBTBacktest:
     """Backtest harness; integration point for portfolio_manager validation."""
 
-    def __init__(self, fees: float = 0.001) -> None:
+    def __init__(self, fees: float = 0.001, cost_model=None) -> None:
+        # cost_model: CostModel optional — when provided fees derived from cost_model
+        if cost_model is not None:
+            try:
+                fees = cost_model.total_rate()
+            except Exception:
+                pass
+            self.cost_model = cost_model
+        else:
+            self.cost_model = None
         self.fees = fees
         if not _HAS_VECTORBT:
             logger.warning("vectorbt not installed — pandas fallback")
 
-    def run(self, price: pd.DataFrame | pd.Series, entries: pd.Series, exits: pd.Series, fees: Optional[float] = None) -> BacktestResult:
+    def run(self, price: pd.DataFrame | pd.Series, entries: pd.Series, exits: pd.Series, fees: Optional[float] = None, cost_model=None) -> BacktestResult:
+        # cost_model overrides fees when provided
+        if cost_model is not None:
+            try:
+                fees = cost_model.total_rate()
+            except Exception:
+                pass
+        elif self.cost_model is not None and fees is None:
+            fees = self.cost_model.total_rate()
         fee = self.fees if fees is None else fees
         close = self._to_series(price)
         entries = entries.reindex(close.index).fillna(False).astype(bool)
@@ -79,6 +97,7 @@ class VectorBTBacktest:
 
     @staticmethod
     def _run_vectorbt(close: pd.Series, entries: pd.Series, exits: pd.Series, fees: float) -> BacktestResult:
+        # fees includes fee+slippage+fx_spread (one-way) when cost_model used
         pf = vbt.Portfolio.from_signals(close, entries, exits, fees=fees, freq="1D")  # type: ignore
         total_return = float(pf.total_return())
         sharpe = float(pf.sharpe_ratio()) if len(close) > 1 else 0.0
@@ -89,10 +108,13 @@ class VectorBTBacktest:
         except Exception:
             win_rate, num_trades = 0.0, 0
         equity = pd.Series(pf.value(), index=close.index)
-        return BacktestResult(total_return=total_return, sharpe=sharpe if np.isfinite(sharpe) else 0.0, max_drawdown=max_dd, win_rate=win_rate, num_trades=num_trades, equity_curve=equity, method="vectorbt")
+        # net_sharpe after costs: same as sharpe when fees incorporates costs
+        net_sharpe = sharpe if np.isfinite(sharpe) else 0.0
+        return BacktestResult(total_return=total_return, sharpe=sharpe if np.isfinite(sharpe) else 0.0, max_drawdown=max_dd, win_rate=win_rate, num_trades=num_trades, equity_curve=equity, method="vectorbt", net_sharpe=net_sharpe)
 
     @staticmethod
     def _run_fallback(close: pd.Series, entries: pd.Series, exits: pd.Series, fees: float) -> BacktestResult:
+        # entry/exit price adjusted by fees+slippage+fx_spread (one-way)
         n = len(close)
         pos, entry_price, equity, rets, pnls = 0, 0.0, [1.0], [], []
         for i in range(1, n):
@@ -111,4 +133,5 @@ class VectorBTBacktest:
         max_dd = float(abs((equity_s - equity_s.cummax()).div(equity_s.cummax()).min())) if len(equity_s) else 0.0
         total_return = float(equity_s.iloc[-1] - 1.0) if len(equity_s) else 0.0
         win_rate = float(np.mean([1 if x > 0 else 0 for x in pnls])) if pnls else 0.0
-        return BacktestResult(total_return=total_return, sharpe=sharpe if np.isfinite(sharpe) else 0.0, max_drawdown=max_dd, win_rate=win_rate, num_trades=len(pnls), equity_curve=equity_s, method="fallback")
+        net_sharpe = sharpe if np.isfinite(sharpe) else 0.0
+        return BacktestResult(total_return=total_return, sharpe=sharpe if np.isfinite(sharpe) else 0.0, max_drawdown=max_dd, win_rate=win_rate, num_trades=len(pnls), equity_curve=equity_s, method="fallback", net_sharpe=net_sharpe)

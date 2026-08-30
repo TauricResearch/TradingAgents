@@ -17,6 +17,7 @@ Usage:
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -24,6 +25,14 @@ import argparse
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
+
+_SECRET_RE = re.compile(r"(ALPACA_API_KEY|ALPACA_SECRET_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_API_KEY|FRED_API_KEY|BYMA_TOKEN|ALPHA_VANTAGE_API_KEY|api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[^'\"\s,}\n]+['\"]?", re.IGNORECASE)
+
+
+def _redact(text: str) -> str:
+    if not text:
+        return text
+    return _SECRET_RE.sub(lambda m: m.group(1) + "=***", text)
 
 # Add project to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -81,9 +90,16 @@ class CarryTradeMainLoop:
         self.log_dir = Path("logs")
         self.log_dir.mkdir(exist_ok=True)
         self.log_file = self.log_dir / f"carry_trade_loop_{datetime.now().strftime('%Y%m%d')}.log"
+        # secure log file permissions (best effort, ignore on Windows)
+        try:
+            self.log_file.touch(exist_ok=True)
+            os.chmod(self.log_file, 0o600)
+        except Exception:
+            pass
     
     def log(self, message: str, level: str = "INFO"):
-        """Log message"""
+        """Log message with secret redaction"""
+        message = _redact(message)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_entry = f"[{timestamp}] [{level}] {message}"
         
@@ -91,6 +107,11 @@ class CarryTradeMainLoop:
         
         with open(self.log_file, "a") as f:
             f.write(log_entry + "\n")
+        # enforce 600 after each write (best effort, ignore on Windows)
+        try:
+            os.chmod(self.log_file, 0o600)
+        except Exception:
+            pass
     
     def fetch_market_data(self) -> Dict:
         """Fetch current market data"""
