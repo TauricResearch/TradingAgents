@@ -1,10 +1,12 @@
 """Handels-Agenten — Streamlit Web-UI"""
-import streamlit as st
-import threading
 import queue
+import threading
 from datetime import date, timedelta
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+import streamlit as st
+
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 st.set_page_config(page_title="Handels-Agenten", page_icon="📈", layout="wide")
 st.title("Handels-Agenten")
