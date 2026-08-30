@@ -28,15 +28,21 @@ def _synthetic_series(n: int = 200, n_assets: int = 3, seed: int = 42) -> pd.Dat
 @dataclass
 class EnvConfig:
     n_assets: int = 3
-    transaction_cost: float = 0.001
+    transaction_cost: float = 0.0025
+    fx_spread_bps: float = 7.0
     max_steps: int = 200
+
+    @property
+    def total_cost_rate(self) -> float:
+        return self.transaction_cost + self.fx_spread_bps / 10000.0
 
 class CarryTradeEnv:
     """State [fx_returns, rate_spread, TimesFM forecast, vol]; Action target weights; Reward PnL-cost."""
     metadata = {"render_modes": []}
     def __init__(self, price_data: pd.DataFrame | None = None, rate_spread: pd.DataFrame | np.ndarray | None = None, config: EnvConfig | None = None) -> None:
         self.config = config or EnvConfig()
-        self.n_assets, self.tc = self.config.n_assets, self.config.transaction_cost
+        self.n_assets, self.tc = self.config.n_assets, self.config.total_cost_rate
+        # fx spread included in tc via total_cost_rate
         if price_data is None:
             try:
                 from tradingagents.dataflows.providers.fx_multi_currency import MultiCurrencyFXProvider
