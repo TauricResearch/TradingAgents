@@ -272,7 +272,7 @@ class TradingAgentsGraph:
     def _fetch_returns(
         self, ticker: str, trade_date: str, holding_days: int = 5,
         benchmark: str = "SPY",
-    ) -> tuple[float | None, float | None, int | None]:
+    ) -> tuple[float | None, float | None, int | None, str | None]:
         """Fetch raw and alpha return for ticker over holding_days from trade_date.
 
         ``benchmark`` is the index used as the alpha baseline (resolved by the
@@ -294,7 +294,7 @@ class TradingAgentsGraph:
             bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
 
             if len(stock) < 2 or len(bench) < 2:
-                return None, None, None
+                return None, None, None, None
 
             actual_days = min(holding_days, len(stock) - 1, len(bench) - 1)
             raw = float(
@@ -306,13 +306,16 @@ class TradingAgentsGraph:
                 / bench["Close"].iloc[0]
             )
             alpha = raw - bench_ret
-            return raw, alpha, actual_days
+            # The date of the last price bar used is when this outcome became
+            # known — the point-in-time cutoff for injecting the lesson (#1251).
+            resolution_date = stock.index[actual_days].strftime("%Y-%m-%d")
+            return raw, alpha, actual_days, resolution_date
         except Exception as e:
             logger.warning(
                 "Could not resolve outcome for %s on %s vs %s (will retry next run): %s",
                 ticker, trade_date, benchmark, e,
             )
-            return None, None, None
+            return None, None, None, None
 
     def _resolve_pending_entries(self, ticker: str) -> None:
         """Resolve pending log entries for ticker at the start of a new run.
@@ -331,7 +334,7 @@ class TradingAgentsGraph:
         benchmark = self._resolve_benchmark(ticker)
         updates = []
         for entry in pending:
-            raw, alpha, days = self._fetch_returns(
+            raw, alpha, days, resolution_date = self._fetch_returns(
                 ticker, entry["date"], benchmark=benchmark,
             )
             if raw is None:
@@ -349,6 +352,7 @@ class TradingAgentsGraph:
                 "alpha_return": alpha,
                 "holding_days": days,
                 "reflection": reflection,
+                "resolution_date": resolution_date,
             })
 
         if updates:
@@ -365,6 +369,17 @@ class TradingAgentsGraph:
         """
         identity = resolve_instrument_identity(ticker)
         return build_instrument_context(ticker, asset_type, identity)
+
+    def _memory_as_of(self, trade_date) -> str | None:
+        """Point-in-time cutoff for past-context lessons (#1251).
+
+        A historical/backtest run (trade date before today) filters lessons to
+        those already resolved by the trade date. A current-date run returns
+        None, disabling the filter so live behavior and pre-migration entries
+        (which have no stored resolution date) are unaffected.
+        """
+        td = str(trade_date)
+        return td if td < datetime.now().strftime("%Y-%m-%d") else None
 
     def _run_signature(self, asset_type: str) -> str:
         """Graph-shape inputs that must invalidate a checkpoint if changed.
@@ -476,8 +491,12 @@ class TradingAgentsGraph:
                    checkpoint_thread_id: str | None = None):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
-        # deterministically resolved instrument identity for all agents.
-        past_context = self.memory_log.get_past_context(company_name)
+        # deterministically resolved instrument identity for all agents. On a
+        # historical run, gate lessons to those whose outcome was known by the
+        # trade date so a backtest can't learn from the future (#1251).
+        past_context = self.memory_log.get_past_context(
+            company_name, as_of=self._memory_as_of(trade_date)
+        )
         instrument_context = self.resolve_instrument_context(company_name, asset_type)
         init_agent_state = self.propagator.create_initial_state(
             company_name,
