@@ -16,8 +16,28 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 
-from tradingagents.dataflows.providers.interest_rates import GlobalInterestRatesProvider
 from tradingagents.dataflows.providers.fx_multi_currency import MultiCurrencyFXProvider
+from tradingagents.dataflows.providers.interest_rates import GlobalInterestRatesProvider
+
+# TimesFM integration point — optional forecast-aware sizing (Step 1 hardening).
+# No hard dependency: gracefully degrades when forecasting module or timesfm
+# package is not installed.
+try:
+    from tradingagents.chains.forecasting import ForecastResult, TimesFMForecaster  # noqa: F401
+
+    _HAS_FORECASTING = True
+except ImportError:
+    _HAS_FORECASTING = False
+
+# RL weight-centric allocator — optional (FinRL-X w = R(T(A(S(market)))))
+try:
+    from tradingagents.rl.weight_allocator import WeightAllocator, apply_risk_overlay  # noqa: F401
+
+    _HAS_RL = True
+except ImportError:
+    WeightAllocator = object  # type: ignore
+    apply_risk_overlay = None  # type: ignore
+    _HAS_RL = False
 
 
 class RiskLevel(Enum):
@@ -382,6 +402,52 @@ class CarryTradePortfolioManager:
             "execution_plan": execution_plan,
         }
     
+    def adjust_allocation_for_forecast(
+        self,
+        base_allocation: float,
+        forecast_return: float,
+        forecast_vol: Optional[float] = None,
+    ) -> float:
+        """Forecast-aware sizing hook (TimesFM integration point).
+
+        Scales allocation by expected forecast return / vol. No-op if
+        forecasting is unavailable. Preserves existing API — caller
+        decides when to apply.
+
+        Example:
+            forecaster = TimesFMForecaster()
+            res = forecaster.forecast_rate_spread("BR", "US", horizon=5)
+            adj = manager.adjust_allocation_for_forecast(0.4, float(res.forecast.mean()))
+        """
+        if not _HAS_FORECASTING or forecast_vol is None or forecast_vol <= 0:
+            # Clamp to [0.5x, 1.5x] scaling to avoid extreme bets
+            scale = 1.0 + max(min(forecast_return / 10.0, 0.5), -0.5)
+            return max(0.0, min(1.0, base_allocation * scale))
+        # Volatility-adjusted scaling
+        scale = 1.0 + max(min(forecast_return / max(forecast_vol, 1e-6) * 0.05, 0.5), -0.5)
+        return max(0.0, min(1.0, base_allocation * scale))
+
+    def allocate_with_rl(self, features, allocator: "WeightAllocator", max_leverage: float = 1.0, stop_loss_vol: float | None = None):  # type: ignore
+        """Delegate to WeightAllocator then R() risk overlay. No-op fallback if RL missing."""
+        import numpy as np
+
+        if not _HAS_RL or apply_risk_overlay is None:
+            raise ImportError("tradingagents.rl not available — install optional deps or check import")
+        weights = allocator.allocate(features)  # type: ignore
+        w = np.asarray(weights, dtype=float)
+        # Estimate vol from features if not provided
+        cur_vol = None
+        try:
+            import pandas as pd  # noqa: F401
+
+            if isinstance(features, pd.DataFrame):
+                cur_vol = float(features.to_numpy(dtype=float).std())
+            else:
+                cur_vol = float(np.asarray(features, dtype=float).std())
+        except Exception:
+            cur_vol = None
+        return apply_risk_overlay(w, max_leverage=max_leverage, stop_loss_vol=stop_loss_vol, current_vol=cur_vol)
+
     def close(self):
         """Close providers"""
         self.rates_provider.close()

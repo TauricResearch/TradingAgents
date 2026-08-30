@@ -12,6 +12,12 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+# Optional sandbox for safe derivatives pricing code (derivatives_analyst)
+try:
+    from .sandbox import run_in_sandbox  # noqa: F401
+except ImportError:
+    run_in_sandbox = None  # type: ignore
+
 
 class OrderSide(str, Enum):
     """Order side."""

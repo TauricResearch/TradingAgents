@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
@@ -45,6 +46,11 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.data.historical import StockHistoricalDataClient
+
+try:
+    from tradingagents.execution.watchdog import ExecutionWatchdog
+except ImportError:  # graceful if execution layer not installed
+    ExecutionWatchdog = None  # type: ignore
 
 
 @dataclass
@@ -100,16 +106,18 @@ class CarryTradeExecutor:
         "PHP": {"symbol": "VWO", "name": "Vanguard FTSE Emerging Markets ETF"},
     }
     
-    def __init__(self, dry_run: bool = True, use_paper: bool = True):
+    def __init__(self, dry_run: bool = True, use_paper: bool = True, watchdog: "ExecutionWatchdog | None" = None):
         """
         Initialize Alpaca executor.
         
         Args:
             dry_run: If True, simulate execution without real orders
             use_paper: If True, use paper trading account
+            watchdog: Optional ExecutionWatchdog for SRE monitoring
         """
         self.dry_run = dry_run
         self.use_paper = use_paper
+        self.watchdog = watchdog
         
         # Initialize Alpaca client
         api_key = os.getenv("ALPACA_API_KEY")
@@ -172,13 +180,14 @@ class CarryTradeExecutor:
             return []
     
     def get_quote(self, symbol: str) -> Optional[Dict]:
-        """Get latest quote for a symbol"""
+        """Get latest quote for a symbol (watchdog-instrumented)."""
         if not self.data_client:
             return None
-        
+        _t0 = time.monotonic()
+        _success = False
         try:
             from alpaca.data.requests import StockLatestQuoteRequest
-            
+
             request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
             quote_response = self.data_client.get_stock_latest_quote(request)
             
@@ -191,17 +200,25 @@ class CarryTradeExecutor:
             if quote is None:
                 return None
             
-            return {
+            _success = quote is not None
+            result = {
                 "symbol": symbol,
                 "bid_price": float(quote.bid_price),
                 "ask_price": float(quote.ask_price),
                 "bid_size": quote.bid_size,
                 "ask_size": quote.ask_size,
                 "timestamp": quote.timestamp,
-            }
+            } if quote is not None else None
+            return result
         except Exception as e:
             print(f"Error getting quote for {symbol}: {e}")
             return None
+        finally:
+            if self.watchdog:
+                try:
+                    self.watchdog.record_call((time.monotonic() - _t0) * 1000, _success, "alpaca.get_quote")
+                except Exception:
+                    pass
     
     def create_market_order(
         self,
@@ -242,7 +259,9 @@ class CarryTradeExecutor:
         )
     
     def execute_order(self, order: ExecutionOrder) -> Optional[Dict]:
-        """Execute an order"""
+        """Execute an order (watchdog-instrumented)"""
+        _t0 = time.monotonic()
+        _success = False
         if self.dry_run:
             print(f"  [DRY RUN] Would execute: {order.side.value} {order.symbol}")
             if order.notional:
@@ -278,7 +297,7 @@ class CarryTradeExecutor:
                 return None
             
             submitted_order = self.client.submit_order(request)
-            
+            _success = True
             return {
                 "status": "submitted",
                 "order_id": str(submitted_order.id),
@@ -293,6 +312,12 @@ class CarryTradeExecutor:
         except Exception as e:
             print(f"  ❌ Error executing order: {e}")
             return None
+        finally:
+            if self.watchdog:
+                try:
+                    self.watchdog.record_call((time.monotonic() - _t0) * 1000, _success, "alpaca.execute_order")
+                except Exception:
+                    pass
     
     def rebalance_portfolio(
         self,
