@@ -62,6 +62,19 @@ def _coerce_max_retries(value):
     return n
 
 
+def _coerce_max_tokens(value):
+    """Validate a ``max_tokens`` value to a positive int (env vars are strings)."""
+    if isinstance(value, bool):
+        raise ValueError(f"max_tokens must be an integer, not a boolean: {value!r}")
+    try:
+        n = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"max_tokens must be an integer, got {value!r}") from exc
+    if n <= 0:
+        raise ValueError(f"max_tokens must be > 0, got {n}")
+    return n
+
+
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
@@ -182,6 +195,13 @@ class TradingAgentsGraph:
         max_retries = self.config.get("llm_max_retries")
         if max_retries is not None and max_retries != "":
             kwargs["max_retries"] = _coerce_max_retries(max_retries)
+
+        # Output-token cap is cross-provider, but Gemini names it
+        # ``max_output_tokens``; forward under the right key when set (#1204).
+        max_tokens = self.config.get("max_tokens")
+        if max_tokens is not None and max_tokens != "":
+            key = "max_output_tokens" if provider == "google" else "max_tokens"
+            kwargs[key] = _coerce_max_tokens(max_tokens)
 
         return kwargs
 
