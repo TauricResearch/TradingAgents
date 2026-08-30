@@ -7,7 +7,7 @@ consistent data access across different markets and sources.
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field
 
 class MarketData(BaseModel):
     """Standardized market data response."""
+    model_config = {"arbitrary_types_allowed": True}
+    
     symbol: str
     provider: str
     timestamp: datetime
@@ -96,3 +98,22 @@ class DataProvider(ABC):
     def has_market(self, market: str) -> bool:
         """Check if provider supports a specific market."""
         return market.upper() in [m.upper() for m in self.supported_markets]
+
+
+# Aliases for backward compatibility
+BaseProvider = DataProvider
+
+
+class ProviderError(Exception):
+    """Base exception for provider errors"""
+    pass
+
+
+class ProviderConnectionError(ProviderError):
+    """Connection error"""
+    pass
+
+
+class ProviderRateLimitError(ProviderError):
+    """Rate limit exceeded"""
+    pass
