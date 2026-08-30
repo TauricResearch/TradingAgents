@@ -1127,6 +1127,15 @@ def run_analysis(checkpoint: bool | None = None):
         # (LLM tracking is handled separately via LLM constructor)
         args = graph.propagator.get_graph_args(callbacks=[stats_handler])
 
+        # Recompile with a checkpointer and inject the thread_id so --checkpoint
+        # actually saves and resumes on the CLI path (#1249); a no-op when
+        # checkpointing is disabled. Paired with end_checkpoint after the stream.
+        checkpoint_tid = graph.begin_checkpoint(
+            selections["ticker"], selections["analysis_date"], selections["asset_type"]
+        )
+        if checkpoint_tid is not None:
+            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_tid
+
         # Stream the analysis
         trace = []
         for chunk in graph.graph.stream(init_agent_state, **args):
@@ -1230,6 +1239,14 @@ def run_analysis(checkpoint: bool | None = None):
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
             trace.append(chunk)
+
+        # The stream completed: drop this run's checkpoint and restore the plain
+        # graph (#1249). A mid-stream failure skips this, leaving the checkpoint
+        # in place so the next run resumes.
+        graph.clear_checkpoint_on_success(
+            selections["ticker"], selections["analysis_date"], selections["asset_type"]
+        )
+        graph.end_checkpoint()
 
         # Streamed chunks are per-node deltas, not full state. Merge them
         # so every report field populated across the run is present.

@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -400,32 +401,61 @@ class TradingAgentsGraph:
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)
 
-        # Recompile with a checkpointer if the user opted in.
-        if self.config.get("checkpoint_enabled"):
-            self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
+        with self.checkpoint_scope(company_name, trade_date, asset_type) as thread_id_value:
+            return self._run_graph(
+                company_name, trade_date, asset_type=asset_type,
+                checkpoint_thread_id=thread_id_value,
             )
-            saver = self._checkpointer_ctx.__enter__()
-            self.graph = self.workflow.compile(checkpointer=saver)
 
-            step = checkpoint_step(
+    def begin_checkpoint(self, company_name, trade_date, asset_type: str = "stock") -> str | None:
+        """Recompile the graph with a per-ticker checkpointer and return the
+        ``thread_id`` to inject into the stream/invoke ``config`` (or ``None``
+        when checkpointing is disabled).
+
+        Pair every call with :meth:`end_checkpoint` in a ``finally``. Both
+        ``propagate`` (via :meth:`checkpoint_scope`) and the CLI stream path use
+        this so ``--checkpoint`` actually resumes (#1249); previously the setup
+        lived only inside ``propagate`` and the CLI streamed the checkpointer-less
+        graph, making the flag a no-op.
+        """
+        if not self.config.get("checkpoint_enabled"):
+            return None
+        signature = self._run_signature(asset_type)
+        self._checkpointer_ctx = get_checkpointer(self.config["data_cache_dir"], company_name)
+        saver = self._checkpointer_ctx.__enter__()
+        self.graph = self.workflow.compile(checkpointer=saver)
+
+        step = checkpoint_step(
+            self.config["data_cache_dir"], company_name, str(trade_date), signature
+        )
+        if step is not None:
+            logger.info("Resuming from step %d for %s on %s", step, company_name, trade_date)
+        else:
+            logger.info("Starting fresh for %s on %s", company_name, trade_date)
+        return thread_id(company_name, str(trade_date), signature)
+
+    def end_checkpoint(self):
+        """Restore the plain uncheckpointed graph after a checkpointed run."""
+        if self._checkpointer_ctx is not None:
+            self._checkpointer_ctx.__exit__(None, None, None)
+            self._checkpointer_ctx = None
+            self.graph = self.workflow.compile()
+
+    @contextmanager
+    def checkpoint_scope(self, company_name, trade_date, asset_type: str = "stock"):
+        """Context-manager form of begin/end_checkpoint for the propagate path."""
+        try:
+            yield self.begin_checkpoint(company_name, trade_date, asset_type)
+        finally:
+            self.end_checkpoint()
+
+    def clear_checkpoint_on_success(self, company_name, trade_date, asset_type: str = "stock"):
+        """Drop a completed run's checkpoint so a later run starts fresh (#1249)."""
+        if self.config.get("checkpoint_enabled"):
+            clear_checkpoint(
                 self.config["data_cache_dir"], company_name, str(trade_date),
                 self._run_signature(asset_type),
             )
-            if step is not None:
-                logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
-                )
-            else:
-                logger.info("Starting fresh for %s on %s", company_name, trade_date)
-
-        try:
-            return self._run_graph(company_name, trade_date, asset_type=asset_type)
-        finally:
-            if self._checkpointer_ctx is not None:
-                self._checkpointer_ctx.__exit__(None, None, None)
-                self._checkpointer_ctx = None
-                self.graph = self.workflow.compile()
 
     def save_reports(self, final_state, ticker, save_path=None) -> Path:
         """Write the markdown report tree for a completed run, like the CLI does.
@@ -442,7 +472,8 @@ class TradingAgentsGraph:
             )
         return write_report_tree(final_state, ticker, save_path)
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
+    def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
+                   checkpoint_thread_id: str | None = None):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
@@ -457,11 +488,10 @@ class TradingAgentsGraph:
         )
         args = self.propagator.get_graph_args()
 
-        # Inject thread_id so same ticker+date+graph-shape resumes; a different
-        # date or graph shape starts fresh (#1089).
-        if self.config.get("checkpoint_enabled"):
-            tid = thread_id(company_name, str(trade_date), self._run_signature(asset_type))
-            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
+        # Inject the checkpoint thread_id (from checkpoint_scope) so the same
+        # ticker+date+graph-shape resumes; a different one starts fresh (#1089).
+        if checkpoint_thread_id is not None:
+            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_thread_id
 
         if self.debug:
             trace = []
@@ -499,11 +529,7 @@ class TradingAgentsGraph:
         )
 
         # Clear checkpoint on successful completion to avoid stale state.
-        if self.config.get("checkpoint_enabled"):
-            clear_checkpoint(
-                self.config["data_cache_dir"], company_name, str(trade_date),
-                self._run_signature(asset_type),
-            )
+        self.clear_checkpoint_on_success(company_name, trade_date, asset_type)
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
