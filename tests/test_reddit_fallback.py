@@ -9,7 +9,7 @@ from urllib.error import HTTPError
 
 import pytest
 
-from tradingagents.dataflows import reddit
+from handelsagenten.dataflows import reddit
 
 _SAMPLE_ATOM = """<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">

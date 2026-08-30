@@ -9,13 +9,13 @@ from unittest import mock
 
 import pytest
 
-from tradingagents.llm_clients.google_client import GoogleClient
+from handelsagenten.llm_clients.google_client import GoogleClient
 
 
 def _captured_kwargs(model, **kwargs):
     captured = {}
     with mock.patch.object(
-        __import__("tradingagents.llm_clients.google_client", fromlist=["x"]),
+        __import__("handelsagenten.llm_clients.google_client", fromlist=["x"]),
         "NormalizedChatGoogleGenerativeAI",
         lambda **kw: captured.setdefault("kw", kw),
     ):

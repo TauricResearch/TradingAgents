@@ -1,4 +1,4 @@
-"""Tests for TRADINGAGENTS_* env-var overlay onto DEFAULT_CONFIG."""
+"""Tests for HANDELSAGENTEN_* env-var overlay onto DEFAULT_CONFIG."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import importlib
 
 import pytest
 
-import tradingagents.default_config as default_config_module
+import handelsagenten.default_config as default_config_module
 
 
 def _reload_with_env(monkeypatch, **overrides):
@@ -31,11 +31,11 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
 def test_string_overrides(monkeypatch):
     dc = _reload_with_env(
         monkeypatch,
-        TRADINGAGENTS_LLM_PROVIDER="google",
-        TRADINGAGENTS_DEEP_THINK_LLM="gemini-3-pro-preview",
-        TRADINGAGENTS_QUICK_THINK_LLM="gemini-3-flash-preview",
-        TRADINGAGENTS_LLM_BACKEND_URL="https://example.invalid/v1",
-        TRADINGAGENTS_OUTPUT_LANGUAGE="Chinese",
+        HANDELSAGENTEN_LLM_PROVIDER="google",
+        HANDELSAGENTEN_DEEP_THINK_LLM="gemini-3-pro-preview",
+        HANDELSAGENTEN_QUICK_THINK_LLM="gemini-3-flash-preview",
+        HANDELSAGENTEN_LLM_BACKEND_URL="https://example.invalid/v1",
+        HANDELSAGENTEN_OUTPUT_LANGUAGE="Chinese",
     )
     assert dc.DEFAULT_CONFIG["llm_provider"] == "google"
     assert dc.DEFAULT_CONFIG["deep_think_llm"] == "gemini-3-pro-preview"
@@ -47,8 +47,8 @@ def test_string_overrides(monkeypatch):
 def test_int_coercion(monkeypatch):
     dc = _reload_with_env(
         monkeypatch,
-        TRADINGAGENTS_MAX_DEBATE_ROUNDS="3",
-        TRADINGAGENTS_MAX_RISK_ROUNDS="2",
+        HANDELSAGENTEN_MAX_DEBATE_ROUNDS="3",
+        HANDELSAGENTEN_MAX_RISK_ROUNDS="2",
     )
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 3
     assert isinstance(dc.DEFAULT_CONFIG["max_debate_rounds"], int)
@@ -64,7 +64,7 @@ def test_int_coercion(monkeypatch):
     ],
 )
 def test_bool_coercion(monkeypatch, raw, expected):
-    dc = _reload_with_env(monkeypatch, TRADINGAGENTS_CHECKPOINT_ENABLED=raw)
+    dc = _reload_with_env(monkeypatch, HANDELSAGENTEN_CHECKPOINT_ENABLED=raw)
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is expected
 
 
@@ -72,9 +72,9 @@ def test_reasoning_thinking_overrides(monkeypatch):
     """The provider reasoning/thinking knobs are env-configurable (non-interactive runs)."""
     dc = _reload_with_env(
         monkeypatch,
-        TRADINGAGENTS_OPENAI_REASONING_EFFORT="high",
-        TRADINGAGENTS_GOOGLE_THINKING_LEVEL="minimal",
-        TRADINGAGENTS_ANTHROPIC_EFFORT="low",
+        HANDELSAGENTEN_OPENAI_REASONING_EFFORT="high",
+        HANDELSAGENTEN_GOOGLE_THINKING_LEVEL="minimal",
+        HANDELSAGENTEN_ANTHROPIC_EFFORT="low",
     )
     assert dc.DEFAULT_CONFIG["openai_reasoning_effort"] == "high"
     assert dc.DEFAULT_CONFIG["google_thinking_level"] == "minimal"
@@ -90,11 +90,11 @@ def test_reasoning_effort_defaults_to_none(monkeypatch):
 
 
 def test_empty_env_value_is_passthrough(monkeypatch):
-    """Empty TRADINGAGENTS_* values must not clobber the built-in default."""
+    """Empty HANDELSAGENTEN_* values must not clobber the built-in default."""
     dc = _reload_with_env(
         monkeypatch,
-        TRADINGAGENTS_LLM_PROVIDER="",
-        TRADINGAGENTS_MAX_DEBATE_ROUNDS="",
+        HANDELSAGENTEN_LLM_PROVIDER="",
+        HANDELSAGENTEN_MAX_DEBATE_ROUNDS="",
     )
     assert dc.DEFAULT_CONFIG["llm_provider"] == "openai"
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
@@ -102,21 +102,21 @@ def test_empty_env_value_is_passthrough(monkeypatch):
 
 def test_invalid_int_raises(monkeypatch):
     """Garbage int values should surface a ValueError at import, not silently misconfigure."""
-    monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "not-a-number")
-    with pytest.raises(ValueError, match="TRADINGAGENTS_MAX_DEBATE_ROUNDS"):
+    monkeypatch.setenv("HANDELSAGENTEN_MAX_DEBATE_ROUNDS", "not-a-number")
+    with pytest.raises(ValueError, match="HANDELSAGENTEN_MAX_DEBATE_ROUNDS"):
         importlib.reload(default_config_module)
     # Restore module state for subsequent tests in this process
-    monkeypatch.delenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", raising=False)
+    monkeypatch.delenv("HANDELSAGENTEN_MAX_DEBATE_ROUNDS", raising=False)
     importlib.reload(default_config_module)
 
 
 @pytest.mark.parametrize("bad", ["treu", "flase", "maybe", "2", "enabled"])
 def test_invalid_bool_raises(monkeypatch, bad):
     """A misspelled boolean must fail loudly (like ints) instead of silently False."""
-    monkeypatch.setenv("TRADINGAGENTS_CHECKPOINT_ENABLED", bad)
-    with pytest.raises(ValueError, match="TRADINGAGENTS_CHECKPOINT_ENABLED"):
+    monkeypatch.setenv("HANDELSAGENTEN_CHECKPOINT_ENABLED", bad)
+    with pytest.raises(ValueError, match="HANDELSAGENTEN_CHECKPOINT_ENABLED"):
         importlib.reload(default_config_module)
-    monkeypatch.delenv("TRADINGAGENTS_CHECKPOINT_ENABLED", raising=False)
+    monkeypatch.delenv("HANDELSAGENTEN_CHECKPOINT_ENABLED", raising=False)
     importlib.reload(default_config_module)
 
 
@@ -124,6 +124,6 @@ def test_unknown_env_var_is_ignored(monkeypatch):
     """Env vars outside _ENV_OVERRIDES must not bleed into DEFAULT_CONFIG."""
     dc = _reload_with_env(
         monkeypatch,
-        TRADINGAGENTS_NONEXISTENT_KEY="oops",
+        HANDELSAGENTEN_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in dc.DEFAULT_CONFIG

@@ -26,7 +26,7 @@ SELECTIONS = {
 
 
 def test_research_depth_sets_both_rounds_without_env(monkeypatch):
-    for var in ("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "TRADINGAGENTS_MAX_RISK_ROUNDS"):
+    for var in ("HANDELSAGENTEN_MAX_DEBATE_ROUNDS", "HANDELSAGENTEN_MAX_RISK_ROUNDS"):
         monkeypatch.delenv(var, raising=False)
     cfg = m._build_run_config(SELECTIONS, checkpoint=None)
     assert cfg["max_debate_rounds"] == 5
@@ -34,8 +34,8 @@ def test_research_depth_sets_both_rounds_without_env(monkeypatch):
 
 
 def test_env_round_counts_win_over_selection(monkeypatch):
-    monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "2")
-    monkeypatch.setenv("TRADINGAGENTS_MAX_RISK_ROUNDS", "4")
+    monkeypatch.setenv("HANDELSAGENTEN_MAX_DEBATE_ROUNDS", "2")
+    monkeypatch.setenv("HANDELSAGENTEN_MAX_RISK_ROUNDS", "4")
     # DEFAULT_CONFIG already reflects the env (applied at import); emulate that.
     patched = dict(m.DEFAULT_CONFIG, max_debate_rounds=2, max_risk_discuss_rounds=4)
     with mock.patch.object(m, "DEFAULT_CONFIG", patched):
@@ -45,8 +45,8 @@ def test_env_round_counts_win_over_selection(monkeypatch):
 
 
 def test_partial_env_only_overrides_that_count(monkeypatch):
-    monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "2")
-    monkeypatch.delenv("TRADINGAGENTS_MAX_RISK_ROUNDS", raising=False)
+    monkeypatch.setenv("HANDELSAGENTEN_MAX_DEBATE_ROUNDS", "2")
+    monkeypatch.delenv("HANDELSAGENTEN_MAX_RISK_ROUNDS", raising=False)
     patched = dict(m.DEFAULT_CONFIG, max_debate_rounds=2)
     with mock.patch.object(m, "DEFAULT_CONFIG", patched):
         cfg = m._build_run_config(SELECTIONS, checkpoint=None)

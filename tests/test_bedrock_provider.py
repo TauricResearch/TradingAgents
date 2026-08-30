@@ -8,9 +8,9 @@ import sys
 
 import pytest
 
-from tradingagents.llm_clients.api_key_env import get_api_key_env
-from tradingagents.llm_clients.factory import create_llm_client
-from tradingagents.llm_clients.validators import validate_model
+from handelsagenten.llm_clients.api_key_env import get_api_key_env
+from handelsagenten.llm_clients.factory import create_llm_client
+from handelsagenten.llm_clients.validators import validate_model
 
 
 @pytest.mark.unit
@@ -28,7 +28,7 @@ def test_bedrock_any_model_and_no_key_env():
 
 @pytest.mark.unit
 def test_helpful_error_when_langchain_aws_absent(monkeypatch):
-    import tradingagents.llm_clients.bedrock_client as bc
+    import handelsagenten.llm_clients.bedrock_client as bc
     monkeypatch.setattr(bc, "_BEDROCK_CLASS", None)
     monkeypatch.setitem(sys.modules, "langchain_aws", None)  # force ImportError on import
     with pytest.raises(ImportError, match=r"bedrock"):
@@ -38,7 +38,7 @@ def test_helpful_error_when_langchain_aws_absent(monkeypatch):
 def _capture_kwargs(monkeypatch):
     """Stub _bedrock_class so the constructor kwargs are testable without the
     optional langchain-aws extra installed."""
-    import tradingagents.llm_clients.bedrock_client as bc
+    import handelsagenten.llm_clients.bedrock_client as bc
     captured = {}
 
     class _FakeChat:
@@ -72,7 +72,7 @@ def test_no_bearer_token_omits_api_key(monkeypatch):
 @pytest.mark.unit
 def test_construction_when_extra_installed(monkeypatch):
     pytest.importorskip("langchain_aws")
-    import tradingagents.llm_clients.bedrock_client as bc
+    import handelsagenten.llm_clients.bedrock_client as bc
     monkeypatch.setattr(bc, "_BEDROCK_CLASS", None)
     monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-1")
     llm = create_llm_client("bedrock", "us.anthropic.claude-sonnet-5").get_llm()

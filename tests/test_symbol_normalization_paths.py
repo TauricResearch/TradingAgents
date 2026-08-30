@@ -7,10 +7,10 @@ hit the right instrument instead of failing/mismatching.
 """
 import pandas as pd
 
-import tradingagents.agents.utils.agent_utils as au
-import tradingagents.dataflows.yfinance_news as ynews
-import tradingagents.graph.trading_graph as tg
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+import handelsagenten.agents.utils.agent_utils as au
+import handelsagenten.dataflows.yfinance_news as ynews
+import handelsagenten.graph.trading_graph as tg
+from handelsagenten.graph.trading_graph import TradingAgentsGraph
 
 
 def test_identity_lookup_normalizes_symbol(monkeypatch):

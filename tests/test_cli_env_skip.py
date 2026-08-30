@@ -1,6 +1,6 @@
 """Tests for env-driven CLI behavior (#897, #873).
 
-The config-layer override (TRADINGAGENTS_* -> DEFAULT_CONFIG) is covered by
+The config-layer override (HANDELSAGENTEN_* -> DEFAULT_CONFIG) is covered by
 test_env_overrides.py. These tests cover the CLI layer: an env-configured
 provider/model/language must skip its interactive prompt and use the value.
 """
@@ -36,11 +36,11 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         import cli.main as m
 
         env = {
-            "TRADINGAGENTS_LLM_PROVIDER": "openai",
-            "TRADINGAGENTS_DEEP_THINK_LLM": "kimi-k2.5",
-            "TRADINGAGENTS_QUICK_THINK_LLM": "deepseek-v4-pro",
-            "TRADINGAGENTS_LLM_BACKEND_URL": "https://opencode.ai/zen/go/v1",
-            "TRADINGAGENTS_OUTPUT_LANGUAGE": "Japanese",
+            "HANDELSAGENTEN_LLM_PROVIDER": "openai",
+            "HANDELSAGENTEN_DEEP_THINK_LLM": "kimi-k2.5",
+            "HANDELSAGENTEN_QUICK_THINK_LLM": "deepseek-v4-pro",
+            "HANDELSAGENTEN_LLM_BACKEND_URL": "https://opencode.ai/zen/go/v1",
+            "HANDELSAGENTEN_OUTPUT_LANGUAGE": "Japanese",
         }
         fake_cfg = dict(m.DEFAULT_CONFIG)
         fake_cfg.update({
@@ -88,8 +88,8 @@ class TestResearchDepthSkippedFromEnv(unittest.TestCase):
         import cli.main as m
 
         env = {
-            "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "2",
-            "TRADINGAGENTS_MAX_RISK_ROUNDS": "4",
+            "HANDELSAGENTEN_MAX_DEBATE_ROUNDS": "2",
+            "HANDELSAGENTEN_MAX_RISK_ROUNDS": "4",
         }
         fake_cfg = dict(m.DEFAULT_CONFIG)
         fake_cfg.update({"max_debate_rounds": 2, "max_risk_discuss_rounds": 4})
@@ -120,7 +120,7 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
     def test_effort_env_skips_step8_prompt(self):
         import cli.main as m
 
-        env = {"TRADINGAGENTS_OPENAI_REASONING_EFFORT": "high"}
+        env = {"HANDELSAGENTEN_OPENAI_REASONING_EFFORT": "high"}
         fake_cfg = dict(m.DEFAULT_CONFIG)
         fake_cfg.update({"openai_reasoning_effort": "high"})
 

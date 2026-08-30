@@ -9,8 +9,8 @@ import json
 
 import pytest
 
-import tradingagents.dataflows.alpha_vantage_common as av
-import tradingagents.dataflows.alpha_vantage_fundamentals as avf
+import handelsagenten.dataflows.alpha_vantage_common as av
+import handelsagenten.dataflows.alpha_vantage_fundamentals as avf
 
 
 class _FakeResponse:

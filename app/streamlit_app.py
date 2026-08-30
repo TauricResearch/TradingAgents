@@ -5,8 +5,8 @@ from datetime import date, timedelta
 
 import streamlit as st
 
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from handelsagenten.default_config import DEFAULT_CONFIG
+from handelsagenten.graph.trading_graph import TradingAgentsGraph
 
 st.set_page_config(page_title="Handels-Agenten", page_icon="📈", layout="wide")
 st.title("Handels-Agenten")

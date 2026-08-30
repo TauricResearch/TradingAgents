@@ -14,7 +14,7 @@ import time
 import pandas as pd
 import pytest
 
-import tradingagents.dataflows.stockstats_utils as su
+import handelsagenten.dataflows.stockstats_utils as su
 
 TODAY = pd.Timestamp("2026-07-18")
 STALE = su.OHLCV_CACHE_TTL_SECONDS + 60

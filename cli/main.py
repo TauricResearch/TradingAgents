@@ -41,15 +41,15 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.graph.analyst_execution import (
+from handelsagenten.default_config import DEFAULT_CONFIG
+from handelsagenten.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
     get_initial_analyst_node,
     sync_analyst_tracker_from_chunk,
 )
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.reporting import write_report_tree
+from handelsagenten.graph.trading_graph import TradingAgentsGraph
+from handelsagenten.reporting import write_report_tree
 
 console = Console()
 
@@ -573,8 +573,8 @@ def get_user_selections():
     )
     analysis_date = get_analysis_date()
 
-    # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
-    if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
+    # Step 3: Output language (skipped when set via HANDELSAGENTEN_OUTPUT_LANGUAGE)
+    if os.environ.get("HANDELSAGENTEN_OUTPUT_LANGUAGE"):
         output_language = DEFAULT_CONFIG["output_language"]
         console.print(
             f"[green]✓ Output language from environment:[/green] {output_language}"
@@ -601,10 +601,10 @@ def get_user_selections():
 
     # Step 5: Research depth (skipped when both round counts are set via env).
     # Research depth maps to the debate + risk round counts; when both are
-    # supplied through TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS we keep
+    # supplied through HANDELSAGENTEN_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS we keep
     # the run non-interactive and honor the env values (#977).
-    depth_from_env = bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")) and bool(
-        os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS")
+    depth_from_env = bool(os.environ.get("HANDELSAGENTEN_MAX_DEBATE_ROUNDS")) and bool(
+        os.environ.get("HANDELSAGENTEN_MAX_RISK_ROUNDS")
     )
     if depth_from_env:
         selected_research_depth = DEFAULT_CONFIG["max_debate_rounds"]
@@ -621,11 +621,11 @@ def get_user_selections():
         )
         selected_research_depth = select_research_depth()
 
-    # Step 6: LLM Provider (skipped when set via TRADINGAGENTS_LLM_PROVIDER).
-    # The backend URL comes from TRADINGAGENTS_LLM_BACKEND_URL when set,
+    # Step 6: LLM Provider (skipped when set via HANDELSAGENTEN_LLM_PROVIDER).
+    # The backend URL comes from HANDELSAGENTEN_LLM_BACKEND_URL when set,
     # otherwise the provider's default endpoint — the same value the menu
     # would have picked.
-    provider_from_env = bool(os.environ.get("TRADINGAGENTS_LLM_PROVIDER"))
+    provider_from_env = bool(os.environ.get("HANDELSAGENTEN_LLM_PROVIDER"))
     if provider_from_env:
         selected_llm_provider = DEFAULT_CONFIG["llm_provider"].lower()
         backend_url = resolve_backend_url(
@@ -675,7 +675,7 @@ def get_user_selections():
         ensure_api_key(selected_llm_provider)
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
-    if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
+    if os.environ.get("HANDELSAGENTEN_QUICK_THINK_LLM") or os.environ.get("HANDELSAGENTEN_DEEP_THINK_LLM"):
         selected_shallow_thinker = DEFAULT_CONFIG["quick_think_llm"]
         selected_deep_thinker = DEFAULT_CONFIG["deep_think_llm"]
         console.print(
@@ -692,7 +692,7 @@ def get_user_selections():
         selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     # Step 8: Provider-specific reasoning/thinking configuration. Each knob is
-    # settable via its TRADINGAGENTS_* env var; when that var is set (or the
+    # settable via its HANDELSAGENTEN_* env var; when that var is set (or the
     # provider itself came from env) the prompt is skipped and the configured
     # value is used — same env-precedence rule as the steps above. None = each
     # provider's own default.
@@ -707,19 +707,19 @@ def get_user_selections():
         anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
     elif provider_lower == "google":
         thinking_level = thinking_value_or_prompt(
-            "TRADINGAGENTS_GOOGLE_THINKING_LEVEL", "google_thinking_level",
+            "HANDELSAGENTEN_GOOGLE_THINKING_LEVEL", "google_thinking_level",
             "Gemini thinking mode", "Step 8: Thinking Mode",
             "Configure Gemini thinking mode", ask_gemini_thinking_config,
         )
     elif provider_lower == "openai":
         reasoning_effort = thinking_value_or_prompt(
-            "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
+            "HANDELSAGENTEN_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
             "Reasoning effort", "Step 8: Reasoning Effort",
             "Configure OpenAI reasoning effort level", ask_openai_reasoning_effort,
         )
     elif provider_lower == "anthropic":
         anthropic_effort = thinking_value_or_prompt(
-            "TRADINGAGENTS_ANTHROPIC_EFFORT", "anthropic_effort",
+            "HANDELSAGENTEN_ANTHROPIC_EFFORT", "anthropic_effort",
             "Claude effort", "Step 8: Effort Level",
             "Configure Claude effort level", ask_anthropic_effort,
         )
@@ -979,11 +979,11 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     """
     config = DEFAULT_CONFIG.copy()
     # Research depth sets both round counts, but an explicit env override
-    # (TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
+    # (HANDELSAGENTEN_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
     # interactive selection — leave the env-applied value in place (#977).
-    if not os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS"):
+    if not os.environ.get("HANDELSAGENTEN_MAX_DEBATE_ROUNDS"):
         config["max_debate_rounds"] = selections["research_depth"]
-    if not os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"):
+    if not os.environ.get("HANDELSAGENTEN_MAX_RISK_ROUNDS"):
         config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
@@ -995,7 +995,7 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     # --checkpoint/--no-checkpoint overrides only when explicitly given; omitting
-    # the flag preserves TRADINGAGENTS_CHECKPOINT_ENABLED / the default (#976).
+    # the flag preserves HANDELSAGENTEN_CHECKPOINT_ENABLED / the default (#976).
     if checkpoint is not None:
         config["checkpoint_enabled"] = checkpoint
     return config
@@ -1286,7 +1286,7 @@ def analyze(
         None,
         "--checkpoint/--no-checkpoint",
         help="Enable/disable checkpoint-resume (save state after each node so a "
-        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
+        "crashed run can resume). Omit to honor HANDELSAGENTEN_CHECKPOINT_ENABLED.",
     ),
     clear_checkpoints: bool = typer.Option(
         False,
@@ -1295,7 +1295,7 @@ def analyze(
     ),
 ):
     if clear_checkpoints:
-        from tradingagents.graph.checkpointer import clear_all_checkpoints
+        from handelsagenten.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     try:

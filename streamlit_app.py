@@ -11,9 +11,9 @@ import streamlit as st
 
 sys.path.insert(0, "/opt/data/trading-agents")
 
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
+from handelsagenten.default_config import DEFAULT_CONFIG
+from handelsagenten.graph.trading_graph import TradingAgentsGraph
+from handelsagenten.llm_clients.model_catalog import MODEL_OPTIONS
 
 st.set_page_config(
     page_title="Trading Agents",

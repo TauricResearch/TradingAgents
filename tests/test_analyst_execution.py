@@ -1,6 +1,6 @@
 import unittest
 
-from tradingagents.graph.analyst_execution import (
+from handelsagenten.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
     get_initial_analyst_node,

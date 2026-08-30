@@ -5,12 +5,12 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
-from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
-from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.graph.propagation import Propagator
-from tradingagents.graph.reflection import Reflector
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from handelsagenten.agents.managers.portfolio_manager import create_portfolio_manager
+from handelsagenten.agents.schemas import PortfolioDecision, PortfolioRating
+from handelsagenten.agents.utils.memory import TradingMemoryLog
+from handelsagenten.graph.propagation import Propagator
+from handelsagenten.graph.reflection import Reflector
+from handelsagenten.graph.trading_graph import TradingAgentsGraph
 
 _SEP = TradingMemoryLog._SEPARATOR
 
@@ -567,7 +567,7 @@ class TestDeferredReflection:
     def test_resolve_benchmark_china_a_shares(self):
         """A-share tickers route to their exchange composite (uses the real
         default benchmark_map, since A-share support relies on it)."""
-        from tradingagents.default_config import DEFAULT_CONFIG
+        from handelsagenten.default_config import DEFAULT_CONFIG
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.config = {"benchmark_ticker": None,
                              "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
@@ -806,12 +806,12 @@ class TestLegacyRemoval:
 
     def test_financial_situation_memory_removed(self):
         """FinancialSituationMemory must not be importable from the memory module."""
-        import tradingagents.agents.utils.memory as m
+        import handelsagenten.agents.utils.memory as m
         assert not hasattr(m, "FinancialSituationMemory")
 
     def test_bm25_not_imported(self):
         """rank_bm25 must not be present in the memory module namespace."""
-        import tradingagents.agents.utils.memory as m
+        import handelsagenten.agents.utils.memory as m
         assert not hasattr(m, "BM25Okapi")
 
     def test_reflect_and_remember_removed(self):

@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
-from tradingagents.agents.utils.agent_utils import (
+from handelsagenten.agents.utils.agent_utils import (
     build_instrument_context,
     create_msg_delete,
     get_instrument_context_from_state,
@@ -21,7 +21,7 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
         resolve_instrument_identity.cache_clear()
 
     def test_resolves_company_metadata_from_yfinance(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
+        with patch("handelsagenten.agents.utils.agent_utils.yf.Ticker") as mock:
             mock.return_value.info = {
                 "longName": "TOTO LTD.",
                 "shortName": "TOTO",
@@ -38,26 +38,26 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
         self.assertEqual(identity["exchange"], "PNK")
 
     def test_falls_back_to_short_name(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
+        with patch("handelsagenten.agents.utils.agent_utils.yf.Ticker") as mock:
             mock.return_value.info = {"shortName": "TOTO", "sector": "Industrials"}
             identity = resolve_instrument_identity("TOTDY")
         self.assertEqual(identity["company_name"], "TOTO")
 
     def test_skips_placeholder_values(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
+        with patch("handelsagenten.agents.utils.agent_utils.yf.Ticker") as mock:
             mock.return_value.info = {"longName": "  ", "sector": "None", "industry": "n/a"}
             identity = resolve_instrument_identity("TOTDY")
         self.assertEqual(identity, {})
 
     def test_fails_open_on_exception(self):
         with patch(
-            "tradingagents.agents.utils.agent_utils.yf.Ticker",
+            "handelsagenten.agents.utils.agent_utils.yf.Ticker",
             side_effect=RuntimeError("rate limited"),
         ):
             self.assertEqual(resolve_instrument_identity("TOTDY"), {})
 
     def test_result_is_cached(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
+        with patch("handelsagenten.agents.utils.agent_utils.yf.Ticker") as mock:
             mock.return_value.info = {"longName": "TOTO LTD."}
             first = resolve_instrument_identity("TOTDY")
             second = resolve_instrument_identity("TOTDY")
@@ -104,7 +104,7 @@ class GetInstrumentContextFromStateTests(unittest.TestCase):
 
     def test_fallback_is_network_free_ticker_only(self):
         # No instrument_context and no yfinance call — must not hit the network.
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
+        with patch("handelsagenten.agents.utils.agent_utils.yf.Ticker") as mock:
             context = get_instrument_context_from_state(
                 {"company_of_interest": "NVDA", "asset_type": "stock"}
             )

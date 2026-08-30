@@ -12,9 +12,9 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
-from tradingagents.agents.managers.research_manager import create_research_manager
-from tradingagents.agents.schemas import (
+from handelsagenten.agents.analysts.sentiment_analyst import create_sentiment_analyst
+from handelsagenten.agents.managers.research_manager import create_research_manager
+from handelsagenten.agents.schemas import (
     PortfolioDecision,
     PortfolioRating,
     ResearchPlan,
@@ -26,7 +26,7 @@ from tradingagents.agents.schemas import (
     render_sentiment_report,
     render_trader_proposal,
 )
-from tradingagents.agents.trader.trader import create_trader
+from handelsagenten.agents.trader.trader import create_trader
 
 # ---------------------------------------------------------------------------
 # Render functions
@@ -156,7 +156,7 @@ def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = Non
 def test_invoke_structured_falls_back_when_result_is_none():
     # A thinking model can answer in plain text, leaving the parser with None.
     # That must fall back to free text, not crash on render(None) (#1051).
-    from tradingagents.agents.utils.structured import invoke_structured_or_freetext
+    from handelsagenten.agents.utils.structured import invoke_structured_or_freetext
 
     structured = MagicMock()
     structured.invoke.return_value = None

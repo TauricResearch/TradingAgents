@@ -7,7 +7,7 @@ import pytest
 
 from cli.models import AssetType
 from cli.utils import detect_asset_type, is_valid_ticker_input, normalize_ticker_symbol
-from tradingagents.dataflows.symbol_utils import normalize_symbol
+from handelsagenten.dataflows.symbol_utils import normalize_symbol
 
 
 # --- #982: stablecoin-quoted crypto normalizes to Yahoo's -USD pair ---

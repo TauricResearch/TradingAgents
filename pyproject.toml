@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tradingagents"
+name = "handelsagenten"
 version = "0.3.1"
-description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+description = "Handels-Agenten: KI-gestütztes Multi-Agent-Framework für Finanzanalyse und Handelsentscheidungen"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -45,10 +45,10 @@ bedrock = [
 ]
 
 [project.scripts]
-tradingagents = "cli.main:app"
+handelsagenten = "cli.main:app"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["handelsagenten*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]

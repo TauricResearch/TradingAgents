@@ -6,8 +6,8 @@ from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
-from tradingagents.llm_clients.api_key_env import get_api_key_env
-from tradingagents.llm_clients.model_catalog import get_model_options
+from handelsagenten.llm_clients.api_key_env import get_api_key_env
+from handelsagenten.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
@@ -71,7 +71,7 @@ def normalize_ticker_symbol(ticker: str) -> str:
     plain upper-case if the data layer is unavailable.
     """
     try:
-        from tradingagents.dataflows.symbol_utils import normalize_symbol
+        from handelsagenten.dataflows.symbol_utils import normalize_symbol
 
         return normalize_symbol(ticker)
     except Exception:
@@ -380,7 +380,7 @@ def resolve_backend_url(
 ) -> str | None:
     """Resolve the backend URL with the correct precedence.
 
-    An explicit env override (``env_url``, from ``TRADINGAGENTS_LLM_BACKEND_URL``
+    An explicit env override (``env_url``, from ``HANDELSAGENTEN_LLM_BACKEND_URL``
     via ``DEFAULT_CONFIG['backend_url']``) is honored regardless of how the
     provider was chosen — interactively or from the environment (#978).
     Otherwise the menu/region URL, then the provider's default.
@@ -617,7 +617,7 @@ def ensure_api_key(provider: str) -> str | None:
 
     # Key-optional providers (generic OpenAI-compatible / local servers) read the
     # key when present but must never force an interactive prompt.
-    from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+    from handelsagenten.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
     spec = OPENAI_COMPATIBLE_PROVIDERS.get(provider.lower())
     if spec is not None and spec.key_optional:
         return os.environ.get(env_var)

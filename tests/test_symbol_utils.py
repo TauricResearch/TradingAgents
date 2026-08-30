@@ -4,7 +4,7 @@ import unittest
 
 import pytest
 
-from tradingagents.dataflows.symbol_utils import (
+from handelsagenten.dataflows.symbol_utils import (
     NoMarketDataError,
     crypto_base,
     is_yahoo_safe,
