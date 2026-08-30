@@ -10,13 +10,25 @@ the routing layer treats it as "unavailable" rather than a hard crash.
 """
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 
 from .errors import VendorNotConfiguredError
 
+try:
+    # FRED validates realtime dates against its own clock (US Central).
+    _FRED_TZ = ZoneInfo("America/Chicago")
+except Exception:  # pragma: no cover - missing tz database (bare Windows)
+    _FRED_TZ = timezone(timedelta(hours=-6))  # US Central, standard time
+
 logger = logging.getLogger(__name__)
+
+
+def _fred_today() -> str:
+    """FRED's current date in its own timezone (US Central)."""
+    return datetime.now(_FRED_TZ).strftime("%Y-%m-%d")
 
 FRED_API_BASE = "https://api.stlouisfed.org/fred"
 
@@ -164,9 +176,18 @@ def get_macro_data(
     # default API serves today's data, which for a past curr_date would leak
     # observations published after curr_date AND later revisions of old ones -
     # a silent look-ahead bias in backtests (#1275).
+    #
+    # FRED validates realtime dates against its own clock (US Central): a
+    # realtime_end in FRED's future is a hard 400. When the caller's local
+    # date is ahead of FRED's (e.g. Asia timezones in their morning), clamp
+    # to FRED's today. For a past curr_date the pin is unchanged - clamping
+    # only ever applies to a date that is already in FRED's future, where no
+    # as-of-curr_date data could exist anyway, so the look-ahead protection
+    # is preserved.
+    fred_today = _fred_today()
     vintage = {
         "realtime_start": start_date,
-        "realtime_end": curr_date,
+        "realtime_end": min(curr_date, fred_today),
     }
 
     # Invalid LLM-supplied indicator: return guidance rather than raising, so a

@@ -161,11 +161,33 @@ class FredFormattingTests(unittest.TestCase):
             captured[path] = params
             return _META if path == "series" else _OBS
 
-        with mock.patch.object(fred, "_request", side_effect=_capture):
+        # Pin the clock so the clamp (min(curr_date, FRED's today)) is a no-op
+        # here: FRED's today == curr_date.
+        with mock.patch.object(fred, "_request", side_effect=_capture), \
+                mock.patch.object(fred, "_fred_today", return_value="2025-09-30"):
             fred.get_macro_data("unemployment", "2025-09-30", 90)
         for path in ("series", "series/observations"):
             self.assertEqual(captured[path]["realtime_end"], "2025-09-30", path)
             self.assertEqual(captured[path]["realtime_start"], "2025-07-02", path)
+
+    def test_realtime_end_is_clamped_to_fred_today(self):
+        # A curr_date ahead of FRED's clock (caller in Asia during their
+        # morning) must clamp realtime_end to FRED's today, not 400: FRED
+        # validates realtime dates against US Central time, and the routing
+        # layer turns that 400 into a silent DATA_UNAVAILABLE sentinel
+        # (#1275) - macro data would vanish without any loud failure.
+        captured = {}
+
+        def _capture(path, params):
+            captured[path] = params
+            return _META if path == "series" else _OBS
+
+        # Local 2025-10-31 in Asia == 2025-10-30 in US Central.
+        with mock.patch.object(fred, "_request", side_effect=_capture), \
+                mock.patch.object(fred, "_fred_today", return_value="2025-10-30"):
+            fred.get_macro_data("unemployment", "2025-10-31", 90)
+        self.assertEqual(captured["series/observations"]["realtime_end"], "2025-10-30")
+        self.assertEqual(captured["series"]["realtime_end"], "2025-10-30")
 
     def test_revised_observations_keep_latest_vintage(self):
         # With realtime bounds FRED returns one row per vintage; a revision
