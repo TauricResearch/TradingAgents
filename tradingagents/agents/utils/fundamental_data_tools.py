@@ -6,6 +6,29 @@ from tradingagents.dataflows.interface import route_to_vendor
 
 
 @tool
+def get_document_markdown(
+    path: Annotated[str, "file path or URL to a document (PDF, XLSX, HTML, CSV, etc.)"],
+) -> str:
+    """
+    Convert a financial document (PDF, PPTX, XLSX, HTML, CSV, JSON, ZIP, image)
+    to LLM-ready markdown via MarkItDown. Use for BCRA/BYMA PDFs, balance sheets,
+    FRED docs, or any filing that is not available via structured APIs.
+
+    Falls back to lightweight parsers when markitdown is not installed.
+    Preserves tables and headings for LLM consumption.
+    """
+    try:
+        from tradingagents.dataflows.providers.registry import get_markitdown_provider
+
+        provider = get_markitdown_provider()
+        if provider is None:
+            return "DOCUMENT_UNAVAILABLE: MarkItDown provider not available"
+        return provider.convert_for_llm(path)
+    except Exception as exc:  # noqa: BLE001
+        return f"DOCUMENT_ERROR: {exc}"
+
+
+@tool
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
