@@ -20,6 +20,12 @@ from .base import (
     OrderType,
 )
 
+# Optional sandbox for safe code eval (OpenSandbox pattern) — no hard dep
+try:
+    from .sandbox import run_in_sandbox  # noqa: F401
+except ImportError:
+    run_in_sandbox = None  # type: ignore
+
 
 class CCXTProvider(ExecutionProvider):
     """CCXT execution provider for crypto trading."""
