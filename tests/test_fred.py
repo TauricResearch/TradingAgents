@@ -121,10 +121,11 @@ class FredFormattingTests(unittest.TestCase):
         self.assertIn("not found", out)
 
     def test_long_series_is_truncated_but_change_uses_full_range(self):
-        # Build > MAX_ROWS observations deterministically.
+        # Build > MAX_ROWS observations deterministically (unique dates: the
+        # report deduplicates revisions by observation date).
         obs = {
             "observations": [
-                {"date": f"2025-01-{(i % 28) + 1:02d}", "value": str(i)}
+                {"date": f"2025-{(i // 28) + 1:02d}-{(i % 28) + 1:02d}", "value": str(i)}
                 for i in range(fred.MAX_ROWS + 10)
             ]
         }
@@ -149,6 +150,49 @@ class FredFormattingTests(unittest.TestCase):
         obs_params = captured["series/observations"]
         self.assertEqual(obs_params["observation_end"], "2025-09-30")
         self.assertEqual(obs_params["observation_start"], "2025-07-02")  # 90d back
+
+    def test_request_is_pinned_to_vintage(self):
+        # realtime bounds must pin both the series and observations requests to
+        # curr_date's vintage, so a backtest never sees unreleased prints or
+        # later revisions (#1275).
+        captured = {}
+
+        def _capture(path, params):
+            captured[path] = params
+            return _META if path == "series" else _OBS
+
+        with mock.patch.object(fred, "_request", side_effect=_capture):
+            fred.get_macro_data("unemployment", "2025-09-30", 90)
+        for path in ("series", "series/observations"):
+            self.assertEqual(captured[path]["realtime_end"], "2025-09-30", path)
+            self.assertEqual(captured[path]["realtime_start"], "2025-07-02", path)
+
+    def test_revised_observations_keep_latest_vintage(self):
+        # With realtime bounds FRED returns one row per vintage; a revision
+        # must not render duplicate rows and the latest value wins.
+        obs = {
+            "observations": [
+                {"date": "2025-08-01", "value": "150", "realtime_start": "2025-09-05"},
+                {"date": "2025-08-01", "value": "160", "realtime_start": "2025-10-08"},
+                {"date": "2025-09-01", "value": "165", "realtime_start": "2025-10-08"},
+            ]
+        }
+        with mock.patch.object(fred, "_request", side_effect=_request_stub(obs=obs)):
+            out = fred.get_macro_data("nonfarm_payrolls", "2025-10-31", 90)
+        body_rows = [ln for ln in out.splitlines() if ln.startswith("| 2025")]
+        self.assertEqual(len(body_rows), 2)
+        self.assertIn("| 2025-08-01 | 160 |", out)  # revised value wins
+        self.assertNotIn("| 2025-08-01 | 150 |", out)
+        self.assertIn("**Latest:** 165 (2025-09-01)", out)
+
+    def test_empty_window_mentions_missing_vintage(self):
+        # Empty under realtime bounds is usually missing ALFRED vintage
+        # coverage, not just a short window; the message must say both.
+        empty = {"observations": []}
+        with mock.patch.object(fred, "_request", side_effect=_request_stub(obs=empty)):
+            out = fred.get_macro_data("unemployment", "2025-09-30", 30)
+        self.assertIn("No observations", out)
+        self.assertIn("vintage", out)
 
 
 @pytest.mark.unit

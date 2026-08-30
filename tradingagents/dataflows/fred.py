@@ -143,8 +143,11 @@ def get_macro_data(
     Args:
         indicator: A friendly alias (e.g. "cpi", "unemployment", "10y_treasury")
             or a raw FRED series ID (e.g. "CPIAUCSL", "DGS10").
-        curr_date: End of the window (yyyy-mm-dd); no later observations are
-            returned, so a past date never leaks future data.
+        curr_date: End of the window (yyyy-mm-dd). The request is pinned to
+            this date's ALFRED vintage (realtime_start/realtime_end), so only
+            observations already published by curr_date are returned, at their
+            as-published values - a past date never leaks future data,
+            unreleased prints, or later revisions (#1275).
         look_back_days: Trailing window length; ``None`` uses DEFAULT_LOOKBACK_DAYS.
 
     Returns:
@@ -157,6 +160,15 @@ def get_macro_data(
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
 
+    # Pin the request to the curr_date vintage via ALFRED realtime bounds: the
+    # default API serves today's data, which for a past curr_date would leak
+    # observations published after curr_date AND later revisions of old ones -
+    # a silent look-ahead bias in backtests (#1275).
+    vintage = {
+        "realtime_start": start_date,
+        "realtime_end": curr_date,
+    }
+
     # Invalid LLM-supplied indicator: return guidance rather than raising, so a
     # bad argument doesn't abort the run (the routing layer also degrades macro
     # data, but a specific message is more useful to the analyst).
@@ -165,7 +177,7 @@ def get_macro_data(
     except ValueError as e:
         return f"FRED: {e}"
 
-    meta = _request("series", {"series_id": series_id}).get("seriess") or []
+    meta = _request("series", {"series_id": series_id, **vintage}).get("seriess") or []
     if not meta:
         return (
             f"FRED series '{series_id}' not found. Pass a known alias "
@@ -184,15 +196,23 @@ def get_macro_data(
             "observation_start": start_date,
             "observation_end": curr_date,
             "sort_order": "asc",
+            **vintage,
         },
     ).get("observations", [])
 
-    # FRED encodes a missing observation as ".".
-    points = [
-        (o["date"], o["value"])
-        for o in observations
-        if o.get("value") not in (".", None, "")
-    ]
+    # FRED encodes a missing observation as ".". With realtime bounds, a
+    # revised observation appears once per vintage in the window; keep only
+    # the latest vintage for each date (the value as most recently known by
+    # curr_date) instead of rendering duplicate rows.
+    latest: dict[str, tuple[str, str]] = {}
+    for o in observations:
+        if o.get("value") in (".", None, ""):
+            continue
+        date = o["date"]
+        realtime = str(o.get("realtime_start", ""))
+        if date not in latest or realtime >= latest[date][1]:
+            latest[date] = (o["value"], realtime)
+    points = [(date, value) for date, (value, _) in sorted(latest.items())]
 
     header = (
         f"## FRED: {title} ({series_id})\n"
@@ -203,9 +223,14 @@ def get_macro_data(
     )
 
     if not points:
+        # With realtime bounds, an empty result usually means the series has no
+        # ALFRED vintage coverage for this window (vintage depth varies per
+        # series and some have none), rather than a too-short window.
         return header + (
-            f"\nNo observations for {series_id} in this window. The series may "
-            f"report less frequently than the window length; widen look_back_days."
+            f"\nNo observations for {series_id} in this window. Either the "
+            f"window is shorter than the series' reporting frequency "
+            f"(widen look_back_days), or no as-first-published vintage data "
+            f"exists for this window on ALFRED."
         )
 
     first_date, first_val = points[0]
