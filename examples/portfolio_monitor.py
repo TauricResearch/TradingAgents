@@ -32,6 +32,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tradingagents.dataflows.providers.interest_rates import GlobalInterestRatesProvider
 from tradingagents.dataflows.providers.fx_multi_currency import MultiCurrencyFXProvider
 
+# Step 5: optional VectorBT + MarkItDown wiring (no hard deps)
+try:
+    from tradingagents.dataflows.vectorbt_backtest import VectorBTBacktest
+
+    _HAS_VBT = True
+except Exception:  # noqa: BLE001
+    _HAS_VBT = False
+    VectorBTBacktest = None  # type: ignore
+
+try:
+    from tradingagents.dataflows.providers.registry import get_markitdown_provider
+
+    _HAS_MD = True
+except Exception:  # noqa: BLE001
+    _HAS_MD = False
+    get_markitdown_provider = None  # type: ignore
+
 
 @dataclass
 class Alert:
@@ -282,7 +299,15 @@ class PortfolioMonitor:
         
         # Generate snapshot
         snapshot = self.generate_snapshot(market_data, alerts)
-        
+
+        # Step 5: attach optional VectorBT backtest (non-blocking, best-effort)
+        try:
+            bt = self.run_backtest()
+            if bt:
+                self.log(f"Backtest attached: {bt['method']} return={bt['total_return']:.3f}")
+        except Exception:
+            pass
+
         # Print and save
         self.print_snapshot(snapshot)
         self.save_snapshot(snapshot)
@@ -314,6 +339,46 @@ class PortfolioMonitor:
             self.log("Monitoring stopped by user")
             print("\nMonitoring stopped. Final snapshot saved.")
     
+    # -- Step 5: VectorBT + MarkItDown hooks ---------------------------------
+    def run_backtest(self) -> dict | None:
+        """Run a quick VectorBT backtest on synthetic price; None if unavailable."""
+        if not _HAS_VBT or VectorBTBacktest is None:
+            self.log("VectorBT not available — skip backtest", "WARNING")
+            return None
+        try:
+            import pandas as pd
+
+            n = 80
+            idx = pd.date_range(end=datetime.now(), periods=n, freq="D")
+            price = pd.Series([100 + i * 0.3 for i in range(n)], index=idx)
+            entries = price.pct_change() > 0.008
+            exits = price.pct_change() < -0.008
+            bt = VectorBTBacktest()
+            r = bt.run(price, entries, exits)
+            out = {"total_return": r.total_return, "sharpe": r.sharpe, "max_drawdown": r.max_drawdown, "win_rate": r.win_rate, "num_trades": r.num_trades, "method": r.method}
+            self.log(f"Backtest: {out}")
+            return out
+        except Exception as exc:  # noqa: BLE001
+            self.log(f"Backtest failed: {exc}", "WARNING")
+            return None
+
+    def preview_doc(self, path: str, max_chars: int = 3000) -> str | None:
+        """Preview a doc via MarkItDown if available."""
+        if not _HAS_MD or get_markitdown_provider is None:
+            self.log("MarkItDown not available", "WARNING")
+            return None
+        try:
+            md = get_markitdown_provider()
+            if md is None:
+                return None
+            text = md.convert_for_llm(path)
+            preview = text[:max_chars]
+            self.log(f"Doc preview {path}: {len(text)} chars")
+            return preview
+        except Exception as exc:  # noqa: BLE001
+            self.log(f"Doc preview failed for {path}: {exc}", "WARNING")
+            return None
+
     def close(self):
         """Close providers"""
         self.rates_provider.close()

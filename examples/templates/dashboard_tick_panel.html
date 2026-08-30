@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tick Panel — TradingAgents</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#eee;min-height:100vh}
+.header{background:linear-gradient(135deg,#16213e 0%,#0f3460 100%);padding:16px 24px;border-bottom:2px solid #e94560}
+.header h1{font-size:22px;color:#fff}.header .sub{color:#a0a0a0;font-size:13px}
+.container{max-width:1600px;margin:0 auto;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;margin-bottom:16px}
+.card{background:#16213e;border-radius:10px;padding:16px;border:1px solid #0f3460}
+.card h2{font-size:15px;color:#e94560;margin-bottom:10px;border-bottom:1px solid #0f3460;padding-bottom:8px}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 10px;border-bottom:1px solid #0f3460;text-align:left;font-size:13px}
+th{background:#0f3460;color:#e94560;font-size:11px;text-transform:uppercase}
+.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#0f3460;color:#4ade80}
+.btn{background:#e94560;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}
+.btn:hover{background:#c93553}
+select,input{background:#0f3460;color:#eee;border:1px solid #1a3a5a;border-radius:6px;padding:6px 8px;font-size:12px}
+.alert-warn{color:#fde047}.alert-crit{color:#f87171}.cards{display:flex;flex-wrap:wrap;gap:8px}
+.card-item{background:#0f3460;border-radius:8px;padding:10px 14px;min-width:120px}
+</style>
+</head>
+<body>
+<div class="header"><h1>Tick-Panel Dashboard <span style="font-weight:400;color:#a0a0a0">· TradingAgents</span></h1><div class="sub">Watchlist · Monitor Center · Abnormal Moves · Concept Rotation · SSE <span id="ts" style="color:#e94560"></span></div></div>
+<div class="container">
+<div class="grid">
+<div class="card"><h2>Watchlist <select id="wlGroup"><option value="">All Groups</option></select> <select id="wlView"><option value="table">Table</option><option value="card">Cards</option></select> <button class="btn" onclick="loadWatchlist()">Load</button></h2><div id="watchlist">Loading...</div></div>
+<div class="card"><h2>Monitor Center — Rules <button class="btn" onclick="addDemoRule()">+ Demo Rule</button></h2><div id="rules">Loading...</div><h2 style="margin-top:12px">Alerts (SSE + polling fallback)</h2><div id="alerts">-</div></div>
+</div>
+<div class="grid">
+<div class="card"><h2>Abnormal Moves (3d/10d deviation)</h2><div id="abnormal">Loading...</div></div>
+<div class="card"><h2>Concept / Industry Rotation</h2><div id="rotation">Loading...</div></div>
+</div>
+<div class="grid"><div class="card"><h2>Backtest Preview (VectorBT)</h2><div id="backtest">Loading...</div></div><div class="card"><h2>Docs</h2><div class="sub">Existing dashboard: <a style="color:#e94560" href="/">Carry Trade Dashboard</a> · This view keeps original template intact.</div></div></div>
+</div>
+<script>
+async function j(u,o){const r=await fetch(u,o);return r.json();}
+async function loadWatchlist(){
+ const g=document.getElementById('wlGroup').value, v=document.getElementById('wlView').value;
+ const d=await j(`/api/watchlist?group=${encodeURIComponent(g)}&view=${v}`);
+ const el=document.getElementById('watchlist');
+ if(v==='card'&&d.cards){el.innerHTML='<div class="cards">'+d.cards.map(c=>`<div class="card-item"><b>${c.symbol}</b><br><span class="badge">${c.badge}</span><br><small>${c.title}</small></div>`).join('')+'</div>';}
+ else {el.innerHTML='<table><tr><th>Symbol</th><th>Country</th><th>Rate</th><th>Vol</th></tr>'+d.tickers.map(t=>`<tr><td>${t.symbol}</td><td>${t.country}</td><td>${t.rate}%</td><td>${t.vol}%</td></tr>`).join('')+'</table><small>Groups: '+Object.keys(d.groups).join(', ')+'</small>';}
+ // populate group select once
+ const sel=document.getElementById('wlGroup'); if(sel.options.length===1){Object.keys(d.groups).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);});}
+}
+async function loadRules(){const d=await j('/api/monitor/rules');document.getElementById('rules').innerHTML=d.rules.length?'<table><tr><th>#</th><th>Type</th><th>Symbol</th><th>Cond</th><th>Thr</th></tr>'+d.rules.map(r=>`<tr><td>${r.id}</td><td>${r.type}</td><td>${r.symbol}</td><td>${r.condition}</td><td>${r.threshold}</td></tr>`).join('')+'</table>':'<small>No rules — add one</small>';}
+async function loadAlerts(){const d=await j('/api/monitor/alerts');document.getElementById('alerts').innerHTML=d.alerts.length?d.alerts.slice(-8).reverse().map(a=>`<div class="${a.severity==='critical'?'alert-crit':'alert-warn'}">[${a.severity}] ${a.message} <small>${a.timestamp}</small></div>`).join(''):'<small>No alerts</small>';}
+async function addDemoRule(){await j('/api/monitor/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'price',symbol:'USD/BRL',condition:'gt',threshold:5})});loadRules();loadAlerts();}
+async function loadAbnormal(){const d=await j('/api/abnormal');document.getElementById('abnormal').innerHTML=d.abnormal.length?'<table><tr><th>Sym</th><th>Cur</th><th>3d</th><th>10d</th><th>Dev3</th><th>Dev10</th></tr>'+d.abnormal.map(a=>`<tr><td>${a.symbol}</td><td>${a.current}</td><td>${a.avg_3d}</td><td>${a.avg_10d}</td><td>${a.dev_3d_pct}%</td><td>${a.dev_10d_pct}%</td></tr>`).join('')+'</table>':'<small>No abnormal moves</small>';}
+async function loadRotation(){const d=await j('/api/rotation');if(d.error){document.getElementById('rotation').innerHTML='<small>'+d.error+'</small>';return;}document.getElementById('rotation').innerHTML='<table><tr><th>Concept</th><th>Alloc</th><th>Spread</th><th>Exp Ret</th></tr>'+(d.concepts||[]).map(c=>`<tr><td>${c.concept}</td><td>${(c.allocation_pct*100).toFixed(0)}%</td><td>${c.spread.toFixed(2)}%</td><td>${c.expected_return.toFixed(2)}%</td></tr>`).join('')+'</table>';}
+async function loadBacktest(){const d=await j('/api/backtest');document.getElementById('backtest').innerHTML=d.error?'<small>'+d.error+'</small>':`<small>Method: ${d.method} · Return ${(d.total_return*100).toFixed(2)}% · Sharpe ${d.sharpe.toFixed(2)} · DD ${(d.max_drawdown*100).toFixed(2)}% · Trades ${d.num_trades}</small>`;}
+function startSSE(){try{const es=new EventSource('/api/monitor/stream');es.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.alerts)document.getElementById('alerts').innerHTML=d.alerts.map(a=>`<div>[${a.severity}] ${a.message}</div>`).join('');}catch{}};es.onerror=()=>{es.close();setInterval(loadAlerts,8000);};}catch{setInterval(loadAlerts,8000);}}
+document.getElementById('ts').textContent=new Date().toLocaleString();
+loadWatchlist();loadRules();loadAlerts();loadAbnormal();loadRotation();loadBacktest();startSSE();
+setInterval(()=>{loadAbnormal();loadRotation();},30000);
+</script>
+</body>
+</html>

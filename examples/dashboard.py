@@ -22,13 +22,29 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, Response, jsonify, render_template, request
 
 # Add project to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tradingagents.dataflows.providers.interest_rates import GlobalInterestRatesProvider
 from tradingagents.dataflows.providers.fx_multi_currency import MultiCurrencyFXProvider
+
+# Tick-panel helpers (Step 5) — no hard dep, degrades gracefully
+try:
+    from tradingagents.dashboard import (
+        add_rule,
+        detect_abnormal,
+        get_rotation_matrix,
+        get_watchlist,
+        list_alerts,
+        list_rules,
+        sse_format,
+    )
+
+    _HAS_TICK_PANEL = True
+except Exception:  # noqa: BLE001
+    _HAS_TICK_PANEL = False
 
 app = Flask(__name__)
 
@@ -202,6 +218,130 @@ def api_fx_rates():
     """API endpoint for FX rates"""
     market_data = get_market_data()
     return jsonify({"fx_rates": market_data["fx_rates"], "timestamp": datetime.now().isoformat()})
+
+
+# -- Tick-panel inspired endpoints (Step 5) ---------------------------------
+@app.route("/panel")
+def panel():
+    """Tick-panel inspired view."""
+    if _HAS_TICK_PANEL:
+        return render_template("dashboard_tick_panel.html")
+    return render_template("dashboard.html")
+
+
+@app.route("/api/watchlist")
+def api_watchlist():
+    if not _HAS_TICK_PANEL:
+        return jsonify({"error": "tick-panel not available"}), 503
+    group = request.args.get("group")
+    view = request.args.get("view", "table")
+    return jsonify(get_watchlist(group=group, view=view))
+
+
+@app.route("/api/monitor/rules", methods=["GET", "POST"])
+def api_monitor_rules():
+    if not _HAS_TICK_PANEL:
+        return jsonify({"error": "tick-panel not available"}), 503
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        try:
+            rule = add_rule(
+                rule_type=data.get("type", "price"),
+                symbol=data.get("symbol", "USD/BRL"),
+                condition=data.get("condition", "gt"),
+                threshold=float(data.get("threshold", 0)),
+                enabled=bool(data.get("enabled", True)),
+            )
+            return jsonify(rule), 201
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"error": str(exc)}), 400
+    return jsonify({"rules": list_rules()})
+
+
+@app.route("/api/monitor/alerts")
+def api_monitor_alerts():
+    if not _HAS_TICK_PANEL:
+        return jsonify({"error": "tick-panel not available"}), 503
+    return jsonify({"alerts": list_alerts(limit=int(request.args.get("limit", 50)))})
+
+
+@app.route("/api/monitor/stream")
+def api_monitor_stream():
+    """SSE stream for real-time alerts; polling fallback is /api/monitor/alerts."""
+    if not _HAS_TICK_PANEL:
+        return jsonify({"error": "tick-panel not available"}), 503
+
+    def gen():
+        import time
+
+        # send 3 heartbeats then close (demo); client reconnects
+        for _ in range(3):
+            alerts = list_alerts(limit=5)
+            yield sse_format({"alerts": alerts, "timestamp": datetime.now().isoformat()})
+            time.sleep(1)
+        yield sse_format({"heartbeat": True, "timestamp": datetime.now().isoformat()})
+
+    return Response(gen(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/api/abnormal")
+def api_abnormal():
+    if not _HAS_TICK_PANEL:
+        return jsonify({"error": "tick-panel not available"}), 503
+    md = get_market_data()
+    # build current_rates as symbol -> rate
+    current = {}
+    for k, v in md["rates"].items():
+        try:
+            current[k] = float(v.rate)
+        except Exception:
+            continue
+    moves = detect_abnormal(current)
+    return jsonify({"abnormal": moves, "timestamp": datetime.now().isoformat()})
+
+
+@app.route("/api/rotation")
+def api_rotation():
+    if not _HAS_TICK_PANEL:
+        return jsonify({"error": "tick-panel not available"}), 503
+    return jsonify(get_rotation_matrix())
+
+
+@app.route("/api/backtest")
+def api_backtest():
+    """VectorBT backtest preview (pandas fallback if vectorbt missing)."""
+    try:
+        import pandas as pd
+
+        from tradingagents.dataflows.vectorbt_backtest import VectorBTBacktest
+
+        n = 100
+        idx = pd.date_range("2024-01-01", periods=n, freq="D")
+        price = pd.Series([100 + i * 0.3 for i in range(n)], index=idx)
+        entries = price.pct_change() > 0.01
+        exits = price.pct_change() < -0.01
+        bt = VectorBTBacktest()
+        res = bt.run(price, entries, exits)
+        return jsonify({"total_return": res.total_return, "sharpe": res.sharpe, "max_drawdown": res.max_drawdown, "win_rate": res.win_rate, "num_trades": res.num_trades, "method": res.method})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/doc-preview")
+def api_doc_preview():
+    path = request.args.get("path", "")
+    if not path:
+        return jsonify({"error": "path required"}), 400
+    try:
+        from tradingagents.dataflows.providers.registry import get_markitdown_provider
+
+        md = get_markitdown_provider()
+        if md is None:
+            return jsonify({"preview": "_MarkItDown not available_", "path": path})
+        text = md.convert_for_llm(path)
+        return jsonify({"preview": text[:4000], "path": path})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":
