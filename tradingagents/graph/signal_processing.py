@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.agents.utils.rating import RATING_REVIEW, extract_rating
 
 
 class SignalProcessor:
@@ -27,5 +27,12 @@ class SignalProcessor:
         self.quick_thinking_llm = quick_thinking_llm
 
     def process_signal(self, full_signal: str) -> str:
-        """Return one of Buy / Overweight / Hold / Underweight / Sell."""
-        return parse_rating(full_signal)
+        """Return one of Buy / Overweight / Hold / Underweight / Sell, or REVIEW.
+
+        An unrecognizable decision yields ``REVIEW`` rather than a fabricated
+        ``Hold``, so a parsing failure is visible instead of masquerading as a
+        tradeable neutral signal (#1170). Consumers that map the result onto the
+        5-tier enum should guard with :func:`~tradingagents.agents.utils.rating.is_review`.
+        """
+        rating = extract_rating(full_signal)
+        return rating if rating is not None else RATING_REVIEW

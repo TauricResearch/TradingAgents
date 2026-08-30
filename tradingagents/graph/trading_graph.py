@@ -388,6 +388,12 @@ class TradingAgentsGraph:
         ``checkpoint_enabled`` is set in config, the graph is recompiled with
         a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
+
+        Returns ``(final_state, signal)`` where ``signal`` is one of the 5-tier
+        ratings (Buy / Overweight / Hold / Underweight / Sell) or ``"REVIEW"``
+        when the decision had no parseable rating (#1170); guard with
+        ``tradingagents.agents.utils.rating.is_review`` before mapping it to the
+        PortfolioRating enum.
         """
         self.ticker = company_name
 
