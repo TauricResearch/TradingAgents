@@ -13,6 +13,8 @@ from .registry import (
     register_provider,
     init_default_providers,
 )
+from .interest_rates import GlobalInterestRatesProvider
+from .fx_multi_currency import MultiCurrencyFXProvider
 
 __all__ = [
     "DataProvider",
@@ -22,4 +24,6 @@ __all__ = [
     "get_providers_for_market",
     "register_provider",
     "init_default_providers",
+    "GlobalInterestRatesProvider",
+    "MultiCurrencyFXProvider",
 ]
