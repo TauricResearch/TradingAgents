@@ -112,6 +112,28 @@ class VectorBTBacktest:
         net_sharpe = sharpe if np.isfinite(sharpe) else 0.0
         return BacktestResult(total_return=total_return, sharpe=sharpe if np.isfinite(sharpe) else 0.0, max_drawdown=max_dd, win_rate=win_rate, num_trades=num_trades, equity_curve=equity, method="vectorbt", net_sharpe=net_sharpe)
 
+    def load_outcomes(self, path: str | None = None, limit: int = 1000) -> List[Dict]:
+        try:
+            from tradingagents.learning.outcomes import TradeOutcomeLogger
+
+            return TradeOutcomeLogger(path=path).load_outcomes(limit=limit) if path else TradeOutcomeLogger().load_outcomes(limit=limit)
+        except Exception:
+            return []
+
+    def real_sharpe_from_outcomes(self, outcomes: List[Dict] | None = None) -> Dict:
+        rows = outcomes if outcomes is not None else self.load_outcomes()
+        if not rows:
+            return {"net_sharpe_real": 0.0, "count": 0}
+        pnls = np.array([float(r.get("pnl_net", 0)) for r in rows], dtype=float)
+        avg, std = float(np.mean(pnls)), float(np.std(pnls)) if len(pnls) > 1 else 0.0
+        sharpe_real = float(avg / std * np.sqrt(252)) if std > 1e-12 else 0.0
+        return {"net_sharpe_real": sharpe_real, "count": len(rows), "avg_pnl": avg}
+
+    def compare_real_vs_synthetic(self, price: pd.DataFrame | pd.Series, entries: pd.Series, exits: pd.Series, outcomes: List[Dict] | None = None, fees: Optional[float] = None) -> Dict:
+        synth = self.run(price, entries, exits, fees=fees)
+        real = self.real_sharpe_from_outcomes(outcomes)
+        return {"net_sharpe_synthetic": float(synth.net_sharpe), "net_sharpe_real": float(real["net_sharpe_real"]), "delta": float(real["net_sharpe_real"] - synth.net_sharpe), "synthetic": synth, "real": real}
+
     @staticmethod
     def _run_fallback(close: pd.Series, entries: pd.Series, exits: pd.Series, fees: float) -> BacktestResult:
         # entry/exit price adjusted by fees+slippage+fx_spread (one-way)
