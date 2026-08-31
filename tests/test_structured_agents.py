@@ -131,6 +131,7 @@ def _make_trader_state():
     return {
         "company_of_interest": "NVDA",
         "investment_plan": "**Recommendation**: Buy\n**Rationale**: ...\n**Strategic Actions**: ...",
+        "market_report": "Current price $189.5; 14-day ATR 4.2; support $178, resistance $196.",
     }
 
 
@@ -199,6 +200,31 @@ class TestTraderAgent:
         # The investment plan is in the user message of the captured prompt.
         prompt = captured["prompt"]
         assert any("Proposed Investment Plan" in m["content"] for m in prompt)
+
+    def test_prompt_includes_market_report_for_price_levels(self):
+        # #1167: the Trader must see the technical market report so entry/stop
+        # levels are grounded in real price structure, not just the digested plan.
+        captured = {}
+        trader = create_trader(_structured_trader_llm(captured))
+        trader(_make_trader_state())
+        user = " ".join(m["content"] for m in captured["prompt"] if m["role"] == "user")
+        system = " ".join(m["content"] for m in captured["prompt"] if m["role"] == "system")
+        assert "Technical Market Report:" in user
+        assert "14-day ATR 4.2" in user            # the actual report content reached the Trader
+        assert "support $178, resistance $196" in user
+        assert "Ground concrete price levels" in system
+
+    def test_empty_market_report_omits_the_section_and_grounding(self):
+        # #1167: when the market analyst wasn't selected the report is empty, so
+        # don't tell the Trader to ground levels in a report it doesn't have.
+        captured = {}
+        state = _make_trader_state()
+        state["market_report"] = ""
+        create_trader(_structured_trader_llm(captured))(state)
+        text = " ".join(m["content"] for m in captured["prompt"])
+        assert "Technical Market Report:" not in text
+        assert "Ground concrete price levels" not in text
+        assert "Proposed Investment Plan" in text  # still present
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
