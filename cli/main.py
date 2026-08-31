@@ -1294,8 +1294,12 @@ def run_analysis(checkpoint: bool | None = None):
 
         # Update final report sections
         for section in message_buffer.report_sections:
-            if section in final_state:
-                message_buffer.update_report_section(section, final_state[section])
+            if section not in final_state:
+                continue
+            content = final_state[section]
+            if section == "execution_report" and isinstance(content, dict):
+                content = format_execution_report(content)
+            message_buffer.update_report_section(section, content)
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
