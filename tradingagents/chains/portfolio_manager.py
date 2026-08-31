@@ -505,6 +505,19 @@ class CarryTradePortfolioManager:
         except Exception:
             pass
 
+    def scan_arbitrage_opportunities(self, tenor_m: int = 3, pairs=None):
+        """Optional CIP scanner: finds cheap assets via forward deviation, not replacing carry."""
+        try:
+            from tradingagents.dataflows.arbitrage_scanner import ArbitrageScanner
+        except ImportError:
+            return []
+        try:
+            scanner = ArbitrageScanner(fx_provider=self.fx_provider, rates_provider=self.rates_provider)
+            results = scanner.scan_all(pairs=pairs, tenor_m=tenor_m)
+            return [r for r in results if r.signal != "ARBITRAGED"]
+        except Exception:
+            return []
+
     def close(self):
         """Close providers"""
         self.rates_provider.close()

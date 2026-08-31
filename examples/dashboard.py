@@ -254,6 +254,29 @@ def api_carry_trades():
     return jsonify({"carry_trades": carry_trades, "timestamp": datetime.now().isoformat()})
 
 
+@app.route("/api/arbitrage")
+@app.route("/api/arbitrage/scan")
+@require_token
+def api_arbitrage():
+    """CIP deviation scanner (optional cheap-asset finder)."""
+    try:
+        from tradingagents.dataflows.arbitrage_scanner import ArbitrageScanner
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
+    try:
+        tenor_m = int(request.args.get("tenor_m", "3"))
+    except ValueError:
+        return jsonify({"error": "tenor_m must be integer"}), 400
+    if tenor_m < 1 or tenor_m > 12:
+        return jsonify({"error": "tenor_m must be between 1 and 12"}), 400
+    try:
+        scanner = ArbitrageScanner(fx_provider=fx_provider, rates_provider=rates_provider)
+        results = scanner.scan_all(tenor_m=tenor_m)
+        return jsonify({"results": [r.to_dict() for r in results], "timestamp": datetime.now().isoformat()})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/api/interest-rates")
 @require_token
 def api_interest_rates():
