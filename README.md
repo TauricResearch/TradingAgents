@@ -30,6 +30,7 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
+- [2026-08] **This fork** adds a single-ticker **Execution Agent**: it turns the Portfolio Manager's memo into a buy/hold/sell recommendation sized as a percent of **available cash**, and can place Alpaca **paper** orders when you opt in. See [Execution Agent](#execution-agent).
 - [2026-08] **TradingAgents v0.4.0** released with look-ahead / point-in-time fixes across FRED macro, social sentiment, and the decision-log memory; clearer decision signals; working CLI checkpoint resume; Trader price grounding; and the GPT-5.6 and GLM-5.3 models. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-07] **TradingAgents v0.3.1** released with correctness and stability fixes: Alpha Vantage look-ahead filtering, graph-router crash-safety, graph-shape-aware checkpoint resume, working crypto sentiment sources, a configurable LLM retry budget, Bedrock API-key auth, and Claude Sonnet 5 / Fable 5 support.
 - [2026-06] **TradingAgents v0.3.0** released with a verified data-access contract, an expanded provider registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate.
@@ -42,13 +43,22 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | 🧾 [Execution Agent](#execution-agent) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](CONTRIBUTING.md) | 📄 [Citation](#citation)
 
 </div>
 
 > 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
 >
 > So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
+
+This repository is a fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) that keeps the original one-ticker research desk and adds the missing last mile: an **Execution Agent** that reads the Trader and Portfolio Manager write-up and either recommends a ticket or, if you turn it on, sends that ticket to **Alpaca paper trading**.
+
+Clone this fork:
+
+```bash
+git clone https://github.com/Philemon518/TradingAgents.git
+cd TradingAgents
+```
 
 ## TradingAgents Framework
 
@@ -94,13 +104,69 @@ Our framework decomposes complex trading tasks into specialized roles.
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### Execution Agent
+
+Upstream TradingAgents stops when the Portfolio Manager finishes the memo. In this fork, one more specialist sits at the desk: the Execution Agent. It does not re-run the debate. It reads what the firm already wrote and turns that into a ticket.
+
+**Every run produces a recommendation**, even when no order is sent:
+
+- **Buy / Hold / Sell**
+- **How much**: a percent of **available cash** (Alpaca `cash` — usable money). Not a percent of equity. Not a percent of the stocks you already hold.
+
+Example: you have $10,000 in stocks and $2,000 sitting in cash. A 50% buy is **$1,000** of the $2,000, not $6,000 of $12,000.
+
+**When `TRADINGAGENTS_EXECUTION_ENABLED` is unset or false** (the default): you get that recommendation in the CLI and in `6_execution/execution.md`. You decide what to do with it.
+
+**When it is `true`**: the same recommendation is placed as an Alpaca **paper** order. Live trading is not the default. The base URL is `https://paper-api.alpaca.markets`. If you point it at the live host, the client logs a warning.
+
+The agent pays attention to the plan the desk already produced:
+
+- The **Trader** proposal: action, entry, stop-loss, optional position sizing
+- The **Portfolio Manager** decision: rating, executive summary, price target, **Time Horizon** (for example `3-6 months` — the estimated time until sell)
+
+While a position is open, that time horizon is stored. The desk **holds through the window**. It does not dump the name just because a later run is less enthusiastic. **Significant loss** means the plan's **stop-loss**. If price trades through that stop, the agent sells even during the hold window. When the horizon has elapsed, it is **sell time**: a fresh PM Sell, or a stop breach, can exit the position.
+
+Sizing language such as "25% of available cash" is read from the write-up. If none is given, it falls back to `execution_fallback_cash_pct` (default **10% of cash**). Sells size against the long shares you actually hold. Shorting is off unless you set `TRADINGAGENTS_EXECUTION_ALLOW_SHORT`.
+
+Never commit Alpaca keys. Copy `.env.example` to `.env` and leave placeholders empty in git.
+
+```bash
+cp .env.example .env
+# Fill ALPACA_API_KEY and ALPACA_SECRET_KEY locally (paper keys).
+# TRADINGAGENTS_EXECUTION_ENABLED=true   # only when you want the paper fill
+```
+
+After a CLI run you will see **VI. Execution Agent** on screen (if you display the report) and on disk:
+
+```text
+reports/NVDA_YYYYMMDD_HHMMSS/6_execution/execution.md
+```
+
+Programmatic runs attach the same payload on the state dict:
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+# Recommendation always. Uncomment to place a paper order:
+# config["execution_enabled"] = True
+
+ta = TradingAgentsGraph(debug=True, config=config)
+final_state, decision = ta.propagate("NVDA", "2026-01-15")
+print(decision)
+print(final_state.get("execution_report"))
+```
+
+This is a research tool, not financial advice. Paper trading can still surprise you. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run the execution tests (fake Alpaca only — no live keys).
+
 ## Installation and CLI
 
 ### Installation
 
-Clone TradingAgents:
+Clone this fork:
 ```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
+git clone https://github.com/Philemon518/TradingAgents.git
 cd TradingAgents
 ```
 
@@ -286,7 +352,7 @@ Backtest results are not guaranteed to match any published figure. Returns depen
 
 ## Contributing
 
-Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
+Contributions are welcome: bug fixes, documentation, execution-agent tests, and feature ideas. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md). Past upstream contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Citation
 
