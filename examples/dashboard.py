@@ -272,7 +272,11 @@ def api_arbitrage():
     try:
         scanner = ArbitrageScanner(fx_provider=fx_provider, rates_provider=rates_provider)
         results = scanner.scan_all(tenor_m=tenor_m)
-        return jsonify({"results": [r.to_dict() for r in results], "timestamp": datetime.now().isoformat()})
+        try:
+            cheap = scanner.find_cheap_assets(threshold_bps=50, tenor_m=tenor_m)
+        except Exception:
+            cheap = {"arbitrage": [], "etf_disconnects": [], "threshold_bps": 50}
+        return jsonify({"results": [r.to_dict() for r in results], "cheap_assets": cheap, "timestamp": datetime.now().isoformat()})
     except Exception as exc:  # noqa: BLE001
         return jsonify({"error": str(exc)}), 500
 
