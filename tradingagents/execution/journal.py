@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 def append_execution_journal(
@@ -111,7 +111,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _estimated_notional(report: dict[str, Any]) -> Optional[float]:
+def _estimated_notional(report: dict[str, Any]) -> float | None:
     quantity = _to_float(report.get("quantity"))
     price = _to_float(report.get("limit_price"))
     if quantity is None or price is None:
@@ -166,7 +166,7 @@ def _fmt_money(value: Any) -> str:
     return f"${number:,.2f}"
 
 
-def _to_float(value: Any) -> Optional[float]:
+def _to_float(value: Any) -> float | None:
     try:
         return float(value)
     except (TypeError, ValueError):

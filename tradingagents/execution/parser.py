@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Literal, Optional
+from typing import Literal
 
 from tradingagents.agents.utils.rating import parse_rating
-
 
 TradeAction = Literal["buy", "sell", "hold"]
 
@@ -103,11 +103,11 @@ class ParsedTradeDecision:
 
     rating: str
     action: TradeAction
-    entry_price: Optional[float] = None
-    stop_loss: Optional[float] = None
-    price_target: Optional[float] = None
-    time_horizon: Optional[str] = None
-    cash_allocation_pct: Optional[float] = None
+    entry_price: float | None = None
+    stop_loss: float | None = None
+    price_target: float | None = None
+    time_horizon: str | None = None
+    cash_allocation_pct: float | None = None
     rating_source: str = "portfolio_manager"
     price_source: str = "portfolio_manager"
 
@@ -172,7 +172,7 @@ def parse_trade_decision(
     )
 
 
-def extract_time_horizon(text: str) -> Optional[str]:
+def extract_time_horizon(text: str) -> str | None:
     """Read a Time Horizon / estimated hold period from rendered markdown."""
     if not text:
         return None
@@ -189,7 +189,7 @@ def extract_time_horizon(text: str) -> Optional[str]:
     return None
 
 
-def extract_cash_allocation_pct(text: str) -> Optional[float]:
+def extract_cash_allocation_pct(text: str) -> float | None:
     """Extract a 0-100 allocation percent, preferring language about available cash."""
     if not text:
         return None
@@ -230,7 +230,7 @@ def _rating_to_action(rating: str) -> TradeAction:
     return "hold"
 
 
-def _extract_entry_price(text: str) -> Optional[float]:
+def _extract_entry_price(text: str) -> float | None:
     return _extract_price_from_text(
         text,
         label_re=_ENTRY_LABEL_RE,
@@ -240,7 +240,7 @@ def _extract_entry_price(text: str) -> Optional[float]:
     )
 
 
-def _extract_stop_loss(text: str, entry_price: Optional[float]) -> Optional[float]:
+def _extract_stop_loss(text: str, entry_price: float | None) -> float | None:
     return _extract_price_from_text(
         text,
         label_re=_STOP_LABEL_RE,
@@ -252,9 +252,9 @@ def _extract_stop_loss(text: str, entry_price: Optional[float]) -> Optional[floa
 
 def _extract_target_price(
     text: str,
-    entry_price: Optional[float],
-    stop_loss: Optional[float],
-) -> Optional[float]:
+    entry_price: float | None,
+    stop_loss: float | None,
+) -> float | None:
     return _extract_price_from_text(
         text,
         label_re=_TARGET_LABEL_RE,
@@ -268,9 +268,9 @@ def _extract_target_price(
 
 def _extract_upside_target_price(
     text: str,
-    entry_price: Optional[float],
-    stop_loss: Optional[float],
-) -> Optional[float]:
+    entry_price: float | None,
+    stop_loss: float | None,
+) -> float | None:
     if not text:
         return None
     for match in _UPSIDE_TARGET_RE.finditer(text):
@@ -289,7 +289,7 @@ def _extract_price_from_text(
     context_words: Iterable[str],
     ignore_words: Iterable[str],
     selector,
-) -> Optional[float]:
+) -> float | None:
     if not text:
         return None
 
@@ -340,14 +340,14 @@ def _should_skip_price_match(text: str, match: re.Match[str]) -> bool:
     return bool(_SKIP_PRICE_TRAILING_RE.match(trailing))
 
 
-def _to_float(value: str) -> Optional[float]:
+def _to_float(value: str) -> float | None:
     try:
         return float(value.replace(",", ""))
     except (TypeError, ValueError):
         return None
 
 
-def _clamp_pct(value: Optional[float]) -> Optional[float]:
+def _clamp_pct(value: float | None) -> float | None:
     if value is None:
         return None
     if value <= 0 or value > 100:
@@ -355,14 +355,14 @@ def _clamp_pct(value: Optional[float]) -> Optional[float]:
     return value
 
 
-def _select_entry_price(prices: list[float], _context: str = "") -> Optional[float]:
+def _select_entry_price(prices: list[float], _context: str = "") -> float | None:
     realistic = [price for price in prices if price >= 1]
     return realistic[0] if realistic else None
 
 
 def _select_stop_price(
-    prices: list[float], entry_price: Optional[float], context: str = ""
-) -> Optional[float]:
+    prices: list[float], entry_price: float | None, context: str = ""
+) -> float | None:
     realistic = [price for price in prices if price >= 1]
     if not realistic:
         return None
@@ -383,10 +383,10 @@ def _select_stop_price(
 
 def _select_target_price(
     prices: list[float],
-    entry_price: Optional[float],
-    stop_loss: Optional[float],
+    entry_price: float | None,
+    stop_loss: float | None,
     _context: str = "",
-) -> Optional[float]:
+) -> float | None:
     realistic = [price for price in prices if price >= 1]
     if not realistic:
         return None

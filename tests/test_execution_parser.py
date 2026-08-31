@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from tradingagents.execution.parser import extract_cash_allocation_pct, parse_trade_decision
 
-
 PM_BUY = """
 **Rating**: Buy
 

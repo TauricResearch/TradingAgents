@@ -6,7 +6,7 @@ import logging
 import math
 import os
 from dataclasses import asdict, dataclass
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -42,23 +42,23 @@ class ExecutionResult:
     ticker: str
     decision: ParsedTradeDecision
     cash_allocation_pct: float = 0.0
-    account_snapshot: Optional[dict[str, Any]] = None
-    positions_snapshot: Optional[list[dict[str, Any]]] = None
+    account_snapshot: dict[str, Any] | None = None
+    positions_snapshot: list[dict[str, Any]] | None = None
     order_submitted: bool = False
     order_action: str = "hold"
     order_type: str = "none"
     quantity: float = 0
-    limit_price: Optional[float] = None
-    stop_loss: Optional[float] = None
-    take_profit: Optional[float] = None
+    limit_price: float | None = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
     stop_loss_attached: bool = False
-    estimated_notional: Optional[float] = None
-    alpaca_order_id: Optional[str] = None
-    alpaca_status: Optional[str] = None
-    alpaca_submitted_at: Optional[str] = None
-    filled_qty: Optional[float] = None
-    filled_avg_price: Optional[float] = None
-    time_horizon: Optional[str] = None
+    estimated_notional: float | None = None
+    alpaca_order_id: str | None = None
+    alpaca_status: str | None = None
+    alpaca_submitted_at: str | None = None
+    filled_qty: float | None = None
+    filled_avg_price: float | None = None
+    time_horizon: str | None = None
     message: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -358,8 +358,8 @@ class ExecutionAgent:
         ticker: str,
         action: str,
         quantity: float,
-        limit_price: Optional[float],
-        stop_loss: Optional[float],
+        limit_price: float | None,
+        stop_loss: float | None,
     ) -> dict[str, Any]:
         qty = quantity
         attach_stop = action == "buy" and stop_loss is not None and stop_loss > 0
@@ -602,7 +602,7 @@ def _position_qty(ticker: str, positions: list[dict[str, Any]]) -> float:
     return 0.0
 
 
-def _position_price(ticker: str, positions: list[dict[str, Any]]) -> Optional[float]:
+def _position_price(ticker: str, positions: list[dict[str, Any]]) -> float | None:
     for position in positions:
         if str(position.get("symbol") or "").upper() == ticker.upper():
             return _to_float(position.get("current_price"))
@@ -615,7 +615,7 @@ def _format_number(value: float) -> str:
     return f"{value:.4f}".rstrip("0").rstrip(".")
 
 
-def _to_float(value: Any) -> Optional[float]:
+def _to_float(value: Any) -> float | None:
     try:
         return float(value)
     except (TypeError, ValueError):

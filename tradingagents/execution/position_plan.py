@@ -6,7 +6,7 @@ import json
 import re
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from dateutil.relativedelta import relativedelta
 
@@ -21,12 +21,12 @@ _WEEKS_RE = re.compile(r"(\d+)\s*weeks?", re.IGNORECASE)
 _YEARS_RE = re.compile(r"(\d+(?:\.\d+)?)\s*years?", re.IGNORECASE)
 
 
-def extract_time_horizon_from_pm(text: str) -> Optional[str]:
+def extract_time_horizon_from_pm(text: str) -> str | None:
     """Read **Time Horizon** from PM markdown (alias for the parser helper)."""
     return extract_time_horizon(text)
 
 
-def horizon_end_date(entry_date: str, horizon_text: Optional[str]) -> Optional[str]:
+def horizon_end_date(entry_date: str, horizon_text: str | None) -> str | None:
     """Return ISO end date using the longer bound of a range (e.g. 3-6 months -> 6 months)."""
     if not horizon_text or not entry_date:
         return None
@@ -36,7 +36,7 @@ def horizon_end_date(entry_date: str, horizon_text: Optional[str]) -> Optional[s
         return None
 
     text = horizon_text.strip().lower()
-    delta: Optional[relativedelta] = None
+    delta: relativedelta | None = None
 
     match = _MONTHS_RANGE_RE.search(text)
     if match:
@@ -132,7 +132,7 @@ def clear_position_plan(
     return plans
 
 
-def _parse_iso_day(value: str | None) -> Optional[date]:
+def _parse_iso_day(value: str | None) -> date | None:
     if not value:
         return None
     try:
@@ -202,7 +202,7 @@ def plan_blocks_sell(
     return False, ""
 
 
-def _to_float_optional(value: Any) -> Optional[float]:
+def _to_float_optional(value: Any) -> float | None:
     try:
         return float(value)
     except (TypeError, ValueError):
