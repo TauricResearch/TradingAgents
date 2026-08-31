@@ -21,10 +21,10 @@ class SignalProcessor:
     """Read the 5-tier rating out of a Portfolio Manager decision."""
 
     def __init__(self, quick_thinking_llm: Any = None):
-        # The LLM argument is accepted for backwards compatibility but no
-        # longer used: the PM's structured output guarantees the rating is
-        # parseable from the rendered markdown without a second LLM call.
-        self.quick_thinking_llm = quick_thinking_llm
+        # The LLM argument is accepted for backwards compatibility but ignored:
+        # the PM's structured output guarantees the rating is parseable from the
+        # rendered markdown without a second LLM call, so it is not stored.
+        pass
 
     def process_signal(self, full_signal: str) -> str:
         """Return one of Buy / Overweight / Hold / Underweight / Sell, or REVIEW.
