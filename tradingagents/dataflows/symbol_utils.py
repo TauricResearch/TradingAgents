@@ -138,6 +138,28 @@ def normalize_symbol(raw: str) -> str:
     return canonical
 
 
+def is_a_share(ticker: str) -> bool:
+    """True when ``ticker`` is a 6-digit China A-share code.
+
+    A-share codes are purely numeric and 6 digits long:
+    - Shanghai: 6xxxxx (e.g. 600519 贵州茅台)
+    - Shenzhen: 0xxxxx, 2xxxxx, 3xxxxx (e.g. 000001 平安银行)
+
+    Single source of truth — all A-share fast-path checks MUST call this
+    instead of inlining ``ticker.isdigit() and len(ticker) == 6``.
+    """
+    return isinstance(ticker, str) and ticker.isdigit() and len(ticker) == 6
+
+
+def a_share_exchange(ticker: str) -> str:
+    """Return the exchange name for a 6-digit A-share code.
+
+    Returns "SSE" for Shanghai (6/9-prefix), "SZSE" for Shenzhen.
+    Callers must validate with ``is_a_share()`` first.
+    """
+    return "SSE" if ticker.startswith("6") else "SZSE"
+
+
 def is_yahoo_safe(symbol: str) -> bool:
     """True when ``symbol`` only contains characters Yahoo symbols use."""
     return bool(symbol) and _YAHOO_SAFE.fullmatch(symbol) is not None

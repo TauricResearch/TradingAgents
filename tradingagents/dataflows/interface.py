@@ -17,6 +17,16 @@ from .errors import (
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
+from .eastmoney import (
+    get_stock as get_eastmoney_stock,
+    get_fundamentals as get_eastmoney_fundamentals,
+    get_indicator as get_eastmoney_indicator,
+    get_news as get_eastmoney_news,
+    get_sentiment as get_eastmoney_sentiment,
+    get_income_statement as get_eastmoney_income_statement,
+    get_balance_sheet as get_eastmoney_balance_sheet,
+    get_cashflow as get_eastmoney_cashflow,
+)
 from .fred import get_macro_data as get_fred_macro_data
 from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
 from .y_finance import (
@@ -82,6 +92,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "eastmoney",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -95,33 +106,40 @@ OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
 VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
+        "eastmoney": get_eastmoney_stock,
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
     },
     # technical_indicators
     "get_indicators": {
+        "eastmoney": get_eastmoney_indicator,
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
     },
     # fundamental_data
     "get_fundamentals": {
+        "eastmoney": get_eastmoney_fundamentals,
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
     },
     "get_balance_sheet": {
+        "eastmoney": get_eastmoney_balance_sheet,
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
     },
     "get_cashflow": {
+        "eastmoney": get_eastmoney_cashflow,
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
     },
     "get_income_statement": {
+        "eastmoney": get_eastmoney_income_statement,
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
     },
     # news_data
     "get_news": {
+        "eastmoney": get_eastmoney_news,
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
     },
