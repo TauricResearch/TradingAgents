@@ -305,7 +305,9 @@ def _extract_price_from_text(
         if not line:
             continue
         lowered = line.lower()
-        if any(word in lowered for word in ignore_words):
+        if any(word in lowered for word in ignore_words) and not any(
+            word in lowered for word in context_words
+        ):
             continue
         if any(word in lowered for word in context_words):
             prices = _prices_in(line)
