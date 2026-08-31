@@ -127,3 +127,19 @@ def test_unknown_env_var_is_ignored(monkeypatch):
         TRADINGAGENTS_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in dc.DEFAULT_CONFIG
+
+
+def test_execution_defaults_and_overrides(monkeypatch):
+    """Paper execution stays off until TRADINGAGENTS_EXECUTION_ENABLED is set."""
+    dc = _reload_with_env(monkeypatch)
+    assert dc.DEFAULT_CONFIG["execution_enabled"] is False
+    assert dc.DEFAULT_CONFIG["execution_fallback_cash_pct"] == 10.0
+    assert dc.DEFAULT_CONFIG["alpaca_base_url"] == "https://paper-api.alpaca.markets"
+
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_EXECUTION_ENABLED="true",
+        TRADINGAGENTS_EXECUTION_FALLBACK_CASH_PCT="15",
+    )
+    assert dc.DEFAULT_CONFIG["execution_enabled"] is True
+    assert dc.DEFAULT_CONFIG["execution_fallback_cash_pct"] == 15.0
