@@ -67,9 +67,21 @@ class TradingMemoryLog:
         """Return entries with outcome:pending (for Phase B)."""
         return [e for e in self.load_entries() if e.get("pending")]
 
-    def get_past_context(self, ticker: str, n_same: int = 5, n_cross: int = 3) -> str:
-        """Return formatted past context string for agent prompt injection."""
+    def get_past_context(
+        self, ticker: str, n_same: int = 5, n_cross: int = 3, as_of: str | None = None
+    ) -> str:
+        """Return formatted past context string for agent prompt injection.
+
+        When ``as_of`` (yyyy-mm-dd) is given, only lessons whose outcome was
+        already known by that date are included — an entry is kept only if it
+        stores a resolution date (``resolved:...``) that is on or before
+        ``as_of``. This keeps a historical/backtest run from learning from
+        outcomes that had not happened yet (#1251). ``as_of=None`` disables the
+        filter, so live runs and pre-migration entries are unaffected.
+        """
         entries = [e for e in self.load_entries() if not e.get("pending")]
+        if as_of is not None:
+            entries = [e for e in entries if e.get("resolved") and e["resolved"] <= as_of]
         if not entries:
             return ""
 
@@ -104,12 +116,14 @@ class TradingMemoryLog:
         alpha_return: float,
         holding_days: int,
         reflection: str,
+        resolution_date: str | None = None,
     ) -> None:
         """Replace pending tag and append REFLECTION section using atomic write.
 
         Finds the first pending entry matching (trade_date, ticker), updates
-        its tag with return figures, and appends a REFLECTION section.  Uses
-        a temp-file + os.replace() so a crash mid-write never corrupts the log.
+        its tag with return figures (and the ``resolution_date`` the outcome
+        became known), and appends a REFLECTION section.  Uses a temp-file +
+        os.replace() so a crash mid-write never corrupts the log.
         """
         if not self._log_path or not self._log_path.exists():
             return
@@ -140,9 +154,8 @@ class TradingMemoryLog:
                 # Parse rating from the existing pending tag
                 fields = [f.strip() for f in tag_line[1:-1].split("|")]
                 rating = fields[2]
-                new_tag = (
-                    f"[{trade_date} | {ticker} | {rating}"
-                    f" | {raw_pct} | {alpha_pct} | {holding_days}d]"
+                new_tag = self._resolved_tag(
+                    trade_date, ticker, rating, raw_pct, alpha_pct, holding_days, resolution_date
                 )
                 rest = "\n".join(lines[1:])
                 new_blocks.append(
@@ -194,9 +207,9 @@ class TradingMemoryLog:
                     rating = fields[2]
                     raw_pct = f"{upd['raw_return']:+.1%}"
                     alpha_pct = f"{upd['alpha_return']:+.1%}"
-                    new_tag = (
-                        f"[{trade_date} | {ticker} | {rating}"
-                        f" | {raw_pct} | {alpha_pct} | {upd['holding_days']}d]"
+                    new_tag = self._resolved_tag(
+                        trade_date, ticker, rating, raw_pct, alpha_pct,
+                        upd["holding_days"], upd.get("resolution_date"),
                     )
                     rest = "\n".join(lines[1:])
                     new_blocks.append(
@@ -216,6 +229,21 @@ class TradingMemoryLog:
         tmp_path.replace(self._log_path)
 
     # --- Helpers ---
+
+    @staticmethod
+    def _resolved_tag(
+        trade_date, ticker, rating, raw_pct, alpha_pct, holding_days, resolution_date
+    ) -> str:
+        """Build a resolved entry tag, recording the outcome's known-by date.
+
+        ``resolution_date`` (the date of the last price bar used for the return)
+        is the point-in-time cutoff a later run filters on (#1251). Omitted when
+        unavailable, keeping the legacy 6-field tag.
+        """
+        tag = f"[{trade_date} | {ticker} | {rating} | {raw_pct} | {alpha_pct} | {holding_days}d"
+        if resolution_date:
+            tag += f" | resolved:{resolution_date}"
+        return tag + "]"
 
     def _apply_rotation(self, blocks: list[str]) -> list[str]:
         """Drop oldest resolved blocks when their count exceeds max_entries.
@@ -264,6 +292,12 @@ class TradingMemoryLog:
         fields = [f.strip() for f in tag_line[1:-1].split("|")]
         if len(fields) < 4:
             return None
+        # Optional trailing "resolved:YYYY-MM-DD" field records when the outcome
+        # became known, for point-in-time filtering (#1251).
+        resolved = None
+        for f in fields[6:]:
+            if f.startswith("resolved:"):
+                resolved = f[len("resolved:"):].strip()
         entry = {
             "date": fields[0],
             "ticker": fields[1],
@@ -272,6 +306,7 @@ class TradingMemoryLog:
             "raw": fields[3] if fields[3] != "pending" else None,
             "alpha": fields[4] if len(fields) > 4 else None,
             "holding": fields[5] if len(fields) > 5 else None,
+            "resolved": resolved,
         }
         body = "\n".join(lines[1:]).strip()
         decision_match = self._DECISION_RE.search(body)

@@ -25,14 +25,34 @@ import re
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from .date_window import in_window
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
+
+
+def _within_window(posts, start_date, end_date):
+    """Keep only posts published in [start_date, end_date] (look-ahead safe).
+
+    No window (both None) leaves the list untouched for live callers. A post with
+    no ``created_utc`` epoch is dropped in a historical window (#1220).
+    """
+    if not (start_date and end_date):
+        return posts
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    kept = []
+    for p in posts:
+        ts = p.get("created_utc")
+        created = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
+        if in_window(created, start_dt, end_dt):
+            kept.append(p)
+    return kept
 
 _API = "https://www.reddit.com/r/{sub}/search.json?{qs}"
 _RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
@@ -194,6 +214,8 @@ def fetch_reddit_posts(
     limit_per_sub: int = 5,
     timeout: float = 10.0,
     inter_request_delay: float = 1.0,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> str:
     """Fetch recent Reddit posts mentioning ``ticker`` across finance
     subreddits and return them as a formatted plaintext block.
@@ -201,6 +223,10 @@ def fetch_reddit_posts(
     ``inter_request_delay`` paces the (now RSS-only) per-subreddit requests to
     stay under Reddit's public per-IP rate limit; combined with the RSS-first
     path it makes 429s rare even when several analyses run back-to-back.
+
+    When ``start_date``/``end_date`` (yyyy-mm-dd) are given, posts are trimmed to
+    that window so a historical run does not leak current discussion into a
+    backtest (#1220).
     """
     # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
     # ("BTC") so the query actually matches discussion instead of near-nothing.
@@ -210,7 +236,8 @@ def fetch_reddit_posts(
     for i, sub in enumerate(subreddits):
         if i > 0:
             time.sleep(inter_request_delay)
-        posts = _fetch_subreddit(ticker, sub, limit_per_sub, timeout)
+        posts = _within_window(_fetch_subreddit(ticker, sub, limit_per_sub, timeout),
+                               start_date, end_date)
         total_posts += len(posts)
         if not posts:
             blocks.append(f"r/{sub}: <no posts found mentioning {ticker.upper()} in the past 7 days>")

@@ -150,6 +150,23 @@ class FredFormattingTests(unittest.TestCase):
         self.assertEqual(obs_params["observation_end"], "2025-09-30")
         self.assertEqual(obs_params["observation_start"], "2025-07-02")  # 90d back
 
+    def test_requests_pin_the_data_vintage(self):
+        # #1275: both the metadata and observations requests must set
+        # realtime_start=realtime_end=curr_date, or FRED serves the latest
+        # revision and revision-prone series leak future information.
+        captured = {}
+
+        def _capture(path, params):
+            captured[path] = params
+            return _META if path == "series" else _OBS
+
+        with mock.patch.object(fred, "_request", side_effect=_capture):
+            fred.get_macro_data("cpi", "2025-09-30", 90)
+
+        for path in ("series", "series/observations"):
+            self.assertEqual(captured[path]["realtime_start"], "2025-09-30", path)
+            self.assertEqual(captured[path]["realtime_end"], "2025-09-30", path)
+
 
 @pytest.mark.unit
 class FredRoutingTests(unittest.TestCase):
