@@ -163,6 +163,7 @@ class TradingAgentsGraph:
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
+        self._resuming = False
 
     def _get_provider_kwargs(self) -> dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
@@ -277,8 +278,10 @@ class TradingAgentsGraph:
 
         ``benchmark`` is the index used as the alpha baseline (resolved by the
         caller via ``_resolve_benchmark``). Returns ``(raw_return, alpha_return,
-        actual_holding_days)`` or ``(None, None, None)`` if price data is
-        unavailable (too recent, delisted, or network error).
+        actual_holding_days, resolution_date)`` — where ``resolution_date`` is
+        the date of the last price bar used, i.e. when the outcome became known
+        (#1251) — or ``(None, None, None, None)`` if price data is unavailable
+        (too recent, delisted, or network error).
         """
         from tradingagents.dataflows.symbol_utils import normalize_symbol
 
@@ -433,6 +436,7 @@ class TradingAgentsGraph:
         lived only inside ``propagate`` and the CLI streamed the checkpointer-less
         graph, making the flag a no-op.
         """
+        self._resuming = False
         if not self.config.get("checkpoint_enabled"):
             return None
         signature = self._run_signature(asset_type)
@@ -443,11 +447,22 @@ class TradingAgentsGraph:
         step = checkpoint_step(
             self.config["data_cache_dir"], company_name, str(trade_date), signature
         )
+        self._resuming = step is not None
         if step is not None:
             logger.info("Resuming from step %d for %s on %s", step, company_name, trade_date)
         else:
             logger.info("Starting fresh for %s on %s", company_name, trade_date)
         return thread_id(company_name, str(trade_date), signature)
+
+    def checkpoint_input(self, init_state):
+        """The value to stream/invoke: ``None`` to resume an existing checkpoint,
+        else the initial state for a fresh run.
+
+        LangGraph resumes an interrupted thread when invoked with ``None``;
+        re-passing the initial state instead appends it through the message
+        reducer, duplicating messages in the resumed state (#1249).
+        """
+        return None if self._resuming else init_state
 
     def end_checkpoint(self):
         """Restore the plain uncheckpointed graph after a checkpointed run."""
@@ -455,6 +470,7 @@ class TradingAgentsGraph:
             self._checkpointer_ctx.__exit__(None, None, None)
             self._checkpointer_ctx = None
             self.graph = self.workflow.compile()
+        self._resuming = False
 
     @contextmanager
     def checkpoint_scope(self, company_name, trade_date, asset_type: str = "stock"):
@@ -512,10 +528,12 @@ class TradingAgentsGraph:
         if checkpoint_thread_id is not None:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_thread_id
 
+        # None resumes an existing checkpoint; init_agent_state starts fresh (#1249).
+        graph_input = self.checkpoint_input(init_agent_state)
         if self.debug:
             trace = []
             last_printed = None
-            for chunk in self.graph.stream(init_agent_state, **args):
+            for chunk in self.graph.stream(graph_input, **args):
                 if chunk["messages"]:
                     msg = chunk["messages"][-1]
                     # Nodes after the trader don't append to messages, so the
@@ -532,7 +550,7 @@ class TradingAgentsGraph:
             for chunk in trace:
                 final_state.update(chunk)
         else:
-            final_state = self.graph.invoke(init_agent_state, **args)
+            final_state = self.graph.invoke(graph_input, **args)
 
         # Store current state for reflection.
         self.curr_state = final_state

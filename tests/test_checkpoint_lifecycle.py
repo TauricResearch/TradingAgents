@@ -85,6 +85,38 @@ def test_begin_returns_thread_id_and_recompiles():
 
 
 @pytest.mark.unit
+def test_checkpoint_input_is_none_only_when_resuming():
+    global _should_crash
+    with tempfile.TemporaryDirectory() as tmp:
+        init = {"count": 0}
+        args = ("AAPL", "2026-05-08", "stock")
+        # Fresh run: no checkpoint yet -> stream the initial state, then crash.
+        g1 = _bare_graph(tmp)
+        tid = g1.begin_checkpoint(*args)
+        try:
+            assert g1._resuming is False
+            assert g1.checkpoint_input(init) is init  # not resuming -> initial state
+            _should_crash = True
+            with pytest.raises(RuntimeError):
+                for _ in g1.graph.stream(init, config={"configurable": {"thread_id": tid}}):
+                    pass
+        finally:
+            g1.end_checkpoint()
+        assert g1.checkpoint_input(init) is init  # reset after teardown
+
+        # A later run finds the checkpoint -> resume by feeding None, not the
+        # initial state (re-passing it would duplicate messages, #1249).
+        _should_crash = False
+        g2 = _bare_graph(tmp)
+        g2.begin_checkpoint(*args)
+        try:
+            assert g2._resuming is True
+            assert g2.checkpoint_input(init) is None
+        finally:
+            g2.end_checkpoint()
+
+
+@pytest.mark.unit
 def test_cli_style_usage_saves_then_resumes():
     global _should_crash
     with tempfile.TemporaryDirectory() as tmp:
