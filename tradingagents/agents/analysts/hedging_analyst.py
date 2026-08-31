@@ -1,35 +1,48 @@
+"""
+Hedging Analyst agent.
+
+Recommends hedging strategies across multiple markets using
+derivatives, bonds, and correlation-based protection.
+"""
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
-    get_balance_sheet,
-    get_cashflow,
-    get_document_markdown,
     get_fundamentals,
-    get_income_statement,
     get_instrument_context_from_state,
     get_language_instruction,
 )
 
 
-def create_fundamentals_analyst(llm):
-    def fundamentals_analyst_node(state):
+def create_hedging_analyst(llm):
+    """Create the hedging analyst node."""
+
+    def hedging_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
 
         tools = [
             get_fundamentals,
-            get_balance_sheet,
-            get_cashflow,
-            get_income_statement,
-            get_document_markdown,
         ]
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
-            + " For unstructured filings (BCRA/BYMA PDFs, FRED docs, balance-sheet PDFs) use `get_document_markdown` to ingest them as markdown."
-            + get_language_instruction(),
+            "You are a hedging specialist focused on portfolio protection and risk mitigation. "
+            "Your role is to design and recommend hedging strategies across multiple markets.\n\n"
+            "For each hedging recommendation, provide:\n"
+            "1. **Risk Assessment**: What risks need hedging (market, currency, interest rate, etc.)\n"
+            "2. **Hedging Instruments**:\n"
+            "   - Options: Protective puts, collars, covered calls\n"
+            "   - Futures: Short futures for directional hedging\n"
+            "   - Cross-asset: Bonds, gold, inverse ETFs\n"
+            "   - Crypto: Perpetual shorts, put options\n"
+            "3. **Hedge Ratio**: How much of the position to hedge (25%, 50%, 75%, 100%)\n"
+            "4. **Cost Analysis**: Premium costs, margin requirements, opportunity cost\n"
+            "5. **Effectiveness**: Expected reduction in portfolio volatility\n"
+            "6. **Scoring**: Rate each strategy 0-100 based on cost vs protection\n\n"
+            "Consider correlations between assets for optimal hedging.\n"
+            "Always present as SCENARIOS with probability-weighted outcomes.\n"
+            "Always include a Markdown table summarizing hedging strategies.\n"
+            + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -66,7 +79,7 @@ def create_fundamentals_analyst(llm):
 
         return {
             "messages": [result],
-            "fundamentals_report": report,
+            "hedging_report": report,
         }
 
-    return fundamentals_analyst_node
+    return hedging_analyst_node

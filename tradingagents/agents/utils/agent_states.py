@@ -60,6 +60,10 @@ class AgentState(MessagesState):
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
 
+    # derivatives and hedging reports (new)
+    derivatives_report: Annotated[str, "Report from the Derivatives Analyst"]
+    hedging_report: Annotated[str, "Report from the Hedging Analyst"]
+
     # researcher team discussion step
     investment_debate_state: Annotated[
         InvestDebateState, "Current state of the debate on if to invest or not"
@@ -74,3 +78,7 @@ class AgentState(MessagesState):
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]
+
+    # human intervention fields (new)
+    pending_approval: Annotated[bool, "Whether human approval is pending"]
+    approval_decision: Annotated[str, "Human's approval decision"]

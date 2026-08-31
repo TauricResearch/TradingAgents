@@ -20,6 +20,12 @@ from tradingagents.agents import (
     create_sentiment_analyst,
     create_trader,
 )
+from tradingagents.agents.analysts.derivatives_analyst import create_derivatives_analyst
+from tradingagents.agents.analysts.hedging_analyst import create_hedging_analyst
+from tradingagents.agents.human_intervention import (
+    InterventionType,
+    create_human_intervention_node,
+)
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .analyst_execution import build_analyst_execution_plan
@@ -41,6 +47,14 @@ RISK_ANALYSIS_PATH_MAP = {
     "Portfolio Manager": "Portfolio Manager",
 }
 
+# Extended path map with derivatives and hedging agents
+EXTENDED_RISK_ANALYSIS_PATH_MAP = {
+    **RISK_ANALYSIS_PATH_MAP,
+    "Derivatives Analyst": "Derivatives Analyst",
+    "Hedging Analyst": "Hedging Analyst",
+    "Trade Approval": "Trade Approval",
+}
+
 
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
@@ -59,7 +73,11 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=("market", "social", "news", "fundamentals")
+        self,
+        selected_analysts=("market", "social", "news", "fundamentals"),
+        include_derivatives: bool = True,
+        include_hedging: bool = True,
+        include_human_intervention: bool = True,
     ):
         """Set up and compile the agent workflow graph.
 
@@ -69,6 +87,9 @@ class GraphSetup:
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
+            include_derivatives: Whether to include derivatives analyst
+            include_hedging: Whether to include hedging analyst
+            include_human_intervention: Whether to include human approval nodes
         """
         plan = build_analyst_execution_plan(selected_analysts)
 
@@ -91,6 +112,16 @@ class GraphSetup:
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
 
+        # Create derivatives and hedging nodes (new)
+        derivatives_node = create_derivatives_analyst(self.quick_thinking_llm)
+        hedging_node = create_hedging_analyst(self.quick_thinking_llm)
+
+        # Create human intervention nodes (new)
+        trade_approval_node = create_human_intervention_node(
+            InterventionType.TRADE_APPROVAL,
+            agent_name="Trader",
+        )
+
         # Create workflow
         workflow = StateGraph(AgentState)
 
@@ -109,6 +140,16 @@ class GraphSetup:
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
+
+        # Add derivatives and hedging nodes (new)
+        if include_derivatives:
+            workflow.add_node("Derivatives Analyst", derivatives_node)
+        if include_hedging:
+            workflow.add_node("Hedging Analyst", hedging_node)
+
+        # Add human intervention nodes (new)
+        if include_human_intervention:
+            workflow.add_node("Trade Approval", trade_approval_node)
 
         # Define edges
         # Start with the first analyst
@@ -142,7 +183,21 @@ class GraphSetup:
                 DEBATE_PATH_MAP,
             )
         workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Aggressive Analyst")
+
+        # After Trader, go to Derivatives Analyst (if included)
+        if include_derivatives:
+            workflow.add_edge("Trader", "Derivatives Analyst")
+            if include_hedging:
+                workflow.add_edge("Derivatives Analyst", "Hedging Analyst")
+                # After Hedging, go to Risk Analysis
+                workflow.add_edge("Hedging Analyst", "Aggressive Analyst")
+            else:
+                # After Derivatives, go to Risk Analysis
+                workflow.add_edge("Derivatives Analyst", "Aggressive Analyst")
+        else:
+            # Original flow: Trader -> Aggressive Analyst
+            workflow.add_edge("Trader", "Aggressive Analyst")
+
         # All three risk edges share the complete RISK_ANALYSIS_PATH_MAP (#1088).
         for risk_node in ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst"):
             workflow.add_conditional_edges(
@@ -150,6 +205,13 @@ class GraphSetup:
                 self.conditional_logic.should_continue_risk_analysis,
                 RISK_ANALYSIS_PATH_MAP,
             )
+
+        # After Risk Analysis, go to Trade Approval (if human intervention enabled)
+        if include_human_intervention:
+            workflow.add_edge("Neutral Analyst", "Trade Approval")
+            workflow.add_edge("Trade Approval", "Portfolio Manager")
+        else:
+            workflow.add_edge("Neutral Analyst", "Portfolio Manager")
 
         workflow.add_edge("Portfolio Manager", END)
 

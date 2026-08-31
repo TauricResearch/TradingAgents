@@ -1,35 +1,45 @@
+"""
+Derivatives Analyst agent.
+
+Analyzes options, futures, and crypto derivatives for investment
+and hedging opportunities.
+"""
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
-    get_balance_sheet,
-    get_cashflow,
-    get_document_markdown,
     get_fundamentals,
-    get_income_statement,
     get_instrument_context_from_state,
     get_language_instruction,
 )
 
 
-def create_fundamentals_analyst(llm):
-    def fundamentals_analyst_node(state):
+def create_derivatives_analyst(llm):
+    """Create the derivatives analyst node."""
+
+    def derivatives_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
 
         tools = [
             get_fundamentals,
-            get_balance_sheet,
-            get_cashflow,
-            get_income_statement,
-            get_document_markdown,
         ]
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
-            + " For unstructured filings (BCRA/BYMA PDFs, FRED docs, balance-sheet PDFs) use `get_document_markdown` to ingest them as markdown."
-            + get_language_instruction(),
+            "You are a derivatives analyst specializing in options, futures, and crypto derivatives. "
+            "Your role is to analyze derivative instruments for both INVESTMENT and HEDGING purposes.\n\n"
+            "For each analysis, provide:\n"
+            "1. **Available Derivatives**: List relevant options (calls/puts), futures, or crypto derivatives\n"
+            "2. **Pricing Analysis**: Current premiums, implied volatility, time decay\n"
+            "3. **Risk Metrics**: Delta, Gamma, Theta, Vega (where applicable)\n"
+            "4. **Strategy Recommendations**:\n"
+            "   - Investment: Directional plays, spreads, straddles\n"
+            "   - Hedging: Protective puts, covered calls, collar strategies\n"
+            "5. **Cost-Benefit Analysis**: Premium costs vs protection/gains\n"
+            "6. **Scoring**: Rate each strategy 0-100 based on risk/reward\n\n"
+            "Always present predictions as SCENARIOS, not facts.\n"
+            "Always include a Markdown table summarizing key derivatives metrics.\n"
+            + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -66,7 +76,7 @@ def create_fundamentals_analyst(llm):
 
         return {
             "messages": [result],
-            "fundamentals_report": report,
+            "derivatives_report": report,
         }
 
-    return fundamentals_analyst_node
+    return derivatives_analyst_node

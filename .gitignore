@@ -221,3 +221,6 @@ __marimo__/
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/
+# Trading loop snapshots/logs (contain runtime data)
+logs/*.json
+logs/*.log
