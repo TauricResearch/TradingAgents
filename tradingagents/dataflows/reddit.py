@@ -126,6 +126,23 @@ def _retry_after_seconds(exc: HTTPError) -> float | None:
         return None
 
 
+# Reddit search feeds are small (a page of results); cap the read so a
+# compromised or misbehaving endpoint can't stream an unbounded body into
+# memory before we parse it. Overflow raises http.client.HTTPException, which
+# both fetch paths already treat as a failed fetch (degrade to empty / RSS).
+_MAX_FEED_BYTES = 5 * 1024 * 1024
+
+
+def _read_capped(resp) -> bytes:
+    """Read a response body bounded to ``_MAX_FEED_BYTES``, raising on overflow."""
+    data = resp.read(_MAX_FEED_BYTES + 1)
+    if len(data) > _MAX_FEED_BYTES:
+        raise http.client.HTTPException(
+            f"Reddit feed exceeded {_MAX_FEED_BYTES} bytes; refusing to parse"
+        )
+    return data
+
+
 def _fetch_subreddit_rss(
     ticker: str,
     sub: str,
@@ -144,7 +161,7 @@ def _fetch_subreddit_rss(
     req = Request(url, headers={"User-Agent": _UA})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            root = ET.fromstring(resp.read())
+            root = ET.fromstring(_read_capped(resp))
     except HTTPError as exc:
         if exc.code == 429 and _retry:
             # Honour a server-supplied Retry-After exactly (including 0); jitter
@@ -201,7 +218,7 @@ def _fetch_subreddit_json(
     req = Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read())
+            payload = json.loads(_read_capped(resp))
         children = (payload.get("data") or {}).get("children") or []
         return [c.get("data", {}) for c in children if isinstance(c, dict)]
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:

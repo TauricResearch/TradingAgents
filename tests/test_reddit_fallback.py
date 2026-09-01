@@ -36,8 +36,9 @@ def _resp(read_fn):
         def __exit__(self_inner, *a):
             return False
 
-        def read(self_inner):
-            return read_fn()
+        def read(self_inner, size=-1):
+            data = read_fn()
+            return data if size is None or size < 0 else data[:size]
     return _Resp()
 
 
@@ -182,6 +183,14 @@ class TestChunkedTransferErrorsHandled:
              patch.object(reddit, "_fetch_subreddit_rss", return_value=[]) as rss:
             reddit._fetch_subreddit_json("NVDA", "stocks", 5, 5.0)
         rss.assert_called_once()
+
+    def test_oversized_rss_feed_is_refused_not_parsed(self):
+        # A hostile/misbehaving endpoint streaming an unbounded body must not be
+        # read into memory before parsing; overflow degrades to an empty feed.
+        big = _resp(lambda: b"x" * 100)
+        with patch.object(reddit, "_MAX_FEED_BYTES", 10), \
+             patch.object(reddit, "urlopen", return_value=big):
+            assert reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0) == []
 
 
 @pytest.mark.unit
