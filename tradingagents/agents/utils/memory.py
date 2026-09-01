@@ -9,8 +9,10 @@ from tradingagents.agents.utils.rating import parse_rating
 class TradingMemoryLog:
     """Append-only markdown log of trading decisions and reflections."""
 
-    # HTML comment: cannot appear in LLM prose output, safe as a hard delimiter
-    _SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
+    # HTML comment delimiter unlikely in normal prose; still sanitized on write.
+    _SEPARATOR = "\n\n<!-- TRADINGAGENTS_ENTRY_END -->\n\n"
+    # Legacy delimiter kept for reading older memory logs.
+    _LEGACY_SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
     # Precompiled patterns — avoids re-compilation on every load_entries() call
     _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
     _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*?)$", re.DOTALL)
@@ -26,6 +28,16 @@ class TradingMemoryLog:
         self._max_entries = cfg.get("memory_log_max_entries")
 
     # --- Write path (Phase A) ---
+
+    @classmethod
+    def _sanitize_block(cls, text: str) -> str:
+        """Strip entry delimiters from user/LLM text so they cannot split the log."""
+        if not text:
+            return text
+        cleaned = text.replace(cls._SEPARATOR.strip(), "").replace(
+            cls._LEGACY_SEPARATOR.strip(), ""
+        )
+        return cleaned
 
     def store_decision(
         self,
@@ -44,7 +56,8 @@ class TradingMemoryLog:
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+        decision = self._sanitize_block(final_trade_decision)
+        entry = f"{tag}\n\nDECISION:\n{decision}{self._SEPARATOR}"
         with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(entry)
 
@@ -55,6 +68,8 @@ class TradingMemoryLog:
         if not self._log_path or not self._log_path.exists():
             return []
         text = self._log_path.read_text(encoding="utf-8")
+        # Normalize legacy delimiters so mixed-era logs parse as one stream.
+        text = text.replace(self._LEGACY_SEPARATOR, self._SEPARATOR)
         raw_entries = [e.strip() for e in text.split(self._SEPARATOR) if e.strip()]
         entries = []
         for raw in raw_entries:
@@ -129,11 +144,13 @@ class TradingMemoryLog:
             return
 
         text = self._log_path.read_text(encoding="utf-8")
+        text = text.replace(self._LEGACY_SEPARATOR, self._SEPARATOR)
         blocks = text.split(self._SEPARATOR)
 
         pending_prefix = f"[{trade_date} | {ticker} |"
         raw_pct = f"{raw_return:+.1%}"
         alpha_pct = f"{alpha_return:+.1%}"
+        reflection = self._sanitize_block(reflection)
 
         updated = False
         new_blocks = []
@@ -184,6 +201,7 @@ class TradingMemoryLog:
             return
 
         text = self._log_path.read_text(encoding="utf-8")
+        text = text.replace(self._LEGACY_SEPARATOR, self._SEPARATOR)
         blocks = text.split(self._SEPARATOR)
 
         # Build lookup keyed by (trade_date, ticker) for O(1) dispatch
@@ -212,8 +230,9 @@ class TradingMemoryLog:
                         upd["holding_days"], upd.get("resolution_date"),
                     )
                     rest = "\n".join(lines[1:])
+                    reflection = self._sanitize_block(upd["reflection"])
                     new_blocks.append(
-                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
+                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}"
                     )
                     del update_map[(trade_date, ticker)]
                     matched = True
