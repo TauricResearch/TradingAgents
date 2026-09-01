@@ -44,12 +44,17 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Web UI support. Install with: pip install "tradingagents[webui]"
+webui = [
+    "streamlit>=1.45.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-webui = "webui:main"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "webui*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
