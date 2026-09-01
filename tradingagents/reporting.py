@@ -95,7 +95,22 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
 
+    # 6. Data Sources / Provenance (if available)
+    data_sources = final_state.get("data_sources") or final_state.get("data_provenance")
+    if data_sources:
+        if isinstance(data_sources, list):
+            sources_text = "\n".join(f"- {s}" if not str(s).startswith("- ") else str(s) for s in data_sources)
+        elif isinstance(data_sources, dict):
+            sources_text = "\n".join(f"- **{k}**: {v}" for k, v in data_sources.items())
+        else:
+            sources_text = str(data_sources)
+        (save_path / "data_sources.md").write_text(sources_text, encoding="utf-8")
+        sections.append(f"## Data Sources\n\n{sources_text}")
+
     # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    header = f"# Trading Analysis Report: {ticker}\n\n"
+    if final_state.get("trade_date"):
+        header += f"Trade Date: {final_state['trade_date']}\n"
+    header += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
     return save_path / "complete_report.md"
