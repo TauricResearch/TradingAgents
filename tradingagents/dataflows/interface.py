@@ -30,6 +30,37 @@ from .y_finance import (
 )
 from .yfinance_news import get_global_news_yfinance, get_news_yfinance
 
+try:
+    from .akshare_stock import (
+        get_balance_sheet as _ak_balance_sheet,
+        get_cashflow as _ak_cashflow,
+        get_fundamentals as _ak_fundamentals,
+        get_income_statement as _ak_income,
+        get_stock_data as _ak_stock_data,
+    )
+    _akshare_available = True
+except ImportError:
+    _akshare_available = False
+
+
+def _akshare_stub(method_name: str):
+    """Return a stub that raises VendorNotConfiguredError when akshare is not installed."""
+
+    def stub(*args, **kwargs):
+        raise VendorNotConfiguredError(
+            f"akshare vendor selected for '{method_name}' but akshare is not "
+            f"installed. Run: pip install akshare"
+        )
+
+    return stub
+
+
+get_akshare_stock_data = _ak_stock_data if _akshare_available else _akshare_stub("get_stock_data")
+get_akshare_fundamentals = _ak_fundamentals if _akshare_available else _akshare_stub("get_fundamentals")
+get_akshare_balance_sheet = _ak_balance_sheet if _akshare_available else _akshare_stub("get_balance_sheet")
+get_akshare_cashflow = _ak_cashflow if _akshare_available else _akshare_stub("get_cashflow")
+get_akshare_income_statement = _ak_income if _akshare_available else _akshare_stub("get_income_statement")
+
 logger = logging.getLogger(__name__)
 
 # Tools organized by category
@@ -82,6 +113,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "akshare",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -97,6 +129,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "akshare": get_akshare_stock_data,
     },
     # technical_indicators
     "get_indicators": {
@@ -107,18 +140,22 @@ VENDOR_METHODS = {
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "akshare": get_akshare_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "akshare": get_akshare_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "akshare": get_akshare_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "akshare": get_akshare_income_statement,
     },
     # news_data
     "get_news": {
