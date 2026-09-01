@@ -122,7 +122,24 @@ class TestExecutionAgent:
         assert result.order_action == "buy"
         assert result.cash_allocation_pct == 50
         assert client.submitted == []
+        assert "recommendations only" in result.message
         assert "Recommendation: buy 50% of available cash" in result.message
+
+    def test_enabled_without_alpaca_keys_reports_error(self, tmp_path):
+        agent = ExecutionAgent(
+            {
+                "execution_journal_path": str(tmp_path / "journal.md"),
+                "execution_position_plan_path": str(tmp_path / "plans.json"),
+            }
+        )
+        result = agent.run(
+            ticker="NVDA",
+            portfolio_manager_text=PM_BUY_50_CASH,
+            trade_date="2026-03-01",
+        )
+        assert result.enabled is True
+        assert result.order_submitted is False
+        assert "Alpaca API key and secret are required" in result.message
 
     def test_enabled_buy_uses_cash_not_equity(self, tmp_path):
         client = _FakeAlpacaClient(cash=2000, equity=12000)

@@ -65,7 +65,7 @@ Ruff is configured in `pyproject.toml` (`line-length = 100`, `target-version = p
 
 1. Put a **fake Alpaca client** on `ExecutionAgent(..., client=fake)`. Do not call the real API.
 2. Give the fake distinct `cash` and `equity` (for example cash `$2,000`, equity `$12,000`). A 50% buy must spend **$1,000**, not $6,000.
-3. Assert `submit_order` is **never** called when `execution_enabled` is false.
+3. Assert `submit_order` is **never** called when `execution_enabled` is false (recommendations-only mode).
 4. For horizon tests: open a paper buy on an early date, then either drop `current_price` through the stop (must sell) or jump past `horizon_end_date` with a PM Sell (must sell).
 5. Never hard-code secrets. Empty strings are fine.
 

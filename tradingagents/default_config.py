@@ -26,7 +26,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
-    # Paper-trade execution (single ticker). Submit stays off until opted in.
+    # Paper-trade execution (single ticker). On by default; set false for recommendations only.
     "TRADINGAGENTS_EXECUTION_ENABLED":              "execution_enabled",
     "TRADINGAGENTS_EXECUTION_FALLBACK_CASH_PCT":    "execution_fallback_cash_pct",
     "TRADINGAGENTS_EXECUTION_JOURNAL_PATH":         "execution_journal_path",
@@ -173,10 +173,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
-    # Optional Alpaca paper execution. Disabled by default so research-only
-    # runs never place simulator orders. Buys are sized as a percent of
-    # Alpaca *cash* (usable money), never of equity or stock holdings.
-    "execution_enabled": False,
+    # Alpaca paper execution (single ticker). Enabled by default — the point of
+    # this fork is to turn AI analysis into paper trades. Set
+    # TRADINGAGENTS_EXECUTION_ENABLED=false for recommendations only. Buys are
+    # sized as a percent of Alpaca *cash* (usable money), never of equity.
+    "execution_enabled": True,
     "execution_fallback_cash_pct": 10.0,
     "execution_journal_path": os.path.join(_TRADINGAGENTS_HOME, "execution", "execution_journal.md"),
     "execution_position_plan_path": os.path.join(_TRADINGAGENTS_HOME, "execution", "position_plans.json"),

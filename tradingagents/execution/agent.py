@@ -145,7 +145,7 @@ class ExecutionAgent:
     ) -> ExecutionResult:
         decision = parse_trade_decision(portfolio_manager_text, trader_text)
         cash_pct = self._cash_pct(decision)
-        enabled = self._config_bool("execution_enabled", default=False)
+        enabled = self._config_bool("execution_enabled", default=True)
 
         if not enabled:
             _, reason = resolve_execution_action(
@@ -170,8 +170,8 @@ class ExecutionAgent:
                     take_profit=decision.price_target,
                     time_horizon=decision.time_horizon,
                     message=(
-                        "Execution disabled. Set TRADINGAGENTS_EXECUTION_ENABLED=true "
-                        "to submit Alpaca paper trades. "
+                        "Execution disabled (recommendations only). "
+                        "Set TRADINGAGENTS_EXECUTION_ENABLED=true to submit Alpaca paper trades. "
                         f"Recommendation: {recommended} "
                         f"{cash_pct:g}% of available cash. {reason}"
                     ).strip(),

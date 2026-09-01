@@ -115,9 +115,9 @@ Upstream TradingAgents stops when the Portfolio Manager finishes the memo. In th
 
 Example: you have $10,000 in stocks and $2,000 sitting in cash. A 50% buy is **$1,000** of the $2,000, not $6,000 of $12,000.
 
-**When `TRADINGAGENTS_EXECUTION_ENABLED` is unset or false** (the default): you get that recommendation in the CLI and in `6_execution/execution.md`. You decide what to do with it.
+**By default**, execution is **on**: the recommendation is placed as an Alpaca **paper** order. You need paper API keys in `.env` (`ALPACA_API_KEY`, `ALPACA_SECRET_KEY`). Live trading is not the default — the base URL is `https://paper-api.alpaca.markets`. If you point it at the live host, the client logs a warning.
 
-**When it is `true`**: the same recommendation is placed as an Alpaca **paper** order. Live trading is not the default. The base URL is `https://paper-api.alpaca.markets`. If you point it at the live host, the client logs a warning.
+**When `TRADINGAGENTS_EXECUTION_ENABLED=false`**: you still get the recommendation in the CLI and in `6_execution/execution.md`, but no order is sent. Use this for research-only runs.
 
 The agent pays attention to the plan the desk already produced:
 
@@ -133,7 +133,7 @@ Never commit Alpaca keys. Copy `.env.example` to `.env` and leave placeholders e
 ```bash
 cp .env.example .env
 # Fill ALPACA_API_KEY and ALPACA_SECRET_KEY locally (paper keys).
-# TRADINGAGENTS_EXECUTION_ENABLED=true   # only when you want the paper fill
+# TRADINGAGENTS_EXECUTION_ENABLED=false   # optional: recommendations only
 ```
 
 After a CLI run you will see **VI. Execution Agent** on screen (if you display the report) and on disk:
@@ -149,8 +149,8 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-# Recommendation always. Uncomment to place a paper order:
-# config["execution_enabled"] = True
+# Paper orders on by default. Recommendations only:
+# config["execution_enabled"] = False
 
 ta = TradingAgentsGraph(debug=True, config=config)
 final_state, decision = ta.propagate("NVDA", "2026-01-15")
