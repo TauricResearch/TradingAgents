@@ -8,6 +8,7 @@ from langgraph.graph import END, StateGraph
 
 from tradingagents.graph.checkpointer import (
     checkpoint_step,
+    clear_all_checkpoints,
     clear_checkpoint,
     get_checkpointer,
     has_checkpoint,
@@ -103,6 +104,24 @@ class TestCheckpointResume(unittest.TestCase):
             result = graph.invoke({"count": 0}, config=cfg)
 
         self.assertEqual(result["count"], 11)
+
+    def test_clear_all_removes_sqlite_sidecar_files(self):
+        """Clearing all checkpoints removes SQLite WAL/SHM sidecar files too."""
+        cp_dir = Path(self.tmpdir) / "checkpoints"
+        cp_dir.mkdir(parents=True)
+        db = cp_dir / "TEST.db"
+        wal = cp_dir / "TEST.db-wal"
+        shm = cp_dir / "TEST.db-shm"
+
+        for path in (db, wal, shm):
+            path.write_text("", encoding="utf-8")
+
+        cleared = clear_all_checkpoints(self.tmpdir)
+
+        self.assertEqual(cleared, 1)
+        self.assertFalse(db.exists())
+        self.assertFalse(wal.exists())
+        self.assertFalse(shm.exists())
 
 
     def test_different_date_starts_fresh(self):
