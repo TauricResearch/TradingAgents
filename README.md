@@ -178,6 +178,7 @@ TradingAgents works with any market Yahoo Finance covers, using the exchange-suf
 - Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
 - India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
+- Brazil B3: `.SA` (e.g. `PETR4.SA` for Petrobras)
 - Crypto: `BTC-USD`, `ETH-USD`
 
 <p align="center">
