@@ -1,12 +1,31 @@
 services:
+  # Web UI service (main)
+  web:
+    build: .
+    command: python -m web.app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    # Restart policy for Railway.com
+    restart: unless-stopped
+
+  # CLI service (for development)
   tradingagents:
     build: .
+    entrypoint: tradingagents
     env_file:
       - .env
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
     tty: true
     stdin_open: true
+    profiles:
+      - cli
 
   ollama:
     image: ollama/ollama:latest
