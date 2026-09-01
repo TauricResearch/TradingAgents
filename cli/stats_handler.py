@@ -16,6 +16,11 @@ class StatsCallbackHandler(BaseCallbackHandler):
         self.tool_calls = 0
         self.tokens_in = 0
         self.tokens_out = 0
+        self.codex_requests = 0
+        self.codex_request_seconds = 0.0
+        self.codex_request_errors = 0
+        self.codex_structured_outputs = 0
+        self.codex_structured_fallbacks = 0
 
     def on_llm_start(
         self,
@@ -65,6 +70,29 @@ class StatsCallbackHandler(BaseCallbackHandler):
         with self._lock:
             self.tool_calls += 1
 
+    def on_codex_request_end(
+        self,
+        *,
+        duration_seconds: float,
+        error: str | None = None,
+    ) -> None:
+        """Record a completed local Codex SDK request."""
+        with self._lock:
+            self.codex_requests += 1
+            self.codex_request_seconds += duration_seconds
+            if error:
+                self.codex_request_errors += 1
+
+    def on_codex_structured_output(self) -> None:
+        """Record a response accepted through Codex native JSON schema output."""
+        with self._lock:
+            self.codex_structured_outputs += 1
+
+    def on_codex_structured_fallback(self, *, agent_name: str, error: str) -> None:
+        """Record a structured call that had to retry as free text."""
+        with self._lock:
+            self.codex_structured_fallbacks += 1
+
     def get_stats(self) -> dict[str, Any]:
         """Return current statistics."""
         with self._lock:
@@ -73,4 +101,9 @@ class StatsCallbackHandler(BaseCallbackHandler):
                 "tool_calls": self.tool_calls,
                 "tokens_in": self.tokens_in,
                 "tokens_out": self.tokens_out,
+                "codex_requests": self.codex_requests,
+                "codex_request_seconds": self.codex_request_seconds,
+                "codex_request_errors": self.codex_request_errors,
+                "codex_structured_outputs": self.codex_structured_outputs,
+                "codex_structured_fallbacks": self.codex_structured_fallbacks,
             }

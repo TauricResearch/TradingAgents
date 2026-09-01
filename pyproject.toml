@@ -44,6 +44,9 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+codex = [
+    "openai-codex>=0.1.0b3",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

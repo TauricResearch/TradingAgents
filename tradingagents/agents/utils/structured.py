@@ -80,6 +80,9 @@ def invoke_structured_or_freetext(
                 raise ValueError("structured output returned no parsed result")
             return render(result)
         except Exception as exc:
+            record_fallback = getattr(plain_llm, "record_structured_fallback", None)
+            if callable(record_fallback):
+                record_fallback(agent_name, exc)
             logger.warning(
                 "%s: structured-output invocation failed (%s); retrying once as free text",
                 agent_name, exc,

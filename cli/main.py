@@ -477,6 +477,17 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             tokens_str = "Tokens: --"
         stats_parts.append(tokens_str)
 
+        if stats["codex_requests"]:
+            average = stats["codex_request_seconds"] / stats["codex_requests"]
+            stats_parts.append(
+                "Codex: "
+                f"{stats['codex_requests']} req | "
+                f"JSON {stats['codex_structured_outputs']} | "
+                f"fallback {stats['codex_structured_fallbacks']} | "
+                f"errors {stats['codex_request_errors']} | "
+                f"avg {average:.1f}s"
+            )
+
     stats_parts.append(f"Reports: {reports_completed}/{reports_total}")
 
     # Elapsed time
@@ -1001,11 +1012,43 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
+def _preflight_llm_provider(config: dict) -> None:
+    """Run provider-specific setup checks before the live analysis UI starts."""
+    if config.get("llm_provider", "").lower() != "codex":
+        return
+
+    from tradingagents.llm_clients.codex_client import (
+        CodexSetupError,
+        preflight_codex_runtime,
+    )
+
+    models = {
+        config.get("quick_think_llm", ""),
+        config.get("deep_think_llm", ""),
+    }
+    try:
+        available = preflight_codex_runtime(model for model in models if model)
+    except CodexSetupError as exc:
+        console.print(
+            Panel(
+                str(exc),
+                title="Codex Setup Required",
+                border_style="red",
+                padding=(1, 2),
+            )
+        )
+        raise typer.Exit(1) from None
+
+    if available:
+        console.print(f"[green]✓ Codex runtime models:[/green] {', '.join(available)}")
+
+
 def run_analysis(checkpoint: bool | None = None):
     # First get all user selections
     selections = get_user_selections()
 
     config = _build_run_config(selections, checkpoint)
+    _preflight_llm_provider(config)
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()

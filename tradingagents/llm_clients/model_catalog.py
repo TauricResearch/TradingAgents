@@ -78,6 +78,30 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 }
 
 
+_CODEX_MODELS: dict[str, list[ModelOption]] = {
+    "quick": [
+        ("GPT-5.6 Luna - Fast, lowest-cost Codex model", "gpt-5.6-luna"),
+        ("GPT-5.6 Terra - Balanced everyday Codex model", "gpt-5.6-terra"),
+        ("GPT-5.4 Mini - Fast legacy Codex model", "gpt-5.4-mini"),
+        ("GPT-5.6 Sol - Flagship Codex model", "gpt-5.6-sol"),
+        ("GPT-5.5 - Previous-generation frontier Codex model", "gpt-5.5"),
+        ("GPT-5.4 - Legacy professional Codex model", "gpt-5.4"),
+        ("GPT-5.3 Codex Spark - Near-instant preview model", "gpt-5.3-codex-spark"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("GPT-5.6 Sol - Flagship Codex model", "gpt-5.6-sol"),
+        ("GPT-5.6 Terra - Balanced everyday Codex model", "gpt-5.6-terra"),
+        ("GPT-5.5 - Previous-generation frontier Codex model", "gpt-5.5"),
+        ("GPT-5.6 Luna - Fast, lowest-cost Codex model", "gpt-5.6-luna"),
+        ("GPT-5.4 - Legacy professional Codex model", "gpt-5.4"),
+        ("GPT-5.4 Mini - Fast legacy Codex model", "gpt-5.4-mini"),
+        ("GPT-5.3 Codex Spark - Near-instant preview model", "gpt-5.3-codex-spark"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -188,6 +212,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "nvidia": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
+    # Codex runs through the local Codex SDK/CLI session. These are the current
+    # public Codex model IDs from the Codex models docs; exact availability can
+    # still depend on the user's Codex SDK/app version and ChatGPT entitlement.
+    "codex": _CODEX_MODELS,
 }
 
 

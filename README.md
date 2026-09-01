@@ -152,6 +152,25 @@ For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill i
 
 For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-4-8-v1:0`.
 
+For Codex subscription access without OpenAI Platform API credits, use the local Codex provider. Install the extra, authenticate Codex, then select `codex` in the CLI or set it in `.env`:
+```bash
+pip install ".[codex]"
+```
+For current Codex models such as GPT-5.6, TradingAgents uses the standalone Codex CLI when it is installed. Complete these steps in order:
+```bash
+npm install -g @openai/codex  # only when `codex` is not recognized
+codex update                  # update an existing CLI
+codex --version
+codex login
+```
+If `codex` is still not recognized after installation, open a new terminal so its install directory is on `PATH`, then repeat `codex --version`. If the CLI is installed and logged in but TradingAgents still says a model is unavailable, the account does not currently offer that model; select one of the runtime models printed when the app starts. Current public Codex model IDs are `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, and `gpt-5.3-codex-spark`.
+```bash
+TRADINGAGENTS_LLM_PROVIDER=codex
+TRADINGAGENTS_DEEP_THINK_LLM=gpt-5.5
+TRADINGAGENTS_QUICK_THINK_LLM=gpt-5.4-mini
+```
+This routes model calls through the local Codex SDK/CLI session and uses your ChatGPT/Codex entitlement. It is not the same as OpenAI Platform API access; Codex is an agent surface rather than a drop-in chat-completions API, so TradingAgents includes provider-specific setup checks and a structured-output adapter.
+
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
