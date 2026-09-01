@@ -282,6 +282,21 @@ def filter_financials_by_date(data: pd.DataFrame, curr_date: str) -> pd.DataFram
     return data.loc[:, mask]
 
 
+def is_historical_date(curr_date: str) -> bool:
+    """True when curr_date precedes today, i.e. we are replaying the past.
+
+    Vendor "snapshot" endpoints (yfinance ``.info``, Alpha Vantage OVERVIEW)
+    always describe today and have no point-in-time equivalent, so callers use
+    this to suppress fields that would leak the present into a backtest.
+    """
+    if not curr_date:
+        return False
+    parsed = pd.to_datetime(curr_date, errors="coerce")
+    if pd.isna(parsed):
+        return False
+    return parsed.normalize() < pd.Timestamp.today().normalize()
+
+
 class StockstatsUtils:
     @staticmethod
     def get_stock_stats(
