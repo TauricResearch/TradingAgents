@@ -26,6 +26,12 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    # Paper-trade execution (single ticker). On by default; set false for recommendations only.
+    "TRADINGAGENTS_EXECUTION_ENABLED":              "execution_enabled",
+    "TRADINGAGENTS_EXECUTION_FALLBACK_CASH_PCT":    "execution_fallback_cash_pct",
+    "TRADINGAGENTS_EXECUTION_JOURNAL_PATH":         "execution_journal_path",
+    "TRADINGAGENTS_EXECUTION_POSITION_PLAN_PATH":   "execution_position_plan_path",
+    "TRADINGAGENTS_EXECUTION_ALLOW_SHORT":          "execution_allow_short",
 }
 
 
@@ -167,4 +173,19 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
+    # Alpaca paper execution (single ticker). Enabled by default — the point of
+    # this fork is to turn AI analysis into paper trades. Set
+    # TRADINGAGENTS_EXECUTION_ENABLED=false for recommendations only. Buys are
+    # sized as a percent of Alpaca *cash* (usable money), never of equity.
+    "execution_enabled": True,
+    "execution_fallback_cash_pct": 10.0,
+    "execution_journal_path": os.path.join(_TRADINGAGENTS_HOME, "execution", "execution_journal.md"),
+    "execution_position_plan_path": os.path.join(_TRADINGAGENTS_HOME, "execution", "position_plans.json"),
+    "execution_allow_short": False,
+    "alpaca_api_key": os.getenv("ALPACA_API_KEY"),
+    "alpaca_secret_key": os.getenv("ALPACA_SECRET_KEY"),
+    "alpaca_base_url": os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets"),
+    "alpaca_time_in_force": os.getenv("ALPACA_TIME_IN_FORCE", "gtc"),
+    "alpaca_extended_hours": (os.getenv("ALPACA_EXTENDED_HOURS") or "").strip().lower() in _BOOL_TRUE,
+    "alpaca_timeout_seconds": float(os.getenv("ALPACA_TIMEOUT_SECONDS") or 20),
 })

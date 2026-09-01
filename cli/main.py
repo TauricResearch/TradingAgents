@@ -42,6 +42,7 @@ from cli.utils import (
     select_shallow_thinking_agent,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.execution import format_execution_report
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
@@ -80,6 +81,7 @@ class MessageBuffer:
         "Trading Team": ["Trader"],
         "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
         "Portfolio Management": ["Portfolio Manager"],
+        "Execution": ["Execution Agent"],
     }
 
     # Analyst name mapping
@@ -101,6 +103,7 @@ class MessageBuffer:
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
+        "execution_report": (None, "Execution Agent"),
     }
 
     def __init__(self, max_length=100):
@@ -209,6 +212,7 @@ class MessageBuffer:
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
+                "execution_report": "Execution Agent",
             }
             self.current_report = (
                 f"### {section_titles[latest_section]}\n{latest_content}"
@@ -255,6 +259,10 @@ class MessageBuffer:
         if self.report_sections.get("final_trade_decision"):
             report_parts.append("## Portfolio Management Decision")
             report_parts.append(f"{self.report_sections['final_trade_decision']}")
+
+        if self.report_sections.get("execution_report"):
+            report_parts.append("## Execution Agent")
+            report_parts.append(f"{self.report_sections['execution_report']}")
 
         self.final_report = "\n\n".join(report_parts) if report_parts else None
 
@@ -324,6 +332,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         "Trading Team": ["Trader"],
         "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
         "Portfolio Management": ["Portfolio Manager"],
+        "Execution": ["Execution Agent"],
     }
 
     # Filter teams to only include agents that are in agent_status
@@ -502,7 +511,7 @@ def get_user_selections():
     welcome_content = f"{welcome_ascii}\n"
     welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
-    welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
+    welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management → VI. Execution\n\n"
     welcome_content += (
         "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
     )
@@ -824,6 +833,12 @@ def display_complete_report(final_state):
         if risk.get("judge_decision"):
             console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
             console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
+
+    # VI. Execution Agent
+    if final_state.get("execution_report"):
+        execution_text = format_execution_report(final_state["execution_report"])
+        console.print(Panel("[bold]VI. Execution Agent[/bold]", border_style="cyan"))
+        console.print(Panel(Markdown(execution_text), title="Execution Agent", border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):
@@ -1258,6 +1273,16 @@ def run_analysis(checkpoint: bool | None = None):
         for chunk in trace:
             final_state.update(chunk)
 
+        message_buffer.update_agent_status("Execution Agent", "in_progress")
+        execution_result = graph.execute_trade_decision(selections["ticker"], final_state)
+        if execution_result is not None:
+            final_state["execution_report"] = execution_result.to_dict()
+            message_buffer.update_report_section(
+                "execution_report",
+                format_execution_report(final_state["execution_report"]),
+            )
+        message_buffer.update_agent_status("Execution Agent", "completed")
+
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
             message_buffer.update_agent_status(agent, "completed")
@@ -1269,8 +1294,12 @@ def run_analysis(checkpoint: bool | None = None):
 
         # Update final report sections
         for section in message_buffer.report_sections:
-            if section in final_state:
-                message_buffer.update_report_section(section, final_state[section])
+            if section not in final_state:
+                continue
+            content = final_state[section]
+            if section == "execution_report" and isinstance(content, dict):
+                content = format_execution_report(content)
+            message_buffer.update_report_section(section, content)
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 

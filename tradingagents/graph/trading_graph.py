@@ -32,6 +32,7 @@ from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.execution import ExecutionAgent, ExecutionResult
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree
 
@@ -150,6 +151,7 @@ class TradingAgentsGraph:
         )
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.execution_agent = ExecutionAgent(self.config)
 
         # State tracking
         self.curr_state = None
@@ -558,6 +560,10 @@ class TradingAgentsGraph:
         # Store current state for reflection.
         self.curr_state = final_state
 
+        execution_result = self.execute_trade_decision(company_name, final_state)
+        if execution_result is not None:
+            final_state["execution_report"] = execution_result.to_dict()
+
         # Log state to disk.
         self._log_state(trade_date, final_state)
 
@@ -603,6 +609,7 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "execution_report": final_state.get("execution_report"),
         }
 
         # Save to file. Reject ticker values that would escape the
@@ -618,3 +625,20 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def execute_trade_decision(
+        self, ticker: str, final_state: dict[str, Any]
+    ) -> ExecutionResult | None:
+        """Run the Execution Agent: always recommend, submit only if enabled."""
+        if not final_state:
+            return None
+        result = self.execution_agent.run(
+            ticker=ticker,
+            trade_date=str(final_state.get("trade_date", "")),
+            portfolio_manager_text=final_state.get("final_trade_decision", "")
+            or "",
+            trader_text=final_state.get("trader_investment_plan", "") or "",
+        )
+        if result.message:
+            logger.info("Execution agent: %s", result.message)
+        return result

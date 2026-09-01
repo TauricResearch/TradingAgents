@@ -9,6 +9,8 @@ run produces the same on-disk report tree a CLI run does.
 from datetime import datetime
 from pathlib import Path
 
+from tradingagents.execution import format_execution_report
+
 
 def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path."""
@@ -94,6 +96,14 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             portfolio_dir.mkdir(exist_ok=True)
             (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+
+    # 6. Execution Agent
+    if final_state.get("execution_report"):
+        execution_dir = save_path / "6_execution"
+        execution_dir.mkdir(exist_ok=True)
+        execution_text = format_execution_report(final_state["execution_report"])
+        (execution_dir / "execution.md").write_text(execution_text, encoding="utf-8")
+        sections.append(f"## VI. Execution Agent\n\n{execution_text}")
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
