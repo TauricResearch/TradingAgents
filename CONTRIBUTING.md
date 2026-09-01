@@ -1,108 +1,129 @@
-# Contributing to this TradingAgents fork
+# Contributing
 
-Thanks for showing up. This repo is a fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents): a multi-agent research desk that studies **one ticker at a time**. The fork's extra job is a small **Execution Agent** that reads the Trader and Portfolio Manager write-up and either:
+Thanks for helping improve this fork. The goal is simple: **turn AI analysis into Alpaca paper trades** — safely, clearly, and with good tests.
 
-- **recommends** buy / hold / sell plus a **percent of available cash**, or
-- when you opt in, **places that ticket** on Alpaca **paper** trading.
+This builds on [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents). Keep their citation in the README.
 
-If you want to help, the highest-leverage work is making that last mile clearer, safer, and better tested — without turning the desk into a basket allocator or a live-trading bot.
+---
 
-Please keep the upstream citation in the README. This is their research framework; we are adding a paper-trade handoff.
-
-## What we are building (and not building)
-
-**In scope**
-
-- Single-ticker analysis
-- A recommendation on every run
-- Optional Alpaca paper fills
-- Sizing against **usable cash**, never against total equity or money already in stocks
-- Honoring the PM **time horizon** and selling on the plan's **stop** (significant loss)
-
-**Out of scope**
-
-- An 8-stock basket or portfolio rotation engine
-- “Fixing” sizing to use total capital / equity
-- Defaulting to live Alpaca
-- Committing `.env` files, API keys, journals, or order dumps
-
-## Dev setup
+## Get started in 5 minutes
 
 ```bash
 git clone https://github.com/Philemon518/TradingAgents.git
 cd TradingAgents
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install ".[dev]"
-cp .env.example .env        # fill keys locally; never commit this file
+cp .env.example .env                 # fill keys locally — never commit this file
 ```
 
-Use paper Alpaca keys if you want a real simulator. Tests do **not** need them.
-
-## Tests
-
-The full suite:
+Run tests (no Alpaca keys needed):
 
 ```bash
 pytest
 ```
 
-The execution subset (fake Alpaca, no network, no keys):
+Run only execution tests:
 
 ```bash
-pytest tests/test_position_plan.py \
-       tests/test_execution_parser.py \
-       tests/test_execution_agent.py \
-       tests/test_execution_reporting.py \
-       tests/test_env_overrides.py -q
+pytest tests/test_execution_*.py tests/test_env_overrides.py -q
 ```
 
-If you touch `default_config.py`, keep `tests/test_env_overrides.py` green.
+Run the CLI locally:
 
-Ruff is configured in `pyproject.toml` (`line-length = 100`, `target-version = py310`). Prefer matching nearby style over a repo-wide format pass.
+```bash
+set -a && source .env && set +a
+tradingagents
+```
 
-### How to add an execution test
+Note: the command is `tradingagents`, not `tradingagents analyze`.
 
-1. Put a **fake Alpaca client** on `ExecutionAgent(..., client=fake)`. Do not call the real API.
-2. Give the fake distinct `cash` and `equity` (for example cash `$2,000`, equity `$12,000`). A 50% buy must spend **$1,000**, not $6,000.
-3. Assert `submit_order` is **never** called when `execution_enabled` is false (recommendations-only mode).
-4. For horizon tests: open a paper buy on an early date, then either drop `current_price` through the stop (must sell) or jump past `horizon_end_date` with a PM Sell (must sell).
-5. Never hard-code secrets. Empty strings are fine.
+---
 
-## Where the code lives
+## What belongs in this fork
 
-| Path | Role |
-|------|------|
-| `tradingagents/agents/` | Research desk (analysts, trader, PM) |
-| `tradingagents/graph/` | LangGraph wiring; `execute_trade_decision()` runs after the PM |
-| `tradingagents/execution/parser.py` | Prose → rating, prices, horizon, cash % |
-| `tradingagents/execution/position_plan.py` | Stored hold window + stop |
-| `tradingagents/execution/agent.py` | Recommendation + optional paper order |
-| `tradingagents/execution/journal.py` | Local markdown trail (no keys) |
-| `tradingagents/reporting.py` | Writes `6_execution/execution.md` |
-| `cli/main.py` | Single-ticker CLI display |
-| `tests/test_execution_*.py` | Fake-client contract |
+**Yes**
 
-The research graph still ends at the Portfolio Manager. Execution is a **post-graph** step, not a new debate node.
+- Single-ticker execution (one stock per run)
+- Alpaca **paper** orders by default
+- Buy/hold/sell + **percent of available cash** sizing
+- Respecting PM time horizon and stop-loss rules
+- Tests with a fake Alpaca client (no network)
+- Docs and bug fixes
+
+**No**
+
+- Multi-stock basket / portfolio rotation
+- Sizing against total equity instead of cash
+- Live trading enabled by default
+- Committing `.env`, API keys, journals, or personal `reports/`
+
+---
+
+## Project layout
+
+```
+tradingagents/
+  agents/           # Analysts, trader, PM (upstream research desk)
+  graph/            # LangGraph wiring; execute_trade_decision() after PM
+  execution/
+    parser.py       # PM/trader text → action, prices, horizon, cash %
+    position_plan.py # Hold window + stop-loss tracking
+    agent.py        # Recommendation + Alpaca paper order
+    journal.py      # Local markdown log
+  default_config.py # Defaults + TRADINGAGENTS_* env overrides
+cli/main.py         # Interactive CLI
+tests/test_execution_*.py
+```
+
+Execution runs **after** the research graph finishes. It is not a new debate agent.
+
+---
+
+## Writing tests
+
+Execution tests use a **fake Alpaca client** — never call the real API in CI.
+
+```python
+agent = ExecutionAgent(config, client=fake_client)
+result = agent.run(ticker="NVDA", portfolio_manager_text=pm_text, trade_date="2026-03-01")
+```
+
+Rules:
+
+1. Give the fake different `cash` and `equity` (e.g. cash $2,000, equity $12,000). A 50% buy must spend **$1,000**, not $6,000.
+2. When `execution_enabled=False`, assert `submit_order` is never called.
+3. For horizon tests: buy on date A, then test stop breach or horizon expiry + PM Sell.
+4. No hard-coded secrets.
+
+If you change `default_config.py`, run `tests/test_env_overrides.py`.
+
+Style: Ruff in `pyproject.toml` (line length 100). Match nearby code.
+
+---
 
 ## Pull requests
 
-- One logical change per PR. Split files into focused commits when you can (parser, then agent, then tests).
-- Do not mix a CLI tweak with a sizing-rule change.
-- Do not “improve” cash-percent math into equity-percent math.
-- Paper remains the default. If you add a live-URL path, keep the warning and do not enable it by default.
-- Never stage `.env`, `execution_journal.md` with account data, or `reports/` from a personal run.
+1. One logical change per PR when possible (parser, then agent, then tests).
+2. Run `pytest` before opening.
+3. Do not change cash sizing to use equity.
+4. Paper trading stays the default; live URLs must keep a warning.
+5. Never stage `.env`, journals with account data, or personal reports.
+
+---
 
 ## Reporting bugs
 
 Include:
 
 - Ticker and analysis date
-- Whether `TRADINGAGENTS_EXECUTION_ENABLED` was true
-- The recommendation you expected vs what you saw (`order_action`, `cash_allocation_pct`)
+- Whether execution was on (`TRADINGAGENTS_EXECUTION_ENABLED`)
+- Expected vs actual: `order_action`, `cash_allocation_pct`, error message
 
-Do **not** paste API keys, account numbers, or full Alpaca JSON dumps.
+Do **not** paste API keys, account numbers, or full Alpaca JSON.
+
+---
 
 ## Credit
 
-TradingAgents is the work of Yijia Xiao, Edward Sun, Di Luo, and Wei Wang. Please cite their paper if the framework helps you — the README has the BibTeX. This fork's execution layer is an add-on for paper simulation, not a replacement for that research.
+TradingAgents: Yijia Xiao, Edward Sun, Di Luo, Wei Wang — see README for BibTeX. This fork adds a paper-trade execution layer on top of their research framework.
