@@ -45,6 +45,15 @@ bedrock = [
     "langchain-aws>=1.5.0",
 ]
 
+[project.optional-dependencies]
+news = [
+    "aiohttp>=3.9.0",
+    "beautifulsoup4>=4.12.0",
+    "readability-lxml>=0.8.1",
+    "pydantic>=2.0.0",
+    "googlenewsdecoder>=0.1.3",
+]
+
 [project.scripts]
 tradingagents = "cli.main:app"
 
