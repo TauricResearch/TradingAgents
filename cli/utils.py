@@ -347,6 +347,8 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
     return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
+        ("OpenAI Codex (ChatGPT subscription quota)", "openai_codex",
+         "https://chatgpt.com/backend-api/codex"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("xAI", "xai", "https://api.x.ai/v1"),
@@ -600,6 +602,23 @@ def confirm_ollama_endpoint(url: str) -> None:
         )
 
 
+def _preflight_codex_auth() -> None:
+    """Validate the Codex login before the run starts.
+
+    Codex has no API-key env var, so the usual prompt does not apply. Resolving
+    the credential now turns a missing or dead login into an immediate, fixable
+    message instead of a failure on the first LLM call.
+    """
+    from tradingagents.llm_clients.codex_auth import CodexAuthError, resolve
+
+    try:
+        resolve()
+    except CodexAuthError as exc:
+        console.print(f"\n[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    console.print("[green]✓ Codex credentials OK (ChatGPT subscription quota)[/green]")
+
+
 def ensure_api_key(provider: str) -> str | None:
     """Make sure the API key for `provider` is available in the environment.
 
@@ -613,6 +632,10 @@ def ensure_api_key(provider: str) -> str | None:
     """
     env_var = get_api_key_env(provider)
     if env_var is None:
+        # Codex authenticates from the Codex client's auth file rather than an
+        # env var, so it gets a login check in place of the key prompt.
+        if provider.lower() == "openai_codex":
+            _preflight_codex_auth()
         return None  # ollama / unknown — no key check possible
 
     # Key-optional providers (generic OpenAI-compatible / local servers) read the

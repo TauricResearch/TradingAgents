@@ -156,6 +156,8 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
+To bill runs to a ChatGPT subscription instead of API credits, use `llm_provider: "openai_codex"`. It reuses the login held by the official Codex app or CLI (`~/.codex/auth.json`, overridable with `TRADINGAGENTS_CODEX_AUTH_PATH`), so sign in there first; no API key is needed and none is read. TradingAgents refreshes and rewrites that file when the token nears expiry, because the refresh token rotates and not persisting it would log the Codex client out. Set `TRADINGAGENTS_LLM_MAX_RETRIES=5` or higher: subscription traffic hits transient "servers are currently overloaded" errors far more often than the paid API. Note that this endpoint is undocumented and unversioned — OpenAI can change it without notice — and that driving subscription credentials from a third-party tool is not clearly sanctioned by OpenAI's terms.
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
@@ -198,7 +200,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, OpenAI Codex (ChatGPT subscription), Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
 
 ### Python Usage
 

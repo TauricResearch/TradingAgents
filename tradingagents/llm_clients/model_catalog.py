@@ -92,6 +92,23 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.4 - Cost-effective, 1M context", "gpt-5.4"),
         ],
     },
+    # OpenAI Codex (ChatGPT-subscription endpoint). The account's own catalog
+    # also lists the gpt-5.6 Luna/Terra variants; the two exposed here are the
+    # ones verified against this framework's function-calling and structured
+    # -output paths. Anything else the plan serves can be entered as a custom ID.
+    "openai_codex": {
+        "quick": [
+            ("GPT-5.4 Mini - Fastest, lightest on subscription quota", "gpt-5.4-mini"),
+            ("GPT-5.4 - Balanced", "gpt-5.4"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("GPT-5.6-Sol - Latest, deepest reasoning", "gpt-5.6-sol"),
+            ("GPT-5.5 - Previous-gen flagship", "gpt-5.5"),
+            ("GPT-5.4 - Cost-effective", "gpt-5.4"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     "anthropic": {
         "quick": [
             ("Claude Sonnet 5 - Best speed and intelligence balance", "claude-sonnet-5"),

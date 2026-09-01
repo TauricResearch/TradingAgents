@@ -1,5 +1,6 @@
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -7,6 +8,7 @@ from urllib.parse import urlparse
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
+from . import codex_auth
 from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
@@ -162,6 +164,46 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
         return payload
 
 
+class CodexChatOpenAI(NormalizedChatOpenAI):
+    """Client for the ChatGPT-subscription Codex endpoint.
+
+    That endpoint rejects any request carrying ``stream: false`` or
+    ``store: true`` with HTTP 400, so both are pinned here rather than left to
+    each call site. ``temperature`` is rejected too, but it arrives as a user
+    kwarg, so it is filtered in ``OpenAIClient.get_llm`` alongside the other
+    unsupported-parameter drops instead of being silently swallowed here.
+
+    It also refuses input items whose role is ``system`` ("System messages are
+    not allowed"), which every agent prompt in this repo sends, so
+    ``_get_request_payload`` relabels them ``developer`` — the Responses-API
+    name for the same role, which the endpoint accepts and obeys.
+    """
+
+    streaming: bool = True
+    store: bool = False
+
+    def __init__(self, **kwargs: Any):
+        # These must be *constructor* arguments, not just field defaults.
+        # langchain decides whether to run the streaming code path from
+        # ``model_fields_set`` (i.e. "was streaming passed in?"), while the
+        # request payload takes ``stream`` from the attribute. A subclass
+        # default alone therefore sends ``stream: true`` and then parses the
+        # reply with the non-streaming parser, which fails on the SSE object.
+        kwargs.setdefault("streaming", True)
+        kwargs.setdefault("store", False)
+        super().__init__(**kwargs)
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        # Relabel rather than fold the text into `instructions`: several system
+        # messages can reach one call, and only the item list preserves their
+        # order and their position relative to the user turns.
+        for item in payload.get("input", []):
+            if isinstance(item, dict) and item.get("role") == "system":
+                item["role"] = "developer"
+        return payload
+
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort", "temperature", "max_tokens",
@@ -178,6 +220,17 @@ _OPENAI_REASONING_MODEL = re.compile(r"^(gpt-5|o[1-9])")
 def _supports_reasoning_effort(model: str) -> bool:
     """Whether the (native OpenAI) model accepts ``reasoning_effort``."""
     return bool(_OPENAI_REASONING_MODEL.match(model.lower().strip()))
+
+
+# The ChatGPT-subscription Codex endpoint answers any request carrying
+# temperature with 400 "Unsupported parameter: temperature". Every other
+# OpenAI-compatible provider accepts it.
+_NO_TEMPERATURE_PROVIDERS = frozenset({"openai_codex"})
+
+
+def _supports_temperature(provider: str) -> bool:
+    """Whether the provider accepts the cross-provider ``temperature`` kwarg."""
+    return provider.lower() not in _NO_TEMPERATURE_PROVIDERS
 
 
 @dataclass(frozen=True)
@@ -204,6 +257,13 @@ class ProviderSpec:
     placeholder_key: str = "EMPTY"            # sent when no key is available (keyless local servers)
     require_base_url: bool = False            # error if no base_url is resolved (generic endpoint)
     use_responses_api: bool = False           # native OpenAI Responses API
+    # Providers whose credentials are dynamic (OAuth tokens that expire) resolve
+    # them through this hook instead of reading a fixed env var.
+    credentials_fn: Callable[[], codex_auth.CodexCredentials] | None = None
+    # Enable the Responses API even though the host is not api.openai.com. The
+    # hostname guard exists to protect proxied `openai` setups (#1024); a
+    # provider whose only dialect *is* Responses opts out of it here.
+    forces_responses_api: bool = False
 
 
 # Single source of truth for the OpenAI-compatible provider family. Dual-region
@@ -226,6 +286,16 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
+    # OpenAI Codex: the ChatGPT-subscription endpoint. Speaks only the Responses
+    # API, authenticates with an OAuth bearer plus an account-id header, and is
+    # billed to the user's ChatGPT plan rather than to API credits.
+    "openai_codex": ProviderSpec(
+        base_url="https://chatgpt.com/backend-api/codex",
+        chat_class=CodexChatOpenAI,
+        use_responses_api=True,
+        forces_responses_api=True,
+        credentials_fn=codex_auth.resolve,
+    ),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(
         require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI
@@ -298,25 +368,34 @@ class OpenAIClient(BaseLLMClient):
             if base_url:
                 llm_kwargs["base_url"] = base_url
 
-            # API key: required unless key_optional; keyless local servers get a
-            # placeholder. The env-var name is the single source in api_key_env.
-            api_key_env = get_api_key_env(self.provider)
-            api_key = os.environ.get(api_key_env) if api_key_env else None
-            if api_key:
-                llm_kwargs["api_key"] = api_key
-            elif spec.key_optional:
-                llm_kwargs["api_key"] = spec.placeholder_key
-            elif api_key_env:
-                raise ValueError(
-                    f"API key for provider '{self.provider}' is not set. "
-                    f"Please set the {api_key_env} environment variable "
-                    f"(e.g. add {api_key_env}=your_key to your .env file)."
-                )
+            # Credentials: providers with dynamic auth (an OAuth token that
+            # expires) resolve them through the spec hook; everyone else reads a
+            # fixed env var whose name lives in api_key_env. Keyless local
+            # servers get a placeholder.
+            if spec.credentials_fn is not None:
+                credentials = spec.credentials_fn()
+                llm_kwargs["api_key"] = credentials.token
+                llm_kwargs["default_headers"] = credentials.headers
+            else:
+                api_key_env = get_api_key_env(self.provider)
+                api_key = os.environ.get(api_key_env) if api_key_env else None
+                if api_key:
+                    llm_kwargs["api_key"] = api_key
+                elif spec.key_optional:
+                    llm_kwargs["api_key"] = spec.placeholder_key
+                elif api_key_env:
+                    raise ValueError(
+                        f"API key for provider '{self.provider}' is not set. "
+                        f"Please set the {api_key_env} environment variable "
+                        f"(e.g. add {api_key_env}=your_key to your .env file)."
+                    )
 
             # The Responses API only exists on native OpenAI; if the user points
             # the openai provider at a custom base_url (proxy/gateway/local), it
             # only speaks Chat Completions, so keep Responses off there (#1024).
-            if spec.use_responses_api and _is_native_openai_base_url(base_url):
+            if spec.use_responses_api and (
+                spec.forces_responses_api or _is_native_openai_base_url(base_url)
+            ):
                 llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
@@ -326,6 +405,8 @@ class OpenAIClient(BaseLLMClient):
             if key not in self.kwargs:
                 continue
             if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+                continue
+            if key == "temperature" and not _supports_temperature(self.provider):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
