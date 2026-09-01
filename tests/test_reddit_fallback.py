@@ -158,16 +158,35 @@ class TestRss429Backoff:
             reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         slept.assert_called_once_with(0.0)
 
-    def test_headerless_429_fallback_is_jittered(self):
-        # No Retry-After -> our own ~5s fallback, jittered so concurrent runs
-        # don't retry in lockstep (kept within a tight band).
+    def test_headerless_429_fallback_outlasts_reddits_throttle_window(self):
+        """No Retry-After -> our own fallback, jittered so concurrent runs don't
+        retry in lockstep. Its magnitude matters: measured 2026-09-01, a second
+        search request still 429s at 30s of spacing and succeeds at 60s, so a
+        5s fallback guaranteed the single retry failed too and the feed was
+        silently dropped."""
         err = HTTPError("url", 429, "Too Many Requests", {}, None)
         with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
              patch.object(reddit.time, "sleep") as slept:
             reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         slept.assert_called_once()
         (wait,), _ = slept.call_args
-        assert 4.0 <= wait <= 6.0  # 5s +/-20% jitter
+        assert 48.0 <= wait <= 72.0  # 60s +/-20% jitter; must clear the measured ~60s window
+
+    def test_retry_after_is_honoured_beyond_the_old_thirty_second_cap(self):
+        # A server-supplied Retry-After is honoured exactly (no jitter); the old
+        # 30s cap sat below the measured throttle window and clipped honest values.
+        err = HTTPError("url", 429, "Too Many Requests", {"Retry-After": "90"}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
+             patch.object(reddit.time, "sleep") as slept:
+            reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        slept.assert_called_once_with(90.0)
+
+    def test_absurd_retry_after_is_still_capped(self):
+        err = HTTPError("url", 429, "Too Many Requests", {"Retry-After": "9999"}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
+             patch.object(reddit.time, "sleep") as slept:
+            reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        slept.assert_called_once_with(120.0)
 
 
 @pytest.mark.unit
