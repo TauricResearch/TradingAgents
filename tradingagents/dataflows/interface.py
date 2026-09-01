@@ -11,6 +11,7 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from .binance import get_binance_stock
 from .config import get_config
 from .errors import (
     NoMarketDataError,
@@ -28,6 +29,7 @@ from .y_finance import (
     get_stock_stats_indicators_window,
     get_YFin_data_online,
 )
+from .binance import get_binance_stock
 from .yfinance_news import get_global_news_yfinance, get_news_yfinance
 
 logger = logging.getLogger(__name__)
@@ -82,6 +84,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "binance",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -97,6 +100,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "binance": get_binance_stock,
     },
     # technical_indicators
     "get_indicators": {
