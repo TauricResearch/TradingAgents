@@ -21,6 +21,7 @@ import html
 import http.client
 import json
 import logging
+import random
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -101,11 +102,26 @@ def _strip_html(content: str) -> str:
     return " ".join(html.unescape(text).split())
 
 
+# Headerless-429 backoff when Reddit gives no Retry-After. Jittered so several
+# analyses sharing an IP don't retry in lockstep and re-collide on the limit.
+_RETRY_FALLBACK_SECONDS = 5.0
+
+
+def _jitter(seconds: float, frac: float = 0.2) -> float:
+    """Return ``seconds`` with +/-``frac`` random jitter, to desynchronize
+    concurrent runs pacing against the same per-IP limit."""
+    return seconds * (1.0 + random.uniform(-frac, frac))
+
+
 def _retry_after_seconds(exc: HTTPError) -> float | None:
-    """Seconds to wait from a 429's ``Retry-After`` header, capped at 30s."""
+    """Seconds to wait from a 429's ``Retry-After`` header, capped at 30s.
+
+    Returns ``None`` only when the header is absent or unparseable; a valid
+    ``Retry-After: 0`` returns ``0.0`` (retry at once), not ``None``.
+    """
     try:
         val = exc.headers.get("Retry-After") if getattr(exc, "headers", None) else None
-        return min(float(val), 30.0) if val else None
+        return min(float(val), 30.0) if val is not None else None
     except (ValueError, TypeError, AttributeError):
         return None
 
@@ -131,7 +147,10 @@ def _fetch_subreddit_rss(
             root = ET.fromstring(resp.read())
     except HTTPError as exc:
         if exc.code == 429 and _retry:
-            wait = _retry_after_seconds(exc) or 5.0
+            # Honour a server-supplied Retry-After exactly (including 0); jitter
+            # only our own fallback so concurrent runs don't retry in lockstep.
+            retry_after = _retry_after_seconds(exc)
+            wait = retry_after if retry_after is not None else _jitter(_RETRY_FALLBACK_SECONDS)
             logger.warning(
                 "Reddit RSS 429 for r/%s · %s — backing off %.1fs then retrying once",
                 sub, ticker, wait,
@@ -234,8 +253,8 @@ def fetch_reddit_posts(
     blocks = []
     total_posts = 0
     for i, sub in enumerate(subreddits):
-        if i > 0:
-            time.sleep(inter_request_delay)
+        if i > 0 and inter_request_delay:
+            time.sleep(_jitter(inter_request_delay))
         posts = _within_window(_fetch_subreddit(ticker, sub, limit_per_sub, timeout),
                                start_date, end_date)
         total_posts += len(posts)
