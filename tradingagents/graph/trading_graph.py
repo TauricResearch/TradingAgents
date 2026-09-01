@@ -292,10 +292,10 @@ class TradingAgentsGraph:
             end_str = end.strftime("%Y-%m-%d")
 
             # Normalize so the realized-return lookup hits the same instrument
-            # the analysis priced (e.g. XAUUSD -> GC=F) (#984). The benchmark is
-            # already a canonical Yahoo symbol from ``_resolve_benchmark``.
+            # the analysis priced (e.g. XAUUSD -> GC=F) (#984). Apply the same
+            # normalization to user-configured benchmarks such as SPX500.
             stock = yf.Ticker(normalize_symbol(ticker)).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
+            bench = yf.Ticker(normalize_symbol(benchmark)).history(start=trade_date, end=end_str)
 
             # Require the full holding window in both series. A rerun before it
             # has traded leaves the entry pending to retry next run, rather than
