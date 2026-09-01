@@ -85,9 +85,11 @@ class StaleGuardPropagationTests(unittest.TestCase):
 class StaleGuardRoutingTests(unittest.TestCase):
     def setUp(self):
         config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+        interface.reset_circuit_breaker()
 
     def tearDown(self):
         config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+        interface.reset_circuit_breaker()
 
     def test_router_sentinel_surfaces_stale_reason(self):
         set_config({"data_vendors": {"core_stock_apis": "yfinance"}})
