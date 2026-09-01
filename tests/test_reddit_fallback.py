@@ -36,8 +36,9 @@ def _resp(read_fn):
         def __exit__(self_inner, *a):
             return False
 
-        def read(self_inner):
-            return read_fn()
+        def read(self_inner, size=-1):
+            data = read_fn()
+            return data if size is None or size < 0 else data[:size]
     return _Resp()
 
 
@@ -147,6 +148,26 @@ class TestRss429Backoff:
             reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         slept.assert_called_once_with(12.0)
 
+    def test_retry_after_zero_is_honoured_not_treated_as_absent(self):
+        # A valid "Retry-After: 0" means retry at once; it must not fall through
+        # to the fallback wait (the earlier `or 5.0` bug turned 0 into 5s).
+        err = HTTPError("url", 429, "Too Many Requests", {"Retry-After": "0"}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
+             patch.object(reddit.time, "sleep") as slept:
+            reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        slept.assert_called_once_with(0.0)
+
+    def test_headerless_429_fallback_is_jittered(self):
+        # No Retry-After -> our own ~5s fallback, jittered so concurrent runs
+        # don't retry in lockstep (kept within a tight band).
+        err = HTTPError("url", 429, "Too Many Requests", {}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
+             patch.object(reddit.time, "sleep") as slept:
+            reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        slept.assert_called_once()
+        (wait,), _ = slept.call_args
+        assert 4.0 <= wait <= 6.0  # 5s +/-20% jitter
+
 
 @pytest.mark.unit
 class TestChunkedTransferErrorsHandled:
@@ -162,6 +183,14 @@ class TestChunkedTransferErrorsHandled:
              patch.object(reddit, "_fetch_subreddit_rss", return_value=[]) as rss:
             reddit._fetch_subreddit_json("NVDA", "stocks", 5, 5.0)
         rss.assert_called_once()
+
+    def test_oversized_rss_feed_is_refused_not_parsed(self):
+        # A hostile/misbehaving endpoint streaming an unbounded body must not be
+        # read into memory before parsing; overflow degrades to an empty feed.
+        big = _resp(lambda: b"x" * 100)
+        with patch.object(reddit, "_MAX_FEED_BYTES", 10), \
+             patch.object(reddit, "urlopen", return_value=big):
+            assert reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0) == []
 
 
 @pytest.mark.unit
