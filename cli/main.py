@@ -50,6 +50,7 @@ from tradingagents.graph.analyst_execution import (
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.reporting import write_report_tree
+from tradingagents.run_manifest import build_run_manifest
 
 console = Console()
 
@@ -760,9 +761,20 @@ def get_analysis_date():
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def save_report_to_disk(
+    final_state,
+    ticker: str,
+    save_path: Path,
+    *,
+    run_manifest: dict | None = None,
+):
     """Save the complete analysis report to disk (shared CLI/API writer)."""
-    return write_report_tree(final_state, ticker, save_path)
+    return write_report_tree(
+        final_state,
+        ticker,
+        save_path,
+        run_manifest=run_manifest,
+    )
 
 
 def display_complete_report(final_state):
@@ -1289,7 +1301,18 @@ def run_analysis(checkpoint: bool | None = None):
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            run_manifest = build_run_manifest(
+                config,
+                final_state,
+                selections["ticker"],
+                selected_analyst_keys,
+            )
+            report_file = save_report_to_disk(
+                final_state,
+                selections["ticker"],
+                save_path,
+                run_manifest=run_manifest,
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
