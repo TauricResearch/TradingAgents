@@ -1,5 +1,17 @@
 import logging
 
+# Import from vendor-specific modules
+from .y_finance import (
+    get_YFin_data_online,
+    get_stock_stats_indicators_window,
+    get_fundamentals as get_yfinance_fundamentals,
+    get_balance_sheet as get_yfinance_balance_sheet,
+    get_cashflow as get_yfinance_cashflow,
+    get_income_statement as get_yfinance_income_statement,
+    get_insider_transactions as get_yfinance_insider_transactions,
+)
+from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .google_news import get_news_google, get_global_news_google
 from .alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
@@ -79,8 +91,7 @@ TOOLS_CATEGORIES = {
 
 VENDOR_LIST = [
     "yfinance",
-    "fred",
-    "polymarket",
+    "google_news",
     "alpha_vantage",
 ]
 
@@ -122,11 +133,13 @@ VENDOR_METHODS = {
     },
     # news_data
     "get_news": {
-        "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "google_news": get_news_google,
+        "alpha_vantage": get_alpha_vantage_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
+        "google_news": get_global_news_google,
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
