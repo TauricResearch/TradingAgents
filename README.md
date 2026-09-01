@@ -234,6 +234,29 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Backtesting support
+
+TradingAgents does not currently ship a single command that walks a date range,
+executes daily orders, tracks cash and positions, and emits portfolio-level
+backtesting metrics. The CLI and `TradingAgentsGraph.propagate()` run one ticker
+for one analysis date and return the final trading decision for that run.
+
+To backtest a strategy, use TradingAgents as the signal-generation step inside a
+separate backtesting harness:
+
+1. Iterate over the trading dates you want to evaluate.
+2. Call `ta.propagate(ticker, trade_date)` for each date.
+3. Convert the returned rating or decision text into explicit orders and
+   position-sizing rules.
+4. Track cash, holdings, fills, fees, slippage, benchmark returns, and metrics in
+   your simulator.
+
+The historical price and indicator fetchers are date-scoped and include
+look-ahead guards, but live news and social vendors can still change over time
+unless you archive or mock those inputs. The persistent decision log described
+below is used for delayed reflection between runs; it is not a complete
+portfolio ledger or backtesting engine.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.
