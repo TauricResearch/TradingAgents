@@ -404,19 +404,25 @@ def select_openrouter_model(mode: str) -> str:
     ]
     top = (mainstream or models)[:5]
 
-    choices = [questionary.Choice(name, value=mid) for name, mid in top]
-    choices.append(questionary.Choice("Custom model ID", value="custom"))
+    name_to_value = {}
+    choices_names = []
+    for name, mid in top:
+        name_to_value[name] = mid
+        choices_names.append(name)
+    name_to_value["Custom model ID"] = "custom"
+    choices_names.append("Custom model ID")
 
     console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
-    choice = questionary.autocomplete(
+    selected_name = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
-        choices=choices,
+        choices=choices_names,
         style=questionary.Style([
             ("selected", "fg:magenta noinherit"),
             ("highlighted", "fg:magenta noinherit"),
             ("pointer", "fg:magenta noinherit"),
         ]),
     ).ask()
+    choice = name_to_value.get(selected_name) if selected_name else None
 
     if choice is None:
         console.print("\n[red]No model selected. Exiting...[/red]")
@@ -459,17 +465,22 @@ def _select_model(provider: str, mode: str) -> str:
         model_options = get_model_options(provider, mode)
 
     # Build choices, always include Custom
-    choices = [questionary.Choice(name, value=mid) for name, mid in model_options]
+    name_to_value = {}
+    choices_names = []
+    for name, mid in model_options:
+        name_to_value[name] = mid
+        choices_names.append(name)
     # Avoid duplicate custom
     has_custom = any(mid == "custom" for _, mid in model_options)
     if not has_custom:
-        choices.append(questionary.Choice("Custom model ID", value="custom"))
+        name_to_value["Custom model ID"] = "custom"
+        choices_names.append("Custom model ID")
 
     # Use autocomplete for searchable model list
     console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
-    choice = questionary.autocomplete(
+    selected_name = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
-        choices=choices,
+        choices=choices_names,
         style=questionary.Style(
             [
                 ("selected", "fg:magenta noinherit"),
@@ -478,6 +489,7 @@ def _select_model(provider: str, mode: str) -> str:
             ]
         ),
     ).ask()
+    choice = name_to_value.get(selected_name) if selected_name else None
 
     if choice is None:
         console.print(f"\n[red]No {mode} thinking llm engine selected. Exiting...[/red]")
