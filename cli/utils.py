@@ -469,7 +469,6 @@ def _select_model(provider: str, mode: str) -> str:
     choice = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=choices,
-        instruction="\n- Type to filter, use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
                 ("selected", "fg:magenta noinherit"),
