@@ -407,10 +407,10 @@ def select_openrouter_model(mode: str) -> str:
     choices = [questionary.Choice(name, value=mid) for name, mid in top]
     choices.append(questionary.Choice("Custom model ID", value="custom"))
 
-    choice = questionary.select(
+    choice = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
         choices=choices,
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        instruction="\n- Type to filter, use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style([
             ("selected", "fg:magenta noinherit"),
             ("highlighted", "fg:magenta noinherit"),
@@ -465,10 +465,11 @@ def _select_model(provider: str, mode: str) -> str:
     if not has_custom:
         choices.append(questionary.Choice("Custom model ID", value="custom"))
 
-    choice = questionary.select(
+    # Use autocomplete for searchable model list
+    choice = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=choices,
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        instruction="\n- Type to filter, use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
                 ("selected", "fg:magenta noinherit"),
