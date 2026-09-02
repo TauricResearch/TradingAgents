@@ -571,7 +571,7 @@ def get_user_selections():
             default_date,
         )
     )
-    analysis_date = get_analysis_date()
+    analysis_date = get_analysis_date(selected_ticker)
 
     # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
     if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
@@ -741,18 +741,52 @@ def get_user_selections():
     }
 
 
-def get_analysis_date():
-    """Get the analysis date from user input."""
+def get_analysis_date(ticker: str | None = None):
+    """Get the analysis date from user input with automatic fallback to previous trading day if data missing."""
+    from tradingagents.dataflows.stockstats_utils import load_ohlcv
+    from tradingagents.dataflows.market_data_validator import NoMarketDataError
+
+    def date_has_data(date_str: str) -> bool:
+        if not ticker:
+            return True
+        try:
+            df = load_ohlcv(ticker, date_str)
+            return df is not None and not df.empty and not pd.isna(df["Close"].iloc[-1])
+        except Exception:
+            return False
+
     while True:
         date_str = typer.prompt(
             "", default=datetime.datetime.now().strftime("%Y-%m-%d")
         )
         try:
-            # Validate date format and ensure it's not in the future
             analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
             if analysis_date.date() > datetime.datetime.now().date():
                 console.print("[red]Error: Analysis date cannot be in the future[/red]")
                 continue
+            # Validate data availability if ticker known
+            if ticker:
+                import pandas as pd
+                # Try requested date first
+                if not date_has_data(date_str):
+                    console.print(
+                        f"[yellow]No market data for {ticker} on {date_str}. Trying previous trading day...[/yellow]"
+                    )
+                    # Try up to 10 previous days
+                    for i in range(1, 11):
+                        fallback = (analysis_date - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+                        if date_has_data(fallback):
+                            console.print(f"[green]Using fallback date {fallback} with available data.[/green]")
+                            return fallback
+                    console.print(
+                        f"[red]No data found for {ticker} in the last 10 days. Please try a different ticker or date.[/red]"
+                    )
+                    # Ask user to retry
+                    retry = typer.prompt("Retry with a different date? [Y/n]", default="Y").strip().upper()
+                    if retry in ("Y", "YES", ""):
+                        continue
+                    else:
+                        return date_str
             return date_str
         except ValueError:
             console.print(
