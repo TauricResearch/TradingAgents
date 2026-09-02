@@ -48,3 +48,14 @@ def test_save_reports_defaults_under_results_dir(tmp_path):
     assert out.exists()
     assert out.parent.parent.name == "reports"  # results_dir/reports/AAPL_<stamp>/...
     assert out.parent.name.startswith("AAPL_")
+
+
+@pytest.mark.unit
+def test_write_report_tree_standalone_portfolio_decision(tmp_path):
+    state = {
+        "market_report": "MKT",
+        "portfolio_decision": "STANDALONE PM DECISION",
+    }
+    out = write_report_tree(state, "TSLA", tmp_path)
+    assert (tmp_path / "5_portfolio" / "decision.md").read_text() == "STANDALONE PM DECISION"
+    assert "STANDALONE PM DECISION" in out.read_text()

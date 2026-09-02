@@ -88,12 +88,19 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
             sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
 
-        # 5. Portfolio Manager
-        if risk.get("judge_decision"):
-            portfolio_dir = save_path / "5_portfolio"
-            portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+    # 5. Portfolio Manager
+    risk_state = final_state.get("risk_debate_state") or {}
+    pm_state = final_state.get("portfolio_manager_state") or {}
+    portfolio_decision = (
+        risk_state.get("judge_decision")
+        or pm_state.get("judge_decision")
+        or final_state.get("portfolio_decision")
+    )
+    if portfolio_decision:
+        portfolio_dir = save_path / "5_portfolio"
+        portfolio_dir.mkdir(exist_ok=True)
+        (portfolio_dir / "decision.md").write_text(portfolio_decision, encoding="utf-8")
+        sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{portfolio_decision}")
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
