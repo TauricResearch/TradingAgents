@@ -88,6 +88,16 @@ class TestNullishFloatCoercion:
         p = TraderProposal(action=TraderAction.BUY, reasoning="x", entry_price="189.5")
         assert p.entry_price == 189.5
 
+    def test_trader_percentage_and_currency_strings_parse(self):
+        p = TraderProposal(
+            action=TraderAction.BUY,
+            reasoning="x",
+            entry_price="$189.50",
+            stop_loss="15%",
+        )
+        assert p.entry_price == 189.50
+        assert p.stop_loss == 15.0
+
     def test_pm_nullish_price_target_coerces_to_none(self):
         d = PortfolioDecision(
             rating=PortfolioRating.OVERWEIGHT,

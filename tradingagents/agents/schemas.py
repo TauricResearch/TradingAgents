@@ -24,15 +24,21 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
-# numeric field instead of omitting it. Coerce those to None so the structured
-# call validates instead of erroring (#1058). Pydantic still parses real numeric
-# strings ("189.5") to float.
+# numeric field instead of omitting it, or include percentage signs / currency
+# symbols ("15%", "$189.5"). Coerce these safely (#1058, #1288).
 _NULLISH_FLOAT = {"", "none", "n/a", "na", "null", "nil", "-", "tbd", "unknown"}
 
 
 def _coerce_optional_float(value):
-    if isinstance(value, str) and value.strip().lower() in _NULLISH_FLOAT:
-        return None
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if cleaned.lower() in _NULLISH_FLOAT:
+            return None
+        s = cleaned.lstrip("$€£¥~+ ").rstrip(" %").strip()
+        try:
+            return float(s)
+        except (ValueError, TypeError):
+            pass
     return value
 
 
