@@ -412,8 +412,8 @@ def select_openrouter_model(mode: str) -> str:
     name_to_value["Custom model ID"] = "custom"
     choices_names.append("Custom model ID")
 
-    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
-    selected_name = questionary.autocomplete(
+    console.print("[dim]- Use arrow keys to navigate\n- Press Enter to select[/dim]")
+    selected_name = questionary.select(
         f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
         choices=choices_names,
         style=questionary.Style([
@@ -476,9 +476,9 @@ def _select_model(provider: str, mode: str) -> str:
         name_to_value["Custom model ID"] = "custom"
         choices_names.append("Custom model ID")
 
-    # Use autocomplete for searchable model list
-    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
-    selected_name = questionary.autocomplete(
+    # Use select for model list, same style as providers
+    console.print("[dim]- Use arrow keys to navigate\n- Press Enter to select[/dim]")
+    selected_name = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=choices_names,
         style=questionary.Style(
