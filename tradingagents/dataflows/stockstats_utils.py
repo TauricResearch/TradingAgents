@@ -250,14 +250,14 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     # Filter to curr_date to prevent look-ahead bias in backtesting.
     data = data[data["Date"] <= curr_date_dt]
 
-    # Guard the latest in-range bar before dropping incomplete rows: a newest bar
-    # with no close is "not settled yet", not "does not exist". Silently dropping
-    # it would make the previous trading day look like the latest (#1201); raise
-    # instead so the router surfaces it rather than fabricating a fallback.
+    # Drop incomplete latest bar (market not closed yet) instead of raising error.
+    # This allows fallback to previous trading day data.
     if not data.empty and pd.isna(data["Close"].iloc[-1]):
-        raise NoMarketDataError(
-            symbol, canonical, "latest in-range OHLCV bar has no closing price"
-        )
+        data = data.iloc[:-1]
+        if data.empty:
+            raise NoMarketDataError(
+                symbol, canonical, "no complete OHLCV bars after dropping incomplete latest"
+            )
 
     data = _fill_price_gaps(data)
 
