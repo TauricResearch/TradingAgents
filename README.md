@@ -145,6 +145,9 @@ export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
 export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export NVIDIA_API_KEY=...          # NVIDIA NIM
+export OPENCODE_API_KEY=...        # OpenCode
+export OLLAMA_CLOUD_API_KEY=...    # Ollama Cloud
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
@@ -174,11 +177,22 @@ You will see a screen where you can select your desired tickers, analysis date, 
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
 
-- US: `AAPL`, `SPY`
-- Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
-- India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
+- US: `AAPL`, `SPY`, `BRK.A` – no suffix or `.US`
+- India: `RELIANCE.NS` / `RELIANCE.BO` / `.NSE` / `.BSE` – NSE, BSE
+- Hong Kong: `0700.HK`
+- Japan: `7203.T`
+- UK: `AZN.L`
+- Europe: France ` .PA`, Germany `.DE`, Italy `.MI`, Netherlands `.AS`, Switzerland `.SW`, Sweden `.ST`
+- Canada: `.TO`
+- Australia: `.AX`
+- South Korea: `.KS`
+- Taiwan: `.TW`
+- Brazil: `.SA`
+- South Africa: `.J`
+- Mexico: `.MX`
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
-- Crypto: `BTC-USD`, `ETH-USD`
+- Crypto: `BTC-USD`, `ETH-USD`, `SOL-USD`, `ADA-USD`, and any Yahoo Finance crypto pair
+
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -198,7 +212,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, NVIDIA NIM, OpenCode, Ollama / Ollama Cloud, Mistral, Kimi, Groq, and Azure OpenAI for enterprise.
 
 ### Python Usage
 
