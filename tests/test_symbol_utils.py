@@ -34,6 +34,11 @@ class TestNormalizeSymbol(unittest.TestCase):
         self.assertEqual(normalize_symbol("SPX500"), "^GSPC")
         self.assertEqual(normalize_symbol("NAS100"), "^NDX")
         self.assertEqual(normalize_symbol("US30"), "^DJI")
+        self.assertEqual(normalize_symbol("DAX"), "^GDAXI")
+        self.assertEqual(normalize_symbol("FTSE100"), "^FTSE")
+        self.assertEqual(normalize_symbol("CAC40"), "^FCHI")
+        self.assertEqual(normalize_symbol("VIX"), "^VIX")
+        self.assertEqual(normalize_symbol("DXY"), "DX-Y.NYB")
 
     def test_forex_pairs_get_x_suffix(self):
         self.assertEqual(normalize_symbol("EURUSD"), "EURUSD=X")
@@ -43,6 +48,8 @@ class TestNormalizeSymbol(unittest.TestCase):
     def test_crypto_pairs_get_dash_usd(self):
         self.assertEqual(normalize_symbol("BTCUSD"), "BTC-USD")
         self.assertEqual(normalize_symbol("ETHUSD"), "ETH-USD")
+        self.assertEqual(normalize_symbol("BNBUSD"), "BNB-USD")
+        self.assertEqual(normalize_symbol("SOLUSDT"), "SOL-USD")
 
     def test_six_letter_non_currency_left_alone(self):
         # GOOGLE-style 6-letter tickers that aren't two currency codes
