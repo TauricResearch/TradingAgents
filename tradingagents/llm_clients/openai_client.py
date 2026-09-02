@@ -33,7 +33,17 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        try:
+            return normalize_content(super().invoke(input, config, **kwargs))
+        except Exception as e:
+            # Graceful handling for provider model not found / 404 errors
+            msg = str(e)
+            if "Not Found" in msg or "404" in msg or "Function" in msg and "Not found" in msg:
+                raise RuntimeError(
+                    f"Model '{self.model_name}' not found or no longer available for this provider. "
+                    f"Please select a different model. Original error: {msg}"
+                ) from e
+            raise
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)

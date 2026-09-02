@@ -453,10 +453,14 @@ def _select_model(provider: str, mode: str) -> str:
         )
 
     # Try live model fetch for OpenAI-compatible providers with API key configured
+    # Skip live fetch for providers that are custom-only to avoid unsupported model lists
+    custom_only_providers = {"nvidia", "mistral", "kimi", "groq", "bedrock", "openai_compatible"}
     env_var = get_api_key_env(provider)
     api_key = os.environ.get(env_var) if env_var else None
     backend_url = provider_default_url(provider)
-    live_models = _fetch_live_models(provider.lower(), backend_url, api_key)
+    live_models = None
+    if provider.lower() not in custom_only_providers:
+        live_models = _fetch_live_models(provider.lower(), backend_url, api_key)
 
     model_options = []
     if live_models:
