@@ -760,22 +760,17 @@ def get_analysis_date(ticker: str | None = None):
                 if "Date" in df.columns:
                     date_col = pd.to_datetime(df["Date"], errors="coerce").dt.normalize()
                     matches = date_col == requested_ts
-                    if matches.any():
-                        close_val = df.loc[matches, "Close"]
-                        return not close_val.empty and not pd.isna(close_val.iloc[0])
-                    return False
+                    # Date exists = data available for that trading day (even if close is NaN for today)
+                    return matches.any()
                 # Fallback: if index is datetime-like
                 elif isinstance(df.index, pd.DatetimeIndex):
                     matches = df.index.normalize() == requested_ts
-                    if matches.any():
-                        close_val = df.loc[matches, "Close"]
-                        return not close_val.empty and not pd.isna(close_val.iloc[0])
-                    return False
+                    return matches.any()
                 else:
                     # Last resort: check last row
-                    return not pd.isna(df["Close"].iloc[-1])
+                    return True
             except Exception:
-                return not pd.isna(df["Close"].iloc[-1])
+                return True
         except Exception:
             return False
 

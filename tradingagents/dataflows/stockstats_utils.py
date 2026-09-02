@@ -250,16 +250,23 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     # Filter to curr_date to prevent look-ahead bias in backtesting.
     data = data[data["Date"] <= curr_date_dt]
 
-    # Drop incomplete latest bar (market not closed yet) instead of raising error.
-    # This allows fallback to previous trading day data.
-    if not data.empty and pd.isna(data["Close"].iloc[-1]):
-        data = data.iloc[:-1]
-        if data.empty:
-            raise NoMarketDataError(
-                symbol, canonical, "no complete OHLCV bars after dropping incomplete latest"
-            )
-
-    data = _fill_price_gaps(data)
+    # Keep incomplete latest bar (today's partial data) - don't drop it in _fill_price_gaps
+    # Identify if last row is today's incomplete bar
+    last_row_is_today_incomplete = (
+        not data.empty 
+        and pd.isna(data["Close"].iloc[-1]) 
+        and data["Date"].iloc[-1].date() == curr_date_dt.date()
+    )
+    
+    if last_row_is_today_incomplete:
+        # Separate today's incomplete bar, fill gaps on historical data, then reattach
+        today_bar = data.iloc[[-1]].copy()
+        historical = data.iloc[:-1].copy()
+        if not historical.empty:
+            historical = _fill_price_gaps(historical)
+        data = pd.concat([historical, today_bar], ignore_index=True)
+    else:
+        data = _fill_price_gaps(data)
 
     # Reject a stale frame (latest row far older than curr_date) rather than
     # feeding year-old prices into indicators (#1021).
