@@ -751,7 +751,27 @@ def get_analysis_date(ticker: str | None = None):
             return True
         try:
             df = load_ohlcv(ticker, date_str)
-            return df is not None and not df.empty and not pd.isna(df["Close"].iloc[-1])
+            if df is None or df.empty:
+                return False
+            # Check if the requested date is actually present in the data
+            try:
+                # Ensure index is datetime-like
+                if not isinstance(df.index, pd.DatetimeIndex):
+                    # Try to parse index
+                    df.index = pd.to_datetime(df.index, errors="coerce")
+                # Normalize date_str to Timestamp
+                requested_ts = pd.to_datetime(date_str).normalize()
+                # Check if any row matches the requested date (tolerance for timezone)
+                matches = df.index.normalize() == requested_ts
+                if matches.any():
+                    # Ensure Close is not NaN for that date
+                    close_val = df.loc[matches, "Close"]
+                    return not close_val.empty and not pd.isna(close_val.iloc[0])
+                # Fallback: if data exists but date not found, treat as no data
+                return False
+            except Exception:
+                # Fallback to old logic
+                return not pd.isna(df["Close"].iloc[-1])
         except Exception:
             return False
 
@@ -772,9 +792,13 @@ def get_analysis_date(ticker: str | None = None):
                     console.print(
                         f"[yellow]No market data for {ticker} on {date_str}. Trying previous trading day...[/yellow]"
                     )
-                    # Try up to 10 previous days
+                    # Try up to 10 previous days, skipping weekends
                     for i in range(1, 11):
-                        fallback = (analysis_date - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+                        candidate = analysis_date - datetime.timedelta(days=i)
+                        # Skip Saturday=5, Sunday=6
+                        if candidate.weekday() >= 5:
+                            continue
+                        fallback = candidate.strftime("%Y-%m-%d")
                         if date_has_data(fallback):
                             console.print(f"[green]Using fallback date {fallback} with available data.[/green]")
                             return fallback
