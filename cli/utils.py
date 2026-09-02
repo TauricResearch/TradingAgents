@@ -13,6 +13,10 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
+# Load .env automatically so provider (configured) suffix works
+from dotenv import load_dotenv
+load_dotenv()
+
 _TICKER_HISTORY_PATH = Path.home() / ".tradingagents" / "tickers.json"
 
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
