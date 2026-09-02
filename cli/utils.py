@@ -419,10 +419,10 @@ def select_openrouter_model(mode: str) -> str:
             ("pointer", "fg:magenta noinherit"),
             ("questionmark", "fg:magenta noinherit"),
             ("answer", "fg:magenta noinherit"),
-            ("dropdown", "bg:ansiblack fg:ansibrightwhite"),
+            ("dropdown", "bg:black fg:white"),
             ("dropdown.border", "fg:magenta"),
-            ("dropdown.item", "fg:ansibrightwhite"),
-            ("dropdown.item.selected", "bg:magenta fg:ansiblack"),
+            ("dropdown.item", "fg:white"),
+            ("dropdown.item.selected", "bg:magenta fg:black"),
         ]),
     ).ask()
 
@@ -491,10 +491,10 @@ def _select_model(provider: str, mode: str) -> str:
                 ("pointer", "fg:magenta noinherit"),
                 ("questionmark", "fg:magenta noinherit"),
                 ("answer", "fg:magenta noinherit"),
-                ("dropdown", "bg:ansiblack fg:ansibrightwhite"),
+                ("dropdown", "bg:black fg:white"),
                 ("dropdown.border", "fg:magenta"),
-                ("dropdown.item", "fg:ansibrightwhite"),
-                ("dropdown.item.selected", "bg:magenta fg:ansiblack"),
+                ("dropdown.item", "fg:white"),
+                ("dropdown.item.selected", "bg:magenta fg:black"),
             ]
         ),
     ).ask()
@@ -619,10 +619,10 @@ def select_llm_provider() -> tuple[str, str | None]:
                 ("selected", "fg:magenta noinherit"),
                 ("highlighted", "fg:magenta noinherit"),
                 ("pointer", "fg:magenta noinherit"),
-                ("dropdown", "bg:ansiblack fg:ansibrightwhite"),
+                ("dropdown", "bg:black fg:white"),
                 ("dropdown.border", "fg:magenta"),
-                ("dropdown.item", "fg:ansibrightwhite"),
-                ("dropdown.item.selected", "bg:magenta fg:ansiblack"),
+                ("dropdown.item", "fg:white"),
+                ("dropdown.item.selected", "bg:magenta fg:black"),
             ]
         ),
     ).ask()
