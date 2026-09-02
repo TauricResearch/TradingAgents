@@ -744,7 +744,7 @@ def get_user_selections():
 def get_analysis_date(ticker: str | None = None):
     """Get the analysis date from user input with automatic fallback to previous trading day if data missing."""
     from tradingagents.dataflows.stockstats_utils import load_ohlcv
-    from tradingagents.dataflows.market_data_validator import NoMarketDataError
+    from tradingagents.dataflows.errors import NoMarketDataError
 
     def date_has_data(date_str: str) -> bool:
         if not ticker:
