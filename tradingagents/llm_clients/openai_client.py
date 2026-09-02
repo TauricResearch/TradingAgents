@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -11,6 +12,21 @@ from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
+
+# Retry config
+MAX_INVOKE_RETRIES = 3
+RETRY_DELAY_SECONDS = 2
+RETRYABLE_ERRORS = (
+    "timeout",
+    "connection",
+    "rate limit",
+    "429",
+    "503",
+    "502",
+    "504",
+    "temporarily unavailable",
+    "service unavailable",
+)
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -32,18 +48,38 @@ class NormalizedChatOpenAI(ChatOpenAI):
     stays small.
     """
 
+    def _is_retryable_error(self, error: Exception) -> bool:
+        """Check if error is transient and worth retrying."""
+        msg = str(error).lower()
+        return any(err in msg for err in RETRYABLE_ERRORS)
+
     def invoke(self, input, config=None, **kwargs):
-        try:
-            return normalize_content(super().invoke(input, config, **kwargs))
-        except Exception as e:
-            # Graceful handling for provider model not found / 404 errors
-            msg = str(e)
-            if "Not Found" in msg or "404" in msg or "Function" in msg and "Not found" in msg:
-                raise RuntimeError(
-                    f"Model '{self.model_name}' not found or no longer available for this provider. "
-                    f"Please select a different model. Original error: {msg}"
-                ) from e
-            raise
+        last_error = None
+        for attempt in range(1, MAX_INVOKE_RETRIES + 1):
+            try:
+                return normalize_content(super().invoke(input, config, **kwargs))
+            except Exception as e:
+                last_error = e
+                msg = str(e)
+
+                # Non-retryable: model not found / 404
+                if "Not Found" in msg or "404" in msg or ("Function" in msg and "Not found" in msg):
+                    raise RuntimeError(
+                        f"Model '{self.model_name}' not found or no longer available for this provider. "
+                        f"Please select a different model. Original error: {msg}"
+                    ) from e
+
+                # Retryable: transient network / rate limit / server errors
+                if attempt < MAX_INVOKE_RETRIES and self._is_retryable_error(e):
+                    print(f"[yellow]LLM invoke attempt {attempt}/{MAX_INVOKE_RETRIES} failed: {e}. Retrying in {RETRY_DELAY_SECONDS}s...[/yellow]")
+                    time.sleep(RETRY_DELAY_SECONDS)
+                    continue
+
+                # Non-retryable or max retries exceeded
+                raise
+
+        # Should not reach here, but safety
+        raise last_error
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
