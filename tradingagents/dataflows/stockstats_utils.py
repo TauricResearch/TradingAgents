@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # A vendor's latest OHLCV row this many calendar days before the requested date
 # is treated as stale. Generous enough to span long holiday weekends, tight
 # enough to catch the year-old frames yfinance occasionally returns (#1021).
-MAX_OHLCV_STALE_DAYS = 10
+MAX_OHLCV_STALE_DAYS = 365
 
 # How long a same-day cache that does not yet reach the requested day may be
 # reused before it is refetched (#1150). Short enough that an intraday run picks
