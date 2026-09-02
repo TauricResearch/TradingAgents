@@ -1,7 +1,9 @@
+import json
 import os
 from pathlib import Path
 
 import questionary
+import requests
 from dotenv import find_dotenv, set_key
 from rich.console import Console
 
@@ -10,6 +12,8 @@ from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
+
+_TICKER_HISTORY_PATH = Path.home() / ".tradingagents" / "tickers.json"
 
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
@@ -21,6 +25,30 @@ ANALYST_ORDER = [
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
+
+
+def _load_ticker_history() -> list[str]:
+    try:
+        if _TICKER_HISTORY_PATH.exists():
+            data = json.loads(_TICKER_HISTORY_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                return data
+    except Exception:
+        pass
+    return []
+
+
+def _save_ticker_history(ticker: str) -> None:
+    try:
+        _TICKER_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        history = _load_ticker_history()
+        # Move ticker to front, deduplicate, keep max 20
+        history = [t for t in history if t.lower() != ticker.lower()]
+        history.insert(0, ticker)
+        history = history[:20]
+        _TICKER_HISTORY_PATH.write_text(json.dumps(history, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def is_valid_ticker_input(value: str) -> bool:
@@ -35,31 +63,55 @@ def is_valid_ticker_input(value: str) -> bool:
 
 
 def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol, preserving exchange suffixes.
+    """Prompt the user to enter a ticker symbol with dropdown history.
 
-    Uses questionary.text (not typer.prompt, which strips trailing dot-suffixes
-    like ``000404.SH`` on some shells) and validates the symbol charset so an
-    obvious typo is caught before the run starts.
+    Shows recent tickers and last selected first. Falls back to custom entry.
     """
-    ticker = questionary.text(
-        f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
-        validate=lambda x: (
-            is_valid_ticker_input(x)
-            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F."
-        ),
-        style=questionary.Style(
-            [
-                ("text", "fg:green"),
-                ("highlighted", "noinherit"),
-            ]
-        ),
+    history = _load_ticker_history()
+    choices = []
+    if history:
+        choices.append(questionary.Separator("Recent tickers"))
+        for t in history:
+            choices.append(questionary.Choice(title=f"  {t}", value=t))
+    choices.append(questionary.Separator("Or"))
+    choices.append(questionary.Choice(title="  Enter custom ticker...", value="__custom__"))
+
+    selection = questionary.select(
+        f"Select ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
+        choices=choices,
+        default=history[0] if history else None,
+        style=questionary.Style([
+            ("selected", "fg:green noinherit"),
+            ("highlighted", "fg:green noinherit"),
+            ("pointer", "fg:green noinherit"),
+        ]),
     ).ask()
 
-    if ticker is None:
+    if selection is None:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
-    return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
+    if selection == "__custom__":
+        ticker = questionary.text(
+            f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
+            validate=lambda x: (
+                is_valid_ticker_input(x)
+                or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, GC=F."
+            ),
+            style=questionary.Style([
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]),
+        ).ask()
+        if ticker is None:
+            console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+            exit(1)
+    else:
+        ticker = selection
+
+    normalized = normalize_ticker_symbol(ticker.strip() if ticker.strip() else "SPY")
+    _save_ticker_history(normalized)
+    return normalized
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
@@ -211,7 +263,6 @@ _OPENROUTER_MAINSTREAM = {
 
 def _fetch_openrouter_models() -> list[tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
-    import requests
     try:
         resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
         resp.raise_for_status()
@@ -224,6 +275,71 @@ def _fetch_openrouter_models() -> list[tuple[str, str]]:
     except Exception as e:
         console.print(f"\n[yellow]Could not fetch OpenRouter models: {e}[/yellow]")
         return []
+
+
+def _fetch_live_models(provider_key: str, backend_url: str | None, api_key: str | None) -> list[tuple[str, str]] | None:
+    """Try to fetch live models for a provider.
+
+    Supports OpenAI-compatible /v1/models and Ollama /api/tags.
+    Returns None if fetching is not applicable, [] if fetch failed/auth error.
+    """
+    if not backend_url:
+        return None
+
+    pk = provider_key.lower()
+
+    # Ollama does not need API key; list pulled models
+    if pk == "ollama":
+        try:
+            # Ollama base url is usually http://localhost:11434/v1, so strip /v1
+            base = backend_url.rstrip("/v1").rstrip("/")
+            url = base + "/api/tags"
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            models = data.get("models", [])
+            result = []
+            for m in models:
+                model_id = m.get("name")
+                if model_id:
+                    result.append((model_id, model_id))
+            result.sort(key=lambda x: x[0].lower())
+            return result
+        except Exception as e:
+            console.print(f"\n[yellow]Could not fetch Ollama models: {e}[/yellow]")
+            return None
+
+    # Providers without public listing or requiring special auth -> skip live fetch
+    # Anthropic, Google, Bedrock, Azure have no simple unauthenticated listing;
+    # we fall back to static catalog.
+    no_live_providers = {"anthropic", "google", "bedrock", "azure"}
+    if pk in no_live_providers:
+        return None
+
+    # Default: OpenAI-compatible /v1/models
+    if not api_key:
+        return None
+    try:
+        url = backend_url.rstrip("/") + "/models"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 401:
+            console.print(f"\n[yellow]API key for {provider_key} is not valid for model listing.[/yellow]")
+            return []
+        resp.raise_for_status()
+        data = resp.json()
+        models = data.get("data", [])
+        result = []
+        for m in models:
+            model_id = m.get("id") or m.get("model")
+            name = m.get("name") or model_id or ""
+            if model_id:
+                result.append((name or model_id, model_id))
+        result.sort(key=lambda x: x[0].lower())
+        return result
+    except Exception as e:
+        console.print(f"\n[yellow]Could not fetch live models for {provider_key}: {e}[/yellow]")
+        return None
 
 
 def _require_text(message: str, hint: str) -> str:
@@ -300,12 +416,29 @@ def _select_model(provider: str, mode: str) -> str:
             "Please enter a deployment name.",
         )
 
+    # Try live model fetch for OpenAI-compatible providers with API key configured
+    env_var = get_api_key_env(provider)
+    api_key = os.environ.get(env_var) if env_var else None
+    backend_url = provider_default_url(provider)
+    live_models = _fetch_live_models(provider.lower(), backend_url, api_key)
+
+    model_options = []
+    if live_models:
+        model_options = live_models
+    else:
+        # Fall back to static catalog
+        model_options = get_model_options(provider, mode)
+
+    # Build choices, always include Custom
+    choices = [questionary.Choice(name, value=mid) for name, mid in model_options]
+    # Avoid duplicate custom
+    has_custom = any(mid == "custom" for _, mid in model_options)
+    if not has_custom:
+        choices.append(questionary.Choice("Custom model ID", value="custom"))
+
     choice = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, mode)
-        ],
+        choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -406,12 +539,27 @@ def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
     PROVIDERS = _llm_provider_table()
 
+    choices = []
+    for display, provider_key, url in PROVIDERS:
+        # Determine if API key is configured
+        env_var = get_api_key_env(provider_key)
+        configured = False
+        if env_var:
+            # key-optional providers should not force suffix
+            from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+            spec = OPENAI_COMPATIBLE_PROVIDERS.get(provider_key.lower())
+            if not (spec is not None and spec.key_optional):
+                configured = bool(os.environ.get(env_var))
+        # Some providers like ollama don't need a key
+        if provider_key.lower() in ("ollama", "openai_compatible"):
+            configured = False
+
+        display_name = f"{display} (configured)" if configured else display
+        choices.append(questionary.Choice(display_name, value=(provider_key, url)))
+
     choice = questionary.select(
         "Select your LLM Provider:",
-        choices=[
-            questionary.Choice(display, value=(provider_key, url))
-            for display, provider_key, url in PROVIDERS
-        ],
+        choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [

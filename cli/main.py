@@ -1081,7 +1081,7 @@ def run_analysis(checkpoint: bool | None = None):
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4):
+    with Live(layout, refresh_per_second=10):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1319,19 +1319,24 @@ def analyze(
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    try:
-        run_analysis(checkpoint=checkpoint)
-    except _NO_CONSOLE_ERRORS:
-        # A terminal with no console buffer cannot host the interactive prompts.
-        # Emit one actionable line on stderr instead of a prompt_toolkit
-        # traceback; plain text, since rich may not render here either (#1138).
-        typer.echo(
-            "Error: no Windows console available. The interactive CLI needs a real "
-            "console buffer — run it from Windows Terminal, PowerShell, or cmd.exe "
-            "rather than a piped or embedded terminal.",
-            err=True,
-        )
-        raise typer.Exit(code=1) from None
+    while True:
+        try:
+            run_analysis(checkpoint=checkpoint)
+            console.print("\n[dim]Restarting TradingAgents CLI...[/dim]")
+        except _NO_CONSOLE_ERRORS:
+            # A terminal with no console buffer cannot host the interactive prompts.
+            # Emit one actionable line on stderr instead of a prompt_toolkit
+            # traceback; plain text, since rich may not render here either (#1138).
+            typer.echo(
+                "Error: no Windows console available. The interactive CLI needs a real "
+                "console buffer — run it from Windows Terminal, PowerShell, or cmd.exe "
+                "rather than a piped or embedded terminal.",
+                err=True,
+            )
+            raise typer.Exit(code=1) from None
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interrupted by user. Exiting TradingAgents CLI.[/yellow]")
+            break
 
 
 if __name__ == "__main__":

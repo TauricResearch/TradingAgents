@@ -115,6 +115,27 @@ Install the package and its dependencies:
 pip install .
 ```
 
+#### One-Click Install with Auto Setup
+
+For Windows users, a convenience install script creates the venv, installs dependencies, creates dynamic wrappers, and adds the folder to PATH:
+
+```powershell
+# From the repo root, with TradingAgents folder inside
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\install.ps1
+```
+
+After restart, run `tradingagents` from any terminal.
+
+Manual steps equivalent to the script:
+```bash
+python -m venv TradingAgents\.venv
+TradingAgents\.venv\Scripts\python.exe -m pip install --upgrade pip
+TradingAgents\.venv\Scripts\python.exe -m pip install -e .
+```
+
+Create dynamic wrappers `tradingagents.bat` / `tradingagents.ps1` in the parent folder and add that folder to User PATH to run `tradingagents` from anywhere.
+
 ### Docker
 
 Alternatively, run with Docker:
@@ -172,6 +193,14 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+
+#### Enhanced CLI Features
+
+* **Ticker dropdown with history** – recent tickers are shown in a selectable list with the last used on top; history persists in `~/.tradingagents/tickers.json`.
+* **Provider status** – providers show `(configured)` when the API key is present and valid.
+* **Live model listing** – for OpenAI-compatible providers and Ollama, models are fetched live from `/v1/models` or `/api/tags`, sorted A-Z, with a Custom model ID fallback. OpenRouter models are fetched live as before.
+* **Higher refresh rate** – the live UI refreshes at 10 Hz for smoother progress updates.
+* **Auto-restart** – after a run completes the CLI auto-restarts for the next analysis; press Ctrl+C to exit.
 
 ### Markets and tickers
 
