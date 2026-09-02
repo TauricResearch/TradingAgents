@@ -407,6 +407,7 @@ def select_openrouter_model(mode: str) -> str:
     choices = [questionary.Choice(name, value=mid) for name, mid in top]
     choices.append(questionary.Choice("Custom model ID", value="custom"))
 
+    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
     choice = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
         choices=choices,
@@ -465,6 +466,7 @@ def _select_model(provider: str, mode: str) -> str:
         choices.append(questionary.Choice("Custom model ID", value="custom"))
 
     # Use autocomplete for searchable model list
+    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
     choice = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=choices,
