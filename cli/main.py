@@ -755,22 +755,26 @@ def get_analysis_date(ticker: str | None = None):
                 return False
             # Check if the requested date is actually present in the data
             try:
-                # Ensure index is datetime-like
-                if not isinstance(df.index, pd.DatetimeIndex):
-                    # Try to parse index
-                    df.index = pd.to_datetime(df.index, errors="coerce")
-                # Normalize date_str to Timestamp
                 requested_ts = pd.to_datetime(date_str).normalize()
-                # Check if any row matches the requested date (tolerance for timezone)
-                matches = df.index.normalize() == requested_ts
-                if matches.any():
-                    # Ensure Close is not NaN for that date
-                    close_val = df.loc[matches, "Close"]
-                    return not close_val.empty and not pd.isna(close_val.iloc[0])
-                # Fallback: if data exists but date not found, treat as no data
-                return False
+                # The DataFrame from load_ohlcv has a 'Date' column (not DatetimeIndex)
+                if "Date" in df.columns:
+                    date_col = pd.to_datetime(df["Date"], errors="coerce").dt.normalize()
+                    matches = date_col == requested_ts
+                    if matches.any():
+                        close_val = df.loc[matches, "Close"]
+                        return not close_val.empty and not pd.isna(close_val.iloc[0])
+                    return False
+                # Fallback: if index is datetime-like
+                elif isinstance(df.index, pd.DatetimeIndex):
+                    matches = df.index.normalize() == requested_ts
+                    if matches.any():
+                        close_val = df.loc[matches, "Close"]
+                        return not close_val.empty and not pd.isna(close_val.iloc[0])
+                    return False
+                else:
+                    # Last resort: check last row
+                    return not pd.isna(df["Close"].iloc[-1])
             except Exception:
-                # Fallback to old logic
                 return not pd.isna(df["Close"].iloc[-1])
         except Exception:
             return False
