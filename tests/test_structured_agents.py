@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
+from tradingagents.agents.analysts import sentiment_analyst
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
@@ -393,6 +394,28 @@ def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = N
 
 @pytest.mark.unit
 class TestSentimentAnalystAgent:
+    @pytest.fixture(autouse=True)
+    def _stub_sources(self, monkeypatch):
+        """Stub the three upstream data sources.
+
+        These cases exercise the agent's structured-output and rendering paths,
+        not the data layer, but the node fetches Yahoo news, StockTwits and
+        Reddit for real. That made ``@pytest.mark.unit`` tests depend on the
+        network, and once Reddit throttles the run they each pay the full 429
+        backoff per subreddit. ``test_structured_agent_prompts.py`` already
+        stubs the same seams.
+        """
+        monkeypatch.setattr(
+            sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "<reddit stub>"
+        )
+        monkeypatch.setattr(
+            sentiment_analyst, "fetch_stocktwits_messages",
+            lambda *a, **k: "<stocktwits stub>",
+        )
+        stub_news = MagicMock()
+        stub_news.func = lambda *a, **k: "<news stub>"
+        monkeypatch.setattr(sentiment_analyst, "get_news", stub_news)
+
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
         report = SentimentReport(

@@ -37,6 +37,21 @@ from .symbol_utils import crypto_base
 logger = logging.getLogger(__name__)
 
 
+class RedditUnavailable(Exception):
+    """A subreddit fetch failed and returned nothing we can trust.
+
+    Kept distinct from a successful fetch that matched no posts. Rendering a
+    failed fetch as "no posts found" asserts an absence of discussion that was
+    never observed, and the Sentiment Analyst reads that absence as a genuine
+    signal — a 429 became "the community is silent" and lowered its confidence.
+    """
+
+    def __init__(self, sub: str, reason: str):
+        self.sub = sub
+        self.reason = reason
+        super().__init__(f"r/{sub} unavailable: {reason}")
+
+
 def _within_window(posts, start_date, end_date):
     """Keep only posts published in [start_date, end_date] (look-ahead safe).
 
@@ -102,9 +117,16 @@ def _strip_html(content: str) -> str:
     return " ".join(html.unescape(text).split())
 
 
-# Headerless-429 backoff when Reddit gives no Retry-After. Jittered so several
-# analyses sharing an IP don't retry in lockstep and re-collide on the limit.
-_RETRY_FALLBACK_SECONDS = 5.0
+# Headerless-429 backoff when Reddit gives no Retry-After. Reddit throttles
+# anonymous search hard and normally sends no header. Measured 2026-09-01 against
+# /r/{sub}/search.rss: a second request still 429s at 30s of spacing and succeeds
+# at 60s, so the earlier 5s fallback guaranteed the single retry failed too and a
+# throttled subreddit was always dropped. Jittered so several analyses sharing an
+# IP don't retry in lockstep and re-collide on the limit.
+_RETRY_FALLBACK_SECONDS = 60.0
+# Cap on an honoured Retry-After. 30s sat below the measured throttle window; the
+# cap only exists to stop a pathological header value hanging a run.
+_RETRY_AFTER_CAP_SECONDS = 120.0
 
 
 def _jitter(seconds: float, frac: float = 0.2) -> float:
@@ -114,14 +136,15 @@ def _jitter(seconds: float, frac: float = 0.2) -> float:
 
 
 def _retry_after_seconds(exc: HTTPError) -> float | None:
-    """Seconds to wait from a 429's ``Retry-After`` header, capped at 30s.
+    """Seconds to wait from a 429's ``Retry-After`` header, capped at
+    ``_RETRY_AFTER_CAP_SECONDS``.
 
     Returns ``None`` only when the header is absent or unparseable; a valid
     ``Retry-After: 0`` returns ``0.0`` (retry at once), not ``None``.
     """
     try:
         val = exc.headers.get("Retry-After") if getattr(exc, "headers", None) else None
-        return min(float(val), 30.0) if val is not None else None
+        return min(float(val), _RETRY_AFTER_CAP_SECONDS) if val is not None else None
     except (ValueError, TypeError, AttributeError):
         return None
 
@@ -175,12 +198,12 @@ def _fetch_subreddit_rss(
             time.sleep(wait)
             return _fetch_subreddit_rss(ticker, sub, limit, timeout, _retry=False)
         logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
-        return []
+        raise RedditUnavailable(sub, f"HTTP {exc.code}") from exc
     except (OSError, http.client.HTTPException, ET.ParseError) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).
         logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
-        return []
+        raise RedditUnavailable(sub, type(exc).__name__) from exc
 
     posts = []
     for entry in root.findall("atom:entry", _ATOM_NS)[:limit]:
@@ -256,9 +279,12 @@ def fetch_reddit_posts(
     """Fetch recent Reddit posts mentioning ``ticker`` across finance
     subreddits and return them as a formatted plaintext block.
 
-    ``inter_request_delay`` paces the (now RSS-only) per-subreddit requests to
-    stay under Reddit's public per-IP rate limit; combined with the RSS-first
-    path it makes 429s rare even when several analyses run back-to-back.
+    ``inter_request_delay`` paces the (now RSS-only) per-subreddit requests, but
+    it does not on its own keep us under Reddit's anonymous search throttle:
+    measured 2026-09-01, the second request 429s at anything below ~60s of
+    spacing regardless of subreddit. Recovery is left to the per-request 429
+    backoff (``_RETRY_FALLBACK_SECONDS``), which costs nothing when we are not being
+    throttled — raising this delay instead would slow every run unconditionally.
 
     When ``start_date``/``end_date`` (yyyy-mm-dd) are given, posts are trimmed to
     that window so a historical run does not leak current discussion into a
@@ -269,11 +295,19 @@ def fetch_reddit_posts(
     ticker = crypto_base(ticker) or ticker
     blocks = []
     total_posts = 0
+    sub_count = 0
+    unavailable: list[tuple[str, str]] = []
     for i, sub in enumerate(subreddits):
         if i > 0 and inter_request_delay:
             time.sleep(_jitter(inter_request_delay))
-        posts = _within_window(_fetch_subreddit(ticker, sub, limit_per_sub, timeout),
-                               start_date, end_date)
+        sub_count += 1
+        try:
+            fetched = _fetch_subreddit(ticker, sub, limit_per_sub, timeout)
+        except RedditUnavailable as exc:
+            unavailable.append((sub, exc.reason))
+            blocks.append(f"r/{sub}: <unavailable: {exc.reason}>")
+            continue
+        posts = _within_window(fetched, start_date, end_date)
         total_posts += len(posts)
         if not posts:
             blocks.append(f"r/{sub}: <no posts found mentioning {ticker.upper()} in the past 7 days>")
@@ -305,7 +339,17 @@ def fetch_reddit_posts(
             )
         blocks.append("\n".join(lines))
 
-    if total_posts == 0:
+    # The blanket "nobody posted anywhere" claim is only true when every
+    # subreddit actually answered. When some or all failed, the per-subreddit
+    # blocks carry an explicit <unavailable> marker instead, so a rate limit is
+    # never mistaken for community silence.
+    if unavailable and len(unavailable) == sub_count:
+        return (
+            "<Reddit unavailable: "
+            + ", ".join(f"r/{s} ({r})" for s, r in unavailable)
+            + ">"
+        )
+    if total_posts == 0 and not unavailable:
         return (
             f"<no Reddit posts found mentioning {ticker.upper()} across "
             f"{', '.join(f'r/{s}' for s in subreddits)} in the past 7 days>"
