@@ -410,7 +410,6 @@ def select_openrouter_model(mode: str) -> str:
     choice = questionary.autocomplete(
         f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
         choices=choices,
-        instruction="\n- Type to filter, use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style([
             ("selected", "fg:magenta noinherit"),
             ("highlighted", "fg:magenta noinherit"),
