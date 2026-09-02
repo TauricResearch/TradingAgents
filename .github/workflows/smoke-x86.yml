@@ -1,0 +1,32 @@
+name: Smoke x86_64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Create venv & install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          pip --version
+          pip install --prefer-binary -r requirements.txt
+
+      - name: Run smoke script (stubbed)
+        env:
+          LLM_STUB: '1'
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          . .venv/bin/activate
+          python -u scripts/smoke_structured_output.py google
