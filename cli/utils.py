@@ -17,6 +17,23 @@ _TICKER_HISTORY_PATH = Path.home() / ".tradingagents" / "tickers.json"
 
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
+POPULAR_TICKERS = [
+    # US
+    "AAPL","MSFT","NVDA","TSLA","AMZN","META","GOOGL","SPY","QQQ","BRK.A",
+    # India
+    "RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS","ICICIBANK.NS","WIPRO.NS","ITC.NS",
+    # Hong Kong
+    "0700.HK","9988.HK",
+    # Japan
+    "7203.T","6758.T",
+    # UK
+    "AZN.L","HSBA.L",
+    # Europe
+    "MC.PA","SAP.DE","ASML.AS","NESN.SW",
+    # Crypto
+    "BTC-USD","ETH-USD","SOL-USD","ADA-USD",
+]
+
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
     ("Sentiment Analyst", AnalystType.SOCIAL),
@@ -63,16 +80,24 @@ def is_valid_ticker_input(value: str) -> bool:
 
 
 def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol with dropdown history.
+    """Prompt the user to enter a ticker symbol with dropdown.
 
-    Shows recent tickers and last selected first. Falls back to custom entry.
+    Shows popular tickers, recent history, and custom entry.
     """
     history = _load_ticker_history()
     choices = []
+    # Popular tickers first
+    choices.append(questionary.Separator("Popular tickers"))
+    for t in POPULAR_TICKERS:
+        choices.append(questionary.Choice(title=f"  {t}", value=t))
+    # Recent history
     if history:
-        choices.append(questionary.Separator("Recent tickers"))
-        for t in history:
-            choices.append(questionary.Choice(title=f"  {t}", value=t))
+        # Filter out duplicates from popular
+        recent_unique = [t for t in history if t not in POPULAR_TICKERS]
+        if recent_unique:
+            choices.append(questionary.Separator("Recent tickers"))
+            for t in recent_unique:
+                choices.append(questionary.Choice(title=f"  {t}", value=t))
     choices.append(questionary.Separator("Or"))
     choices.append(questionary.Choice(title="  Enter custom ticker...", value="__custom__"))
 
