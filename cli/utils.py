@@ -388,6 +388,8 @@ def _require_text(message: str, hint: str) -> str:
     return response.strip()
 
 
+BACK_SENTINEL = "__BACK__"
+
 def select_openrouter_model(mode: str) -> str:
     """Select an OpenRouter model from the newest available, or enter a custom ID.
 
@@ -395,45 +397,46 @@ def select_openrouter_model(mode: str) -> str:
     OpenRouter selections are distinguishable, like the other providers (#1000).
     """
     models = _fetch_openrouter_models()  # newest first
-    # Prefer the newest from mainstream providers so the shortlist isn't crowded
-    # out by niche/experimental releases; fall back to all if none match.
-    mainstream = [
-        (name, mid) for name, mid in models
-        if not mid.startswith("~")  # skip variant/alias duplicate routes
-        and mid.split("/", 1)[0] in _OPENROUTER_MAINSTREAM
-    ]
-    top = (mainstream or models)[:5]
+    # Skip variant/alias duplicate routes
+    models = [(name, mid) for name, mid in models if not mid.startswith("~")]
+    models.sort(key=lambda x: x[0].lower())
 
-    name_to_value = {}
-    choices_names = []
-    for name, mid in top:
+    name_to_value = {"← Back to Provider": BACK_SENTINEL}
+    choices = [questionary.Choice("← Back to Provider", value=BACK_SENTINEL)]
+    for name, mid in models:
         name_to_value[name] = mid
-        choices_names.append(name)
+        choices.append(questionary.Choice(name, value=mid))
     name_to_value["Custom model ID"] = "custom"
-    choices_names.append("Custom model ID")
+    choices.append(questionary.Choice("Custom model ID", value="custom"))
 
-    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
-    selected_name = questionary.autocomplete(
+    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select\n- Select '← Back to Provider' to change provider[/dim]")
+    selected = questionary.select(
         f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
-        choices=choices_names,
+        choices=choices,
         style=questionary.Style([
             ("selected", "fg:magenta noinherit"),
             ("highlighted", "fg:magenta noinherit"),
             ("pointer", "fg:magenta noinherit"),
+            ("questionmark", "fg:magenta noinherit"),
+            ("answer", "fg:magenta noinherit"),
+            ("dropdown", "bg:ansiblack fg:ansibrightwhite"),
+            ("dropdown.border", "fg:magenta"),
+            ("dropdown.item", "fg:ansibrightwhite"),
+            ("dropdown.item.selected", "bg:magenta fg:ansiblack"),
         ]),
-        complete_style='column',
     ).ask()
-    choice = name_to_value.get(selected_name) if selected_name else None
 
-    if choice is None:
+    if selected is None:
         console.print("\n[red]No model selected. Exiting...[/red]")
         exit(1)
-    if choice == "custom":
+    if selected == BACK_SENTINEL:
+        return BACK_SENTINEL
+    if selected == "custom":
         return _require_text(
             "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
             "Please enter a model ID.",
         )
-    return choice
+    return selected
 
 
 def _prompt_custom_model_id() -> str:
@@ -465,42 +468,48 @@ def _select_model(provider: str, mode: str) -> str:
         # Fall back to static catalog
         model_options = get_model_options(provider, mode)
 
-    # Build choices, always include Custom
-    name_to_value = {}
-    choices_names = []
+    # Build choices with "Back to Provider" option
+    name_to_value = {"← Back to Provider": BACK_SENTINEL}
+    choices = [questionary.Choice("← Back to Provider", value=BACK_SENTINEL)]
     for name, mid in model_options:
         name_to_value[name] = mid
-        choices_names.append(name)
+        choices.append(questionary.Choice(name, value=mid))
     # Avoid duplicate custom
     has_custom = any(mid == "custom" for _, mid in model_options)
     if not has_custom:
         name_to_value["Custom model ID"] = "custom"
-        choices_names.append("Custom model ID")
+        choices.append(questionary.Choice("Custom model ID", value="custom"))
 
-    # Use autocomplete for searchable dropdown with visible initial list
-    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select[/dim]")
-    selected_name = questionary.autocomplete(
+    console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select\n- Select '← Back to Provider' to change provider[/dim]")
+    selected = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
-        choices=choices_names,
+        choices=choices,
         style=questionary.Style(
             [
                 ("selected", "fg:magenta noinherit"),
                 ("highlighted", "fg:magenta noinherit"),
                 ("pointer", "fg:magenta noinherit"),
+                ("questionmark", "fg:magenta noinherit"),
+                ("answer", "fg:magenta noinherit"),
+                ("dropdown", "bg:ansiblack fg:ansibrightwhite"),
+                ("dropdown.border", "fg:magenta"),
+                ("dropdown.item", "fg:ansibrightwhite"),
+                ("dropdown.item.selected", "bg:magenta fg:ansiblack"),
             ]
         ),
-        complete_style='column',
     ).ask()
-    choice = name_to_value.get(selected_name) if selected_name else None
 
-    if choice is None:
+    if selected is None:
         console.print(f"\n[red]No {mode} thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
-    if choice == "custom":
+    if selected == BACK_SENTINEL:
+        return BACK_SENTINEL
+
+    if selected == "custom":
         return _prompt_custom_model_id()
 
-    return choice
+    return selected
 
 
 def select_shallow_thinking_agent(provider) -> str:
@@ -610,6 +619,10 @@ def select_llm_provider() -> tuple[str, str | None]:
                 ("selected", "fg:magenta noinherit"),
                 ("highlighted", "fg:magenta noinherit"),
                 ("pointer", "fg:magenta noinherit"),
+                ("dropdown", "bg:ansiblack fg:ansibrightwhite"),
+                ("dropdown.border", "fg:magenta"),
+                ("dropdown.item", "fg:ansibrightwhite"),
+                ("dropdown.item.selected", "bg:magenta fg:ansiblack"),
             ]
         ),
     ).ask()

@@ -41,6 +41,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from cli.utils import BACK_SENTINEL
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
@@ -688,8 +689,21 @@ def get_user_selections():
                 "Step 7: Thinking Agents", "Select your thinking agents for analysis"
             )
         )
-        selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-        selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+        # Loop to allow going back from model selection to provider selection
+        while True:
+            selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+            if selected_shallow_thinker == BACK_SENTINEL:
+                # Go back to provider selection
+                selected_llm_provider, backend_url = select_llm_provider()
+                provider_from_env = False
+                continue
+            selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+            if selected_deep_thinker == BACK_SENTINEL:
+                # Go back to provider selection
+                selected_llm_provider, backend_url = select_llm_provider()
+                provider_from_env = False
+                continue
+            break
 
     # Step 8: Provider-specific reasoning/thinking configuration. Each knob is
     # settable via its TRADINGAGENTS_* env var; when that var is set (or the
