@@ -20,6 +20,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_MEMORY_LOG_MAX_ENTRIES": "memory_log_max_entries",
+    "TRADINGAGENTS_MAX_RECUR_LIMIT":      "max_recur_limit",
+    "TRADINGAGENTS_NEWS_ARTICLE_LIMIT":   "news_article_limit",
+    "TRADINGAGENTS_GLOBAL_NEWS_ARTICLE_LIMIT": "global_news_article_limit",
+    "TRADINGAGENTS_GLOBAL_NEWS_LOOKBACK_DAYS": "global_news_lookback_days",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
