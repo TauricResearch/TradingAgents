@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 96%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 144 80% 10%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 142 76% 36%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(222, 47%, 6%);
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(217, 33%, 20%);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(217, 33%, 30%);
+}
+
+/* Log output monospace styling */
+.log-output {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+/* Markdown report styling */
+.report-content h1 { @apply text-2xl font-bold mt-6 mb-3 text-foreground; }
+.report-content h2 { @apply text-xl font-semibold mt-5 mb-2 text-foreground; }
+.report-content h3 { @apply text-lg font-semibold mt-4 mb-2 text-foreground; }
+.report-content p { @apply my-2 text-muted-foreground leading-relaxed; }
+.report-content ul { @apply my-2 ml-6 list-disc text-muted-foreground; }
+.report-content ol { @apply my-2 ml-6 list-decimal text-muted-foreground; }
+.report-content li { @apply my-1; }
+.report-content code { @apply bg-muted px-1.5 py-0.5 rounded text-sm text-primary font-mono; }
+.report-content pre { @apply bg-muted p-4 rounded-lg overflow-x-auto my-3; }
+.report-content pre code { @apply bg-transparent p-0 text-foreground; }
+.report-content blockquote { @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-3; }
+.report-content table { @apply w-full border-collapse my-3; }
+.report-content th { @apply bg-muted text-left px-3 py-2 text-sm font-medium text-foreground border border-border; }
+.report-content td { @apply px-3 py-2 text-sm text-muted-foreground border border-border; }
+.report-content strong { @apply font-semibold text-foreground; }
+.report-content a { @apply text-primary underline underline-offset-2; }
+.report-content hr { @apply my-6 border-border; }
