@@ -23,6 +23,7 @@ import json
 import logging
 import random
 import re
+import threading
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
@@ -35,6 +36,28 @@ from .date_window import in_window
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
+
+# Shared rate-limit state across threads (#1286)
+_RATE_LIMIT_LOCK = threading.Lock()
+_COOLDOWN_UNTIL: float = 0.0
+
+
+def _wait_for_cooldown() -> None:
+    """Pause execution if a 429 cooldown is currently active."""
+    global _COOLDOWN_UNTIL
+    now = time.time()
+    if now < _COOLDOWN_UNTIL:
+        wait = _COOLDOWN_UNTIL - now
+        _COOLDOWN_UNTIL = 0.0
+        logger.info("Reddit rate-limit cooldown active; sleeping %.2fs", wait)
+        time.sleep(wait)
+
+
+def _record_rate_limit(wait_seconds: float) -> None:
+    """Record a 429 backoff cooldown period shared across callers."""
+    global _COOLDOWN_UNTIL
+    with _RATE_LIMIT_LOCK:
+        _COOLDOWN_UNTIL = max(_COOLDOWN_UNTIL, time.time() + wait_seconds)
 
 
 def _within_window(posts, start_date, end_date):
@@ -157,6 +180,8 @@ def _fetch_subreddit_rss(
     per-IP rate limit) we back off once — honouring ``Retry-After`` when
     present — before giving up, so a transient burst doesn't blank the feed.
     """
+    if _retry:
+        _wait_for_cooldown()
     url = _RSS.format(sub=sub, qs=_search_qs(ticker, limit))
     req = Request(url, headers={"User-Agent": _UA})
     try:
@@ -168,6 +193,7 @@ def _fetch_subreddit_rss(
             # only our own fallback so concurrent runs don't retry in lockstep.
             retry_after = _retry_after_seconds(exc)
             wait = retry_after if retry_after is not None else _jitter(_RETRY_FALLBACK_SECONDS)
+            _record_rate_limit(wait)
             logger.warning(
                 "Reddit RSS 429 for r/%s · %s — backing off %.1fs then retrying once",
                 sub, ticker, wait,

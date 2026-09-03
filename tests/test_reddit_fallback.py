@@ -124,6 +124,12 @@ class TestJsonPathFallsBackToRss:
 
 @pytest.mark.unit
 class TestRss429Backoff:
+    @pytest.fixture(autouse=True)
+    def reset_cooldown(self):
+        reddit._COOLDOWN_UNTIL = 0.0
+        yield
+        reddit._COOLDOWN_UNTIL = 0.0
+
     def test_429_then_success_retries_once(self):
         err = HTTPError("url", 429, "Too Many Requests", {}, None)
         with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]) as op, \
@@ -241,3 +247,27 @@ class TestCryptoSearchTerm:
 
     def test_equity_passes_through(self):
         assert self._captured_ticker("NVDA") == "NVDA"
+
+
+@pytest.mark.unit
+class TestRateLimitCooldown:
+    def test_record_rate_limit_and_wait_for_cooldown(self, monkeypatch):
+        import time
+
+        # Reset state
+        reddit._COOLDOWN_UNTIL = 0.0
+
+        reddit._record_rate_limit(10.0)
+        assert time.time() < reddit._COOLDOWN_UNTIL
+
+        slept = []
+        monkeypatch.setattr(time, "sleep", lambda s: slept.append(s))
+        reddit._wait_for_cooldown()
+        assert len(slept) == 1
+        assert slept[0] > 0
+
+        # After expiry, no sleep
+        reddit._COOLDOWN_UNTIL = time.time() - 1.0
+        slept.clear()
+        reddit._wait_for_cooldown()
+        assert len(slept) == 0
