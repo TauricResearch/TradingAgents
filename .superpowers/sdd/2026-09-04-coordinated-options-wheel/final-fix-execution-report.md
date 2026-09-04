@@ -68,3 +68,21 @@ unstaged and are not contained in either commit.
 No `AGENTS.md` exists in the repository or its enclosing task directory; the
 repository options safety design and Task 4 execution brief were used as the
 authoritative local instructions.
+
+## Follow-up Round 1: Whole Option Contracts
+
+- Commit `167de48` rejects fractional option position quantities and requires
+  mapped option-order `qty` and `filled_qty` to be finite whole contracts, with
+  `qty > 0`, `filled_qty >= 0`, and `filled_qty <= qty`.
+- Valid partial fills remain supported as integer contract counts. The mapping
+  regression now demonstrates an order for three contracts with one filled.
+- Preparation and submission continue to reject fractional option quantities;
+  the follow-up adds the missing preparation regression and retains the existing
+  submission regression.
+- RED: the focused quantity slice produced three expected failures and nine
+  passes. Only fractional position quantity, fractional order quantity, and
+  fractional filled quantity were accepted.
+- GREEN: the same slice produced 12 passes; the full Alpaca adapter suite
+  produced 128 passes. Ruff, `compileall`, and `git diff --check` passed.
+- No network or broker mutation was attempted. The pre-existing fractional
+  equity-short implementation and test hunks remain unstaged.
