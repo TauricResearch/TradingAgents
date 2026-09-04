@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -174,6 +174,95 @@ def test_order_intents_and_task_times_are_persisted(tmp_path):
         "submitted",
         "client-1",
     )
+
+
+def test_option_intent_round_trip_and_retry_identity(tmp_path):
+    with AutomationState(tmp_path / "state.db") as state:
+        state.record_option_intent(
+            "cycle", NOW, "AAPL261002P00300000", "AAPL", "sell_to_open",
+            Decimal("1"), Decimal("3.10"), "wheel-id",
+        )
+        state.update_option_intent("cycle", "AAPL261002P00300000", "error", "wheel-id")
+
+        assert state.unresolved_option_client_order_id(
+            "AAPL261002P00300000", "sell_to_open", Decimal("1"), Decimal("3.10")
+        ) == "wheel-id"
+
+
+def test_daily_option_entry_marker_is_durable(tmp_path):
+    path = tmp_path / "state.db"
+    with AutomationState(path) as state:
+        assert state.last_option_entry_date() is None
+        state.mark_option_entry_date(date(2026, 9, 4))
+
+    with AutomationState(path) as state:
+        assert state.last_option_entry_date() == date(2026, 9, 4)
+
+
+def test_disappearing_short_option_requires_two_stable_settlement_snapshots(tmp_path):
+    with AutomationState(tmp_path / "state.db") as state:
+        state.observe_wheel_phase("AAPL", "short_put", "put-contract", NOW)
+        state.observe_wheel_phase(
+            "AAPL", "empty", "cash=70000|shares=0", NOW + timedelta(minutes=15)
+        )
+        assert state.wheel_phase("AAPL") == "settling"
+
+        state.observe_wheel_phase(
+            "AAPL", "empty", "cash=70000|shares=0", NOW + timedelta(minutes=30)
+        )
+        assert state.wheel_phase("AAPL") == "put_ready"
+
+
+def test_settlement_changed_or_too_soon_snapshot_resets_stability(tmp_path):
+    with AutomationState(tmp_path / "state.db") as state:
+        state.observe_wheel_phase("AAPL", "short_call", "call-contract", NOW)
+        state.observe_wheel_phase("AAPL", "empty", "cash=1|shares=0", NOW)
+        state.observe_wheel_phase(
+            "AAPL", "empty", "cash=1|shares=0", NOW + timedelta(minutes=14)
+        )
+        state.observe_wheel_phase(
+            "AAPL", "empty", "cash=1|shares=0", NOW + timedelta(minutes=15)
+        )
+        assert state.wheel_phase("AAPL") == "settling"
+
+        state.observe_wheel_phase(
+            "AAPL", "empty", "cash=2|shares=0", NOW + timedelta(minutes=30)
+        )
+        assert state.wheel_phase("AAPL") == "settling"
+        state.observe_wheel_phase(
+            "AAPL", "empty", "cash=2|shares=0", NOW + timedelta(minutes=45)
+        )
+        assert state.wheel_phase("AAPL") == "put_ready"
+
+
+def test_long_shares_phase_replaces_short_option_immediately(tmp_path):
+    with AutomationState(tmp_path / "state.db") as state:
+        state.observe_wheel_phase("AAPL", "short_put", "put-contract", NOW)
+        state.observe_wheel_phase(
+            "AAPL", "long_shares", "cash=1|shares=100", NOW + timedelta(minutes=1)
+        )
+        assert state.wheel_phase("AAPL") == "long_shares"
+
+
+@pytest.mark.parametrize("status", ["", "unknown", "pending; DROP TABLE option_order_intents"])
+def test_option_intent_status_validation_fails_closed(tmp_path, status):
+    with (
+        AutomationState(tmp_path / "state.db") as state,
+        pytest.raises(ValueError, match="option intent status"),
+    ):
+        state.update_option_intent("cycle", "AAPL261002P00300000", status, "wheel-id")
+
+
+@pytest.mark.parametrize(
+    "quantity, limit_price",
+    [(Decimal("0"), Decimal("3.10")), (Decimal("1"), Decimal("0"))],
+)
+def test_option_intent_rejects_nonpositive_trade_values(tmp_path, quantity, limit_price):
+    with AutomationState(tmp_path / "state.db") as state, pytest.raises(ValueError):
+        state.record_option_intent(
+            "cycle", NOW, "AAPL261002P00300000", "AAPL", "sell_to_open",
+            quantity, limit_price, "wheel-id",
+        )
 
 
 def _acquire_lease_with_naive_now(state):
