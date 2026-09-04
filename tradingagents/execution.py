@@ -26,6 +26,7 @@ class AccountSnapshot:
     buying_power: Decimal
     trading_blocked: bool
     status: str
+    equity: Decimal = Decimal("0")
     options_buying_power: Decimal = Decimal("0")
 
 
@@ -301,6 +302,7 @@ class AlpacaBroker:
             buying_power=buying_power,
             trading_blocked=False,
             status=status,
+            equity=equity,
             options_buying_power=options_buying_power,
         )
 

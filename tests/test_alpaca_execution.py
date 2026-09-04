@@ -128,6 +128,7 @@ def test_clock_and_account_are_mapped_and_blocked_accounts_raise():
     now = datetime(2026, 8, 11, 14, 0, tzinfo=timezone.utc)
     active = SimpleNamespace(
         cash="123.45",
+        equity="987.65",
         buying_power="1000.50",
         options_buying_power="750.25",
         trading_blocked=False,
@@ -144,6 +145,7 @@ def test_clock_and_account_are_mapped_and_blocked_accounts_raise():
     assert broker.broker_time() == now
     assert broker.equity_market_is_open()
     assert broker.account().cash == Decimal("123.45")
+    assert broker.account().equity == Decimal("987.65")
     assert broker.account().buying_power == Decimal("1000.50")
     assert broker.account().status == "ACTIVE"
 
