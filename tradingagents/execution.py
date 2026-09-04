@@ -1,14 +1,23 @@
 import hashlib
 import importlib
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import ROUND_DOWN, Decimal
 from typing import Protocol
 
 from tradingagents.allocation import OrderIntent
+from tradingagents.options import (
+    EquityPosition,
+    OptionContract,
+    OptionIntent,
+    OptionOpenOrder,
+    OptionPosition,
+)
 
 LIVE_ACKNOWLEDGMENT = "I_UNDERSTAND_LIVE_ORDERS"
+LIVE_OPTIONS_ACKNOWLEDGMENT = "I_UNDERSTAND_LIVE_OPTIONS"
 
 
 @dataclass(frozen=True)
@@ -17,6 +26,7 @@ class AccountSnapshot:
     buying_power: Decimal
     trading_blocked: bool
     status: str
+    options_buying_power: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True)
@@ -49,6 +59,17 @@ class OrderRequestSpec:
     symbol: str
     qty: Decimal
     side: str
+    time_in_force: str
+    client_order_id: str
+
+
+@dataclass(frozen=True)
+class OptionOrderRequestSpec:
+    symbol: str
+    qty: Decimal
+    side: str
+    position_intent: str
+    limit_price: Decimal
     time_in_force: str
     client_order_id: str
 
@@ -123,12 +144,36 @@ def _market_order_request_class():
     return _alpaca_class("alpaca.trading.requests", "MarketOrderRequest")
 
 
+def _limit_order_request_class():
+    return _alpaca_class("alpaca.trading.requests", "LimitOrderRequest")
+
+
+def _position_intent_class():
+    return _alpaca_class("alpaca.trading.enums", "PositionIntent")
+
+
+def _get_option_contracts_request_class():
+    return _alpaca_class("alpaca.trading.requests", "GetOptionContractsRequest")
+
+
+def _asset_status_class():
+    return _alpaca_class("alpaca.trading.enums", "AssetStatus")
+
+
+def _contract_type_class():
+    return _alpaca_class("alpaca.trading.enums", "ContractType")
+
+
 def _stock_data_client_class():
     return _alpaca_class("alpaca.data.historical.stock", "StockHistoricalDataClient")
 
 
 def _crypto_data_client_class():
     return _alpaca_class("alpaca.data.historical.crypto", "CryptoHistoricalDataClient")
+
+
+def _option_data_client_class():
+    return _alpaca_class("alpaca.data.historical.option", "OptionHistoricalDataClient")
 
 
 def _stock_latest_trade_request_class():
@@ -151,8 +196,34 @@ def _crypto_latest_trade_request_class():
     return _alpaca_class("alpaca.data.requests", "CryptoLatestTradeRequest")
 
 
+def _option_snapshot_request_class():
+    return _alpaca_class("alpaca.data.requests", "OptionSnapshotRequest")
+
+
+_OPTION_SYMBOL = re.compile(
+    r"^(?P<underlying>[A-Z0-9.]{1,6})(?P<expiration>\d{6})(?P<kind>[CP])(?P<strike>\d{8})$"
+)
+
+
+def _option_symbol_parts(symbol: str) -> tuple[str, str, Decimal]:
+    match = _OPTION_SYMBOL.fullmatch(symbol)
+    if match is None:
+        raise ValueError(f"invalid OCC option symbol {symbol!r}")
+    kind = "call" if match.group("kind") == "C" else "put"
+    strike = Decimal(match.group("strike")) / Decimal("1000")
+    return match.group("underlying"), kind, strike
+
+
 class AlpacaBroker:
-    def __init__(self, key: str, secret: str, mode: str, client=None, live_ack: str = ""):
+    def __init__(
+        self,
+        key: str,
+        secret: str,
+        mode: str,
+        client=None,
+        live_ack: str = "",
+        live_options_ack: str = "",
+    ):
         validate_execution_mode(mode, auto_execute=False, live_ack="")
         if not key or not secret:
             raise RuntimeError("Alpaca credentials are required")
@@ -161,11 +232,13 @@ class AlpacaBroker:
         self._secret = secret
         self._mode = mode
         self._live_ack = live_ack
+        self._live_options_ack = live_options_ack
         self._client = client
         if self._client is None:
             self._client = _trading_client_class()(key, secret, paper=mode == "paper")
         self._stock_data_client = None
         self._crypto_data_client = None
+        self._option_data_client = None
 
     def broker_time(self) -> datetime:
         return self._client.get_clock().timestamp
@@ -193,6 +266,7 @@ class AlpacaBroker:
             buying_power=_decimal(raw.buying_power),
             trading_blocked=False,
             status=status,
+            options_buying_power=_decimal(getattr(raw, "options_buying_power", None)),
         )
 
     def asset(self, symbol: str) -> AssetInfo:
@@ -343,6 +417,166 @@ class AlpacaBroker:
             history[symbol] = tuple(rows)
         return history
 
+    def option_snapshot(
+        self, symbols: tuple[str, ...] | list[str]
+    ) -> dict[str, tuple[Decimal | None, Decimal | None, Decimal | None, datetime | None]]:
+        requested = list(symbols)
+        if not requested:
+            return {}
+        if self._option_data_client is None:
+            self._option_data_client = _option_data_client_class()(self._key, self._secret)
+        request = _option_snapshot_request_class()(symbol_or_symbols=requested)
+        response = self._option_data_client.get_option_snapshot(request)
+        raw_snapshots = getattr(response, "data", response)
+        if not isinstance(raw_snapshots, Mapping):
+            raise RuntimeError("Alpaca option snapshot response is unavailable")
+
+        snapshots = {}
+        for symbol in requested:
+            raw = raw_snapshots.get(symbol)
+            if raw is None:
+                snapshots[symbol] = (None, None, None, None)
+                continue
+            greeks = getattr(raw, "greeks", None)
+            quote = getattr(raw, "latest_quote", None)
+            delta_value = getattr(greeks, "delta", None) if greeks is not None else None
+            bid_value = getattr(quote, "bid_price", None) if quote is not None else None
+            ask_value = getattr(quote, "ask_price", None) if quote is not None else None
+            quote_time = getattr(quote, "timestamp", None) if quote is not None else None
+            snapshots[symbol] = (
+                _decimal(delta_value) if delta_value is not None else None,
+                _decimal(bid_value) if bid_value is not None else None,
+                _decimal(ask_value) if ask_value is not None else None,
+                quote_time,
+            )
+        return snapshots
+
+    def option_contracts(
+        self, underlying: str, kind: str, now: datetime
+    ) -> tuple[OptionContract, ...]:
+        normalized_kind = kind.casefold()
+        if normalized_kind not in ("call", "put"):
+            raise ValueError("option kind must be call or put")
+        if not isinstance(now, datetime) or now.utcoffset() is None:
+            raise ValueError("option contract lookup time must be timezone-aware")
+
+        start = now.date() + timedelta(days=14)
+        end = now.date() + timedelta(days=28)
+        raw_contracts = []
+        page_token = None
+        while True:
+            fields = {
+                "underlying_symbols": [underlying],
+                "status": _asset_status_class()("active"),
+                "expiration_date_gte": start,
+                "expiration_date_lte": end,
+                "type": _contract_type_class()(normalized_kind),
+            }
+            if page_token is not None:
+                fields["page_token"] = page_token
+            request = _get_option_contracts_request_class()(**fields)
+            response = self._client.get_option_contracts(request)
+            page = getattr(response, "option_contracts", None)
+            if page is None and isinstance(response, Mapping):
+                page = response.get("option_contracts")
+            if page is None:
+                raise RuntimeError("Alpaca option contracts response is unavailable")
+            raw_contracts.extend(page)
+            page_token = getattr(response, "next_page_token", None)
+            if page_token is None and isinstance(response, Mapping):
+                page_token = response.get("next_page_token")
+            if not page_token:
+                break
+
+        snapshots = self.option_snapshot([raw.symbol for raw in raw_contracts])
+        contracts = []
+        for raw in raw_contracts:
+            delta, bid, ask, quote_time = snapshots.get(raw.symbol, (None, None, None, None))
+            contracts.append(
+                OptionContract(
+                    symbol=str(raw.symbol),
+                    underlying=str(raw.underlying_symbol),
+                    kind=_enum_text(raw.type).casefold(),
+                    strike=_decimal(raw.strike_price),
+                    expiration=raw.expiration_date,
+                    delta=delta,
+                    bid=bid,
+                    ask=ask,
+                    open_interest=_decimal(getattr(raw, "open_interest", None)),
+                    quote_time=quote_time,
+                )
+            )
+        return tuple(contracts)
+
+    def wheel_positions_and_orders(
+        self,
+    ) -> tuple[
+        tuple[EquityPosition, ...],
+        tuple[OptionPosition, ...],
+        tuple[OptionOpenOrder, ...],
+    ]:
+        raw_positions = self._client.get_all_positions()
+        raw_option_positions = [
+            raw
+            for raw in raw_positions
+            if _enum_text(getattr(raw, "asset_class", "")).casefold() == "us_option"
+        ]
+        snapshots = self.option_snapshot([raw.symbol for raw in raw_option_positions])
+        equities = []
+        options = []
+        for raw in raw_positions:
+            asset_class = _enum_text(getattr(raw, "asset_class", "")).casefold()
+            side = _enum_text(getattr(raw, "side", "")).casefold()
+            qty = abs(_decimal(raw.qty))
+            if side == "short":
+                qty = -qty
+            elif side != "long":
+                raise RuntimeError(f"unsupported Alpaca position side: {side}")
+            if asset_class == "us_equity":
+                equities.append(
+                    EquityPosition(
+                        symbol=str(raw.symbol),
+                        qty=qty,
+                        avg_entry_price=_decimal(raw.avg_entry_price),
+                        current_price=_decimal(raw.current_price),
+                    )
+                )
+            elif asset_class == "us_option":
+                underlying, kind, _strike = _option_symbol_parts(str(raw.symbol))
+                delta = snapshots.get(str(raw.symbol), (None, None, None, None))[0]
+                options.append(
+                    OptionPosition(
+                        symbol=str(raw.symbol),
+                        underlying=underlying,
+                        kind=kind,
+                        qty=qty,
+                        avg_entry_price=_decimal(raw.avg_entry_price),
+                        delta=delta,
+                    )
+                )
+
+        open_orders = []
+        for raw in self._client.get_orders():
+            if _enum_text(getattr(raw, "asset_class", "")).casefold() != "us_option":
+                continue
+            symbol = str(raw.symbol)
+            underlying, kind, strike = _option_symbol_parts(symbol)
+            open_orders.append(
+                OptionOpenOrder(
+                    symbol=symbol,
+                    underlying=underlying,
+                    kind=kind,
+                    position_intent=_enum_text(raw.position_intent).casefold(),
+                    qty=_decimal(raw.qty),
+                    filled_qty=_decimal(raw.filled_qty),
+                    strike=strike,
+                    order_id=str(raw.id),
+                    client_order_id=str(raw.client_order_id),
+                    submitted_at=getattr(raw, "submitted_at", None),
+                )
+            )
+        return tuple(equities), tuple(options), tuple(open_orders)
+
     @staticmethod
     def _trade_price(trades, symbol: str) -> Decimal:
         trade = trades[symbol] if isinstance(trades, Mapping) else trades
@@ -444,6 +678,94 @@ class AlpacaBroker:
             if existing_order_id is not None:
                 return existing_order_id
             raise submission_error
+
+    def prepare_option_order(self, intent: OptionIntent, cycle_id: str) -> OptionOrderRequestSpec:
+        underlying, kind, _strike = _option_symbol_parts(intent.symbol)
+        if underlying != intent.underlying or kind != intent.kind.casefold():
+            raise ValueError("option contract does not match intent metadata")
+        if intent.side not in ("buy", "sell"):
+            raise ValueError("option order side must be buy or sell")
+        allowed_intents = {
+            "buy": {"buy_to_open", "buy_to_close"},
+            "sell": {"sell_to_open", "sell_to_close"},
+        }
+        if intent.position_intent not in allowed_intents[intent.side]:
+            raise ValueError("option position intent does not match order side")
+        if not intent.qty.is_finite() or intent.qty <= 0 or intent.qty != intent.qty.to_integral():
+            raise ValueError("option quantity must be a positive whole number")
+        if not intent.limit_price.is_finite() or intent.limit_price <= 0:
+            raise ValueError("option limit price must be positive")
+        identity = "|".join(
+            (
+                cycle_id,
+                intent.symbol,
+                intent.side,
+                intent.position_intent,
+                str(intent.qty),
+                str(intent.limit_price),
+            )
+        )
+        client_order_id = f"ta-wheel-{hashlib.sha256(identity.encode()).hexdigest()[:24]}"
+        return OptionOrderRequestSpec(
+            symbol=intent.symbol,
+            qty=intent.qty,
+            side=intent.side,
+            position_intent=intent.position_intent,
+            limit_price=intent.limit_price,
+            time_in_force="day",
+            client_order_id=client_order_id,
+        )
+
+    def submit_option_idempotent(self, spec: OptionOrderRequestSpec) -> str:
+        self._validate_option_submission()
+        if not spec.limit_price.is_finite() or spec.limit_price <= 0:
+            raise ValueError("option limit price must be positive")
+        if not spec.qty.is_finite() or spec.qty <= 0 or spec.qty != spec.qty.to_integral():
+            raise ValueError("option quantity must be a positive whole number")
+        if spec.time_in_force != "day":
+            raise ValueError("option orders must use day time in force")
+        if spec.side not in ("buy", "sell"):
+            raise ValueError("option order side must be buy or sell")
+        allowed_intents = {
+            "buy": {"buy_to_open", "buy_to_close"},
+            "sell": {"sell_to_open", "sell_to_close"},
+        }
+        if spec.position_intent not in allowed_intents[spec.side]:
+            raise ValueError("option position intent does not match order side")
+        _option_symbol_parts(spec.symbol)
+        existing_order_id = self.find_order_by_client_id(spec.client_order_id)
+        if existing_order_id is not None:
+            return existing_order_id
+        request = _limit_order_request_class()(
+            symbol=spec.symbol,
+            qty=float(spec.qty),
+            side=spec.side,
+            position_intent=_position_intent_class()(spec.position_intent),
+            limit_price=float(spec.limit_price),
+            time_in_force=spec.time_in_force,
+            client_order_id=spec.client_order_id,
+        )
+        try:
+            order = self._client.submit_order(order_data=request)
+        except Exception as submission_error:
+            existing_order_id = self.find_order_by_client_id(spec.client_order_id)
+            if existing_order_id is not None:
+                return existing_order_id
+            raise submission_error
+        order_id = getattr(order, "id", None)
+        if order_id is None:
+            raise RuntimeError("Alpaca submission returned no order ID")
+        return str(order_id)
+
+    def cancel_stale_option_order(self, order_id: str, client_order_id: str) -> None:
+        if not client_order_id.startswith("ta-wheel-"):
+            raise ValueError("option order is not owned by the wheel strategy")
+        self._client.cancel_order_by_id(order_id)
+
+    def _validate_option_submission(self) -> None:
+        self._validate_submission()
+        if self._mode == "live" and self._live_options_ack != LIVE_OPTIONS_ACKNOWLEDGMENT:
+            raise ValueError("live options acknowledgment is required")
 
     def _validate_submission(self) -> None:
         validate_execution_mode(self._mode, auto_execute=True, live_ack=self._live_ack)

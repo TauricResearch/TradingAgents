@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import hashlib
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -8,9 +9,17 @@ from tradingagents.allocation import OrderIntent
 from tradingagents.execution import (
     AlpacaBroker,
     AssetInfo,
+    OptionOrderRequestSpec,
     OrderRequestSpec,
     alpaca_symbol,
     validate_execution_mode,
+)
+from tradingagents.options import (
+    EquityPosition,
+    OptionContract,
+    OptionIntent,
+    OptionOpenOrder,
+    OptionPosition,
 )
 
 
@@ -140,6 +149,22 @@ def test_clock_and_account_are_mapped_and_blocked_accounts_raise():
     active.trading_blocked = True
     with pytest.raises(RuntimeError, match="blocked"):
         broker.account()
+
+
+def test_account_maps_options_buying_power():
+    raw = SimpleNamespace(
+        cash="100000",
+        equity="120000",
+        buying_power="200000",
+        options_buying_power="75000",
+        trading_blocked=False,
+        account_blocked=False,
+        trade_suspended_by_user=False,
+        status=_enum("ACTIVE"),
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace(get_account=lambda: raw))
+
+    assert broker.account().options_buying_power == Decimal("75000")
 
 
 def test_asset_mapping_folds_inactive_status_into_tradability():
@@ -735,3 +760,362 @@ def test_submit_timeout_with_ambiguous_second_lookup_stays_unresolved(monkeypatc
     with pytest.raises(ConnectionError, match="lookup ambiguous"):
         broker.submit_idempotent(spec)
     assert calls == 2
+
+
+def test_option_order_is_limit_day_with_position_intent(monkeypatch):
+    captured = []
+
+    class FakeLimitOrderRequest:
+        def __init__(self, **fields):
+            captured.append(fields)
+
+    monkeypatch.setattr(
+        "tradingagents.execution._limit_order_request_class",
+        lambda: FakeLimitOrderRequest,
+    )
+    client = SimpleNamespace(
+        get_order_by_client_id=lambda value: None,
+        submit_order=lambda order_data: SimpleNamespace(id="option-order"),
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        Decimal("3.10"),
+        "day",
+        "wheel-stable-id",
+    )
+
+    assert broker.submit_option_idempotent(spec) == "option-order"
+    assert captured[0]["limit_price"] == 3.1
+    assert str(captured[0]["position_intent"]).lower().endswith("sell_to_open")
+
+
+def test_option_contracts_request_scope_and_normalize_snapshots(monkeypatch):
+    now = datetime(2026, 9, 4, 15, 30, tzinfo=timezone.utc)
+    captured_contract_requests = []
+    captured_snapshot_requests = []
+
+    class FakeContractsRequest:
+        def __init__(self, **fields):
+            captured_contract_requests.append(fields)
+
+    class FakeSnapshotRequest:
+        def __init__(self, **fields):
+            captured_snapshot_requests.append(fields)
+
+    raw_contract = SimpleNamespace(
+        symbol="AAPL260925P00300000",
+        underlying_symbol="AAPL",
+        type=_enum("put"),
+        strike_price="300",
+        expiration_date=(now + timedelta(days=21)).date(),
+        open_interest="250",
+    )
+    raw_snapshot = SimpleNamespace(
+        greeks=SimpleNamespace(delta="-0.22"),
+        latest_quote=SimpleNamespace(bid_price="3.05", ask_price="3.15", timestamp=now),
+    )
+    client = SimpleNamespace(
+        get_option_contracts=lambda request: SimpleNamespace(option_contracts=[raw_contract])
+    )
+    data_client = SimpleNamespace(
+        get_option_snapshot=lambda request: {"AAPL260925P00300000": raw_snapshot}
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._get_option_contracts_request_class",
+        lambda: FakeContractsRequest,
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._option_snapshot_request_class",
+        lambda: FakeSnapshotRequest,
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
+    broker._option_data_client = data_client
+
+    contracts = broker.option_contracts("AAPL", "put", now)
+
+    assert contracts == (
+        OptionContract(
+            symbol="AAPL260925P00300000",
+            underlying="AAPL",
+            kind="put",
+            strike=Decimal("300"),
+            expiration=(now + timedelta(days=21)).date(),
+            delta=Decimal("-0.22"),
+            bid=Decimal("3.05"),
+            ask=Decimal("3.15"),
+            open_interest=Decimal("250"),
+            quote_time=now,
+        ),
+    )
+    request = captured_contract_requests[0]
+    assert request["underlying_symbols"] == ["AAPL"]
+    assert request["expiration_date_gte"] == (now + timedelta(days=14)).date()
+    assert request["expiration_date_lte"] == (now + timedelta(days=28)).date()
+    assert str(request["status"]).lower().endswith("active")
+    assert str(request["type"]).lower().endswith("put")
+    assert captured_snapshot_requests == [{"symbol_or_symbols": ["AAPL260925P00300000"]}]
+
+
+def test_option_contracts_keep_missing_quote_time_and_greeks_missing(monkeypatch):
+    now = datetime(2026, 9, 4, 15, 30, tzinfo=timezone.utc)
+    contract = SimpleNamespace(
+        symbol="AAPL260925C00300000",
+        underlying_symbol="AAPL",
+        type=_enum("call"),
+        strike_price="300",
+        expiration_date=(now + timedelta(days=21)).date(),
+        open_interest=None,
+    )
+    client = SimpleNamespace(
+        get_option_contracts=lambda request: SimpleNamespace(option_contracts=[contract])
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
+    broker._option_data_client = SimpleNamespace(
+        get_option_snapshot=lambda request: {
+            contract.symbol: SimpleNamespace(greeks=None, latest_quote=None)
+        }
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._get_option_contracts_request_class",
+        lambda: lambda **fields: fields,
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._option_snapshot_request_class",
+        lambda: lambda **fields: fields,
+    )
+
+    result = broker.option_contracts("AAPL", "call", now)
+
+    assert result[0].delta is None
+    assert result[0].quote_time is None
+    assert result[0].bid is None
+    assert result[0].ask is None
+    assert result[0].open_interest == Decimal("0")
+
+
+def test_wheel_positions_and_orders_map_equities_options_and_open_orders(monkeypatch):
+    submitted_at = datetime(2026, 9, 4, 14, 0, tzinfo=timezone.utc)
+    positions = [
+        SimpleNamespace(
+            symbol="AAPL",
+            asset_class=_enum("us_equity"),
+            side=_enum("long"),
+            qty="125",
+            avg_entry_price="190",
+            current_price="205",
+        ),
+        SimpleNamespace(
+            symbol="AAPL260925C00300000",
+            asset_class=_enum("us_option"),
+            side=_enum("short"),
+            qty="1",
+            avg_entry_price="4.20",
+            current_price="3.10",
+        ),
+    ]
+    orders = [
+        SimpleNamespace(
+            id="order-id",
+            client_order_id="ta-wheel-owned",
+            symbol="AAPL260925P00195000",
+            asset_class=_enum("us_option"),
+            position_intent=_enum("sell_to_open"),
+            qty="1",
+            filled_qty="0.25",
+            submitted_at=submitted_at,
+        )
+    ]
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(
+            get_all_positions=lambda: positions,
+            get_orders=lambda: orders,
+        ),
+    )
+    monkeypatch.setattr(
+        broker,
+        "option_snapshot",
+        lambda symbols: {
+            "AAPL260925C00300000": (
+                Decimal("0.21"),
+                Decimal("3"),
+                Decimal("3.2"),
+                submitted_at,
+            )
+        },
+    )
+
+    equities, option_positions, option_orders = broker.wheel_positions_and_orders()
+
+    assert equities == (EquityPosition("AAPL", Decimal("125"), Decimal("190"), Decimal("205")),)
+    assert option_positions == (
+        OptionPosition(
+            "AAPL260925C00300000",
+            "AAPL",
+            "call",
+            Decimal("-1"),
+            Decimal("4.20"),
+            Decimal("0.21"),
+        ),
+    )
+    assert option_orders == (
+        OptionOpenOrder(
+            "AAPL260925P00195000",
+            "AAPL",
+            "put",
+            "sell_to_open",
+            Decimal("1"),
+            Decimal("0.25"),
+            Decimal("195"),
+            "order-id",
+            "ta-wheel-owned",
+            submitted_at,
+        ),
+    )
+
+
+def test_prepare_option_order_is_day_only_and_has_deterministic_wheel_id():
+    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace())
+    intent = OptionIntent(
+        "AAPL260925P00195000",
+        "AAPL",
+        "put",
+        "sell",
+        "sell_to_open",
+        Decimal("1"),
+        Decimal("3.10"),
+        Decimal("-0.22"),
+    )
+
+    spec = broker.prepare_option_order(intent, "cycle-1")
+
+    identity = "cycle-1|AAPL260925P00195000|sell|sell_to_open|1|3.10"
+    expected_id = "ta-wheel-" + hashlib.sha256(identity.encode()).hexdigest()[:24]
+    assert spec == OptionOrderRequestSpec(
+        "AAPL260925P00195000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        Decimal("3.10"),
+        "day",
+        expected_id,
+    )
+
+
+@pytest.mark.parametrize("price", [Decimal("0"), Decimal("-1")])
+def test_option_submission_rejects_non_positive_limit(price):
+    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace())
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        price,
+        "day",
+        "id",
+    )
+    with pytest.raises(ValueError, match="limit price"):
+        broker.submit_option_idempotent(spec)
+
+
+def test_live_options_require_separate_ack_before_lookup():
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "live",
+        client=SimpleNamespace(get_order_by_client_id=lambda value: calls.append("lookup")),
+        live_ack="I_UNDERSTAND_LIVE_ORDERS",
+        live_options_ack="",
+    )
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        Decimal("3.10"),
+        "day",
+        "wheel-live-id",
+    )
+    with pytest.raises(ValueError, match="live options acknowledgment"):
+        broker.submit_option_idempotent(spec)
+    assert calls == []
+
+
+def test_option_submission_rejects_non_day_or_fractional_contract_before_lookup():
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_order_by_client_id=lambda value: calls.append(value)),
+    )
+    invalid_specs = (
+        OptionOrderRequestSpec(
+            "AAPL261002P00300000", Decimal("1"), "sell", "sell_to_open", Decimal("3"), "gtc", "id"
+        ),
+        OptionOrderRequestSpec(
+            "AAPL261002P00300000", Decimal("0.5"), "sell", "sell_to_open", Decimal("3"), "day", "id"
+        ),
+    )
+
+    for spec in invalid_specs:
+        with pytest.raises(ValueError):
+            broker.submit_option_idempotent(spec)
+    assert calls == []
+
+
+def test_option_submission_rejects_side_intent_mismatch_before_lookup():
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_order_by_client_id=lambda value: calls.append(value)),
+    )
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "buy",
+        "sell_to_open",
+        Decimal("3"),
+        "day",
+        "id",
+    )
+
+    with pytest.raises(ValueError, match="position intent"):
+        broker.submit_option_idempotent(spec)
+    assert calls == []
+
+
+def test_cancel_rejects_orders_not_owned_by_the_wheel():
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+    )
+    with pytest.raises(ValueError, match="not owned"):
+        broker.cancel_stale_option_order("order-id", "manual-order")
+    assert calls == []
+
+
+def test_cancel_allows_only_wheel_owned_order():
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+    )
+
+    broker.cancel_stale_option_order("order-id", "ta-wheel-owned")
+
+    assert calls == ["order-id"]
