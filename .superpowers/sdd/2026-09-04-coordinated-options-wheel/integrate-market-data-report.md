@@ -6,7 +6,7 @@
 - When enabled, daily OHLCV for exactly AAPL, MSFT, NVDA, AMZN, META, GOOG, and TSLA uses Alpaca's IEX feed first and Yahoo Finance only when Alpaca is unavailable, empty, malformed, stale, or outside the requested range.
 - When disabled, Yahoo remains the sole data path; Yahoo errors and typed stale-data failures are not replaced by an unexpected Alpaca call or credential requirement.
 - Every symbol outside that seven-symbol allowlist remains on Yahoo even when Alpaca equity market data is enabled.
-- Preserved inclusive end dates, UTC-to-naive date normalization, the existing OHLCV column/cache shape, and look-ahead filtering.
+- Preserved inclusive end dates, UTC-to-naive date normalization, the canonical OHLCV column shape, provider-separated caching, and look-ahead filtering.
 - Alpaca fallback logs omit upstream exception details, and configuration errors never include credential values.
 
 ## Initial Integration Evidence (Historical)
@@ -59,3 +59,13 @@ The evidence in this section records the initial implementation cycle. The later
 - Integrated: the market-data, date-boundary, environment, cache, stale-data, no-data, symbol, and vendor-routing slice passed with 132 tests.
 - Full: `.venv/bin/pytest -q --ignore='tests/test_alpaca_ohlcv_fallback 2.py'` passed with 1,081 tests and 69 subtests; one optional `langchain_aws` test was skipped, with the preserved duplicate excluded as directed.
 - Staged-only/static: the same 132-test integration slice and owned-file Ruff check passed from an archive of `git write-tree`; `git diff --check` also passed.
+
+## Formal Fix Round 4
+
+- Added the normalized consumer `curr_date` to Alpaca cache filenames while retaining the existing symbol, provider, and download-window components. Yahoo cache naming and behavior are unchanged.
+- Consumer-date scoping prevents an Alpaca snapshot truncated for an earlier historical request from satisfying a later historical request. Repeating the same consumer date still reuses its cache, and the existing current-day TTL applies to that date-specific path.
+- RED: a sequential 2026-08-25 then 2026-08-27 request reused the first truncated cache and omitted the valid 2026-08-27 bar.
+- GREEN: the regression passed with two date-specific cache entries, two Alpaca fetches across distinct dates, and no additional fetch for the repeated 2026-08-27 request; all 50 focused market-data tests then passed.
+- Integrated: the market-data, date-boundary, environment, cache, stale-data, no-data, symbol, and vendor-routing slice passed with 133 tests.
+- Full: `.venv/bin/pytest -q --ignore='tests/test_alpaca_ohlcv_fallback 2.py'` passed with 1,082 tests and 69 subtests; one optional `langchain_aws` test was skipped, with the preserved duplicate excluded as directed.
+- Staged-only/static: the same 133-test integration slice and owned-file Ruff check passed from an archive of `git write-tree`; `git diff --check` also passed.

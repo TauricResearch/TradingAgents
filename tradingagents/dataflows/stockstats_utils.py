@@ -306,6 +306,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
 
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date)
+    consumer_date_str = curr_date_dt.normalize().strftime("%Y-%m-%d")
 
     # Cache uses a fixed window (5y to today) so one file per symbol.
     today_date = pd.Timestamp.today()
@@ -321,7 +322,8 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     alpaca_enabled = use_alpaca_market_data(canonical)
     alpaca_data_file = os.path.join(
         config["data_cache_dir"],
-        f"{safe_symbol}-Alpaca-IEX-data-{start_str}-{end_str}.csv",
+        f"{safe_symbol}-Alpaca-IEX-data-{start_str}-{end_str}"
+        f"-consumer-{consumer_date_str}.csv",
     )
     yahoo_data_file = os.path.join(
         config["data_cache_dir"],

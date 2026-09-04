@@ -22,10 +22,14 @@ def _bars(dates=("2026-08-25",), closes=(102,)):
     )
 
 
-def _cache_name(provider, today):
+def _cache_name(provider, today, consumer_date=None):
     start = (today - pd.DateOffset(years=5)).strftime("%Y-%m-%d")
     end = (today + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    return f"AAPL-{provider}-data-{start}-{end}.csv"
+    suffix = ""
+    if provider == "Alpaca-IEX":
+        consumer = pd.Timestamp(consumer_date or today).strftime("%Y-%m-%d")
+        suffix = f"-consumer-{consumer}"
+    return f"AAPL-{provider}-data-{start}-{end}{suffix}.csv"
 
 
 @pytest.mark.unit
@@ -498,7 +502,9 @@ def test_load_ohlcv_falls_back_when_alpaca_rows_are_after_consumer_date(
     today = pd.Timestamp.today()
     curr_date = (today - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
     later_date = (today - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    alpaca_cache = tmp_path / _cache_name("Alpaca-IEX", today)
+    alpaca_cache = tmp_path / _cache_name(
+        "Alpaca-IEX", today, consumer_date=curr_date
+    )
     yahoo_calls = []
 
     monkeypatch.setattr(
@@ -530,7 +536,9 @@ def test_stale_alpaca_cache_retries_primary_without_changing_fallback_provenance
     today = pd.Timestamp.today()
     curr_date = (today - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     stale_date = (today - pd.Timedelta(days=30)).strftime("%Y-%m-%d")
-    alpaca_cache = tmp_path / _cache_name("Alpaca-IEX", today)
+    alpaca_cache = tmp_path / _cache_name(
+        "Alpaca-IEX", today, consumer_date=curr_date
+    )
     yahoo_cache = tmp_path / _cache_name("YFin", today)
     _bars((stale_date,), (80,)).to_csv(alpaca_cache, index=False)
     alpaca_calls = []
@@ -569,6 +577,44 @@ def test_stale_alpaca_cache_retries_primary_without_changing_fallback_provenance
     assert yahoo_calls == [1]
     assert pd.read_csv(alpaca_cache)["Close"].tolist() == [150]
     assert pd.read_csv(yahoo_cache)["Close"].tolist() == [101]
+
+
+@pytest.mark.unit
+def test_alpaca_cache_is_scoped_to_consumer_date_and_reused_for_same_date(
+    monkeypatch, tmp_path
+):
+    today = pd.Timestamp("2026-08-30")
+    alpaca_calls = []
+
+    monkeypatch.setattr(stockstats.pd.Timestamp, "today", staticmethod(lambda: today))
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+
+    def fetch_alpaca(*_args):
+        alpaca_calls.append(1)
+        if len(alpaca_calls) == 1:
+            return _bars(("2026-08-25",), (100,))
+        return _bars(("2026-08-25", "2026-08-27"), (100, 127))
+
+    monkeypatch.setattr(stockstats, "_fetch_alpaca_ohlcv", fetch_alpaca)
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: pytest.fail("valid Alpaca data must be used"),
+    )
+
+    first = stockstats.load_ohlcv("AAPL", "2026-08-25")
+    later = stockstats.load_ohlcv("AAPL", "2026-08-27")
+    repeated = stockstats.load_ohlcv("AAPL", "2026-08-27")
+
+    assert first["Close"].tolist() == [100]
+    assert later["Close"].tolist() == [100, 127]
+    assert repeated["Close"].tolist() == [100, 127]
+    assert alpaca_calls == [1, 1]
+    assert len(list(tmp_path.glob("AAPL-Alpaca-IEX-data-*.csv"))) == 2
 
 
 @pytest.mark.unit
