@@ -129,6 +129,7 @@ def test_clock_and_account_are_mapped_and_blocked_accounts_raise():
     active = SimpleNamespace(
         cash="123.45",
         buying_power="1000.50",
+        options_buying_power="750.25",
         trading_blocked=False,
         account_blocked=False,
         trade_suspended_by_user=False,
@@ -165,6 +166,40 @@ def test_account_maps_options_buying_power():
     broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace(get_account=lambda: raw))
 
     assert broker.account().options_buying_power == Decimal("75000")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        SimpleNamespace(
+            cash="100000",
+            equity="120000",
+            buying_power="200000",
+            trading_blocked=False,
+            account_blocked=False,
+            trade_suspended_by_user=False,
+            status=_enum("ACTIVE"),
+        ),
+        SimpleNamespace(
+            cash="100000",
+            equity="120000",
+            buying_power="200000",
+            options_buying_power="private-malformed-value",
+            trading_blocked=False,
+            account_blocked=False,
+            trade_suspended_by_user=False,
+            status=_enum("ACTIVE"),
+        ),
+    ],
+)
+def test_account_rejects_missing_or_malformed_options_buying_power(raw):
+    broker = AlpacaBroker(
+        "key", "secret", "paper", client=SimpleNamespace(get_account=lambda: raw)
+    )
+
+    with pytest.raises(RuntimeError, match="options buying power") as error:
+        broker.account()
+    assert "private-malformed-value" not in str(error.value)
 
 
 def test_asset_mapping_folds_inactive_status_into_tradability():
@@ -793,6 +828,67 @@ def test_option_order_is_limit_day_with_position_intent(monkeypatch):
     assert str(captured[0]["position_intent"]).lower().endswith("sell_to_open")
 
 
+def test_option_missing_submission_id_is_resolved_by_client_id_lookup(monkeypatch):
+    lookups = iter((None, SimpleNamespace(id="resolved-order")))
+    monkeypatch.setattr(
+        "tradingagents.execution._limit_order_request_class",
+        lambda: lambda **fields: fields,
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(
+            get_order_by_client_id=lambda value: next(lookups),
+            submit_order=lambda order_data: SimpleNamespace(id=None),
+        ),
+    )
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        Decimal("3.10"),
+        "day",
+        "ta-wheel-stable",
+    )
+
+    assert broker.submit_option_idempotent(spec) == "resolved-order"
+
+
+def test_option_missing_submission_id_and_lookup_absence_raise_sanitized(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "tradingagents.execution._limit_order_request_class",
+        lambda: lambda **fields: fields,
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(
+            get_order_by_client_id=lambda value: calls.append(value),
+            submit_order=lambda order_data: SimpleNamespace(
+                id=None, private_detail="broker-secret"
+            ),
+        ),
+    )
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        Decimal("3.10"),
+        "day",
+        "ta-wheel-stable",
+    )
+
+    with pytest.raises(RuntimeError, match="option submission.*ambiguous") as error:
+        broker.submit_option_idempotent(spec)
+    assert "broker-secret" not in str(error.value)
+    assert calls == ["ta-wheel-stable", "ta-wheel-stable"]
+
+
 def test_option_contracts_request_scope_and_normalize_snapshots(monkeypatch):
     now = datetime(2026, 9, 4, 15, 30, tzinfo=timezone.utc)
     captured_contract_requests = []
@@ -810,6 +906,7 @@ def test_option_contracts_request_scope_and_normalize_snapshots(monkeypatch):
         symbol="AAPL260925P00300000",
         underlying_symbol="AAPL",
         type=_enum("put"),
+        status=_enum("active"),
         strike_price="300",
         expiration_date=(now + timedelta(days=21)).date(),
         open_interest="250",
@@ -860,15 +957,30 @@ def test_option_contracts_request_scope_and_normalize_snapshots(monkeypatch):
     assert captured_snapshot_requests == [{"symbol_or_symbols": ["AAPL260925P00300000"]}]
 
 
-def test_option_contracts_keep_missing_quote_time_and_greeks_missing(monkeypatch):
+@pytest.mark.parametrize(
+    ("open_interest", "greeks", "quote"),
+    [
+        (None, SimpleNamespace(delta="0.22"), SimpleNamespace(bid_price="3", ask_price="3.2", timestamp=datetime(2026, 9, 4, tzinfo=timezone.utc))),
+        ("250", None, SimpleNamespace(bid_price="3", ask_price="3.2", timestamp=datetime(2026, 9, 4, tzinfo=timezone.utc))),
+        ("250", SimpleNamespace(delta=None), SimpleNamespace(bid_price="3", ask_price="3.2", timestamp=datetime(2026, 9, 4, tzinfo=timezone.utc))),
+        ("250", SimpleNamespace(delta="0.22"), None),
+        ("250", SimpleNamespace(delta="0.22"), SimpleNamespace(bid_price=None, ask_price="3.2", timestamp=datetime(2026, 9, 4, tzinfo=timezone.utc))),
+        ("250", SimpleNamespace(delta="0.22"), SimpleNamespace(bid_price="3", ask_price=None, timestamp=datetime(2026, 9, 4, tzinfo=timezone.utc))),
+        ("250", SimpleNamespace(delta="0.22"), SimpleNamespace(bid_price="3", ask_price="3.2", timestamp=None)),
+    ],
+)
+def test_option_contracts_reject_missing_required_market_data(
+    monkeypatch, open_interest, greeks, quote
+):
     now = datetime(2026, 9, 4, 15, 30, tzinfo=timezone.utc)
     contract = SimpleNamespace(
         symbol="AAPL260925C00300000",
         underlying_symbol="AAPL",
         type=_enum("call"),
+        status=_enum("active"),
         strike_price="300",
         expiration_date=(now + timedelta(days=21)).date(),
-        open_interest=None,
+        open_interest=open_interest,
     )
     client = SimpleNamespace(
         get_option_contracts=lambda request: SimpleNamespace(option_contracts=[contract])
@@ -876,7 +988,7 @@ def test_option_contracts_keep_missing_quote_time_and_greeks_missing(monkeypatch
     broker = AlpacaBroker("key", "secret", "paper", client=client)
     broker._option_data_client = SimpleNamespace(
         get_option_snapshot=lambda request: {
-            contract.symbol: SimpleNamespace(greeks=None, latest_quote=None)
+            contract.symbol: SimpleNamespace(greeks=greeks, latest_quote=quote)
         }
     )
     monkeypatch.setattr(
@@ -888,13 +1000,65 @@ def test_option_contracts_keep_missing_quote_time_and_greeks_missing(monkeypatch
         lambda: lambda **fields: fields,
     )
 
-    result = broker.option_contracts("AAPL", "call", now)
+    with pytest.raises(RuntimeError, match="option (contract|snapshot)"):
+        broker.option_contracts("AAPL", "call", now)
 
-    assert result[0].delta is None
-    assert result[0].quote_time is None
-    assert result[0].bid is None
-    assert result[0].ask is None
-    assert result[0].open_interest == Decimal("0")
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"underlying_symbol": "MSFT"},
+        {"type": _enum("call")},
+        {"status": _enum("inactive")},
+        {"expiration_date": datetime(2026, 9, 10).date()},
+        {"expiration_date": datetime(2026, 10, 10).date()},
+        {"symbol": "MSFT260925P00300000"},
+        {"symbol": "AAPL260925C00300000"},
+        {"symbol": "AAPL260925P00301000"},
+    ],
+)
+def test_option_contracts_reject_inconsistent_broker_items(monkeypatch, changes):
+    now = datetime(2026, 9, 4, 15, 30, tzinfo=timezone.utc)
+    fields = {
+        "symbol": "AAPL260925P00300000",
+        "underlying_symbol": "AAPL",
+        "type": _enum("put"),
+        "status": _enum("active"),
+        "strike_price": "300",
+        "expiration_date": (now + timedelta(days=21)).date(),
+        "open_interest": "250",
+    }
+    fields.update(changes)
+    contract = SimpleNamespace(**fields)
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(
+            get_option_contracts=lambda request: SimpleNamespace(option_contracts=[contract])
+        ),
+    )
+    broker._option_data_client = SimpleNamespace(
+        get_option_snapshot=lambda request: {
+            contract.symbol: SimpleNamespace(
+                greeks=SimpleNamespace(delta="-0.22"),
+                latest_quote=SimpleNamespace(
+                    bid_price="3", ask_price="3.2", timestamp=now
+                ),
+            )
+        }
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._get_option_contracts_request_class",
+        lambda: lambda **values: values,
+    )
+    monkeypatch.setattr(
+        "tradingagents.execution._option_snapshot_request_class",
+        lambda: lambda **values: values,
+    )
+
+    with pytest.raises(RuntimeError, match="inconsistent option contract"):
+        broker.option_contracts("AAPL", "put", now)
 
 
 def test_wheel_positions_and_orders_map_equities_options_and_open_orders(monkeypatch):
@@ -978,6 +1142,129 @@ def test_wheel_positions_and_orders_map_equities_options_and_open_orders(monkeyp
             submitted_at,
         ),
     )
+
+
+@pytest.mark.parametrize("asset_class", [None, _enum("unknown")])
+def test_wheel_positions_reject_unclassifiable_records(asset_class):
+    raw = SimpleNamespace(
+        symbol="private-position-symbol",
+        asset_class=asset_class,
+        side=_enum("long"),
+        qty="1",
+        avg_entry_price="1",
+        current_price="1",
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [raw], get_orders=lambda: []),
+    )
+
+    with pytest.raises(RuntimeError, match="position record") as error:
+        broker.wheel_positions_and_orders()
+    assert "private-position-symbol" not in str(error.value)
+
+
+def test_wheel_positions_reject_missing_quantity():
+    raw = SimpleNamespace(
+        symbol="private-position-symbol",
+        asset_class=_enum("us_equity"),
+        side=_enum("long"),
+        qty=None,
+        avg_entry_price="1",
+        current_price="1",
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [raw], get_orders=lambda: []),
+    )
+
+    with pytest.raises(RuntimeError, match="position record") as error:
+        broker.wheel_positions_and_orders()
+    assert "private-position-symbol" not in str(error.value)
+
+
+@pytest.mark.parametrize("asset_class", [None, _enum("unknown")])
+def test_wheel_orders_reject_unclassifiable_records(asset_class):
+    raw = SimpleNamespace(
+        id="private-order-id",
+        client_order_id="ta-wheel-owned",
+        symbol="AAPL260925P00195000",
+        asset_class=asset_class,
+        position_intent=_enum("sell_to_open"),
+        qty="1",
+        filled_qty="0",
+        submitted_at=datetime(2026, 9, 4, tzinfo=timezone.utc),
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [], get_orders=lambda: [raw]),
+    )
+
+    with pytest.raises(RuntimeError, match="order record") as error:
+        broker.wheel_positions_and_orders()
+    assert "private-order-id" not in str(error.value)
+
+
+def test_wheel_orders_reject_missing_quantity():
+    raw = SimpleNamespace(
+        id="private-order-id",
+        client_order_id="ta-wheel-owned",
+        symbol="AAPL260925P00195000",
+        asset_class=_enum("us_option"),
+        position_intent=_enum("sell_to_open"),
+        qty=None,
+        filled_qty="0",
+        submitted_at=datetime(2026, 9, 4, tzinfo=timezone.utc),
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [], get_orders=lambda: [raw]),
+    )
+
+    with pytest.raises(RuntimeError, match="order record") as error:
+        broker.wheel_positions_and_orders()
+    assert "private-order-id" not in str(error.value)
+
+
+def test_wheel_option_position_rejects_missing_delta(monkeypatch):
+    raw = SimpleNamespace(
+        symbol="AAPL260925C00300000",
+        asset_class=_enum("us_option"),
+        side=_enum("short"),
+        qty="1",
+        avg_entry_price="4.20",
+        current_price="3.10",
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [raw], get_orders=lambda: []),
+    )
+    monkeypatch.setattr(
+        broker,
+        "option_snapshot",
+        lambda symbols: {
+            raw.symbol: (
+                None,
+                Decimal("3"),
+                Decimal("3.2"),
+                datetime(2026, 9, 4, tzinfo=timezone.utc),
+            )
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="option position") as error:
+        broker.wheel_positions_and_orders()
+    assert raw.symbol not in str(error.value)
 
 
 def test_prepare_option_order_is_day_only_and_has_deterministic_wheel_id():

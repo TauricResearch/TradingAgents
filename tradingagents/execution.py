@@ -127,6 +127,18 @@ def _decimal(value, default: str = "0") -> Decimal:
     return Decimal(str(value))
 
 
+def _required_decimal(value, message: str) -> Decimal:
+    if value is None:
+        raise RuntimeError(message)
+    try:
+        result = Decimal(str(value))
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise RuntimeError(message) from error
+    if not result.is_finite():
+        raise RuntimeError(message)
+    return result
+
+
 def _alpaca_class(module: str, name: str):
     try:
         return getattr(importlib.import_module(module), name)
@@ -261,12 +273,16 @@ class AlpacaBroker:
             raise RuntimeError("Alpaca account is blocked from trading")
         if status.upper() != "ACTIVE":
             raise RuntimeError("Alpaca account is not active")
+        options_buying_power = _required_decimal(
+            getattr(raw, "options_buying_power", None),
+            "Alpaca options buying power is unavailable",
+        )
         return AccountSnapshot(
             cash=_decimal(raw.cash),
             buying_power=_decimal(raw.buying_power),
             trading_blocked=False,
             status=status,
-            options_buying_power=_decimal(getattr(raw, "options_buying_power", None)),
+            options_buying_power=options_buying_power,
         )
 
     def asset(self, symbol: str) -> AssetInfo:
@@ -419,7 +435,7 @@ class AlpacaBroker:
 
     def option_snapshot(
         self, symbols: tuple[str, ...] | list[str]
-    ) -> dict[str, tuple[Decimal | None, Decimal | None, Decimal | None, datetime | None]]:
+    ) -> dict[str, tuple[Decimal, Decimal, Decimal, datetime]]:
         requested = list(symbols)
         if not requested:
             return {}
@@ -435,18 +451,19 @@ class AlpacaBroker:
         for symbol in requested:
             raw = raw_snapshots.get(symbol)
             if raw is None:
-                snapshots[symbol] = (None, None, None, None)
-                continue
+                raise RuntimeError("Alpaca option snapshot is incomplete")
             greeks = getattr(raw, "greeks", None)
             quote = getattr(raw, "latest_quote", None)
             delta_value = getattr(greeks, "delta", None) if greeks is not None else None
             bid_value = getattr(quote, "bid_price", None) if quote is not None else None
             ask_value = getattr(quote, "ask_price", None) if quote is not None else None
             quote_time = getattr(quote, "timestamp", None) if quote is not None else None
+            if not isinstance(quote_time, datetime) or quote_time.utcoffset() is None:
+                raise RuntimeError("Alpaca option snapshot is incomplete")
             snapshots[symbol] = (
-                _decimal(delta_value) if delta_value is not None else None,
-                _decimal(bid_value) if bid_value is not None else None,
-                _decimal(ask_value) if ask_value is not None else None,
+                _required_decimal(delta_value, "Alpaca option snapshot is incomplete"),
+                _required_decimal(bid_value, "Alpaca option snapshot is incomplete"),
+                _required_decimal(ask_value, "Alpaca option snapshot is incomplete"),
                 quote_time,
             )
         return snapshots
@@ -488,21 +505,64 @@ class AlpacaBroker:
             if not page_token:
                 break
 
-        snapshots = self.option_snapshot([raw.symbol for raw in raw_contracts])
-        contracts = []
+        validated_contracts = []
         for raw in raw_contracts:
-            delta, bid, ask, quote_time = snapshots.get(raw.symbol, (None, None, None, None))
+            try:
+                symbol = str(raw.symbol)
+                returned_underlying = str(raw.underlying_symbol)
+                returned_kind = _enum_text(raw.type).casefold()
+                returned_status = _enum_text(raw.status).casefold()
+                expiration = raw.expiration_date
+                strike = _required_decimal(
+                    raw.strike_price, "Alpaca option contract is malformed"
+                )
+                open_interest = _required_decimal(
+                    raw.open_interest, "Alpaca option contract is malformed"
+                )
+                occ_underlying, occ_kind, occ_strike = _option_symbol_parts(symbol)
+                occ_expiration = datetime.strptime(
+                    _OPTION_SYMBOL.fullmatch(symbol).group("expiration"), "%y%m%d"
+                ).date()
+            except RuntimeError:
+                raise
+            except (AttributeError, TypeError, ValueError) as error:
+                raise RuntimeError("Alpaca option contract is malformed") from error
+            if (
+                returned_underlying != underlying
+                or returned_kind != normalized_kind
+                or returned_status != "active"
+                or not isinstance(expiration, date)
+                or isinstance(expiration, datetime)
+                or not start <= expiration <= end
+                or occ_underlying != underlying
+                or occ_kind != normalized_kind
+                or occ_strike != strike
+                or occ_expiration != expiration
+                or strike <= 0
+                or open_interest < 0
+            ):
+                raise RuntimeError("Alpaca returned an inconsistent option contract")
+            validated_contracts.append(
+                (symbol, returned_underlying, returned_kind, strike, expiration, open_interest)
+            )
+
+        snapshots = self.option_snapshot([item[0] for item in validated_contracts])
+        contracts = []
+        for symbol, returned_underlying, returned_kind, strike, expiration, open_interest in (
+            validated_contracts
+        ):
+            delta, bid, ask, quote_time = snapshots[symbol]
             contracts.append(
                 OptionContract(
-                    symbol=str(raw.symbol),
-                    underlying=str(raw.underlying_symbol),
-                    kind=_enum_text(raw.type).casefold(),
-                    strike=_decimal(raw.strike_price),
-                    expiration=raw.expiration_date,
+                    symbol=symbol,
+                    underlying=returned_underlying,
+                    kind=returned_kind,
+                    strike=strike,
+                    expiration=expiration,
                     delta=delta,
                     bid=bid,
                     ask=ask,
-                    open_interest=_decimal(getattr(raw, "open_interest", None)),
+                    open_interest=open_interest,
                     quote_time=quote_time,
                 )
             )
@@ -516,65 +576,109 @@ class AlpacaBroker:
         tuple[OptionOpenOrder, ...],
     ]:
         raw_positions = self._client.get_all_positions()
-        raw_option_positions = [
-            raw
-            for raw in raw_positions
-            if _enum_text(getattr(raw, "asset_class", "")).casefold() == "us_option"
-        ]
-        snapshots = self.option_snapshot([raw.symbol for raw in raw_option_positions])
+        position_rows = []
+        option_symbols = []
+        for raw in raw_positions:
+            try:
+                asset_class = _enum_text(raw.asset_class).casefold()
+                if asset_class not in {"us_equity", "us_option", "crypto"}:
+                    raise RuntimeError("Alpaca position record is unclassifiable")
+                if asset_class == "crypto":
+                    continue
+                symbol = str(raw.symbol)
+                side = _enum_text(raw.side).casefold()
+                qty = abs(
+                    _required_decimal(raw.qty, "Alpaca position record is malformed")
+                )
+                avg_entry_price = _required_decimal(
+                    raw.avg_entry_price, "Alpaca position record is malformed"
+                )
+                current_price = _required_decimal(
+                    raw.current_price, "Alpaca position record is malformed"
+                )
+                if side == "short":
+                    qty = -qty
+                elif side != "long":
+                    raise RuntimeError("Alpaca position record is malformed")
+                if qty == 0:
+                    raise RuntimeError("Alpaca position record is malformed")
+                position_rows.append(
+                    (asset_class, symbol, qty, avg_entry_price, current_price)
+                )
+                if asset_class == "us_option":
+                    _option_symbol_parts(symbol)
+                    option_symbols.append(symbol)
+            except RuntimeError:
+                raise
+            except (AttributeError, TypeError, ValueError) as error:
+                raise RuntimeError("Alpaca position record is malformed") from error
+
+        snapshots = self.option_snapshot(option_symbols)
         equities = []
         options = []
-        for raw in raw_positions:
-            asset_class = _enum_text(getattr(raw, "asset_class", "")).casefold()
-            side = _enum_text(getattr(raw, "side", "")).casefold()
-            qty = abs(_decimal(raw.qty))
-            if side == "short":
-                qty = -qty
-            elif side != "long":
-                raise RuntimeError(f"unsupported Alpaca position side: {side}")
+        for asset_class, symbol, qty, avg_entry_price, current_price in position_rows:
             if asset_class == "us_equity":
                 equities.append(
                     EquityPosition(
-                        symbol=str(raw.symbol),
+                        symbol=symbol,
                         qty=qty,
-                        avg_entry_price=_decimal(raw.avg_entry_price),
-                        current_price=_decimal(raw.current_price),
+                        avg_entry_price=avg_entry_price,
+                        current_price=current_price,
                     )
                 )
-            elif asset_class == "us_option":
-                underlying, kind, _strike = _option_symbol_parts(str(raw.symbol))
-                delta = snapshots.get(str(raw.symbol), (None, None, None, None))[0]
+            else:
+                underlying, kind, _strike = _option_symbol_parts(symbol)
+                delta = snapshots[symbol][0]
+                if delta is None:
+                    raise RuntimeError("Alpaca option position delta is unavailable")
                 options.append(
                     OptionPosition(
-                        symbol=str(raw.symbol),
+                        symbol=symbol,
                         underlying=underlying,
                         kind=kind,
                         qty=qty,
-                        avg_entry_price=_decimal(raw.avg_entry_price),
+                        avg_entry_price=avg_entry_price,
                         delta=delta,
                     )
                 )
 
         open_orders = []
         for raw in self._client.get_orders():
-            if _enum_text(getattr(raw, "asset_class", "")).casefold() != "us_option":
+            try:
+                asset_class = _enum_text(raw.asset_class).casefold()
+            except (AttributeError, TypeError, ValueError) as error:
+                raise RuntimeError("Alpaca order record is unclassifiable") from error
+            if asset_class not in {"us_equity", "us_option", "crypto"}:
+                raise RuntimeError("Alpaca order record is unclassifiable")
+            if asset_class != "us_option":
                 continue
-            symbol = str(raw.symbol)
-            underlying, kind, strike = _option_symbol_parts(symbol)
-            open_orders.append(
-                OptionOpenOrder(
-                    symbol=symbol,
-                    underlying=underlying,
-                    kind=kind,
-                    position_intent=_enum_text(raw.position_intent).casefold(),
-                    qty=_decimal(raw.qty),
-                    filled_qty=_decimal(raw.filled_qty),
-                    strike=strike,
-                    order_id=str(raw.id),
-                    client_order_id=str(raw.client_order_id),
-                    submitted_at=getattr(raw, "submitted_at", None),
+            try:
+                symbol = str(raw.symbol)
+                underlying, kind, strike = _option_symbol_parts(symbol)
+                qty = _required_decimal(raw.qty, "Alpaca option order record is malformed")
+                filled_qty = _required_decimal(
+                    raw.filled_qty, "Alpaca option order record is malformed"
                 )
-            )
+                if qty <= 0 or filled_qty < 0 or filled_qty > qty:
+                    raise RuntimeError("Alpaca option order record is malformed")
+                open_orders.append(
+                    OptionOpenOrder(
+                        symbol=symbol,
+                        underlying=underlying,
+                        kind=kind,
+                        position_intent=_enum_text(raw.position_intent).casefold(),
+                        qty=qty,
+                        filled_qty=filled_qty,
+                        strike=strike,
+                        order_id=str(raw.id),
+                        client_order_id=str(raw.client_order_id),
+                        submitted_at=raw.submitted_at,
+                    )
+                )
+            except RuntimeError:
+                raise
+            except (AttributeError, TypeError, ValueError) as error:
+                raise RuntimeError("Alpaca option order record is malformed") from error
         return tuple(equities), tuple(options), tuple(open_orders)
 
     @staticmethod
@@ -754,7 +858,14 @@ class AlpacaBroker:
             raise submission_error
         order_id = getattr(order, "id", None)
         if order_id is None:
-            raise RuntimeError("Alpaca submission returned no order ID")
+            ambiguity = RuntimeError("Alpaca option submission result is ambiguous")
+            try:
+                existing_order_id = self.find_order_by_client_id(spec.client_order_id)
+            except Exception:
+                raise ambiguity from None
+            if existing_order_id is not None:
+                return existing_order_id
+            raise ambiguity
         return str(order_id)
 
     def cancel_stale_option_order(self, order_id: str, client_order_id: str) -> None:
