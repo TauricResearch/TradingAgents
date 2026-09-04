@@ -26,6 +26,8 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["backend_url"] is None
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
+    assert dc.DEFAULT_CONFIG["max_cash_allocation"] == 0.90
+    assert dc.DEFAULT_CONFIG["max_cash_reserve_usd"] == 70000.0
     assert dc.DEFAULT_CONFIG["target_volatility"] == 0.15
     assert dc.DEFAULT_CONFIG["max_volatility"] == 0.20
     assert dc.DEFAULT_CONFIG["max_gross_leverage"] == 2.0
@@ -42,6 +44,7 @@ def test_automation_overrides(monkeypatch):
         TRADINGAGENTS_ANALYSIS_INTERVAL_MINUTES="30",
         TRADINGAGENTS_POSITION_INTERVAL_MINUTES="30",
         TRADINGAGENTS_MAX_CASH_ALLOCATION="0.25",
+        TRADINGAGENTS_MAX_CASH_RESERVE_USD="60000",
         TRADINGAGENTS_TARGET_VOLATILITY="0.12",
         TRADINGAGENTS_MAX_VOLATILITY="0.18",
         TRADINGAGENTS_MAX_GROSS_LEVERAGE="1.5",
@@ -63,6 +66,7 @@ def test_automation_overrides(monkeypatch):
     assert dc.DEFAULT_CONFIG["analysis_interval_minutes"] == 30
     assert dc.DEFAULT_CONFIG["position_interval_minutes"] == 30
     assert dc.DEFAULT_CONFIG["max_cash_allocation"] == 0.25
+    assert dc.DEFAULT_CONFIG["max_cash_reserve_usd"] == 60000.0
     assert dc.DEFAULT_CONFIG["target_volatility"] == 0.12
     assert dc.DEFAULT_CONFIG["max_volatility"] == 0.18
     assert dc.DEFAULT_CONFIG["max_gross_leverage"] == 1.5

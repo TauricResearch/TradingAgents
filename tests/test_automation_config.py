@@ -12,7 +12,7 @@ def _config(**overrides):
         "batch_size": 3,
         "analysis_interval_minutes": 30,
         "position_interval_minutes": 30,
-        "max_cash_allocation": 0.30,
+        "max_cash_allocation": 0.90,
         "target_volatility": 0.15,
         "max_volatility": 0.20,
         "max_gross_leverage": 2.0,
@@ -43,8 +43,19 @@ def test_settings_normalize_watchlist_and_keep_hard_cap():
         _config(watchlist=" aapl, msft,nvda,amzn,meta,goog,tsla ")
     )
     assert settings.watchlist == ("AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA")
-    assert settings.max_cash_allocation == 0.30
+    assert settings.max_cash_allocation == 0.90
     assert settings.state_path == Path("/tmp/tradingagents-state.db")
+
+
+def test_settings_accept_cash_reserve_target():
+    settings = AutomationSettings.from_config(_config(max_cash_reserve_usd=70000.0))
+    assert settings.max_cash_reserve_usd == 70000.0
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf")])
+def test_settings_reject_nonfinite_cash_reserve_target(value):
+    with pytest.raises(ValueError, match="max_cash_reserve_usd must be finite"):
+        AutomationSettings.from_config(_config(max_cash_reserve_usd=value))
 
 
 def test_settings_accept_volatility_policy():
@@ -95,9 +106,9 @@ def test_settings_reject_invalid_volatility_policy(values):
         AutomationSettings.from_config(_config(**values))
 
 
-def test_settings_reject_allocation_above_thirty_percent():
-    with pytest.raises(ValueError, match="no greater than 0.30"):
-        AutomationSettings.from_config(_config(max_cash_allocation=0.31))
+def test_settings_reject_allocation_above_ninety_percent():
+    with pytest.raises(ValueError, match="no greater than 0.90"):
+        AutomationSettings.from_config(_config(max_cash_allocation=0.91))
 
 
 @pytest.mark.parametrize(
@@ -110,6 +121,7 @@ def test_settings_reject_allocation_above_thirty_percent():
         ({"decision_max_age_minutes": 0}, "intervals and decision age must be positive"),
         ({"max_cash_allocation": 0}, "max_cash_allocation must be greater than 0"),
         ({"rebalance_threshold_usd": -1}, "rebalance_threshold_usd must be non-negative"),
+        ({"max_cash_reserve_usd": -1}, "max_cash_reserve_usd must be non-negative"),
     ],
 )
 def test_settings_reject_other_invalid_automation_values(override, message):
@@ -135,6 +147,7 @@ def test_env_example_documents_every_automation_override():
             "analysis_interval_minutes",
             "position_interval_minutes",
             "max_cash_allocation",
+            "max_cash_reserve_usd",
             "decision_max_age_minutes",
             "rebalance_threshold_usd",
             "automation_state_path",

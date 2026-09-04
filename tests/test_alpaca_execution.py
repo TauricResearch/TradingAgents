@@ -697,6 +697,27 @@ def test_non_fractionable_equity_rounds_down_to_whole_shares():
     assert spec.qty == Decimal("1")
 
 
+def test_fractionable_equity_short_rounds_down_to_whole_shares():
+    broker = AlpacaBroker("key", "secret", mode="paper", client=SimpleNamespace())
+    equity = AssetInfo(
+        "AAPL",
+        "us_equity",
+        True,
+        True,
+        True,
+        Decimal("0.001"),
+        Decimal("0.001"),
+    )
+    spec = broker.prepare_order(
+        OrderIntent("AAPL", "sell", Decimal("150"), Decimal("-150")),
+        equity,
+        Decimal("100"),
+        "cycle-1",
+    )
+
+    assert spec.qty == Decimal("1")
+
+
 @pytest.mark.parametrize("price", [Decimal("0"), Decimal("-1")])
 def test_prepare_order_rejects_non_positive_prices(price):
     broker = AlpacaBroker("key", "secret", mode="paper", client=SimpleNamespace())

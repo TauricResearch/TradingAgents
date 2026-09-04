@@ -37,6 +37,7 @@ class AutomationSettings:
     auto_execute: bool
     alpaca_mode: str
     live_trading_ack: str
+    max_cash_reserve_usd: float = 0.0
     target_volatility: float = 0.15
     max_volatility: float = 0.20
     max_gross_leverage: float = 2.0
@@ -75,12 +76,17 @@ class AutomationSettings:
             raise ValueError("intervals and decision age must be positive")
 
         max_cash_allocation = config["max_cash_allocation"]
-        if not 0 < max_cash_allocation <= 0.30:
-            raise ValueError("max_cash_allocation must be greater than 0 and no greater than 0.30")
+        if not 0 < max_cash_allocation <= 0.90:
+            raise ValueError("max_cash_allocation must be greater than 0 and no greater than 0.90")
 
         rebalance_threshold_usd = config["rebalance_threshold_usd"]
         if rebalance_threshold_usd < 0:
             raise ValueError("rebalance_threshold_usd must be non-negative")
+        max_cash_reserve_usd = config.get("max_cash_reserve_usd", 0.0)
+        if not Decimal(str(max_cash_reserve_usd)).is_finite():
+            raise ValueError("max_cash_reserve_usd must be finite")
+        if max_cash_reserve_usd < 0:
+            raise ValueError("max_cash_reserve_usd must be non-negative")
 
         target_volatility = config["target_volatility"]
         max_volatility = config["max_volatility"]
@@ -113,6 +119,7 @@ class AutomationSettings:
             auto_execute=config["auto_execute"],
             alpaca_mode=alpaca_mode,
             live_trading_ack=config["live_trading_ack"],
+            max_cash_reserve_usd=max_cash_reserve_usd,
             target_volatility=target_volatility,
             max_volatility=max_volatility,
             max_gross_leverage=max_gross_leverage,
@@ -322,6 +329,12 @@ class AutomationCycleService:
                 {symbol: decisions[symbol].rating for symbol in self.settings.watchlist},
                 allocation_cash,
                 self.settings.max_cash_allocation,
+                equity=account.equity,
+                max_cash_reserve=(
+                    self.settings.max_cash_reserve_usd
+                    if self.settings.max_cash_reserve_usd > 0
+                    else None
+                ),
             )
             targets = {symbol: all_targets[symbol] for symbol in executable}
             equity_targets = {
@@ -753,6 +766,12 @@ class AutomationCycleService:
                     },
                     max(account.cash - put_collateral - added_collateral, Decimal("0")),
                     self.settings.max_cash_allocation,
+                    equity=account.equity,
+                    max_cash_reserve=(
+                        self.settings.max_cash_reserve_usd
+                        if self.settings.max_cash_reserve_usd > 0
+                        else None
+                    ),
                 )
                 candidate_covered_shares = dict(proposed_covered_shares)
                 if intent.kind.casefold() == "call":

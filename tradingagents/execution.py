@@ -790,7 +790,7 @@ class AlpacaBroker:
         if intent.notional <= 0:
             raise ValueError("order notional must be positive")
         increment = asset.min_trade_increment
-        if not asset.fractionable:
+        if not asset.fractionable or intent.target_notional < 0:
             increment = max(increment, Decimal("1"))
         if increment <= 0 or asset.min_order_size <= 0:
             raise ValueError("asset order increments must be positive")

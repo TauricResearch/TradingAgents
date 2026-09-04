@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -7,26 +8,27 @@ from tradingagents.allocation import (
     conviction_targets,
     reconcile_targets,
 )
+from tradingagents.risk import scale_equity_targets
 
 
-def test_conviction_targets_normalize_signed_weights_with_thirty_percent_cap():
+def test_conviction_targets_normalize_signed_weights_with_ninety_percent_cap():
     targets = conviction_targets(
         {"AAPL": "Buy", "MSFT": "Overweight", "TSLA": "Sell", "META": "Hold"},
         cash=Decimal("10000"),
-        max_cash_allocation=Decimal("0.30"),
+        max_cash_allocation=Decimal("0.90"),
     )
     assert targets == {
-        "AAPL": Decimal("1200"),
-        "MSFT": Decimal("600"),
-        "TSLA": Decimal("-1200"),
+        "AAPL": Decimal("3600"),
+        "MSFT": Decimal("1800"),
+        "TSLA": Decimal("-3600"),
         "META": Decimal("0"),
     }
-    assert sum(abs(value) for value in targets.values()) == Decimal("3000")
+    assert sum(abs(value) for value in targets.values()) == Decimal("9000")
 
 
 @pytest.mark.parametrize(
     "max_cash_allocation",
-    [Decimal("0"), Decimal("-0.01"), Decimal("0.3001")],
+    [Decimal("0"), Decimal("-0.01"), Decimal("0.9001")],
 )
 def test_conviction_targets_reject_invalid_cash_allocation_caps(
     max_cash_allocation,
@@ -39,12 +41,114 @@ def test_conviction_targets_reject_invalid_cash_allocation_caps(
         )
 
 
-def test_conviction_targets_accept_thirty_percent_cash_allocation_cap():
+def test_conviction_targets_accept_ninety_percent_cash_allocation_cap():
     assert conviction_targets(
         {"AAPL": "Buy"},
         cash=Decimal("1000"),
-        max_cash_allocation=Decimal("0.30"),
-    ) == {"AAPL": Decimal("300.00")}
+        max_cash_allocation=Decimal("0.90"),
+    ) == {"AAPL": Decimal("900.00")}
+
+
+def test_cash_reserve_scales_positive_convictions_without_reversing_shorts():
+    targets = conviction_targets(
+        {"AAPL": "Buy", "MSFT": "Overweight", "TSLA": "Sell"},
+        cash=Decimal("800"),
+        max_cash_allocation=Decimal("0.90"),
+        equity=Decimal("1000"),
+        max_cash_reserve=Decimal("70"),
+    )
+
+    assert targets == {
+        "AAPL": Decimal("812"),
+        "MSFT": Decimal("406"),
+        "TSLA": Decimal("-288"),
+    }
+    assert Decimal("1000") - sum(targets.values()) == Decimal("70")
+
+
+def test_cash_reserve_does_not_invent_longs_for_short_only_decisions():
+    targets = conviction_targets(
+        {"AAPL": "Sell", "MSFT": "Underweight", "TSLA": "Hold"},
+        cash=Decimal("100000"),
+        max_cash_allocation=Decimal("0.90"),
+        equity=Decimal("100000"),
+        max_cash_reserve=Decimal("70000"),
+    )
+
+    assert targets == {
+        "AAPL": Decimal("-60000"),
+        "MSFT": Decimal("-30000"),
+        "TSLA": Decimal("0"),
+    }
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"cash": Decimal("NaN")}, "cash must be finite"),
+        ({"cash": Decimal("Infinity")}, "cash must be finite"),
+        ({"equity": Decimal("NaN")}, "equity.*finite"),
+        ({"equity": Decimal("Infinity")}, "equity.*finite"),
+        ({"equity": Decimal("0")}, "equity.*positive.*finite"),
+        ({"max_cash_reserve": Decimal("NaN")}, "max_cash_reserve must be finite"),
+        ({"max_cash_reserve": Decimal("Infinity")}, "max_cash_reserve must be finite"),
+    ],
+)
+def test_conviction_targets_reject_invalid_numeric_policy_inputs(overrides, message):
+    values = {
+        "cash": Decimal("100000"),
+        "max_cash_allocation": Decimal("0.90"),
+        "equity": Decimal("100000"),
+        "max_cash_reserve": Decimal("70000"),
+    }
+    values.update(overrides)
+
+    with pytest.raises(ValueError, match=message):
+        conviction_targets({"AAPL": "Buy"}, **values)
+
+
+def test_risk_policy_constrains_reserve_driven_leveraged_targets_before_intents():
+    reserve_targets = conviction_targets(
+        {"AAPL": "Buy", "TSLA": "Sell"},
+        cash=Decimal("10000"),
+        max_cash_allocation=Decimal("0.90"),
+        equity=Decimal("100000"),
+        max_cash_reserve=Decimal("70000"),
+    )
+    assert reserve_targets["AAPL"] == Decimal("34500")
+    assert reserve_targets["AAPL"] > Decimal("10000")
+    assert Decimal("100000") - sum(reserve_targets.values()) == Decimal("70000")
+
+    start = date(2026, 7, 1)
+    histories = {}
+    for symbol, magnitude in (("AAPL", Decimal("1")), ("TSLA", Decimal("2"))):
+        price = Decimal("100")
+        rows = [(start, price)]
+        for index in range(40):
+            change = Decimal("0.05") * magnitude * (1 if index % 2 == 0 else -1)
+            price *= Decimal("1") + change
+            rows.append((start + timedelta(days=index + 1), price))
+        histories[symbol] = tuple(rows)
+
+    scaled = scale_equity_targets(
+        reserve_targets,
+        {},
+        Decimal("100000"),
+        histories,
+        Decimal("0.15"),
+        Decimal("0.20"),
+        Decimal("2.0"),
+    )
+    intents = reconcile_targets(scaled.targets, {}, {}, Decimal("10"))
+    buy_notional = sum(
+        (intent.notional for intent in intents if intent.side == "buy"), Decimal("0")
+    )
+
+    assert scaled.scale < Decimal("1")
+    assert scaled.forecast_volatility <= Decimal("0.1500000001")
+    assert scaled.gross_leverage <= Decimal("2.0")
+    assert {intent.symbol: intent.target_notional for intent in intents} == scaled.targets
+    assert buy_notional <= Decimal("50000")
 
 
 def test_underweight_has_half_the_absolute_weight_of_buy_and_sell():

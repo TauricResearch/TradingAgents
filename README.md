@@ -234,10 +234,27 @@ These are forecast controls, not guarantees of future realized volatility or
 profit.
 
 The allocator maps Buy/Overweight/Hold/Underweight/Sell to signed conviction targets, where
-Hold targets zero exposure. Managed gross target notional cannot exceed 30% of current positive
-Alpaca cash; the configured percentage may be lowered but not raised above `0.30`. Current
+Hold targets zero exposure. With the cash-reserve target disabled, managed gross target notional
+cannot exceed 90% of current positive Alpaca cash; the configured percentage may be lowered but
+not raised above `0.90`. Current
 positions and outstanding open-order exposure are reconciled toward each target, rather than
-adding the allocation again on every cycle.
+adding the allocation again on every cycle. When at least one fresh decision is non-Hold, the
+normalized targets use the full configured gross budget; fills, price movement, and broker
+rejections can make actual position value differ temporarily.
+
+`TRADINGAGENTS_MAX_CASH_RESERVE_USD` defaults to `$70,000` as a best-effort
+maximum cash reserve, providing a buffer below the `$75,000` operating goal.
+Positive convictions are scaled by their relative weights
+so projected cash reaches the reserve after accounting for short exposure; no
+long exposure is invented when every decision is Hold, Underweight, or Sell.
+This target can use leverage and produce negative cash. It is not guaranteed:
+the 15% forecast-volatility target, 20% forecast ceiling, 2.0-times-equity gross
+ceiling, and broker buying power take precedence and may leave more than
+`$70,000` cash; fills and price movement can also change the realized balance.
+
+Alpaca margin, leverage, and short selling may be used when the account and asset permit them.
+Opening shorts are submitted in whole shares because Alpaca does not support fractional short
+sales, and every opening order remains subject to Alpaca's buying-power check.
 
 After reviewing dry-run plans, enable automatic paper orders with:
 
