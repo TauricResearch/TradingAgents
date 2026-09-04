@@ -86,3 +86,16 @@ authoritative local instructions.
   produced 128 passes. Ruff, `compileall`, and `git diff --check` passed.
 - No network or broker mutation was attempted. The pre-existing fractional
   equity-short implementation and test hunks remain unstaged.
+
+## Follow-up Round 2: Raw Position Quantity Sign
+
+- Commit `e695b50` validates the raw Alpaca option-position quantity as finite,
+  strictly positive, and integral before applying the broker-reported long or
+  short side. A negative raw quantity can no longer be hidden by `abs()`.
+- Equity position normalization is unchanged.
+- RED: both long-side and short-side `qty="-1"` regressions failed because the
+  adapter accepted and normalized the records. GREEN: the two regressions plus
+  the fractional-position regressions produced 4 passes; the full Alpaca
+  adapter suite produced 130 passes.
+- Ruff, `compileall`, and `git diff --check` passed. No network or broker call
+  was made, and the pre-existing fractional-equity-short hunks remain unstaged.
