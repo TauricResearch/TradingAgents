@@ -88,3 +88,39 @@ Both concerns above were resolved by implementation commit
   `git diff --cached --check` all passed.
 - No real credentials, network, broker submission, automation execution, or
   `launchctl` was used.
+
+## Formal Fix Round 2
+
+Implementation commit: `8b6cb0d8c0fbf9e6e1c87197b76ba7f3b7912b58`.
+
+- `refresh_earnings.py` now loads the repository's explicit `.env` before
+  importing `DEFAULT_CONFIG`. The LaunchAgent example also declares the
+  absolute repository working directory. A subprocess regression runs from a
+  different current directory, proves the intended configuration is loaded,
+  and proves an out-of-gate scheduled invocation performs no fetch.
+- Scheduler suppression outcomes now include their persisted `ran_at`
+  timestamp. Reports render an as-of time and fail closed to an explicit stale
+  result after the configured analysis cadence or the 15-minute options
+  cadence, including after reopening state.
+- Current risk now includes each remaining opening option order by retrieving
+  its exact normalized contract. Signed remaining delta affects combined
+  exposure, and the absolute per-leg exposure affects gross leverage. A
+  malformed or stale exact contract makes the complete current-risk block
+  unavailable instead of silently omitting exposure.
+
+### Fix-round TDD and Verification
+
+- RED: focused tests demonstrated that non-project invocation ignored the
+  project `.env`, suppression rows omitted freshness timestamps, pending
+  sell-to-open exposure did not change delta or gross, and the plist lacked a
+  working directory.
+- GREEN focused suite: `149 passed, 6 warnings`.
+- Coordinated integration suite: `355 passed, 6 warnings`.
+- Full suite: `933 passed, 1 skipped, 69 subtests passed in 117.08s`.
+  The skip remains the unavailable optional `langchain_aws` dependency; the 24
+  warnings are the existing model-catalog and pytest temporary-directory
+  warnings.
+- Ruff, `compileall`, `plutil -lint`, worktree `git diff --check`, and staged
+  `git diff --cached --check` all passed.
+- No real credentials, network, broker submission, automation execution, or
+  `launchctl` was used.
