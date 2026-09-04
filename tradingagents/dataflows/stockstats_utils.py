@@ -328,6 +328,26 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
     )
 
+    def validate_alpaca_for_consumer(data):
+        normalized = _normalize_alpaca_ohlcv_range(
+            data, symbol, canonical, start_str, alpaca_end_str
+        )
+        requested_rows = normalized.loc[normalized["Date"] <= curr_date_dt].copy()
+        if requested_rows.empty:
+            raise AlpacaMarketDataError(
+                symbol,
+                canonical,
+                f"Alpaca returned no daily bars on or before {curr_date}",
+            )
+        _assert_ohlcv_not_stale(
+            requested_rows,
+            curr_date,
+            symbol,
+            canonical,
+            error_type=AlpacaMarketDataError,
+        )
+        return requested_rows
+
     # A cached file may be empty if a prior fetch failed (unknown symbol,
     # transient rate limit). Treat an empty/columnless cache as a miss and
     # re-fetch rather than serving the poisoned file forever.
@@ -337,9 +357,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
         try:
             if alpaca:
-                cached = _normalize_alpaca_ohlcv_range(
-                    cached, symbol, canonical, start_str, alpaca_end_str
-                )
+                cached = validate_alpaca_for_consumer(cached)
             else:
                 cached = _normalize_ohlcv(cached, symbol, canonical)
         except NoMarketDataError:
@@ -371,21 +389,8 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
 
         if alpaca_enabled:
             try:
-                downloaded = _normalize_alpaca_ohlcv_range(
-                    _fetch_alpaca_ohlcv(canonical, start_str, alpaca_end_str),
-                    symbol,
-                    canonical,
-                    start_str,
-                    alpaca_end_str,
-                )
-                dates = _coerce_ohlcv_dates(downloaded)
-                requested_rows = downloaded.loc[dates <= curr_date_dt]
-                _assert_ohlcv_not_stale(
-                    requested_rows,
-                    curr_date,
-                    symbol,
-                    canonical,
-                    error_type=AlpacaMarketDataError,
+                downloaded = validate_alpaca_for_consumer(
+                    _fetch_alpaca_ohlcv(canonical, start_str, alpaca_end_str)
                 )
                 downloaded.to_csv(alpaca_data_file, index=False, encoding="utf-8")
             except AlpacaMarketDataError:

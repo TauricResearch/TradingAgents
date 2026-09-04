@@ -231,7 +231,7 @@ def test_stock_data_falls_back_when_alpaca_bars_are_stale(monkeypatch):
     result = yfinance_data.get_YFin_data_online("AAPL", "2026-08-25", "2026-08-25")
 
     assert "102" in result
-    assert "50" not in result
+    assert "2025-01-01" not in result
 
 
 @pytest.mark.unit
@@ -489,6 +489,86 @@ def test_load_ohlcv_filters_future_alpaca_rows_before_caching(monkeypatch, tmp_p
 
     assert result["Close"].tolist() == [100, 110]
     assert cached["Date"].tolist() == ["2026-08-24", "2026-08-25"]
+
+
+@pytest.mark.unit
+def test_load_ohlcv_falls_back_when_alpaca_rows_are_after_consumer_date(
+    monkeypatch, tmp_path
+):
+    today = pd.Timestamp.today()
+    curr_date = (today - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    later_date = (today - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    alpaca_cache = tmp_path / _cache_name("Alpaca-IEX", today)
+    yahoo_calls = []
+
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+    monkeypatch.setattr(
+        stockstats, "_fetch_alpaca_ohlcv", lambda *_: _bars((later_date,), (150,))
+    )
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: yahoo_calls.append(1)
+        or _bars((curr_date,), (101,)).set_index("Date"),
+    )
+
+    result = stockstats.load_ohlcv("AAPL", curr_date)
+
+    assert result["Close"].tolist() == [101]
+    assert yahoo_calls == [1]
+    assert not alpaca_cache.exists()
+
+
+@pytest.mark.unit
+def test_stale_alpaca_cache_retries_primary_without_changing_fallback_provenance(
+    monkeypatch, tmp_path
+):
+    today = pd.Timestamp.today()
+    curr_date = (today - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    stale_date = (today - pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    alpaca_cache = tmp_path / _cache_name("Alpaca-IEX", today)
+    yahoo_cache = tmp_path / _cache_name("YFin", today)
+    _bars((stale_date,), (80,)).to_csv(alpaca_cache, index=False)
+    alpaca_calls = []
+    yahoo_calls = []
+
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+
+    def fetch_alpaca(*_args):
+        alpaca_calls.append(1)
+        if len(alpaca_calls) == 1:
+            raise stockstats.AlpacaMarketDataError("AAPL", detail="temporary outage")
+        return _bars((curr_date,), (150,))
+
+    monkeypatch.setattr(stockstats, "_fetch_alpaca_ohlcv", fetch_alpaca)
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: yahoo_calls.append(1)
+        or _bars((curr_date,), (101,)).set_index("Date"),
+    )
+
+    fallback = stockstats.load_ohlcv("AAPL", curr_date)
+
+    assert fallback["Close"].tolist() == [101]
+    assert pd.read_csv(alpaca_cache)["Close"].tolist() == [80]
+    assert pd.read_csv(yahoo_cache)["Close"].tolist() == [101]
+
+    recovered = stockstats.load_ohlcv("AAPL", curr_date)
+
+    assert recovered["Close"].tolist() == [150]
+    assert alpaca_calls == [1, 1]
+    assert yahoo_calls == [1]
+    assert pd.read_csv(alpaca_cache)["Close"].tolist() == [150]
+    assert pd.read_csv(yahoo_cache)["Close"].tolist() == [101]
 
 
 @pytest.mark.unit

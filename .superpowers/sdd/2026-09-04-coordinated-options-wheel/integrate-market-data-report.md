@@ -28,7 +28,7 @@ The evidence in this section records the initial implementation cycle. The later
 
 ## Formal Fix Round 1
 
-- Separated cache namespaces into `YFin` and `Alpaca-IEX`; enabled approved-symbol runs cannot read or write the Yahoo-mode path, and disabled runs cannot read the Alpaca-mode path.
+- Separated cache namespaces into `YFin` and `Alpaca-IEX`. An enabled approved-symbol run uses Yahoo's namespace only after a typed Alpaca failure, never as Alpaca provenance or as a reason to skip the next Alpaca attempt; disabled runs never read the Alpaca namespace.
 - Replaced unconditional `reset_index()` handling with one strict canonicalizer that returns exactly Date/Open/High/Low/Close/Volume, normalizes timestamps, requires finite positive prices and nonnegative volume, and enforces coherent highs and lows before caching or return.
 - Added `AlpacaMarketDataError`. Missing credentials/dependencies, Alpaca API errors, request timeouts/errors, OS/network failures, empty frames, malformed frames, and stale frames use this sanitized typed boundary. Routing catches only this type; unexpected `RuntimeError` and `TypeError` propagate without invoking Yahoo.
 - Restricted Alpaca IEX routing to AAPL, MSFT, NVDA, AMZN, META, GOOG, and TSLA. Every other symbol stays on Yahoo.
@@ -49,3 +49,13 @@ The evidence in this section records the initial implementation cycle. The later
 - Integrated: the market-data, date-boundary, environment, cache, stale-data, no-data, symbol, and vendor-routing slice passed with 130 tests.
 - Full: `.venv/bin/pytest -q --ignore='tests/test_alpaca_ohlcv_fallback 2.py'` passed with 1,079 tests and 69 subtests; one optional `langchain_aws` test was skipped. The preserved untracked duplicate remained excluded as directed.
 - Staged-only/static: the same 130-test integration slice and owned-file Ruff check passed from an archive of `git write-tree`; `git diff --check` also passed.
+
+## Formal Fix Round 3
+
+- Alpaca cache entries and downloads are filtered and validated against the actual consumer `curr_date` before acceptance or cache writes. Rows exclusively after that date are typed unavailable and use Yahoo fallback without creating an Alpaca cache entry.
+- A structurally valid but consumer-stale Alpaca cache is treated as a cache miss before the generic final guard. The run retries Alpaca; a typed failure can populate Yahoo's cache without deleting or relabeling the stale Alpaca entry, and a later validated Alpaca response replaces only the Alpaca entry.
+- RED: both consumer-date regressions failed against the prior implementation: future-only data reached the final generic no-data error, while a stale Alpaca cache reached the final generic stale error without attempting either provider.
+- GREEN: both focused regressions passed, followed by all 49 market-data fallback tests.
+- Integrated: the market-data, date-boundary, environment, cache, stale-data, no-data, symbol, and vendor-routing slice passed with 132 tests.
+- Full: `.venv/bin/pytest -q --ignore='tests/test_alpaca_ohlcv_fallback 2.py'` passed with 1,081 tests and 69 subtests; one optional `langchain_aws` test was skipped, with the preserved duplicate excluded as directed.
+- Staged-only/static: the same 132-test integration slice and owned-file Ruff check passed from an archive of `git write-tree`; `git diff --check` also passed.
