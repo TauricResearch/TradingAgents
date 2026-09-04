@@ -59,7 +59,14 @@ def scale_equity_targets(
     equity = _decimal(equity, "equity")
     target = _decimal(target_volatility, "target volatility")
     maximum = _decimal(max_volatility, "maximum volatility")
-    gross_limit = _decimal(max_gross_leverage, "maximum gross leverage") * equity
+    maximum_gross = _decimal(max_gross_leverage, "maximum gross leverage")
+    if target <= 0:
+        raise ValueError("target volatility must be positive")
+    if maximum <= 0:
+        raise ValueError("maximum volatility must be positive")
+    if maximum_gross <= 0:
+        raise ValueError("maximum gross leverage must be positive")
+    gross_limit = maximum_gross * equity
     option_values = {
         symbol: _decimal(value, "fixed option exposure")
         for symbol, value in fixed_option_exposure.items()
@@ -81,12 +88,14 @@ def scale_equity_targets(
     discriminant = b * b - a * (c - target * target)
     if a <= 0 or discriminant < 0:
         raise ValueError("portfolio volatility target is infeasible")
-    upper = (-b + discriminant.sqrt()) / a
-    scale = min(gross_scale, upper)
-    if scale < 0:
+    square_root = discriminant.sqrt()
+    lower = max(Decimal("0"), (-b - square_root) / a)
+    upper = min(gross_scale, (-b + square_root) / a)
+    if lower > upper:
         raise ValueError("portfolio volatility target is infeasible")
+    scale = upper
 
-    anchor_symbol = next(reversed(equity_values))
+    anchor_symbol = next(symbol for symbol in reversed(equity_values) if equity_values[symbol] != 0)
     anchor_value = equity_values[anchor_symbol]
     anchor_target = anchor_value * scale
     targets = {
@@ -114,6 +123,9 @@ def scale_equity_targets(
 def _portfolio_returns(exposure, equity, returns):
     _aligned_observation_count(returns)
     values = {symbol: _decimal(value, "exposure") for symbol, value in exposure.items()}
+    missing_symbols = set(values) - set(returns)
+    if missing_symbols:
+        raise ValueError("missing return history for exposure")
     for _symbol, series in returns.items():
         for value in series:
             _decimal(value, "return")

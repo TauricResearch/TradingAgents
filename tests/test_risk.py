@@ -53,3 +53,65 @@ def test_scaling_preserves_equity_target_ratios_and_respects_limits():
     assert result.targets["AAPL"] == -Decimal("2") * result.targets["MSFT"]
     assert result.forecast_volatility <= Decimal("0.15") + Decimal("0.000001")
     assert result.gross_leverage <= Decimal("2.0")
+
+
+def test_forecast_rejects_exposure_without_aligned_market_history():
+    returns = close_returns({"AAPL": _history([0.01, -0.01] * 20)})
+
+    with pytest.raises(ValueError, match="missing return history"):
+        forecast_volatility({"MISSING": Decimal("50000")}, Decimal("100000"), returns)
+
+
+def test_scaling_rejects_gross_cap_below_hedging_minimum():
+    history = {"AAPL": _history([0.01, -0.01] * 20)}
+
+    with pytest.raises(ValueError, match="portfolio volatility target is infeasible"):
+        scale_equity_targets(
+            {"AAPL": Decimal("-100000")},
+            {"AAPL": Decimal("100000")},
+            Decimal("100000"),
+            history,
+            Decimal("0.05"),
+            Decimal("0.20"),
+            Decimal("1.2"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("target", "maximum", "gross", "message"),
+    [
+        (Decimal("0"), Decimal("0.20"), Decimal("2.0"), "target volatility must be positive"),
+        (Decimal("0.20"), Decimal("0"), Decimal("2.0"), "maximum volatility must be positive"),
+        (Decimal("0.20"), Decimal("0.25"), Decimal("0"), "maximum gross leverage must be positive"),
+    ],
+)
+def test_scaling_rejects_non_positive_risk_limits(target, maximum, gross, message):
+    with pytest.raises(ValueError, match=message):
+        scale_equity_targets(
+            {"AAPL": Decimal("100000")},
+            {},
+            Decimal("100000"),
+            {"AAPL": _history([0.01, -0.01] * 20)},
+            target,
+            maximum,
+            gross,
+        )
+
+
+def test_scaling_preserves_trailing_zero_target():
+    history = {
+        "AAPL": _history([0.01, -0.01] * 20),
+        "ZERO": _history([0.01, -0.01] * 20),
+    }
+
+    result = scale_equity_targets(
+        {"AAPL": Decimal("80000"), "ZERO": Decimal("0")},
+        {},
+        Decimal("100000"),
+        history,
+        Decimal("0.15"),
+        Decimal("0.20"),
+        Decimal("2.0"),
+    )
+
+    assert result.targets["ZERO"] == Decimal("0")
