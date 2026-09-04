@@ -1292,6 +1292,16 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
     silences the fullscreen Live view for server-side runs.
     """
     global dashboard_port
+    # Entry choice comes FIRST: full web app or CLI. Web mode boots the
+    # servers and exits the CLI; the whole flow then happens in the browser.
+    if selections is None and not headless:
+        from cli.webapp import ask_entry_mode, launch_full_web
+
+        if ask_entry_mode() == "web":
+            url = launch_full_web()
+            if url:
+                console.print("\n[green]Web stack is running — continuing there. Exiting CLI.[/green]")
+            raise typer.Exit()
     # First get all user selections
     if selections is None:
         selections = get_user_selections()
@@ -1377,14 +1387,13 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
     # Now start the display layout
     layout = create_layout()
 
-    # Interface choice: the CLI stays the entry point, but just before
-    # research begins the user picks where to watch this run. Browser mode
-    # boots the Next.js app (building it first if needed); the analysis
-    # itself still runs here until the web app can drive runs on its own.
-    # CLI mode continues with the terminal flow below unchanged.
-    from cli.webapp import ask_interface, launch_browser_mode
+    # Watch choice at research start (CLI mode): terminal panels or the
+    # scroll webpage. Both observe the same run simultaneously — the
+    # dashboard server always starts (unless TRADINGAGENTS_WEB=0).
+    from cli.webapp import ask_watch_mode
 
-    webapp_url = None
+    watch = ask_watch_mode() if not headless else "cli"
+    silent_live = headless or watch == "browser"
     # prompt_server feeds the 3 post-run prompts: the interactive dashboard
     # server in CLI mode, or the web run's hub in headless (API) mode.
     prompt_server = prompt_hub
@@ -1392,10 +1401,6 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
     if headless:
         dashboard_port = None
     else:
-        if ask_interface() == "browser":
-            webapp_url = launch_browser_mode()
-            if webapp_url is None:
-                console.print("[yellow]Falling back to CLI mode.[/yellow]")
 
         # Web dashboard: scrollable mirror of the three panels. The Rich Live
         # view takes over the terminal, so print the URL beforehand; it is also
@@ -1418,21 +1423,24 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
             except ValueError:
                 dashboard_port = None
             console.print(f"\n[bold cyan]Web dashboard:[/bold cyan] {dashboard_url}")
-            console.print("[dim]Continuing to the terminal view in 5s...[/dim]\n")
-            time.sleep(5)
+            if watch == "browser":
+                console.print("[dim]Watching from the scroll page — terminal stays quiet.[/dim]\n")
+            else:
+                console.print("[dim]Continuing to the terminal view in 5s...[/dim]\n")
+                time.sleep(5)
         else:
             dashboard_port = None
         prompt_server = dashboard_server
 
-    # Headless (API-driven) runs render into a discarded console so server
-    # logs stay clean; the terminal flow is otherwise identical.
+    # Silent rendering (API-driven runs, or browser-watch mode): the Live
+    # view renders into a discarded console so logs/terminal stay clean.
     # UTF-8: the locale default (cp1252 on Windows) cannot encode the ⏱/arrow
     # symbols in the panels and would raise inside the render itself.
-    _devnull = open(os.devnull, "w", encoding="utf-8") if headless else None
+    _devnull = open(os.devnull, "w", encoding="utf-8") if silent_live else None
     live_kwargs = (
         {"refresh_per_second": 2, "screen": False, "redirect_stderr": False,
          "console": Console(file=_devnull)}
-        if headless
+        if silent_live
         else {"refresh_per_second": 30, "screen": True, "redirect_stderr": False}
     )
     with Live(layout, **live_kwargs):
