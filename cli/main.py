@@ -117,7 +117,7 @@ class MessageBuffer:
         "final_trade_decision": (None, "Portfolio Manager"),
     }
 
-    def __init__(self, max_length=100):
+    def __init__(self, max_length=300):
         self.messages = deque(maxlen=max_length)
         self.tool_calls = deque(maxlen=max_length)
         self.current_report = None
@@ -127,6 +127,7 @@ class MessageBuffer:
         self.report_sections = {}
         self.selected_analysts = []
         self._processed_message_ids = set()
+        self.last_update = time.time()  # heartbeat: last message/tool/status/report event
 
     def init_for_analysis(self, selected_analysts):
         """Initialize agent status and report sections based on selected analysts.
@@ -162,6 +163,7 @@ class MessageBuffer:
         self.messages.clear()
         self.tool_calls.clear()
         self._processed_message_ids.clear()
+        self._touch()
 
     def get_completed_reports_count(self):
         """Count reports that are finalized (their finalizing agent is completed).
@@ -184,23 +186,37 @@ class MessageBuffer:
                 count += 1
         return count
 
+    def _touch(self):
+        self.last_update = time.time()
+
+    def last_activity_age(self) -> int:
+        """Seconds since the last agent event (message/tool/status/report)."""
+        try:
+            return max(0, int(time.time() - self.last_update))
+        except Exception:
+            return 0
+
     def add_message(self, message_type, content):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
+        self._touch()
 
     def add_tool_call(self, tool_name, args):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
+        self._touch()
 
     def update_agent_status(self, agent, status):
         if agent in self.agent_status:
             self.agent_status[agent] = status
             self.current_agent = agent
+            self._touch()
 
     def update_report_section(self, section_name, content):
         if section_name in self.report_sections:
             self.report_sections[section_name] = content
             self._update_current_report()
+            self._touch()
 
     def _update_current_report(self):
         # For the panel display, only show the most recently updated section
@@ -516,8 +532,8 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Add regular messages
     for timestamp, msg_type, content in message_buffer.messages:
         content_str = str(content) if content else ""
-        if len(content_str) > 200:
-            content_str = content_str[:197] + "..."
+        if len(content_str) > 500:
+            content_str = content_str[:497] + "..."
         all_messages.append((timestamp, msg_type, content_str))
 
     # Sort by timestamp descending (newest first)
@@ -625,6 +641,15 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         elapsed = time.time() - start_time
         elapsed_str = f"\u23f1 {int(elapsed // 60):02d}:{int(elapsed % 60):02d}"
         stats_parts.append(elapsed_str)
+
+    # Live-activity heartbeat: which agent last did anything, and how long
+    # ago — so the terminal view never looks frozen during long LLM calls.
+    try:
+        _age = message_buffer.last_activity_age()
+        _agent = message_buffer.current_agent or "idle"
+        stats_parts.append(f"\u25cf {_agent} {_age}s ago")
+    except Exception:
+        pass
 
     stats_table = Table(show_header=False, box=None, padding=(0, 2), expand=True)
     stats_table.add_column("Stats", justify="center")
