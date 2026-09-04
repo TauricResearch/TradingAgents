@@ -139,6 +139,18 @@ def _required_decimal(value, message: str) -> Decimal:
     return result
 
 
+def _required_text(value, message: str) -> str:
+    if value is None:
+        raise RuntimeError(message)
+    try:
+        result = _enum_text(value).strip()
+    except (AttributeError, TypeError, ValueError) as error:
+        raise RuntimeError(message) from error
+    if not result:
+        raise RuntimeError(message)
+    return result
+
+
 def _alpaca_class(module: str, name: str):
     try:
         return getattr(importlib.import_module(module), name)
@@ -273,13 +285,20 @@ class AlpacaBroker:
             raise RuntimeError("Alpaca account is blocked from trading")
         if status.upper() != "ACTIVE":
             raise RuntimeError("Alpaca account is not active")
-        options_buying_power = _required_decimal(
-            getattr(raw, "options_buying_power", None),
-            "Alpaca options buying power is unavailable",
+        account_values_error = "Alpaca account values are unavailable"
+        cash = _required_decimal(getattr(raw, "cash", None), account_values_error)
+        equity = _required_decimal(getattr(raw, "equity", None), account_values_error)
+        buying_power = _required_decimal(
+            getattr(raw, "buying_power", None), account_values_error
         )
+        options_buying_power = _required_decimal(
+            getattr(raw, "options_buying_power", None), account_values_error
+        )
+        if cash < 0 or equity <= 0 or buying_power < 0 or options_buying_power < 0:
+            raise RuntimeError(account_values_error)
         return AccountSnapshot(
-            cash=_decimal(raw.cash),
-            buying_power=_decimal(raw.buying_power),
+            cash=cash,
+            buying_power=buying_power,
             trading_blocked=False,
             status=status,
             options_buying_power=options_buying_power,
@@ -508,7 +527,9 @@ class AlpacaBroker:
         validated_contracts = []
         for raw in raw_contracts:
             try:
-                symbol = str(raw.symbol)
+                symbol = _required_text(
+                    getattr(raw, "symbol", None), "Alpaca option contract is malformed"
+                )
                 returned_underlying = str(raw.underlying_symbol)
                 returned_kind = _enum_text(raw.type).casefold()
                 returned_status = _enum_text(raw.status).casefold()
@@ -585,7 +606,9 @@ class AlpacaBroker:
                     raise RuntimeError("Alpaca position record is unclassifiable")
                 if asset_class == "crypto":
                     continue
-                symbol = str(raw.symbol)
+                symbol = _required_text(
+                    getattr(raw, "symbol", None), "Alpaca position record is malformed"
+                )
                 side = _enum_text(raw.side).casefold()
                 qty = abs(
                     _required_decimal(raw.qty, "Alpaca position record is malformed")
@@ -653,26 +676,42 @@ class AlpacaBroker:
             if asset_class != "us_option":
                 continue
             try:
-                symbol = str(raw.symbol)
+                record_error = "Alpaca option order record is malformed"
+                symbol = _required_text(getattr(raw, "symbol", None), record_error)
                 underlying, kind, strike = _option_symbol_parts(symbol)
-                qty = _required_decimal(raw.qty, "Alpaca option order record is malformed")
-                filled_qty = _required_decimal(
-                    raw.filled_qty, "Alpaca option order record is malformed"
+                position_intent = _required_text(
+                    getattr(raw, "position_intent", None), record_error
+                ).casefold()
+                if position_intent not in {
+                    "buy_to_open",
+                    "buy_to_close",
+                    "sell_to_open",
+                    "sell_to_close",
+                }:
+                    raise RuntimeError(record_error)
+                order_id = _required_text(getattr(raw, "id", None), record_error)
+                client_order_id = _required_text(
+                    getattr(raw, "client_order_id", None), record_error
                 )
+                submitted_at = getattr(raw, "submitted_at", None)
+                if not isinstance(submitted_at, datetime) or submitted_at.utcoffset() is None:
+                    raise RuntimeError(record_error)
+                qty = _required_decimal(getattr(raw, "qty", None), record_error)
+                filled_qty = _required_decimal(getattr(raw, "filled_qty", None), record_error)
                 if qty <= 0 or filled_qty < 0 or filled_qty > qty:
-                    raise RuntimeError("Alpaca option order record is malformed")
+                    raise RuntimeError(record_error)
                 open_orders.append(
                     OptionOpenOrder(
                         symbol=symbol,
                         underlying=underlying,
                         kind=kind,
-                        position_intent=_enum_text(raw.position_intent).casefold(),
+                        position_intent=position_intent,
                         qty=qty,
                         filled_qty=filled_qty,
                         strike=strike,
-                        order_id=str(raw.id),
-                        client_order_id=str(raw.client_order_id),
-                        submitted_at=raw.submitted_at,
+                        order_id=order_id,
+                        client_order_id=client_order_id,
+                        submitted_at=submitted_at,
                     )
                 )
             except RuntimeError:

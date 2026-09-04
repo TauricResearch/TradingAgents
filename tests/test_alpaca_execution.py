@@ -197,9 +197,46 @@ def test_account_rejects_missing_or_malformed_options_buying_power(raw):
         "key", "secret", "paper", client=SimpleNamespace(get_account=lambda: raw)
     )
 
-    with pytest.raises(RuntimeError, match="options buying power") as error:
+    with pytest.raises(RuntimeError, match="account values") as error:
         broker.account()
     assert "private-malformed-value" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("cash", None),
+        ("cash", "NaN"),
+        ("equity", None),
+        ("equity", "0"),
+        ("equity", "Infinity"),
+        ("buying_power", None),
+        ("buying_power", "private-invalid"),
+        ("options_buying_power", "-Infinity"),
+    ],
+)
+def test_account_rejects_invalid_required_decimal_fields(field, value):
+    values = {
+        "cash": "0",
+        "equity": "120000",
+        "buying_power": "0",
+        "options_buying_power": "0",
+        "trading_blocked": False,
+        "account_blocked": False,
+        "trade_suspended_by_user": False,
+        "status": _enum("ACTIVE"),
+    }
+    values[field] = value
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_account=lambda: SimpleNamespace(**values)),
+    )
+
+    with pytest.raises(RuntimeError, match="Alpaca account values are unavailable") as error:
+        broker.account()
+    assert "private-invalid" not in str(error.value)
 
 
 def test_asset_mapping_folds_inactive_status_into_tradability():
@@ -1187,6 +1224,35 @@ def test_wheel_positions_reject_missing_quantity():
     assert "private-position-symbol" not in str(error.value)
 
 
+@pytest.mark.parametrize(
+    ("asset_class", "symbol"),
+    [
+        (_enum("us_equity"), None),
+        (_enum("us_equity"), "   "),
+        (_enum("us_option"), None),
+        (_enum("us_option"), ""),
+    ],
+)
+def test_wheel_positions_reject_missing_or_blank_symbols(asset_class, symbol):
+    raw = SimpleNamespace(
+        symbol=symbol,
+        asset_class=asset_class,
+        side=_enum("long"),
+        qty="1",
+        avg_entry_price="1",
+        current_price="1",
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [raw], get_orders=lambda: []),
+    )
+
+    with pytest.raises(RuntimeError, match="position record"):
+        broker.wheel_positions_and_orders()
+
+
 @pytest.mark.parametrize("asset_class", [None, _enum("unknown")])
 def test_wheel_orders_reject_unclassifiable_records(asset_class):
     raw = SimpleNamespace(
@@ -1232,6 +1298,69 @@ def test_wheel_orders_reject_missing_quantity():
     with pytest.raises(RuntimeError, match="order record") as error:
         broker.wheel_positions_and_orders()
     assert "private-order-id" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("symbol", None),
+        ("symbol", "  "),
+        ("position_intent", None),
+        ("position_intent", ""),
+        ("position_intent", _enum("unknown")),
+        ("id", None),
+        ("id", ""),
+        ("client_order_id", None),
+        ("client_order_id", "   "),
+        ("submitted_at", None),
+    ],
+)
+def test_wheel_orders_reject_missing_required_stale_order_fields(field, value):
+    fields = {
+        "id": "order-id",
+        "client_order_id": "ta-wheel-owned",
+        "symbol": "AAPL260925P00195000",
+        "asset_class": _enum("us_option"),
+        "position_intent": _enum("sell_to_open"),
+        "qty": "1",
+        "filled_qty": "0",
+        "submitted_at": datetime(2026, 9, 4, tzinfo=timezone.utc),
+    }
+    fields[field] = value
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(
+            get_all_positions=lambda: [],
+            get_orders=lambda: [SimpleNamespace(**fields)],
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="option order record"):
+        broker.wheel_positions_and_orders()
+
+
+def test_absent_option_order_intent_cannot_disappear_from_reservations():
+    raw = SimpleNamespace(
+        id="order-id",
+        client_order_id="ta-wheel-owned",
+        symbol="AAPL260925P00195000",
+        asset_class=_enum("us_option"),
+        position_intent=None,
+        qty="1",
+        filled_qty="0",
+        submitted_at=datetime(2026, 9, 4, tzinfo=timezone.utc),
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [], get_orders=lambda: [raw]),
+    )
+
+    with pytest.raises(RuntimeError, match="option order record"):
+        broker.wheel_positions_and_orders()
 
 
 def test_wheel_option_position_rejects_missing_delta(monkeypatch):
