@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -242,3 +243,56 @@ def test_scheduled_refresh_skips_duplicate_new_york_date_without_fetch(tmp_path,
     assert json.loads(target.read_text(encoding="utf-8"))["retrieved_at"] == (
         "2026-09-07T12:30:05+00:00"
     )
+
+
+def test_scheduled_import_loads_project_env_from_non_project_cwd_without_fetch(tmp_path):
+    isolated_project = tmp_path / "isolated-project"
+    isolated_scripts = isolated_project / "scripts"
+    isolated_scripts.mkdir(parents=True)
+    isolated_script = isolated_scripts / "refresh_earnings.py"
+    shutil.copyfile(PROJECT_ROOT / "scripts/refresh_earnings.py", isolated_script)
+    cache = isolated_project / "configured-earnings.json"
+    (isolated_project / ".env").write_text(
+        f"TRADINGAGENTS_WATCHLIST={','.join(SYMBOLS)}\n"
+        f"TRADINGAGENTS_OPTIONS_EARNINGS_PATH={cache}\n",
+        encoding="utf-8",
+    )
+    outside_cwd = tmp_path / "outside"
+    outside_cwd.mkdir()
+    code = f"""
+import importlib.util
+from datetime import datetime, timezone
+spec = importlib.util.spec_from_file_location('isolated_refresh', {str(isolated_script)!r})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.main(
+    fetch=lambda symbol: (_ for _ in ()).throw(AssertionError('must not fetch')),
+    now=datetime(2026, 9, 7, 12, 29, tzinfo=timezone.utc),
+    scheduled=True,
+)
+print(module.DEFAULT_CONFIG['watchlist'])
+print(module.DEFAULT_CONFIG['options_earnings_path'])
+"""
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        not in {
+            "TRADINGAGENTS_WATCHLIST",
+            "TRADINGAGENTS_OPTIONS_EARNINGS_PATH",
+        }
+    }
+    environment["PYTHONPATH"] = str(PROJECT_ROOT)
+
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=outside_cwd,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [",".join(SYMBOLS), str(cache)]
+    assert not cache.exists()

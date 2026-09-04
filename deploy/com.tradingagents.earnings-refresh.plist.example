@@ -8,6 +8,8 @@
   <true/>
   <key>RunAtLoad</key>
   <false/>
+  <key>WorkingDirectory</key>
+  <string>/Users/zzjsmacbookair/Documents/Codex/2026-08-11/you-are-working-in-tauricresearch-tradingagents/work/TradingAgents</string>
   <key>ProgramArguments</key>
   <array>
     <string>/Users/zzjsmacbookair/Documents/Codex/2026-08-11/you-are-working-in-tauricresearch-tradingagents/work/TradingAgents/.venv/bin/python</string>

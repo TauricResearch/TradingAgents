@@ -13,10 +13,15 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from dotenv import load_dotenv
 
-from tradingagents.default_config import DEFAULT_CONFIG
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if __package__ in (None, ""):
+    sys.path.insert(0, str(PROJECT_DIR))
+
+load_dotenv(PROJECT_DIR / ".env", override=False)
+
+from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 
 LOGGER = logging.getLogger(__name__)
 SOURCE = "Wall Street Horizon"

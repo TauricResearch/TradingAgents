@@ -15,7 +15,12 @@ from dotenv import load_dotenv
 
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.execution import AlpacaBroker
-from tradingagents.options import build_reservations, option_delta_exposure
+from tradingagents.options import (
+    CONTRACT_MULTIPLIER,
+    MAX_QUOTE_AGE,
+    build_reservations,
+    option_delta_exposure,
+)
 from tradingagents.risk import close_returns, forecast_volatility
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -56,34 +61,109 @@ def _option_intent_rows(state_path: Path, since: datetime):
         ).fetchall()
 
 
-def _suppression_outcomes(state_path: Path) -> tuple[str, ...]:
+def _suppression_outcomes(
+    state_path: Path,
+    now: datetime,
+    analysis_interval_minutes: int,
+) -> tuple[str, ...]:
     if not state_path.exists():
         return ("analysis: Unavailable", "options: Unavailable")
     try:
         with sqlite3.connect(state_path, timeout=10) as connection:
-            rows = dict(
-                connection.execute(
+            rows = {
+                task: (ran_at, reason)
+                for task, ran_at, reason in connection.execute(
                     """
-                    SELECT task, suppression_reason FROM task_outcomes
+                    SELECT task, ran_at, suppression_reason FROM task_outcomes
                     WHERE task IN ('analysis', 'options')
                     """
                 ).fetchall()
-            )
+            }
     except sqlite3.Error:
         return ("analysis: Unavailable", "options: Unavailable")
-    return tuple(
-        f"{task}: {rows[task] or 'None'}" if task in rows else f"{task}: Unavailable"
-        for task in ("analysis", "options")
-    )
+
+    outcomes = []
+    for task, cadence in (("analysis", analysis_interval_minutes), ("options", 15)):
+        if task not in rows:
+            outcomes.append(f"{task}: Unavailable")
+            continue
+        ran_at_text, reason = rows[task]
+        try:
+            ran_at = datetime.fromisoformat(ran_at_text)
+            if ran_at.tzinfo is None or ran_at.utcoffset() is None or ran_at > now:
+                raise ValueError("invalid scheduler outcome timestamp")
+        except (TypeError, ValueError):
+            outcomes.append(f"{task}: Unavailable")
+            continue
+        if now - ran_at > timedelta(minutes=cadence):
+            outcomes.append(f"{task}: Unavailable (stale; as of {ran_at.isoformat()})")
+        else:
+            outcomes.append(f"{task} as of {ran_at.isoformat()}: {reason or 'None'}")
+    return tuple(outcomes)
 
 
-def _current_risk_summary(broker, symbols: tuple[str, ...], suppression_reasons):
+def _pending_option_exposure(broker, option_orders, prices, now):
+    exposure = {}
+    gross = Decimal("0")
+    for order in option_orders:
+        position_intent = order.position_intent.casefold()
+        if position_intent not in {"buy_to_open", "sell_to_open"}:
+            continue
+        remaining = order.qty - order.filled_qty
+        if remaining <= 0:
+            continue
+        contract = broker.option_contract(order.symbol, now)
+        delta = Decimal(contract.delta)
+        bid = Decimal(contract.bid)
+        ask = Decimal(contract.ask)
+        quote_time = contract.quote_time
+        if (
+            contract.symbol != order.symbol
+            or contract.underlying != order.underlying
+            or contract.kind.casefold() != order.kind.casefold()
+            or not delta.is_finite()
+            or abs(delta) > 1
+            or not bid.is_finite()
+            or not ask.is_finite()
+            or bid <= 0
+            or ask <= 0
+            or bid > ask
+            or quote_time is None
+            or quote_time.tzinfo is None
+            or not timedelta(0) <= now - quote_time <= MAX_QUOTE_AGE
+        ):
+            raise ValueError("pending option contract is invalid")
+        sign = Decimal("-1") if position_intent == "sell_to_open" else Decimal("1")
+        amount = sign * remaining * delta * CONTRACT_MULTIPLIER * prices[order.underlying]
+        exposure[order.underlying] = exposure.get(order.underlying, Decimal("0")) + amount
+        gross += abs(amount)
+    return exposure, gross
+
+
+def _current_risk_summary(broker, symbols: tuple[str, ...], suppression_reasons, now):
     try:
         account = broker.account()
         equities, option_positions, option_orders = broker.wheel_positions_and_orders()
         prices = {symbol: broker.latest_price(symbol) for symbol in symbols}
         reservations = build_reservations(equities, option_positions, option_orders)
         option_exposure = option_delta_exposure(option_positions, prices)
+        pending_exposure, pending_gross = _pending_option_exposure(
+            broker, option_orders, prices, now
+        )
+        for symbol, exposure in pending_exposure.items():
+            option_exposure[symbol] = option_exposure.get(symbol, Decimal("0")) + exposure
+        option_gross = pending_gross + sum(
+            (
+                abs(
+                    position.qty
+                    * position.delta
+                    * CONTRACT_MULTIPLIER
+                    * prices[position.underlying]
+                )
+                for position in option_positions
+            ),
+            Decimal("0"),
+        )
         equity_exposure = {}
         for position in equities:
             equity_exposure[position.symbol] = (
@@ -101,7 +181,7 @@ def _current_risk_summary(broker, symbols: tuple[str, ...], suppression_reasons)
         )
         gross_leverage = (
             sum((abs(value) for value in equity_exposure.values()), Decimal("0"))
-            + sum((abs(value) for value in option_exposure.values()), Decimal("0"))
+            + option_gross
         ) / account.equity
         return {
             "wheel_collateral": sum(reservations.put_collateral.values(), Decimal("0")),
@@ -286,8 +366,18 @@ def build_report(now: datetime) -> str:
             os.getenv("TRADINGAGENTS_WATCHLIST", DEFAULT_CONFIG["watchlist"])
         ).split(",")
     )
-    suppression_reasons = _suppression_outcomes(state_path)
-    risk_summary = _current_risk_summary(broker, symbols, suppression_reasons)
+    analysis_interval = int(
+        os.getenv(
+            "TRADINGAGENTS_ANALYSIS_INTERVAL_MINUTES",
+            DEFAULT_CONFIG["analysis_interval_minutes"],
+        )
+    )
+    suppression_reasons = _suppression_outcomes(
+        state_path,
+        now,
+        analysis_interval,
+    )
+    risk_summary = _current_risk_summary(broker, symbols, suppression_reasons, now)
     return format_report(
         account,
         positions,

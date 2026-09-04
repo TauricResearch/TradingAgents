@@ -1,5 +1,6 @@
 import os
 import plistlib
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -9,7 +10,7 @@ from scripts import paper_trading_report as paper_report
 from scripts.paper_trading_report import build_report, format_report
 from tradingagents.automation_state import AutomationState
 from tradingagents.execution import AccountSnapshot
-from tradingagents.options import EquityPosition, OptionPosition
+from tradingagents.options import EquityPosition, OptionContract, OptionOpenOrder, OptionPosition
 
 NOW = datetime(2026, 9, 4, 14, tzinfo=timezone.utc)
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -137,7 +138,17 @@ def test_build_report_computes_current_normalized_wheel_risk(monkeypatch, tmp_pa
                         Decimal("0.20"),
                     ),
                 ),
-                (),
+                (
+                    OptionOpenOrder(
+                        "GOOG261002P00090000",
+                        "GOOG",
+                        "put",
+                        "sell_to_open",
+                        Decimal("1"),
+                        Decimal("0.25"),
+                        Decimal("90"),
+                    ),
+                ),
             )
 
         def latest_price(self, symbol):
@@ -157,6 +168,22 @@ def test_build_report_computes_current_normalized_wheel_risk(monkeypatch, tmp_pa
                 result[symbol] = tuple(rows)
             return result
 
+        def option_contract(self, symbol, now):
+            assert symbol == "GOOG261002P00090000"
+            assert now == NOW
+            return OptionContract(
+                symbol,
+                "GOOG",
+                "put",
+                Decimal("90"),
+                date(2026, 10, 2),
+                Decimal("-0.25"),
+                Decimal("3.00"),
+                Decimal("3.10"),
+                Decimal("500"),
+                NOW - timedelta(seconds=30),
+            )
+
     client = Client()
     broker = Broker()
     monkeypatch.setenv("TRADINGAGENTS_ALPACA_MODE", "paper")
@@ -168,15 +195,88 @@ def test_build_report_computes_current_normalized_wheel_risk(monkeypatch, tmp_pa
 
     report = build_report(NOW)
 
-    assert "Reserved collateral: $9000" in report
+    assert "Reserved collateral: $15750.00" in report
     assert "Covered shares: META 100" in report
-    assert "Option delta exposure: AAPL $2000.00, META $-2000.00" in report
+    assert "Option delta exposure: AAPL $2000.00, GOOG $1875.0000, META $-2000.00" in report
     assert "Combined forecast volatility: Unavailable" not in report
-    assert "Gross leverage: 0.24x" in report
-    assert "analysis: waiting for fresh decisions" in report
-    assert "options: earnings blackout: NVDA" in report
+    assert "Gross leverage: 0.25875x" in report
+    assert f"analysis as of {NOW.isoformat()}: waiting for fresh decisions" in report
+    assert f"options as of {NOW.isoformat()}: earnings blackout: NVDA" in report
     assert "private-api-key" not in report
     assert "private-secret-key" not in report
+
+
+def test_current_risk_fails_closed_when_pending_order_contract_quote_is_invalid():
+    order = OptionOpenOrder(
+        "GOOG261002P00090000",
+        "GOOG",
+        "put",
+        "sell_to_open",
+        Decimal("1"),
+        Decimal("0"),
+        Decimal("90"),
+    )
+    valid_contract = OptionContract(
+        order.symbol,
+        order.underlying,
+        order.kind,
+        order.strike,
+        date(2026, 10, 2),
+        Decimal("-0.25"),
+        Decimal("3.00"),
+        Decimal("3.10"),
+        Decimal("500"),
+        NOW - timedelta(seconds=30),
+    )
+
+    class Broker:
+        def account(self):
+            return SimpleNamespace(equity=Decimal("100000"))
+
+        def wheel_positions_and_orders(self):
+            return (), (), (order,)
+
+        def latest_price(self, symbol):
+            return Decimal("100")
+
+        def option_contract(self, symbol, now):
+            return replace(valid_contract, bid=Decimal("-1"))
+
+    summary = paper_report._current_risk_summary(
+        Broker(),
+        ("AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA"),
+        (),
+        NOW,
+    )
+
+    assert "combined_forecast_volatility" not in summary
+    assert summary["suppression_reasons"] == (
+        "risk: Unavailable (current broker data invalid)",
+    )
+
+
+def test_suppression_outcomes_render_fresh_as_of_and_stale_state(tmp_path):
+    state_path = tmp_path / "state.db"
+    analysis_time = NOW - timedelta(minutes=31)
+    options_time = NOW - timedelta(minutes=15)
+    with AutomationState(state_path) as state:
+        for task, ran_at, reason in (
+            ("analysis", analysis_time, "analysis delayed"),
+            ("options", options_time, None),
+        ):
+            assert state.try_acquire_lease(task, "outcome-test", ran_at, 60)
+            assert state.complete_task_run(
+                task,
+                "outcome-test",
+                ran_at,
+                ran_at,
+                suppression_reason=reason,
+            )
+
+    assert paper_report._suppression_outcomes(state_path, NOW, 30) == (
+        f"analysis: Unavailable (stale; as of {analysis_time.isoformat()})",
+        f"options as of {options_time.isoformat()}: None",
+    )
 
 
 def test_earnings_refresh_plist_is_disabled_and_periodic():
@@ -186,6 +286,7 @@ def test_earnings_refresh_plist_is_disabled_and_periodic():
 
     assert config["Disabled"] is True
     assert config["RunAtLoad"] is False
+    assert config["WorkingDirectory"] == str(PROJECT_DIR)
     assert config["ProgramArguments"] == [
         str(PROJECT_DIR / ".venv/bin/python"),
         str(PROJECT_DIR / "scripts/refresh_earnings.py"),
