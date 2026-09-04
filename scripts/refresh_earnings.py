@@ -46,7 +46,7 @@ def fetch_page(symbol: str, *, open_url=urlopen) -> str:
     except KeyError as error:
         raise ValueError(f"unsupported earnings symbol: {symbol}") from error
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    with open_url(request, 30) as response:
+    with open_url(request, timeout=30) as response:
         return response.read().decode("utf-8")
 
 

@@ -106,3 +106,22 @@ Fix-round TDD evidence:
   watchlist must contain exactly 7 unique symbols`; no fetch or network call.
 - Per coordinator instruction, the full suite was not rerun because concurrent
   Task 6 dirty-worktree changes make that result non-isolating.
+
+## Fix Round 2
+
+Post-verification reproduced a `TypeError` before network I/O because
+`fetch_page()` passed `30` as the second positional argument to
+`urllib.request.urlopen()`, whose second positional parameter is request body
+data rather than timeout. The request-construction fake now makes `timeout`
+keyword-only, proving the production call cannot accidentally supply positional
+body data.
+
+Fix-round TDD evidence:
+
+- RED targeted run: `1 failed`; the fake reported that it received two
+  positional arguments.
+- GREEN focused run: `18 passed` with six unrelated pytest temporary-directory
+  cleanup warnings.
+- The production change is limited to `open_url(request, timeout=30)`; all tests
+  continue to inject the URL opener or page fetcher, so no network or broker call
+  was made.

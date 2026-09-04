@@ -99,7 +99,7 @@ def test_fetch_page_uses_supported_url_and_fixed_user_agent():
         def read(self):
             return b"earnings page"
 
-    def open_url(request, timeout):
+    def open_url(request, *, timeout):
         seen["url"] = request.full_url
         seen["user_agent"] = request.get_header("User-agent")
         seen["timeout"] = timeout
