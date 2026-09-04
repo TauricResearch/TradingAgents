@@ -25,6 +25,20 @@ class PositionSnapshot:
     positions: Mapping[str, Decimal]
 
 
+@dataclass(frozen=True)
+class UnresolvedOrderLookup:
+    client_order_id: str | None
+    ambiguous: bool
+
+
+@dataclass(frozen=True)
+class WheelReservationSnapshot:
+    cycle_id: str
+    captured_at: datetime
+    put_collateral: Mapping[str, Decimal]
+    covered_shares: Mapping[str, Decimal]
+
+
 class AutomationState:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
@@ -64,6 +78,16 @@ class AutomationState:
               underlying TEXT PRIMARY KEY, phase TEXT NOT NULL,
               fingerprint TEXT NOT NULL, updated_at TEXT NOT NULL,
               stable_observations INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS wheel_reservation_snapshots (
+              id INTEGER PRIMARY KEY, cycle_id TEXT NOT NULL,
+              captured_at TEXT NOT NULL, UNIQUE (cycle_id, captured_at)
+            );
+            CREATE TABLE IF NOT EXISTS wheel_reservations (
+              snapshot_id INTEGER NOT NULL, underlying TEXT NOT NULL,
+              kind TEXT NOT NULL, amount TEXT NOT NULL,
+              PRIMARY KEY (snapshot_id, underlying, kind),
+              FOREIGN KEY (snapshot_id) REFERENCES wheel_reservation_snapshots(id)
             );
             CREATE TABLE IF NOT EXISTS task_runs (
               task TEXT PRIMARY KEY, ran_at TEXT NOT NULL
@@ -237,16 +261,23 @@ class AutomationState:
         return dict(rows)
 
     def unresolved_client_order_id(self, intent: OrderIntent) -> str | None:
-        row = self._connection.execute(
+        lookup = self.lookup_unresolved_order_intent(intent)
+        return lookup.client_order_id if lookup is not None and not lookup.ambiguous else None
+
+    def lookup_unresolved_order_intent(
+        self,
+        intent: OrderIntent,
+    ) -> UnresolvedOrderLookup | None:
+        rows = self._connection.execute(
             """
             SELECT client_order_id FROM order_intents
             WHERE symbol = ? AND side = ? AND notional = ? AND target_notional = ?
-              AND status = 'error' AND client_order_id IS NOT NULL
-            ORDER BY created_at DESC LIMIT 1
+              AND status IN ('pending', 'error')
+            ORDER BY created_at DESC
             """,
             (intent.symbol, intent.side, str(intent.notional), str(intent.target_notional)),
-        ).fetchone()
-        return row[0] if row else None
+        ).fetchall()
+        return _unresolved_lookup(rows)
 
     def mark_order_intent_submitted(
         self,
@@ -258,7 +289,7 @@ class AutomationState:
             self._connection.execute(
                 """
                 UPDATE order_intents SET status = 'retired'
-                WHERE client_order_id = ? AND status = 'error'
+                WHERE client_order_id = ? AND status IN ('pending', 'error')
                   AND NOT (cycle_id = ? AND symbol = ?)
                 """,
                 (client_order_id, cycle_id, symbol),
@@ -281,7 +312,8 @@ class AutomationState:
         with self._connection:
             self._connection.execute(
                 """
-                UPDATE order_intents SET status = ?, client_order_id = ?
+                UPDATE order_intents SET status = ?,
+                  client_order_id = COALESCE(?, client_order_id)
                 WHERE cycle_id = ? AND symbol = ?
                 """,
                 (status, client_order_id, cycle_id, symbol),
@@ -338,6 +370,15 @@ class AutomationState:
         if client_order_id is not None:
             _required_option_text(client_order_id, "client order ID")
         with self._connection:
+            if status == "submitted" and client_order_id is not None:
+                self._connection.execute(
+                    """
+                    UPDATE option_order_intents SET status = 'retired'
+                    WHERE client_order_id = ? AND status IN ('pending', 'error')
+                      AND NOT (cycle_id = ? AND contract_symbol = ?)
+                    """,
+                    (client_order_id, cycle_id, contract_symbol),
+                )
             self._connection.execute(
                 """
                 UPDATE option_order_intents SET
@@ -354,20 +395,114 @@ class AutomationState:
         quantity: Decimal,
         limit_price: Decimal,
     ) -> str | None:
+        lookup = self.lookup_unresolved_option_intent(
+            contract_symbol, position_intent, quantity, limit_price
+        )
+        return lookup.client_order_id if lookup is not None and not lookup.ambiguous else None
+
+    def lookup_unresolved_option_intent(
+        self,
+        contract_symbol: str,
+        position_intent: str,
+        quantity: Decimal,
+        limit_price: Decimal,
+    ) -> UnresolvedOrderLookup | None:
         _required_option_text(contract_symbol, "contract symbol")
         _validate_position_intent(position_intent)
         _positive_option_decimal(quantity, "option quantity", whole=True)
         _positive_option_decimal(limit_price, "option limit price")
-        row = self._connection.execute(
+        rows = self._connection.execute(
             """
             SELECT client_order_id FROM option_order_intents
             WHERE contract_symbol = ? AND position_intent = ? AND quantity = ? AND limit_price = ?
-              AND status = 'error'
-            ORDER BY created_at DESC LIMIT 1
+              AND status IN ('pending', 'error')
+            ORDER BY created_at DESC
             """,
             (contract_symbol, position_intent, str(quantity), str(limit_price)),
+        ).fetchall()
+        return _unresolved_lookup(rows)
+
+    def record_wheel_reservations(
+        self,
+        cycle_id: str,
+        captured_at: datetime,
+        put_collateral: Mapping[str, Decimal],
+        covered_shares: Mapping[str, Decimal],
+    ) -> None:
+        _required_option_text(cycle_id, "cycle ID")
+        timestamp = _timestamp(captured_at)
+        rows = []
+        for kind, reservations in (
+            ("put_collateral", put_collateral),
+            ("covered_shares", covered_shares),
+        ):
+            if not isinstance(reservations, Mapping):
+                raise ValueError("wheel reservations must be mappings")
+            for underlying, amount in reservations.items():
+                _required_option_text(underlying, "wheel reservation underlying")
+                _nonnegative_decimal(amount, "wheel reservation amount")
+                rows.append((underlying, kind, str(amount)))
+
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO wheel_reservation_snapshots (cycle_id, captured_at)
+                VALUES (?, ?)
+                ON CONFLICT(cycle_id, captured_at) DO NOTHING
+                """,
+                (cycle_id, timestamp),
+            )
+            snapshot_id = self._connection.execute(
+                """
+                SELECT id FROM wheel_reservation_snapshots
+                WHERE cycle_id = ? AND captured_at = ?
+                """,
+                (cycle_id, timestamp),
+            ).fetchone()[0]
+            self._connection.execute(
+                "DELETE FROM wheel_reservations WHERE snapshot_id = ?",
+                (snapshot_id,),
+            )
+            self._connection.executemany(
+                """
+                INSERT INTO wheel_reservations (snapshot_id, underlying, kind, amount)
+                VALUES (?, ?, ?, ?)
+                """,
+                [(snapshot_id, underlying, kind, amount) for underlying, kind, amount in rows],
+            )
+
+    def latest_wheel_reservations(self) -> WheelReservationSnapshot | None:
+        row = self._connection.execute(
+            """
+            SELECT id, cycle_id, captured_at FROM wheel_reservation_snapshots
+            ORDER BY id DESC LIMIT 1
+            """
         ).fetchone()
-        return row[0] if row else None
+        if row is None:
+            return None
+        reservations = self._connection.execute(
+            """
+            SELECT underlying, kind, amount FROM wheel_reservations
+            WHERE snapshot_id = ? ORDER BY underlying, kind
+            """,
+            (row[0],),
+        ).fetchall()
+        put_collateral = {
+            underlying: Decimal(amount)
+            for underlying, kind, amount in reservations
+            if kind == "put_collateral"
+        }
+        covered_shares = {
+            underlying: Decimal(amount)
+            for underlying, kind, amount in reservations
+            if kind == "covered_shares"
+        }
+        return WheelReservationSnapshot(
+            cycle_id=row[1],
+            captured_at=datetime.fromisoformat(row[2]),
+            put_collateral=put_collateral,
+            covered_shares=covered_shares,
+        )
 
     def last_option_entry_date(self) -> date | None:
         row = self._connection.execute(
@@ -606,6 +741,20 @@ def _positive_option_decimal(value: Decimal, label: str, whole: bool = False) ->
         raise ValueError(f"{label} must be positive")
     if whole and value != value.to_integral():
         raise ValueError(f"{label} must be a whole number")
+
+
+def _nonnegative_decimal(value: Decimal, label: str) -> None:
+    if not isinstance(value, Decimal) or not value.is_finite() or value < 0:
+        raise ValueError(f"{label} must be finite and nonnegative")
+
+
+def _unresolved_lookup(rows: Sequence[tuple[str | None]]) -> UnresolvedOrderLookup | None:
+    if not rows:
+        return None
+    client_order_ids = {row[0] for row in rows if row[0] is not None}
+    ambiguous = len(client_order_ids) != 1
+    client_order_id = next(iter(client_order_ids)) if not ambiguous else None
+    return UnresolvedOrderLookup(client_order_id=client_order_id, ambiguous=ambiguous)
 
 
 def _validate_position_intent(position_intent: str) -> None:

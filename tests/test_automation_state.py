@@ -176,6 +176,158 @@ def test_order_intents_and_task_times_are_persisted(tmp_path):
     )
 
 
+def test_pending_equity_intent_before_submit_is_unresolved_after_reopen(tmp_path):
+    path = tmp_path / "pending-equity.db"
+    intent = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
+    with AutomationState(path) as state:
+        state.record_order_intents("cycle-1", NOW, [intent])
+
+    with AutomationState(path) as reopened:
+        lookup = reopened.lookup_unresolved_order_intent(intent)
+
+    assert lookup is not None
+    assert lookup.client_order_id is None
+    assert lookup.ambiguous
+
+    with AutomationState(path) as reopened:
+        reopened.update_order_intent("cycle-1", "AAPL", "pending", "later-client-id")
+
+    with AutomationState(path) as reopened:
+        lookup = reopened.lookup_unresolved_order_intent(intent)
+
+    assert lookup is not None
+    assert lookup.client_order_id == "later-client-id"
+    assert not lookup.ambiguous
+
+
+def test_pending_client_order_ids_survive_reopen_for_broker_reconciliation(tmp_path):
+    path = tmp_path / "accepted-before-crash.db"
+    equity = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
+    with AutomationState(path) as state:
+        state.record_order_intents("cycle-1", NOW, [equity])
+        state.update_order_intent("cycle-1", "AAPL", "pending", "equity-client-id")
+        state.record_option_intent(
+            "cycle-1", NOW, "AAPL261002P00300000", "AAPL", "sell_to_open",
+            Decimal("1"), Decimal("3.10"), "option-client-id",
+        )
+
+    with AutomationState(path) as reopened:
+        equity_lookup = reopened.lookup_unresolved_order_intent(equity)
+        option_lookup = reopened.lookup_unresolved_option_intent(
+            "AAPL261002P00300000", "sell_to_open", Decimal("1"), Decimal("3.10")
+        )
+
+    assert equity_lookup is not None
+    assert equity_lookup.client_order_id == "equity-client-id"
+    assert not equity_lookup.ambiguous
+    assert option_lookup is not None
+    assert option_lookup.client_order_id == "option-client-id"
+    assert not option_lookup.ambiguous
+
+
+def test_conflicting_unresolved_client_ids_are_ambiguous_at_state_boundary(tmp_path):
+    intent = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
+    with AutomationState(tmp_path / "ambiguous.db") as state:
+        state.record_order_intents("cycle-1", NOW, [intent])
+        state.update_order_intent("cycle-1", "AAPL", "pending", "client-one")
+        state.record_order_intents("cycle-2", NOW + timedelta(minutes=1), [intent])
+        state.update_order_intent("cycle-2", "AAPL", "error", "client-two")
+
+        lookup = state.lookup_unresolved_order_intent(intent)
+
+    assert lookup is not None
+    assert lookup.client_order_id is None
+    assert lookup.ambiguous
+
+
+def test_resolved_reused_client_id_retires_historical_pending_intents(tmp_path):
+    equity = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
+    with AutomationState(tmp_path / "resolved-pending.db") as state:
+        state.record_order_intents("cycle-1", NOW, [equity])
+        state.update_order_intent("cycle-1", "AAPL", "pending", "equity-id")
+        state.record_order_intents("cycle-2", NOW + timedelta(minutes=1), [equity])
+        state.mark_order_intent_submitted("cycle-2", "AAPL", "equity-id")
+
+        state.record_option_intent(
+            "cycle-1", NOW, "AAPL261002P00300000", "AAPL", "sell_to_open",
+            Decimal("1"), Decimal("3.10"), "option-id",
+        )
+        state.record_option_intent(
+            "cycle-2", NOW + timedelta(minutes=1), "AAPL261002P00300000", "AAPL",
+            "sell_to_open", Decimal("1"), Decimal("3.10"), "option-id",
+        )
+        state.update_option_intent(
+            "cycle-2", "AAPL261002P00300000", "submitted", "option-id"
+        )
+
+        assert state.lookup_unresolved_order_intent(equity) is None
+        assert state.lookup_unresolved_option_intent(
+            "AAPL261002P00300000", "sell_to_open", Decimal("1"), Decimal("3.10")
+        ) is None
+
+
+def test_wheel_reservation_snapshot_survives_reopen_exactly(tmp_path):
+    path = tmp_path / "reservations.db"
+    with AutomationState(path) as state:
+        state.record_wheel_reservations(
+            "cycle-1",
+            NOW,
+            put_collateral={"AAPL": Decimal("30000.00"), "MSFT": Decimal("12500")},
+            covered_shares={"NVDA": Decimal("100"), "AAPL": Decimal("200.0")},
+        )
+
+    with AutomationState(path) as reopened:
+        snapshot = reopened.latest_wheel_reservations()
+
+    assert snapshot is not None
+    assert snapshot.cycle_id == "cycle-1"
+    assert snapshot.captured_at == NOW
+    assert snapshot.put_collateral == {
+        "AAPL": Decimal("30000.00"),
+        "MSFT": Decimal("12500"),
+    }
+    assert snapshot.covered_shares == {
+        "AAPL": Decimal("200.0"),
+        "NVDA": Decimal("100"),
+    }
+
+
+def test_empty_wheel_reservation_snapshot_is_distinct_from_no_snapshot(tmp_path):
+    path = tmp_path / "empty-reservations.db"
+    with AutomationState(path) as state:
+        assert state.latest_wheel_reservations() is None
+        state.record_wheel_reservations("cycle-empty", NOW, {}, {})
+
+    with AutomationState(path) as reopened:
+        snapshot = reopened.latest_wheel_reservations()
+
+    assert snapshot is not None
+    assert snapshot.cycle_id == "cycle-empty"
+    assert snapshot.captured_at == NOW
+    assert snapshot.put_collateral == {}
+    assert snapshot.covered_shares == {}
+
+
+@pytest.mark.parametrize(
+    "put_collateral, covered_shares",
+    [
+        ({"AAPL": Decimal("-0.01")}, {}),
+        ({"AAPL": Decimal("NaN")}, {}),
+        ({}, {"AAPL": Decimal("-1")}),
+        ({}, {"AAPL": Decimal("Infinity")}),
+    ],
+)
+def test_invalid_wheel_reservation_does_not_partially_record_snapshot(
+    tmp_path, put_collateral, covered_shares
+):
+    with AutomationState(tmp_path / "invalid-reservations.db") as state:
+        with pytest.raises(ValueError, match="wheel reservation"):
+            state.record_wheel_reservations(
+                "cycle-invalid", NOW, put_collateral, covered_shares
+            )
+        assert state.latest_wheel_reservations() is None
+
+
 def test_option_intent_round_trip_and_retry_identity(tmp_path):
     with AutomationState(tmp_path / "state.db") as state:
         state.record_option_intent(
