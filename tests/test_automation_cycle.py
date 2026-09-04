@@ -11,11 +11,17 @@ from tradingagents.automation import AutomationCycleService, AutomationSettings
 from tradingagents.automation_state import AutomationState
 from tradingagents.execution import (
     LIVE_ACKNOWLEDGMENT,
+    LIVE_OPTIONS_ACKNOWLEDGMENT,
     AccountSnapshot,
     AlpacaBroker,
     AssetInfo,
 )
-from tradingagents.options import EquityPosition, OptionContract, OptionOpenOrder
+from tradingagents.options import (
+    EquityPosition,
+    OptionContract,
+    OptionOpenOrder,
+    OptionPosition,
+)
 
 NOW = datetime(2026, 8, 11, 14, 0, tzinfo=timezone.utc)
 RATINGS = {
@@ -72,8 +78,12 @@ class FakeBroker:
         self.option_contract_values = {}
         self.close_history = _aligned_history(Decimal("0.005"))
         self.submitted_options = []
+        self.cancelled_options = []
+        self.cancel_failure = False
+        self.option_prepare_failures = set()
         self.option_failure = None
         self.latest_prices = {}
+        self.exact_option_contract_values = {}
 
     def broker_time(self):
         self.reads.append("broker_time")
@@ -149,9 +159,14 @@ class FakeBroker:
         return self.equity_lots, self.option_positions, self.option_orders
 
     def option_contracts(self, underlying, kind, now):
-        if self.option_failure in {"option_quote", "option_delta"}:
+        if self.option_failure == "option_quote":
             raise RuntimeError(f"{self.option_failure} unavailable")
         return self.option_contract_values.get(underlying, ())
+
+    def option_contract(self, symbol, now):
+        if self.option_failure == "option_quote":
+            raise RuntimeError("option_quote unavailable")
+        return self.exact_option_contract_values[symbol]
 
     def daily_closes(self, symbols, limit=61):
         if self.option_failure == "daily_closes":
@@ -159,6 +174,8 @@ class FakeBroker:
         return self.close_history
 
     def prepare_option_order(self, intent, cycle_id):
+        if intent.underlying in self.option_prepare_failures:
+            raise ValueError(f"cannot prepare {intent.underlying}")
         return AlpacaBroker.prepare_option_order(self, intent, cycle_id)
 
     def submit_option_idempotent(self, spec):
@@ -166,7 +183,9 @@ class FakeBroker:
         return f"option-{spec.symbol}"
 
     def cancel_stale_option_order(self, order_id, client_order_id):
-        return None
+        self.cancelled_options.append((order_id, client_order_id))
+        if self.cancel_failure:
+            raise RuntimeError("cancellation failed")
 
 
 def _eligible_put(symbol, now):
@@ -293,7 +312,7 @@ def warmed_service(service):
 def test_reserved_covered_shares_cannot_be_sold(warmed_service):
     warmed_service.settings = replace(warmed_service.settings, options_enabled=True)
     warmed_service.service.settings = warmed_service.settings
-    warmed_service.broker.position_values = {"AAPL": Decimal("32000")}
+    warmed_service.broker.position_values = {"AAPL": Decimal("40000")}
     warmed_service.broker.equity_lots = (
         EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320")),
     )
@@ -310,11 +329,90 @@ def test_reserved_covered_shares_cannot_be_sold(warmed_service):
     )
     warmed_service.ratings["AAPL"] = "Sell"
     result = warmed_service.run_analysis_cycle(NOW)
-    aapl = tuple(intent for intent in result.order_intents if intent.symbol == "AAPL")
-    assert not aapl or all(
-        intent.side != "sell" or intent.target_notional >= Decimal("32000")
-        for intent in aapl
+    aapl = next(intent for intent in result.order_intents if intent.symbol == "AAPL")
+    assert aapl.side == "sell"
+    assert aapl.target_notional == Decimal("32000")
+
+
+def test_infeasible_covered_share_floor_suppresses_equity_submission(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        options_enabled=True,
+        auto_execute=True,
     )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.equity = Decimal("10000")
+    warmed_service.broker.position_values = {"AAPL": Decimal("32000")}
+    warmed_service.broker.equity_lots = (
+        EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320")),
+    )
+    warmed_service.broker.option_orders = (
+        OptionOpenOrder(
+            "AAPL261002C00350000",
+            "AAPL",
+            "call",
+            "sell_to_open",
+            Decimal("1"),
+            Decimal("0"),
+            Decimal("350"),
+        ),
+    )
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted == []
+
+
+def test_infeasible_covered_share_floor_blocks_new_option_exposure(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("200000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.equity_lots = (
+        EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320")),
+    )
+    warmed_service.broker.option_orders = (
+        OptionOpenOrder(
+            "AAPL261002C00350000",
+            "AAPL",
+            "call",
+            "sell_to_open",
+            Decimal("1"),
+            Decimal("0"),
+            Decimal("350"),
+        ),
+    )
+    warmed_service.broker.option_contract_values = {
+        "MSFT": (
+            OptionContract(
+                "MSFT260904P00050000",
+                "MSFT",
+                "put",
+                Decimal("50"),
+                date(2026, 9, 4),
+                Decimal("-0.20"),
+                Decimal("3.00"),
+                Decimal("3.20"),
+                Decimal("500"),
+                NOW,
+            ),
+        ),
+    }
+    high_risk_aapl = _aligned_history(Decimal("0.08"))["AAPL"]
+    warmed_service.broker.close_history = {
+        **warmed_service.broker.close_history,
+        "AAPL": high_risk_aapl,
+    }
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.intents == ()
+    assert result.suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted_options == []
 
 
 def test_option_entry_is_suppressed_when_combined_risk_exceeds_limit(warmed_service):
@@ -360,7 +458,6 @@ def test_dry_run_records_ticket_without_submitting(warmed_service):
         "option_positions",
         "option_orders",
         "option_quote",
-        "option_delta",
         "earnings_cache",
         "daily_closes",
     ],
@@ -380,6 +477,205 @@ def test_option_read_failure_submits_nothing(warmed_service, failure):
     result = warmed_service.manage_options(NOW)
     assert result.submitted_order_ids == ()
     assert result.suppressed_reason
+    assert warmed_service.broker.submitted_options == []
+
+
+def test_option_delta_computation_failure_submits_nothing(warmed_service, monkeypatch):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    monkeypatch.setattr(
+        "tradingagents.automation.option_delta_exposure",
+        lambda positions, prices: (_ for _ in ()).throw(RuntimeError("delta unavailable")),
+    )
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.submitted_order_ids == ()
+    assert result.suppressed_reason == "option read failed: delta unavailable"
+    assert warmed_service.broker.submitted_options == []
+
+
+@pytest.mark.parametrize(
+    ("equity_ack", "options_ack"),
+    [
+        ("", LIVE_OPTIONS_ACKNOWLEDGMENT),
+        ("wrong", LIVE_OPTIONS_ACKNOWLEDGMENT),
+        (LIVE_ACKNOWLEDGMENT, ""),
+        (LIVE_ACKNOWLEDGMENT, "wrong"),
+    ],
+)
+def test_live_acknowledgments_are_required_before_option_cancellation(
+    warmed_service, equity_ack, options_ack
+):
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        options_enabled=True,
+        options_auto_execute=True,
+        alpaca_mode="live",
+        live_trading_ack=equity_ack,
+        live_options_ack=options_ack,
+    )
+    warmed_service.broker.option_orders = (
+        OptionOpenOrder(
+            "AAPL260904P00300000",
+            "AAPL",
+            "put",
+            "buy_to_close",
+            Decimal("1"),
+            Decimal("0"),
+            Decimal("300"),
+            "old-owned",
+            "ta-wheel-old",
+            NOW - timedelta(minutes=10),
+        ),
+    )
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.suppressed_reason
+    assert warmed_service.broker.cancelled_options == []
+    assert warmed_service.broker.submitted_options == []
+
+
+def test_valid_live_acknowledgments_cancel_only_owned_old_option_orders(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        options_enabled=True,
+        options_auto_execute=True,
+        alpaca_mode="live",
+        live_trading_ack=LIVE_ACKNOWLEDGMENT,
+        live_options_ack=LIVE_OPTIONS_ACKNOWLEDGMENT,
+    )
+    warmed_service.broker.option_orders = (
+        OptionOpenOrder(
+            "AAPL260904P00300000", "AAPL", "put", "buy_to_close",
+            Decimal("1"), Decimal("0"), Decimal("300"), "old-owned",
+            "ta-wheel-old", NOW - timedelta(minutes=10),
+        ),
+        OptionOpenOrder(
+            "MSFT260904P00300000", "MSFT", "put", "buy_to_close",
+            Decimal("1"), Decimal("0"), Decimal("300"), "young-owned",
+            "ta-wheel-young", NOW - timedelta(minutes=9),
+        ),
+        OptionOpenOrder(
+            "NVDA260904P00300000", "NVDA", "put", "buy_to_close",
+            Decimal("1"), Decimal("0"), Decimal("300"), "old-manual",
+            "manual-old", NOW - timedelta(minutes=20),
+        ),
+    )
+
+    warmed_service.manage_options(NOW)
+
+    assert warmed_service.broker.cancelled_options == [
+        ("old-owned", "ta-wheel-old")
+    ]
+
+
+def test_stale_option_cancellation_failure_blocks_new_entries(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cancel_failure = True
+    warmed_service.broker.option_orders = (
+        OptionOpenOrder(
+            "MSFT260904P00300000", "MSFT", "put", "buy_to_close",
+            Decimal("1"), Decimal("0"), Decimal("300"), "old-owned",
+            "ta-wheel-old", NOW - timedelta(minutes=10),
+        ),
+    )
+    warmed_service.broker.cash = Decimal("200000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+    }
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.suppressed_reason == "stale option cancellation failed"
+    assert warmed_service.broker.cancelled_options == [
+        ("old-owned", "ta-wheel-old")
+    ]
+    assert warmed_service.broker.submitted_options == []
+
+
+def test_profit_exit_uses_exact_contract_quote_below_entry_dte(warmed_service):
+    symbol = "AAPL260814P00300000"
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.options_buying_power = Decimal("100000")
+    warmed_service.broker.option_positions = (
+        OptionPosition(
+            symbol, "AAPL", "put", Decimal("-1"), Decimal("4"), Decimal("-0.10")
+        ),
+    )
+    warmed_service.broker.exact_option_contract_values[symbol] = OptionContract(
+        symbol,
+        "AAPL",
+        "put",
+        Decimal("300"),
+        date(2026, 8, 14),
+        Decimal("-0.08"),
+        Decimal("1.40"),
+        Decimal("1.50"),
+        Decimal("20"),
+        NOW,
+    )
+
+    result = warmed_service.manage_options(NOW)
+
+    assert [intent.position_intent for intent in result.intents] == ["buy_to_close"]
+    assert [spec.symbol for spec in warmed_service.broker.submitted_options] == [symbol]
+
+
+def test_all_option_specs_prepare_before_first_submission(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("1000000")
+    warmed_service.broker.equity = Decimal("1000000")
+    warmed_service.broker.options_buying_power = Decimal("1000000")
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+        "MSFT": (_eligible_put("MSFT", NOW),),
+    }
+    warmed_service.broker.option_prepare_failures.add("MSFT")
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.suppressed_reason == "option submission errors: MSFT260904P00300000"
+    assert warmed_service.broker.submitted_options == []
+
+
+def test_all_option_intents_persist_before_first_submission(warmed_service, monkeypatch):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("1000000")
+    warmed_service.broker.equity = Decimal("1000000")
+    warmed_service.broker.options_buying_power = Decimal("1000000")
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+        "MSFT": (_eligible_put("MSFT", NOW),),
+    }
+    record = warmed_service.state.record_option_intent
+    calls = []
+
+    def fail_second(*args, **kwargs):
+        calls.append(args[2])
+        if len(calls) == 2:
+            raise RuntimeError("persistence unavailable")
+        return record(*args, **kwargs)
+
+    monkeypatch.setattr(warmed_service.state, "record_option_intent", fail_second)
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.suppressed_reason == "option submission errors: MSFT260904P00300000"
+    assert warmed_service.broker.submitted_options == []
 
 
 def test_first_cycle_analyzes_three_but_does_not_trade_before_warmup(service):

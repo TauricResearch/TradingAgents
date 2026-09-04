@@ -303,15 +303,13 @@ class AutomationCycleService:
             )
             targets = {symbol: all_targets[symbol] for symbol in executable}
             if self.settings.options_enabled:
-                targets = scale_equity_targets(
+                targets = self._risk_adjusted_targets(
                     targets,
                     fixed_option_exposure,
+                    minimum_positions or {},
                     account.equity,
                     self.broker.daily_closes(self.settings.watchlist),
-                    self.settings.target_volatility,
-                    self.settings.max_volatility,
-                    self.settings.max_gross_leverage,
-                ).targets
+                )
             open_orders = self.broker.open_order_exposure(prices)
             intents = tuple(
                 reconcile_targets(
@@ -323,13 +321,16 @@ class AutomationCycleService:
                 )
             )
         except Exception as error:
+            reason = f"broker read failed: {error}"
+            if str(error) == "combined portfolio risk exceeds limit":
+                reason = str(error)
             return CycleResult(
                 cycle_id,
                 tuple(analyzed),
                 tuple(failed),
                 (),
                 (),
-                f"broker read failed: {error}",
+                reason,
             )
 
         try:
@@ -509,7 +510,11 @@ class AutomationCycleService:
                 or existing_put_collateral > account.options_buying_power
             ):
                 raise ValueError("short-put collateral exceeds available funds")
-            contracts = self._option_contract_snapshot(now, decisions, option_positions)
+            contracts = self._option_contract_snapshot(now, decisions)
+            held_contracts = {
+                position.symbol: self.broker.option_contract(position.symbol, now)
+                for position in option_positions
+            }
             fixed_exposure = option_delta_exposure(option_positions, prices)
         except Exception as error:
             return OptionCycleResult(cycle_id, (), (), f"option read failed: {error}")
@@ -520,6 +525,21 @@ class AutomationCycleService:
             )
         except Exception as error:
             return OptionCycleResult(cycle_id, (), (), f"option state failed: {error}")
+
+        if self.settings.options_auto_execute:
+            try:
+                validate_execution_mode(
+                    self.settings.alpaca_mode,
+                    True,
+                    self.settings.live_trading_ack,
+                )
+                if (
+                    self.settings.alpaca_mode == "live"
+                    and self.settings.live_options_ack != LIVE_OPTIONS_ACKNOWLEDGMENT
+                ):
+                    raise ValueError("live options acknowledgment is required")
+            except ValueError as error:
+                return OptionCycleResult(cycle_id, (), (), str(error))
 
         cancellation_failed = False
         if self.settings.options_auto_execute:
@@ -544,48 +564,33 @@ class AutomationCycleService:
         for position in option_positions:
             if position.underlying in ordered_underlyings:
                 continue
-            contract = next(
-                (
-                    item
-                    for item in contracts.get(
-                        (position.underlying, position.kind.casefold()), ()
-                    )
-                    if item.symbol == position.symbol
-                ),
-                None,
-            )
+            contract = held_contracts.get(position.symbol)
             if contract is not None:
                 intent = plan_profit_exit(position, contract, now)
                 if intent is not None:
                     exits.append(intent)
-        exit_error = self._persist_option_intents(
-            cycle_id,
-            now,
-            tuple(exits),
-            submitted_ids,
-            persisted_intents,
-        )
-        if exit_error is not None:
-            return OptionCycleResult(
-                cycle_id,
-                tuple(persisted_intents),
-                tuple(submitted_ids),
-                exit_error,
-            )
 
         entry_reason = self._option_entry_gate(
             now, decisions, settling, cancellation_failed
         )
         if entry_reason is not None:
+            exit_error = self._persist_option_intents(
+                cycle_id,
+                now,
+                tuple(exits),
+                submitted_ids,
+                persisted_intents,
+            )
             return OptionCycleResult(
                 cycle_id,
                 tuple(persisted_intents),
                 tuple(submitted_ids),
-                entry_reason if not persisted_intents else None,
+                exit_error or (entry_reason if not persisted_intents else None),
             )
 
         accepted_entries = []
         proposed_exposure = dict(fixed_exposure)
+        proposed_covered_shares = dict(reservations.covered_shares)
         put_collateral = sum(reservations.put_collateral.values(), Decimal("0"))
         wheel_exposure = put_collateral + sum(
             shares * prices[symbol]
@@ -654,31 +659,32 @@ class AutomationCycleService:
                     max(account.cash - put_collateral - added_collateral, Decimal("0")),
                     self.settings.max_cash_allocation,
                 )
-                scaled = scale_equity_targets(
+                candidate_covered_shares = dict(proposed_covered_shares)
+                if intent.kind.casefold() == "call":
+                    candidate_covered_shares[symbol] = (
+                        candidate_covered_shares.get(symbol, Decimal("0"))
+                        + intent.qty * CONTRACT_MULTIPLIER
+                    )
+                self._risk_adjusted_targets(
                     equity_targets,
                     candidate_exposure,
+                    {
+                        underlying: shares * prices[underlying]
+                        for underlying, shares in candidate_covered_shares.items()
+                    },
                     account.equity,
                     close_history,
-                    self.settings.target_volatility,
-                    self.settings.max_volatility,
-                    self.settings.max_gross_leverage,
                 )
-                if (
-                    scaled.forecast_volatility
-                    > Decimal(str(self.settings.target_volatility))
-                    or scaled.gross_leverage
-                    > Decimal(str(self.settings.max_gross_leverage))
-                ):
-                    raise ValueError("combined risk exceeds limit")
             except (ArithmeticError, ValueError):
                 risk_rejected = True
                 continue
             accepted_entries.append(intent)
             proposed_exposure = candidate_exposure
+            proposed_covered_shares = candidate_covered_shares
             put_collateral += added_collateral
             wheel_exposure += added_wheel
 
-        if not accepted_entries:
+        if not accepted_entries and not exits:
             reason = (
                 "combined portfolio risk exceeds limit"
                 if risk_rejected
@@ -691,15 +697,14 @@ class AutomationCycleService:
                 reason if not persisted_intents else None,
             )
 
-        persisted_before_entries = len(persisted_intents)
         entry_error = self._persist_option_intents(
             cycle_id,
             now,
-            tuple(accepted_entries),
+            tuple(exits + accepted_entries),
             submitted_ids,
             persisted_intents,
         )
-        if len(persisted_intents) > persisted_before_entries:
+        if any(intent in persisted_intents for intent in accepted_entries):
             self.state.mark_option_entry_date(now.astimezone(NEW_YORK).date())
         return OptionCycleResult(
             cycle_id,
@@ -708,10 +713,8 @@ class AutomationCycleService:
             entry_error,
         )
 
-    def _option_contract_snapshot(self, now, decisions, positions):
-        requested = {
-            (position.underlying, position.kind.casefold()) for position in positions
-        }
+    def _option_contract_snapshot(self, now, decisions):
+        requested = set()
         for symbol, decision in decisions.items():
             signal = decision.rating.strip().casefold()
             if signal in {"buy", "overweight"}:
@@ -722,6 +725,53 @@ class AutomationCycleService:
             key: self.broker.option_contracts(key[0], key[1], now)
             for key in requested
         }
+
+    def _risk_adjusted_targets(
+        self,
+        equity_targets,
+        fixed_option_exposure,
+        minimum_positions,
+        equity,
+        close_history,
+    ):
+        try:
+            scaled = scale_equity_targets(
+                equity_targets,
+                fixed_option_exposure,
+                equity,
+                close_history,
+                self.settings.target_volatility,
+                self.settings.max_volatility,
+                self.settings.max_gross_leverage,
+            )
+            final_targets = {
+                symbol: max(target, Decimal(str(minimum_positions.get(symbol, target))))
+                for symbol, target in scaled.targets.items()
+            }
+            validation = scale_equity_targets(
+                final_targets,
+                fixed_option_exposure,
+                equity,
+                close_history,
+                self.settings.target_volatility,
+                self.settings.max_volatility,
+                self.settings.max_gross_leverage,
+            )
+        except (ArithmeticError, ValueError) as error:
+            raise ValueError("combined portfolio risk exceeds limit") from error
+        gross = (
+            sum(abs(value) for value in final_targets.values())
+            + sum(abs(value) for value in fixed_option_exposure.values())
+        ) / Decimal(str(equity))
+        if (
+            validation.baseline_volatility
+            > Decimal(str(self.settings.target_volatility))
+            or validation.baseline_volatility
+            > Decimal(str(self.settings.max_volatility))
+            or gross > Decimal(str(self.settings.max_gross_leverage))
+        ):
+            raise ValueError("combined portfolio risk exceeds limit")
+        return final_targets
 
     def _observe_wheel_phases(self, now, equities, positions, orders):
         settling = set()
@@ -790,7 +840,6 @@ class AutomationCycleService:
     ):
         if not intents:
             return None
-        execution_error = None
         if self.settings.options_auto_execute:
             try:
                 validate_execution_mode(
@@ -804,8 +853,8 @@ class AutomationCycleService:
                 ):
                     raise ValueError("live options acknowledgment is required")
             except ValueError as error:
-                execution_error = str(error)
-        errors = []
+                return str(error)
+        prepared = []
         for intent in intents:
             try:
                 spec = self.broker.prepare_option_order(intent, cycle_id)
@@ -817,6 +866,12 @@ class AutomationCycleService:
                 )
                 if unresolved is not None:
                     spec = replace(spec, client_order_id=unresolved)
+                prepared.append((intent, spec))
+            except Exception:
+                return f"option submission errors: {intent.symbol}"
+
+        for intent, spec in prepared:
+            try:
                 self.state.record_option_intent(
                     cycle_id,
                     now,
@@ -828,32 +883,30 @@ class AutomationCycleService:
                     spec.client_order_id,
                 )
                 persisted_intents.append(intent)
-                if execution_error is not None:
-                    self.state.update_option_intent(
-                        cycle_id, intent.symbol, "error", spec.client_order_id
-                    )
-                    continue
-                if not self.settings.options_auto_execute:
-                    self.state.update_option_intent(
-                        cycle_id, intent.symbol, "planned", spec.client_order_id
-                    )
-                    continue
-                try:
-                    order_id = self.broker.submit_option_idempotent(spec)
-                except Exception:
-                    errors.append(intent.symbol)
-                    self.state.update_option_intent(
-                        cycle_id, intent.symbol, "error", spec.client_order_id
-                    )
-                else:
-                    submitted_ids.append(order_id)
-                    self.state.update_option_intent(
-                        cycle_id, intent.symbol, "submitted", spec.client_order_id
-                    )
+            except Exception:
+                return f"option submission errors: {intent.symbol}"
+
+        if not self.settings.options_auto_execute:
+            for intent, spec in prepared:
+                self.state.update_option_intent(
+                    cycle_id, intent.symbol, "planned", spec.client_order_id
+                )
+            return None
+
+        errors = []
+        for intent, spec in prepared:
+            try:
+                order_id = self.broker.submit_option_idempotent(spec)
             except Exception:
                 errors.append(intent.symbol)
-        if execution_error is not None:
-            return execution_error
+                self.state.update_option_intent(
+                    cycle_id, intent.symbol, "error", spec.client_order_id
+                )
+            else:
+                submitted_ids.append(order_id)
+                self.state.update_option_intent(
+                    cycle_id, intent.symbol, "submitted", spec.client_order_id
+                )
         if errors:
             return f"option submission errors: {', '.join(errors)}"
         return None

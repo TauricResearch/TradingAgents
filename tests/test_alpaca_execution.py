@@ -7,6 +7,8 @@ import pytest
 
 from tradingagents.allocation import OrderIntent
 from tradingagents.execution import (
+    LIVE_ACKNOWLEDGMENT,
+    LIVE_OPTIONS_ACKNOWLEDGMENT,
     AlpacaBroker,
     AssetInfo,
     OptionOrderRequestSpec,
@@ -996,6 +998,41 @@ def test_option_contracts_request_scope_and_normalize_snapshots(monkeypatch):
     assert captured_snapshot_requests == [{"symbol_or_symbols": ["AAPL260925P00300000"]}]
 
 
+def test_exact_option_contract_quote_is_not_limited_by_entry_dte(monkeypatch):
+    now = datetime(2026, 9, 4, 15, 30, tzinfo=timezone.utc)
+    symbol = "AAPL260911P00300000"
+    monkeypatch.setattr(
+        "tradingagents.execution._option_snapshot_request_class",
+        lambda: lambda **fields: fields,
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace())
+    broker._option_data_client = SimpleNamespace(
+        get_option_snapshot=lambda request: {
+            symbol: SimpleNamespace(
+                greeks=SimpleNamespace(delta="-0.08"),
+                latest_quote=SimpleNamespace(
+                    bid_price="1.40", ask_price="1.50", timestamp=now
+                ),
+            )
+        }
+    )
+
+    contract = broker.option_contract(symbol, now)
+
+    assert contract == OptionContract(
+        symbol,
+        "AAPL",
+        "put",
+        Decimal("300"),
+        (now + timedelta(days=7)).date(),
+        Decimal("-0.08"),
+        Decimal("1.40"),
+        Decimal("1.50"),
+        Decimal("0"),
+        now,
+    )
+
+
 @pytest.mark.parametrize(
     ("open_interest", "greeks", "quote"),
     [
@@ -1532,6 +1569,40 @@ def test_cancel_allows_only_wheel_owned_order():
         "secret",
         "paper",
         client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+    )
+
+    broker.cancel_stale_option_order("order-id", "ta-wheel-owned")
+
+    assert calls == ["order-id"]
+
+
+@pytest.mark.parametrize("options_ack", ["", "wrong"])
+def test_live_cancel_requires_exact_options_acknowledgment(options_ack):
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "live",
+        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+        live_ack=LIVE_ACKNOWLEDGMENT,
+        live_options_ack=options_ack,
+    )
+
+    with pytest.raises(ValueError, match="live options acknowledgment"):
+        broker.cancel_stale_option_order("order-id", "ta-wheel-owned")
+
+    assert calls == []
+
+
+def test_live_cancel_with_both_acknowledgments_reaches_broker():
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "live",
+        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+        live_ack=LIVE_ACKNOWLEDGMENT,
+        live_options_ack=LIVE_OPTIONS_ACKNOWLEDGMENT,
     )
 
     broker.cancel_stale_option_order("order-id", "ta-wheel-owned")

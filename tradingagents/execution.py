@@ -94,6 +94,8 @@ class Broker(Protocol):
         self, symbols: tuple[str, ...], limit: int = 61
     ) -> dict[str, tuple[tuple[date, Decimal], ...]]: ...
 
+    def option_contract(self, symbol: str, now: datetime) -> OptionContract: ...
+
     def submit(self, spec: OrderRequestSpec) -> str: ...
 
     def find_order_by_client_id(self, client_order_id: str) -> str | None: ...
@@ -591,6 +593,27 @@ class AlpacaBroker:
             )
         return tuple(contracts)
 
+    def option_contract(self, symbol: str, now: datetime) -> OptionContract:
+        if not isinstance(now, datetime) or now.utcoffset() is None:
+            raise ValueError("option contract lookup time must be timezone-aware")
+        underlying, kind, strike = _option_symbol_parts(symbol)
+        expiration = datetime.strptime(
+            _OPTION_SYMBOL.fullmatch(symbol).group("expiration"), "%y%m%d"
+        ).date()
+        delta, bid, ask, quote_time = self.option_snapshot((symbol,))[symbol]
+        return OptionContract(
+            symbol,
+            underlying,
+            kind,
+            strike,
+            expiration,
+            delta,
+            bid,
+            ask,
+            Decimal("0"),
+            quote_time,
+        )
+
     def wheel_positions_and_orders(
         self,
     ) -> tuple[
@@ -912,6 +935,7 @@ class AlpacaBroker:
     def cancel_stale_option_order(self, order_id: str, client_order_id: str) -> None:
         if not client_order_id.startswith("ta-wheel-"):
             raise ValueError("option order is not owned by the wheel strategy")
+        self._validate_option_submission()
         self._client.cancel_order_by_id(order_id)
 
     def _validate_option_submission(self) -> None:

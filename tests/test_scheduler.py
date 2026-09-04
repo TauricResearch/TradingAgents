@@ -87,9 +87,18 @@ def test_run_once_executes_only_due_tasks(fake_service, state):
 def test_scheduler_runs_options_on_fifteen_minute_deadline(fake_service, state):
     scheduler = AutomationScheduler(fake_service, state, now=lambda: NOW, sleep=lambda _: None)
     scheduler.run_once(NOW)
+    assert state.last_task_run("analysis") == NOW
+    assert state.last_task_run("positions") == NOW
+    assert state.last_task_run("options") == NOW
     scheduler.run_once(NOW + timedelta(minutes=14))
+    assert state.last_task_run("analysis") == NOW
+    assert state.last_task_run("positions") == NOW
+    assert state.last_task_run("options") == NOW
     scheduler.run_once(NOW + timedelta(minutes=15))
     assert fake_service.option_calls == [NOW, NOW + timedelta(minutes=15)]
+    assert state.last_task_run("options") == NOW + timedelta(minutes=15)
+    assert state.last_task_run("analysis") == NOW
+    assert state.last_task_run("positions") == NOW
 
 
 def test_position_interval_can_be_due_before_analysis(fake_service, state):
