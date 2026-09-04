@@ -8,6 +8,14 @@ from collections import deque
 from functools import wraps
 from pathlib import Path
 
+# Agent/LLM output is full of unicode (⏱, arrows, markdown). On Windows the
+# console defaults to cp1252, which turns such prints into UnicodeEncodeError.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 import typer
 from rich import box
 from rich.align import Align
@@ -1231,6 +1239,10 @@ def _normalize_selections(selections: dict) -> dict:
         raise ValueError("ticker must be a valid symbol (e.g. AAPL, 0700.HK, BTC-USD)")
     selections["ticker"] = normalize_ticker_symbol(ticker)
 
+    from cli.utils import detect_asset_type
+
+    selections["asset_type"] = detect_asset_type(selections["ticker"]).value
+
     import re
     from datetime import datetime as _dt
 
@@ -1414,7 +1426,9 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
 
     # Headless (API-driven) runs render into a discarded console so server
     # logs stay clean; the terminal flow is otherwise identical.
-    _devnull = open(os.devnull, "w") if headless else None
+    # UTF-8: the locale default (cp1252 on Windows) cannot encode the ⏱/arrow
+    # symbols in the panels and would raise inside the render itself.
+    _devnull = open(os.devnull, "w", encoding="utf-8") if headless else None
     live_kwargs = (
         {"refresh_per_second": 2, "screen": False, "redirect_stderr": False,
          "console": Console(file=_devnull)}

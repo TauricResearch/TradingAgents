@@ -18,10 +18,20 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+# LLM/agent output is full of unicode (⏱, arrows, md). On Windows the console
+# defaults to cp1252, which turns any such print into a UnicodeEncodeError
+# that kills the run thread — force UTF-8 for server processes.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 import requests
 from dotenv import find_dotenv, set_key
