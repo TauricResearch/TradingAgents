@@ -9,13 +9,14 @@ from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
 
 def _bars(dates=("2026-08-25",), closes=(102,)):
+    closes = list(closes)
     return pd.DataFrame(
         {
             "Date": pd.to_datetime(dates, utc=True),
             "Open": [100] * len(dates),
-            "High": [103] * len(dates),
-            "Low": [99] * len(dates),
-            "Close": list(closes),
+            "High": [max(100, close) + 1 for close in closes],
+            "Low": [min(100, close) - 1 for close in closes],
+            "Close": closes,
             "Volume": [1100] * len(dates),
         }
     )
@@ -118,6 +119,49 @@ def test_load_ohlcv_separates_provider_caches_and_returns_canonical_columns(
     assert disabled.columns.tolist() == ["Date", "Open", "High", "Low", "Close", "Volume"]
     assert disabled["Close"].tolist() == [103]
     assert yahoo_cache.exists()
+
+
+@pytest.mark.unit
+def test_enabled_mode_retries_alpaca_after_transient_yahoo_fallback(monkeypatch, tmp_path):
+    today = pd.Timestamp("2026-08-25")
+    alpaca_cache = tmp_path / _cache_name("Alpaca-IEX", today)
+    yahoo_cache = tmp_path / _cache_name("YFin", today)
+    alpaca_calls = []
+    yahoo_calls = []
+
+    monkeypatch.setattr(stockstats.pd.Timestamp, "today", staticmethod(lambda: today))
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+
+    def fetch_alpaca(*_args):
+        alpaca_calls.append(1)
+        if len(alpaca_calls) == 1:
+            raise stockstats.AlpacaMarketDataError("AAPL", detail="temporary outage")
+        return _bars(closes=(150,))
+
+    monkeypatch.setattr(stockstats, "_fetch_alpaca_ohlcv", fetch_alpaca)
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: yahoo_calls.append(1)
+        or _bars(closes=(101,)).set_index("Date"),
+    )
+
+    first = stockstats.load_ohlcv("AAPL", "2026-08-25")
+
+    assert first["Close"].tolist() == [101]
+    assert yahoo_cache.exists()
+    assert not alpaca_cache.exists()
+
+    second = stockstats.load_ohlcv("AAPL", "2026-08-25")
+
+    assert second["Close"].tolist() == [150]
+    assert alpaca_calls == [1, 1]
+    assert yahoo_calls == [1]
+    assert alpaca_cache.exists()
 
 
 @pytest.mark.unit
@@ -354,6 +398,97 @@ def test_fetch_alpaca_ohlcv_normalizes_inclusive_utc_bars(monkeypatch):
     assert captured["request"].feed.value == "iex"
     assert captured["request"].start == pd.Timestamp("2026-08-24")
     assert captured["request"].end == pd.Timestamp("2026-08-26")
+
+
+@pytest.mark.unit
+def test_fetch_alpaca_ohlcv_rejects_response_with_only_future_rows(monkeypatch):
+    monkeypatch.setenv("ALPACA_API_KEY", "key-value")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "secret-value")
+    future = _bars(("2026-08-26",), (150,)).set_index("Date")
+    future.index.name = "timestamp"
+    client = SimpleNamespace(get_stock_bars=lambda _request: SimpleNamespace(df=future))
+
+    with pytest.raises(stockstats.AlpacaMarketDataError, match="requested range"):
+        stockstats._fetch_alpaca_ohlcv(
+            "AAPL", "2026-08-24", "2026-08-25", client=client
+        )
+
+
+@pytest.mark.unit
+def test_fetch_alpaca_ohlcv_keeps_only_requested_inclusive_range(monkeypatch):
+    monkeypatch.setenv("ALPACA_API_KEY", "key-value")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "secret-value")
+    mixed = _bars(
+        ("2026-08-23", "2026-08-24", "2026-08-25", "2026-08-26"),
+        (90, 100, 110, 120),
+    ).set_index("Date")
+    mixed.index.name = "timestamp"
+    client = SimpleNamespace(get_stock_bars=lambda _request: SimpleNamespace(df=mixed))
+
+    result = stockstats._fetch_alpaca_ohlcv(
+        "AAPL", "2026-08-24", "2026-08-25", client=client
+    )
+
+    assert result["Date"].tolist() == [pd.Timestamp("2026-08-24"), pd.Timestamp("2026-08-25")]
+    assert result["Close"].tolist() == [100, 110]
+
+
+@pytest.mark.unit
+def test_load_ohlcv_falls_back_when_alpaca_returns_only_future_rows(
+    monkeypatch, tmp_path
+):
+    today = pd.Timestamp("2026-08-25")
+    monkeypatch.setattr(stockstats.pd.Timestamp, "today", staticmethod(lambda: today))
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+    monkeypatch.setattr(
+        stockstats,
+        "_fetch_alpaca_ohlcv",
+        lambda *_: _bars(("2026-08-26",), (150,)),
+    )
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: _bars(closes=(101,)).set_index("Date"),
+    )
+
+    result = stockstats.load_ohlcv("AAPL", "2026-08-25")
+
+    assert result["Close"].tolist() == [101]
+    assert (tmp_path / _cache_name("YFin", today)).exists()
+    assert not (tmp_path / _cache_name("Alpaca-IEX", today)).exists()
+
+
+@pytest.mark.unit
+def test_load_ohlcv_filters_future_alpaca_rows_before_caching(monkeypatch, tmp_path):
+    today = pd.Timestamp("2026-08-25")
+    monkeypatch.setattr(stockstats.pd.Timestamp, "today", staticmethod(lambda: today))
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+    monkeypatch.setattr(
+        stockstats,
+        "_fetch_alpaca_ohlcv",
+        lambda *_: _bars(
+            ("2026-08-24", "2026-08-25", "2026-08-26"), (100, 110, 120)
+        ),
+    )
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: pytest.fail("valid in-range Alpaca data must be used"),
+    )
+
+    result = stockstats.load_ohlcv("AAPL", "2026-08-25")
+    cached = pd.read_csv(tmp_path / _cache_name("Alpaca-IEX", today))
+
+    assert result["Close"].tolist() == [100, 110]
+    assert cached["Date"].tolist() == ["2026-08-24", "2026-08-25"]
 
 
 @pytest.mark.unit

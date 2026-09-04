@@ -3,13 +3,15 @@
 ## Scope
 
 - Added the environment-backed `use_alpaca_market_data` switch with a false default.
-- When enabled for an equity-shaped symbol, daily OHLCV uses Alpaca's IEX feed first and Yahoo Finance only when Alpaca is unavailable, empty, malformed, or stale.
+- When enabled, daily OHLCV for exactly AAPL, MSFT, NVDA, AMZN, META, GOOG, and TSLA uses Alpaca's IEX feed first and Yahoo Finance only when Alpaca is unavailable, empty, malformed, stale, or outside the requested range.
 - When disabled, Yahoo remains the sole data path; Yahoo errors and typed stale-data failures are not replaced by an unexpected Alpaca call or credential requirement.
-- Yahoo-native crypto, futures, forex, and index symbols remain on Yahoo even when Alpaca equity market data is enabled.
+- Every symbol outside that seven-symbol allowlist remains on Yahoo even when Alpaca equity market data is enabled.
 - Preserved inclusive end dates, UTC-to-naive date normalization, the existing OHLCV column/cache shape, and look-ahead filtering.
 - Alpaca fallback logs omit upstream exception details, and configuration errors never include credential values.
 
-## TDD and Review Evidence
+## Initial Integration Evidence (Historical)
+
+The evidence in this section records the initial implementation cycle. The later formal-fix sections describe the final behavior.
 
 - RED: the strict-opt-in, non-equity routing, injectable-client, and malformed-response tests initially produced five failures. A separate missing-frame test then reproduced an untyped `AttributeError`.
 - GREEN: `.venv/bin/pytest -q tests/test_alpaca_ohlcv_fallback.py` passed with 11 tests.
@@ -21,7 +23,7 @@
 ## Review Conclusions
 
 - The original unconditional Alpaca fallback while `use_alpaca_market_data=false` was a defect because ordinary Yahoo-only runs could unexpectedly require an optional dependency and broker credentials.
-- Alpaca eligibility is intentionally conservative and syntactic: symbols containing Yahoo-specific separators such as `-`, `=`, or `^` bypass Alpaca. If Alpaca later supports additional symbol forms, eligibility can be widened with explicit fixtures.
+- Alpaca eligibility is the exact AAPL, MSFT, NVDA, AMZN, META, GOOG, and TSLA allowlist; all other symbols bypass Alpaca.
 - No real network or broker call was made; request behavior was verified with injected clients and fetchers.
 
 ## Formal Fix Round 1
@@ -37,3 +39,13 @@
 - Full: `.venv/bin/pytest -q --ignore='tests/test_alpaca_ohlcv_fallback 2.py'` passed with 1,074 tests and 69 subtests; one optional `langchain_aws` test was skipped, with only known model and pytest temporary-directory warnings.
 - Staged-only: the 125-test integration slice and owned-file Ruff check passed from a temporary archive of `git write-tree`, independently of the preserved untracked duplicate.
 - Preserved user artifact: the untracked `tests/test_alpaca_ohlcv_fallback 2.py` was not modified or deleted. Run alone, it had two passes and two expected failures because it asserts the rejected unconditional false-mode fallback and monkeypatches the superseded no-argument routing helper.
+
+## Formal Fix Round 2
+
+- Kept Alpaca-IEX and Yahoo cache ownership tied to the response provider. A typed Alpaca failure can reuse or populate only the Yahoo cache for that call; it never creates an Alpaca cache entry, so the next enabled call retries Alpaca and can recover.
+- Enforced the requested Alpaca date interval as an inclusive normalized range before stale checks, caching, or return. Out-of-range rows, including future look-ahead rows, are discarded; a response with no usable in-range rows raises `AlpacaMarketDataError` and follows the typed Yahoo fallback.
+- RED: five focused tests failed against the prior implementation, reproducing Yahoo fallback cached as Alpaca, failure to retry after a transient outage, acceptance of out-of-range rows, and future rows reaching cache handling.
+- GREEN: the same five focused tests passed, followed by all 47 market-data fallback tests.
+- Integrated: the market-data, date-boundary, environment, cache, stale-data, no-data, symbol, and vendor-routing slice passed with 130 tests.
+- Full: `.venv/bin/pytest -q --ignore='tests/test_alpaca_ohlcv_fallback 2.py'` passed with 1,079 tests and 69 subtests; one optional `langchain_aws` test was skipped. The preserved untracked duplicate remained excluded as directed.
+- Staged-only/static: the same 130-test integration slice and owned-file Ruff check passed from an archive of `git write-tree`; `git diff --check` also passed.

@@ -10,6 +10,7 @@ from .stockstats_utils import (
     StockstatsUtils,
     _assert_ohlcv_not_stale,
     _fetch_alpaca_ohlcv,
+    _normalize_alpaca_ohlcv_range,
     _normalize_ohlcv,
     filter_financials_by_date,
     load_ohlcv,
@@ -41,11 +42,12 @@ def get_YFin_data_online(
 
     if use_alpaca_market_data(canonical):
         try:
-            data = _normalize_ohlcv(
+            data = _normalize_alpaca_ohlcv_range(
                 _fetch_alpaca_ohlcv(canonical, start_date, end_date),
                 symbol,
                 canonical,
-                error_type=AlpacaMarketDataError,
+                start_date,
+                end_date,
             )
             _assert_ohlcv_not_stale(
                 data,

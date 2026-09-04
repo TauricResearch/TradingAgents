@@ -95,7 +95,7 @@ def _fetch_alpaca_ohlcv(
         raise AlpacaMarketDataError(
             symbol, symbol, "Alpaca returned malformed daily bars"
         )
-    return _normalize_ohlcv(frame, symbol, symbol, error_type=AlpacaMarketDataError)
+    return _normalize_alpaca_ohlcv_range(frame, symbol, symbol, start_date, end_date)
 
 
 def use_alpaca_market_data(symbol: str | None = None) -> bool:
@@ -126,6 +126,8 @@ def _normalize_ohlcv(
     canonical: str,
     *,
     error_type=NoMarketDataError,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> pd.DataFrame:
     """Return strict canonical OHLCV or raise a typed unusable-data error."""
     if not isinstance(data, pd.DataFrame) or data.empty:
@@ -155,6 +157,14 @@ def _normalize_ohlcv(
     normalized[numeric_columns] = normalized[numeric_columns].apply(
         pd.to_numeric, errors="coerce"
     )
+    if start_date is not None and end_date is not None:
+        start = pd.Timestamp(start_date).normalize()
+        end = pd.Timestamp(end_date).normalize()
+        normalized = normalized.loc[normalized["Date"].between(start, end)].copy()
+        if normalized.empty:
+            raise error_type(
+                symbol, canonical, "market-data feed returned no daily bars in the requested range"
+            )
     invalid_scalar = (
         normalized[OHLCV_COLUMNS].isna().any().any()
         or normalized[numeric_columns]
@@ -172,6 +182,24 @@ def _normalize_ohlcv(
     if invalid_scalar or invalid_range:
         raise error_type(symbol, canonical, "market-data feed returned malformed daily bars")
     return normalized
+
+
+def _normalize_alpaca_ohlcv_range(
+    data: pd.DataFrame,
+    symbol: str,
+    canonical: str,
+    start_date: str,
+    end_date: str,
+) -> pd.DataFrame:
+    """Return validated Alpaca bars within the requested inclusive date range."""
+    return _normalize_ohlcv(
+        data,
+        symbol,
+        canonical,
+        error_type=AlpacaMarketDataError,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
@@ -287,32 +315,45 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     # when curr_date is the current day (#986). Look-ahead is still prevented by
     # the curr_date filter below.
     end_str = (today_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    alpaca_end_str = today_date.strftime("%Y-%m-%d")
 
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     alpaca_enabled = use_alpaca_market_data(canonical)
-    cache_provider = "Alpaca-IEX" if alpaca_enabled else "YFin"
-    data_file = os.path.join(
+    alpaca_data_file = os.path.join(
         config["data_cache_dir"],
-        f"{safe_symbol}-{cache_provider}-data-{start_str}-{end_str}.csv",
+        f"{safe_symbol}-Alpaca-IEX-data-{start_str}-{end_str}.csv",
+    )
+    yahoo_data_file = os.path.join(
+        config["data_cache_dir"],
+        f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
     )
 
     # A cached file may be empty if a prior fetch failed (unknown symbol,
     # transient rate limit). Treat an empty/columnless cache as a miss and
     # re-fetch rather than serving the poisoned file forever.
-    data = None
-    if os.path.exists(data_file):
+    def read_cache(data_file, *, alpaca=False):
+        if not os.path.exists(data_file):
+            return None
         cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
         try:
-            cached = _normalize_ohlcv(cached, symbol, canonical)
+            if alpaca:
+                cached = _normalize_alpaca_ohlcv_range(
+                    cached, symbol, canonical, start_str, alpaca_end_str
+                )
+            else:
+                cached = _normalize_ohlcv(cached, symbol, canonical)
         except NoMarketDataError:
-            cached = None
+            return None
         # Serve the cache only when it is usable and not a stale snapshot of the
         # day being requested (#1150); otherwise fall through and refetch.
-        if (
-            cached is not None
-            and not _needs_same_day_refresh(data_file, curr_date_dt, today_date)
-        ):
-            data = cached
+        if _needs_same_day_refresh(data_file, curr_date_dt, today_date):
+            return None
+        return cached
+
+    data = read_cache(
+        alpaca_data_file if alpaca_enabled else yahoo_data_file,
+        alpaca=alpaca_enabled,
+    )
 
     if data is None:
 
@@ -330,11 +371,12 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
 
         if alpaca_enabled:
             try:
-                downloaded = _normalize_ohlcv(
-                    _fetch_alpaca_ohlcv(canonical, start_str, end_str),
+                downloaded = _normalize_alpaca_ohlcv_range(
+                    _fetch_alpaca_ohlcv(canonical, start_str, alpaca_end_str),
                     symbol,
                     canonical,
-                    error_type=AlpacaMarketDataError,
+                    start_str,
+                    alpaca_end_str,
                 )
                 dates = _coerce_ohlcv_dates(downloaded)
                 requested_rows = downloaded.loc[dates <= curr_date_dt]
@@ -345,15 +387,21 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
                     canonical,
                     error_type=AlpacaMarketDataError,
                 )
+                downloaded.to_csv(alpaca_data_file, index=False, encoding="utf-8")
             except AlpacaMarketDataError:
                 logger.warning(
                     "Alpaca daily bars unavailable for %s; using Yahoo fallback",
                     symbol,
                 )
-                downloaded = _normalize_ohlcv(yahoo_bars(), symbol, canonical)
+                downloaded = read_cache(yahoo_data_file)
+                if downloaded is None:
+                    downloaded = _normalize_ohlcv(yahoo_bars(), symbol, canonical)
+                    downloaded.to_csv(
+                        yahoo_data_file, index=False, encoding="utf-8"
+                    )
         else:
             downloaded = _normalize_ohlcv(yahoo_bars(), symbol, canonical)
-        downloaded.to_csv(data_file, index=False, encoding="utf-8")
+            downloaded.to_csv(yahoo_data_file, index=False, encoding="utf-8")
         data = downloaded
 
     data = _normalize_ohlcv(data, symbol, canonical)
