@@ -22,6 +22,12 @@ def _config(**overrides):
         "auto_execute": False,
         "alpaca_mode": "paper",
         "live_trading_ack": "",
+        "options_enabled": False,
+        "options_auto_execute": False,
+        "options_max_equity_fraction": 0.20,
+        "options_entry_time_et": "10:00",
+        "options_earnings_path": "/tmp/earnings.json",
+        "live_options_ack": "",
     }
     base.update(overrides)
     return base
@@ -52,6 +58,27 @@ def test_settings_accept_volatility_policy():
     assert settings.target_volatility == 0.15
     assert settings.max_volatility == 0.20
     assert settings.max_gross_leverage == 2.0
+
+
+def test_options_defaults_are_safe():
+    settings = AutomationSettings.from_config(
+        _config(
+            options_enabled=False,
+            options_auto_execute=False,
+            options_max_equity_fraction=0.20,
+            options_entry_time_et="10:00",
+            options_earnings_path="/tmp/earnings.json",
+            live_options_ack="",
+        )
+    )
+    assert not settings.options_enabled
+    assert not settings.options_auto_execute
+    assert settings.options_max_equity_fraction == 0.20
+
+
+def test_options_fraction_cannot_exceed_twenty_percent():
+    with pytest.raises(ValueError, match="no greater than 0.20"):
+        AutomationSettings.from_config(_config(options_max_equity_fraction=0.21))
 
 
 @pytest.mark.parametrize(

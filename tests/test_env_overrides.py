@@ -29,6 +29,9 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["target_volatility"] == 0.15
     assert dc.DEFAULT_CONFIG["max_volatility"] == 0.20
     assert dc.DEFAULT_CONFIG["max_gross_leverage"] == 2.0
+    assert dc.DEFAULT_CONFIG["options_enabled"] is False
+    assert dc.DEFAULT_CONFIG["options_auto_execute"] is False
+    assert dc.DEFAULT_CONFIG["options_max_equity_fraction"] == 0.20
 
 
 def test_automation_overrides(monkeypatch):
@@ -48,6 +51,12 @@ def test_automation_overrides(monkeypatch):
         TRADINGAGENTS_AUTO_EXECUTE="true",
         TRADINGAGENTS_ALPACA_MODE="live",
         TRADINGAGENTS_LIVE_TRADING_ACK="ack",
+        TRADINGAGENTS_OPTIONS_ENABLED="true",
+        TRADINGAGENTS_OPTIONS_AUTO_EXECUTE="true",
+        TRADINGAGENTS_OPTIONS_MAX_EQUITY_FRACTION="0.15",
+        TRADINGAGENTS_OPTIONS_ENTRY_TIME_ET="10:30",
+        TRADINGAGENTS_OPTIONS_EARNINGS_PATH="/tmp/earnings.json",
+        TRADINGAGENTS_LIVE_OPTIONS_ACK="options-ack",
     )
     assert dc.DEFAULT_CONFIG["watchlist"].startswith("AAPL,MSFT")
     assert dc.DEFAULT_CONFIG["batch_size"] == 2
@@ -63,6 +72,12 @@ def test_automation_overrides(monkeypatch):
     assert dc.DEFAULT_CONFIG["auto_execute"] is True
     assert dc.DEFAULT_CONFIG["alpaca_mode"] == "live"
     assert dc.DEFAULT_CONFIG["live_trading_ack"] == "ack"
+    assert dc.DEFAULT_CONFIG["options_enabled"] is True
+    assert dc.DEFAULT_CONFIG["options_auto_execute"] is True
+    assert dc.DEFAULT_CONFIG["options_max_equity_fraction"] == 0.15
+    assert dc.DEFAULT_CONFIG["options_entry_time_et"] == "10:30"
+    assert dc.DEFAULT_CONFIG["options_earnings_path"] == "/tmp/earnings.json"
+    assert dc.DEFAULT_CONFIG["live_options_ack"] == "options-ack"
 
 
 def test_string_overrides(monkeypatch):

@@ -8,7 +8,12 @@ import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 
-from tradingagents.automation import AutomationCycleService, AutomationSettings, CycleResult
+from tradingagents.automation import (
+    AutomationCycleService,
+    AutomationSettings,
+    CycleResult,
+    OptionCycleResult,
+)
 from tradingagents.automation_state import AutomationState
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.execution import AlpacaBroker
@@ -101,6 +106,13 @@ class AutomationScheduler:
             self.service.track_positions,
             due_time,
         )
+        self._run_task(
+            "options",
+            15,
+            self.service.manage_options,
+            due_time,
+            record_runtime=True,
+        )
 
     def run_forever(self) -> None:
         try:
@@ -118,6 +130,7 @@ class AutomationScheduler:
         operation: Callable[[datetime], object],
         due_time: datetime,
         force: bool = False,
+        record_runtime: bool = False,
     ) -> None:
         runtime_now = self._now()
         if runtime_now.tzinfo is None or runtime_now.utcoffset() is None:
@@ -162,6 +175,15 @@ class AutomationScheduler:
                     ",".join(result.submitted_order_ids) or "none",
                     result.trade_suppressed_reason or "completed",
                 )
+            elif isinstance(result, OptionCycleResult):
+                logger.info(
+                    "Automation %s result cycle=%s intents=%s submitted=%s outcome=%s",
+                    task,
+                    result.cycle_id,
+                    len(result.intents),
+                    ",".join(result.submitted_order_ids) or "none",
+                    result.suppressed_reason or "completed",
+                )
         except Exception as error:
             operation_error = error
         finally:
@@ -191,7 +213,7 @@ class AutomationScheduler:
             completed = self.state.complete_task_run(
                 task,
                 self._owner,
-                ran_at=due_time,
+                ran_at=lease_time if record_runtime else due_time,
                 completed_at=completed_at,
             )
         except sqlite3.Error:
@@ -222,6 +244,7 @@ class AutomationScheduler:
         deadlines = (
             self._deadline("analysis", self.service.settings.analysis_interval_minutes, now),
             self._deadline("positions", self.service.settings.position_interval_minutes, now),
+            self._deadline("options", 15, now),
         )
         seconds = min((deadline - now).total_seconds() for deadline in deadlines)
         return min(60, max(1, seconds))
@@ -250,6 +273,7 @@ def build_service_from_config(
         secret,
         settings.alpaca_mode,
         live_ack=settings.live_trading_ack,
+        live_options_ack=settings.live_options_ack,
     )
     state = AutomationState(settings.state_path)
 

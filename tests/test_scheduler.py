@@ -20,6 +20,7 @@ class FakeService:
         self.settings = settings
         self.analysis_calls = []
         self.position_calls = []
+        self.option_calls = []
         self.analysis_error = None
 
     def run_analysis_cycle(self, due_time):
@@ -29,6 +30,9 @@ class FakeService:
 
     def track_positions(self, due_time):
         self.position_calls.append(due_time)
+
+    def manage_options(self, due_time):
+        self.option_calls.append(due_time)
 
 
 @pytest.fixture
@@ -45,6 +49,12 @@ def settings(tmp_path):
         auto_execute=False,
         alpaca_mode="paper",
         live_trading_ack="",
+        options_enabled=False,
+        options_auto_execute=False,
+        options_max_equity_fraction=0.20,
+        options_entry_time_et="10:00",
+        options_earnings_path=tmp_path / "earnings.json",
+        live_options_ack="",
     )
 
 
@@ -72,6 +82,14 @@ def test_run_once_executes_only_due_tasks(fake_service, state):
     scheduler.run_once(now=NOW + timedelta(minutes=30))
     assert fake_service.analysis_calls[-1] == NOW + timedelta(minutes=30)
     assert fake_service.position_calls[-1] == NOW + timedelta(minutes=30)
+
+
+def test_scheduler_runs_options_on_fifteen_minute_deadline(fake_service, state):
+    scheduler = AutomationScheduler(fake_service, state, now=lambda: NOW, sleep=lambda _: None)
+    scheduler.run_once(NOW)
+    scheduler.run_once(NOW + timedelta(minutes=14))
+    scheduler.run_once(NOW + timedelta(minutes=15))
+    assert fake_service.option_calls == [NOW, NOW + timedelta(minutes=15)]
 
 
 def test_position_interval_can_be_due_before_analysis(fake_service, state):
@@ -447,7 +465,18 @@ def test_foreground_loop_stops_cleanly_on_keyboard_interrupt(fake_service, state
 
 
 def test_foreground_sleep_uses_fresh_time_after_cycle(fake_service, state):
-    times = iter((NOW, NOW, NOW, NOW, NOW, NOW + timedelta(minutes=29, seconds=30)))
+    times = iter(
+        (
+            NOW,
+            NOW,
+            NOW,
+            NOW,
+            NOW,
+            NOW,
+            NOW,
+            NOW + timedelta(minutes=29, seconds=30),
+        )
+    )
     sleeps = []
 
     def interrupt(seconds):
@@ -462,7 +491,7 @@ def test_foreground_sleep_uses_fresh_time_after_cycle(fake_service, state):
     )
     scheduler.run_forever()
 
-    assert sleeps == [30]
+    assert sleeps == [1]
 
 
 def test_foreground_sleep_deadline_read_failure_defers_without_busy_loop(

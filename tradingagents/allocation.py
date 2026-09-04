@@ -35,11 +35,22 @@ def conviction_targets(decisions, cash, max_cash_allocation):
     return {symbol: gross_budget * score / score_total for symbol, score in scores.items()}
 
 
-def reconcile_targets(targets, positions, open_orders, threshold):
+
+def reconcile_targets(
+    targets,
+    positions,
+    open_orders,
+    threshold,
+    minimum_positions=None,
+):
     threshold = Decimal(str(threshold))
+    minimums = {} if minimum_positions is None else minimum_positions
     intents = []
     for symbol, raw_target in targets.items():
-        target = Decimal(str(raw_target))
+        target = max(
+            Decimal(str(raw_target)),
+            Decimal(str(minimums.get(symbol, raw_target))),
+        )
         effective = Decimal(str(positions.get(symbol, 0))) + Decimal(
             str(open_orders.get(symbol, 0))
         )

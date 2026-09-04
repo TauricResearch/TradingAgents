@@ -1,5 +1,7 @@
+import json
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from dataclasses import replace
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,6 +15,7 @@ from tradingagents.execution import (
     AlpacaBroker,
     AssetInfo,
 )
+from tradingagents.options import EquityPosition, OptionContract, OptionOpenOrder
 
 NOW = datetime(2026, 8, 11, 14, 0, tzinfo=timezone.utc)
 RATINGS = {
@@ -61,6 +64,16 @@ class FakeBroker:
         self.submitted = []
         self.submit_attempts = []
         self.reads = []
+        self.equity = Decimal("100000")
+        self.options_buying_power = Decimal("100000")
+        self.equity_lots = ()
+        self.option_positions = ()
+        self.option_orders = ()
+        self.option_contract_values = {}
+        self.close_history = _aligned_history(Decimal("0.005"))
+        self.submitted_options = []
+        self.option_failure = None
+        self.latest_prices = {}
 
     def broker_time(self):
         self.reads.append("broker_time")
@@ -81,6 +94,8 @@ class FakeBroker:
             self.buying_power,
             self.trading_blocked,
             self.status,
+            self.equity,
+            self.options_buying_power,
         )
 
     def positions(self):
@@ -99,7 +114,10 @@ class FakeBroker:
         self.reads.append(f"price:{symbol}")
         if self.read_failure == f"price:{symbol}":
             raise RuntimeError(f"price unavailable for {symbol}")
-        return Decimal("100")
+        equity = next((lot for lot in self.equity_lots if lot.symbol == symbol), None)
+        if equity is not None:
+            return equity.current_price
+        return self.latest_prices.get(symbol, Decimal("100"))
 
     def asset(self, symbol):
         self.reads.append(f"asset:{symbol}")
@@ -125,6 +143,63 @@ class FakeBroker:
         self.submitted.append(spec)
         return f"order-{spec.symbol}"
 
+    def wheel_positions_and_orders(self):
+        if self.option_failure in {"option_positions", "option_orders", "option_delta"}:
+            raise RuntimeError(f"{self.option_failure} unavailable")
+        return self.equity_lots, self.option_positions, self.option_orders
+
+    def option_contracts(self, underlying, kind, now):
+        if self.option_failure in {"option_quote", "option_delta"}:
+            raise RuntimeError(f"{self.option_failure} unavailable")
+        return self.option_contract_values.get(underlying, ())
+
+    def daily_closes(self, symbols, limit=61):
+        if self.option_failure == "daily_closes":
+            raise RuntimeError("daily closes unavailable")
+        return self.close_history
+
+    def prepare_option_order(self, intent, cycle_id):
+        return AlpacaBroker.prepare_option_order(self, intent, cycle_id)
+
+    def submit_option_idempotent(self, spec):
+        self.submitted_options.append(spec)
+        return f"option-{spec.symbol}"
+
+    def cancel_stale_option_order(self, order_id, client_order_id):
+        return None
+
+
+def _eligible_put(symbol, now):
+    return OptionContract(
+        symbol=f"{symbol}260904P00300000",
+        underlying=symbol,
+        kind="put",
+        strike=Decimal("300"),
+        expiration=date(2026, 9, 4),
+        delta=Decimal("-0.20"),
+        bid=Decimal("3.00"),
+        ask=Decimal("3.20"),
+        open_interest=Decimal("500"),
+        quote_time=now,
+    )
+
+
+def _aligned_history(change):
+    start = date(2026, 7, 1)
+    result = {}
+    for symbol in ("AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA"):
+        magnitude = Decimal(
+            str(("AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA").index(symbol) + 1)
+        )
+        price = Decimal("100")
+        rows = [(start, price)]
+        for index in range(40):
+            signed = change * magnitude if index % 2 == 0 else -change * magnitude
+            price *= Decimal("1") + signed
+            rows.append((start + timedelta(days=index + 1), price))
+        result[symbol] = tuple(rows)
+    return result
+
 
 def _settings(tmp_path, **overrides):
     values = {
@@ -139,6 +214,12 @@ def _settings(tmp_path, **overrides):
         "auto_execute": False,
         "alpaca_mode": "paper",
         "live_trading_ack": "",
+        "options_enabled": False,
+        "options_auto_execute": False,
+        "options_max_equity_fraction": 0.20,
+        "options_entry_time_et": "10:00",
+        "options_earnings_path": tmp_path / "earnings.json",
+        "live_options_ack": "",
     }
     values.update(overrides)
     return AutomationSettings(**values)
@@ -170,6 +251,10 @@ class ServiceHarness:
     def track_positions(self, due_time):
         return self.service.track_positions(due_time)
 
+    def manage_options(self, due_time):
+        self.service.settings = self.settings
+        return self.service.manage_options(due_time)
+
     def seed_all_decisions(self, analyzed_at=NOW, omitted=()):
         for symbol in self.settings.watchlist:
             if symbol not in omitted:
@@ -185,7 +270,17 @@ class ServiceHarness:
 @pytest.fixture
 def service(tmp_path):
     state = AutomationState(tmp_path / "state.db")
-    yield ServiceHarness(_settings(tmp_path), state, FakeBroker())
+    settings = _settings(tmp_path)
+    settings.options_earnings_path.write_text(
+        json.dumps(
+            {
+                "source": "Wall Street Horizon",
+                "retrieved_at": NOW.isoformat(),
+                "symbols": dict.fromkeys(settings.watchlist, "2026-12-11"),
+            }
+        )
+    )
+    yield ServiceHarness(settings, state, FakeBroker())
     state.close()
 
 
@@ -193,6 +288,98 @@ def service(tmp_path):
 def warmed_service(service):
     service.seed_all_decisions()
     return service
+
+
+def test_reserved_covered_shares_cannot_be_sold(warmed_service):
+    warmed_service.settings = replace(warmed_service.settings, options_enabled=True)
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.position_values = {"AAPL": Decimal("32000")}
+    warmed_service.broker.equity_lots = (
+        EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320")),
+    )
+    warmed_service.broker.option_orders = (
+        OptionOpenOrder(
+            "AAPL261002C00350000",
+            "AAPL",
+            "call",
+            "sell_to_open",
+            Decimal("1"),
+            Decimal("0"),
+            Decimal("350"),
+        ),
+    )
+    warmed_service.ratings["AAPL"] = "Sell"
+    result = warmed_service.run_analysis_cycle(NOW)
+    aapl = tuple(intent for intent in result.order_intents if intent.symbol == "AAPL")
+    assert not aapl or all(
+        intent.side != "sell" or intent.target_notional >= Decimal("32000")
+        for intent in aapl
+    )
+
+
+def test_option_entry_is_suppressed_when_combined_risk_exceeds_limit(warmed_service):
+    warmed_service.settings = replace(warmed_service.settings, options_enabled=True)
+    warmed_service.broker.cash = Decimal("200000")
+    warmed_service.broker.buying_power = Decimal("200000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.latest_prices["AAPL"] = Decimal("1000")
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+    }
+    high_risk_history = _aligned_history(Decimal("0.08"))
+    aapl_history = high_risk_history["AAPL"]
+    warmed_service.broker.close_history = dict.fromkeys(
+        warmed_service.settings.watchlist, aapl_history
+    )
+    result = warmed_service.manage_options(NOW)
+    assert result.intents == ()
+    assert result.suppressed_reason == "combined portfolio risk exceeds limit"
+
+
+def test_dry_run_records_ticket_without_submitting(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=False
+    )
+    warmed_service.broker.cash = Decimal("200000")
+    warmed_service.broker.buying_power = Decimal("200000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+    }
+    result = warmed_service.manage_options(NOW)
+    assert result.intents
+    assert warmed_service.broker.submitted_options == []
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "options_buying_power",
+        "option_positions",
+        "option_orders",
+        "option_quote",
+        "option_delta",
+        "earnings_cache",
+        "daily_closes",
+    ],
+)
+def test_option_read_failure_submits_nothing(warmed_service, failure):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+    }
+    warmed_service.broker.option_failure = failure
+    if failure == "options_buying_power":
+        warmed_service.broker.options_buying_power = Decimal("-1")
+    elif failure == "earnings_cache":
+        warmed_service.settings.options_earnings_path.unlink()
+    result = warmed_service.manage_options(NOW)
+    assert result.submitted_order_ids == ()
+    assert result.suppressed_reason
 
 
 def test_first_cycle_analyzes_three_but_does_not_trade_before_warmup(service):

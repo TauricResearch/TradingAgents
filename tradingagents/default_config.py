@@ -22,6 +22,12 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_AUTO_EXECUTE":         "auto_execute",
     "TRADINGAGENTS_ALPACA_MODE":          "alpaca_mode",
     "TRADINGAGENTS_LIVE_TRADING_ACK":     "live_trading_ack",
+    "TRADINGAGENTS_OPTIONS_ENABLED": "options_enabled",
+    "TRADINGAGENTS_OPTIONS_AUTO_EXECUTE": "options_auto_execute",
+    "TRADINGAGENTS_OPTIONS_MAX_EQUITY_FRACTION": "options_max_equity_fraction",
+    "TRADINGAGENTS_OPTIONS_ENTRY_TIME_ET": "options_entry_time_et",
+    "TRADINGAGENTS_OPTIONS_EARNINGS_PATH": "options_earnings_path",
+    "TRADINGAGENTS_LIVE_OPTIONS_ACK": "live_options_ack",
     "TRADINGAGENTS_LLM_PROVIDER":         "llm_provider",
     "TRADINGAGENTS_DEEP_THINK_LLM":       "deep_think_llm",
     "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
@@ -101,6 +107,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "auto_execute": False,
     "alpaca_mode": "paper",
     "live_trading_ack": "",
+    "options_enabled": False,
+    "options_auto_execute": False,
+    "options_max_equity_fraction": 0.20,
+    "options_entry_time_et": "10:00",
+    "options_earnings_path": os.path.join(
+        _TRADINGAGENTS_HOME, "automation", "earnings.json"
+    ),
+    "live_options_ack": "",
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
