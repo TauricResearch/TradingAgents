@@ -10,7 +10,13 @@ to it.
 
 import pytest
 
-from tradingagents.agents.utils.rating import RATINGS_5_TIER, parse_rating
+from tradingagents.agents.utils.rating import (
+    RATING_REVIEW,
+    RATINGS_5_TIER,
+    extract_rating,
+    is_review,
+    parse_rating,
+)
 from tradingagents.graph.signal_processing import SignalProcessor
 
 # ---------------------------------------------------------------------------
@@ -84,6 +90,51 @@ class TestSignalProcessor:
         llm.invoke.assert_not_called()
         llm.with_structured_output.assert_not_called()
 
-    def test_default_when_no_rating_present(self):
+    def test_unparseable_signal_is_review_not_silent_hold(self):
+        # #1170: an unrecognizable decision must surface REVIEW, not a fabricated
+        # tradeable Hold.
         sp = SignalProcessor()
-        assert sp.process_signal("Plain prose without a recommendation.") == "Hold"
+        signal = sp.process_signal("Plain prose without a recommendation.")
+        assert signal == RATING_REVIEW
+        assert is_review(signal)
+        assert signal not in RATINGS_5_TIER
+
+    def test_fullwidth_colon_is_parsed_not_reviewed(self):
+        # #1170: `Rating：Overweight` (fullwidth colon) used to defeat the regex
+        # and silently become Hold; NFKC normalization now parses it.
+        sp = SignalProcessor()
+        assert sp.process_signal("Rating：Overweight\n理由はこちら。") == "Overweight"
+
+
+@pytest.mark.unit
+class TestExtractRating:
+    def test_returns_none_when_absent(self):
+        assert extract_rating("No directional call here.") is None
+        assert extract_rating("") is None
+
+    def test_whole_word_only(self):
+        # substrings inside larger words must not match
+        assert extract_rating("The buyer was holding shares.") is None
+
+    def test_parse_rating_keeps_silent_default_for_compat(self):
+        # parse_rating (used by the memory log) intentionally keeps Hold default.
+        assert parse_rating("No rating here.") == "Hold"
+        assert parse_rating("No rating here.", default="Underweight") == "Underweight"
+
+
+@pytest.mark.unit
+class TestGraphSignalContract:
+    """The graph-facing signal (TradingAgentsGraph.process_signal) honors the
+    documented "5-tier or REVIEW" contract, not just the parser in isolation."""
+
+    def _bare_graph(self):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        g = object.__new__(TradingAgentsGraph)
+        g.signal_processor = SignalProcessor()
+        return g
+
+    def test_graph_surfaces_review(self):
+        assert self._bare_graph().process_signal("no rating in here") == RATING_REVIEW
+
+    def test_graph_returns_rating(self):
+        assert self._bare_graph().process_signal("**Rating**: Sell") == "Sell"

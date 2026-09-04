@@ -52,6 +52,7 @@ def test_trader_prompt_states_constraint():
     create_trader(llm)({
         "company_of_interest": "NVDA",
         "investment_plan": "**Recommendation**: Buy",
+        "market_report": "Current price $189.5; ATR 4.2.",
     })
     assert NO_EXTERNAL_TOOLS in _prompt_text(captured["prompt"])
 

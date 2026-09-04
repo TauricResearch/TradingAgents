@@ -118,6 +118,15 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
 
 def get_capabilities(model_name: str) -> ModelCapabilities:
     """Resolve capabilities by exact ID, then pattern, then default."""
+    # OpenRouter namespaces official DeepSeek models as ``deepseek/<id>``, so
+    # strip that prefix to reuse the same quirks as the native provider — e.g.
+    # ``deepseek/deepseek-v4-flash`` must suppress tool_choice like
+    # ``deepseek-v4-flash`` does, not fall through to _DEFAULT (#1199). Only the
+    # official namespace is stripped; third-party finetunes on other publishers
+    # (e.g. ``tngtech/deepseek-...``) keep _DEFAULT, since their quirks are unknown.
+    if model_name.startswith("deepseek/"):
+        model_name = model_name.removeprefix("deepseek/")
+
     if model_name in _BY_ID:
         return _BY_ID[model_name]
     for pattern, caps in _BY_PATTERN:

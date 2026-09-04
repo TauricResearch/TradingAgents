@@ -1,24 +1,15 @@
 """yfinance-based news data fetching functions."""
 
 import contextlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
+from .date_window import in_window
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
-
-
-def _as_utc(dt: datetime) -> datetime:
-    """Normalize a datetime to UTC-aware; a naive value is assumed to be UTC.
-
-    Window bounds arrive naive (parsed from ``yyyy-mm-dd``) while article
-    timestamps may be offset-aware, so every operand is normalized before
-    comparison. Without this the filter depends on the host timezone (#1126).
-    """
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -69,21 +60,6 @@ def _extract_article_data(article: dict) -> dict:
         }
 
 
-def _in_news_window(pub_date, start_dt, end_dt) -> bool:
-    """Whether an article belongs in the half-open window ``[start, end + 1 day)``.
-
-    Every operand is normalized to UTC, and the upper bound is exclusive so an
-    article stamped exactly at midnight after ``end_dt`` cannot leak into a
-    historical run (#1126). An undated article is kept only when the window
-    reaches the present (live run) — in a historical/backtest window it's
-    excluded, since we can't prove it isn't future news (#992/#1007).
-    """
-    end = _as_utc(end_dt)
-    if pub_date is not None:
-        return _as_utc(start_dt) <= _as_utc(pub_date) < end + timedelta(days=1)
-    return end >= datetime.now(timezone.utc) - timedelta(days=1)
-
-
 def get_news_yfinance(
     ticker: str,
     start_date: str,
@@ -124,7 +100,7 @@ def get_news_yfinance(
             data = _extract_article_data(article)
 
             # Keep only articles within the requested window (look-ahead safe).
-            if not _in_news_window(data["pub_date"], start_dt, end_dt):
+            if not in_window(data["pub_date"], start_dt, end_dt):
                 continue
 
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
@@ -211,7 +187,7 @@ def get_global_news_yfinance(
             # Extract uniformly (flat + nested) and apply the same look-ahead-safe
             # window filter, so flat articles can't leak future news (#1007).
             data = _extract_article_data(article)
-            if not _in_news_window(data["pub_date"], start_dt, curr_dt):
+            if not in_window(data["pub_date"], start_dt, curr_dt):
                 continue
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
