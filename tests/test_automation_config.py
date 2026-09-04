@@ -13,6 +13,9 @@ def _config(**overrides):
         "analysis_interval_minutes": 30,
         "position_interval_minutes": 30,
         "max_cash_allocation": 0.30,
+        "target_volatility": 0.15,
+        "max_volatility": 0.20,
+        "max_gross_leverage": 2.0,
         "decision_max_age_minutes": 120,
         "rebalance_threshold_usd": 10.0,
         "automation_state_path": "/tmp/tradingagents-state.db",
@@ -36,6 +39,33 @@ def test_settings_normalize_watchlist_and_keep_hard_cap():
     assert settings.watchlist == ("AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA")
     assert settings.max_cash_allocation == 0.30
     assert settings.state_path == Path("/tmp/tradingagents-state.db")
+
+
+def test_settings_accept_volatility_policy():
+    settings = AutomationSettings.from_config(
+        _config(
+            target_volatility=0.15,
+            max_volatility=0.20,
+            max_gross_leverage=2.0,
+        )
+    )
+    assert settings.target_volatility == 0.15
+    assert settings.max_volatility == 0.20
+    assert settings.max_gross_leverage == 2.0
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"target_volatility": 0},
+        {"target_volatility": 0.21, "max_volatility": 0.20},
+        {"max_volatility": 0.21},
+        {"max_gross_leverage": 2.01},
+    ],
+)
+def test_settings_reject_invalid_volatility_policy(values):
+    with pytest.raises(ValueError):
+        AutomationSettings.from_config(_config(**values))
 
 
 def test_settings_reject_allocation_above_thirty_percent():

@@ -2,7 +2,7 @@ import hashlib
 import importlib
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import ROUND_DOWN, Decimal
 from typing import Protocol
 
@@ -68,6 +68,10 @@ class Broker(Protocol):
 
     def latest_price(self, symbol: str) -> Decimal: ...
 
+    def daily_closes(
+        self, symbols: tuple[str, ...], limit: int = 61
+    ) -> dict[str, tuple[tuple[date, Decimal], ...]]: ...
+
     def submit(self, spec: OrderRequestSpec) -> str: ...
 
     def find_order_by_client_id(self, client_order_id: str) -> str | None: ...
@@ -129,6 +133,18 @@ def _crypto_data_client_class():
 
 def _stock_latest_trade_request_class():
     return _alpaca_class("alpaca.data.requests", "StockLatestTradeRequest")
+
+
+def _stock_bars_request_class():
+    return _alpaca_class("alpaca.data.requests", "StockBarsRequest")
+
+
+def _stock_timeframe_day():
+    return _alpaca_class("alpaca.data.timeframe", "TimeFrame").Day
+
+
+def _stock_data_feed_iex():
+    return _alpaca_class("alpaca.data.enums", "DataFeed").IEX
 
 
 def _crypto_latest_trade_request_class():
@@ -276,6 +292,40 @@ class AlpacaBroker:
             request = _stock_latest_trade_request_class()(symbol_or_symbols=sdk_symbol)
             trades = self._stock_data_client.get_stock_latest_trade(request)
         return self._trade_price(trades, sdk_symbol)
+
+    def daily_closes(
+        self, symbols: tuple[str, ...], limit: int = 61
+    ) -> dict[str, tuple[tuple[date, Decimal], ...]]:
+        if self._stock_data_client is None:
+            self._stock_data_client = _stock_data_client_class()(self._key, self._secret)
+        request = _stock_bars_request_class()(
+            symbol_or_symbols=list(symbols),
+            timeframe=_stock_timeframe_day(),
+            limit=limit,
+            feed=_stock_data_feed_iex(),
+        )
+        response = self._stock_data_client.get_stock_bars(request)
+        raw_history = getattr(response, "data", None)
+        if not isinstance(raw_history, Mapping):
+            raise RuntimeError("Alpaca daily bars response is unavailable")
+
+        history = {}
+        for symbol in symbols:
+            bars = raw_history.get(symbol)
+            if not bars:
+                raise RuntimeError(f"Alpaca daily bars are unavailable for {symbol}")
+            rows = []
+            for bar in bars:
+                try:
+                    close = Decimal(str(bar.close))
+                    day = bar.timestamp.date()
+                except (ArithmeticError, AttributeError, ValueError) as error:
+                    raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}") from error
+                if not close.is_finite() or close <= 0:
+                    raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}")
+                rows.append((day, close))
+            history[symbol] = tuple(rows)
+        return history
 
     @staticmethod
     def _trade_price(trades, symbol: str) -> Decimal:

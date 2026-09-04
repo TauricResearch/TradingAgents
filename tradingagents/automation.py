@@ -23,6 +23,9 @@ class AutomationSettings:
     auto_execute: bool
     alpaca_mode: str
     live_trading_ack: str
+    target_volatility: float = 0.15
+    max_volatility: float = 0.20
+    max_gross_leverage: float = 2.0
 
     @classmethod
     def from_config(cls, config: Mapping[str, object]) -> "AutomationSettings":
@@ -59,6 +62,17 @@ class AutomationSettings:
         if rebalance_threshold_usd < 0:
             raise ValueError("rebalance_threshold_usd must be non-negative")
 
+        target_volatility = config["target_volatility"]
+        max_volatility = config["max_volatility"]
+        max_gross_leverage = config["max_gross_leverage"]
+        if not 0 < target_volatility <= max_volatility <= 0.20:
+            raise ValueError(
+                "volatility policy must satisfy 0 < target_volatility "
+                "<= max_volatility <= 0.20"
+            )
+        if not 1.0 <= max_gross_leverage <= 2.0:
+            raise ValueError("max_gross_leverage must be between 1.0 and 2.0")
+
         return cls(
             watchlist=symbols,
             batch_size=batch_size,
@@ -71,6 +85,9 @@ class AutomationSettings:
             auto_execute=config["auto_execute"],
             alpaca_mode=alpaca_mode,
             live_trading_ack=config["live_trading_ack"],
+            target_volatility=target_volatility,
+            max_volatility=max_volatility,
+            max_gross_leverage=max_gross_leverage,
         )
 
 
