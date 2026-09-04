@@ -123,7 +123,18 @@ def start_webapp(host: str = "127.0.0.1", port: int = NEXT_BASE_PORT):
 
 
 def launch_browser_mode() -> str | None:
-    """Ensure build + start server. Returns the URL or None on failure."""
+    """Ensure build + start server. Returns the URL or None on failure.
+
+    Also starts the Python API thread (backend for runs/settings/sessions)
+    in this process so the freshly opened app is fully functional.
+    """
+    from cli.api_server import start_background
+
+    _, api_url = start_background()
+    if api_url:
+        console.print(f"[bold cyan]Web API:[/bold cyan] {api_url}")
+    else:
+        console.print("[yellow]Web API unavailable (port busy?) — app will be view-only.[/yellow]")
     if not ensure_webapp_build():
         return None
     _, url = start_webapp()

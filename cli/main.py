@@ -1207,6 +1207,7 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
     config["anthropic_effort"] = selections.get("anthropic_effort")
+    config["nvidia_reasoning_effort"] = selections.get("nvidia_reasoning_effort")
     config["output_language"] = selections.get("output_language", "English")
     # --checkpoint/--no-checkpoint overrides only when explicitly given; omitting
     # the flag preserves TRADINGAGENTS_CHECKPOINT_ENABLED / the default (#976).
@@ -1215,14 +1216,83 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None):
+def _normalize_selections(selections: dict) -> dict:
+    """Validate + normalize a programmatic selections dict (web/API path).
+
+    Accepts the same keys ``get_user_selections()`` returns; ``analysts``
+    may be plain strings. Raises ValueError describing the first problem.
+    """
+    from cli.models import AnalystType
+    from cli.utils import is_valid_ticker_input, normalize_ticker_symbol
+
+    selections = dict(selections)
+    ticker = str(selections.get("ticker") or "").strip()
+    if not ticker or not is_valid_ticker_input(ticker):
+        raise ValueError("ticker must be a valid symbol (e.g. AAPL, 0700.HK, BTC-USD)")
+    selections["ticker"] = normalize_ticker_symbol(ticker)
+
+    import re
+    from datetime import datetime as _dt
+
+    date = str(selections.get("analysis_date") or "").strip()
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        raise ValueError("analysis_date must be YYYY-MM-DD")
+    try:
+        _dt.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("analysis_date is not a real calendar date")
+    selections["analysis_date"] = date
+
+    analysts = selections.get("analysts") or []
+    try:
+        selections["analysts"] = [a if isinstance(a, AnalystType) else AnalystType(str(a).lower()) for a in analysts]
+    except ValueError:
+        raise ValueError("analysts must be among: market, social, news, fundamentals")
+    if not selections["analysts"]:
+        raise ValueError("select at least one analyst")
+
+    try:
+        selections["research_depth"] = int(selections.get("research_depth", 3))
+    except (TypeError, ValueError):
+        raise ValueError("research_depth must be 1, 3, or 5")
+    if selections["research_depth"] not in (1, 3, 5):
+        raise ValueError("research_depth must be 1, 3, or 5")
+
+    if not selections.get("llm_provider"):
+        raise ValueError("llm_provider is required")
+    selections["llm_provider"] = str(selections["llm_provider"]).lower()
+    if not selections.get("shallow_thinker") or not selections.get("deep_thinker"):
+        raise ValueError("shallow_thinker and deep_thinker are required")
+    selections.setdefault("output_language", "English")
+    return selections
+
+
+def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
+                 prompt_hub=None, headless: bool = False, run_record=None):
+    """Run one analysis.
+
+    Interactive (CLI) by default: prompts for every selection. Programmatic
+    (web/API) when ``selections`` is passed — same keys as
+    ``get_user_selections()`` returns, except ``analysts`` may be plain
+    strings (e.g. ``["market", "news"]``) instead of ``AnalystType``.
+    ``prompt_hub`` (any object with a ``pending_prompt`` dict) receives the
+    3 post-run prompts instead of/in addition to the terminal; ``headless``
+    silences the fullscreen Live view for server-side runs.
+    """
+    global dashboard_port
     # First get all user selections
-    selections = get_user_selections()
+    if selections is None:
+        selections = get_user_selections()
+    else:
+        selections = _normalize_selections(selections)
 
     config = _build_run_config(selections, checkpoint)
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
+    if run_record is not None:
+        run_record.stats_handler = stats_handler
+        run_record.start_time = time.time()
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}
@@ -1303,39 +1373,55 @@ def run_analysis(checkpoint: bool | None = None):
     from cli.webapp import ask_interface, launch_browser_mode
 
     webapp_url = None
-    if ask_interface() == "browser":
-        webapp_url = launch_browser_mode()
-        if webapp_url is None:
-            console.print("[yellow]Falling back to CLI mode.[/yellow]")
-
-    # Web dashboard: scrollable mirror of the three panels. The Rich Live
-    # view takes over the terminal, so print the URL beforehand; it is also
-    # repeated in the footer stats line while the run is live.
-    global dashboard_port
-    dashboard_server, dashboard_url = start_dashboard(
-        message_buffer,
-        stats_handler=stats_handler,
-        start_time=start_time,
-        meta={
-            "ticker": selections["ticker"],
-            "analysis_date": selections["analysis_date"],
-            "llm_provider": selections.get("llm_provider"),
-            "shallow_thinker": selections.get("shallow_thinker"),
-            "deep_thinker": selections.get("deep_thinker"),
-        },
-    )
-    if dashboard_url:
-        try:
-            dashboard_port = int(dashboard_url.rsplit(":", 1)[-1])
-        except ValueError:
-            dashboard_port = None
-        console.print(f"\n[bold cyan]Web dashboard:[/bold cyan] {dashboard_url}")
-        console.print("[dim]Continuing to the terminal view in 5s...[/dim]\n")
-        time.sleep(5)
-    else:
+    # prompt_server feeds the 3 post-run prompts: the interactive dashboard
+    # server in CLI mode, or the web run's hub in headless (API) mode.
+    prompt_server = prompt_hub
+    dashboard_server = None
+    if headless:
         dashboard_port = None
+    else:
+        if ask_interface() == "browser":
+            webapp_url = launch_browser_mode()
+            if webapp_url is None:
+                console.print("[yellow]Falling back to CLI mode.[/yellow]")
 
-    with Live(layout, refresh_per_second=30, screen=True, redirect_stderr=False):
+        # Web dashboard: scrollable mirror of the three panels. The Rich Live
+        # view takes over the terminal, so print the URL beforehand; it is also
+        # repeated in the footer stats line while the run is live.
+        dashboard_server, dashboard_url = start_dashboard(
+            message_buffer,
+            stats_handler=stats_handler,
+            start_time=start_time,
+            meta={
+                "ticker": selections["ticker"],
+                "analysis_date": selections["analysis_date"],
+                "llm_provider": selections.get("llm_provider"),
+                "shallow_thinker": selections.get("shallow_thinker"),
+                "deep_thinker": selections.get("deep_thinker"),
+            },
+        )
+        if dashboard_url:
+            try:
+                dashboard_port = int(dashboard_url.rsplit(":", 1)[-1])
+            except ValueError:
+                dashboard_port = None
+            console.print(f"\n[bold cyan]Web dashboard:[/bold cyan] {dashboard_url}")
+            console.print("[dim]Continuing to the terminal view in 5s...[/dim]\n")
+            time.sleep(5)
+        else:
+            dashboard_port = None
+        prompt_server = dashboard_server
+
+    # Headless (API-driven) runs render into a discarded console so server
+    # logs stay clean; the terminal flow is otherwise identical.
+    _devnull = open(os.devnull, "w") if headless else None
+    live_kwargs = (
+        {"refresh_per_second": 2, "screen": False, "redirect_stderr": False,
+         "console": Console(file=_devnull)}
+        if headless
+        else {"refresh_per_second": 30, "screen": True, "redirect_stderr": False}
+    )
+    with Live(layout, **live_kwargs):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1569,13 +1655,13 @@ def run_analysis(checkpoint: bool | None = None):
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
     # Prompt to save report
-    save_choice = ask_everywhere(dashboard_server, "Save report?", default="Y").strip().upper()
+    save_choice = ask_everywhere(prompt_server, "Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
         save_path_str = (
             ask_everywhere(
-                dashboard_server,
+                prompt_server,
                 "Save path (press Enter for default)",
                 default=str(default_path),
             ).strip()
@@ -1591,13 +1677,17 @@ def run_analysis(checkpoint: bool | None = None):
 
     # Prompt to display full report
     display_choice = ask_everywhere(
-        dashboard_server, "Display full report on screen?", default="Y"
+        prompt_server, "Display full report on screen?", default="Y"
     ).strip().upper()
     if display_choice in ("Y", "YES", ""):
         display_complete_report(final_state)
 
     stop_dashboard(dashboard_server)
     dashboard_port = None
+
+    if run_record is not None:
+        run_record.final_state = final_state
+        run_record.status = "done"
 
 
 @app.command()
@@ -1636,6 +1726,26 @@ def analyze(
         except KeyboardInterrupt:
             console.print("\n[yellow]Interrupted by user. Exiting TradingAgents CLI.[/yellow]")
             break
+
+
+@app.command()
+def web(
+    port: int = typer.Option(
+        8787,
+        "--port",
+        help="Port for the web API (the Next.js app's backend). "
+        "Omit to honor TRADINGAGENTS_API_PORT.",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Interface to bind the web API to.",
+    ),
+):
+    """Start the TradingAgents web API (backend for the Next.js app)."""
+    from cli.api_server import serve_forever
+
+    serve_forever(host, port)
 
 
 if __name__ == "__main__":

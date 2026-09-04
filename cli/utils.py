@@ -465,8 +465,13 @@ def _select_model(provider: str, mode: str) -> str:
     if live_models:
         model_options = live_models
     else:
-        # Fall back to static catalog
-        model_options = get_model_options(provider, mode)
+        # Fall back to static catalog; providers without a catalog entry
+        # (e.g. opencode/ollama_cloud when the live fetch has no key to
+        # work with) offer Custom model ID only instead of crashing.
+        try:
+            model_options = get_model_options(provider, mode)
+        except KeyError:
+            model_options = [("Custom model ID", "custom")]
 
     # Build choices with "Back to Provider" option
     name_to_value = {"← Back to Provider": BACK_SENTINEL}
