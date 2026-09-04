@@ -81,6 +81,7 @@ class FakeBroker:
         self.option_orders = ()
         self.option_contract_values = {}
         self.close_history = _aligned_history(Decimal("0.005"))
+        self.daily_close_calls = []
         self.submitted_options = []
         self.cancelled_options = []
         self.cancel_failure = False
@@ -180,6 +181,7 @@ class FakeBroker:
         return self.exact_option_contract_values[symbol]
 
     def daily_closes(self, symbols, limit=61):
+        self.daily_close_calls.append(tuple(symbols))
         if self.option_failure == "daily_closes":
             raise RuntimeError("daily closes unavailable")
         return self.close_history
@@ -1268,17 +1270,23 @@ def test_crypto_remains_eligible_while_equity_market_is_closed(tmp_path):
         state.close()
 
 
-def test_warmed_mixed_watchlist_only_executes_crypto_while_equity_market_is_closed(tmp_path):
+def test_warmed_mixed_watchlist_suppresses_crypto_when_history_is_unavailable(tmp_path):
     symbols = ("BTC-USD", "ETH-USD", "AAPL", "MSFT", "NVDA", "AMZN", "META")
-    ratings = {symbol: RATINGS[symbol] for symbol in symbols}
+    ratings = dict.fromkeys(symbols, "Hold")
+    ratings.update({"BTC-USD": "Buy", "ETH-USD": "Overweight"})
     state = AutomationState(tmp_path / "mixed-closed.db")
     broker = FakeBroker()
     broker.market_open = False
+    broker.cash = Decimal("1000000")
+    broker.equity = Decimal("100000")
+    broker.buying_power = Decimal("200000")
     harness = ServiceHarness(
         _settings(
             tmp_path,
             watchlist=symbols,
             auto_execute=True,
+            max_cash_allocation=0.90,
+            max_cash_reserve_usd=70000,
             state_path=tmp_path / "mixed-closed.db",
         ),
         state,
@@ -1288,14 +1296,105 @@ def test_warmed_mixed_watchlist_only_executes_crypto_while_equity_market_is_clos
     harness.seed_all_decisions()
     try:
         result = harness.run_analysis_cycle(NOW)
-        assert {intent.symbol for intent in result.order_intents} == {"BTC-USD", "ETH-USD"}
-        assert {spec.symbol for spec in broker.submitted} == {"BTC/USD", "ETH/USD"}
+        assert result.order_intents == ()
+        assert result.trade_suppressed_reason == "combined portfolio risk exceeds limit"
+        assert broker.daily_close_calls == [("BTC-USD", "ETH-USD")]
+        assert broker.submitted == []
         assert not any(
             read.startswith("price:") and not read.endswith("-USD") for read in broker.reads
         )
-        assert sum(abs(intent.target_notional) for intent in result.order_intents) < Decimal("3000")
     finally:
         state.close()
+
+
+def test_supported_crypto_history_constrains_supra_gross_reserve_targets(tmp_path):
+    symbols = ("BTC-USD", "ETH-USD", "AAPL", "MSFT", "NVDA", "AMZN", "META")
+    ratings = dict.fromkeys(symbols, "Hold")
+    ratings.update({"BTC-USD": "Buy", "ETH-USD": "Overweight"})
+    state = AutomationState(tmp_path / "mixed-supported.db")
+    broker = FakeBroker()
+    broker.market_open = False
+    broker.cash = Decimal("1000000")
+    broker.equity = Decimal("100000")
+    broker.buying_power = Decimal("200000")
+    stock_history = _aligned_history(Decimal("0.002"))
+    broker.close_history = {
+        "BTC-USD": stock_history["AAPL"],
+        "ETH-USD": stock_history["MSFT"],
+    }
+    harness = ServiceHarness(
+        _settings(
+            tmp_path,
+            watchlist=symbols,
+            auto_execute=True,
+            max_cash_allocation=0.90,
+            max_cash_reserve_usd=70000,
+            state_path=tmp_path / "mixed-supported.db",
+        ),
+        state,
+        broker,
+        ratings,
+    )
+    harness.seed_all_decisions()
+    try:
+        result = harness.run_analysis_cycle(NOW)
+        targets = {intent.symbol: intent.target_notional for intent in result.order_intents}
+        gross = sum(abs(target) for target in targets.values())
+        buy_notional = sum(
+            intent.notional for intent in result.order_intents if intent.side == "buy"
+        )
+
+        assert result.trade_suppressed_reason is None
+        assert broker.daily_close_calls == [("BTC-USD", "ETH-USD")]
+        assert set(targets) == {"BTC-USD", "ETH-USD"}
+        assert gross < broker.cash * Decimal("0.90")
+        assert gross <= Decimal("200000")
+        assert buy_notional <= broker.buying_power
+        assert forecast_volatility(
+            targets,
+            broker.equity,
+            close_returns(broker.close_history),
+        ) <= Decimal("0.1500000001")
+        assert broker.submitted
+    finally:
+        state.close()
+
+
+def test_cash_reserve_cycle_creates_risk_constrained_intents_within_buying_power(
+    warmed_service,
+):
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        auto_execute=True,
+        max_cash_allocation=0.90,
+        max_cash_reserve_usd=70000,
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("50000")
+    warmed_service.broker.equity = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("200000")
+    warmed_service.broker.close_history = _aligned_history(Decimal("0.02"))
+
+    result = warmed_service.run_analysis_cycle(NOW)
+    targets = {intent.symbol: intent.target_notional for intent in result.order_intents}
+    projected_cash = warmed_service.broker.equity - sum(targets.values())
+    gross = sum(abs(target) for target in targets.values())
+    buy_notional = sum(
+        intent.notional for intent in result.order_intents if intent.side == "buy"
+    )
+
+    assert result.trade_suppressed_reason is None
+    assert result.order_intents
+    assert projected_cash == Decimal("20000")
+    assert projected_cash < Decimal("70000")
+    assert gross <= Decimal("200000")
+    assert buy_notional <= warmed_service.broker.buying_power
+    assert forecast_volatility(
+        targets,
+        warmed_service.broker.equity,
+        close_returns(warmed_service.broker.close_history),
+    ) <= Decimal("0.1500000001")
+    assert warmed_service.broker.submitted
 
 
 def test_one_symbol_eligibility_defers_whole_partition(tmp_path):

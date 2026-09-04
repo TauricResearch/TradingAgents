@@ -20,3 +20,16 @@
 ## Isolation
 
 The commit was patch-staged to exclude unrelated Alpaca market-data, Yahoo fallback, date-boundary, and other concurrent worktree changes.
+
+## Formal Fix Round 1
+
+- RED: eight expected failures exposed reserve-trigger reductions, malformed configuration errors, unconstrained crypto execution, and missing service-level reserve evidence.
+- The reserve ceiling now only increases positive baseline targets; it never reduces them when projected cash already satisfies the ceiling.
+- Every non-zero executable target, including crypto, now passes through portfolio volatility and gross control with matching history; missing aligned history suppresses the whole cycle.
+- `max_cash_reserve_usd` is normalized and compared as a finite `Decimal`; malformed values fail with a consistent `ValueError`.
+- The README explicitly documents that `0` disables reserve-driven deployment.
+- Focused: 149 tests passed.
+- Targeted strengthened cases: 62 tests passed.
+- Integrated after the market-data commit: 314 tests passed.
+- Staged-only: the same 314-test integrated suite passed from a temporary archive of `git write-tree`.
+- Full: 1,042 tests and 69 subtests passed; one optional `langchain_aws` test was skipped, with known model and pytest temporary-directory warnings.

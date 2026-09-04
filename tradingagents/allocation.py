@@ -58,8 +58,13 @@ def conviction_targets(
     positive_total = sum(score for score in scores.values() if score > 0)
     if positive_total == 0:
         return targets
+    baseline_long = sum(target for target in targets.values() if target > 0)
     short_target = -sum(target for target in targets.values() if target < 0)
-    required_long = max(equity_value + short_target - reserve, Decimal("0"))
+    required_long = max(
+        baseline_long,
+        equity_value + short_target - reserve,
+        Decimal("0"),
+    )
     return {
         symbol: required_long * score / positive_total if score > 0 else targets[symbol]
         for symbol, score in scores.items()

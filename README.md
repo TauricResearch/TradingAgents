@@ -248,9 +248,11 @@ rejections can make actual position value differ temporarily.
 
 `TRADINGAGENTS_MAX_CASH_RESERVE_USD` defaults to `$70,000` as a best-effort
 maximum cash reserve, providing a buffer below the `$75,000` operating goal.
-Positive convictions are scaled by their relative weights
-so projected cash reaches the reserve after accounting for short exposure; no
-long exposure is invented when every decision is Hold, Underweight, or Sell.
+Set it to `0` to disable reserve-driven deployment.
+When baseline projected cash is above the ceiling, positive convictions are
+scaled up by their relative weights after accounting for short exposure. The
+reserve policy never scales baseline positive targets down, and no long
+exposure is invented when every decision is Hold, Underweight, or Sell.
 This target can use leverage and produce negative cash. It is not guaranteed:
 the 15% forecast-volatility target, 20% forecast ceiling, 2.0-times-equity gross
 ceiling, and broker buying power take precedence and may leave more than

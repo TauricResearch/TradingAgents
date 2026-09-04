@@ -66,6 +66,50 @@ def test_cash_reserve_scales_positive_convictions_without_reversing_shorts():
     assert Decimal("1000") - sum(targets.values()) == Decimal("70")
 
 
+def test_cash_reserve_does_not_reduce_buy_only_baseline_when_ceiling_is_met():
+    targets = conviction_targets(
+        {"AAPL": "Buy"},
+        cash=Decimal("50000"),
+        max_cash_allocation=Decimal("0.90"),
+        equity=Decimal("100000"),
+        max_cash_reserve=Decimal("70000"),
+    )
+
+    assert targets == {"AAPL": Decimal("45000.00")}
+
+
+def test_cash_reserve_does_not_reduce_balanced_baseline_when_ceiling_is_met():
+    targets = conviction_targets(
+        {"AAPL": "Buy", "TSLA": "Sell"},
+        cash=Decimal("50000"),
+        max_cash_allocation=Decimal("0.90"),
+        equity=Decimal("50000"),
+        max_cash_reserve=Decimal("70000"),
+    )
+
+    assert targets == {
+        "AAPL": Decimal("22500.00"),
+        "TSLA": Decimal("-22500.00"),
+    }
+
+
+def test_cash_reserve_increases_only_positive_targets_when_ceiling_is_exceeded():
+    targets = conviction_targets(
+        {"AAPL": "Buy", "MSFT": "Overweight", "TSLA": "Sell"},
+        cash=Decimal("50000"),
+        max_cash_allocation=Decimal("0.90"),
+        equity=Decimal("100000"),
+        max_cash_reserve=Decimal("70000"),
+    )
+
+    assert targets == {
+        "AAPL": Decimal("32000"),
+        "MSFT": Decimal("16000"),
+        "TSLA": Decimal("-18000"),
+    }
+    assert Decimal("100000") - sum(targets.values()) == Decimal("70000")
+
+
 def test_cash_reserve_does_not_invent_longs_for_short_only_decisions():
     targets = conviction_targets(
         {"AAPL": "Sell", "MSFT": "Underweight", "TSLA": "Hold"},

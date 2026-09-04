@@ -54,8 +54,19 @@ def test_settings_accept_cash_reserve_target():
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf")])
 def test_settings_reject_nonfinite_cash_reserve_target(value):
-    with pytest.raises(ValueError, match="max_cash_reserve_usd must be finite"):
+    with pytest.raises(ValueError, match="max_cash_reserve_usd.*finite"):
         AutomationSettings.from_config(_config(max_cash_reserve_usd=value))
+
+
+@pytest.mark.parametrize("value", [None, "abc"])
+def test_settings_reject_malformed_cash_reserve_target(value):
+    with pytest.raises(ValueError, match="max_cash_reserve_usd.*finite"):
+        AutomationSettings.from_config(_config(max_cash_reserve_usd=value))
+
+
+def test_settings_normalize_numeric_string_cash_reserve_target():
+    settings = AutomationSettings.from_config(_config(max_cash_reserve_usd="70000"))
+    assert settings.max_cash_reserve_usd == 70000.0
 
 
 def test_settings_accept_volatility_policy():

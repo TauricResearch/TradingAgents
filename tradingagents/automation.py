@@ -82,10 +82,13 @@ class AutomationSettings:
         rebalance_threshold_usd = config["rebalance_threshold_usd"]
         if rebalance_threshold_usd < 0:
             raise ValueError("rebalance_threshold_usd must be non-negative")
-        max_cash_reserve_usd = config.get("max_cash_reserve_usd", 0.0)
-        if not Decimal(str(max_cash_reserve_usd)).is_finite():
-            raise ValueError("max_cash_reserve_usd must be finite")
-        if max_cash_reserve_usd < 0:
+        try:
+            max_cash_reserve_usd = Decimal(str(config.get("max_cash_reserve_usd", 0.0)))
+        except (ArithmeticError, ValueError) as error:
+            raise ValueError("max_cash_reserve_usd must be a finite number") from error
+        if not max_cash_reserve_usd.is_finite():
+            raise ValueError("max_cash_reserve_usd must be a finite number")
+        if max_cash_reserve_usd < Decimal("0"):
             raise ValueError("max_cash_reserve_usd must be non-negative")
 
         target_volatility = config["target_volatility"]
@@ -337,21 +340,17 @@ class AutomationCycleService:
                 ),
             )
             targets = {symbol: all_targets[symbol] for symbol in executable}
-            equity_targets = {
-                symbol: target
-                for symbol, target in targets.items()
-                if detect_asset_type(symbol).value == "stock"
-            }
-            if equity_targets:
-                targets.update(
-                    self._risk_adjusted_targets(
-                        equity_targets,
-                        fixed_option_exposure,
-                        minimum_positions or {},
-                        account.equity,
-                        self.broker.daily_closes(self.settings.watchlist),
-                        fixed_option_gross,
-                    )
+            if any(targets.values()) or any(fixed_option_exposure.values()):
+                risk_symbols = tuple(
+                    dict.fromkeys((*executable, *fixed_option_exposure))
+                )
+                targets = self._risk_adjusted_targets(
+                    targets,
+                    fixed_option_exposure,
+                    minimum_positions or {},
+                    account.equity,
+                    self.broker.daily_closes(risk_symbols),
+                    fixed_option_gross,
                 )
             open_orders = self.broker.open_order_exposure(prices)
             intents = tuple(
