@@ -1,6 +1,8 @@
 import datetime
 import os
+import queue
 import sys
+import threading
 import time
 from collections import deque
 from functools import wraps
@@ -20,13 +22,16 @@ from rich.table import Table
 from rich.text import Text
 
 from cli.announcements import display_announcements, fetch_announcements
+from cli.dashboard import start_dashboard, stop_dashboard
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
     ask_anthropic_effort,
     ask_gemini_thinking_config,
     ask_glm_region,
     ask_minimax_region,
+    ask_nvidia_reasoning_effort,
     ask_openai_reasoning_effort,
+    ask_opencode_endpoint,
     ask_output_language,
     ask_qwen_region,
     confirm_ollama_endpoint,
@@ -262,6 +267,83 @@ class MessageBuffer:
 
 message_buffer = MessageBuffer()
 
+# Scroll state for independent panel scrolling
+class ScrollState:
+    def __init__(self):
+        self.progress_offset = 0
+        self.messages_offset = 0
+        self.analysis_offset = 0
+
+scroll_state = ScrollState()
+
+# Port of the auto-started web dashboard (None = disabled/unavailable).
+# Shown in the footer so the URL survives Rich's fullscreen takeover.
+dashboard_port = None
+
+# Single background stdin reader feeding ask_everywhere(). One daemon thread
+# for the whole process: it survives CLI restarts, so repeated runs never
+# leak blocked input threads.
+_console_lines: queue.Queue = queue.Queue()
+_console_reader_started = False
+
+
+def _ensure_console_reader():
+    global _console_reader_started
+    if _console_reader_started:
+        return
+
+    def _read_loop():
+        while True:
+            try:
+                line = sys.stdin.readline()
+            except Exception:
+                return
+            if line == "":
+                return  # EOF
+            _console_lines.put(line.rstrip("\r\n"))
+
+    threading.Thread(target=_read_loop, daemon=True).start()
+    _console_reader_started = True
+
+
+def ask_everywhere(server, question, default=""):
+    """Ask in the terminal AND on the web dashboard; first answer wins.
+
+    The question is printed to the console and simultaneously published to
+    the dashboard's prompt bar (if a dashboard server is running). Whichever
+    side answers first wins; the other side's pending state is cleared.
+    Ctrl-C still aborts to the caller. Empty input returns "" (callers map
+    that to the default, mirroring typer.prompt behavior).
+    """
+    pending = getattr(server, "pending_prompt", None) if server is not None else None
+    if pending is not None:
+        pending["question"] = question
+        pending["default"] = default
+        pending["answer"] = None
+    # Drop keystrokes typed earlier (e.g. during the Live view) so a stale
+    # line can't auto-answer the fresh prompt.
+    while True:
+        try:
+            _console_lines.get_nowait()
+        except queue.Empty:
+            break
+    _ensure_console_reader()
+    console.print(f"{question} [{default}]: ", end="")
+    try:
+        while True:
+            if pending is not None and pending.get("answer") is not None:
+                return pending["answer"]
+            try:
+                return _console_lines.get_nowait()
+            except queue.Empty:
+                pass
+            time.sleep(0.2)
+    finally:
+        if pending is not None:
+            pending["question"] = None
+            pending["default"] = None
+            pending["answer"] = None
+
 
 def create_layout():
     layout = Layout()
@@ -334,7 +416,30 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         if active_agents:
             teams[team] = active_agents
 
-    for team, agents in teams.items():
+    # Convert teams dict to list of items for scrolling
+    teams_items = list(teams.items())
+    
+    # Calculate how many teams we can show based on available space
+    max_teams = 8  # Approximate number of teams that fit in the panel
+    
+    # Get teams based on scroll offset
+    start_idx = scroll_state.progress_offset
+    end_idx = start_idx + max_teams
+    visible_teams = teams_items[start_idx:end_idx]
+    
+    # Add scroll indicators if needed
+    if len(teams_items) > end_idx:
+        # Add a visual indicator that more teams are available
+        visible_teams.append(("__SCROLL_DOWN__", [f"[dim]... and {len(teams_items) - end_idx} more teams (scroll right)[/dim]"]))
+    elif start_idx > 0:
+        # Add a visual indicator that earlier teams are available
+        visible_teams.insert(0, ("__SCROLL_UP__", [f"[dim]... and {start_idx} earlier teams (scroll left)[/dim]"]))
+
+    for team, agents in visible_teams:
+        # Skip scroll indicator rows
+        if team.startswith("__SCROLL_"):
+            progress_table.add_row("", "", team)
+            continue
         # Add first agent with team name
         first_agent = agents[0]
         status = message_buffer.agent_status.get(first_agent, "pending")
@@ -413,9 +518,11 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Calculate how many messages we can show based on available space
     max_messages = 12
 
-    # Get the first N messages (newest ones)
-    recent_messages = all_messages[:max_messages]
-
+    # Get messages based on scroll offset
+    start_idx = scroll_state.messages_offset
+    end_idx = start_idx + max_messages
+    recent_messages = all_messages[start_idx:end_idx]
+    
     # Add messages to table (already in newest-first order)
     for timestamp, msg_type, content in recent_messages:
         # Format content with word wrapping
@@ -433,9 +540,32 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 
     # Analysis panel showing current report
     if message_buffer.current_report:
+        # Split report into lines for scrolling
+        report_lines = message_buffer.current_report.split('\n')
+        
+        # Calculate how many lines we can show based on available space
+        # Estimate based on panel height (roughly 20-30 lines for typical terminal)
+        max_report_lines = 25
+        
+        # Get report lines based on scroll offset
+        start_idx = scroll_state.analysis_offset
+        end_idx = start_idx + max_report_lines
+        visible_lines = report_lines[start_idx:end_idx]
+        
+        # Add scroll indicators if needed
+        if len(report_lines) > end_idx:
+            # Add a visual indicator that more lines are available
+            visible_lines.append(f"[dim]... and {len(report_lines) - end_idx} more lines (scroll Page Down)[/dim]")
+        elif start_idx > 0:
+            # Add a visual indicator that earlier lines are available
+            visible_lines.insert(0, f"[dim]... and {start_idx} earlier lines (scroll Page Up)[/dim]")
+        
+        # Join the visible lines back together
+        visible_report = '\n'.join(visible_lines)
+        
         layout["analysis"].update(
             Panel(
-                Markdown(message_buffer.current_report),
+                Markdown(visible_report),
                 title="Current Report",
                 border_style="green",
                 padding=(1, 2),
@@ -479,6 +609,8 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         stats_parts.append(tokens_str)
 
     stats_parts.append(f"Reports: {reports_completed}/{reports_total}")
+    if dashboard_port:
+        stats_parts.append(f"Web :{dashboard_port}")
 
     # Elapsed time
     if start_time:
@@ -653,6 +785,8 @@ def get_user_selections():
             selected_llm_provider, backend_url = ask_minimax_region()
         elif selected_llm_provider == "glm":
             selected_llm_provider, backend_url = ask_glm_region()
+        elif selected_llm_provider == "opencode":
+            selected_llm_provider, backend_url = ask_opencode_endpoint()
 
         # Honor an explicit env backend URL even when the provider was chosen
         # interactively, so it isn't overwritten by the menu default (#978).
@@ -713,12 +847,14 @@ def get_user_selections():
     thinking_level = None
     reasoning_effort = None
     anthropic_effort = None
+    nvidia_reasoning_effort = None
 
     provider_lower = selected_llm_provider.lower()
     if provider_from_env:
         thinking_level = DEFAULT_CONFIG["google_thinking_level"]
         reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
         anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
+        nvidia_reasoning_effort = DEFAULT_CONFIG["nvidia_reasoning_effort"]
     elif provider_lower == "google":
         thinking_level = thinking_value_or_prompt(
             "TRADINGAGENTS_GOOGLE_THINKING_LEVEL", "google_thinking_level",
@@ -737,6 +873,12 @@ def get_user_selections():
             "Claude effort", "Step 8: Effort Level",
             "Configure Claude effort level", ask_anthropic_effort,
         )
+    elif provider_lower == "nvidia":
+        nvidia_reasoning_effort = thinking_value_or_prompt(
+            "TRADINGAGENTS_NVIDIA_REASONING_EFFORT", "nvidia_reasoning_effort",
+            "Reasoning effort", "Step 8: Reasoning Effort",
+            "Configure NVIDIA reasoning effort level", ask_nvidia_reasoning_effort,
+        )
 
     return {
         "ticker": selected_ticker,
@@ -750,6 +892,7 @@ def get_user_selections():
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
+        "nvidia_reasoning_effort": nvidia_reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
     }
@@ -1152,9 +1295,83 @@ def run_analysis(checkpoint: bool | None = None):
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=10):
+    # Interface choice: the CLI stays the entry point, but just before
+    # research begins the user picks where to watch this run. Browser mode
+    # boots the Next.js app (building it first if needed); the analysis
+    # itself still runs here until the web app can drive runs on its own.
+    # CLI mode continues with the terminal flow below unchanged.
+    from cli.webapp import ask_interface, launch_browser_mode
+
+    webapp_url = None
+    if ask_interface() == "browser":
+        webapp_url = launch_browser_mode()
+        if webapp_url is None:
+            console.print("[yellow]Falling back to CLI mode.[/yellow]")
+
+    # Web dashboard: scrollable mirror of the three panels. The Rich Live
+    # view takes over the terminal, so print the URL beforehand; it is also
+    # repeated in the footer stats line while the run is live.
+    global dashboard_port
+    dashboard_server, dashboard_url = start_dashboard(
+        message_buffer,
+        stats_handler=stats_handler,
+        start_time=start_time,
+        meta={
+            "ticker": selections["ticker"],
+            "analysis_date": selections["analysis_date"],
+            "llm_provider": selections.get("llm_provider"),
+            "shallow_thinker": selections.get("shallow_thinker"),
+            "deep_thinker": selections.get("deep_thinker"),
+        },
+    )
+    if dashboard_url:
+        try:
+            dashboard_port = int(dashboard_url.rsplit(":", 1)[-1])
+        except ValueError:
+            dashboard_port = None
+        console.print(f"\n[bold cyan]Web dashboard:[/bold cyan] {dashboard_url}")
+        console.print("[dim]Continuing to the terminal view in 5s...[/dim]\n")
+        time.sleep(5)
+    else:
+        dashboard_port = None
+
+    with Live(layout, refresh_per_second=30, screen=True, redirect_stderr=False):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
+
+        # Add keyboard listener for scrolling
+        try:
+            from pynput import keyboard
+            
+            def on_key_press(key):
+                try:
+                    if key == keyboard.Key.up:
+                        scroll_state.messages_offset = max(0, scroll_state.messages_offset - 1)
+                        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                    elif key == keyboard.Key.down:
+                        scroll_state.messages_offset += 1
+                        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                    elif key == keyboard.Key.page_up:
+                        scroll_state.analysis_offset = max(0, scroll_state.analysis_offset - 10)
+                        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                    elif key == keyboard.Key.page_down:
+                        scroll_state.analysis_offset += 10
+                        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                    elif key == keyboard.Key.left:
+                        scroll_state.progress_offset = max(0, scroll_state.progress_offset - 1)
+                        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                    elif key == keyboard.Key.right:
+                        scroll_state.progress_offset += 1
+                        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                except Exception:
+                    pass  # Ignore errors in key handling
+            
+            # Start keyboard listener in a separate thread
+            listener = keyboard.Listener(on_press=on_key_press)
+            listener.start()
+        except ImportError:
+            # If pynput is not available, keyboard scrolling won't work
+            pass
 
         # Add initial messages
         message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
@@ -1345,19 +1562,25 @@ def run_analysis(checkpoint: bool | None = None):
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-    # Post-analysis prompts (outside Live context for clean interaction)
+    # Post-analysis prompts (outside Live context for clean interaction).
+    # The dashboard stays up through these so they can be answered from the
+    # prompt bar on the page or in the terminal, whichever comes first.
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
     # Prompt to save report
-    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
+    save_choice = ask_everywhere(dashboard_server, "Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
+        save_path_str = (
+            ask_everywhere(
+                dashboard_server,
+                "Save path (press Enter for default)",
+                default=str(default_path),
+            ).strip()
+            or str(default_path)
+        )
         save_path = Path(save_path_str)
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
@@ -1367,9 +1590,14 @@ def run_analysis(checkpoint: bool | None = None):
             console.print(f"[red]Error saving report: {e}[/red]")
 
     # Prompt to display full report
-    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
+    display_choice = ask_everywhere(
+        dashboard_server, "Display full report on screen?", default="Y"
+    ).strip().upper()
     if display_choice in ("Y", "YES", ""):
         display_complete_report(final_state)
+
+    stop_dashboard(dashboard_server)
+    dashboard_port = None
 
 
 @app.command()

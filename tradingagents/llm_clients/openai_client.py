@@ -270,7 +270,7 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
-    "opencode":   ProviderSpec(base_url="https://opencode.ai/zen/go/v1"),
+    "opencode":   ProviderSpec(base_url="https://opencode.ai/zen/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     "ollama_cloud": ProviderSpec(base_url="https://api.ollama.com/v1"),
@@ -284,6 +284,21 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
 def is_openai_compatible(provider: str) -> bool:
     """Whether ``provider`` is served by the OpenAI-compatible registry."""
     return provider.lower() in OPENAI_COMPATIBLE_PROVIDERS
+
+
+_ZEN_RESPONSES_PREFIXES = ("muse-spark-", "gpt-", "grok-")
+
+
+def _is_zen_responses_model(model: str | None) -> bool:
+    """True for Opencode Zen models served on the Responses API.
+
+    Per the Zen endpoint table, the ``gpt-*``, ``grok-*`` and ``muse-spark-*``
+    families live at ``/zen/v1/responses`` (Responses API); sending them to
+    Chat Completions returns HTTP 500. All other Zen models (deepseek,
+    minimax, glm, kimi, *_-free, ...) use ``/chat/completions``.
+    """
+    name = (model or "").lower().strip()
+    return name.startswith(_ZEN_RESPONSES_PREFIXES)
 
 
 def _is_native_openai_base_url(base_url: str | None) -> bool:
@@ -368,6 +383,11 @@ class OpenAIClient(BaseLLMClient):
                 llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
+
+        # Opencode Zen serves muse-spark contributor-free models only via the
+        # Responses API (/responses); Chat Completions answers HTTP 500.
+        if self.provider == "opencode" and _is_zen_responses_model(self.model):
+            llm_kwargs["use_responses_api"] = True
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:

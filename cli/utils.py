@@ -528,9 +528,11 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     env-set provider resolves to the same default endpoint the menu uses.
     Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
     (convention from the broader Ollama ecosystem); falls back to the
-    localhost default when unset.
+    localhost default when unset. Opencode users can pin the Zen catalog
+    via OPENCODE_BASE_URL (set once by ask_opencode_endpoint, or by hand).
     """
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+    opencode_url = os.environ.get("OPENCODE_BASE_URL") or "https://opencode.ai/zen/v1"
     return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
@@ -538,13 +540,18 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
+        ("Qwen (China)", "qwen-cn", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
+        ("GLM (China)", "glm-cn", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
+        ("MiniMax (China)", "minimax-cn", "https://api.minimaxi.com/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Mistral", "mistral", "https://api.mistral.ai/v1"),
         ("Kimi (Moonshot)", "kimi", "https://api.moonshot.ai/v1"),
         ("Groq", "groq", "https://api.groq.com/openai/v1"),
         ("NVIDIA NIM", "nvidia", "https://integrate.api.nvidia.com/v1"),
+        ("Opencode", "opencode", opencode_url),
+        ("Ollama Cloud", "ollama_cloud", "https://api.ollama.com/v1"),
         ("Azure OpenAI", "azure", None),
         ("Amazon Bedrock", "bedrock", None),
         ("Ollama", "ollama", ollama_url),
@@ -637,6 +644,24 @@ def select_llm_provider() -> tuple[str, str | None]:
 
 def ask_openai_reasoning_effort() -> str:
     """Ask for OpenAI reasoning effort level."""
+    choices = [
+        questionary.Choice("Medium (Default)", "medium"),
+        questionary.Choice("High (More thorough)", "high"),
+        questionary.Choice("Low (Faster)", "low"),
+    ]
+    return questionary.select(
+        "Select Reasoning Effort:",
+        choices=choices,
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_nvidia_reasoning_effort() -> str:
+    """Ask for NVIDIA reasoning effort level."""
     choices = [
         questionary.Choice("Medium (Default)", "medium"),
         questionary.Choice("High (More thorough)", "high"),
@@ -773,6 +798,61 @@ def ask_minimax_region() -> tuple[str, str]:
             ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
+
+
+OPENCODE_FULL_URL = "https://opencode.ai/zen/v1"
+OPENCODE_LEGACY_URL = "https://opencode.ai/zen/go/v1"
+
+
+def ask_opencode_endpoint() -> tuple[str, str]:
+    """Ask which Opencode Zen catalog to use (first configuration only).
+
+    The two Zen endpoints serve different model catalogs: the full
+    ``/zen/v1`` catalog carries the free models plus most paid ones, while
+    the legacy ``/zen/go/v1`` endpoint carries a different (older) set with
+    no free models. Returns (provider_key, backend_url).
+
+    The choice is persisted to ``OPENCODE_BASE_URL`` in .env so the prompt
+    only appears once; a previously saved value is honored silently.
+    """
+    existing = os.environ.get("OPENCODE_BASE_URL")
+    if existing:
+        return ("opencode", existing)
+
+    choice = questionary.select(
+        "Select Opencode Zen catalog:",
+        choices=[
+            questionary.Choice(
+                "Full — zen/v1 (free + paid models, recommended)",
+                value=("opencode", OPENCODE_FULL_URL),
+            ),
+            questionary.Choice(
+                "Legacy — zen/go/v1 (older catalog, no free models)",
+                value=("opencode", OPENCODE_LEGACY_URL),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No Opencode catalog selected. Exiting...[/red]")
+        exit(1)
+
+    _, url = choice
+    env_path = find_dotenv(usecwd=True) or str(Path.cwd() / ".env")
+    Path(env_path).touch(exist_ok=True)
+    set_key(env_path, "OPENCODE_BASE_URL", url)
+    os.environ["OPENCODE_BASE_URL"] = url
+    console.print(f"[green]Saved OPENCODE_BASE_URL to {env_path}[/green]")
+    console.print(
+        "[dim]You can change the catalog later by editing OPENCODE_BASE_URL "
+        f"in .env (full: {OPENCODE_FULL_URL}, legacy: {OPENCODE_LEGACY_URL}).[/dim]"
+    )
+    return choice
 
 
 def confirm_ollama_endpoint(url: str) -> None:
