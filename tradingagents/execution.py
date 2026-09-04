@@ -331,7 +331,10 @@ class AlpacaBroker:
                     or timestamp.utcoffset() is None
                 ):
                     raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}")
-                day = timestamp.date()
+                try:
+                    day = timestamp.date()
+                except (AttributeError, ValueError) as error:
+                    raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}") from error
                 if not isinstance(day, date) or isinstance(day, datetime):
                     raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}")
                 rows.append((day, close))

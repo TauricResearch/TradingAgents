@@ -23,6 +23,11 @@ class _MalformedDateResult(datetime):
         return "2026-01-02"
 
 
+class _RaisingDate(datetime):
+    def date(self):
+        raise ValueError("private malformed timestamp detail")
+
+
 def test_symbol_conversion_changes_only_supported_crypto_separator():
     assert alpaca_symbol("BTC-USD") == "BTC/USD"
     assert alpaca_symbol("ETH-USD") == "ETH/USD"
@@ -349,6 +354,26 @@ def test_daily_closes_fails_closed_for_malformed_timestamps(monkeypatch, timesta
 
     with pytest.raises(RuntimeError, match="AAPL"):
         broker.daily_closes(("AAPL",))
+
+
+def test_daily_closes_wraps_timestamp_date_errors(monkeypatch):
+    timestamp = _RaisingDate(2026, 1, 2, tzinfo=timezone.utc)
+    bars = {"AAPL": [SimpleNamespace(timestamp=timestamp, close="100")]}
+    data_client = SimpleNamespace(get_stock_bars=lambda request: SimpleNamespace(data=bars))
+    client = SimpleNamespace(
+        get_clock=lambda: SimpleNamespace(
+            timestamp=datetime(2026, 1, 9, tzinfo=timezone.utc)
+        )
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
+    broker._stock_data_client = data_client
+    monkeypatch.setattr(
+        "tradingagents.execution._stock_bars_request_class", lambda: lambda **fields: fields
+    )
+
+    with pytest.raises(RuntimeError, match="AAPL") as error:
+        broker.daily_closes(("AAPL",))
+    assert "private malformed timestamp detail" not in str(error.value)
 
 
 def test_daily_closes_fails_when_any_symbol_history_is_stale(monkeypatch):
