@@ -1229,6 +1229,49 @@ def test_equity_risk_validation_tolerates_decimal_noise_at_target(
     assert adjusted == {"AAPL": target}
 
 
+def test_equity_risk_validation_keeps_maximum_volatility_hard(
+    warmed_service, monkeypatch
+):
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        target_volatility=0.20,
+        max_volatility=0.20,
+    )
+    warmed_service.service.settings = warmed_service.settings
+    target = Decimal("100")
+    results = iter(
+        (
+            RiskScaleResult(
+                {"AAPL": target},
+                Decimal("0.20"),
+                Decimal("0.20"),
+                Decimal("1"),
+                Decimal("0.1"),
+            ),
+            RiskScaleResult(
+                {"AAPL": target},
+                Decimal("0.2000000000005"),
+                Decimal("0.20"),
+                Decimal("1"),
+                Decimal("0.1"),
+            ),
+        )
+    )
+    monkeypatch.setattr(
+        "tradingagents.automation.scale_equity_targets",
+        lambda *args: next(results),
+    )
+
+    with pytest.raises(ValueError, match="combined portfolio risk exceeds limit"):
+        warmed_service.service._risk_adjusted_targets(
+            {"AAPL": target},
+            {},
+            {},
+            Decimal("1000"),
+            {},
+        )
+
+
 def test_options_cycle_persists_broker_reservations_for_reopen(warmed_service):
     order, contract = _opening_put()
     warmed_service.settings = replace(warmed_service.settings, options_enabled=True)

@@ -911,11 +911,12 @@ class AutomationCycleService:
             sum(abs(value) for value in final_targets.values())
             + fixed_gross
         ) / Decimal(str(equity))
+        allowed_volatility = min(
+            Decimal(str(self.settings.target_volatility)) + RISK_LIMIT_TOLERANCE,
+            Decimal(str(self.settings.max_volatility)),
+        )
         if (
-            validation.baseline_volatility
-            > Decimal(str(self.settings.target_volatility)) + RISK_LIMIT_TOLERANCE
-            or validation.baseline_volatility
-            > Decimal(str(self.settings.max_volatility)) + RISK_LIMIT_TOLERANCE
+            validation.baseline_volatility > allowed_volatility
             or gross > Decimal(str(self.settings.max_gross_leverage))
         ):
             raise ValueError("combined portfolio risk exceeds limit")
