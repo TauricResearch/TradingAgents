@@ -234,6 +234,37 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Optional Parallel ticker news
+
+Install `pip install "tradingagents[parallel]"` and select Parallel for the
+`get_news` tool in the config you pass to `TradingAgentsGraph`:
+
+```python
+config = DEFAULT_CONFIG.copy()
+config["tool_vendors"] = {**config["tool_vendors"], "get_news": "parallel"}
+```
+
+This uses [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)
+at `https://search.parallel.ai/mcp` without a Parallel account or API key. Free
+access is rate limited. Once selected, agents can send ticker symbols, date
+windows, and generated news queries to Parallel during analysis. See Parallel's
+[terms](https://parallel.ai/customer-terms) and [privacy policy](https://parallel.ai/privacy-policy).
+
+Only ticker news is supported. Global news and insider transactions keep their
+existing providers. Remove the `get_news` override to disable Parallel. An
+explicit chain such as `"parallel,yfinance"` uses the existing ordered fallback
+behavior; neither the usual defaults nor the `"default"` sentinel enable Parallel.
+Failed attempts remain visible in the vendor logs.
+
+Results retain source links and excerpts, honor `news_article_limit`, and use the
+shared UTC date-window filter. Undated articles are excluded from historical
+windows, but may appear in live windows, just as with the existing news provider.
+Publication dates are source metadata, not archived page snapshots; excerpts can
+reflect later edits. Historical coverage can be sparse. Reports are capped at
+25,000 characters, responses at 2 MiB, and each exchange at 60 seconds. The
+adapter does not share conversation identifiers across calls because this
+provider interface has no conversation context.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.

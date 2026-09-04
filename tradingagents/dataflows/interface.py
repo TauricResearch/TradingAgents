@@ -18,6 +18,7 @@ from .errors import (
     VendorRateLimitError,
 )
 from .fred import get_macro_data as get_fred_macro_data
+from .parallel_news import get_news_parallel
 from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
 from .y_finance import (
     get_balance_sheet as get_yfinance_balance_sheet,
@@ -82,6 +83,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "parallel",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -124,6 +126,7 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "parallel": get_news_parallel,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
@@ -180,7 +183,8 @@ def route_to_vendor(method: str, *args, **kwargs):
     # vendors the user did not choose (#988/#289) — that returned data from an
     # unexpected source and caused cross-vendor inconsistencies. For multi-vendor
     # fallback, list them in order, e.g. data_vendors="yfinance,alpha_vantage".
-    # The "default" sentinel (no explicit config) uses all available vendors.
+    # Parallel sends queries to a separate search service and requires an
+    # explicit choice; keep the existing implicit fallback chain unchanged.
     explicit = [v for v in primary_vendors if v and v != "default"]
     if explicit:
         vendor_chain = [v for v in explicit if v in VENDOR_METHODS[method]]
@@ -190,7 +194,7 @@ def route_to_vendor(method: str, *args, **kwargs):
                 f"Available: {all_available_vendors}."
             )
     else:
-        vendor_chain = all_available_vendors
+        vendor_chain = [v for v in all_available_vendors if v != "parallel"]
 
     last_no_data: NoMarketDataError | None = None
     first_error: Exception | None = None
