@@ -286,6 +286,12 @@ class AutomationCycleService:
                     self.broker.wheel_positions_and_orders()
                 )
                 reservations = build_reservations(equities, option_positions, option_orders)
+                self.state.record_wheel_reservations(
+                    cycle_id,
+                    snapshot_time,
+                    reservations.put_collateral,
+                    reservations.covered_shares,
+                )
                 allocation_cash = max(
                     account.cash - sum(reservations.put_collateral.values(), Decimal("0")),
                     Decimal("0"),
@@ -296,19 +302,37 @@ class AutomationCycleService:
                     if symbol in prices
                 }
                 fixed_option_exposure = option_delta_exposure(option_positions, prices)
+                opening_contracts = {
+                    order.symbol: self.broker.option_contract(order.symbol, snapshot_time)
+                    for order in option_orders
+                    if _remaining_opening_quantity(order) > 0
+                }
+                for symbol, exposure in _opening_option_exposure(
+                    option_orders, opening_contracts, prices
+                ).items():
+                    fixed_option_exposure[symbol] = (
+                        fixed_option_exposure.get(symbol, Decimal("0")) + exposure
+                    )
             all_targets = conviction_targets(
                 {symbol: decisions[symbol].rating for symbol in self.settings.watchlist},
                 allocation_cash,
                 self.settings.max_cash_allocation,
             )
             targets = {symbol: all_targets[symbol] for symbol in executable}
-            if self.settings.options_enabled:
-                targets = self._risk_adjusted_targets(
-                    targets,
-                    fixed_option_exposure,
-                    minimum_positions or {},
-                    account.equity,
-                    self.broker.daily_closes(self.settings.watchlist),
+            equity_targets = {
+                symbol: target
+                for symbol, target in targets.items()
+                if detect_asset_type(symbol).value == "stock"
+            }
+            if equity_targets:
+                targets.update(
+                    self._risk_adjusted_targets(
+                        equity_targets,
+                        fixed_option_exposure,
+                        minimum_positions or {},
+                        account.equity,
+                        self.broker.daily_closes(self.settings.watchlist),
+                    )
                 )
             open_orders = self.broker.open_order_exposure(prices)
             intents = tuple(
@@ -345,10 +369,10 @@ class AutomationCycleService:
                 (),
                 f"broker read failed: {error}",
             )
-        self.state.record_order_intents(cycle_id, intent_time, intents)
         self._last_equity_due_time = due_time
         self._last_equity_order_symbols = frozenset(intent.symbol for intent in intents)
         if not self.settings.auto_execute:
+            self.state.record_order_intents(cycle_id, intent_time, intents)
             for intent in intents:
                 self.state.update_order_intent(cycle_id, intent.symbol, "planned")
             return CycleResult(
@@ -367,7 +391,6 @@ class AutomationCycleService:
                 self.settings.live_trading_ack,
             )
         except ValueError as error:
-            self._mark_all(cycle_id, intents, "error")
             return CycleResult(
                 cycle_id,
                 tuple(analyzed),
@@ -382,7 +405,6 @@ class AutomationCycleService:
             Decimal("0"),
         )
         if buy_notional > account.buying_power:
-            self._mark_all(cycle_id, intents, "error")
             return CycleResult(
                 cycle_id,
                 tuple(analyzed),
@@ -393,6 +415,7 @@ class AutomationCycleService:
             )
 
         prepared = []
+        recovered = {}
         skipped = []
         try:
             for intent in intents:
@@ -404,29 +427,43 @@ class AutomationCycleService:
                         prices[intent.symbol],
                         cycle_id,
                     )
-                    unresolved_id = self.state.unresolved_client_order_id(intent)
-                    if unresolved_id is not None:
-                        spec = replace(spec, client_order_id=unresolved_id)
+                    lookup = self.state.lookup_unresolved_order_intent(intent)
+                    if lookup is not None:
+                        if lookup.ambiguous:
+                            raise RuntimeError(
+                                f"ambiguous unresolved equity intent: {intent.symbol}"
+                            )
+                        spec = replace(spec, client_order_id=lookup.client_order_id)
+                        try:
+                            existing = self.broker.find_order_by_client_id(
+                                lookup.client_order_id
+                            )
+                        except Exception as error:
+                            raise RuntimeError(
+                                f"equity order lookup failed: {intent.symbol}"
+                            ) from error
+                        if existing is None:
+                            raise RuntimeError(
+                                f"unresolved equity intent not found at broker: {intent.symbol}"
+                            )
+                        recovered[intent.symbol] = existing
                 except ValueError:
                     skipped.append(intent.symbol)
-                    self.state.update_order_intent(cycle_id, intent.symbol, "skipped")
                 else:
                     prepared.append((intent, spec))
         except Exception as error:
-            for intent in intents:
-                if intent.symbol not in skipped:
-                    self.state.update_order_intent(cycle_id, intent.symbol, "error")
             return CycleResult(
                 cycle_id,
                 tuple(analyzed),
                 tuple(failed),
                 intents,
                 (),
-                f"broker read failed: {error}",
+                str(error),
             )
 
-        submitted_ids = []
-        submission_errors = []
+        self.state.record_order_intents(cycle_id, intent_time, intents)
+        for symbol in skipped:
+            self.state.update_order_intent(cycle_id, symbol, "skipped")
         for intent, spec in prepared:
             self.state.update_order_intent(
                 cycle_id,
@@ -434,6 +471,18 @@ class AutomationCycleService:
                 "pending",
                 spec.client_order_id,
             )
+
+        submitted_ids = []
+        submission_errors = []
+        for intent, spec in prepared:
+            if intent.symbol in recovered:
+                submitted_ids.append(recovered[intent.symbol])
+                self.state.mark_order_intent_submitted(
+                    cycle_id,
+                    intent.symbol,
+                    spec.client_order_id,
+                )
+                continue
             try:
                 order_id = self.broker.submit_idempotent(spec)
             except Exception:
@@ -489,19 +538,13 @@ class AutomationCycleService:
                 symbol: self.broker.latest_price(symbol)
                 for symbol in self.settings.watchlist
             }
-            decisions = self.state.fresh_decisions(
-                self.settings.watchlist,
-                now,
-                self.settings.decision_max_age_minutes,
-            )
-            equity_open_orders = self.broker.open_order_exposure(prices)
-            close_history = self.broker.daily_closes(self.settings.watchlist)
-            earnings = _read_earnings_cache(
-                self.settings.options_earnings_path,
-                self.settings.watchlist,
-                now,
-            )
             reservations = build_reservations(equities, option_positions, option_orders)
+            self.state.record_wheel_reservations(
+                cycle_id,
+                now,
+                reservations.put_collateral,
+                reservations.covered_shares,
+            )
             existing_put_collateral = sum(
                 reservations.put_collateral.values(), Decimal("0")
             )
@@ -510,12 +553,22 @@ class AutomationCycleService:
                 or existing_put_collateral > account.options_buying_power
             ):
                 raise ValueError("short-put collateral exceeds available funds")
-            contracts = self._option_contract_snapshot(now, decisions)
             held_contracts = {
                 position.symbol: self.broker.option_contract(position.symbol, now)
                 for position in option_positions
             }
             fixed_exposure = option_delta_exposure(option_positions, prices)
+            opening_contracts = {
+                order.symbol: self.broker.option_contract(order.symbol, now)
+                for order in option_orders
+                if _remaining_opening_quantity(order) > 0
+            }
+            for symbol, exposure in _opening_option_exposure(
+                option_orders, opening_contracts, prices
+            ).items():
+                fixed_exposure[symbol] = (
+                    fixed_exposure.get(symbol, Decimal("0")) + exposure
+                )
         except Exception as error:
             return OptionCycleResult(cycle_id, (), (), f"option read failed: {error}")
 
@@ -569,6 +622,35 @@ class AutomationCycleService:
                 intent = plan_profit_exit(position, contract, now)
                 if intent is not None:
                     exits.append(intent)
+
+        try:
+            decisions = self.state.fresh_decisions(
+                self.settings.watchlist,
+                now,
+                self.settings.decision_max_age_minutes,
+            )
+            equity_open_orders = self.broker.open_order_exposure(prices)
+            close_history = self.broker.daily_closes(self.settings.watchlist)
+            earnings = _read_earnings_cache(
+                self.settings.options_earnings_path,
+                self.settings.watchlist,
+                now,
+            )
+            contracts = self._option_contract_snapshot(now, decisions)
+        except Exception as error:
+            entry_error = self._persist_option_intents(
+                cycle_id,
+                now,
+                tuple(exits),
+                submitted_ids,
+                persisted_intents,
+            )
+            return OptionCycleResult(
+                cycle_id,
+                tuple(persisted_intents),
+                tuple(submitted_ids),
+                entry_error or f"option entry read failed: {error}",
+            )
 
         entry_reason = self._option_entry_gate(
             now, decisions, settling, cancellation_failed
@@ -734,6 +816,8 @@ class AutomationCycleService:
         equity,
         close_history,
     ):
+        if not any(equity_targets.values()) and not any(fixed_option_exposure.values()):
+            return dict(equity_targets)
         try:
             scaled = scale_equity_targets(
                 equity_targets,
@@ -744,9 +828,14 @@ class AutomationCycleService:
                 self.settings.max_volatility,
                 self.settings.max_gross_leverage,
             )
+            risk_targets = (
+                scaled.targets
+                if scaled.scale <= Decimal("1")
+                else {symbol: Decimal(str(target)) for symbol, target in equity_targets.items()}
+            )
             final_targets = {
                 symbol: max(target, Decimal(str(minimum_positions.get(symbol, target))))
-                for symbol, target in scaled.targets.items()
+                for symbol, target in risk_targets.items()
             }
             validation = scale_equity_targets(
                 final_targets,
@@ -855,17 +944,29 @@ class AutomationCycleService:
             except ValueError as error:
                 return str(error)
         prepared = []
+        recovered = {}
         for intent in intents:
             try:
                 spec = self.broker.prepare_option_order(intent, cycle_id)
-                unresolved = self.state.unresolved_option_client_order_id(
+                lookup = self.state.lookup_unresolved_option_intent(
                     intent.symbol,
                     intent.position_intent,
                     intent.qty,
                     intent.limit_price,
                 )
-                if unresolved is not None:
-                    spec = replace(spec, client_order_id=unresolved)
+                if lookup is not None:
+                    if lookup.ambiguous:
+                        return f"ambiguous unresolved option intent: {intent.symbol}"
+                    spec = replace(spec, client_order_id=lookup.client_order_id)
+                    try:
+                        existing = self.broker.find_order_by_client_id(
+                            lookup.client_order_id
+                        )
+                    except Exception:
+                        return f"option order lookup failed: {intent.symbol}"
+                    if existing is None:
+                        return f"unresolved option intent not found at broker: {intent.symbol}"
+                    recovered[intent.symbol] = existing
                 prepared.append((intent, spec))
             except Exception:
                 return f"option submission errors: {intent.symbol}"
@@ -895,6 +996,12 @@ class AutomationCycleService:
 
         errors = []
         for intent, spec in prepared:
+            if intent.symbol in recovered:
+                submitted_ids.append(recovered[intent.symbol])
+                self.state.update_option_intent(
+                    cycle_id, intent.symbol, "submitted", spec.client_order_id
+                )
+                continue
             try:
                 order_id = self.broker.submit_option_idempotent(spec)
             except Exception:
@@ -970,6 +1077,38 @@ def _intent_strike(intent: OptionIntent) -> Decimal:
         return Decimal(intent.symbol[-8:]) / Decimal("1000")
     except (ArithmeticError, ValueError) as error:
         raise ValueError("invalid option strike") from error
+
+
+def _remaining_opening_quantity(order) -> Decimal:
+    if order.position_intent.casefold() not in {"buy_to_open", "sell_to_open"}:
+        return Decimal("0")
+    remaining = order.qty - order.filled_qty
+    if remaining < 0:
+        raise ValueError("filled option quantity exceeds order quantity")
+    return remaining
+
+
+def _opening_option_exposure(orders, contracts, prices):
+    exposure = {}
+    for order in orders:
+        remaining = _remaining_opening_quantity(order)
+        if remaining == 0:
+            continue
+        contract = contracts[order.symbol]
+        if (
+            contract.symbol != order.symbol
+            or contract.underlying != order.underlying
+            or contract.kind.casefold() != order.kind.casefold()
+            or not contract.delta.is_finite()
+        ):
+            raise ValueError("opening option contract metadata is invalid")
+        spot = prices[order.underlying]
+        if not spot.is_finite() or spot <= 0:
+            raise ValueError("opening option spot price is invalid")
+        sign = Decimal("1") if order.position_intent.casefold() == "buy_to_open" else Decimal("-1")
+        amount = sign * remaining * contract.delta * CONTRACT_MULTIPLIER * spot
+        exposure[order.underlying] = exposure.get(order.underlying, Decimal("0")) + amount
+    return exposure
 
 
 def _read_earnings_cache(

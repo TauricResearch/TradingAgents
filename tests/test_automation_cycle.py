@@ -69,6 +69,9 @@ class FakeBroker:
         self.submit_failures = set()
         self.submitted = []
         self.submit_attempts = []
+        self.order_lookups = {}
+        self.lookup_calls = []
+        self.lookup_failure = False
         self.reads = []
         self.equity = Decimal("100000")
         self.options_buying_power = Decimal("100000")
@@ -82,6 +85,7 @@ class FakeBroker:
         self.cancel_failure = False
         self.option_prepare_failures = set()
         self.option_failure = None
+        self.entry_chain_failure = False
         self.latest_prices = {}
         self.exact_option_contract_values = {}
 
@@ -153,13 +157,19 @@ class FakeBroker:
         self.submitted.append(spec)
         return f"order-{spec.symbol}"
 
+    def find_order_by_client_id(self, client_order_id):
+        self.lookup_calls.append(client_order_id)
+        if self.lookup_failure:
+            raise RuntimeError("order lookup unavailable")
+        return self.order_lookups.get(client_order_id)
+
     def wheel_positions_and_orders(self):
         if self.option_failure in {"option_positions", "option_orders", "option_delta"}:
             raise RuntimeError(f"{self.option_failure} unavailable")
         return self.equity_lots, self.option_positions, self.option_orders
 
     def option_contracts(self, underlying, kind, now):
-        if self.option_failure == "option_quote":
+        if self.option_failure == "option_quote" or self.entry_chain_failure:
             raise RuntimeError(f"{self.option_failure} unavailable")
         return self.option_contract_values.get(underlying, ())
 
@@ -200,6 +210,47 @@ def _eligible_put(symbol, now):
         ask=Decimal("3.20"),
         open_interest=Decimal("500"),
         quote_time=now,
+    )
+
+
+def _opening_put(symbol="AAPL"):
+    option_symbol = f"{symbol}260904P00010000"
+    order = OptionOpenOrder(
+        option_symbol,
+        symbol,
+        "put",
+        "sell_to_open",
+        Decimal("1"),
+        Decimal("0"),
+        Decimal("10"),
+    )
+    contract = OptionContract(
+        option_symbol,
+        symbol,
+        "put",
+        Decimal("10"),
+        date(2026, 9, 4),
+        Decimal("-100"),
+        Decimal("1"),
+        Decimal("1.10"),
+        Decimal("500"),
+        NOW,
+    )
+    return order, contract
+
+
+def _quote_for_order(order, delta=Decimal("0.20")):
+    return OptionContract(
+        order.symbol,
+        order.underlying,
+        order.kind,
+        order.strike,
+        date(2026, 10, 2),
+        delta,
+        Decimal("3"),
+        Decimal("3.20"),
+        Decimal("500"),
+        NOW,
     )
 
 
@@ -327,6 +378,8 @@ def test_reserved_covered_shares_cannot_be_sold(warmed_service):
             Decimal("350"),
         ),
     )
+    order = warmed_service.broker.option_orders[0]
+    warmed_service.broker.exact_option_contract_values[order.symbol] = _quote_for_order(order)
     warmed_service.ratings["AAPL"] = "Sell"
     result = warmed_service.run_analysis_cycle(NOW)
     aapl = next(intent for intent in result.order_intents if intent.symbol == "AAPL")
@@ -357,6 +410,8 @@ def test_infeasible_covered_share_floor_suppresses_equity_submission(warmed_serv
             Decimal("350"),
         ),
     )
+    order = warmed_service.broker.option_orders[0]
+    warmed_service.broker.exact_option_contract_values[order.symbol] = _quote_for_order(order)
 
     result = warmed_service.run_analysis_cycle(NOW)
 
@@ -385,6 +440,10 @@ def test_infeasible_covered_share_floor_blocks_new_option_exposure(warmed_servic
             Decimal("0"),
             Decimal("350"),
         ),
+    )
+    order = warmed_service.broker.option_orders[0]
+    warmed_service.broker.exact_option_contract_values[order.symbol] = _quote_for_order(
+        order, Decimal("0")
     )
     warmed_service.broker.option_contract_values = {
         "MSFT": (
@@ -606,6 +665,7 @@ def test_profit_exit_uses_exact_contract_quote_below_entry_dte(warmed_service):
         warmed_service.settings, options_enabled=True, options_auto_execute=True
     )
     warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("100000")
     warmed_service.broker.options_buying_power = Decimal("100000")
     warmed_service.broker.option_positions = (
         OptionPosition(
@@ -629,6 +689,51 @@ def test_profit_exit_uses_exact_contract_quote_below_entry_dte(warmed_service):
 
     assert [intent.position_intent for intent in result.intents] == ["buy_to_close"]
     assert [spec.symbol for spec in warmed_service.broker.submitted_options] == [symbol]
+
+
+@pytest.mark.parametrize("entry_failure", ["decisions", "earnings", "history", "chain"])
+def test_entry_dependency_failure_does_not_block_profit_exit(
+    warmed_service, entry_failure
+):
+    symbol = "AAPL260904P00300000"
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.options_buying_power = Decimal("100000")
+    warmed_service.broker.option_positions = (
+        OptionPosition(
+            symbol, "AAPL", "put", Decimal("-1"), Decimal("4"), Decimal("-0.10")
+        ),
+    )
+    warmed_service.broker.exact_option_contract_values[symbol] = OptionContract(
+        symbol,
+        "AAPL",
+        "put",
+        Decimal("300"),
+        date(2026, 9, 4),
+        Decimal("-0.08"),
+        Decimal("1.40"),
+        Decimal("1.50"),
+        Decimal("20"),
+        NOW,
+    )
+    if entry_failure == "decisions":
+        warmed_service.state._connection.execute("DELETE FROM decisions")
+        warmed_service.state._connection.commit()
+    elif entry_failure == "earnings":
+        warmed_service.settings.options_earnings_path.unlink()
+    elif entry_failure == "history":
+        warmed_service.broker.option_failure = "daily_closes"
+    else:
+        warmed_service.broker.entry_chain_failure = True
+
+    result = warmed_service.manage_options(NOW)
+
+    assert [intent.position_intent for intent in result.intents] == ["buy_to_close"]
+    assert [spec.position_intent for spec in warmed_service.broker.submitted_options] == [
+        "buy_to_close"
+    ]
 
 
 def test_all_option_specs_prepare_before_first_submission(warmed_service):
@@ -716,6 +821,106 @@ def test_dry_run_persists_plan_without_submission(warmed_service):
     assert warmed_service.state.order_intent_count(result.cycle_id) == len(result.order_intents)
     assert set(warmed_service.state.order_intent_statuses(result.cycle_id).values()) == {"planned"}
     assert warmed_service.broker.submitted == []
+
+
+def test_equity_risk_scaling_applies_when_options_are_disabled(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings, auto_execute=True, max_cash_allocation=0.30
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("100000")
+    warmed_service.broker.close_history = _aligned_history(Decimal("0.02"))
+    result = warmed_service.run_analysis_cycle(NOW)
+    assert result.order_intents
+    assert sum(abs(intent.target_notional) for intent in result.order_intents) < Decimal("30000")
+    assert warmed_service.broker.submitted
+
+
+def test_equity_history_failure_blocks_submission_when_options_are_disabled(warmed_service):
+    warmed_service.settings = replace(warmed_service.settings, auto_execute=True)
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.option_failure = "daily_closes"
+    result = warmed_service.run_analysis_cycle(NOW)
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason
+    assert warmed_service.broker.submitted == []
+
+
+def test_negative_cash_does_not_block_equity_controller(warmed_service):
+    warmed_service.broker.cash = Decimal("-100")
+    result = warmed_service.run_analysis_cycle(NOW)
+    assert result.trade_suppressed_reason is None
+
+
+def test_pending_open_option_delta_blocks_equity_submission(warmed_service):
+    order, contract = _opening_put()
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, auto_execute=True
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.option_orders = (order,)
+    warmed_service.broker.exact_option_contract_values[order.symbol] = contract
+    result = warmed_service.run_analysis_cycle(NOW)
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted == []
+
+
+def test_pending_open_option_delta_blocks_new_option_submission(warmed_service):
+    order, contract = _opening_put()
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.option_orders = (order,)
+    warmed_service.broker.exact_option_contract_values[order.symbol] = contract
+    warmed_service.broker.option_contract_values = {
+        "MSFT": (_eligible_put("MSFT", NOW),),
+    }
+    result = warmed_service.manage_options(NOW)
+    assert result.intents == ()
+    assert result.suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted_options == []
+
+
+def test_options_cycle_persists_broker_reservations_for_reopen(warmed_service):
+    order, contract = _opening_put()
+    warmed_service.settings = replace(warmed_service.settings, options_enabled=True)
+    warmed_service.broker.option_orders = (order,)
+    warmed_service.broker.exact_option_contract_values[order.symbol] = contract
+    result = warmed_service.manage_options(NOW)
+    with AutomationState(warmed_service.state.path) as reopened:
+        snapshot = reopened.latest_wheel_reservations()
+    assert snapshot.cycle_id == result.cycle_id
+    assert snapshot.put_collateral == {"AAPL": Decimal("1000")}
+    assert snapshot.covered_shares == {}
+
+
+def test_reservation_persistence_failure_blocks_new_exposure(warmed_service, monkeypatch):
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+    }
+    monkeypatch.setattr(
+        warmed_service.state,
+        "record_wheel_reservations",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("reservation store unavailable")),
+    )
+    result = warmed_service.manage_options(NOW)
+    assert result.intents == ()
+    assert result.suppressed_reason
+    assert warmed_service.broker.submitted_options == []
 
 
 def test_position_tracking_persists_cash_and_positions(service):
@@ -1136,7 +1341,94 @@ def test_ambiguous_submit_is_recorded_without_direct_retry(tmp_path):
         state.close()
 
 
-def test_next_cycle_reuses_persisted_unresolved_client_order_id(tmp_path):
+@pytest.mark.parametrize("broker_lookup", [None, "accepted-order", "error"])
+def test_unresolved_equity_intent_never_duplicates_after_restart(
+    warmed_service, broker_lookup
+):
+    first = warmed_service.run_analysis_cycle(NOW)
+    intent = next(item for item in first.order_intents if item.symbol == "AAPL")
+    warmed_service.state.record_order_intents(
+        "crashed-equity", NOW + timedelta(seconds=1), (intent,)
+    )
+    warmed_service.state.update_order_intent(
+        "crashed-equity", "AAPL", "pending", "ta-original-equity"
+    )
+    warmed_service.settings = replace(warmed_service.settings, auto_execute=True)
+    warmed_service.service.settings = warmed_service.settings
+    if broker_lookup == "error":
+        warmed_service.broker.lookup_failure = True
+    elif broker_lookup is not None:
+        warmed_service.broker.order_lookups["ta-original-equity"] = broker_lookup
+
+    result = warmed_service.run_analysis_cycle(NOW + timedelta(minutes=30))
+
+    assert warmed_service.broker.lookup_calls == ["ta-original-equity"]
+    assert all(spec.symbol != "AAPL" for spec in warmed_service.broker.submitted)
+    if broker_lookup == "accepted-order":
+        assert "accepted-order" in result.submitted_order_ids
+    else:
+        assert result.trade_suppressed_reason
+        assert warmed_service.broker.submit_attempts == []
+
+
+def test_ambiguous_unresolved_equity_intent_suppresses_before_lookup(warmed_service):
+    first = warmed_service.run_analysis_cycle(NOW)
+    intent = next(item for item in first.order_intents if item.symbol == "AAPL")
+    for cycle, client_id in (("crash-1", "ta-one"), ("crash-2", "ta-two")):
+        warmed_service.state.record_order_intents(cycle, NOW, (intent,))
+        warmed_service.state.update_order_intent(
+            cycle, "AAPL", "pending", client_id
+        )
+    warmed_service.settings = replace(warmed_service.settings, auto_execute=True)
+    warmed_service.service.settings = warmed_service.settings
+
+    result = warmed_service.run_analysis_cycle(NOW + timedelta(minutes=30))
+
+    assert result.trade_suppressed_reason
+    assert warmed_service.broker.lookup_calls == []
+    assert warmed_service.broker.submitted == []
+
+
+@pytest.mark.parametrize("broker_lookup", [None, "accepted-option", "error"])
+def test_unresolved_option_intent_never_duplicates_after_restart(
+    warmed_service, broker_lookup
+):
+    symbol = "AAPL260904P00300000"
+    warmed_service.state.record_option_intent(
+        "crashed-option",
+        NOW,
+        symbol,
+        "AAPL",
+        "sell_to_open",
+        Decimal("1"),
+        Decimal("3.10"),
+        "ta-original-option",
+    )
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, options_auto_execute=True
+    )
+    warmed_service.broker.cash = Decimal("200000")
+    warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.equity = Decimal("200000")
+    warmed_service.broker.option_contract_values = {
+        "AAPL": (_eligible_put("AAPL", NOW),),
+    }
+    if broker_lookup == "error":
+        warmed_service.broker.lookup_failure = True
+    elif broker_lookup is not None:
+        warmed_service.broker.order_lookups["ta-original-option"] = broker_lookup
+
+    result = warmed_service.manage_options(NOW)
+
+    assert warmed_service.broker.lookup_calls == ["ta-original-option"]
+    assert warmed_service.broker.submitted_options == []
+    if broker_lookup == "accepted-option":
+        assert result.submitted_order_ids == ("accepted-option",)
+    else:
+        assert result.suppressed_reason
+
+
+def test_unresolved_error_without_broker_order_blocks_retry(tmp_path):
     path = tmp_path / "restart-submit.db"
     broker = FakeBroker()
     broker.submit_failures.add("AAPL")
@@ -1156,10 +1448,13 @@ def test_next_cycle_reuses_persisted_unresolved_client_order_id(tmp_path):
         restarted = ServiceHarness(
             _settings(tmp_path, auto_execute=True, state_path=path), restarted_state, broker
         )
-        restarted.run_analysis_cycle(NOW.replace(minute=30))
+        result = restarted.run_analysis_cycle(NOW.replace(minute=30))
 
-    second = [spec for spec in broker.submitted if spec.symbol == "AAPL"][-1]
-    assert second.client_order_id == first_id
+    assert result.trade_suppressed_reason == (
+        "unresolved equity intent not found at broker: AAPL"
+    )
+    assert first_id in broker.lookup_calls
+    assert all(spec.symbol != "AAPL" for spec in broker.submitted)
 
 
 def test_resolved_reused_id_retires_historical_error(tmp_path):
@@ -1172,19 +1467,26 @@ def test_resolved_reused_id_retires_historical_error(tmp_path):
         )
         first.seed_all_decisions()
         first_result = first.run_analysis_cycle(NOW)
+        first_id = state._connection.execute(
+            "SELECT client_order_id FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
+            (first_result.cycle_id,),
+        ).fetchone()[0]
 
     broker.submit_failures.clear()
+    broker.order_lookups[first_id] = "accepted-aapl"
     with AutomationState(path) as state:
         restarted = ServiceHarness(
             _settings(tmp_path, auto_execute=True, state_path=path), state, broker
         )
-        restarted.run_analysis_cycle(NOW.replace(minute=30))
+        result = restarted.run_analysis_cycle(NOW.replace(minute=30))
         historical_status = state._connection.execute(
             "SELECT status FROM order_intents WHERE cycle_id = ? AND symbol = 'AAPL'",
             (first_result.cycle_id,),
         ).fetchone()[0]
 
     assert historical_status == "retired"
+    assert "accepted-aapl" in result.submitted_order_ids
+    assert all(spec.symbol != "AAPL" for spec in broker.submitted)
 
 
 def test_ambiguous_reused_id_remains_reusable(tmp_path):
