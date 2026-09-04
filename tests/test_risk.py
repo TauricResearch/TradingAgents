@@ -3,7 +3,13 @@ from decimal import Decimal
 
 import pytest
 
-from tradingagents.risk import close_returns, forecast_volatility, scale_equity_targets
+from tradingagents.risk import (
+    _annualized_covariance,
+    _annualized_variance,
+    close_returns,
+    forecast_volatility,
+    scale_equity_targets,
+)
 
 
 def _history(changes):
@@ -17,6 +23,22 @@ def _history(changes):
 def test_close_returns_requires_forty_aligned_observations():
     with pytest.raises(ValueError, match="40 aligned return observations"):
         close_returns({"AAPL": _history([0.01] * 39)})
+
+
+def test_sample_statistics_use_thirty_nine_degrees_of_freedom_for_forty_returns():
+    values = (Decimal("0"),) * 39 + (Decimal("20"),)
+    doubled = tuple(value * 2 for value in values)
+
+    assert _annualized_variance(values) == Decimal("2520")
+    assert _annualized_covariance(values, doubled) == Decimal("5040")
+
+
+def test_sample_statistics_use_fifty_nine_degrees_of_freedom_for_sixty_returns():
+    values = (Decimal("0"),) * 59 + (Decimal("30"),)
+    doubled = tuple(value * 2 for value in values)
+
+    assert _annualized_variance(values) == Decimal("3780")
+    assert _annualized_covariance(values, doubled) == Decimal("7560")
 
 
 def test_forecast_uses_signed_equity_and_option_exposure():

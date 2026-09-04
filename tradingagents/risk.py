@@ -140,7 +140,7 @@ def _annualized_variance(values):
     if len(values) < 40:
         raise ValueError("40 to 60 aligned returns are required")
     mean = sum(values) / Decimal(len(values))
-    variance = sum((value - mean) ** 2 for value in values) / Decimal("39")
+    variance = sum((value - mean) ** 2 for value in values) / Decimal(len(values) - 1)
     annualized = variance * Decimal("252")
     if not annualized.is_finite():
         raise ValueError("annualized variance must be finite")
@@ -156,7 +156,7 @@ def _annualized_covariance(left, right):
     right_mean = sum(right) / Decimal(len(right))
     annualized = (
         sum((x - left_mean) * (y - right_mean) for x, y in zip(left, right, strict=True))
-        / Decimal("39")
+        / Decimal(len(left) - 1)
         * Decimal("252")
     )
     if not annualized.is_finite():
