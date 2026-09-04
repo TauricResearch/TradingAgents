@@ -751,8 +751,8 @@ def _nonnegative_decimal(value: Decimal, label: str) -> None:
 def _unresolved_lookup(rows: Sequence[tuple[str | None]]) -> UnresolvedOrderLookup | None:
     if not rows:
         return None
-    client_order_ids = {row[0] for row in rows if row[0] is not None}
-    ambiguous = len(client_order_ids) != 1
+    client_order_ids = {row[0] for row in rows if row[0]}
+    ambiguous = any(not row[0] for row in rows) or len(client_order_ids) != 1
     client_order_id = next(iter(client_order_ids)) if not ambiguous else None
     return UnresolvedOrderLookup(client_order_id=client_order_id, ambiguous=ambiguous)
 

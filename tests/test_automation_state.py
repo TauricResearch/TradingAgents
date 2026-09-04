@@ -240,6 +240,95 @@ def test_conflicting_unresolved_client_ids_are_ambiguous_at_state_boundary(tmp_p
     assert lookup.ambiguous
 
 
+def test_equity_lookup_is_ambiguous_when_matching_rows_mix_missing_and_client_id(tmp_path):
+    intent = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
+    with AutomationState(tmp_path / "mixed-equity-ids.db") as state:
+        state.record_order_intents("cycle-1", NOW, [intent])
+        state.update_order_intent("cycle-1", "AAPL", "error", "client-one")
+        state.record_order_intents("cycle-2", NOW + timedelta(minutes=1), [intent])
+
+        lookup = state.lookup_unresolved_order_intent(intent)
+
+        assert lookup is not None
+        assert lookup.client_order_id is None
+        assert lookup.ambiguous
+        assert state.unresolved_client_order_id(intent) is None
+
+
+def test_option_lookup_is_ambiguous_when_matching_rows_mix_missing_and_client_id(tmp_path):
+    contract = "AAPL261002P00300000"
+    with AutomationState(tmp_path / "mixed-option-ids.db") as state:
+        state.record_option_intent(
+            "cycle-1", NOW, contract, "AAPL", "sell_to_open",
+            Decimal("1"), Decimal("3.10"), "client-one",
+        )
+        state.record_option_intent(
+            "cycle-2", NOW + timedelta(minutes=1), contract, "AAPL", "sell_to_open",
+            Decimal("1"), Decimal("3.10"), "temporary-client",
+        )
+        state._connection.execute(
+            """
+            UPDATE option_order_intents SET client_order_id = ''
+            WHERE cycle_id = 'cycle-2' AND contract_symbol = ?
+            """,
+            (contract,),
+        )
+        state._connection.commit()
+
+        lookup = state.lookup_unresolved_option_intent(
+            contract, "sell_to_open", Decimal("1"), Decimal("3.10")
+        )
+
+        assert lookup is not None
+        assert lookup.client_order_id is None
+        assert lookup.ambiguous
+        assert state.unresolved_option_client_order_id(
+            contract, "sell_to_open", Decimal("1"), Decimal("3.10")
+        ) is None
+
+
+def test_conflicting_option_client_ids_are_ambiguous_and_legacy_lookup_returns_none(tmp_path):
+    contract = "AAPL261002P00300000"
+    with AutomationState(tmp_path / "conflicting-option-ids.db") as state:
+        state.record_option_intent(
+            "cycle-1", NOW, contract, "AAPL", "sell_to_open",
+            Decimal("1"), Decimal("3.10"), "client-one",
+        )
+        state.update_option_intent("cycle-1", contract, "error")
+        state.record_option_intent(
+            "cycle-2", NOW + timedelta(minutes=1), contract, "AAPL", "sell_to_open",
+            Decimal("1"), Decimal("3.10"), "client-two",
+        )
+
+        lookup = state.lookup_unresolved_option_intent(
+            contract, "sell_to_open", Decimal("1"), Decimal("3.10")
+        )
+
+        assert lookup is not None
+        assert lookup.client_order_id is None
+        assert lookup.ambiguous
+        assert state.unresolved_option_client_order_id(
+            contract, "sell_to_open", Decimal("1"), Decimal("3.10")
+        ) is None
+
+
+def test_blank_client_order_id_is_ambiguous_and_legacy_lookup_returns_none(tmp_path):
+    intent = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
+    with AutomationState(tmp_path / "blank-equity-id.db") as state:
+        state.record_order_intents("cycle-1", NOW, [intent])
+        state._connection.execute(
+            "UPDATE order_intents SET client_order_id = '' WHERE cycle_id = 'cycle-1'"
+        )
+        state._connection.commit()
+
+        lookup = state.lookup_unresolved_order_intent(intent)
+
+        assert lookup is not None
+        assert lookup.client_order_id is None
+        assert lookup.ambiguous
+        assert state.unresolved_client_order_id(intent) is None
+
+
 def test_resolved_reused_client_id_retires_historical_pending_intents(tmp_path):
     equity = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
     with AutomationState(tmp_path / "resolved-pending.db") as state:
@@ -306,6 +395,39 @@ def test_empty_wheel_reservation_snapshot_is_distinct_from_no_snapshot(tmp_path)
     assert snapshot.captured_at == NOW
     assert snapshot.put_collateral == {}
     assert snapshot.covered_shares == {}
+
+
+def test_same_key_wheel_reservation_snapshot_is_replaced_completely(tmp_path):
+    with AutomationState(tmp_path / "replace-reservations.db") as state:
+        state.record_wheel_reservations(
+            "cycle-1", NOW, {"AAPL": Decimal("30000")}, {"NVDA": Decimal("100")}
+        )
+        state.record_wheel_reservations(
+            "cycle-1", NOW, {"MSFT": Decimal("25000")}, {}
+        )
+
+        snapshot = state.latest_wheel_reservations()
+
+    assert snapshot is not None
+    assert snapshot.put_collateral == {"MSFT": Decimal("25000")}
+    assert snapshot.covered_shares == {}
+
+
+def test_invalid_same_key_reservation_replacement_preserves_prior_snapshot(tmp_path):
+    with AutomationState(tmp_path / "invalid-replacement.db") as state:
+        state.record_wheel_reservations(
+            "cycle-1", NOW, {"AAPL": Decimal("30000")}, {"NVDA": Decimal("100")}
+        )
+
+        with pytest.raises(ValueError, match="wheel reservation"):
+            state.record_wheel_reservations(
+                "cycle-1", NOW, {"MSFT": Decimal("NaN")}, {}
+            )
+        snapshot = state.latest_wheel_reservations()
+
+    assert snapshot is not None
+    assert snapshot.put_collateral == {"AAPL": Decimal("30000")}
+    assert snapshot.covered_shares == {"NVDA": Decimal("100")}
 
 
 @pytest.mark.parametrize(
