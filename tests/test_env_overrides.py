@@ -28,6 +28,7 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
     assert dc.DEFAULT_CONFIG["max_cash_allocation"] == 0.90
     assert dc.DEFAULT_CONFIG["max_cash_reserve_usd"] == 70000.0
+    assert dc.DEFAULT_CONFIG["use_alpaca_market_data"] is False
     assert dc.DEFAULT_CONFIG["target_volatility"] == 0.15
     assert dc.DEFAULT_CONFIG["max_volatility"] == 0.20
     assert dc.DEFAULT_CONFIG["max_gross_leverage"] == 2.0
@@ -53,6 +54,7 @@ def test_automation_overrides(monkeypatch):
         TRADINGAGENTS_AUTOMATION_STATE_PATH="/tmp/automation.db",
         TRADINGAGENTS_AUTO_EXECUTE="true",
         TRADINGAGENTS_ALPACA_MODE="live",
+        TRADINGAGENTS_USE_ALPACA_MARKET_DATA="true",
         TRADINGAGENTS_LIVE_TRADING_ACK="ack",
         TRADINGAGENTS_OPTIONS_ENABLED="true",
         TRADINGAGENTS_OPTIONS_AUTO_EXECUTE="true",
@@ -75,6 +77,7 @@ def test_automation_overrides(monkeypatch):
     assert dc.DEFAULT_CONFIG["automation_state_path"] == "/tmp/automation.db"
     assert dc.DEFAULT_CONFIG["auto_execute"] is True
     assert dc.DEFAULT_CONFIG["alpaca_mode"] == "live"
+    assert dc.DEFAULT_CONFIG["use_alpaca_market_data"] is True
     assert dc.DEFAULT_CONFIG["live_trading_ack"] == "ack"
     assert dc.DEFAULT_CONFIG["options_enabled"] is True
     assert dc.DEFAULT_CONFIG["options_auto_execute"] is True

@@ -45,6 +45,64 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
                 raise
 
 
+def _fetch_alpaca_ohlcv(
+    symbol: str, start_date: str, end_date: str, *, client=None
+) -> pd.DataFrame:
+    """Fetch daily bars from Alpaca IEX."""
+    key = os.getenv("ALPACA_API_KEY")
+    secret = os.getenv("ALPACA_SECRET_KEY")
+    if not key or not secret:
+        raise NoMarketDataError(symbol, symbol, "Alpaca credentials are unavailable")
+
+    from alpaca.data.enums import DataFeed
+    from alpaca.data.historical.stock import StockHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.timeframe import TimeFrame
+
+    request = StockBarsRequest(
+        symbol_or_symbols=symbol,
+        timeframe=TimeFrame.Day,
+        start=pd.Timestamp(start_date).to_pydatetime(),
+        end=(pd.Timestamp(end_date) + pd.Timedelta(days=1)).to_pydatetime(),
+        feed=DataFeed.IEX,
+    )
+    if client is None:
+        client = StockHistoricalDataClient(key, secret)
+    response = client.get_stock_bars(request)
+    frame = getattr(response, "df", None)
+    if not isinstance(frame, pd.DataFrame):
+        raise NoMarketDataError(symbol, symbol, "Alpaca returned malformed daily bars")
+    data = frame.reset_index()
+    if data.empty:
+        raise NoMarketDataError(symbol, symbol, "Alpaca returned no daily bars")
+    data = data.rename(
+        columns={
+            "timestamp": "Date",
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
+            "volume": "Volume",
+        }
+    )
+    columns = ["Date", "Open", "High", "Low", "Close", "Volume"]
+    missing = [column for column in columns if column not in data.columns]
+    if missing:
+        raise NoMarketDataError(symbol, symbol, "Alpaca returned malformed daily bars")
+    data["Date"] = pd.to_datetime(data["Date"], errors="coerce", utc=True).dt.tz_localize(None)
+    if data["Date"].isna().all():
+        raise NoMarketDataError(symbol, symbol, "Alpaca returned malformed daily bars")
+    return data[columns]
+
+
+def use_alpaca_market_data(symbol: str | None = None) -> bool:
+    enabled = get_config().get("use_alpaca_market_data", False)
+    if not enabled or symbol is None:
+        return enabled
+    compact = symbol.replace(".", "")
+    return compact.isalnum() and compact[0].isalpha()
+
+
 def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize the date column to ``Date``.
 
@@ -63,7 +121,7 @@ def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
     data = _ensure_date_column(data)
-    data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+    data["Date"] = pd.to_datetime(data["Date"], errors="coerce", utc=True).dt.tz_localize(None)
     data = data.dropna(subset=["Date"])
 
     price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
@@ -77,15 +135,18 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
 def _coerce_ohlcv_dates(data: pd.DataFrame) -> pd.Series:
     """Return parsed dates from an OHLCV frame, whether Date is a column or the index."""
     if "Date" in data.columns:
-        return pd.to_datetime(data["Date"], errors="coerce").dropna()
+        parsed = pd.to_datetime(data["Date"], errors="coerce", utc=True)
+        return parsed.dt.tz_localize(None).dropna()
     # yfinance keeps the dates in the index (a DatetimeIndex, sometimes unnamed).
     if isinstance(data.index, pd.DatetimeIndex):
-        return pd.Series(pd.to_datetime(data.index, errors="coerce")).dropna()
+        parsed = pd.to_datetime(data.index, errors="coerce", utc=True).tz_localize(None)
+        return pd.Series(parsed).dropna()
     # Fallback: expose the index and look for any date-like column.
     df = data.reset_index()
     for col in ("Date", "Datetime", "date", "index"):
         if col in df.columns:
-            parsed = pd.to_datetime(df[col], errors="coerce").dropna()
+            parsed = pd.to_datetime(df[col], errors="coerce", utc=True)
+            parsed = parsed.dt.tz_localize(None).dropna()
             if not parsed.empty:
                 return parsed
     return pd.Series(dtype="datetime64[ns]")
@@ -192,14 +253,33 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             data = cached
 
     if data is None:
-        downloaded = yf_retry(lambda: yf.download(
-            canonical,
-            start=start_str,
-            end=end_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        ))
+
+        def yahoo_bars():
+            return yf_retry(
+                lambda: yf.download(
+                    canonical,
+                    start=start_str,
+                    end=end_str,
+                    multi_level_index=False,
+                    progress=False,
+                    auto_adjust=True,
+                )
+            )
+
+        if use_alpaca_market_data(canonical):
+            try:
+                downloaded = _fetch_alpaca_ohlcv(canonical, start_str, end_str)
+                dates = _coerce_ohlcv_dates(downloaded)
+                requested_rows = downloaded.loc[dates <= curr_date_dt]
+                _assert_ohlcv_not_stale(requested_rows, curr_date, symbol, canonical)
+            except Exception:
+                logger.warning(
+                    "Alpaca daily bars unavailable for %s; using Yahoo fallback",
+                    symbol,
+                )
+                downloaded = yahoo_bars()
+        else:
+            downloaded = yahoo_bars()
         downloaded = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:

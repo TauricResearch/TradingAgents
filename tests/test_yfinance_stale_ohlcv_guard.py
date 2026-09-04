@@ -61,6 +61,7 @@ class StaleGuardUnitTests(unittest.TestCase):
 @pytest.mark.unit
 class StaleGuardPropagationTests(unittest.TestCase):
     def test_get_yfin_data_online_raises_on_stale_frame(self):
+        set_config({"use_alpaca_market_data": False})
         stale = pd.DataFrame(
             {
                 "Open": [280.0], "High": [286.0], "Low": [278.0],

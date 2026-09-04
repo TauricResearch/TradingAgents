@@ -226,6 +226,10 @@ not plan or submit orders until all seven symbols have successful decisions no o
 the SQLite state database at `~/.tradingagents/automation/state.db`, or set
 `TRADINGAGENTS_AUTOMATION_STATE_PATH` to an absolute path.
 
+Set `TRADINGAGENTS_USE_ALPACA_MARKET_DATA=true` to have scheduled Alpaca runs
+use Alpaca IEX daily bars instead of Yahoo Finance. Yahoo remains the default
+for other runs and is used as the fallback if Alpaca bars are unavailable.
+
 The coordinated risk layer targets 15% annualized forecast volatility, rejects
 new exposure above the 20% forecast ceiling, and caps gross equity plus
 delta-equivalent option exposure at 2.0 times account equity. It uses up to 60
