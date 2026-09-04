@@ -155,17 +155,16 @@ def build_reservations(
 
     put_collateral: dict[str, Decimal] = {}
     covered_shares: dict[str, Decimal] = {}
-    active_qty: dict[tuple[str, str], Decimal] = {}
+    active_qty: dict[str, Decimal] = {}
 
     def reserve(underlying: str, kind: str, qty: Decimal, strike: Decimal | None) -> None:
         if qty <= 0:
             return
         if qty > Decimal(1):
             raise ValueError(f"wheel quantity exceeds one contract for {underlying}")
-        leg = (underlying, kind)
-        active_qty[leg] = active_qty.get(leg, Decimal(0)) + qty
-        if active_qty[leg] > Decimal(1):
-            raise ValueError(f"multiple active {kind} contracts for {underlying}")
+        active_qty[underlying] = active_qty.get(underlying, Decimal(0)) + qty
+        if active_qty[underlying] > Decimal(1):
+            raise ValueError(f"multiple active wheel contracts for {underlying}")
         if kind == "put":
             if strike is None or strike <= 0:
                 raise ValueError(f"invalid put strike for {underlying}")

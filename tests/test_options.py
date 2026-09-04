@@ -130,7 +130,7 @@ def test_select_contract_enforces_seven_day_earnings_blackout(earnings, accepted
 
 def test_short_put_and_covered_call_reservations_are_reconstructed():
     reservations = build_reservations(
-        equities=(EquityPosition("AAPL", Decimal("250"), Decimal("300"), Decimal("320")),),
+        equities=(EquityPosition("META", Decimal("250"), Decimal("500"), Decimal("520")),),
         options=(
             OptionPosition(
                 "AAPL261002P00300000", "AAPL", "put", Decimal("-1"), Decimal("3"), Decimal("-0.2")
@@ -138,18 +138,36 @@ def test_short_put_and_covered_call_reservations_are_reconstructed():
         ),
         orders=(
             OptionOpenOrder(
-                "AAPL261002C00350000",
-                "AAPL",
+                "META261002C00550000",
+                "META",
                 "call",
                 "sell_to_open",
                 Decimal("1"),
                 Decimal("0"),
-                Decimal("350"),
+                Decimal("550"),
             ),
         ),
     )
     assert reservations.put_collateral["AAPL"] == Decimal("30000")
-    assert reservations.covered_shares["AAPL"] == Decimal("100")
+    assert reservations.covered_shares["META"] == Decimal("100")
+
+
+def test_short_put_and_opening_call_on_same_underlying_are_rejected():
+    put = OptionPosition(
+        "AAPL261002P00300000", "AAPL", "put", Decimal("-1"), Decimal("3"), Decimal("-0.2")
+    )
+    call_order = OptionOpenOrder(
+        "AAPL261002C00350000",
+        "AAPL",
+        "call",
+        "sell_to_open",
+        Decimal("1"),
+        Decimal("0"),
+        Decimal("350"),
+    )
+    equity = EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320"))
+    with pytest.raises(ValueError):
+        build_reservations((equity,), (put,), (call_order,))
 
 
 def test_remaining_sell_to_open_put_order_reserves_collateral():
@@ -339,6 +357,18 @@ def test_call_entry_rejects_buy_signal_or_insufficient_unreserved_shares():
         plan_new_entry(
             "AAPL", "Hold", (equity,), (existing,), (), (call,), NOW, None, Decimal("200000")
         )
+        is None
+    )
+
+
+def test_call_entry_is_blocked_by_active_opposite_leg():
+    call = _contract("AAPL261002C00350000", "call", "350", "0.20")
+    equity = EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320"))
+    put = OptionPosition(
+        "AAPL261002P00300000", "AAPL", "put", Decimal("-1"), Decimal("3"), Decimal("-0.2")
+    )
+    assert (
+        plan_new_entry("AAPL", "Hold", (equity,), (put,), (), (call,), NOW, None, Decimal("200000"))
         is None
     )
 
