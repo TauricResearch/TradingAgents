@@ -1659,10 +1659,7 @@ def test_cancel_rejects_orders_not_owned_by_the_wheel():
         "key",
         "secret",
         "paper",
-        client=SimpleNamespace(
-            _base_url="https://paper-api.alpaca.markets",
-            cancel_order_by_id=lambda value: calls.append(value),
-        ),
+        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
     )
     with pytest.raises(ValueError, match="not owned"):
         broker.cancel_stale_option_order("order-id", "manual-order")
