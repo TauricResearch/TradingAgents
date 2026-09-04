@@ -80,3 +80,29 @@ pytest temporary-directory cleanup warnings.
 The repository had unrelated modified and untracked files before Task 7 began.
 They were neither edited nor staged by this task. The broader-suite failures
 listed above remain outside Task 7 ownership.
+
+## Fix Round 1
+
+Review found that direct invocation with `.venv/bin/python
+scripts/refresh_earnings.py` placed only `scripts/` on Python's import path and
+failed with `ModuleNotFoundError` before reading configuration. A regression
+test reproduced the exact file invocation with an empty watchlist, which cannot
+reach the fetcher. The script now adds its repository root to `sys.path` only
+when run directly, allowing the documented command to reach the intended
+configuration boundary while leaving module imports unchanged.
+
+An additional atomicity regression forces `os.replace()` to fail after the
+sibling temporary file has been fully written. It verifies that the original
+cache remains byte-for-byte unchanged and the temporary file is removed.
+
+Fix-round TDD evidence:
+
+- RED focused run: `1 failed, 11 passed`; the direct-invocation test observed
+  the reviewed `ModuleNotFoundError`. The replace-failure regression passed
+  against the existing cleanup implementation and now protects that behavior.
+- GREEN focused run: `12 passed` with six unrelated pytest temporary-directory
+  cleanup warnings.
+- Direct CLI smoke with `TRADINGAGENTS_WATCHLIST=''`: exit 1 with `ValueError:
+  watchlist must contain exactly 7 unique symbols`; no fetch or network call.
+- Per coordinator instruction, the full suite was not rerun because concurrent
+  Task 6 dirty-worktree changes make that result non-isolating.

@@ -4,12 +4,16 @@ import json
 import logging
 import os
 import re
+import sys
 import tempfile
 from collections.abc import Callable, Iterable
 from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tradingagents.default_config import DEFAULT_CONFIG
 

@@ -1,5 +1,9 @@
 import json
+import os
+import subprocess
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -7,6 +11,7 @@ from scripts import refresh_earnings as earnings
 
 SYMBOLS = ("AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA")
 NOW = datetime(2026, 8, 11, 12, 0, tzinfo=timezone.utc)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _confirmed_page(symbol: str) -> str:
@@ -55,6 +60,26 @@ def test_failed_refresh_does_not_replace_existing_cache(tmp_path):
             lambda symbol: (_ for _ in ()).throw(OSError("network")),
             NOW,
         )
+
+    assert target.read_text(encoding="utf-8") == '{"old": true}'
+    assert list(tmp_path.iterdir()) == [target]
+
+
+def test_failed_atomic_replace_preserves_cache_and_removes_temporary_file(
+    tmp_path, monkeypatch
+):
+    target = tmp_path / "earnings.json"
+    target.write_text('{"old": true}', encoding="utf-8")
+
+    def fail_replace(source, destination):
+        assert Path(source).parent == target.parent
+        assert Path(destination) == target
+        raise OSError("replace failed")
+
+    monkeypatch.setattr(earnings.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="replace failed"):
+        earnings.write_earnings_cache(target, ("AAPL",), _confirmed_page, NOW)
 
     assert target.read_text(encoding="utf-8") == '{"old": true}'
     assert list(tmp_path.iterdir()) == [target]
@@ -124,3 +149,20 @@ def test_cli_rejects_non_seven_symbol_watchlist_without_replacing_cache(tmp_path
         earnings.main(fetch=_confirmed_page, now=NOW)
 
     assert target.read_text(encoding="utf-8") == '{"old": true}'
+
+
+def test_direct_script_invocation_reaches_configuration_validation_without_fetching():
+    environment = dict(os.environ, TRADINGAGENTS_WATCHLIST="")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/refresh_earnings.py"],
+        cwd=PROJECT_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "watchlist must contain exactly 7 unique symbols" in result.stderr
+    assert "ModuleNotFoundError" not in result.stderr
