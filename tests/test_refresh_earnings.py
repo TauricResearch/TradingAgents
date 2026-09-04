@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -166,3 +166,79 @@ def test_direct_script_invocation_reaches_configuration_validation_without_fetch
     assert result.returncode == 1
     assert "watchlist must contain exactly 7 unique symbols" in result.stderr
     assert "ModuleNotFoundError" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    "now",
+    (
+        datetime(2026, 9, 7, 20, 29, tzinfo=timezone(timedelta(hours=8))),
+        datetime(2026, 9, 7, 20, 31, tzinfo=timezone(timedelta(hours=8))),
+        datetime(2026, 9, 6, 20, 30, tzinfo=timezone(timedelta(hours=8))),
+    ),
+)
+def test_scheduled_refresh_skips_outside_new_york_weekday_0830_without_fetch(
+    now, tmp_path, monkeypatch
+):
+    target = tmp_path / "earnings.json"
+    monkeypatch.setattr(
+        earnings,
+        "DEFAULT_CONFIG",
+        {"watchlist": ",".join(SYMBOLS), "options_earnings_path": str(target)},
+    )
+
+    earnings.main(
+        fetch=lambda symbol: (_ for _ in ()).throw(AssertionError("must not fetch")),
+        now=now,
+        scheduled=True,
+    )
+
+    assert not target.exists()
+
+
+def test_scheduled_refresh_accepts_singapore_equivalent_of_new_york_weekday_0830(
+    tmp_path, monkeypatch
+):
+    target = tmp_path / "earnings.json"
+    monkeypatch.setattr(
+        earnings,
+        "DEFAULT_CONFIG",
+        {"watchlist": ",".join(SYMBOLS), "options_earnings_path": str(target)},
+    )
+    singapore_time = datetime(
+        2026, 9, 7, 20, 30, 45, tzinfo=timezone(timedelta(hours=8))
+    )
+
+    earnings.main(fetch=_confirmed_page, now=singapore_time, scheduled=True)
+
+    assert json.loads(target.read_text(encoding="utf-8"))["retrieved_at"] == (
+        "2026-09-07T20:30:45+08:00"
+    )
+
+
+def test_scheduled_refresh_skips_duplicate_new_york_date_without_fetch(tmp_path, monkeypatch):
+    target = tmp_path / "earnings.json"
+    target.write_text(
+        json.dumps(
+            {
+                "source": earnings.SOURCE,
+                "retrieved_at": "2026-09-07T12:30:05+00:00",
+                "symbols": dict.fromkeys(SYMBOLS, "2026-12-11"),
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        earnings,
+        "DEFAULT_CONFIG",
+        {"watchlist": ",".join(SYMBOLS), "options_earnings_path": str(target)},
+    )
+
+    earnings.main(
+        fetch=lambda symbol: (_ for _ in ()).throw(AssertionError("must not fetch")),
+        now=datetime(2026, 9, 7, 12, 30, 55, tzinfo=timezone.utc),
+        scheduled=True,
+    )
+
+    assert json.loads(target.read_text(encoding="utf-8"))["retrieved_at"] == (
+        "2026-09-07T12:30:05+00:00"
+    )

@@ -8,7 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 import cli.main as cli_main
-from tradingagents.automation import AutomationSettings, CycleResult
+from tradingagents.automation import AutomationSettings, CycleResult, OptionCycleResult
 from tradingagents.automation_state import AutomationState
 from tradingagents.scheduler import AutomationScheduler
 
@@ -365,6 +365,30 @@ def test_analysis_cycle_result_is_logged_concisely(settings, state, caplog):
     assert "failed=ETH-USD" in caplog.text
     assert "submitted=order-1" in caplog.text
     assert "submission errors: ETH-USD" in caplog.text
+
+
+def test_scheduler_persists_latest_suppression_outcomes_with_completion(settings, tmp_path):
+    path = tmp_path / "durable-state.db"
+
+    class ResultService(FakeService):
+        def run_analysis_cycle(self, due_time):
+            return CycleResult("equity-cycle", (), (), (), (), "waiting for fresh decisions")
+
+        def manage_options(self, due_time):
+            return OptionCycleResult("option-cycle", (), (), "earnings blackout: NVDA")
+
+    with AutomationState(path) as state:
+        AutomationScheduler(ResultService(settings), state, now=lambda: NOW).run_once(NOW)
+
+    with AutomationState(path) as reopened:
+        assert reopened.last_task_outcome("analysis") == (
+            NOW,
+            "waiting for fresh decisions",
+        )
+        assert reopened.last_task_outcome("options") == (
+            NOW,
+            "earnings blackout: NVDA",
+        )
 
 
 def test_failed_analysis_is_deferred_to_its_next_interval(fake_service, state):

@@ -1,5 +1,6 @@
 """Refresh the confirmed earnings-date cache used by options automation."""
 
+import argparse
 import json
 import logging
 import os
@@ -132,18 +133,46 @@ def _configured_symbols() -> tuple[str, ...]:
     return symbols
 
 
+def _refreshed_on_new_york_date(target: Path, local_date: date) -> bool:
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+        retrieved_at = datetime.fromisoformat(payload["retrieved_at"])
+        return (
+            payload.get("source") == SOURCE
+            and retrieved_at.tzinfo is not None
+            and retrieved_at.utcoffset() is not None
+            and retrieved_at.astimezone(NEW_YORK).date() == local_date
+        )
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def _scheduled_refresh_due(now: datetime, target: Path) -> bool:
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("retrieval timestamp must be timezone-aware")
+    local = now.astimezone(NEW_YORK)
+    if local.weekday() >= 5 or (local.hour, local.minute) != (8, 30):
+        return False
+    return not _refreshed_on_new_york_date(target, local.date())
+
+
 def main(
     *,
     fetch: Callable[[str], str] = fetch_page,
     now: datetime | None = None,
+    scheduled: bool = False,
 ) -> None:
     """Refresh the env-backed earnings cache for the configured watchlist."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     retrieved_at = datetime.now(timezone.utc) if now is None else now
     target = Path(str(DEFAULT_CONFIG["options_earnings_path"]))
+    if scheduled and not _scheduled_refresh_due(retrieved_at, target):
+        return
     write_earnings_cache(target, _configured_symbols(), fetch, retrieved_at)
     print(target)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--scheduled", action="store_true")
+    main(scheduled=parser.parse_args().scheduled)

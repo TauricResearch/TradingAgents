@@ -68,6 +68,10 @@ class AutomationState:
             CREATE TABLE IF NOT EXISTS task_runs (
               task TEXT PRIMARY KEY, ran_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS task_outcomes (
+              task TEXT PRIMARY KEY, ran_at TEXT NOT NULL,
+              suppression_reason TEXT
+            );
             CREATE TABLE IF NOT EXISTS leases (
               task TEXT PRIMARY KEY, owner TEXT NOT NULL, expires_at TEXT NOT NULL
             );
@@ -463,6 +467,13 @@ class AutomationState:
         ).fetchone()
         return datetime.fromisoformat(row[0]) if row else None
 
+    def last_task_outcome(self, task: str) -> tuple[datetime, str | None] | None:
+        row = self._connection.execute(
+            "SELECT ran_at, suppression_reason FROM task_outcomes WHERE task = ?",
+            (task,),
+        ).fetchone()
+        return (datetime.fromisoformat(row[0]), row[1]) if row else None
+
     def try_acquire_lease(
         self,
         task: str,
@@ -536,6 +547,7 @@ class AutomationState:
         owner: str,
         ran_at: datetime,
         completed_at: datetime,
+        suppression_reason: str | None = None,
     ) -> bool:
         ran_at_text = _timestamp(ran_at)
         _timestamp(completed_at)
@@ -553,6 +565,16 @@ class AutomationState:
                 ON CONFLICT(task) DO UPDATE SET ran_at = excluded.ran_at
                 """,
                 (task, ran_at_text),
+            )
+            self._connection.execute(
+                """
+                INSERT INTO task_outcomes (task, ran_at, suppression_reason)
+                VALUES (?, ?, ?)
+                ON CONFLICT(task) DO UPDATE SET
+                  ran_at = excluded.ran_at,
+                  suppression_reason = excluded.suppression_reason
+                """,
+                (task, ran_at_text, suppression_reason),
             )
             cursor = self._connection.execute(
                 "DELETE FROM leases WHERE task = ? AND owner = ?",

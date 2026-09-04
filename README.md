@@ -306,8 +306,11 @@ Refresh the earnings cache and inspect a dry-run cycle and read-only report with
 The example
 `deploy/com.tradingagents.earnings-refresh.plist.example` is deliberately
 disabled and unloaded. It shows the repository's absolute `.venv` Python and a
-weekday 08:30 `America/New_York` earnings refresh. Copy and review it before any
-separate installation; this repository does not load it automatically.
+host-timezone-independent periodic wake. The script's `--scheduled` gate exits
+without fetching except during the weekday 08:30 minute in
+`America/New_York`, and a successful same-New-York-date cache prevents a
+duplicate refresh. Copy and review the plist before any separate installation;
+this repository does not load it automatically.
 
 Paper option submission requires a later explicit decision to set both
 `TRADINGAGENTS_OPTIONS_ENABLED=true` and

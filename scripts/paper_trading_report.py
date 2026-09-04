@@ -13,6 +13,11 @@ from alpaca.trading.enums import QueryOrderStatus
 from alpaca.trading.requests import GetOrdersRequest
 from dotenv import load_dotenv
 
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.execution import AlpacaBroker
+from tradingagents.options import build_reservations, option_delta_exposure
+from tradingagents.risk import close_returns, forecast_volatility
+
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 REPORT_PATH = Path.home() / ".tradingagents" / "automation" / "daily-paper-report.md"
 STATE_PATH = Path.home() / ".tradingagents" / "automation" / "state.db"
@@ -49,6 +54,68 @@ def _option_intent_rows(state_path: Path, since: datetime):
             """,
             (since.isoformat(),),
         ).fetchall()
+
+
+def _suppression_outcomes(state_path: Path) -> tuple[str, ...]:
+    if not state_path.exists():
+        return ("analysis: Unavailable", "options: Unavailable")
+    try:
+        with sqlite3.connect(state_path, timeout=10) as connection:
+            rows = dict(
+                connection.execute(
+                    """
+                    SELECT task, suppression_reason FROM task_outcomes
+                    WHERE task IN ('analysis', 'options')
+                    """
+                ).fetchall()
+            )
+    except sqlite3.Error:
+        return ("analysis: Unavailable", "options: Unavailable")
+    return tuple(
+        f"{task}: {rows[task] or 'None'}" if task in rows else f"{task}: Unavailable"
+        for task in ("analysis", "options")
+    )
+
+
+def _current_risk_summary(broker, symbols: tuple[str, ...], suppression_reasons):
+    try:
+        account = broker.account()
+        equities, option_positions, option_orders = broker.wheel_positions_and_orders()
+        prices = {symbol: broker.latest_price(symbol) for symbol in symbols}
+        reservations = build_reservations(equities, option_positions, option_orders)
+        option_exposure = option_delta_exposure(option_positions, prices)
+        equity_exposure = {}
+        for position in equities:
+            equity_exposure[position.symbol] = (
+                equity_exposure.get(position.symbol, Decimal("0"))
+                + position.qty * prices[position.symbol]
+            )
+        combined_exposure = dict(option_exposure)
+        for symbol, exposure in equity_exposure.items():
+            combined_exposure[symbol] = combined_exposure.get(symbol, Decimal("0")) + exposure
+        returns = close_returns(broker.daily_closes(symbols))
+        combined_volatility = forecast_volatility(
+            combined_exposure,
+            account.equity,
+            returns,
+        )
+        gross_leverage = (
+            sum((abs(value) for value in equity_exposure.values()), Decimal("0"))
+            + sum((abs(value) for value in option_exposure.values()), Decimal("0"))
+        ) / account.equity
+        return {
+            "wheel_collateral": sum(reservations.put_collateral.values(), Decimal("0")),
+            "covered_shares": reservations.covered_shares,
+            "option_delta_exposure": option_exposure,
+            "combined_forecast_volatility": combined_volatility,
+            "gross_leverage": gross_leverage,
+            "suppression_reasons": suppression_reasons,
+        }
+    except Exception:
+        return {
+            "suppression_reasons": tuple(suppression_reasons)
+            + ("risk: Unavailable (current broker data invalid)",)
+        }
 
 
 def _value(item, name, default="-"):
@@ -198,6 +265,12 @@ def build_report(now: datetime) -> str:
         os.environ["ALPACA_SECRET_KEY"],
         paper=True,
     )
+    broker = AlpacaBroker(
+        os.environ["ALPACA_API_KEY"],
+        os.environ["ALPACA_SECRET_KEY"],
+        "paper",
+        client=client,
+    )
     account = client.get_account()
     positions = client.get_all_positions()
     since = now - timedelta(days=1)
@@ -207,13 +280,21 @@ def build_report(now: datetime) -> str:
     state_path = Path(os.getenv("TRADINGAGENTS_AUTOMATION_STATE_PATH", STATE_PATH))
     equity_intents = _intent_rows(state_path, since)
     option_intents = _option_intent_rows(state_path, since)
+    symbols = tuple(
+        symbol.strip().upper()
+        for symbol in str(
+            os.getenv("TRADINGAGENTS_WATCHLIST", DEFAULT_CONFIG["watchlist"])
+        ).split(",")
+    )
+    suppression_reasons = _suppression_outcomes(state_path)
+    risk_summary = _current_risk_summary(broker, symbols, suppression_reasons)
     return format_report(
         account,
         positions,
         broker_orders,
         equity_intents,
         option_intents,
-        {},
+        risk_summary,
         now,
     )
 

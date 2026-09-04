@@ -162,10 +162,12 @@ class AutomationScheduler:
             self._now,
         )
         operation_error: Exception | None = None
+        suppression_reason: str | None = None
         try:
             heartbeat.start()
             result = operation(due_time)
             if isinstance(result, CycleResult):
+                suppression_reason = result.trade_suppressed_reason
                 logger.info(
                     "Automation %s result cycle=%s analyzed=%s failed=%s submitted=%s outcome=%s",
                     task,
@@ -176,6 +178,7 @@ class AutomationScheduler:
                     result.trade_suppressed_reason or "completed",
                 )
             elif isinstance(result, OptionCycleResult):
+                suppression_reason = result.suppressed_reason
                 logger.info(
                     "Automation %s result cycle=%s intents=%s submitted=%s outcome=%s",
                     task,
@@ -215,6 +218,7 @@ class AutomationScheduler:
                 self._owner,
                 ran_at=lease_time if record_runtime else due_time,
                 completed_at=completed_at,
+                suppression_reason=suppression_reason,
             )
         except sqlite3.Error:
             self._deferred_until[task] = completed_at + timedelta(minutes=interval_minutes)
