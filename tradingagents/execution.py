@@ -635,9 +635,14 @@ class AlpacaBroker:
                     getattr(raw, "symbol", None), "Alpaca position record is malformed"
                 )
                 side = _enum_text(raw.side).casefold()
-                qty = abs(
-                    _required_decimal(raw.qty, "Alpaca position record is malformed")
+                raw_qty = _required_decimal(
+                    raw.qty, "Alpaca position record is malformed"
                 )
+                if asset_class == "us_option" and (
+                    raw_qty <= 0 or raw_qty != raw_qty.to_integral()
+                ):
+                    raise RuntimeError("Alpaca option position record is malformed")
+                qty = abs(raw_qty)
                 avg_entry_price = _required_decimal(
                     raw.avg_entry_price, "Alpaca position record is malformed"
                 )
@@ -650,8 +655,6 @@ class AlpacaBroker:
                     raise RuntimeError("Alpaca position record is malformed")
                 if qty == 0:
                     raise RuntimeError("Alpaca position record is malformed")
-                if asset_class == "us_option" and qty != qty.to_integral():
-                    raise RuntimeError("Alpaca option position record is malformed")
                 position_rows.append(
                     (asset_class, symbol, qty, avg_entry_price, current_price)
                 )

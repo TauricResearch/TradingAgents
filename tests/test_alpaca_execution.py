@@ -1316,6 +1316,39 @@ def test_wheel_option_positions_reject_fractional_contract_quantity(monkeypatch)
         broker.wheel_positions_and_orders()
 
 
+@pytest.mark.parametrize("side", [_enum("long"), _enum("short")])
+def test_wheel_option_positions_reject_negative_raw_quantity(monkeypatch, side):
+    raw = SimpleNamespace(
+        symbol="AAPL260925C00300000",
+        asset_class=_enum("us_option"),
+        side=side,
+        qty="-1",
+        avg_entry_price="4.20",
+        current_price="3.10",
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [raw], get_orders=lambda: []),
+    )
+    monkeypatch.setattr(
+        broker,
+        "option_snapshot",
+        lambda symbols: {
+            raw.symbol: (
+                Decimal("0.21"),
+                Decimal("3"),
+                Decimal("3.2"),
+                datetime(2026, 9, 4, tzinfo=timezone.utc),
+            )
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="option position"):
+        broker.wheel_positions_and_orders()
+
+
 @pytest.mark.parametrize(
     ("asset_class", "symbol"),
     [
