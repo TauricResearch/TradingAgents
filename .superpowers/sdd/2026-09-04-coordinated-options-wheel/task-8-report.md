@@ -53,3 +53,38 @@ and test files. All unrelated and pre-existing worktree changes remain unstaged.
   weekday 08:30 calendar intervals. Because LaunchAgent calendar interpretation
   can depend on the host's configured timezone, verify the trigger time on any
   non-New-York Mac before separately installing or loading the example.
+
+## Formal Fix Round 1
+
+Both concerns above were resolved by implementation commit
+`c0eb16780d7ae6f5aeeb440a858bca4457d4bd1d`.
+
+- `build_report()` now computes a fresh current-risk summary from the normalized
+  Alpaca broker account, wheel positions/orders, latest underlying prices, and
+  daily closes. It derives reservations, option delta exposure, actual combined
+  forecast volatility, and gross leverage without executing automation or
+  retaining stale risk values. Invalid current inputs render explicit
+  `Unavailable` fields and a generic credential-safe risk reason.
+- Scheduler task completion now transactionally stores the task timestamp and
+  latest suppression reason. A reopened `AutomationState` recovers analysis and
+  option outcomes for the report.
+- The LaunchAgent now wakes once per minute using `StartInterval`. The script's
+  `--scheduled` path checks the weekday and exact 08:30 minute in
+  `America/New_York` and uses a successful same-New-York-date cache as the
+  duplicate-run marker. All other invocations return before fetching.
+
+### Fix-round TDD and Verification
+
+- RED: focused tests failed for the missing `last_task_outcome` API, missing
+  `scheduled` entry point, host-local calendar plist, and absent current-risk
+  report path.
+- GREEN focused suite: `146 passed`.
+- Coordinated integration suite: `352 passed`.
+- Full suite: `930 passed, 1 skipped, 69 subtests passed in 122.87s`.
+  The skip remains the unavailable optional `langchain_aws` dependency; the 24
+  warnings are the existing model-catalog and pytest temporary-directory
+  warnings.
+- Ruff, `compileall`, `plutil -lint`, worktree `git diff --check`, and staged
+  `git diff --cached --check` all passed.
+- No real credentials, network, broker submission, automation execution, or
+  `launchctl` was used.
