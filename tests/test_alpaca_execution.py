@@ -1194,7 +1194,7 @@ def test_wheel_positions_and_orders_map_equities_options_and_open_orders(monkeyp
             symbol="AAPL260925C00300000",
             asset_class=_enum("us_option"),
             side=_enum("short"),
-            qty="1",
+            qty="-1",
             avg_entry_price="4.20",
             current_price="3.10",
         ),
@@ -1310,7 +1310,7 @@ def test_wheel_option_positions_reject_fractional_contract_quantity(monkeypatch)
         symbol="AAPL260925C00300000",
         asset_class=_enum("us_option"),
         side=_enum("short"),
-        qty="1.5",
+        qty="-1.5",
         avg_entry_price="4.20",
         current_price="3.10",
     )
@@ -1337,13 +1337,23 @@ def test_wheel_option_positions_reject_fractional_contract_quantity(monkeypatch)
         broker.wheel_positions_and_orders()
 
 
-@pytest.mark.parametrize("side", [_enum("long"), _enum("short")])
-def test_wheel_option_positions_reject_negative_raw_quantity(monkeypatch, side):
+@pytest.mark.parametrize(
+    ("side", "qty"),
+    [
+        (_enum("long"), "-1"),
+        (_enum("short"), "1"),
+        (_enum("long"), "0"),
+        (_enum("short"), "0"),
+        (_enum("long"), "NaN"),
+        (_enum("short"), "-Infinity"),
+    ],
+)
+def test_wheel_option_positions_reject_invalid_signed_quantity(monkeypatch, side, qty):
     raw = SimpleNamespace(
         symbol="AAPL260925C00300000",
         asset_class=_enum("us_option"),
         side=side,
-        qty="-1",
+        qty=qty,
         avg_entry_price="4.20",
         current_price="3.10",
     )
@@ -1366,7 +1376,7 @@ def test_wheel_option_positions_reject_negative_raw_quantity(monkeypatch, side):
         },
     )
 
-    with pytest.raises(RuntimeError, match="option position"):
+    with pytest.raises(RuntimeError, match="position record"):
         broker.wheel_positions_and_orders()
 
 
