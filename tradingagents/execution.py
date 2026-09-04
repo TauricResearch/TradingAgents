@@ -308,6 +308,9 @@ class AlpacaBroker:
         raw_history = getattr(response, "data", None)
         if not isinstance(raw_history, Mapping):
             raise RuntimeError("Alpaca daily bars response is unavailable")
+        reference_time = self.broker_time()
+        if not isinstance(reference_time, datetime) or reference_time.utcoffset() is None:
+            raise RuntimeError("Alpaca broker time must be timezone-aware")
 
         history = {}
         for symbol in symbols:
@@ -318,12 +321,22 @@ class AlpacaBroker:
             for bar in bars:
                 try:
                     close = Decimal(str(bar.close))
-                    day = bar.timestamp.date()
+                    timestamp = bar.timestamp
                 except (ArithmeticError, AttributeError, ValueError) as error:
                     raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}") from error
-                if not close.is_finite() or close <= 0:
+                if (
+                    not close.is_finite()
+                    or close <= 0
+                    or not isinstance(timestamp, datetime)
+                    or timestamp.utcoffset() is None
+                ):
+                    raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}")
+                day = timestamp.date()
+                if not isinstance(day, date) or isinstance(day, datetime):
                     raise RuntimeError(f"Alpaca daily bar is invalid for {symbol}")
                 rows.append((day, close))
+            if (reference_time.date() - max(day for day, _close in rows)).days > 7:
+                raise RuntimeError(f"Alpaca daily bars are stale for {symbol}")
             history[symbol] = tuple(rows)
         return history
 

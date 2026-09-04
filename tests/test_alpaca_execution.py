@@ -18,6 +18,11 @@ def _enum(value):
     return SimpleNamespace(value=value)
 
 
+class _MalformedDateResult(datetime):
+    def date(self):
+        return "2026-01-02"
+
+
 def test_symbol_conversion_changes_only_supported_crypto_separator():
     assert alpaca_symbol("BTC-USD") == "BTC/USD"
     assert alpaca_symbol("ETH-USD") == "ETH/USD"
@@ -251,17 +256,24 @@ def test_daily_closes_requests_one_iex_batch(monkeypatch):
         ],
     }
     data_client = SimpleNamespace(get_stock_bars=lambda request: SimpleNamespace(data=bars))
-    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace())
+    client = SimpleNamespace(
+        get_clock=lambda: SimpleNamespace(
+            timestamp=datetime(2026, 1, 9, tzinfo=timezone.utc)
+        )
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
     broker._stock_data_client = data_client
     monkeypatch.setattr("tradingagents.execution._stock_bars_request_class", lambda: FakeRequest)
 
     result = broker.daily_closes(("AAPL", "MSFT"), limit=61)
 
+    assert len(captured) == 1
     assert captured[0]["symbol_or_symbols"] == ["AAPL", "MSFT"]
     assert captured[0]["limit"] == 61
     assert str(captured[0]["timeframe"]).lower().endswith("day")
     assert str(captured[0]["feed"]).lower().endswith("iex")
     assert result["AAPL"] == ((datetime(2026, 1, 2).date(), Decimal("100")),)
+    assert result["MSFT"] == ((datetime(2026, 1, 2).date(), Decimal("200")),)
 
 
 def test_daily_closes_fails_when_a_requested_symbol_is_absent(monkeypatch):
@@ -276,7 +288,12 @@ def test_daily_closes_fails_when_a_requested_symbol_is_absent(monkeypatch):
             }
         )
     )
-    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace())
+    client = SimpleNamespace(
+        get_clock=lambda: SimpleNamespace(
+            timestamp=datetime(2026, 1, 9, tzinfo=timezone.utc)
+        )
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
     broker._stock_data_client = data_client
     monkeypatch.setattr(
         "tradingagents.execution._stock_bars_request_class", lambda: lambda **fields: fields
@@ -294,7 +311,12 @@ def test_daily_closes_fails_closed_for_invalid_prices(monkeypatch, close):
         ]
     }
     data_client = SimpleNamespace(get_stock_bars=lambda request: SimpleNamespace(data=bars))
-    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace())
+    client = SimpleNamespace(
+        get_clock=lambda: SimpleNamespace(
+            timestamp=datetime(2026, 1, 9, tzinfo=timezone.utc)
+        )
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
     broker._stock_data_client = data_client
     monkeypatch.setattr(
         "tradingagents.execution._stock_bars_request_class", lambda: lambda **fields: fields
@@ -302,6 +324,60 @@ def test_daily_closes_fails_closed_for_invalid_prices(monkeypatch, close):
 
     with pytest.raises(RuntimeError, match="AAPL"):
         broker.daily_closes(("AAPL",))
+
+
+@pytest.mark.parametrize(
+    "timestamp",
+    [
+        datetime(2026, 1, 2),
+        _MalformedDateResult(2026, 1, 2, tzinfo=timezone.utc),
+    ],
+)
+def test_daily_closes_fails_closed_for_malformed_timestamps(monkeypatch, timestamp):
+    bars = {"AAPL": [SimpleNamespace(timestamp=timestamp, close="100")]}
+    data_client = SimpleNamespace(get_stock_bars=lambda request: SimpleNamespace(data=bars))
+    client = SimpleNamespace(
+        get_clock=lambda: SimpleNamespace(
+            timestamp=datetime(2026, 1, 9, tzinfo=timezone.utc)
+        )
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
+    broker._stock_data_client = data_client
+    monkeypatch.setattr(
+        "tradingagents.execution._stock_bars_request_class", lambda: lambda **fields: fields
+    )
+
+    with pytest.raises(RuntimeError, match="AAPL"):
+        broker.daily_closes(("AAPL",))
+
+
+def test_daily_closes_fails_when_any_symbol_history_is_stale(monkeypatch):
+    bars = {
+        "AAPL": [
+            SimpleNamespace(
+                timestamp=datetime(2026, 1, 3, tzinfo=timezone.utc), close="100"
+            )
+        ],
+        "MSFT": [
+            SimpleNamespace(
+                timestamp=datetime(2026, 1, 2, tzinfo=timezone.utc), close="200"
+            )
+        ],
+    }
+    data_client = SimpleNamespace(get_stock_bars=lambda request: SimpleNamespace(data=bars))
+    client = SimpleNamespace(
+        get_clock=lambda: SimpleNamespace(
+            timestamp=datetime(2026, 1, 10, tzinfo=timezone.utc)
+        )
+    )
+    broker = AlpacaBroker("key", "secret", "paper", client=client)
+    broker._stock_data_client = data_client
+    monkeypatch.setattr(
+        "tradingagents.execution._stock_bars_request_class", lambda: lambda **fields: fields
+    )
+
+    with pytest.raises(RuntimeError, match="stale.*MSFT"):
+        broker.daily_closes(("AAPL", "MSFT"))
 
 
 def test_open_order_exposure_uses_remaining_qty_and_signed_side():
