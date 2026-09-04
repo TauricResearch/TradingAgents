@@ -297,7 +297,7 @@ class AlpacaBroker:
         options_buying_power = _required_decimal(
             getattr(raw, "options_buying_power", None), account_values_error
         )
-        if cash < 0 or equity <= 0 or buying_power < 0 or options_buying_power < 0:
+        if equity <= 0 or buying_power < 0 or options_buying_power < 0:
             raise RuntimeError(account_values_error)
         return AccountSnapshot(
             cash=cash,
@@ -913,6 +913,7 @@ class AlpacaBroker:
             time_in_force=spec.time_in_force,
             client_order_id=spec.client_order_id,
         )
+        self._assert_trading_endpoint_matches_mode()
         try:
             order = self._client.submit_order(order_data=request)
         except Exception as submission_error:
@@ -936,7 +937,21 @@ class AlpacaBroker:
         if not client_order_id.startswith("ta-wheel-"):
             raise ValueError("option order is not owned by the wheel strategy")
         self._validate_option_submission()
+        self._assert_trading_endpoint_matches_mode()
         self._client.cancel_order_by_id(order_id)
+
+    def _assert_trading_endpoint_matches_mode(self) -> None:
+        endpoint_error = "Alpaca trading endpoint cannot be verified"
+        try:
+            endpoint = _enum_text(getattr(self._client, "_base_url", None)).rstrip("/")
+        except (AttributeError, TypeError, ValueError) as error:
+            raise RuntimeError(endpoint_error) from error
+        expected = {
+            "paper": "https://paper-api.alpaca.markets",
+            "live": "https://api.alpaca.markets",
+        }[self._mode]
+        if endpoint != expected:
+            raise RuntimeError(endpoint_error)
 
     def _validate_option_submission(self) -> None:
         self._validate_submission()

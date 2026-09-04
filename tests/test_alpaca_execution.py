@@ -172,6 +172,24 @@ def test_account_maps_options_buying_power():
     assert broker.account().options_buying_power == Decimal("75000")
 
 
+def test_account_maps_finite_negative_cash_for_authorized_margin():
+    raw = SimpleNamespace(
+        cash="-1250.50",
+        equity="120000",
+        buying_power="200000",
+        options_buying_power="75000",
+        trading_blocked=False,
+        account_blocked=False,
+        trade_suspended_by_user=False,
+        status=_enum("ACTIVE"),
+    )
+    broker = AlpacaBroker(
+        "key", "secret", "paper", client=SimpleNamespace(get_account=lambda: raw)
+    )
+
+    assert broker.account().cash == Decimal("-1250.50")
+
+
 @pytest.mark.parametrize(
     "raw",
     [
@@ -850,6 +868,7 @@ def test_option_order_is_limit_day_with_position_intent(monkeypatch):
         lambda: FakeLimitOrderRequest,
     )
     client = SimpleNamespace(
+        _base_url="https://paper-api.alpaca.markets",
         get_order_by_client_id=lambda value: None,
         submit_order=lambda order_data: SimpleNamespace(id="option-order"),
     )
@@ -880,6 +899,7 @@ def test_option_missing_submission_id_is_resolved_by_client_id_lookup(monkeypatc
         "secret",
         "paper",
         client=SimpleNamespace(
+            _base_url="https://paper-api.alpaca.markets",
             get_order_by_client_id=lambda value: next(lookups),
             submit_order=lambda order_data: SimpleNamespace(id=None),
         ),
@@ -908,6 +928,7 @@ def test_option_missing_submission_id_and_lookup_absence_raise_sanitized(monkeyp
         "secret",
         "paper",
         client=SimpleNamespace(
+            _base_url="https://paper-api.alpaca.markets",
             get_order_by_client_id=lambda value: calls.append(value),
             submit_order=lambda order_data: SimpleNamespace(
                 id=None, private_detail="broker-secret"
@@ -1549,13 +1570,99 @@ def test_option_submission_rejects_side_intent_mismatch_before_lookup():
     assert calls == []
 
 
+@pytest.mark.parametrize(
+    ("mode", "endpoint", "live_ack", "live_options_ack"),
+    [
+        ("paper", "https://paper-api.alpaca.markets", "", ""),
+        (
+            "live",
+            "https://api.alpaca.markets",
+            LIVE_ACKNOWLEDGMENT,
+            LIVE_OPTIONS_ACKNOWLEDGMENT,
+        ),
+    ],
+)
+def test_option_submit_allows_only_matching_authoritative_endpoint(
+    monkeypatch, mode, endpoint, live_ack, live_options_ack
+):
+    calls = []
+    monkeypatch.setattr(
+        "tradingagents.execution._limit_order_request_class",
+        lambda: lambda **fields: fields,
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        mode,
+        client=SimpleNamespace(
+            _base_url=endpoint,
+            get_order_by_client_id=lambda value: None,
+            submit_order=lambda order_data: calls.append(order_data)
+            or SimpleNamespace(id="option-order"),
+        ),
+        live_ack=live_ack,
+        live_options_ack=live_options_ack,
+    )
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        Decimal("3.10"),
+        "day",
+        "ta-wheel-stable",
+    )
+
+    assert broker.submit_option_idempotent(spec) == "option-order"
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["https://api.alpaca.markets", None],
+    ids=["mismatch", "unknown"],
+)
+def test_option_submit_rejects_unverified_endpoint_without_mutation(monkeypatch, endpoint):
+    calls = []
+    monkeypatch.setattr(
+        "tradingagents.execution._limit_order_request_class",
+        lambda: lambda **fields: fields,
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(
+            _base_url=endpoint,
+            get_order_by_client_id=lambda value: None,
+            submit_order=lambda order_data: calls.append(order_data),
+        ),
+    )
+    spec = OptionOrderRequestSpec(
+        "AAPL261002P00300000",
+        Decimal("1"),
+        "sell",
+        "sell_to_open",
+        Decimal("3.10"),
+        "day",
+        "ta-wheel-stable",
+    )
+
+    with pytest.raises(RuntimeError, match="trading endpoint"):
+        broker.submit_option_idempotent(spec)
+    assert calls == []
+
+
 def test_cancel_rejects_orders_not_owned_by_the_wheel():
     calls = []
     broker = AlpacaBroker(
         "key",
         "secret",
         "paper",
-        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+        client=SimpleNamespace(
+            _base_url="https://paper-api.alpaca.markets",
+            cancel_order_by_id=lambda value: calls.append(value),
+        ),
     )
     with pytest.raises(ValueError, match="not owned"):
         broker.cancel_stale_option_order("order-id", "manual-order")
@@ -1568,7 +1675,10 @@ def test_cancel_allows_only_wheel_owned_order():
         "key",
         "secret",
         "paper",
-        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+        client=SimpleNamespace(
+            _base_url="https://paper-api.alpaca.markets",
+            cancel_order_by_id=lambda value: calls.append(value),
+        ),
     )
 
     broker.cancel_stale_option_order("order-id", "ta-wheel-owned")
@@ -1600,7 +1710,10 @@ def test_live_cancel_with_both_acknowledgments_reaches_broker():
         "key",
         "secret",
         "live",
-        client=SimpleNamespace(cancel_order_by_id=lambda value: calls.append(value)),
+        client=SimpleNamespace(
+            _base_url="https://api.alpaca.markets",
+            cancel_order_by_id=lambda value: calls.append(value),
+        ),
         live_ack=LIVE_ACKNOWLEDGMENT,
         live_options_ack=LIVE_OPTIONS_ACKNOWLEDGMENT,
     )
@@ -1608,3 +1721,25 @@ def test_live_cancel_with_both_acknowledgments_reaches_broker():
     broker.cancel_stale_option_order("order-id", "ta-wheel-owned")
 
     assert calls == ["order-id"]
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["https://api.alpaca.markets", None],
+    ids=["mismatch", "unknown"],
+)
+def test_option_cancel_rejects_unverified_endpoint_without_mutation(endpoint):
+    calls = []
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(
+            _base_url=endpoint,
+            cancel_order_by_id=lambda value: calls.append(value),
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="trading endpoint"):
+        broker.cancel_stale_option_order("order-id", "ta-wheel-owned")
+    assert calls == []
