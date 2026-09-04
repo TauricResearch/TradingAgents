@@ -135,7 +135,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Category-level configuration (default for all tools in category).
     # The configured value is the exact vendor chain — requests are NOT silently
     # routed to vendors you didn't choose. For ordered fallback, list several,
-    # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
+    # e.g. "yfinance,alpha_vantage". "default" keeps the built-in vendor chain;
+    # optional Parallel ticker search requires an explicit choice for get_news.
     "data_vendors": {
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
