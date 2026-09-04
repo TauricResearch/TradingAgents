@@ -118,10 +118,6 @@ _BY_ID: dict[str, ModelCapabilities] = {
     "MiniMax-M2.1": _MINIMAX_THINKING,
     "MiniMax-M2.1-highspeed": _MINIMAX_THINKING,
     "MiniMax-M2": _MINIMAX_THINKING,
-    # Muse Spark playground IDs (verified against the live /v1/models
-    # endpoint); public muse-spark-1.x IDs are covered by the pattern below.
-    "rl-muse-spark-1-2-playground": _META_SPARK,
-    "rl-muse-spark-1-1-playground": _META_SPARK,
 }
 
 # Forward-compat patterns. New ``deepseek-v5-*`` / ``deepseek-reasoner-*``,

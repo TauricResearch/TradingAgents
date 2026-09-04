@@ -78,6 +78,33 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 }
 
 
+# Meta Model API's Muse Spark lineup, per dev.meta.ai/docs/models.
+# Every version shares the same modalities and 1,048,576-token context window
+# and differs only by capability, so there is no separate fast tier — quick and
+# deep share one list. The "-contributor" variants are the same models at a
+# discount in exchange for permission to train on your prompts and completions,
+# so they are listed last and labelled. Keys are entitled to different subsets;
+# "Custom model ID" covers anything /v1/models reports that isn't listed here.
+_MUSE_SPARK_MODELS: dict[str, list[ModelOption]] = {
+    "quick": [
+        ("Muse Spark 1.3 - Latest, agentic + coding, 1M ctx", "muse-spark-1.3"),
+        ("Muse Spark 1.2 - Previous version, 1M ctx", "muse-spark-1.2"),
+        ("Muse Spark 1.1 - Original version, 1M ctx", "muse-spark-1.1"),
+        ("Muse Spark 1.3 Contributor - Discounted, trains on your data", "muse-spark-1.3-contributor"),
+        ("Muse Spark 1.2 Contributor - Discounted, trains on your data", "muse-spark-1.2-contributor"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("Muse Spark 1.3 - Latest, agentic + coding, 1M ctx", "muse-spark-1.3"),
+        ("Muse Spark 1.2 - Previous version, 1M ctx", "muse-spark-1.2"),
+        ("Muse Spark 1.1 - Original version, 1M ctx", "muse-spark-1.1"),
+        ("Muse Spark 1.3 Contributor - Discounted, trains on your data", "muse-spark-1.3-contributor"),
+        ("Muse Spark 1.2 Contributor - Discounted, trains on your data", "muse-spark-1.2-contributor"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -178,22 +205,8 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # Generic OpenAI-compatible endpoint: the model is whatever the user's
     # server serves, so only "Custom model ID" is offered.
     "openai_compatible": _CUSTOM_ONLY,
-    # Meta Model API serves the small Muse Spark lineup, so the versions
-    # visible to the configured key are listed explicitly (verified against
-    # the live /v1/models endpoint). "Custom model ID" is the escape hatch
-    # for other tiers (e.g. public muse-spark-1.x IDs) or future releases.
-    "meta": {
-        "quick": [
-            ("Muse Spark 1.2 - Latest available, agentic + coding", "rl-muse-spark-1-2-playground"),
-            ("Muse Spark 1.1 - Previous version", "rl-muse-spark-1-1-playground"),
-            ("Custom model ID", "custom"),
-        ],
-        "deep": [
-            ("Muse Spark 1.2 - Latest available, agentic + coding", "rl-muse-spark-1-2-playground"),
-            ("Muse Spark 1.1 - Previous version", "rl-muse-spark-1-1-playground"),
-            ("Custom model ID", "custom"),
-        ],
-    },
+    # Meta Model API: the documented Muse Spark lineup (dev.meta.ai/docs/models).
+    "meta": _MUSE_SPARK_MODELS,
     # Hosted OpenAI-compatible providers that serve many (and frequently
     # changing) models — offer "Custom model ID" rather than a list that goes
     # stale. The endpoint + key are wired by the provider; the user picks the
