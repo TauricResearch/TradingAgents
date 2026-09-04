@@ -22,7 +22,7 @@ from tradingagents.options import (
     OptionOpenOrder,
     OptionPosition,
 )
-from tradingagents.risk import close_returns, forecast_volatility
+from tradingagents.risk import RiskScaleResult, close_returns, forecast_volatility
 
 NOW = datetime(2026, 8, 11, 14, 0, tzinfo=timezone.utc)
 RATINGS = {
@@ -57,7 +57,7 @@ class FakeGraph:
 class FakeBroker:
     def __init__(self):
         self.cash = Decimal("10000")
-        self.buying_power = Decimal("100000")
+        self.buying_power = Decimal("200000")
         self.market_open = True
         self.now = NOW
         self.clock_times = []
@@ -479,7 +479,7 @@ def test_infeasible_covered_share_floor_suppresses_equity_submission(warmed_serv
     assert warmed_service.broker.submitted == []
 
 
-def test_infeasible_covered_share_floor_blocks_new_option_exposure(warmed_service):
+def test_covered_share_floor_at_target_allows_new_option_exposure(warmed_service):
     warmed_service.settings = replace(
         warmed_service.settings, options_enabled=True, options_auto_execute=True
     )
@@ -528,9 +528,9 @@ def test_infeasible_covered_share_floor_blocks_new_option_exposure(warmed_servic
 
     result = warmed_service.manage_options(NOW)
 
-    assert result.intents == ()
-    assert result.suppressed_reason == "combined portfolio risk exceeds limit"
-    assert warmed_service.broker.submitted_options == []
+    assert len(result.intents) == 1
+    assert result.suppressed_reason is None
+    assert len(warmed_service.broker.submitted_options) == 1
 
 
 def test_option_entry_is_suppressed_when_combined_risk_exceeds_limit(warmed_service):
@@ -1166,7 +1166,7 @@ def test_equity_risk_scaling_can_increase_targets_to_gross_cap(warmed_service):
     )
     warmed_service.service.settings = warmed_service.settings
     warmed_service.broker.cash = Decimal("10000")
-    warmed_service.broker.buying_power = Decimal("150000")
+    warmed_service.broker.buying_power = Decimal("200000")
     warmed_service.broker.equity = Decimal("100000")
     warmed_service.broker.close_history = _aligned_history(Decimal("0.002"))
 
@@ -1178,7 +1178,7 @@ def test_equity_risk_scaling_can_increase_targets_to_gross_cap(warmed_service):
     )
     assert gross == Decimal("200000")
     assert warmed_service.broker.cash - buy_notional < 0
-    assert buy_notional <= warmed_service.broker.buying_power
+    assert gross <= warmed_service.broker.buying_power
     targets = {intent.symbol: intent.target_notional for intent in result.order_intents}
     assert (
         forecast_volatility(
@@ -1189,6 +1189,44 @@ def test_equity_risk_scaling_can_increase_targets_to_gross_cap(warmed_service):
         <= Decimal("0.15")
     )
     assert warmed_service.broker.submitted
+
+
+def test_equity_risk_validation_tolerates_decimal_noise_at_target(
+    warmed_service, monkeypatch
+):
+    target = Decimal("100")
+    results = iter(
+        (
+            RiskScaleResult(
+                {"AAPL": target},
+                Decimal("0.15"),
+                Decimal("0.15"),
+                Decimal("1"),
+                Decimal("0.1"),
+            ),
+            RiskScaleResult(
+                {"AAPL": target},
+                Decimal("0.1500000000000000000000000004"),
+                Decimal("0.15"),
+                Decimal("1"),
+                Decimal("0.1"),
+            ),
+        )
+    )
+    monkeypatch.setattr(
+        "tradingagents.automation.scale_equity_targets",
+        lambda *args: next(results),
+    )
+
+    adjusted = warmed_service.service._risk_adjusted_targets(
+        {"AAPL": target},
+        {},
+        {},
+        Decimal("1000"),
+        {},
+    )
+
+    assert adjusted == {"AAPL": target}
 
 
 def test_options_cycle_persists_broker_reservations_for_reopen(warmed_service):
@@ -1486,6 +1524,166 @@ def test_insufficient_buying_power_suppresses_all_submission(tmp_path):
         assert result.submitted_order_ids == ()
         assert result.trade_suppressed_reason == "insufficient buying power"
         assert broker.submitted == []
+    finally:
+        state.close()
+
+
+def test_insufficient_buying_power_suppresses_all_short_openings(tmp_path):
+    state = AutomationState(tmp_path / "short-buying-power.db")
+    broker = FakeBroker()
+    broker.buying_power = Decimal("100")
+    ratings = dict.fromkeys(RATINGS, "Sell")
+    harness = ServiceHarness(
+        _settings(
+            tmp_path,
+            auto_execute=True,
+            state_path=tmp_path / "short-buying-power.db",
+        ),
+        state,
+        broker,
+        ratings,
+    )
+    harness.seed_all_decisions()
+    try:
+        result = harness.run_analysis_cycle(NOW)
+
+        assert result.order_intents
+        assert all(intent.side == "sell" for intent in result.order_intents)
+        assert result.submitted_order_ids == ()
+        assert result.trade_suppressed_reason == "insufficient buying power"
+        assert broker.submitted == []
+    finally:
+        state.close()
+
+
+def test_short_openings_within_buying_power_submit(tmp_path):
+    state = AutomationState(tmp_path / "funded-shorts.db")
+    broker = FakeBroker()
+    broker.buying_power = Decimal("200000")
+    broker.close_history = _aligned_history(Decimal("0.002"))
+    ratings = dict.fromkeys(RATINGS, "Sell")
+    harness = ServiceHarness(
+        _settings(
+            tmp_path,
+            auto_execute=True,
+            state_path=tmp_path / "funded-shorts.db",
+        ),
+        state,
+        broker,
+        ratings,
+    )
+    harness.seed_all_decisions()
+    try:
+        result = harness.run_analysis_cycle(NOW)
+
+        assert result.trade_suppressed_reason is None
+        assert result.order_intents
+        assert all(intent.side == "sell" for intent in result.order_intents)
+        short_notional = sum(intent.notional for intent in result.order_intents)
+        assert broker.equity < short_notional <= broker.buying_power
+        assert len(result.submitted_order_ids) == len(result.order_intents)
+        assert len(broker.submitted) == len(result.order_intents)
+    finally:
+        state.close()
+
+
+def test_exposure_reducing_buys_do_not_consume_buying_power(tmp_path):
+    state = AutomationState(tmp_path / "reducing-shorts.db")
+    broker = FakeBroker()
+    broker.buying_power = Decimal("0")
+    broker.position_values = dict.fromkeys(RATINGS, Decimal("-100000"))
+    ratings = dict.fromkeys(RATINGS, "Sell")
+    harness = ServiceHarness(
+        _settings(
+            tmp_path,
+            auto_execute=True,
+            state_path=tmp_path / "reducing-shorts.db",
+        ),
+        state,
+        broker,
+        ratings,
+    )
+    harness.seed_all_decisions()
+    try:
+        result = harness.run_analysis_cycle(NOW)
+
+        assert result.trade_suppressed_reason is None
+        assert result.order_intents
+        assert all(intent.side == "buy" for intent in result.order_intents)
+        assert len(result.submitted_order_ids) == len(result.order_intents)
+    finally:
+        state.close()
+
+
+def test_open_orders_count_toward_effective_exposure_in_preflight(tmp_path):
+    state = AutomationState(tmp_path / "reducing-open-shorts.db")
+    broker = FakeBroker()
+    broker.buying_power = Decimal("0")
+    broker.open_exposure = dict.fromkeys(RATINGS, Decimal("-100000"))
+    ratings = dict.fromkeys(RATINGS, "Sell")
+    harness = ServiceHarness(
+        _settings(
+            tmp_path,
+            auto_execute=True,
+            state_path=tmp_path / "reducing-open-shorts.db",
+        ),
+        state,
+        broker,
+        ratings,
+    )
+    harness.seed_all_decisions()
+    try:
+        result = harness.run_analysis_cycle(NOW)
+
+        assert result.trade_suppressed_reason is None
+        assert result.order_intents
+        assert all(intent.side == "buy" for intent in result.order_intents)
+        assert len(result.submitted_order_ids) == len(result.order_intents)
+    finally:
+        state.close()
+
+
+@pytest.mark.parametrize(
+    ("rating", "current_exposure", "side", "suppressed"),
+    (
+        ("Sell", Decimal("100000"), "sell", False),
+        ("Buy", Decimal("-100000"), "buy", False),
+        ("Sell", Decimal("100"), "sell", True),
+        ("Buy", Decimal("-100"), "buy", True),
+    ),
+)
+def test_sign_crossing_charges_only_net_incremental_absolute_exposure(
+    tmp_path, rating, current_exposure, side, suppressed
+):
+    state = AutomationState(tmp_path / f"crossing-{side}.db")
+    broker = FakeBroker()
+    broker.buying_power = Decimal("0")
+    broker.position_values = dict.fromkeys(RATINGS, current_exposure)
+    ratings = dict.fromkeys(RATINGS, rating)
+    harness = ServiceHarness(
+        _settings(
+            tmp_path,
+            auto_execute=True,
+            state_path=tmp_path / f"crossing-{side}.db",
+        ),
+        state,
+        broker,
+        ratings,
+    )
+    harness.seed_all_decisions()
+    try:
+        result = harness.run_analysis_cycle(NOW)
+
+        assert result.order_intents
+        assert all(intent.side == side for intent in result.order_intents)
+        if suppressed:
+            assert result.trade_suppressed_reason == "insufficient buying power"
+            assert result.submitted_order_ids == ()
+            assert broker.submitted == []
+        else:
+            assert result.trade_suppressed_reason is None
+            assert len(result.submitted_order_ids) == len(result.order_intents)
+            assert len(broker.submitted) == len(result.order_intents)
     finally:
         state.close()
 

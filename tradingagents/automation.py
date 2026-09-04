@@ -22,6 +22,7 @@ from tradingagents.options import (
 from tradingagents.risk import scale_equity_targets
 
 NEW_YORK = ZoneInfo("America/New_York")
+RISK_LIMIT_TOLERANCE = Decimal("1e-12")
 
 
 @dataclass(frozen=True)
@@ -418,11 +419,21 @@ class AutomationCycleService:
                 str(error),
             )
 
-        buy_notional = sum(
-            (intent.notional for intent in intents if intent.side == "buy"),
+        opening_notional = sum(
+            (
+                max(
+                    abs(intent.target_notional)
+                    - abs(
+                        Decimal(str(positions.get(intent.symbol, 0)))
+                        + Decimal(str(open_orders.get(intent.symbol, 0)))
+                    ),
+                    Decimal("0"),
+                )
+                for intent in intents
+            ),
             Decimal("0"),
         )
-        if buy_notional > account.buying_power:
+        if opening_notional > account.buying_power:
             return CycleResult(
                 cycle_id,
                 tuple(analyzed),
@@ -902,9 +913,9 @@ class AutomationCycleService:
         ) / Decimal(str(equity))
         if (
             validation.baseline_volatility
-            > Decimal(str(self.settings.target_volatility))
+            > Decimal(str(self.settings.target_volatility)) + RISK_LIMIT_TOLERANCE
             or validation.baseline_volatility
-            > Decimal(str(self.settings.max_volatility))
+            > Decimal(str(self.settings.max_volatility)) + RISK_LIMIT_TOLERANCE
             or gross > Decimal(str(self.settings.max_gross_leverage))
         ):
             raise ValueError("combined portfolio risk exceeds limit")
