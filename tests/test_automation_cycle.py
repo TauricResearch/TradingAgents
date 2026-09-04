@@ -22,6 +22,7 @@ from tradingagents.options import (
     OptionOpenOrder,
     OptionPosition,
 )
+from tradingagents.risk import close_returns, forecast_volatility
 
 NOW = datetime(2026, 8, 11, 14, 0, tzinfo=timezone.utc)
 RATINGS = {
@@ -56,7 +57,7 @@ class FakeGraph:
 class FakeBroker:
     def __init__(self):
         self.cash = Decimal("10000")
-        self.buying_power = Decimal("10000")
+        self.buying_power = Decimal("100000")
         self.market_open = True
         self.now = NOW
         self.clock_times = []
@@ -230,7 +231,7 @@ def _opening_put(symbol="AAPL"):
         "put",
         Decimal("10"),
         date(2026, 9, 4),
-        Decimal("-100"),
+        Decimal("-1"),
         Decimal("1"),
         Decimal("1.10"),
         Decimal("500"),
@@ -252,6 +253,25 @@ def _quote_for_order(order, delta=Decimal("0.20")):
         Decimal("500"),
         NOW,
     )
+
+
+def _offsetting_opening_puts():
+    buy_order, buy_contract = _opening_put()
+    buy_order = replace(
+        buy_order,
+        symbol="AAPL260904P00020000",
+        position_intent="buy_to_open",
+        strike=Decimal("20"),
+    )
+    buy_contract = replace(
+        buy_contract,
+        symbol=buy_order.symbol,
+        strike=Decimal("20"),
+        delta=Decimal("-0.50"),
+    )
+    sell_order, sell_contract = _opening_put()
+    sell_contract = replace(sell_contract, delta=Decimal("-0.50"))
+    return (buy_order, sell_order), (buy_contract, sell_contract)
 
 
 def _aligned_history(change):
@@ -800,7 +820,8 @@ def test_three_cycles_rotate_3_2_2_then_allocate_all_fresh_decisions(service):
     )
     third = service.run_analysis_cycle(NOW.replace(hour=15, minute=0))
     assert third.analyzed_symbols == ("GOOG", "TSLA")
-    assert sum(abs(intent.target_notional) for intent in third.order_intents) <= Decimal("3000")
+    gross = sum(abs(intent.target_notional) for intent in third.order_intents)
+    assert Decimal("3000") < gross <= Decimal("200000")
     assert service.broker.submitted == []
 
 
@@ -862,6 +883,7 @@ def test_pending_open_option_delta_blocks_equity_submission(warmed_service):
     warmed_service.broker.cash = Decimal("100000")
     warmed_service.broker.equity = Decimal("200000")
     warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.latest_prices["AAPL"] = Decimal("5000")
     warmed_service.broker.option_orders = (order,)
     warmed_service.broker.exact_option_contract_values[order.symbol] = contract
     result = warmed_service.run_analysis_cycle(NOW)
@@ -878,6 +900,7 @@ def test_pending_open_option_delta_blocks_new_option_submission(warmed_service):
     warmed_service.broker.cash = Decimal("100000")
     warmed_service.broker.equity = Decimal("200000")
     warmed_service.broker.options_buying_power = Decimal("200000")
+    warmed_service.broker.latest_prices["AAPL"] = Decimal("5000")
     warmed_service.broker.option_orders = (order,)
     warmed_service.broker.exact_option_contract_values[order.symbol] = contract
     warmed_service.broker.option_contract_values = {
@@ -887,6 +910,167 @@ def test_pending_open_option_delta_blocks_new_option_submission(warmed_service):
     assert result.intents == ()
     assert result.suppressed_reason == "combined portfolio risk exceeds limit"
     assert warmed_service.broker.submitted_options == []
+
+
+@pytest.mark.parametrize(
+    ("contract_changes", "order_changes"),
+    [
+        ({"quote_time": NOW.replace(tzinfo=None)}, {}),
+        ({"quote_time": NOW + timedelta(seconds=1)}, {}),
+        ({"quote_time": NOW - timedelta(seconds=301)}, {}),
+        ({"bid": Decimal("0")}, {}),
+        ({"bid": Decimal("4"), "ask": Decimal("3")}, {}),
+        ({"ask": Decimal("NaN")}, {}),
+        ({"delta": Decimal("1.01")}, {}),
+        ({"strike": Decimal("11")}, {}),
+        (
+            {"strike": Decimal("Infinity")},
+            {"strike": Decimal("Infinity"), "position_intent": "buy_to_open"},
+        ),
+        (
+            {},
+            {"filled_qty": Decimal("-1"), "position_intent": "buy_to_open"},
+        ),
+    ],
+    ids=(
+        "naive-time",
+        "future-time",
+        "stale-time",
+        "nonpositive-bid",
+        "crossed-market",
+        "nonfinite-ask",
+        "invalid-delta",
+        "strike-mismatch",
+        "nonfinite-strike",
+        "negative-filled-quantity",
+    ),
+)
+def test_invalid_pending_opening_quote_suppresses_equity_submission(
+    warmed_service, contract_changes, order_changes
+):
+    order, contract = _opening_put()
+    order = replace(order, **order_changes)
+    contract = replace(
+        contract, **({"delta": Decimal("-0.20")} | contract_changes)
+    )
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, auto_execute=True
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("100000")
+    warmed_service.broker.option_orders = (order,)
+    warmed_service.broker.exact_option_contract_values[order.symbol] = contract
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason
+    assert warmed_service.broker.submitted == []
+
+
+@pytest.mark.parametrize(
+    "spot", [Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity")]
+)
+def test_invalid_pending_opening_spot_suppresses_equity_submission(
+    warmed_service, spot
+):
+    order, contract = _opening_put()
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, auto_execute=True
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("100000")
+    warmed_service.broker.latest_prices["AAPL"] = spot
+    warmed_service.broker.option_orders = (order,)
+    warmed_service.broker.exact_option_contract_values[order.symbol] = contract
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason
+    assert warmed_service.broker.submitted == []
+
+
+def test_offsetting_pending_opening_legs_do_not_net_for_gross_limit(warmed_service):
+    orders, contracts = _offsetting_opening_puts()
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        options_enabled=True,
+        auto_execute=True,
+        max_gross_leverage=0.05,
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("100000")
+    warmed_service.broker.option_orders = orders
+    warmed_service.broker.exact_option_contract_values = {
+        contract.symbol: contract for contract in contracts
+    }
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted == []
+
+
+def test_offsetting_pending_opening_legs_block_new_option_gross(warmed_service):
+    orders, contracts = _offsetting_opening_puts()
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        options_enabled=True,
+        options_auto_execute=True,
+        max_gross_leverage=0.05,
+        options_max_equity_fraction=1.0,
+    )
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.options_buying_power = Decimal("100000")
+    warmed_service.broker.option_orders = orders
+    warmed_service.broker.exact_option_contract_values = {
+        contract.symbol: contract for contract in contracts
+    }
+    warmed_service.broker.option_contract_values = {
+        "MSFT": (_eligible_put("MSFT", NOW),),
+    }
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.intents == ()
+    assert result.suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted_options == []
+
+
+def test_equity_risk_scaling_can_increase_targets_to_gross_cap(warmed_service):
+    warmed_service.settings = replace(
+        warmed_service.settings, auto_execute=True, max_cash_allocation=0.30
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("10000")
+    warmed_service.broker.buying_power = Decimal("150000")
+    warmed_service.broker.equity = Decimal("100000")
+    warmed_service.broker.close_history = _aligned_history(Decimal("0.002"))
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    gross = sum(abs(intent.target_notional) for intent in result.order_intents)
+    buy_notional = sum(
+        intent.notional for intent in result.order_intents if intent.side == "buy"
+    )
+    assert gross == Decimal("200000")
+    assert warmed_service.broker.cash - buy_notional < 0
+    assert buy_notional <= warmed_service.broker.buying_power
+    targets = {intent.symbol: intent.target_notional for intent in result.order_intents}
+    assert (
+        forecast_volatility(
+            targets,
+            warmed_service.broker.equity,
+            close_returns(warmed_service.broker.close_history),
+        )
+        <= Decimal("0.15")
+    )
+    assert warmed_service.broker.submitted
 
 
 def test_options_cycle_persists_broker_reservations_for_reopen(warmed_service):
@@ -1071,8 +1255,8 @@ def test_unsupported_short_is_skipped_without_redistribution(tmp_path):
     try:
         result = harness.run_analysis_cycle(NOW)
         targets = {intent.symbol: intent.target_notional for intent in result.order_intents}
-        assert targets["AAPL"] == Decimal("600")
-        assert targets["TSLA"] == Decimal("-600")
+        assert targets["AAPL"] > 0
+        assert targets["AAPL"] == -targets["TSLA"]
         assert result.trade_suppressed_reason == "skipped unsupported symbols: TSLA"
         assert result.submitted_order_ids == (
             "order-AAPL",

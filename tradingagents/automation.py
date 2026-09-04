@@ -12,6 +12,7 @@ from tradingagents.automation_state import AutomationState
 from tradingagents.execution import LIVE_OPTIONS_ACKNOWLEDGMENT, Broker, validate_execution_mode
 from tradingagents.options import (
     CONTRACT_MULTIPLIER,
+    MAX_QUOTE_AGE,
     OptionIntent,
     build_reservations,
     option_delta_exposure,
@@ -281,6 +282,7 @@ class AutomationCycleService:
             allocation_cash = account.cash
             minimum_positions = None
             fixed_option_exposure = {}
+            fixed_option_gross = Decimal("0")
             if self.settings.options_enabled:
                 equities, option_positions, option_orders = (
                     self.broker.wheel_positions_and_orders()
@@ -307,9 +309,13 @@ class AutomationCycleService:
                     for order in option_orders
                     if _remaining_opening_quantity(order) > 0
                 }
-                for symbol, exposure in _opening_option_exposure(
-                    option_orders, opening_contracts, prices
-                ).items():
+                opening_exposure, opening_gross = _opening_option_exposure(
+                    option_orders, opening_contracts, prices, snapshot_time
+                )
+                fixed_option_gross = sum(
+                    abs(exposure) for exposure in fixed_option_exposure.values()
+                ) + opening_gross
+                for symbol, exposure in opening_exposure.items():
                     fixed_option_exposure[symbol] = (
                         fixed_option_exposure.get(symbol, Decimal("0")) + exposure
                     )
@@ -332,6 +338,7 @@ class AutomationCycleService:
                         minimum_positions or {},
                         account.equity,
                         self.broker.daily_closes(self.settings.watchlist),
+                        fixed_option_gross,
                     )
                 )
             open_orders = self.broker.open_order_exposure(prices)
@@ -563,9 +570,13 @@ class AutomationCycleService:
                 for order in option_orders
                 if _remaining_opening_quantity(order) > 0
             }
-            for symbol, exposure in _opening_option_exposure(
-                option_orders, opening_contracts, prices
-            ).items():
+            opening_exposure, opening_gross = _opening_option_exposure(
+                option_orders, opening_contracts, prices, now
+            )
+            fixed_option_gross = sum(
+                abs(exposure) for exposure in fixed_exposure.values()
+            ) + opening_gross
+            for symbol, exposure in opening_exposure.items():
                 fixed_exposure[symbol] = (
                     fixed_exposure.get(symbol, Decimal("0")) + exposure
                 )
@@ -672,6 +683,7 @@ class AutomationCycleService:
 
         accepted_entries = []
         proposed_exposure = dict(fixed_exposure)
+        proposed_option_gross = fixed_option_gross
         proposed_covered_shares = dict(reservations.covered_shares)
         put_collateral = sum(reservations.put_collateral.values(), Decimal("0"))
         wheel_exposure = put_collateral + sum(
@@ -726,9 +738,11 @@ class AutomationCycleService:
             ):
                 continue
             candidate_exposure = dict(proposed_exposure)
-            for underlying, exposure in option_intent_delta_exposure(
-                (intent,), prices
-            ).items():
+            intent_exposure = option_intent_delta_exposure((intent,), prices)
+            candidate_option_gross = proposed_option_gross + sum(
+                abs(exposure) for exposure in intent_exposure.values()
+            )
+            for underlying, exposure in intent_exposure.items():
                 candidate_exposure[underlying] = (
                     candidate_exposure.get(underlying, Decimal("0")) + exposure
                 )
@@ -756,12 +770,14 @@ class AutomationCycleService:
                     },
                     account.equity,
                     close_history,
+                    candidate_option_gross,
                 )
             except (ArithmeticError, ValueError):
                 risk_rejected = True
                 continue
             accepted_entries.append(intent)
             proposed_exposure = candidate_exposure
+            proposed_option_gross = candidate_option_gross
             proposed_covered_shares = candidate_covered_shares
             put_collateral += added_collateral
             wheel_exposure += added_wheel
@@ -815,6 +831,7 @@ class AutomationCycleService:
         minimum_positions,
         equity,
         close_history,
+        fixed_option_gross=None,
     ):
         if not any(equity_targets.values()) and not any(fixed_option_exposure.values()):
             return dict(equity_targets)
@@ -828,11 +845,25 @@ class AutomationCycleService:
                 self.settings.max_volatility,
                 self.settings.max_gross_leverage,
             )
-            risk_targets = (
-                scaled.targets
-                if scaled.scale <= Decimal("1")
-                else {symbol: Decimal(str(target)) for symbol, target in equity_targets.items()}
+            fixed_gross = (
+                sum(abs(value) for value in fixed_option_exposure.values())
+                if fixed_option_gross is None
+                else Decimal(str(fixed_option_gross))
             )
+            equity_gross = sum(abs(Decimal(str(value))) for value in equity_targets.values())
+            gross_capacity = (
+                Decimal(str(self.settings.max_gross_leverage)) * Decimal(str(equity))
+                - fixed_gross
+            )
+            if fixed_gross < 0 or gross_capacity < 0:
+                raise ValueError("fixed option gross exceeds limit")
+            gross_scale = gross_capacity / equity_gross
+            risk_targets = scaled.targets
+            if gross_scale < scaled.scale:
+                risk_targets = {
+                    symbol: Decimal(str(target)) * gross_scale
+                    for symbol, target in equity_targets.items()
+                }
             final_targets = {
                 symbol: max(target, Decimal(str(minimum_positions.get(symbol, target))))
                 for symbol, target in risk_targets.items()
@@ -850,7 +881,7 @@ class AutomationCycleService:
             raise ValueError("combined portfolio risk exceeds limit") from error
         gross = (
             sum(abs(value) for value in final_targets.values())
-            + sum(abs(value) for value in fixed_option_exposure.values())
+            + fixed_gross
         ) / Decimal(str(equity))
         if (
             validation.baseline_volatility
@@ -1082,14 +1113,22 @@ def _intent_strike(intent: OptionIntent) -> Decimal:
 def _remaining_opening_quantity(order) -> Decimal:
     if order.position_intent.casefold() not in {"buy_to_open", "sell_to_open"}:
         return Decimal("0")
+    if (
+        not order.qty.is_finite()
+        or not order.filled_qty.is_finite()
+        or order.qty <= 0
+        or order.filled_qty < 0
+    ):
+        raise ValueError("opening option quantity is invalid")
     remaining = order.qty - order.filled_qty
     if remaining < 0:
         raise ValueError("filled option quantity exceeds order quantity")
     return remaining
 
 
-def _opening_option_exposure(orders, contracts, prices):
+def _opening_option_exposure(orders, contracts, prices, now):
     exposure = {}
+    gross = Decimal("0")
     for order in orders:
         remaining = _remaining_opening_quantity(order)
         if remaining == 0:
@@ -1099,16 +1138,31 @@ def _opening_option_exposure(orders, contracts, prices):
             contract.symbol != order.symbol
             or contract.underlying != order.underlying
             or contract.kind.casefold() != order.kind.casefold()
+            or contract.strike != order.strike
+            or not contract.strike.is_finite()
+            or contract.strike <= 0
             or not contract.delta.is_finite()
+            or abs(contract.delta) > 1
+            or not contract.bid.is_finite()
+            or not contract.ask.is_finite()
+            or contract.bid <= 0
+            or contract.ask <= 0
+            or contract.bid > contract.ask
+            or contract.quote_time is None
+            or contract.quote_time.tzinfo is None
         ):
             raise ValueError("opening option contract metadata is invalid")
+        age = now - contract.quote_time
+        if age < timedelta(0) or age > MAX_QUOTE_AGE:
+            raise ValueError("opening option quote is stale")
         spot = prices[order.underlying]
         if not spot.is_finite() or spot <= 0:
             raise ValueError("opening option spot price is invalid")
         sign = Decimal("1") if order.position_intent.casefold() == "buy_to_open" else Decimal("-1")
         amount = sign * remaining * contract.delta * CONTRACT_MULTIPLIER * spot
         exposure[order.underlying] = exposure.get(order.underlying, Decimal("0")) + amount
-    return exposure
+        gross += abs(amount)
+    return exposure, gross
 
 
 def _read_earnings_cache(
