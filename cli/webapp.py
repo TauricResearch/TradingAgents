@@ -56,7 +56,7 @@ def ask_entry_mode(timeout: int = ENTRY_TIMEOUT) -> str:
         return "web"
     if env == "cli":
         return "cli"
-    if os.name == "nt":
+    if os.name == "nt" and _enable_vt():
         try:
             return _ask_entry_mode_timed(timeout)
         except Exception:
@@ -71,6 +71,30 @@ def ask_entry_mode(timeout: int = ENTRY_TIMEOUT) -> str:
         style=_STYLE,
     ).ask()
     return choice if choice in ("web", "cli") else "cli"
+
+
+def _enable_vt() -> bool:
+    """Enable ANSI escape processing on legacy Windows consoles.
+
+    Windows Terminal handles ANSI natively; plain cmd.exe needs the
+    ENABLE_VIRTUAL_TERMINAL_PROCESSING flag or redraws print raw.
+    Returns False when it can't be enabled (caller falls back).
+    """
+    if os.name != "nt":
+        return True
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = ctypes.c_ulong()
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False
+        if mode.value & 0x0004:
+            return True
+        return bool(kernel32.SetConsoleMode(handle, mode.value | 0x0004))
+    except Exception:
+        return False
 
 
 def _ask_entry_mode_timed(timeout: int) -> str:
