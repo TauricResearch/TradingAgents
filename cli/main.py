@@ -1704,6 +1704,26 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
         run_record.status = "done"
 
 
+@app.callback(invoke_without_command=True)
+def _default(
+    ctx: typer.Context,
+    checkpoint: bool | None = typer.Option(
+        None,
+        "--checkpoint/--no-checkpoint",
+        help="Enable/disable checkpoint-resume (save state after each node so a "
+        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="Delete all saved checkpoints before running (force fresh start).",
+    ),
+):
+    """TradingAgents CLI (default: run analysis)."""
+    if ctx.invoked_subcommand is None:
+        analyze(checkpoint=checkpoint, clear_checkpoints=clear_checkpoints)
+
+
 @app.command()
 def analyze(
     checkpoint: bool | None = typer.Option(
