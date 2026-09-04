@@ -15,7 +15,6 @@ from tradingagents.options import (
     MAX_QUOTE_AGE,
     OptionIntent,
     build_reservations,
-    option_delta_exposure,
     option_intent_delta_exposure,
     plan_new_entry,
     plan_profit_exit,
@@ -303,7 +302,9 @@ class AutomationCycleService:
                     for symbol, shares in reservations.covered_shares.items()
                     if symbol in prices
                 }
-                fixed_option_exposure = option_delta_exposure(option_positions, prices)
+                fixed_option_exposure, held_option_gross = _held_option_exposure(
+                    option_positions, prices
+                )
                 opening_contracts = {
                     order.symbol: self.broker.option_contract(order.symbol, snapshot_time)
                     for order in option_orders
@@ -312,9 +313,7 @@ class AutomationCycleService:
                 opening_exposure, opening_gross = _opening_option_exposure(
                     option_orders, opening_contracts, prices, snapshot_time
                 )
-                fixed_option_gross = sum(
-                    abs(exposure) for exposure in fixed_option_exposure.values()
-                ) + opening_gross
+                fixed_option_gross = held_option_gross + opening_gross
                 for symbol, exposure in opening_exposure.items():
                     fixed_option_exposure[symbol] = (
                         fixed_option_exposure.get(symbol, Decimal("0")) + exposure
@@ -564,7 +563,9 @@ class AutomationCycleService:
                 position.symbol: self.broker.option_contract(position.symbol, now)
                 for position in option_positions
             }
-            fixed_exposure = option_delta_exposure(option_positions, prices)
+            fixed_exposure, held_option_gross = _held_option_exposure(
+                option_positions, prices
+            )
             opening_contracts = {
                 order.symbol: self.broker.option_contract(order.symbol, now)
                 for order in option_orders
@@ -573,9 +574,7 @@ class AutomationCycleService:
             opening_exposure, opening_gross = _opening_option_exposure(
                 option_orders, opening_contracts, prices, now
             )
-            fixed_option_gross = sum(
-                abs(exposure) for exposure in fixed_exposure.values()
-            ) + opening_gross
+            fixed_option_gross = held_option_gross + opening_gross
             for symbol, exposure in opening_exposure.items():
                 fixed_exposure[symbol] = (
                     fixed_exposure.get(symbol, Decimal("0")) + exposure
@@ -1118,12 +1117,36 @@ def _remaining_opening_quantity(order) -> Decimal:
         or not order.filled_qty.is_finite()
         or order.qty <= 0
         or order.filled_qty < 0
+        or order.qty != order.qty.to_integral_value()
+        or order.filled_qty != order.filled_qty.to_integral_value()
     ):
         raise ValueError("opening option quantity is invalid")
     remaining = order.qty - order.filled_qty
     if remaining < 0:
         raise ValueError("filled option quantity exceeds order quantity")
     return remaining
+
+
+def _held_option_exposure(positions, prices):
+    exposure = {}
+    gross = Decimal("0")
+    for position in positions:
+        if (
+            not position.qty.is_finite()
+            or position.qty != position.qty.to_integral_value()
+            or not position.delta.is_finite()
+            or abs(position.delta) > 1
+        ):
+            raise ValueError("held option position is invalid")
+        spot = prices[position.underlying]
+        if not spot.is_finite() or spot <= 0:
+            raise ValueError("held option spot price is invalid")
+        amount = position.qty * position.delta * CONTRACT_MULTIPLIER * spot
+        exposure[position.underlying] = (
+            exposure.get(position.underlying, Decimal("0")) + amount
+        )
+        gross += abs(amount)
+    return exposure, gross
 
 
 def _opening_option_exposure(orders, contracts, prices, now):

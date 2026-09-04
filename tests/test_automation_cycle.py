@@ -274,6 +274,43 @@ def _offsetting_opening_puts():
     return (buy_order, sell_order), (buy_contract, sell_contract)
 
 
+def _offsetting_held_options():
+    positions = (
+        OptionPosition(
+            "AAPL260904C00100000",
+            "AAPL",
+            "call",
+            Decimal("1"),
+            Decimal("3"),
+            Decimal("0.50"),
+        ),
+        OptionPosition(
+            "AAPL260904P00100000",
+            "AAPL",
+            "put",
+            Decimal("1"),
+            Decimal("3"),
+            Decimal("-0.50"),
+        ),
+    )
+    contracts = tuple(
+        OptionContract(
+            position.symbol,
+            position.underlying,
+            position.kind,
+            Decimal("100"),
+            date(2026, 9, 4),
+            position.delta,
+            Decimal("2"),
+            Decimal("2.20"),
+            Decimal("500"),
+            NOW,
+        )
+        for position in positions
+    )
+    return positions, contracts
+
+
 def _aligned_history(change):
     start = date(2026, 7, 1)
     result = {}
@@ -564,7 +601,7 @@ def test_option_delta_computation_failure_submits_nothing(warmed_service, monkey
         warmed_service.settings, options_enabled=True, options_auto_execute=True
     )
     monkeypatch.setattr(
-        "tradingagents.automation.option_delta_exposure",
+        "tradingagents.automation._held_option_exposure",
         lambda positions, prices: (_ for _ in ()).throw(RuntimeError("delta unavailable")),
     )
 
@@ -993,6 +1030,39 @@ def test_invalid_pending_opening_spot_suppresses_equity_submission(
     assert warmed_service.broker.submitted == []
 
 
+@pytest.mark.parametrize(
+    ("qty", "filled_qty"),
+    [
+        (Decimal("0.5"), Decimal("0")),
+        (Decimal("1"), Decimal("0.5")),
+    ],
+)
+def test_fractional_pending_opening_quantity_suppresses_equity_submission(
+    warmed_service, qty, filled_qty
+):
+    order, contract = _opening_put()
+    order = replace(
+        order,
+        position_intent="buy_to_open",
+        qty=qty,
+        filled_qty=filled_qty,
+    )
+    warmed_service.settings = replace(
+        warmed_service.settings, options_enabled=True, auto_execute=True
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("100000")
+    warmed_service.broker.option_orders = (order,)
+    warmed_service.broker.exact_option_contract_values[order.symbol] = contract
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason
+    assert warmed_service.broker.submitted == []
+
+
 def test_offsetting_pending_opening_legs_do_not_net_for_gross_limit(warmed_service):
     orders, contracts = _offsetting_opening_puts()
     warmed_service.settings = replace(
@@ -1028,6 +1098,52 @@ def test_offsetting_pending_opening_legs_block_new_option_gross(warmed_service):
     warmed_service.broker.cash = Decimal("100000")
     warmed_service.broker.options_buying_power = Decimal("100000")
     warmed_service.broker.option_orders = orders
+    warmed_service.broker.exact_option_contract_values = {
+        contract.symbol: contract for contract in contracts
+    }
+    warmed_service.broker.option_contract_values = {
+        "MSFT": (_eligible_put("MSFT", NOW),),
+    }
+
+    result = warmed_service.manage_options(NOW)
+
+    assert result.intents == ()
+    assert result.suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted_options == []
+
+
+def test_offsetting_held_option_legs_do_not_net_for_equity_gross(warmed_service):
+    positions, _contracts = _offsetting_held_options()
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        options_enabled=True,
+        auto_execute=True,
+        max_gross_leverage=0.05,
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("100000")
+    warmed_service.broker.option_positions = positions
+
+    result = warmed_service.run_analysis_cycle(NOW)
+
+    assert result.order_intents == ()
+    assert result.trade_suppressed_reason == "combined portfolio risk exceeds limit"
+    assert warmed_service.broker.submitted == []
+
+
+def test_offsetting_held_option_legs_block_new_option_gross(warmed_service):
+    positions, contracts = _offsetting_held_options()
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        options_enabled=True,
+        options_auto_execute=True,
+        max_gross_leverage=0.05,
+        options_max_equity_fraction=1.0,
+    )
+    warmed_service.broker.cash = Decimal("100000")
+    warmed_service.broker.options_buying_power = Decimal("100000")
+    warmed_service.broker.option_positions = positions
     warmed_service.broker.exact_option_contract_values = {
         contract.symbol: contract for contract in contracts
     }
