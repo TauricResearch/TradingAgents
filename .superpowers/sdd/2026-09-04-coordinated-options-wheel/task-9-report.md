@@ -179,3 +179,50 @@ submissions and zero strategy cancellations were attempted by this verification.
 Activation remains blocked pending a valid fresh seven-symbol earnings cache,
 explicit safe options configuration, and a later open-market dry run under both
 process-level execution overrides.
+
+## Follow-up after official-URL correction
+
+Task 7's official Wall Street Horizon URL correction was independently approved
+in commit `cff9e138dc1eb4c791fc3c3c2b48b0f42998bd4d`. Task 9 then retried the real
+refresh exactly once with both execution controls forced off at process level:
+
+```text
+TRADINGAGENTS_AUTO_EXECUTE=false TRADINGAGENTS_OPTIONS_AUTO_EXECUTE=false \
+  .venv/bin/python scripts/refresh_earnings.py
+```
+
+Result: exit 1 after reaching the corrected official page. The strict parser
+reported:
+
+```text
+ValueError: AAPL must have one confirmed future earnings date
+```
+
+The source therefore did not provide exactly one parser-recognized future
+`CONFIRMED` date for AAPL at retrieval time. The all-or-nothing refresh failed
+closed before cache replacement; no page content was recorded and no alternate
+source or weaker parser rule was used.
+
+Fresh post-retry safety evidence:
+
+```text
+TRADINGAGENTS_OPTIONS_ENABLED=<unset>
+TRADINGAGENTS_OPTIONS_AUTO_EXECUTE=<unset>
+TRADINGAGENTS_OPTIONS_MAX_EQUITY_FRACTION=<unset>
+TRADINGAGENTS_OPTIONS_ENTRY_TIME_ET=<unset>
+TRADINGAGENTS_OPTIONS_EARNINGS_PATH=<unset>
+TRADINGAGENTS_LIVE_OPTIONS_ACK_SET=false
+EFFECTIVE_TRADINGAGENTS_AUTO_EXECUTE=false
+EFFECTIVE_TRADINGAGENTS_OPTIONS_AUTO_EXECUTE=false
+EFFECTIVE_TRADINGAGENTS_OPTIONS_ENABLED=false
+EARNINGS_CACHE_EXISTS=false
+launchctl_print_exit=113
+automate_process_count=0
+git_diff_check_exit=0
+```
+
+Because the required fresh seven-symbol earnings cache still does not exist and
+options remain disabled/unset in `.env`, `.venv/bin/python -m cli.main batch`
+was again not run. This follow-up attempted zero order submissions and zero
+strategy cancellations, did not change `.env`, and left the LaunchAgent
+unloaded.
