@@ -39,6 +39,9 @@ dev = [
     "pytest>=8.0",
     "pytest-subtests>=0.13",
 ]
+alpaca = [
+    "alpaca-py>=0.43.5",
+]
 # Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
 # stays lean: pip install "tradingagents[bedrock]".
 bedrock = [

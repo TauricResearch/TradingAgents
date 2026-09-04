@@ -69,6 +69,7 @@ app = typer.Typer(
     name="TradingAgents",
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
+    invoke_without_command=True,
 )
 
 
@@ -1301,22 +1302,10 @@ def run_analysis(checkpoint: bool | None = None):
         display_complete_report(final_state)
 
 
-@app.command()
-def analyze(
-    checkpoint: bool | None = typer.Option(
-        None,
-        "--checkpoint/--no-checkpoint",
-        help="Enable/disable checkpoint-resume (save state after each node so a "
-        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
-    ),
-    clear_checkpoints: bool = typer.Option(
-        False,
-        "--clear-checkpoints",
-        help="Delete all saved checkpoints before running (force fresh start).",
-    ),
-):
+def _invoke_analyze(checkpoint: bool | None, clear_checkpoints: bool) -> None:
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
+
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     try:
@@ -1332,6 +1321,45 @@ def analyze(
             err=True,
         )
         raise typer.Exit(code=1) from None
+
+
+@app.callback()
+def main(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        _invoke_analyze(None, False)
+
+
+@app.command()
+def analyze(
+    checkpoint: bool | None = typer.Option(
+        None,
+        "--checkpoint/--no-checkpoint",
+        help="Enable/disable checkpoint-resume (save state after each node so a "
+        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="Delete all saved checkpoints before running (force fresh start).",
+    ),
+):
+    _invoke_analyze(checkpoint, clear_checkpoints)
+
+
+@app.command()
+def batch():
+    """Run the next configured automation batch once."""
+    from tradingagents.scheduler import run_batch_from_config
+
+    run_batch_from_config()
+
+
+@app.command()
+def automate():
+    """Run market-aware analysis and position tracking continuously."""
+    from tradingagents.scheduler import run_automation_from_config
+
+    run_automation_from_config()
 
 
 if __name__ == "__main__":

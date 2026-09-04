@@ -14,6 +14,7 @@ from tradingagents.dataflows.config import set_config
 
 @pytest.mark.unit
 def test_get_yfin_requests_inclusive_end(monkeypatch):
+    set_config({"use_alpaca_market_data": False})
     captured = {}
 
     class FakeTicker:
@@ -41,7 +42,7 @@ def test_get_yfin_requests_inclusive_end(monkeypatch):
 
 @pytest.mark.unit
 def test_load_ohlcv_requests_inclusive_end(monkeypatch, tmp_path):
-    set_config({"data_cache_dir": str(tmp_path)})
+    set_config({"data_cache_dir": str(tmp_path), "use_alpaca_market_data": False})
     captured = {}
 
     def fake_download(symbol, start, end, **kwargs):

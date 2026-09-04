@@ -26,6 +26,65 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["backend_url"] is None
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
+    assert dc.DEFAULT_CONFIG["max_cash_allocation"] == 0.90
+    assert dc.DEFAULT_CONFIG["max_cash_reserve_usd"] == 70000.0
+    assert dc.DEFAULT_CONFIG["use_alpaca_market_data"] is False
+    assert dc.DEFAULT_CONFIG["target_volatility"] == 0.15
+    assert dc.DEFAULT_CONFIG["max_volatility"] == 0.20
+    assert dc.DEFAULT_CONFIG["max_gross_leverage"] == 2.0
+    assert dc.DEFAULT_CONFIG["options_enabled"] is False
+    assert dc.DEFAULT_CONFIG["options_auto_execute"] is False
+    assert dc.DEFAULT_CONFIG["options_max_equity_fraction"] == 0.20
+
+
+def test_automation_overrides(monkeypatch):
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_WATCHLIST="AAPL,MSFT,NVDA,AMZN,META,GOOG,TSLA",
+        TRADINGAGENTS_BATCH_SIZE="2",
+        TRADINGAGENTS_ANALYSIS_INTERVAL_MINUTES="30",
+        TRADINGAGENTS_POSITION_INTERVAL_MINUTES="30",
+        TRADINGAGENTS_MAX_CASH_ALLOCATION="0.25",
+        TRADINGAGENTS_MAX_CASH_RESERVE_USD="60000",
+        TRADINGAGENTS_TARGET_VOLATILITY="0.12",
+        TRADINGAGENTS_MAX_VOLATILITY="0.18",
+        TRADINGAGENTS_MAX_GROSS_LEVERAGE="1.5",
+        TRADINGAGENTS_DECISION_MAX_AGE_MINUTES="90",
+        TRADINGAGENTS_REBALANCE_THRESHOLD_USD="12.5",
+        TRADINGAGENTS_AUTOMATION_STATE_PATH="/tmp/automation.db",
+        TRADINGAGENTS_AUTO_EXECUTE="true",
+        TRADINGAGENTS_ALPACA_MODE="live",
+        TRADINGAGENTS_USE_ALPACA_MARKET_DATA="true",
+        TRADINGAGENTS_LIVE_TRADING_ACK="ack",
+        TRADINGAGENTS_OPTIONS_ENABLED="true",
+        TRADINGAGENTS_OPTIONS_AUTO_EXECUTE="true",
+        TRADINGAGENTS_OPTIONS_MAX_EQUITY_FRACTION="0.15",
+        TRADINGAGENTS_OPTIONS_ENTRY_TIME_ET="10:30",
+        TRADINGAGENTS_OPTIONS_EARNINGS_PATH="/tmp/earnings.json",
+        TRADINGAGENTS_LIVE_OPTIONS_ACK="options-ack",
+    )
+    assert dc.DEFAULT_CONFIG["watchlist"].startswith("AAPL,MSFT")
+    assert dc.DEFAULT_CONFIG["batch_size"] == 2
+    assert dc.DEFAULT_CONFIG["analysis_interval_minutes"] == 30
+    assert dc.DEFAULT_CONFIG["position_interval_minutes"] == 30
+    assert dc.DEFAULT_CONFIG["max_cash_allocation"] == 0.25
+    assert dc.DEFAULT_CONFIG["max_cash_reserve_usd"] == 60000.0
+    assert dc.DEFAULT_CONFIG["target_volatility"] == 0.12
+    assert dc.DEFAULT_CONFIG["max_volatility"] == 0.18
+    assert dc.DEFAULT_CONFIG["max_gross_leverage"] == 1.5
+    assert dc.DEFAULT_CONFIG["decision_max_age_minutes"] == 90
+    assert dc.DEFAULT_CONFIG["rebalance_threshold_usd"] == 12.5
+    assert dc.DEFAULT_CONFIG["automation_state_path"] == "/tmp/automation.db"
+    assert dc.DEFAULT_CONFIG["auto_execute"] is True
+    assert dc.DEFAULT_CONFIG["alpaca_mode"] == "live"
+    assert dc.DEFAULT_CONFIG["use_alpaca_market_data"] is True
+    assert dc.DEFAULT_CONFIG["live_trading_ack"] == "ack"
+    assert dc.DEFAULT_CONFIG["options_enabled"] is True
+    assert dc.DEFAULT_CONFIG["options_auto_execute"] is True
+    assert dc.DEFAULT_CONFIG["options_max_equity_fraction"] == 0.15
+    assert dc.DEFAULT_CONFIG["options_entry_time_et"] == "10:30"
+    assert dc.DEFAULT_CONFIG["options_earnings_path"] == "/tmp/earnings.json"
+    assert dc.DEFAULT_CONFIG["live_options_ack"] == "options-ack"
 
 
 def test_string_overrides(monkeypatch):
@@ -59,8 +118,16 @@ def test_int_coercion(monkeypatch):
 @pytest.mark.parametrize(
     "raw,expected",
     [
-        ("true", True), ("True", True), ("1", True), ("yes", True), ("on", True),
-        ("false", False), ("False", False), ("0", False), ("no", False), ("off", False),
+        ("true", True),
+        ("True", True),
+        ("1", True),
+        ("yes", True),
+        ("on", True),
+        ("false", False),
+        ("False", False),
+        ("0", False),
+        ("no", False),
+        ("off", False),
     ],
 )
 def test_bool_coercion(monkeypatch, raw, expected):

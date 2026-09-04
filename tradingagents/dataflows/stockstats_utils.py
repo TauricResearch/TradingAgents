@@ -14,6 +14,11 @@ from .utils import safe_ticker_component
 
 logger = logging.getLogger(__name__)
 
+OHLCV_COLUMNS = ["Date", "Open", "High", "Low", "Close", "Volume"]
+ALPACA_MARKET_DATA_SYMBOLS = frozenset(
+    {"AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA"}
+)
+
 # A vendor's latest OHLCV row this many calendar days before the requested date
 # is treated as stale. Generous enough to span long holiday weekends, tight
 # enough to catch the year-old frames yfinance occasionally returns (#1021).
@@ -43,6 +48,61 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
                 time.sleep(delay)
             else:
                 raise
+
+
+class AlpacaMarketDataError(NoMarketDataError):
+    """Alpaca could not provide usable daily market data."""
+
+
+def _fetch_alpaca_ohlcv(
+    symbol: str, start_date: str, end_date: str, *, client=None
+) -> pd.DataFrame:
+    """Fetch and normalize daily bars from Alpaca IEX."""
+    key = os.getenv("ALPACA_API_KEY")
+    secret = os.getenv("ALPACA_SECRET_KEY")
+    if not key or not secret:
+        raise AlpacaMarketDataError(symbol, symbol, "Alpaca market data is unavailable")
+
+    try:
+        from alpaca.common.exceptions import APIError
+        from alpaca.data.enums import DataFeed
+        from alpaca.data.historical.stock import StockHistoricalDataClient
+        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.timeframe import TimeFrame
+        from requests.exceptions import RequestException
+    except ImportError as error:
+        raise AlpacaMarketDataError(
+            symbol, symbol, "Alpaca market data support is unavailable"
+        ) from error
+
+    request = StockBarsRequest(
+        symbol_or_symbols=symbol,
+        timeframe=TimeFrame.Day,
+        start=pd.Timestamp(start_date).to_pydatetime(),
+        end=(pd.Timestamp(end_date) + pd.Timedelta(days=1)).to_pydatetime(),
+        feed=DataFeed.IEX,
+    )
+    try:
+        if client is None:
+            client = StockHistoricalDataClient(key, secret)
+        response = client.get_stock_bars(request)
+    except (APIError, RequestException, OSError):
+        raise AlpacaMarketDataError(
+            symbol, symbol, "Alpaca market data is unavailable"
+        ) from None
+    frame = getattr(response, "df", None)
+    if not isinstance(frame, pd.DataFrame):
+        raise AlpacaMarketDataError(
+            symbol, symbol, "Alpaca returned malformed daily bars"
+        )
+    return _normalize_alpaca_ohlcv_range(frame, symbol, symbol, start_date, end_date)
+
+
+def use_alpaca_market_data(symbol: str | None = None) -> bool:
+    enabled = get_config().get("use_alpaca_market_data", False)
+    if not enabled or symbol is None:
+        return enabled
+    return symbol in ALPACA_MARKET_DATA_SYMBOLS
 
 
 def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
@@ -86,6 +146,92 @@ def _normalize_dates(dates) -> pd.Series:
     return pd.to_datetime(pd.Series(dates).map(_local_midnight))
 
 
+def _normalize_ohlcv(
+    data: pd.DataFrame,
+    symbol: str,
+    canonical: str,
+    *,
+    error_type=NoMarketDataError,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    allow_price_gaps: bool = False,
+) -> pd.DataFrame:
+    """Return strict canonical OHLCV or raise a typed unusable-data error."""
+    if not isinstance(data, pd.DataFrame) or data.empty:
+        raise error_type(symbol, canonical, "market-data feed returned no daily bars")
+
+    normalized = data.copy()
+    if "Date" not in normalized.columns:
+        normalized = _ensure_date_column(normalized.reset_index())
+    normalized = normalized.rename(
+        columns={
+            "timestamp": "Date",
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
+            "volume": "Volume",
+        }
+    )
+    if any(column not in normalized.columns for column in OHLCV_COLUMNS):
+        raise error_type(symbol, canonical, "market-data feed returned malformed daily bars")
+
+    normalized = normalized[OHLCV_COLUMNS].copy()
+    normalized["Date"] = _normalize_dates(normalized["Date"])
+    numeric_columns = OHLCV_COLUMNS[1:]
+    normalized[numeric_columns] = normalized[numeric_columns].apply(
+        pd.to_numeric, errors="coerce"
+    )
+    if allow_price_gaps:
+        normalized = normalized.dropna(subset=["Date"])
+        if normalized.empty:
+            raise error_type(symbol, canonical, "market-data feed returned no daily bars")
+    if start_date is not None and end_date is not None:
+        start = pd.Timestamp(start_date).normalize()
+        end = pd.Timestamp(end_date).normalize()
+        normalized = normalized.loc[normalized["Date"].between(start, end)].copy()
+        if normalized.empty:
+            raise error_type(
+                symbol, canonical, "market-data feed returned no daily bars in the requested range"
+            )
+    invalid_scalar = (
+        normalized["Date"].isna().any()
+        or (not allow_price_gaps and normalized[numeric_columns].isna().any().any())
+        or normalized[numeric_columns]
+        .isin([float("inf"), float("-inf")])
+        .any()
+        .any()
+    )
+    prices = normalized[["Open", "High", "Low", "Close"]]
+    invalid_range = (
+        (prices <= 0).any().any()
+        or (normalized["Volume"] < 0).any()
+        or (normalized["High"] < normalized[["Open", "Close", "Low"]].max(axis=1)).any()
+        or (normalized["Low"] > normalized[["Open", "Close", "High"]].min(axis=1)).any()
+    )
+    if invalid_scalar or invalid_range:
+        raise error_type(symbol, canonical, "market-data feed returned malformed daily bars")
+    return normalized
+
+
+def _normalize_alpaca_ohlcv_range(
+    data: pd.DataFrame,
+    symbol: str,
+    canonical: str,
+    start_date: str,
+    end_date: str,
+) -> pd.DataFrame:
+    """Return validated Alpaca bars within the requested inclusive date range."""
+    return _normalize_ohlcv(
+        data,
+        symbol,
+        canonical,
+        error_type=AlpacaMarketDataError,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize a stock DataFrame for stockstats: parse/normalize dates and
     coerce prices to numeric (NaN where invalid). Dropping incomplete rows and
@@ -113,15 +259,15 @@ def _fill_price_gaps(data: pd.DataFrame) -> pd.DataFrame:
 def _coerce_ohlcv_dates(data: pd.DataFrame) -> pd.Series:
     """Return parsed dates from an OHLCV frame, whether Date is a column or the index."""
     if "Date" in data.columns:
-        return pd.to_datetime(data["Date"], errors="coerce").dropna()
+        return _normalize_dates(data["Date"]).dropna()
     # yfinance keeps the dates in the index (a DatetimeIndex, sometimes unnamed).
     if isinstance(data.index, pd.DatetimeIndex):
-        return pd.Series(pd.to_datetime(data.index, errors="coerce")).dropna()
+        return _normalize_dates(data.index).dropna()
     # Fallback: expose the index and look for any date-like column.
     df = data.reset_index()
     for col in ("Date", "Datetime", "date", "index"):
         if col in df.columns:
-            parsed = pd.to_datetime(df[col], errors="coerce").dropna()
+            parsed = _normalize_dates(df[col]).dropna()
             if not parsed.empty:
                 return parsed
     return pd.Series(dtype="datetime64[ns]")
@@ -134,6 +280,7 @@ def _assert_ohlcv_not_stale(
     canonical: str | None = None,
     *,
     max_stale_days: int = MAX_OHLCV_STALE_DAYS,
+    error_type=NoMarketDataError,
 ) -> None:
     """Reject OHLCV whose latest row is far older than curr_date.
 
@@ -156,7 +303,7 @@ def _assert_ohlcv_not_stale(
     latest = dates.max().normalize()
     stale_days = (requested - latest).days
     if stale_days > max_stale_days:
-        raise NoMarketDataError(
+        raise error_type(
             symbol,
             canonical,
             f"latest row is {latest.date()}, {stale_days} days before the "
@@ -196,6 +343,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
 
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date).normalize()
+    consumer_date_str = curr_date_dt.strftime("%Y-%m-%d")
 
     # Cache uses a fixed window (5y to today) so one file per symbol.
     today_date = pd.Timestamp.today()
@@ -205,50 +353,113 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     # when curr_date is the current day (#986). Look-ahead is still prevented by
     # the curr_date filter below.
     end_str = (today_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    alpaca_end_str = today_date.strftime("%Y-%m-%d")
 
     os.makedirs(config["data_cache_dir"], exist_ok=True)
-    data_file = os.path.join(
+    alpaca_enabled = use_alpaca_market_data(canonical)
+    alpaca_data_file = os.path.join(
+        config["data_cache_dir"],
+        f"{safe_symbol}-Alpaca-IEX-data-{start_str}-{end_str}"
+        f"-consumer-{consumer_date_str}.csv",
+    )
+    yahoo_data_file = os.path.join(
         config["data_cache_dir"],
         f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
     )
 
+    def validate_alpaca_for_consumer(data):
+        normalized = _normalize_alpaca_ohlcv_range(
+            data, symbol, canonical, start_str, alpaca_end_str
+        )
+        requested_rows = normalized.loc[normalized["Date"] <= curr_date_dt].copy()
+        if requested_rows.empty:
+            raise AlpacaMarketDataError(
+                symbol,
+                canonical,
+                f"Alpaca returned no daily bars on or before {curr_date}",
+            )
+        _assert_ohlcv_not_stale(
+            requested_rows,
+            curr_date,
+            symbol,
+            canonical,
+            error_type=AlpacaMarketDataError,
+        )
+        return requested_rows
+
     # A cached file may be empty if a prior fetch failed (unknown symbol,
     # transient rate limit). Treat an empty/columnless cache as a miss and
     # re-fetch rather than serving the poisoned file forever.
-    data = None
-    if os.path.exists(data_file):
+    def read_cache(data_file, *, alpaca=False):
+        if not os.path.exists(data_file):
+            return None
         cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
+        try:
+            if alpaca:
+                cached = validate_alpaca_for_consumer(cached)
+            else:
+                cached = _normalize_ohlcv(
+                    cached, symbol, canonical, allow_price_gaps=True
+                )
+        except NoMarketDataError:
+            return None
         # Serve the cache only when it is usable and not a stale snapshot of the
         # day being requested (#1150); otherwise fall through and refetch.
-        if (
-            not cached.empty
-            and "Close" in cached.columns
-            and not _needs_same_day_refresh(data_file, curr_date_dt, today_date)
-        ):
-            data = cached
+        if _needs_same_day_refresh(data_file, curr_date_dt, today_date):
+            return None
+        return cached
+
+    data = read_cache(
+        alpaca_data_file if alpaca_enabled else yahoo_data_file,
+        alpaca=alpaca_enabled,
+    )
 
     if data is None:
-        downloaded = yf_retry(lambda: yf.download(
-            canonical,
-            start=start_str,
-            end=end_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        ))
-        downloaded = _ensure_date_column(downloaded.reset_index())
-        # Only cache real data — never persist an empty frame.
-        if downloaded.empty or "Close" not in downloaded.columns:
-            raise NoMarketDataError(
-                symbol, canonical, "Yahoo Finance returned no rows"
+
+        def yahoo_bars():
+            return yf_retry(
+                lambda: yf.download(
+                    canonical,
+                    start=start_str,
+                    end=end_str,
+                    multi_level_index=False,
+                    progress=False,
+                    auto_adjust=True,
+                )
             )
-        downloaded.to_csv(data_file, index=False, encoding="utf-8")
+
+        if alpaca_enabled:
+            try:
+                downloaded = validate_alpaca_for_consumer(
+                    _fetch_alpaca_ohlcv(canonical, start_str, alpaca_end_str)
+                )
+                downloaded.to_csv(alpaca_data_file, index=False, encoding="utf-8")
+            except AlpacaMarketDataError:
+                logger.warning(
+                    "Alpaca daily bars unavailable for %s; using Yahoo fallback",
+                    symbol,
+                )
+                downloaded = read_cache(yahoo_data_file)
+                if downloaded is None:
+                    downloaded = _normalize_ohlcv(
+                        yahoo_bars(), symbol, canonical, allow_price_gaps=True
+                    )
+                    downloaded.to_csv(
+                        yahoo_data_file, index=False, encoding="utf-8"
+                    )
+        else:
+            downloaded = _normalize_ohlcv(
+                yahoo_bars(), symbol, canonical, allow_price_gaps=True
+            )
+            downloaded.to_csv(yahoo_data_file, index=False, encoding="utf-8")
         data = downloaded
 
-    data = _clean_dataframe(data)
+    data = _normalize_ohlcv(data, symbol, canonical, allow_price_gaps=True)
 
     # Filter to curr_date to prevent look-ahead bias in backtesting.
     data = data[data["Date"] <= curr_date_dt]
+    if data.empty:
+        raise NoMarketDataError(symbol, canonical, f"no rows on or before {curr_date}")
 
     # Guard the latest in-range bar before dropping incomplete rows: a newest bar
     # with no close is "not settled yet", not "does not exist". Silently dropping
@@ -260,6 +471,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         )
 
     data = _fill_price_gaps(data)
+    data = _normalize_ohlcv(data, symbol, canonical)
 
     # Reject a stale frame (latest row far older than curr_date) rather than
     # feeding year-old prices into indicators (#1021).

@@ -194,6 +194,184 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### Alpaca automation
+
+The non-interactive Alpaca path requires exactly seven unique, comma-separated symbols. It
+keeps the existing single-symbol graph unchanged and analyzes each symbol sequentially. With
+`TRADINGAGENTS_BATCH_SIZE=3`, persisted batches rotate `3, 2, 2`; with a batch size of `2`, they
+rotate `2, 2, 3`. Analysis and position tracking have independent 30-minute default cadences.
+
+Install the optional Alpaca dependency, create a local configuration, then run one batch or the
+foreground loop:
+
+```bash
+pip install -e ".[alpaca]"
+cp .env.example .env
+tradingagents batch
+tradingagents automate
+```
+
+Set `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` in `.env` to credentials for the environment named
+by `TRADINGAGENTS_ALPACA_MODE`. Paper and live credentials are different. Also set
+`TRADINGAGENTS_WATCHLIST` to exactly seven unique symbols. Keep these safe defaults for the
+first full three-batch warm-up:
+
+```dotenv
+TRADINGAGENTS_AUTO_EXECUTE=false
+TRADINGAGENTS_ALPACA_MODE=paper
+```
+
+Dry-run mode still analyzes symbols and persists order plans, but submits nothing. Trading does
+not plan or submit orders until all seven symbols have successful decisions no older than
+`TRADINGAGENTS_DECISION_MAX_AGE_MINUTES` (120 minutes by default). Review the dry-run plans in
+the SQLite state database at `~/.tradingagents/automation/state.db`, or set
+`TRADINGAGENTS_AUTOMATION_STATE_PATH` to an absolute path.
+
+Set `TRADINGAGENTS_USE_ALPACA_MARKET_DATA=true` to globally prefer Alpaca IEX
+daily bars for the approved automation universe: AAPL, MSFT, NVDA, AMZN, META,
+GOOG, and TSLA. All other symbols and false/default mode use Yahoo Finance.
+For the approved seven, Yahoo is used only when Alpaca reports a typed
+unavailable, empty, malformed, or stale-data condition.
+
+The coordinated risk layer targets 15% annualized forecast volatility, rejects
+new exposure above the 20% forecast ceiling, and caps gross equity plus
+delta-equivalent option exposure at 2.0 times account equity. It uses up to 60
+aligned trading days and requires at least 40 aligned return observations.
+These are forecast controls, not guarantees of future realized volatility or
+profit.
+
+The allocator maps Buy/Overweight/Hold/Underweight/Sell to signed conviction targets, where
+Hold targets zero exposure. With the cash-reserve target disabled, managed gross target notional
+cannot exceed 90% of current positive Alpaca cash; the configured percentage may be lowered but
+not raised above `0.90`. Current
+positions and outstanding open-order exposure are reconciled toward each target, rather than
+adding the allocation again on every cycle. When at least one fresh decision is non-Hold, the
+normalized targets use the full configured gross budget; fills, price movement, and broker
+rejections can make actual position value differ temporarily.
+
+`TRADINGAGENTS_MAX_CASH_RESERVE_USD` defaults to `$70,000` as a best-effort
+maximum cash reserve, providing a buffer below the `$75,000` operating goal.
+Set it to `0` to disable reserve-driven deployment.
+When baseline projected cash is above the ceiling, positive convictions are
+scaled up by their relative weights after accounting for short exposure. The
+reserve policy never scales baseline positive targets down, and no long
+exposure is invented when every decision is Hold, Underweight, or Sell.
+This target can use leverage and produce negative cash. It is not guaranteed:
+the 15% forecast-volatility target, 20% forecast ceiling, 2.0-times-equity gross
+ceiling, and broker buying power take precedence and may leave more than
+`$70,000` cash; fills and price movement can also change the realized balance.
+
+Alpaca margin, leverage, and short selling may be used when the account and asset permit them.
+Opening shorts are submitted in whole shares because Alpaca does not support fractional short
+sales, and every opening order remains subject to Alpaca's buying-power check.
+
+After reviewing dry-run plans, enable automatic paper orders with:
+
+```dotenv
+TRADINGAGENTS_AUTO_EXECUTE=true
+TRADINGAGENTS_ALPACA_MODE=paper
+```
+
+Live submission requires live Alpaca credentials and all three values below. The acknowledgment
+must match exactly:
+
+```dotenv
+TRADINGAGENTS_AUTO_EXECUTE=true
+TRADINGAGENTS_ALPACA_MODE=live
+TRADINGAGENTS_LIVE_TRADING_ACK=I_UNDERSTAND_LIVE_ORDERS
+```
+
+#### Paper-first options wheel
+
+The optional wheel sleeve shares the same seven symbols, account snapshot,
+capital, orders, and portfolio limits as the equity workflow. Equity analysis
+still rotates `3, 2, 2` (or `2, 2, 3`) on its independent 30-minute cadence.
+Open option positions and risk-reducing exits are managed every 15 minutes while
+the US equity market is open. New entries are considered only once per New York
+trading date at or after 10:00 a.m. ET.
+
+Options are disabled by default. Keep these safe defaults until you are ready
+to inspect the wheel workflow:
+
+```dotenv
+TRADINGAGENTS_ALPACA_MODE=paper
+TRADINGAGENTS_OPTIONS_ENABLED=false
+TRADINGAGENTS_OPTIONS_AUTO_EXECUTE=false
+TRADINGAGENTS_OPTIONS_MAX_EQUITY_FRACTION=0.20
+TRADINGAGENTS_OPTIONS_ENTRY_TIME_ET=10:00
+TRADINGAGENTS_OPTIONS_EARNINGS_PATH=/absolute/path/to/earnings.json
+```
+
+For a paper-mode ticket-only dry run, set
+`TRADINGAGENTS_OPTIONS_ENABLED=true` while keeping
+`TRADINGAGENTS_OPTIONS_AUTO_EXECUTE=false`. This considers eligible entries and
+persists reviewable intents without submitting option orders.
+
+Eligible contracts must have 14-28 calendar days to expiration, absolute delta
+from 0.15 through 0.30, open interest greater than 100, annualized yield greater
+than 0.04 and less than 1.00, score greater than 0.05, and a quote no more than
+300 seconds old. A confirmed earnings date within seven calendar days blocks a
+new entry. Wheel exposure is capped at 20% of account equity, with one active
+contract per underlying. Option orders are `LIMIT`/`DAY` only; naked options,
+multi-leg orders, and market option orders are prohibited.
+
+Cash-secured puts reserve the full strike collateral and can be assigned,
+creating a long 100-share lot per contract after further downside. Covered
+calls reserve 100 owned shares per contract and cap upside above the strike in
+exchange for premium. Either trade can lose money; the wheel does not guarantee
+profit.
+
+Refresh the earnings cache and inspect a dry-run cycle and read-only report with:
+
+```bash
+.venv/bin/python scripts/refresh_earnings.py
+.venv/bin/tradingagents batch
+.venv/bin/python scripts/paper_trading_report.py
+```
+
+The example
+`deploy/com.tradingagents.earnings-refresh.plist.example` is deliberately
+disabled and unloaded. It shows the repository's absolute `.venv` Python and a
+host-timezone-independent periodic wake. The script's `--scheduled` gate exits
+without fetching except during the weekday 08:30 minute in
+`America/New_York`, and a successful same-New-York-date cache prevents a
+duplicate refresh. Copy and review the plist before any separate installation;
+this repository does not load it automatically.
+
+Paper option submission requires a later explicit decision to set both
+`TRADINGAGENTS_OPTIONS_ENABLED=true` and
+`TRADINGAGENTS_OPTIONS_AUTO_EXECUTE=true`. Live options add a separate gate to
+the existing live-equity acknowledgment: live mode requires
+`TRADINGAGENTS_LIVE_TRADING_ACK=I_UNDERSTAND_LIVE_ORDERS` and independently
+`TRADINGAGENTS_LIVE_OPTIONS_ACK=I_UNDERSTAND_LIVE_OPTIONS`. Paper and live Alpaca
+credentials remain distinct, and neither acknowledgment bypasses broker buying
+power, tradability, liquidity, earnings, volatility, gross-exposure, or wheel
+capital checks.
+
+The adapter supports active, tradable Alpaca US equities and crypto. It skips untradable assets
+and unsupported short targets without reallocating their budget. Equity shorts require Alpaca
+to mark the asset shortable; Alpaca crypto is long-or-flat because crypto shorts are not
+permitted. Orders are market orders, so neither environment guarantees a fill at the reference
+price. Paper fills are simulations and do not reproduce live liquidity, latency, slippage, or
+partial fills.
+
+For a persistent local process, leave `tradingagents automate` running in the foreground. Each
+due analysis or position task holds a renewable SQLite lease, and deterministic Alpaca client
+order IDs protect retries from duplicate submission. Alternatively, schedule the one-shot
+command with cron:
+
+```cron
+*/30 * * * * cd /absolute/path/to/TradingAgents && /absolute/path/to/venv/bin/tradingagents batch >> ~/.tradingagents/automation/cron.log 2>&1
+```
+
+`tradingagents batch` checks market eligibility and the same SQLite lease itself, so overlapping
+cron and foreground invocations do not run the same task concurrently. US-equity work waits for
+Alpaca's market clock; crypto remains eligible continuously.
+
+Emergency stop: stop the foreground process (for example, with Ctrl-C) and set
+`TRADINGAGENTS_AUTO_EXECUTE=false` before the next run. Environment configuration is read at
+process startup, so restart an existing process after changing `.env`.
+
 ## TradingAgents Package
 
 ### Implementation Details

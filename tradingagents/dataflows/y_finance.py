@@ -6,10 +6,15 @@ import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .stockstats_utils import (
+    AlpacaMarketDataError,
     StockstatsUtils,
     _assert_ohlcv_not_stale,
+    _fetch_alpaca_ohlcv,
+    _normalize_alpaca_ohlcv_range,
+    _normalize_ohlcv,
     filter_financials_by_date,
     load_ohlcv,
+    use_alpaca_market_data,
     yf_retry,
 )
 from .symbol_utils import NoMarketDataError, normalize_symbol
@@ -26,24 +31,41 @@ def get_YFin_data_online(
 
     # Resolve broker/forex symbols to Yahoo's convention (XAUUSD+ -> GC=F).
     canonical = normalize_symbol(symbol)
-    ticker = yf.Ticker(canonical)
-
     # yfinance treats ``end`` as EXCLUSIVE, so it would drop the requested
     # end_date row (and the current day when end_date is today). Request one day
     # past end_date so the requested range is actually inclusive (#986/#987).
     end_inclusive = (end_dt + relativedelta(days=1)).strftime("%Y-%m-%d")
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_inclusive))
 
-    # Empty result means the symbol is unknown/delisted. Raise a typed error
-    # instead of returning prose: the routing layer turns it into a single
-    # unambiguous "no data" signal so the agent never fabricates a price.
-    if data.empty:
-        raise NoMarketDataError(
-            symbol, canonical, f"no rows between {start_date} and {end_date}"
-        )
+    def yahoo_bars():
+        ticker = yf.Ticker(canonical)
+        return yf_retry(lambda: ticker.history(start=start_date, end=end_inclusive))
+
+    if use_alpaca_market_data(canonical):
+        try:
+            data = _normalize_alpaca_ohlcv_range(
+                _fetch_alpaca_ohlcv(canonical, start_date, end_date),
+                symbol,
+                canonical,
+                start_date,
+                end_date,
+            )
+            _assert_ohlcv_not_stale(
+                data,
+                end_date,
+                symbol,
+                canonical,
+                error_type=AlpacaMarketDataError,
+            )
+        except AlpacaMarketDataError:
+            data = _normalize_ohlcv(yahoo_bars(), symbol, canonical)
+    else:
+        data = _normalize_ohlcv(yahoo_bars(), symbol, canonical)
+
+    if "Date" in data.columns:
+        data = data.set_index("Date")
 
     # Remove timezone info from index for cleaner output
-    if data.index.tz is not None:
+    if getattr(data.index, "tz", None) is not None:
         data.index = data.index.tz_localize(None)
 
     # Reject a stale frame (e.g. a year-old partial response) before it is
