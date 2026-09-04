@@ -125,3 +125,22 @@ Fix-round TDD evidence:
 - The production change is limited to `open_url(request, timeout=30)`; all tests
   continue to inject the URL opener or page fetcher, so no network or broker call
   was made.
+
+## Fix Round 3
+
+Official Wall Street Horizon results use company-name earnings-calendar slugs,
+while six of the original ticker-based URLs return 404. A seven-case
+parameterized regression now derives each expected request URL from literal
+reviewed values rather than from the production mapping.
+
+Fix-round TDD evidence:
+
+- RED targeted run: `6 failed, 1 passed`; only META's existing company-name slug
+  already matched, while AAPL, MSFT, NVDA, AMZN, GOOG, and TSLA used obsolete
+  ticker slugs.
+- GREEN focused run: `24 passed` with six unrelated pytest temporary-directory
+  cleanup warnings.
+- Production changes are limited to the six obsolete mapping values. The
+  `CONFIRMED`-only parser is unchanged, so current unconfirmed dates continue to
+  fail closed. Every request remains backed by an injected opener; no real
+  network or broker call was made.

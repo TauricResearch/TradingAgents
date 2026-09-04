@@ -86,7 +86,19 @@ def test_failed_atomic_replace_preserves_cache_and_removes_temporary_file(
     assert list(tmp_path.iterdir()) == [target]
 
 
-def test_fetch_page_uses_supported_url_and_fixed_user_agent():
+@pytest.mark.parametrize(
+    ("symbol", "expected_url"),
+    (
+        ("AAPL", "https://www.wallstreethorizon.com/apple-earnings-calendar"),
+        ("MSFT", "https://www.wallstreethorizon.com/microsoft-earnings-calendar"),
+        ("NVDA", "https://www.wallstreethorizon.com/nvidia-earnings-calendar"),
+        ("AMZN", "https://www.wallstreethorizon.com/amazon-earnings-calendar"),
+        ("META", "https://www.wallstreethorizon.com/meta-earnings-calendar"),
+        ("GOOG", "https://www.wallstreethorizon.com/alphabet-earnings-calendar"),
+        ("TSLA", "https://www.wallstreethorizon.com/tesla-earnings-calendar"),
+    ),
+)
+def test_fetch_page_uses_official_url_and_fixed_user_agent(symbol, expected_url):
     seen = {}
 
     class Response:
@@ -105,9 +117,9 @@ def test_fetch_page_uses_supported_url_and_fixed_user_agent():
         seen["timeout"] = timeout
         return Response()
 
-    assert earnings.fetch_page("AAPL", open_url=open_url) == "earnings page"
+    assert earnings.fetch_page(symbol, open_url=open_url) == "earnings page"
     assert seen == {
-        "url": earnings.WALL_STREET_HORIZON_PAGES["AAPL"],
+        "url": expected_url,
         "user_agent": earnings.USER_AGENT,
         "timeout": 30,
     }

@@ -28,13 +28,13 @@ SOURCE = "Wall Street Horizon"
 USER_AGENT = "TradingAgents-Earnings-Refresh/1.0"
 NEW_YORK = ZoneInfo("America/New_York")
 WALL_STREET_HORIZON_PAGES = {
-    "AAPL": "https://www.wallstreethorizon.com/aapl-earnings-calendar",
-    "MSFT": "https://www.wallstreethorizon.com/msft-earnings-calendar",
-    "NVDA": "https://www.wallstreethorizon.com/nvda-earnings-calendar",
-    "AMZN": "https://www.wallstreethorizon.com/amzn-earnings-calendar",
+    "AAPL": "https://www.wallstreethorizon.com/apple-earnings-calendar",
+    "MSFT": "https://www.wallstreethorizon.com/microsoft-earnings-calendar",
+    "NVDA": "https://www.wallstreethorizon.com/nvidia-earnings-calendar",
+    "AMZN": "https://www.wallstreethorizon.com/amazon-earnings-calendar",
     "META": "https://www.wallstreethorizon.com/meta-earnings-calendar",
-    "GOOG": "https://www.wallstreethorizon.com/goog-earnings-calendar",
-    "TSLA": "https://www.wallstreethorizon.com/tsla-earnings-calendar",
+    "GOOG": "https://www.wallstreethorizon.com/alphabet-earnings-calendar",
+    "TSLA": "https://www.wallstreethorizon.com/tesla-earnings-calendar",
 }
 _CONFIRMED_DATE = re.compile(r"\bCONFIRMED\b(?:\s+for)?(?:\s+[A-Za-z]+)?\s+(\d{1,2}/\d{1,2}/\d{4})")
 
