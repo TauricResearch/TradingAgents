@@ -312,12 +312,16 @@ def test_conflicting_option_client_ids_are_ambiguous_and_legacy_lookup_returns_n
         ) is None
 
 
-def test_blank_client_order_id_is_ambiguous_and_legacy_lookup_returns_none(tmp_path):
+@pytest.mark.parametrize("persisted_id", ["", "   "])
+def test_blank_client_order_id_is_ambiguous_and_legacy_lookup_returns_none(
+    tmp_path, persisted_id
+):
     intent = OrderIntent("AAPL", "buy", Decimal("100.25"), Decimal("600.50"))
     with AutomationState(tmp_path / "blank-equity-id.db") as state:
         state.record_order_intents("cycle-1", NOW, [intent])
         state._connection.execute(
-            "UPDATE order_intents SET client_order_id = '' WHERE cycle_id = 'cycle-1'"
+            "UPDATE order_intents SET client_order_id = ? WHERE cycle_id = 'cycle-1'",
+            (persisted_id,),
         )
         state._connection.commit()
 
