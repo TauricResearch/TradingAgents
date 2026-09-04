@@ -23,3 +23,17 @@
 - The original unconditional Alpaca fallback while `use_alpaca_market_data=false` was a defect because ordinary Yahoo-only runs could unexpectedly require an optional dependency and broker credentials.
 - Alpaca eligibility is intentionally conservative and syntactic: symbols containing Yahoo-specific separators such as `-`, `=`, or `^` bypass Alpaca. If Alpaca later supports additional symbol forms, eligibility can be widened with explicit fixtures.
 - No real network or broker call was made; request behavior was verified with injected clients and fetchers.
+
+## Formal Fix Round 1
+
+- Separated cache namespaces into `YFin` and `Alpaca-IEX`; enabled approved-symbol runs cannot read or write the Yahoo-mode path, and disabled runs cannot read the Alpaca-mode path.
+- Replaced unconditional `reset_index()` handling with one strict canonicalizer that returns exactly Date/Open/High/Low/Close/Volume, normalizes timestamps, requires finite positive prices and nonnegative volume, and enforces coherent highs and lows before caching or return.
+- Added `AlpacaMarketDataError`. Missing credentials/dependencies, Alpaca API errors, request timeouts/errors, OS/network failures, empty frames, malformed frames, and stale frames use this sanitized typed boundary. Routing catches only this type; unexpected `RuntimeError` and `TypeError` propagate without invoking Yahoo.
+- Restricted Alpaca IEX routing to AAPL, MSFT, NVDA, AMZN, META, GOOG, and TSLA. Every other symbol stays on Yahoo.
+- Updated two cache-freshness test fixtures, with coordinator authorization, so they exercise coherent canonical OHLCV rather than the now-invalid Date/Close-only shape.
+- RED: the new review tests initially produced 14 behavioral failures across cache contamination, broad fallback, universe overreach, unsanitized network errors, and invalid OHLCV acceptance. One additional failure was isolated to an invalid integer/`inf` test fixture and corrected before implementation assessment.
+- RED sanitization follow-up: API, timeout, and OS-error cases proved the original exception cause still retained secret-bearing upstream text; the typed translation now suppresses those causes.
+- GREEN: the focused market-data file passed with 35 tests before the final exception matrix was added; the expanded market-data/cache/vendor integration slice then passed with 125 tests. Ruff and `git diff --check` passed.
+- Full: `.venv/bin/pytest -q --ignore='tests/test_alpaca_ohlcv_fallback 2.py'` passed with 1,074 tests and 69 subtests; one optional `langchain_aws` test was skipped, with only known model and pytest temporary-directory warnings.
+- Staged-only: the 125-test integration slice and owned-file Ruff check passed from a temporary archive of `git write-tree`, independently of the preserved untracked duplicate.
+- Preserved user artifact: the untracked `tests/test_alpaca_ohlcv_fallback 2.py` was not modified or deleted. Run alone, it had two passes and two expected failures because it asserts the rejected unconditional false-mode fallback and monkeypatches the superseded no-argument routing helper.

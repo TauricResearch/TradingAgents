@@ -6,9 +6,11 @@ import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .stockstats_utils import (
+    AlpacaMarketDataError,
     StockstatsUtils,
     _assert_ohlcv_not_stale,
     _fetch_alpaca_ohlcv,
+    _normalize_ohlcv,
     filter_financials_by_date,
     load_ohlcv,
     use_alpaca_market_data,
@@ -39,20 +41,23 @@ def get_YFin_data_online(
 
     if use_alpaca_market_data(canonical):
         try:
-            data = _fetch_alpaca_ohlcv(canonical, start_date, end_date)
-            _assert_ohlcv_not_stale(data, end_date, symbol, canonical)
-        except Exception:
-            data = yahoo_bars()
+            data = _normalize_ohlcv(
+                _fetch_alpaca_ohlcv(canonical, start_date, end_date),
+                symbol,
+                canonical,
+                error_type=AlpacaMarketDataError,
+            )
+            _assert_ohlcv_not_stale(
+                data,
+                end_date,
+                symbol,
+                canonical,
+                error_type=AlpacaMarketDataError,
+            )
+        except AlpacaMarketDataError:
+            data = _normalize_ohlcv(yahoo_bars(), symbol, canonical)
     else:
-        data = yahoo_bars()
-
-    # Empty result means the symbol is unknown/delisted. Raise a typed error
-    # instead of returning prose: the routing layer turns it into a single
-    # unambiguous "no data" signal so the agent never fabricates a price.
-    if data.empty:
-        raise NoMarketDataError(
-            symbol, canonical, f"no rows between {start_date} and {end_date}"
-        )
+        data = _normalize_ohlcv(yahoo_bars(), symbol, canonical)
 
     if "Date" in data.columns:
         data = data.set_index("Date")

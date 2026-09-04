@@ -71,7 +71,16 @@ def test_load_ohlcv_refetches_stale_same_day_cache(tmp_path, monkeypatch):
     start = (TODAY - pd.DateOffset(years=5)).strftime("%Y-%m-%d")
     end = (TODAY + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     cache_file = tmp_path / f"AAPL-YFin-data-{start}-{end}.csv"
-    pd.DataFrame({"Date": ["2026-07-17"], "Close": [100.0]}).to_csv(cache_file, index=False)
+    pd.DataFrame(
+        {
+            "Date": ["2026-07-17"],
+            "Open": [99.0],
+            "High": [101.0],
+            "Low": [98.0],
+            "Close": [100.0],
+            "Volume": [1_000],
+        }
+    ).to_csv(cache_file, index=False)
     old = time.time() - STALE
     os.utime(cache_file, (old, old))
 
@@ -80,7 +89,14 @@ def test_load_ohlcv_refetches_stale_same_day_cache(tmp_path, monkeypatch):
     def _fake_download(*a, **k):
         calls.append(1)
         return pd.DataFrame(
-            {"Date": pd.to_datetime(["2026-07-17", "2026-07-18"]), "Close": [100.0, 222.0]}
+            {
+                "Date": pd.to_datetime(["2026-07-17", "2026-07-18"]),
+                "Open": [99.0, 220.0],
+                "High": [101.0, 223.0],
+                "Low": [98.0, 219.0],
+                "Close": [100.0, 222.0],
+                "Volume": [1_000, 1_100],
+            }
         ).set_index("Date")
 
     monkeypatch.setattr(su.yf, "download", _fake_download)
@@ -100,7 +116,16 @@ def test_load_ohlcv_reuses_fresh_same_day_cache(tmp_path, monkeypatch):
     start = (TODAY - pd.DateOffset(years=5)).strftime("%Y-%m-%d")
     end = (TODAY + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     cache_file = tmp_path / f"AAPL-YFin-data-{start}-{end}.csv"
-    pd.DataFrame({"Date": ["2026-07-18"], "Close": [100.0]}).to_csv(cache_file, index=False)
+    pd.DataFrame(
+        {
+            "Date": ["2026-07-18"],
+            "Open": [99.0],
+            "High": [101.0],
+            "Low": [98.0],
+            "Close": [100.0],
+            "Volume": [1_000],
+        }
+    ).to_csv(cache_file, index=False)
 
     def _fail_download(*a, **k):
         raise AssertionError("fresh cache must not refetch")

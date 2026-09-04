@@ -21,6 +21,12 @@ def _bars(dates=("2026-08-25",), closes=(102,)):
     )
 
 
+def _cache_name(provider, today):
+    start = (today - pd.DateOffset(years=5)).strftime("%Y-%m-%d")
+    end = (today + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    return f"AAPL-{provider}-data-{start}-{end}.csv"
+
+
 @pytest.mark.unit
 def test_load_ohlcv_does_not_try_alpaca_when_opt_in_is_false(monkeypatch, tmp_path):
     monkeypatch.setattr(
@@ -63,6 +69,58 @@ def test_load_ohlcv_prefers_alpaca_before_yahoo(monkeypatch, tmp_path):
 
 
 @pytest.mark.unit
+def test_load_ohlcv_separates_provider_caches_and_returns_canonical_columns(
+    monkeypatch, tmp_path
+):
+    today = pd.Timestamp("2026-08-25")
+    yahoo_cache = tmp_path / _cache_name("YFin", today)
+    alpaca_cache = tmp_path / _cache_name("Alpaca-IEX", today)
+    _bars(closes=(11,)).to_csv(yahoo_cache, index=False)
+    monkeypatch.setattr(stockstats.pd.Timestamp, "today", staticmethod(lambda: today))
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+    monkeypatch.setattr(stockstats, "_fetch_alpaca_ohlcv", lambda *_: _bars())
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: pytest.fail("Yahoo cache must not contaminate Alpaca mode"),
+    )
+
+    enabled = stockstats.load_ohlcv("AAPL", "2026-08-25")
+
+    assert enabled.columns.tolist() == ["Date", "Open", "High", "Low", "Close", "Volume"]
+    assert enabled["Close"].tolist() == [102]
+    assert alpaca_cache.exists()
+
+    alpaca_cache.write_text(yahoo_cache.read_text())
+    yahoo_cache.unlink()
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": False},
+    )
+    monkeypatch.setattr(
+        stockstats,
+        "_fetch_alpaca_ohlcv",
+        lambda *_: pytest.fail("Alpaca cache must not contaminate Yahoo mode"),
+    )
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: _bars(closes=(103,)).set_index("Date"),
+    )
+
+    disabled = stockstats.load_ohlcv("AAPL", "2026-08-25")
+
+    assert disabled.columns.tolist() == ["Date", "Open", "High", "Low", "Close", "Volume"]
+    assert disabled["Close"].tolist() == [103]
+    assert yahoo_cache.exists()
+
+
+@pytest.mark.unit
 def test_load_ohlcv_falls_back_without_logging_alpaca_error_details(
     monkeypatch, tmp_path, caplog
 ):
@@ -77,7 +135,9 @@ def test_load_ohlcv_falls_back_without_logging_alpaca_error_details(
         stockstats,
         "_fetch_alpaca_ohlcv",
         lambda *_: (_ for _ in ()).throw(
-            NoMarketDataError("AAPL", detail="upstream included do-not-leak-this")
+            stockstats.AlpacaMarketDataError(
+                "AAPL", detail="upstream included do-not-leak-this"
+            )
         ),
     )
 
@@ -100,10 +160,12 @@ def test_load_ohlcv_raises_typed_error_when_alpaca_and_yahoo_are_empty(
     monkeypatch.setattr(
         stockstats,
         "_fetch_alpaca_ohlcv",
-        lambda *_: (_ for _ in ()).throw(NoMarketDataError("AAPL", detail="empty feed")),
+        lambda *_: (_ for _ in ()).throw(
+            stockstats.AlpacaMarketDataError("AAPL", detail="empty feed")
+        ),
     )
 
-    with pytest.raises(NoMarketDataError, match="returned no rows"):
+    with pytest.raises(NoMarketDataError, match="returned no daily bars"):
         stockstats.load_ohlcv("AAPL", "2026-08-25")
 
 
@@ -126,6 +188,68 @@ def test_stock_data_falls_back_when_alpaca_bars_are_stale(monkeypatch):
 
     assert "102" in result
     assert "50" not in result
+
+
+@pytest.mark.unit
+def test_stock_data_falls_back_when_alpaca_rows_are_malformed(monkeypatch):
+    monkeypatch.setattr(yfinance_data, "use_alpaca_market_data", lambda *_: True)
+    yahoo = _bars().set_index("Date")
+    monkeypatch.setattr(
+        yfinance_data.yf,
+        "Ticker",
+        lambda _symbol: SimpleNamespace(history=lambda **_: yahoo),
+    )
+    malformed = _bars()
+    malformed.loc[:, "High"] = 1
+    monkeypatch.setattr(yfinance_data, "_fetch_alpaca_ohlcv", lambda *_: malformed)
+
+    result = yfinance_data.get_YFin_data_online("AAPL", "2026-08-25", "2026-08-25")
+
+    assert "102" in result
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("error_type", [RuntimeError, TypeError])
+def test_stock_data_does_not_fallback_on_programmer_errors(monkeypatch, error_type):
+    monkeypatch.setattr(yfinance_data, "use_alpaca_market_data", lambda *_: True)
+    monkeypatch.setattr(
+        yfinance_data,
+        "_fetch_alpaca_ohlcv",
+        lambda *_: (_ for _ in ()).throw(error_type("programmer defect")),
+    )
+    monkeypatch.setattr(
+        yfinance_data.yf,
+        "Ticker",
+        lambda _: pytest.fail("programmer errors must not trigger Yahoo"),
+    )
+
+    with pytest.raises(error_type, match="programmer defect"):
+        yfinance_data.get_YFin_data_online("AAPL", "2026-08-25", "2026-08-25")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("error_type", [RuntimeError, TypeError])
+def test_load_ohlcv_does_not_fallback_on_programmer_errors(
+    monkeypatch, tmp_path, error_type
+):
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": True},
+    )
+    monkeypatch.setattr(
+        stockstats,
+        "_fetch_alpaca_ohlcv",
+        lambda *_: (_ for _ in ()).throw(error_type("programmer defect")),
+    )
+    monkeypatch.setattr(
+        stockstats.yf,
+        "download",
+        lambda *_args, **_kwargs: pytest.fail("programmer errors must not trigger Yahoo"),
+    )
+
+    with pytest.raises(error_type, match="programmer defect"):
+        stockstats.load_ohlcv("AAPL", "2026-08-25")
 
 
 @pytest.mark.unit
@@ -185,6 +309,27 @@ def test_stock_data_uses_yahoo_for_non_equity_symbols_even_when_enabled(monkeypa
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("symbol", ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOG", "TSLA"])
+def test_alpaca_market_data_allows_only_approved_symbols(monkeypatch, symbol):
+    monkeypatch.setattr(stockstats, "get_config", lambda: {"use_alpaca_market_data": True})
+
+    assert stockstats.use_alpaca_market_data(symbol) is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "symbol",
+    ["BTC-USD", "SHOP.TO", "VOD.L", "AAPL.US", "VTSAX", "FOOBAR", "BRK-B"],
+)
+def test_alpaca_market_data_rejects_every_symbol_outside_approved_universe(
+    monkeypatch, symbol
+):
+    monkeypatch.setattr(stockstats, "get_config", lambda: {"use_alpaca_market_data": True})
+
+    assert stockstats.use_alpaca_market_data(symbol) is False
+
+
+@pytest.mark.unit
 def test_fetch_alpaca_ohlcv_normalizes_inclusive_utc_bars(monkeypatch):
     monkeypatch.setenv("ALPACA_API_KEY", "key-value")
     monkeypatch.setenv("ALPACA_SECRET_KEY", "secret-value")
@@ -228,6 +373,92 @@ def test_fetch_alpaca_ohlcv_rejects_empty_and_malformed_frames(monkeypatch):
             stockstats._fetch_alpaca_ohlcv(
                 "AAPL", "2026-08-25", "2026-08-25", client=client
             )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("error_kind", ["api", "timeout", "os"])
+def test_fetch_alpaca_ohlcv_translates_network_errors_without_leaking_details(
+    monkeypatch, error_kind
+):
+    from alpaca.common.exceptions import APIError
+    from requests.exceptions import Timeout
+
+    monkeypatch.setenv("ALPACA_API_KEY", "key-value")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "secret-value")
+    errors = {
+        "api": APIError('{"code": 500, "message": "secret-value"}'),
+        "timeout": Timeout("request contained secret-value"),
+        "os": OSError("request contained secret-value"),
+    }
+    client = SimpleNamespace(
+        get_stock_bars=lambda _request: (_ for _ in ()).throw(errors[error_kind])
+    )
+
+    with pytest.raises(NoMarketDataError) as caught:
+        stockstats._fetch_alpaca_ohlcv(
+            "AAPL", "2026-08-25", "2026-08-25", client=client
+        )
+
+    assert type(caught.value).__name__ == "AlpacaMarketDataError"
+    assert "secret-value" not in str(caught.value)
+    assert caught.value.__cause__ is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("Open", 0),
+        ("High", 101),
+        ("Low", 101),
+        ("Close", float("inf")),
+        ("Volume", -1),
+    ],
+)
+def test_load_ohlcv_rejects_invalid_yahoo_rows_without_caching(
+    monkeypatch, tmp_path, column, value
+):
+    monkeypatch.setattr(
+        stockstats,
+        "get_config",
+        lambda: {"data_cache_dir": str(tmp_path), "use_alpaca_market_data": False},
+    )
+    invalid = _bars().set_index("Date").astype(float)
+    invalid.loc[:, column] = value
+    monkeypatch.setattr(stockstats.yf, "download", lambda *_args, **_kwargs: invalid)
+
+    with pytest.raises(NoMarketDataError, match="malformed"):
+        stockstats.load_ohlcv("AAPL", "2026-08-25")
+
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("detail", ["unavailable", "no daily bars", "malformed daily bars"])
+def test_stock_data_falls_back_once_for_typed_alpaca_error(monkeypatch, detail):
+    yahoo_calls = []
+    monkeypatch.setattr(yfinance_data, "use_alpaca_market_data", lambda *_: True)
+    monkeypatch.setattr(
+        yfinance_data,
+        "_fetch_alpaca_ohlcv",
+        lambda *_: (_ for _ in ()).throw(
+            stockstats.AlpacaMarketDataError(
+                "AAPL", detail=f"Alpaca market data is {detail}"
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        yfinance_data.yf,
+        "Ticker",
+        lambda _: SimpleNamespace(
+            history=lambda **_: yahoo_calls.append(1) or _bars().set_index("Date")
+        ),
+    )
+
+    result = yfinance_data.get_YFin_data_online("AAPL", "2026-08-25", "2026-08-25")
+
+    assert "102" in result
+    assert yahoo_calls == [1]
 
 
 @pytest.mark.unit
