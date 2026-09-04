@@ -650,6 +650,8 @@ class AlpacaBroker:
                     raise RuntimeError("Alpaca position record is malformed")
                 if qty == 0:
                     raise RuntimeError("Alpaca position record is malformed")
+                if asset_class == "us_option" and qty != qty.to_integral():
+                    raise RuntimeError("Alpaca option position record is malformed")
                 position_rows.append(
                     (asset_class, symbol, qty, avg_entry_price, current_price)
                 )
@@ -723,7 +725,13 @@ class AlpacaBroker:
                     raise RuntimeError(record_error)
                 qty = _required_decimal(getattr(raw, "qty", None), record_error)
                 filled_qty = _required_decimal(getattr(raw, "filled_qty", None), record_error)
-                if qty <= 0 or filled_qty < 0 or filled_qty > qty:
+                if (
+                    qty <= 0
+                    or filled_qty < 0
+                    or filled_qty > qty
+                    or qty != qty.to_integral()
+                    or filled_qty != filled_qty.to_integral()
+                ):
                     raise RuntimeError(record_error)
                 open_orders.append(
                     OptionOpenOrder(

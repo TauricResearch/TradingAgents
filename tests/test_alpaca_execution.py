@@ -1185,8 +1185,8 @@ def test_wheel_positions_and_orders_map_equities_options_and_open_orders(monkeyp
             symbol="AAPL260925P00195000",
             asset_class=_enum("us_option"),
             position_intent=_enum("sell_to_open"),
-            qty="1",
-            filled_qty="0.25",
+            qty="3",
+            filled_qty="1",
             submitted_at=submitted_at,
         )
     ]
@@ -1231,8 +1231,8 @@ def test_wheel_positions_and_orders_map_equities_options_and_open_orders(monkeyp
             "AAPL",
             "put",
             "sell_to_open",
+            Decimal("3"),
             Decimal("1"),
-            Decimal("0.25"),
             Decimal("195"),
             "order-id",
             "ta-wheel-owned",
@@ -1282,6 +1282,38 @@ def test_wheel_positions_reject_missing_quantity():
     with pytest.raises(RuntimeError, match="position record") as error:
         broker.wheel_positions_and_orders()
     assert "private-position-symbol" not in str(error.value)
+
+
+def test_wheel_option_positions_reject_fractional_contract_quantity(monkeypatch):
+    raw = SimpleNamespace(
+        symbol="AAPL260925C00300000",
+        asset_class=_enum("us_option"),
+        side=_enum("short"),
+        qty="1.5",
+        avg_entry_price="4.20",
+        current_price="3.10",
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [raw], get_orders=lambda: []),
+    )
+    monkeypatch.setattr(
+        broker,
+        "option_snapshot",
+        lambda symbols: {
+            raw.symbol: (
+                Decimal("0.21"),
+                Decimal("3"),
+                Decimal("3.2"),
+                datetime(2026, 9, 4, tzinfo=timezone.utc),
+            )
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="option position"):
+        broker.wheel_positions_and_orders()
 
 
 @pytest.mark.parametrize(
@@ -1358,6 +1390,41 @@ def test_wheel_orders_reject_missing_quantity():
     with pytest.raises(RuntimeError, match="order record") as error:
         broker.wheel_positions_and_orders()
     assert "private-order-id" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    ("qty", "filled_qty"),
+    [
+        ("NaN", "0"),
+        ("1", "Infinity"),
+        ("0", "0"),
+        ("-1", "0"),
+        ("1", "-1"),
+        ("1.5", "0"),
+        ("2", "0.5"),
+        ("1", "2"),
+    ],
+)
+def test_wheel_option_orders_reject_invalid_contract_quantities(qty, filled_qty):
+    raw = SimpleNamespace(
+        id="private-order-id",
+        client_order_id="ta-wheel-owned",
+        symbol="AAPL260925P00195000",
+        asset_class=_enum("us_option"),
+        position_intent=_enum("sell_to_open"),
+        qty=qty,
+        filled_qty=filled_qty,
+        submitted_at=datetime(2026, 9, 4, tzinfo=timezone.utc),
+    )
+    broker = AlpacaBroker(
+        "key",
+        "secret",
+        "paper",
+        client=SimpleNamespace(get_all_positions=lambda: [], get_orders=lambda: [raw]),
+    )
+
+    with pytest.raises(RuntimeError, match="option order record"):
+        broker.wheel_positions_and_orders()
 
 
 @pytest.mark.parametrize(
@@ -1482,6 +1549,23 @@ def test_prepare_option_order_is_day_only_and_has_deterministic_wheel_id():
         "day",
         expected_id,
     )
+
+
+def test_prepare_option_order_rejects_fractional_contract_quantity():
+    broker = AlpacaBroker("key", "secret", "paper", client=SimpleNamespace())
+    intent = OptionIntent(
+        "AAPL260925P00195000",
+        "AAPL",
+        "put",
+        "sell",
+        "sell_to_open",
+        Decimal("1.5"),
+        Decimal("3.10"),
+        Decimal("-0.22"),
+    )
+
+    with pytest.raises(ValueError, match="positive whole number"):
+        broker.prepare_option_order(intent, "cycle-1")
 
 
 @pytest.mark.parametrize("price", [Decimal("0"), Decimal("-1")])
