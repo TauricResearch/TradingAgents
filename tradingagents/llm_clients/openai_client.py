@@ -185,7 +185,7 @@ class ProviderSpec:
     """Declarative config for one OpenAI-compatible provider.
 
     The OpenAI-compatible family (OpenAI, xAI, DeepSeek, Qwen, GLM, MiniMax,
-    OpenRouter, Ollama, and any user endpoint) all speak the same Chat
+    OpenRouter, Meta, Ollama, and any user endpoint) all speak the same Chat
     Completions API and differ only by these fields — so one row here replaces
     the former per-provider base-URL dict, auth handling, and client-class
     branches. Native Anthropic / Google use their own clients (genuinely
@@ -224,6 +224,9 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
+    # Meta Model API (dev.meta.ai): OpenAI-compatible Chat Completions
+    # serving the Muse Spark family; key from META_API_KEY.
+    "meta":       ProviderSpec(base_url="https://api.meta.ai/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).

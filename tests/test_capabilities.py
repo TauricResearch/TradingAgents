@@ -94,6 +94,25 @@ class TestMinimaxExactMatches:
 
 
 @pytest.mark.unit
+class TestMetaSpark:
+    """Muse Spark rejects non-auto tool_choice; structured output goes
+    through response_format json_schema (verified live)."""
+
+    def test_playground_ids_use_json_schema(self):
+        for model in ("rl-muse-spark-1-2-playground", "rl-muse-spark-1-1-playground"):
+            caps = get_capabilities(model)
+            assert caps.supports_tool_choice is False
+            assert caps.preferred_structured_method == "json_schema"
+            assert caps.supports_json_schema is True
+
+    def test_public_ids_inherit_via_pattern(self):
+        for model in ("muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-2.0"):
+            caps = get_capabilities(model)
+            assert caps.supports_tool_choice is False
+            assert caps.preferred_structured_method == "json_schema"
+
+
+@pytest.mark.unit
 class TestDefault:
     """Unknown / non-DeepSeek models get the permissive default."""
 

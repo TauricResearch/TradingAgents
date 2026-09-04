@@ -82,6 +82,19 @@ _MINIMAX_THINKING = ModelCapabilities(
     requires_reasoning_split=True,
 )
 
+# Meta Model API (Muse Spark) accepts the tools array but only supports
+# ``tool_choice="auto"`` — langchain's function-spec dict form 400s with
+# "only auto is supported for tool_choice". Meta's documented structured
+# path is response_format json_schema with constrained decoding
+# (dev.meta.ai/docs/structured-output), so that is the preferred method.
+# Plain bind_tools without tool_choice still works for agentic tool loops.
+_META_SPARK = ModelCapabilities(
+    supports_tool_choice=False,
+    supports_json_mode=True,
+    supports_json_schema=True,
+    preferred_structured_method="json_schema",
+)
+
 _DEFAULT = ModelCapabilities(
     supports_tool_choice=True,
     supports_json_mode=True,
@@ -105,14 +118,19 @@ _BY_ID: dict[str, ModelCapabilities] = {
     "MiniMax-M2.1": _MINIMAX_THINKING,
     "MiniMax-M2.1-highspeed": _MINIMAX_THINKING,
     "MiniMax-M2": _MINIMAX_THINKING,
+    # Muse Spark playground IDs (verified against the live /v1/models
+    # endpoint); public muse-spark-1.x IDs are covered by the pattern below.
+    "rl-muse-spark-1-2-playground": _META_SPARK,
+    "rl-muse-spark-1-1-playground": _META_SPARK,
 }
 
-# Forward-compat patterns. New ``deepseek-v5-*`` / ``deepseek-reasoner-*``
-# or ``MiniMax-M3*`` variants inherit the thinking-mode quirks automatically.
+# Forward-compat patterns. New ``deepseek-v5-*`` / ``deepseek-reasoner-*``,
+# ``MiniMax-M3*``, or ``muse-spark-*`` variants inherit the quirks automatically.
 _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
+    (re.compile(r"^muse-spark"), _META_SPARK),
 ]
 
 

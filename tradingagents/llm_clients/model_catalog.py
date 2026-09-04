@@ -178,6 +178,22 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # Generic OpenAI-compatible endpoint: the model is whatever the user's
     # server serves, so only "Custom model ID" is offered.
     "openai_compatible": _CUSTOM_ONLY,
+    # Meta Model API serves the small Muse Spark lineup, so the versions
+    # visible to the configured key are listed explicitly (verified against
+    # the live /v1/models endpoint). "Custom model ID" is the escape hatch
+    # for other tiers (e.g. public muse-spark-1.x IDs) or future releases.
+    "meta": {
+        "quick": [
+            ("Muse Spark 1.2 - Latest available, agentic + coding", "rl-muse-spark-1-2-playground"),
+            ("Muse Spark 1.1 - Previous version", "rl-muse-spark-1-1-playground"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Muse Spark 1.2 - Latest available, agentic + coding", "rl-muse-spark-1-2-playground"),
+            ("Muse Spark 1.1 - Previous version", "rl-muse-spark-1-1-playground"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # Hosted OpenAI-compatible providers that serve many (and frequently
     # changing) models — offer "Custom model ID" rather than a list that goes
     # stale. The endpoint + key are wired by the provider; the user picks the

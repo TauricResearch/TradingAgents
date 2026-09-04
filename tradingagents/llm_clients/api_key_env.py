@@ -30,11 +30,12 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "minimax-cn": "MINIMAX_CN_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     # Additional hosted OpenAI-compatible providers (model is user-specified).
-    # kimi -> Moonshot AI; nvidia -> NVIDIA NIM.
+    # kimi -> Moonshot AI; nvidia -> NVIDIA NIM; meta -> Meta Model API.
     "mistral":    "MISTRAL_API_KEY",
     "kimi":       "MOONSHOT_API_KEY",
     "groq":       "GROQ_API_KEY",
     "nvidia":     "NVIDIA_API_KEY",
+    "meta":       "META_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
     # Generic OpenAI-compatible endpoint: the client reads this when set (keyed
