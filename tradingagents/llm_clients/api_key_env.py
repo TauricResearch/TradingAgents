@@ -20,6 +20,7 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "bedrock":    None,
     "xai":        "XAI_API_KEY",
     "deepseek":   "DEEPSEEK_API_KEY",
+    "atlascloud": "ATLASCLOUD_API_KEY",
     # Dual-region providers each carry their own account; keys are not
     # interchangeable between the international and China endpoints.
     "qwen":       "DASHSCOPE_API_KEY",
