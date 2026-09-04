@@ -43,13 +43,24 @@ _STYLE = questionary.Style(
 )
 
 
-def ask_entry_mode() -> str:
-    """First prompt: full web app or CLI. Env TRADINGAGENTS_INTERFACE wins."""
+ENTRY_TIMEOUT = 30  # seconds of inactivity before falling back to CLI
+
+
+def ask_entry_mode(timeout: int = ENTRY_TIMEOUT) -> str:
+    """First prompt: full web app or CLI. Env TRADINGAGENTS_INTERFACE wins.
+
+    Falls back to CLI after ``timeout`` seconds without input.
+    """
     env = os.environ.get("TRADINGAGENTS_INTERFACE", "").strip().lower()
     if env in ("web", "browser"):
         return "web"
     if env == "cli":
         return "cli"
+    if os.name == "nt":
+        try:
+            return _ask_entry_mode_timed(timeout)
+        except Exception:
+            pass  # non-interactive console: fall through to plain prompt
     choice = questionary.select(
         "Start in:",
         choices=[
@@ -62,20 +73,52 @@ def ask_entry_mode() -> str:
     return choice if choice in ("web", "cli") else "cli"
 
 
-def ask_watch_mode() -> str:
-    """At research start (CLI mode): watch in terminal panels or scroll page."""
-    if os.environ.get("TRADINGAGENTS_WEB", "1") == "0":
-        return "cli"
-    choice = questionary.select(
-        "Watch this run in:",
-        choices=[
-            questionary.Choice("CLI — terminal panels", value="cli"),
-            questionary.Choice("Browser — scroll webpage (same run, live)", value="browser"),
-        ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=_STYLE,
-    ).ask()
-    return choice if choice in ("browser", "cli") else "cli"
+def _ask_entry_mode_timed(timeout: int) -> str:
+    """Windows timed selector: arrows + Enter, auto-CLI on timeout."""
+    import msvcrt
+    import time as _time
+
+    labels = ["CLI - terminal flow", "Browser - full web app"]
+    values = ["cli", "web"]
+    idx = 0
+    sys.stdout.write("Start in:\n\n\n\n")
+    sys.stdout.flush()
+    deadline = _time.monotonic() + max(0, timeout)
+    last_remaining = -1
+    while True:
+        remaining = max(0, int(deadline - _time.monotonic() + 0.999))
+        if remaining <= 0:
+            sys.stdout.write("\x1b[3F\x1b[2K  CLI - terminal flow\n\x1b[2K  Browser - full web app\n"
+                             "\x1b[2K\n")
+            console.print("[dim]No choice — continuing in CLI.[/dim]")
+            return "cli"
+        if remaining != last_remaining:
+            last_remaining = remaining
+            out = "\x1b[3F"
+            for i, label in enumerate(labels):
+                marker = "\x1b[32m>\x1b[0m" if i == idx else " "
+                out += f"\x1b[2K{marker} [{i + 1}] {label}\n"
+            out += (f"\x1b[2KAuto-selects CLI in {remaining:2d}s — "
+                    "Up/Down or 1/2, Enter to confirm\n")
+            sys.stdout.write(out)
+            sys.stdout.flush()
+        if msvcrt.kbhit():
+            ch = msvcrt.getch()
+            if ch in (b"\x00", b"\xe0"):
+                code = msvcrt.getch()
+                if code in (b"H", b"P"):  # up / down
+                    idx = (idx + 1) % len(labels) if code == b"P" else (idx - 1) % len(labels)
+                    last_remaining = -1  # force redraw
+            elif ch == b"\r":
+                sys.stdout.write("\n")
+                return values[idx]
+            elif ch == b"\x1b":
+                sys.stdout.write("\n")
+                return "cli"
+            elif ch in (b"1", b"2"):
+                sys.stdout.write("\n")
+                return values[int(ch) - 1]
+        _time.sleep(0.05)
 
 
 def _run_npm(args: list[str]) -> int:

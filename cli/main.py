@@ -1387,13 +1387,8 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
     # Now start the display layout
     layout = create_layout()
 
-    # Watch choice at research start (CLI mode): terminal panels or the
-    # scroll webpage. Both observe the same run simultaneously — the
-    # dashboard server always starts (unless TRADINGAGENTS_WEB=0).
-    from cli.webapp import ask_watch_mode
-
-    watch = ask_watch_mode() if not headless else "cli"
-    silent_live = headless or watch == "browser"
+    # Scroll-webpage server always runs (unless TRADINGAGENTS_WEB=0): its URL
+    # is shown for 10s, then the TUI takes over. Both stay live for the run.
     # prompt_server feeds the 3 post-run prompts: the interactive dashboard
     # server in CLI mode, or the web run's hub in headless (API) mode.
     prompt_server = prompt_hub
@@ -1422,25 +1417,22 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
                 dashboard_port = int(dashboard_url.rsplit(":", 1)[-1])
             except ValueError:
                 dashboard_port = None
-            console.print(f"\n[bold cyan]Web dashboard:[/bold cyan] {dashboard_url}")
-            if watch == "browser":
-                console.print("[dim]Watching from the scroll page — terminal stays quiet.[/dim]\n")
-            else:
-                console.print("[dim]Continuing to the terminal view in 5s...[/dim]\n")
-                time.sleep(5)
+            console.print(f"\n[bold cyan]Web view:[/bold cyan] {dashboard_url}")
+            console.print("[dim]Continuing to the terminal view in 10s...[/dim]\n")
+            time.sleep(10)
         else:
             dashboard_port = None
         prompt_server = dashboard_server
 
-    # Silent rendering (API-driven runs, or browser-watch mode): the Live
-    # view renders into a discarded console so logs/terminal stay clean.
+    # Silent rendering for API-driven runs only: the Live view renders into
+    # a discarded console so server logs stay clean.
     # UTF-8: the locale default (cp1252 on Windows) cannot encode the ⏱/arrow
     # symbols in the panels and would raise inside the render itself.
-    _devnull = open(os.devnull, "w", encoding="utf-8") if silent_live else None
+    _devnull = open(os.devnull, "w", encoding="utf-8") if headless else None
     live_kwargs = (
         {"refresh_per_second": 2, "screen": False, "redirect_stderr": False,
          "console": Console(file=_devnull)}
-        if silent_live
+        if headless
         else {"refresh_per_second": 30, "screen": True, "redirect_stderr": False}
     )
     with Live(layout, **live_kwargs):
