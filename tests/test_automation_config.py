@@ -145,3 +145,19 @@ def test_env_example_documents_every_automation_override():
     }
     assert automation_vars
     assert all(name in text for name in automation_vars)
+
+
+def test_env_example_documents_every_option_and_risk_override():
+    text = Path(".env.example").read_text()
+    required = {
+        "TRADINGAGENTS_TARGET_VOLATILITY",
+        "TRADINGAGENTS_MAX_VOLATILITY",
+        "TRADINGAGENTS_MAX_GROSS_LEVERAGE",
+        "TRADINGAGENTS_OPTIONS_ENABLED",
+        "TRADINGAGENTS_OPTIONS_AUTO_EXECUTE",
+        "TRADINGAGENTS_OPTIONS_MAX_EQUITY_FRACTION",
+        "TRADINGAGENTS_OPTIONS_ENTRY_TIME_ET",
+        "TRADINGAGENTS_OPTIONS_EARNINGS_PATH",
+        "TRADINGAGENTS_LIVE_OPTIONS_ACK",
+    }
+    assert all(name in text for name in required)
