@@ -33,3 +33,13 @@ The commit was patch-staged to exclude unrelated Alpaca market-data, Yahoo fallb
 - Integrated after the market-data commit: 314 tests passed.
 - Staged-only: the same 314-test integrated suite passed from a temporary archive of `git write-tree`.
 - Full: 1,042 tests and 69 subtests passed; one optional `langchain_aws` test was skipped, with known model and pytest temporary-directory warnings.
+
+## Formal Fix Round 2
+
+- Added a non-vacuous paired `AutomationCycleService` regression using `$10,000` cash, `$100,000` equity, the `$70,000` reserve ceiling, and low-volatility history.
+- With `$200,000` buying power, every generated intent is submitted, projected cash is negative, gross exposure remains at or below 2x equity, and forecast volatility remains at or below 15% within numeric tolerance.
+- With `$150,000` buying power, the same constrained plan exceeds broker capacity and no orders are submitted.
+- The implementation already satisfied both cases, so this round required tests and report updates only.
+- Focused: 161 tests passed; the paired regression passed 2 tests directly.
+- Staged-only: the same 161-test focused suite passed from a temporary archive of `git write-tree`.
+- Static: Ruff and `git diff --check` passed.

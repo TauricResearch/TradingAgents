@@ -1370,10 +1370,10 @@ def test_cash_reserve_cycle_creates_risk_constrained_intents_within_buying_power
         max_cash_reserve_usd=70000,
     )
     warmed_service.service.settings = warmed_service.settings
-    warmed_service.broker.cash = Decimal("50000")
+    warmed_service.broker.cash = Decimal("10000")
     warmed_service.broker.equity = Decimal("100000")
     warmed_service.broker.buying_power = Decimal("200000")
-    warmed_service.broker.close_history = _aligned_history(Decimal("0.02"))
+    warmed_service.broker.close_history = _aligned_history(Decimal("0.002"))
 
     result = warmed_service.run_analysis_cycle(NOW)
     targets = {intent.symbol: intent.target_notional for intent in result.order_intents}
@@ -1385,8 +1385,7 @@ def test_cash_reserve_cycle_creates_risk_constrained_intents_within_buying_power
 
     assert result.trade_suppressed_reason is None
     assert result.order_intents
-    assert projected_cash == Decimal("20000")
-    assert projected_cash < Decimal("70000")
+    assert projected_cash < Decimal("0")
     assert gross <= Decimal("200000")
     assert buy_notional <= warmed_service.broker.buying_power
     assert forecast_volatility(
@@ -1394,7 +1393,45 @@ def test_cash_reserve_cycle_creates_risk_constrained_intents_within_buying_power
         warmed_service.broker.equity,
         close_returns(warmed_service.broker.close_history),
     ) <= Decimal("0.1500000001")
-    assert warmed_service.broker.submitted
+    assert len(result.submitted_order_ids) == len(result.order_intents)
+    assert len(warmed_service.broker.submitted) == len(result.order_intents)
+
+
+def test_cash_reserve_cycle_suppresses_same_intents_beyond_buying_power(
+    warmed_service,
+):
+    warmed_service.settings = replace(
+        warmed_service.settings,
+        auto_execute=True,
+        max_cash_allocation=0.90,
+        max_cash_reserve_usd=70000,
+    )
+    warmed_service.service.settings = warmed_service.settings
+    warmed_service.broker.cash = Decimal("10000")
+    warmed_service.broker.equity = Decimal("100000")
+    warmed_service.broker.buying_power = Decimal("150000")
+    warmed_service.broker.close_history = _aligned_history(Decimal("0.002"))
+
+    result = warmed_service.run_analysis_cycle(NOW)
+    targets = {intent.symbol: intent.target_notional for intent in result.order_intents}
+    projected_cash = warmed_service.broker.equity - sum(targets.values())
+    gross = sum(abs(target) for target in targets.values())
+    buy_notional = sum(
+        intent.notional for intent in result.order_intents if intent.side == "buy"
+    )
+
+    assert result.trade_suppressed_reason == "insufficient buying power"
+    assert result.order_intents
+    assert projected_cash < Decimal("0")
+    assert gross <= Decimal("200000")
+    assert buy_notional > warmed_service.broker.buying_power
+    assert forecast_volatility(
+        targets,
+        warmed_service.broker.equity,
+        close_returns(warmed_service.broker.close_history),
+    ) <= Decimal("0.1500000001")
+    assert result.submitted_order_ids == ()
+    assert warmed_service.broker.submitted == []
 
 
 def test_one_symbol_eligibility_defers_whole_partition(tmp_path):
