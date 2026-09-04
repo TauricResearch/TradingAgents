@@ -92,6 +92,8 @@ def contract_metrics(contract: OptionContract, now: datetime) -> tuple[Decimal, 
 def _valid_quote(contract: OptionContract, now: datetime) -> bool:
     if contract.quote_time is None or now.tzinfo is None or contract.quote_time.tzinfo is None:
         return False
+    if not contract.bid.is_finite() or not contract.ask.is_finite():
+        return False
     try:
         age = now - contract.quote_time
     except TypeError:
@@ -262,6 +264,11 @@ def plan_new_entry(
     earnings_date: date | None,
     available_cash: Decimal,
 ) -> OptionIntent | None:
+    if any(position.underlying == underlying for position in options):
+        return None
+    if any(order.underlying == underlying for order in orders):
+        return None
+
     reservations = build_reservations(equities, options, orders)
     active_underlyings = set(reservations.put_collateral) | set(reservations.covered_shares)
     if underlying in active_underlyings:
@@ -285,10 +292,25 @@ def plan_new_entry(
         already_covered = reservations.covered_shares.get(underlying, Decimal(0))
         if underlying_shares - already_covered < CONTRACT_MULTIPLIER:
             return None
+        covering_equities = tuple(
+            equity for equity in equities if equity.symbol == underlying and equity.qty > 0
+        )
+        if not covering_equities or any(
+            not equity.avg_entry_price.is_finite() or equity.avg_entry_price <= 0
+            for equity in covering_equities
+        ):
+            return None
+        total_long_shares = sum((equity.qty for equity in covering_equities), Decimal(0))
+        cost_basis = (
+            sum((equity.qty * equity.avg_entry_price for equity in covering_equities), Decimal(0))
+            / total_long_shares
+        )
         candidates = tuple(
             contract
             for contract in contracts
-            if contract.underlying == underlying and contract.kind.casefold() == "call"
+            if contract.underlying == underlying
+            and contract.kind.casefold() == "call"
+            and contract.strike >= cost_basis
         )
         selected = select_contract(candidates, now, earnings_date)
         if selected is None:

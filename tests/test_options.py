@@ -120,6 +120,13 @@ def test_select_contract_accepts_quote_exactly_300_seconds_old():
     assert select_contract((contract,), NOW, None) == contract
 
 
+@pytest.mark.parametrize("field", ["bid", "ask"])
+@pytest.mark.parametrize("value", [Decimal("NaN"), Decimal("Infinity"), Decimal("-Infinity")])
+def test_select_contract_rejects_non_finite_quotes(field, value):
+    contract = replace(_contract(), **{field: value})
+    assert select_contract((contract,), NOW, None) is None
+
+
 @pytest.mark.parametrize(
     ("earnings", "accepted"),
     [(date(2026, 9, 11), False), (date(2026, 9, 12), True), (date(2026, 9, 3), True)],
@@ -336,13 +343,53 @@ def test_put_entry_requires_cash_and_no_active_underlying():
 
 def test_call_requires_reserved_long_lot_and_hold_or_underweight():
     call = _contract("AAPL261002C00350000", "call", "350", "0.20")
-    equity = EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320"))
+    equity = EquityPosition("AAPL", Decimal("100"), Decimal("350"), Decimal("320"))
     intent = plan_new_entry(
         "AAPL", "Hold", (equity,), (), (), (call,), NOW, date(2026, 12, 1), Decimal("200000")
     )
     assert intent.position_intent == "sell_to_open"
     assert intent.kind == "call"
     assert intent.limit_price == Decimal("3.10")
+
+
+def test_call_selects_only_contract_at_or_above_verified_cost_basis():
+    below_basis = _contract("AAPL261002C00310000", "call", "310", "0.20")
+    above_basis = _contract("AAPL261002C00350000", "call", "350", "0.20")
+    equity = EquityPosition("AAPL", Decimal("100"), Decimal("320"), Decimal("320"))
+    intent = plan_new_entry(
+        "AAPL",
+        "Hold",
+        (equity,),
+        (),
+        (),
+        (below_basis, above_basis),
+        NOW,
+        None,
+        Decimal("200000"),
+    )
+    assert intent.symbol == above_basis.symbol
+
+
+def test_call_rejects_when_all_contracts_are_below_cost_basis():
+    call = _contract("AAPL261002C00310000", "call", "310", "0.20")
+    equity = EquityPosition("AAPL", Decimal("100"), Decimal("320"), Decimal("320"))
+    assert (
+        plan_new_entry("AAPL", "Hold", (equity,), (), (), (call,), NOW, None, Decimal("200000"))
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "cost_basis",
+    [Decimal("0"), Decimal("-1"), Decimal("NaN"), Decimal("Infinity"), Decimal("-Infinity")],
+)
+def test_call_rejects_non_positive_or_non_finite_cost_basis(cost_basis):
+    call = _contract("AAPL261002C00350000", "call", "350", "0.20")
+    equity = EquityPosition("AAPL", Decimal("100"), cost_basis, Decimal("320"))
+    assert (
+        plan_new_entry("AAPL", "Hold", (equity,), (), (), (call,), NOW, None, Decimal("200000"))
+        is None
+    )
 
 
 def test_call_entry_rejects_buy_signal_or_insufficient_unreserved_shares():
@@ -369,6 +416,55 @@ def test_call_entry_is_blocked_by_active_opposite_leg():
     )
     assert (
         plan_new_entry("AAPL", "Hold", (equity,), (put,), (), (call,), NOW, None, Decimal("200000"))
+        is None
+    )
+
+
+@pytest.mark.parametrize("decision", ["Buy", "Hold"])
+@pytest.mark.parametrize("occupied_by", ["option", "order"])
+def test_any_same_underlying_option_or_order_blocks_new_entry(decision, occupied_by):
+    equity = (
+        (EquityPosition("AAPL", Decimal("100"), Decimal("300"), Decimal("320")),)
+        if decision == "Hold"
+        else ()
+    )
+    options = (
+        (OptionPosition("LONG", "AAPL", "call", Decimal("1"), Decimal("2"), Decimal("0.2")),)
+        if occupied_by == "option"
+        else ()
+    )
+    orders = (
+        (
+            OptionOpenOrder(
+                "CLOSING",
+                "AAPL",
+                "put",
+                "buy_to_close",
+                Decimal("1"),
+                Decimal("0"),
+                Decimal("300"),
+            ),
+        )
+        if occupied_by == "order"
+        else ()
+    )
+    contract = (
+        _contract("AAPL261002C00350000", "call", "350", "0.20")
+        if decision == "Hold"
+        else _contract()
+    )
+    assert (
+        plan_new_entry(
+            "AAPL",
+            decision,
+            equity,
+            options,
+            orders,
+            (contract,),
+            NOW,
+            None,
+            Decimal("50000"),
+        )
         is None
     )
 
