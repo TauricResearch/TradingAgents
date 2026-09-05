@@ -234,6 +234,37 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Portfolio context (optional)
+
+`propagate()` accepts an optional, broker-neutral `PortfolioContext` snapshot describing current holdings and capital. When provided, the Trader, risk analysts, and Portfolio Manager ground their sizing language in it; when omitted, they are told explicitly that no portfolio context was given instead of assuming a flat portfolio. A context with empty `positions` means a known flat portfolio — this is distinct from providing no context at all.
+
+```python
+from tradingagents.agents.schemas import PortfolioContext
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+
+context = PortfolioContext(
+    positions=[{"symbol": "NVDA", "quantity": 10.0, "average_entry_price": 150.0}],
+    cash=25000.0,
+    portfolio_value=120000.0,
+    as_of="2026-01-15",
+    source="paper-broker",
+)
+
+_, decision = ta.propagate("NVDA", "2026-01-15", portfolio_context=context)
+print(decision)
+```
+
+Existing calls without `portfolio_context` keep working unchanged. The CLI accepts the same snapshot as a JSON file:
+
+```bash
+tradingagents analyze --portfolio-context /path/to/portfolio.json
+```
+
+Saved run state records whether a context was present (`portfolio_context_present`) together with the snapshot used. The contract carries no credentials, account identifiers, or broker dependencies.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.

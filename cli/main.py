@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import sys
 import time
@@ -7,6 +8,7 @@ from functools import wraps
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 from rich import box
 from rich.align import Align
 from rich.console import Console
@@ -41,6 +43,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from tradingagents.agents.schemas import PortfolioContext
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
@@ -1001,7 +1004,37 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None):
+def load_portfolio_context_file(path_str: str) -> dict:
+    """Load and validate a ``PortfolioContext`` JSON file for ``--portfolio-context``.
+
+    Returns the snapshot as plain JSON-safe data ready for
+    ``Propagator.create_initial_state``. Raises ``typer.BadParameter`` with an
+    actionable message for a missing file, malformed JSON, or schema
+    violations — the CLI must fail at startup rather than run with a silently
+    degraded (or empty-looking) portfolio.
+    """
+    path = Path(path_str).expanduser()
+    if not path.is_file():
+        raise typer.BadParameter(f"portfolio context file not found: {path_str}")
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(
+            f"portfolio context file is not valid JSON: {path_str} ({exc})"
+        ) from exc
+    try:
+        context = PortfolioContext.model_validate(raw)
+    except ValidationError as exc:
+        raise typer.BadParameter(
+            f"portfolio context file failed validation: {path_str}\n{exc}"
+        ) from exc
+    return context.model_dump(mode="json")
+
+
+def run_analysis(
+    checkpoint: bool | None = None,
+    portfolio_context_path: str | None = None,
+):
     # First get all user selections
     selections = get_user_selections()
 
@@ -1114,14 +1147,24 @@ def run_analysis(checkpoint: bool | None = None):
         # Resolve the instrument identity once here so all agents anchor to
         # the real company (#814); the CLI builds state directly rather than
         # going through propagate(), so this must happen on the CLI path too.
+        # An optional broker-neutral portfolio snapshot (``--portfolio-context``)
+        # is threaded through the same way; when omitted the state records
+        # None so decision nodes see "not provided" rather than a flat
+        # portfolio (#1166).
         instrument_context = graph.resolve_instrument_context(
             selections["ticker"], selections["asset_type"]
+        )
+        portfolio_context = (
+            load_portfolio_context_file(portfolio_context_path)
+            if portfolio_context_path
+            else None
         )
         init_agent_state = graph.propagator.create_initial_state(
             selections["ticker"],
             selections["analysis_date"],
             asset_type=selections["asset_type"],
             instrument_context=instrument_context,
+            portfolio_context=portfolio_context,
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
@@ -1314,13 +1357,22 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    portfolio_context: str | None = typer.Option(
+        None,
+        "--portfolio-context",
+        help="Path to a JSON file with an optional broker-neutral portfolio "
+        "snapshot (positions, cash, capital). When omitted, decision nodes "
+        "are told explicitly that no portfolio context was provided.",
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     try:
-        run_analysis(checkpoint=checkpoint)
+        run_analysis(
+            checkpoint=checkpoint, portfolio_context_path=portfolio_context
+        )
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit

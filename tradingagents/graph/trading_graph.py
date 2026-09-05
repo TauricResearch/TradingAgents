@@ -11,7 +11,7 @@ from typing import Any
 import yfinance as yf
 from langgraph.prebuilt import ToolNode
 
-# Import the abstract tool methods from agent_utils
+from tradingagents.agents.schemas import PortfolioContext
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_balance_sheet,
@@ -401,7 +401,13 @@ class TradingAgentsGraph:
             f"asset={asset_type}",
         ])
 
-    def propagate(self, company_name, trade_date, asset_type: str = "stock"):
+    def propagate(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        portfolio_context: PortfolioContext | dict | None = None,
+    ):
         """Run the trading agents graph for a company on a specific date.
 
         ``asset_type`` selects between the stock pipeline (default) and the
@@ -410,6 +416,13 @@ class TradingAgentsGraph:
         ``checkpoint_enabled`` is set in config, the graph is recompiled with
         a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
+
+        ``portfolio_context`` is an optional broker-neutral
+        :class:`~tradingagents.agents.schemas.PortfolioContext` (or its dict
+        form) describing current holdings and capital. When provided it is
+        threaded through the Trader, risk, and Portfolio Manager prompts;
+        when omitted those nodes are told explicitly that no portfolio
+        context was given, instead of assuming a flat portfolio.
 
         Returns ``(final_state, signal)`` where ``signal`` is one of the 5-tier
         ratings (Buy / Overweight / Hold / Underweight / Sell) or ``"REVIEW"``
@@ -426,6 +439,7 @@ class TradingAgentsGraph:
             return self._run_graph(
                 company_name, trade_date, asset_type=asset_type,
                 checkpoint_thread_id=thread_id_value,
+                portfolio_context=portfolio_context,
             )
 
     def begin_checkpoint(self, company_name, trade_date, asset_type: str = "stock") -> str | None:
@@ -507,7 +521,8 @@ class TradingAgentsGraph:
         return write_report_tree(final_state, ticker, save_path)
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
-                   checkpoint_thread_id: str | None = None):
+                   checkpoint_thread_id: str | None = None,
+                   portfolio_context: PortfolioContext | dict | None = None):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents. On a
@@ -523,6 +538,7 @@ class TradingAgentsGraph:
             asset_type=asset_type,
             past_context=past_context,
             instrument_context=instrument_context,
+            portfolio_context=portfolio_context,
         )
         args = self.propagator.get_graph_args()
 
@@ -578,6 +594,13 @@ class TradingAgentsGraph:
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
+            # Whether a portfolio snapshot was provided, and the snapshot
+            # itself when present, so saved runs identify which context the
+            # Trader / risk / Portfolio Manager decisions were grounded in.
+            # A missing context (None) is recorded as absent rather than as
+            # an empty portfolio (#1166).
+            "portfolio_context_present": final_state.get("portfolio_context") is not None,
+            "portfolio_context": final_state.get("portfolio_context"),
             "market_report": final_state["market_report"],
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],

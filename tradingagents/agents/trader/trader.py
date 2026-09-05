@@ -10,6 +10,7 @@ from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
+    portfolio_prompt_block,
 )
 from tradingagents.agents.utils.structured import (
     NO_EXTERNAL_TOOLS,
@@ -25,6 +26,10 @@ def create_trader(llm):
         company_name = state["company_of_interest"]
         instrument_context = get_instrument_context_from_state(state)
         investment_plan = state["investment_plan"]
+        # Optional broker-neutral snapshot of current holdings and capital.
+        # Renders an explicit "not provided" notice when absent so the Trader
+        # never mistakes a missing portfolio for a flat one (#1166).
+        portfolio_block = portfolio_prompt_block(state)
         # The research plan digests the debate but loses exact price structure;
         # give the Trader the technical market report so entry/stop levels are
         # grounded in real ATR / support-resistance / current price (#1167). The
@@ -61,6 +66,7 @@ def create_trader(llm):
                     f"{instrument_context}\n\n"
                     f"{report_section}"
                     f"Proposed Investment Plan:\n{investment_plan}\n\n"
+                    f"{portfolio_block}\n\n"
                     f"Make an informed, strategic trading decision."
                 ),
             },

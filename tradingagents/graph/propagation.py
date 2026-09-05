@@ -2,10 +2,30 @@
 
 from typing import Any
 
+from tradingagents.agents.schemas import PortfolioContext
 from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
 )
+
+
+def normalize_portfolio_context(
+    portfolio_context: PortfolioContext | dict | None,
+) -> dict | None:
+    """Normalize a caller-supplied portfolio context to JSON-safe state data.
+
+    Accepts a ``PortfolioContext`` or its ``dict`` form; ``None`` is passed
+    through and means the context was not provided. Validation failures raise
+    ``pydantic.ValidationError`` so a malformed snapshot fails at run start
+    rather than silently degrading into an empty portfolio.
+    """
+    if portfolio_context is None:
+        return None
+    if isinstance(portfolio_context, PortfolioContext):
+        context = portfolio_context
+    else:
+        context = PortfolioContext.model_validate(portfolio_context)
+    return context.model_dump(mode="json")
 
 
 class Propagator:
@@ -22,6 +42,7 @@ class Propagator:
         asset_type: str = "stock",
         past_context: str = "",
         instrument_context: str = "",
+        portfolio_context: PortfolioContext | dict | None = None,
     ) -> dict[str, Any]:
         """Create the initial state for the agent graph.
 
@@ -30,6 +51,11 @@ class Propagator:
         ``TradingAgentsGraph.resolve_instrument_context``). When empty, agents
         fall back to ticker-only context via
         ``get_instrument_context_from_state``.
+
+        ``portfolio_context`` is the optional broker-neutral portfolio
+        snapshot (see ``PortfolioContext``). When omitted, the state records
+        ``None`` so decision nodes can distinguish "not provided" from a
+        known flat portfolio.
         """
         return {
             "messages": [("human", company_name)],
@@ -38,6 +64,7 @@ class Propagator:
             "instrument_context": instrument_context,
             "trade_date": str(trade_date),
             "past_context": past_context,
+            "portfolio_context": normalize_portfolio_context(portfolio_context),
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",

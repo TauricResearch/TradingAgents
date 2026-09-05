@@ -7,6 +7,7 @@ import yfinance as yf
 from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
+from tradingagents.agents.schemas import PortfolioContext, render_portfolio_context
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import (
     get_balance_sheet,
@@ -42,6 +43,8 @@ __all__ = [
     "build_instrument_context",
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
+    "get_portfolio_context_from_state",
+    "portfolio_prompt_block",
     "get_language_instruction",
     "create_msg_delete",
 ]
@@ -199,6 +202,44 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
         str(state["company_of_interest"]),
         state.get("asset_type", "stock"),
     )
+
+
+#: Prompt block used when the run was started without a portfolio context.
+#: States explicitly that holdings are unknown so agents do not present
+#: sizing guidance as portfolio-grounded (#1166).
+MISSING_PORTFOLIO_CONTEXT_NOTICE = (
+    "No portfolio context was provided for this run. Do not claim knowledge "
+    "of current holdings, cash, or exposure, and do not present "
+    "position-sizing guidance as grounded in actual positions."
+)
+
+
+def get_portfolio_context_from_state(state: Mapping[str, Any]) -> PortfolioContext | None:
+    """Return the typed portfolio context for the current run, if any.
+
+    The state carries the snapshot as plain JSON-safe data (so checkpoints
+    stay serializable); it is validated back into a ``PortfolioContext``
+    here. ``None`` means the context was not provided — which is distinct
+    from a known flat portfolio (a context with empty ``positions``).
+    """
+    raw = state.get("portfolio_context")
+    if raw is None:
+        return None
+    if isinstance(raw, PortfolioContext):
+        return raw
+    return PortfolioContext.model_validate(raw)
+
+
+def portfolio_prompt_block(state: Mapping[str, Any]) -> str:
+    """Render the deterministic portfolio block for decision-node prompts.
+
+    Returns the missing-context notice when no snapshot was provided, else
+    the snapshot rendered with focus on the instrument under analysis.
+    """
+    context = get_portfolio_context_from_state(state)
+    if context is None:
+        return MISSING_PORTFOLIO_CONTEXT_NOTICE
+    return render_portfolio_context(context, str(state.get("company_of_interest", "")))
 
 
 def create_msg_delete():
