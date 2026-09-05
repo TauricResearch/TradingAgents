@@ -14,6 +14,7 @@ from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
+    portfolio_prompt_block,
 )
 from tradingagents.agents.utils.structured import (
     NO_EXTERNAL_TOOLS,
@@ -27,6 +28,9 @@ def create_portfolio_manager(llm):
 
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
+        # Optional broker-neutral snapshot of current holdings and capital;
+        # an explicit "not provided" notice when absent (#1166).
+        portfolio_block = portfolio_prompt_block(state)
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -56,6 +60,7 @@ def create_portfolio_manager(llm):
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
+- {portfolio_block}
 {lessons_line}
 **Risk Analysts Debate History:**
 {history}

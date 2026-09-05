@@ -49,6 +49,12 @@ class AgentState(MessagesState):
     asset_type: Annotated[str, "Asset type under analysis such as stock or crypto"]
     instrument_context: Annotated[str, "Deterministic ticker identity resolved at run start"]
     trade_date: Annotated[str, "What date we are trading at"]
+    portfolio_context: Annotated[
+        dict | None,
+        "Optional broker-neutral portfolio snapshot (positions, cash, capital) "
+        "as plain JSON-safe data. None means the context was not provided, "
+        "which is distinct from a known-empty portfolio.",
+    ]
 
     sender: Annotated[str, "Agent that sent this message"]
 
