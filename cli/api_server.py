@@ -315,6 +315,22 @@ class _Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self._cors()
 
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/session":
+            query = urllib.parse.parse_qs(parsed.query)
+            session_dir, _ = _resolve_session(query.get("id", [""])[0])
+            if session_dir is None:
+                return _json(self, {"ok": False, "error": "unknown session"}, status=404)
+            import shutil
+
+            try:
+                shutil.rmtree(session_dir)
+            except Exception as exc:
+                return _json(self, {"ok": False, "error": str(exc)}, status=500)
+            return _json(self, {"ok": True})
+        return _json(self, {"error": "not found"}, status=404)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path, query = parsed.path, urllib.parse.parse_qs(parsed.query)
@@ -556,6 +572,23 @@ class _Handler(BaseHTTPRequestHandler):
                 session_id, session_dir, kind, provider, model, payload.get("backend_url")
             )
             return _json(self, {"ok": True, "job": job_id}, status=202)
+        if parsed.path == "/api/session/open":
+            payload = _read_json(self)
+            session_dir, _ = _resolve_session(payload.get("id", ""))
+            if session_dir is None:
+                return _json(self, {"ok": False, "error": "unknown session"}, status=404)
+            try:
+                import subprocess
+
+                if os.name == "nt":
+                    os.startfile(session_dir)  # noqa: PGH003 - local server, user action
+                elif sys.platform == "darwin":
+                    subprocess.Popen(["open", str(session_dir)])
+                else:
+                    subprocess.Popen(["xdg-open", str(session_dir)])
+            except Exception as exc:
+                return _json(self, {"ok": False, "error": str(exc)}, status=500)
+            return _json(self, {"ok": True})
         if parsed.path == "/api/settings/test":
             payload = _read_json(self)
             provider = payload.get("provider", "")
