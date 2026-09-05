@@ -40,6 +40,43 @@ API_DEFAULT_PORT = 8787
 _FILE_CHAR_CAP = 100_000
 _LOG_TAIL_LINES = 500
 
+# Table-generation jobs: job_id -> {status, session, error, agents}.
+# Long-running (one LLM call per report section), so they run in threads
+# and the Tables tab polls for completion (shimmer while generating).
+import uuid as _uuid
+
+_table_jobs: dict = {}
+_table_jobs_lock = threading.Lock()
+
+
+def _start_tables_job(session_id, session_dir, kind, provider, model, backend_url=None):
+    from tradingagents.reporting_tables import generate_tables_for_session
+
+    job_id = _uuid.uuid4().hex[:12]
+    job = {"status": "generating", "session_id": session_id,
+           "session": str(session_dir), "error": None, "agents": {}}
+    with _table_jobs_lock:
+        _table_jobs[job_id] = job
+
+    def _target():
+        def _progress(agent_label, count):
+            with _table_jobs_lock:
+                job["agents"][agent_label] = count
+
+        try:
+            generate_tables_for_session(
+                session_dir, kind, provider, model, backend_url, progress_cb=_progress
+            )
+            with _table_jobs_lock:
+                job["status"] = "done"
+        except Exception as exc:
+            with _table_jobs_lock:
+                job["status"] = "error"
+                job["error"] = f"{type(exc).__name__}: {exc}"
+
+    threading.Thread(target=_target, daemon=True).start()
+    return job_id
+
 
 def _json(handler, payload, status=200):
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -282,7 +319,7 @@ class _Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path, query = parsed.path, urllib.parse.parse_qs(parsed.query)
         if path == "/api/options":
-            from cli.utils import POPULAR_TICKERS
+            from cli.utils import POPULAR_TICKERS, _load_ticker_history
 
             return _json(
                 self,
@@ -295,9 +332,12 @@ class _Handler(BaseHTTPRequestHandler):
                         ("Fundamentals Analyst", "fundamentals"),
                     ],
                     "depths": [
-                        {"label": "Shallow", "value": 1},
-                        {"label": "Medium", "value": 3},
-                        {"label": "Deep", "value": 5},
+                        {"label": "Shallow", "value": 1,
+                         "detail": "Quick research, few debate and strategy discussion rounds"},
+                        {"label": "Medium", "value": 3,
+                         "detail": "Middle ground, moderate debate rounds and strategy discussion"},
+                        {"label": "Deep", "value": 5,
+                         "detail": "Comprehensive research, in depth debate and strategy discussion"},
                     ],
                     "languages": [
                         "English", "Chinese", "Japanese", "Korean", "Hindi",
@@ -305,6 +345,7 @@ class _Handler(BaseHTTPRequestHandler):
                         "Russian",
                     ],
                     "popularTickers": POPULAR_TICKERS,
+                    "recentTickers": _load_ticker_history(),
                     "opencode": {
                         "fullUrl": "https://opencode.ai/zen/v1",
                         "legacyUrl": "https://opencode.ai/zen/go/v1",
@@ -313,6 +354,32 @@ class _Handler(BaseHTTPRequestHandler):
                     },
                 },
             )
+        if path == "/api/quote":
+            from cli.utils import is_valid_ticker_input, normalize_ticker_symbol
+
+            raw = query.get("ticker", [""])[0].strip()
+            if not raw or not is_valid_ticker_input(raw):
+                return _json(self, {"ok": False, "error": "invalid ticker"})
+            symbol = normalize_ticker_symbol(raw)
+            try:
+                import yfinance as yf
+
+                info = yf.Ticker(symbol).fast_info
+                get = (lambda k: info.get(k)) if hasattr(info, "get") else (lambda k: info[k])
+                last = get("lastPrice") or get("last_price")
+                prev = get("previousClose") or get("previous_close") or get("regularMarketPreviousClose")
+                if last is None:
+                    return _json(self, {"ok": False, "error": "no quote available"})
+                change = (last - prev) if prev else 0.0
+                pct = (change / prev * 100) if prev else 0.0
+                return _json(
+                    self,
+                    {"ok": True, "symbol": symbol, "price": round(float(last), 2),
+                     "change": round(float(change), 2), "pct": round(float(pct), 2),
+                     "up": change >= 0},
+                )
+            except Exception as exc:
+                return _json(self, {"ok": False, "error": str(exc)[:300]})
         if path == "/api/models":
             provider = query.get("provider", ["openai"])[0]
             mode = query.get("mode", ["quick"])[0]
@@ -328,14 +395,40 @@ class _Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 return _json(self, {"sessions": [], "error": str(exc)})
         if path == "/api/session":
+            from tradingagents.reporting_tables import load_tables
+
             session_id = query.get("id", [""])[0]
             session_dir, kind = _resolve_session(session_id)
             if session_dir is None:
                 return _json(self, {"error": "unknown session"}, status=404)
             return _json(
                 self,
-                {"id": session_id, "kind": kind, "files": _session_files(session_dir, kind)},
+                {
+                    "id": session_id,
+                    "kind": kind,
+                    "files": _session_files(session_dir, kind),
+                    "tables": load_tables(session_dir),
+                },
             )
+        if path == "/api/tables/status":
+            session_id = query.get("session", [""])[0]
+            with _table_jobs_lock:
+                match = next(
+                    ({"job": jid, **{k: v for k, v in job.items() if k != "session_id"}}
+                     for jid, job in _table_jobs.items()
+                     if job.get("session_id") == session_id),
+                    None,
+                )
+            if match is None:
+                from tradingagents.reporting_tables import load_tables
+
+                session_dir, _ = _resolve_session(session_id)
+                existing = load_tables(session_dir) if session_dir else {}
+                return _json(
+                    self,
+                    {"status": "done" if existing else "none", "tables": existing},
+                )
+            return _json(self, match)
         if path == "/api/runs":
             from cli.runs import MANAGER
 
@@ -449,6 +542,20 @@ class _Handler(BaseHTTPRequestHandler):
                 return _json(self, {"ok": False, "error": "no pending prompt"})
             rec.pending_prompt["answer"] = answer
             return _json(self, {"ok": True})
+        if parsed.path == "/api/sessions/tables":
+            payload = _read_json(self)
+            session_id = payload.get("session_id", "")
+            provider = payload.get("provider", "")
+            model = payload.get("model", "")
+            if not session_id or not provider or not model:
+                return _json(self, {"ok": False, "error": "session_id, provider and model are required"})
+            session_dir, kind = _resolve_session(session_id)
+            if session_dir is None:
+                return _json(self, {"ok": False, "error": "unknown session"}, status=404)
+            job_id = _start_tables_job(
+                session_id, session_dir, kind, provider, model, payload.get("backend_url")
+            )
+            return _json(self, {"ok": True, "job": job_id}, status=202)
         if parsed.path == "/api/settings/test":
             payload = _read_json(self)
             provider = payload.get("provider", "")
@@ -474,6 +581,7 @@ def _warm():
     import tradingagents.llm_clients.api_key_env  # noqa: F401
     import tradingagents.llm_clients.model_catalog  # noqa: F401
     import tradingagents.llm_clients.openai_client  # noqa: F401
+    import yfinance  # noqa: F401 (quote widget)
 
 
 def create_server(host="127.0.0.1", port=API_DEFAULT_PORT):

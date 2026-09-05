@@ -53,6 +53,7 @@ from cli.utils import (
     select_llm_provider,
     select_research_depth,
     select_shallow_thinking_agent,
+    select_table_model,
 )
 from cli.utils import BACK_SENTINEL
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -913,6 +914,26 @@ def get_user_selections():
             "Configure NVIDIA reasoning effort level", ask_nvidia_reasoning_effort,
         )
 
+    # Step 9: Table-generator model. Used at the end of the run (and from the
+    # web Tables tab) to normalize report tables into clean HTML. Env-driven
+    # runs reuse the deep thinker so no extra prompt is needed.
+    if provider_from_env:
+        selected_table_model = selected_deep_thinker
+    else:
+        console.print(
+            create_question_box(
+                "Step 9: Tables Model", "Select the model that extracts report tables"
+            )
+        )
+        while True:
+            selected_table_model = select_table_model(selected_llm_provider)
+            if selected_table_model == BACK_SENTINEL:
+                # Go back to provider selection
+                selected_llm_provider, backend_url = select_llm_provider()
+                provider_from_env = False
+                continue
+            break
+
     return {
         "ticker": selected_ticker,
         "asset_type": asset_type.value,
@@ -923,6 +944,7 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "table_model": selected_table_model,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
         "nvidia_reasoning_effort": nvidia_reasoning_effort,
@@ -1695,6 +1717,7 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
 
     # Prompt to save report
     save_choice = ask_everywhere(prompt_server, "Save report?", default="Y").strip().upper()
+    saved_dir = None
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
@@ -1709,6 +1732,7 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
         save_path = Path(save_path_str)
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            saved_dir = save_path
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
@@ -1720,6 +1744,36 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
     ).strip().upper()
     if display_choice in ("Y", "YES", ""):
         display_complete_report(final_state)
+
+    # Prompt to generate structured tables from the report sections.
+    tables_choice = ask_everywhere(
+        prompt_server, "Generate tables from the report?", default="Y"
+    ).strip().upper()
+    if tables_choice in ("Y", "YES", ""):
+        from tradingagents.reporting_tables import generate_tables_for_session
+
+        table_target = saved_dir if saved_dir is not None else results_dir
+        table_kind = "saved" if saved_dir is not None else "run"
+        table_model = selections.get("table_model") or selections.get("deep_thinker")
+        console.print(
+            f"\n[bold cyan]Extracting tables with {table_model}...[/bold cyan]"
+        )
+        try:
+            def _table_progress(agent_label, count):
+                console.print(f"  [dim]{agent_label}: {count} table(s)[/dim]")
+
+            tables = generate_tables_for_session(
+                table_target,
+                table_kind,
+                selections["llm_provider"],
+                table_model,
+                selections.get("backend_url"),
+                progress_cb=_table_progress,
+            )
+            total = sum(len(v) for v in tables.values())
+            console.print(f"[green]✓ Tables saved ({total} across {len(tables)} sections)[/green]")
+        except Exception as e:
+            console.print(f"[red]Table generation failed: {e}[/red]")
 
     stop_dashboard(dashboard_server)
     dashboard_port = None

@@ -444,14 +444,19 @@ def _prompt_custom_model_id() -> str:
     return _require_text("Enter model ID:", "Please enter a model ID.")
 
 
-def _select_model(provider: str, mode: str) -> str:
-    """Select a model for the given provider and mode (quick/deep)."""
+def _select_model(provider: str, mode: str, label: str | None = None) -> str:
+    """Select a model for the given provider and mode (quick/deep/table).
+
+    ``label`` overrides the prompt title (e.g. "Table" for the table
+    generator); the static catalog falls back to the quick list for
+    non-standard modes.
+    """
     if provider.lower() == "openrouter":
         return select_openrouter_model(mode)
 
     if provider.lower() == "azure":
         return _require_text(
-            f"Enter Azure deployment name ({mode}-thinking):",
+            f"Enter Azure deployment name ({(label or mode).lower()}):",
             "Please enter a deployment name.",
         )
 
@@ -469,7 +474,9 @@ def _select_model(provider: str, mode: str) -> str:
         # (e.g. opencode/ollama_cloud when the live fetch has no key to
         # work with) offer Custom model ID only instead of crashing.
         try:
-            model_options = get_model_options(provider, mode)
+            model_options = get_model_options(
+                provider, mode if mode in ("quick", "deep") else "quick"
+            )
         except KeyError:
             model_options = [("Custom model ID", "custom")]
 
@@ -486,8 +493,9 @@ def _select_model(provider: str, mode: str) -> str:
         choices.append(questionary.Choice("Custom model ID", value="custom"))
 
     console.print("[dim]- Type to filter, use arrow keys to navigate\n- Press Enter to select\n- Select '← Back to Provider' to change provider[/dim]")
+    title = label or f"{mode.title()}-Thinking"
     selected = questionary.select(
-        f"Select Your [{mode.title()}-Thinking LLM Engine]:",
+        f"Select Your [{title} LLM Engine]:",
         choices=choices,
         style=questionary.Style(
             [
@@ -525,6 +533,11 @@ def select_shallow_thinking_agent(provider) -> str:
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep")
+
+
+def select_table_model(provider) -> str:
+    """Select the table-generator model (Step 9: Tables)."""
+    return _select_model(provider, "table", label="Table")
 
 def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     """(display_name, provider_key, base_url) for every supported provider.
