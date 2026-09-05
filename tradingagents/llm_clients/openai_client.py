@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -11,6 +12,21 @@ from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
+
+# Retry config
+MAX_INVOKE_RETRIES = 3
+RETRY_DELAY_SECONDS = 2
+RETRYABLE_ERRORS = (
+    "timeout",
+    "connection",
+    "rate limit",
+    "429",
+    "503",
+    "502",
+    "504",
+    "temporarily unavailable",
+    "service unavailable",
+)
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -32,8 +48,38 @@ class NormalizedChatOpenAI(ChatOpenAI):
     stays small.
     """
 
+    def _is_retryable_error(self, error: Exception) -> bool:
+        """Check if error is transient and worth retrying."""
+        msg = str(error).lower()
+        return any(err in msg for err in RETRYABLE_ERRORS)
+
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        last_error = None
+        for attempt in range(1, MAX_INVOKE_RETRIES + 1):
+            try:
+                return normalize_content(super().invoke(input, config, **kwargs))
+            except Exception as e:
+                last_error = e
+                msg = str(e)
+
+                # Non-retryable: model not found / 404
+                if "Not Found" in msg or "404" in msg or ("Function" in msg and "Not found" in msg):
+                    raise RuntimeError(
+                        f"Model '{self.model_name}' not found or no longer available for this provider. "
+                        f"Please select a different model. Original error: {msg}"
+                    ) from e
+
+                # Retryable: transient network / rate limit / server errors
+                if attempt < MAX_INVOKE_RETRIES and self._is_retryable_error(e):
+                    print(f"[yellow]LLM invoke attempt {attempt}/{MAX_INVOKE_RETRIES} failed: {e}. Retrying in {RETRY_DELAY_SECONDS}s...[/yellow]")
+                    time.sleep(RETRY_DELAY_SECONDS)
+                    continue
+
+                # Non-retryable or max retries exceeded
+                raise
+
+        # Should not reach here, but safety
+        raise last_error
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
@@ -224,8 +270,10 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
+    "opencode":   ProviderSpec(base_url="https://opencode.ai/zen/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama"),
+    "ollama_cloud": ProviderSpec(base_url="https://api.ollama.com/v1"),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(
         require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI
@@ -236,6 +284,21 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
 def is_openai_compatible(provider: str) -> bool:
     """Whether ``provider`` is served by the OpenAI-compatible registry."""
     return provider.lower() in OPENAI_COMPATIBLE_PROVIDERS
+
+
+_ZEN_RESPONSES_PREFIXES = ("muse-spark-", "gpt-", "grok-")
+
+
+def _is_zen_responses_model(model: str | None) -> bool:
+    """True for Opencode Zen models served on the Responses API.
+
+    Per the Zen endpoint table, the ``gpt-*``, ``grok-*`` and ``muse-spark-*``
+    families live at ``/zen/v1/responses`` (Responses API); sending them to
+    Chat Completions returns HTTP 500. All other Zen models (deepseek,
+    minimax, glm, kimi, *_-free, ...) use ``/chat/completions``.
+    """
+    name = (model or "").lower().strip()
+    return name.startswith(_ZEN_RESPONSES_PREFIXES)
 
 
 def _is_native_openai_base_url(base_url: str | None) -> bool:
@@ -320,6 +383,11 @@ class OpenAIClient(BaseLLMClient):
                 llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
+
+        # Opencode Zen serves muse-spark contributor-free models only via the
+        # Responses API (/responses); Chat Completions answers HTTP 500.
+        if self.provider == "opencode" and _is_zen_responses_model(self.model):
+            llm_kwargs["use_responses_api"] = True
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:

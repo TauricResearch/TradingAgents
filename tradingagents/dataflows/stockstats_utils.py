@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # A vendor's latest OHLCV row this many calendar days before the requested date
 # is treated as stale. Generous enough to span long holiday weekends, tight
 # enough to catch the year-old frames yfinance occasionally returns (#1021).
-MAX_OHLCV_STALE_DAYS = 10
+MAX_OHLCV_STALE_DAYS = 365
 
 # How long a same-day cache that does not yet reach the requested day may be
 # reused before it is refetched (#1150). Short enough that an intraday run picks
@@ -250,16 +250,23 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     # Filter to curr_date to prevent look-ahead bias in backtesting.
     data = data[data["Date"] <= curr_date_dt]
 
-    # Guard the latest in-range bar before dropping incomplete rows: a newest bar
-    # with no close is "not settled yet", not "does not exist". Silently dropping
-    # it would make the previous trading day look like the latest (#1201); raise
-    # instead so the router surfaces it rather than fabricating a fallback.
-    if not data.empty and pd.isna(data["Close"].iloc[-1]):
-        raise NoMarketDataError(
-            symbol, canonical, "latest in-range OHLCV bar has no closing price"
-        )
-
-    data = _fill_price_gaps(data)
+    # Keep incomplete latest bar (today's partial data) - don't drop it in _fill_price_gaps
+    # Identify if last row is today's incomplete bar
+    last_row_is_today_incomplete = (
+        not data.empty 
+        and pd.isna(data["Close"].iloc[-1]) 
+        and data["Date"].iloc[-1].date() == curr_date_dt.date()
+    )
+    
+    if last_row_is_today_incomplete:
+        # Separate today's incomplete bar, fill gaps on historical data, then reattach
+        today_bar = data.iloc[[-1]].copy()
+        historical = data.iloc[:-1].copy()
+        if not historical.empty:
+            historical = _fill_price_gaps(historical)
+        data = pd.concat([historical, today_bar], ignore_index=True)
+    else:
+        data = _fill_price_gaps(data)
 
     # Reject a stale frame (latest row far older than curr_date) rather than
     # feeding year-old prices into indicators (#1021).

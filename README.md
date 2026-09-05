@@ -115,6 +115,56 @@ Install the package and its dependencies:
 pip install .
 ```
 
+#### One-Click Install with Auto Setup
+
+A single cross-platform installer (`install.py`, stdlib only) creates the venv, installs dependencies editable, writes `tradingagents` launchers, adds the repo to PATH, and runs `npm install` for the web app:
+
+```bash
+# From the repo root — Windows, Linux, or macOS (needs Python 3.10+):
+python install.py
+# Preview without changing anything:
+python install.py --dry-run
+# Skip the web/Node setup:
+python install.py --no-web
+```
+
+After restart, run `tradingagents` from any **new** terminal (Node.js is required for Browser mode: https://nodejs.org).
+
+Manual steps equivalent to the script:
+```bash
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install --upgrade pip   # Windows
+.venv/Scripts/python.exe -m pip install -e .            # Windows
+# Linux/macOS: use .venv/bin/python instead of .venv/Scripts/python.exe
+```
+
+### Interfaces: CLI, Dashboards, and Web App
+
+Besides the classic terminal flow, this repo ships two web UIs (no extra
+dependencies — the panels server is stdlib-only; the full app needs `npm install`, handled by `install.py`):
+
+- **Scroll dashboard** (always on): every run serves a live, independently
+  scrollable mirror at `http://127.0.0.1:8765` (+1 per parallel session) —
+  Progress / Messages & Tools / Current Report with Markdown, a floating
+  per-agent activity card (click any event for full context), and a prompt
+  bar answering the post-run questions (save/path/display/tables) from the page.
+- **Full web app** (`web/`, Next.js): optional CLI replacement. `tradingagents`
+  asks Browser-or-CLI first (30s auto-CLI); Browser builds/serves the app and
+  exits the CLI. Tabs: **Dashboard** (step-by-step run wizard mirroring every
+  CLI prompt, live quote widget), **Live** (panels + stats + prompt bar),
+  **Reports** (all sessions with bulk delete + open-in-Explorer), **Tables**
+  (LLM-normalized per-agent HTML tables, generate on demand), **Settings**
+  (provider API keys saved live to `.env` + Test-key connectivity checks).
+- **Run analysis from the web**: the app drives the exact CLI pipeline via
+  `tradingagents web` (JSON API on `:8787` by default).
+
+Extra provider/model work in this tree: Opencode Zen full catalog (free +
+paid) with a persisted catalog picker, NVIDIA reasoning effort, Zen
+Responses-API routing for `gpt-*`/`grok-*`/`muse-spark-*` models, Ollama
+Cloud + Qwen/GLM/MiniMax China entries, dynamic `(configured)` provider
+labels, per-section report tables (`tables.json`/`tables.md`), and a run
+done-state (frozen timer, done/error status).
+
 ### Docker
 
 Alternatively, run with Docker:
@@ -145,6 +195,9 @@ export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
 export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export NVIDIA_API_KEY=...          # NVIDIA NIM
+export OPENCODE_API_KEY=...        # OpenCode
+export OLLAMA_CLOUD_API_KEY=...    # Ollama Cloud
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
@@ -170,15 +223,34 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+#### Enhanced CLI Features
+
+* **Ticker dropdown with history** – recent tickers are shown in a selectable list with the last used on top; history persists in `~/.tradingagents/tickers.json`.
+* **Provider status** – providers show `(configured)` when the API key is present and valid.
+* **Live model listing** – for OpenAI-compatible providers and Ollama, models are fetched live from `/v1/models` or `/api/tags`, sorted A-Z, with a Custom model ID fallback. OpenRouter models are fetched live as before.
+* **Higher refresh rate** – the live UI refreshes at 10 Hz for smoother progress updates.
+* **Auto-restart** – after a run completes the CLI auto-restarts for the next analysis; press Ctrl+C to exit.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
 
-- US: `AAPL`, `SPY`
-- Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
-- India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
+- US: `AAPL`, `SPY`, `BRK.A` – no suffix or `.US`
+- India: `RELIANCE.NS` / `RELIANCE.BO` / `.NSE` / `.BSE` – NSE, BSE
+- Hong Kong: `0700.HK`
+- Japan: `7203.T`
+- UK: `AZN.L`
+- Europe: France ` .PA`, Germany `.DE`, Italy `.MI`, Netherlands `.AS`, Switzerland `.SW`, Sweden `.ST`
+- Canada: `.TO`
+- Australia: `.AX`
+- South Korea: `.KS`
+- Taiwan: `.TW`
+- Brazil: `.SA`
+- South Africa: `.J`
+- Mexico: `.MX`
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
-- Crypto: `BTC-USD`, `ETH-USD`
+- Crypto: `BTC-USD`, `ETH-USD`, `SOL-USD`, `ADA-USD`, and any Yahoo Finance crypto pair
+
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -198,7 +270,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, NVIDIA NIM, OpenCode, Ollama / Ollama Cloud, Mistral, Kimi, Groq, and Azure OpenAI for enterprise.
 
 ### Python Usage
 

@@ -26,6 +26,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_NVIDIA_REASONING_EFFORT": "nvidia_reasoning_effort",
 }
 
 
@@ -92,6 +93,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    "nvidia_reasoning_effort": None,    # "medium", "high", "low"
     # Sampling temperature, forwarded to every provider when set. None leaves
     # each provider at its own default. Lower values reduce run-to-run
     # variation on models that honor it; reasoning models largely ignore it
@@ -156,15 +158,33 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # while non-US tickers get their regional index automatically.
     "benchmark_ticker": None,
     "benchmark_map": {
+        # India
         ".NS":  "^NSEI",       # NSE India (Nifty 50)
+        ".NSE": "^NSEI",       # NSE India alt suffix
         ".BO":  "^BSESN",      # BSE India (Sensex)
+        ".BSE": "^BSESN",      # BSE India alt suffix
+        # US / default
+        "":     "SPY",         # default for US-listed tickers (no suffix)
+        ".US":  "SPY",         # US suffix
+        # International equities
         ".T":   "^N225",       # Tokyo (Nikkei 225)
         ".HK":  "^HSI",        # Hong Kong (Hang Seng)
         ".L":   "^FTSE",       # London (FTSE 100)
+        ".PA":  "^FCHI",       # Paris CAC 40
+        ".DE":  "^GDAXI",      # Germany DAX
+        ".MI":  "^FTSEMIB",    # Milan FTSE MIB
+        ".AS":  "^AEX",        # Amsterdam AEX
+        ".SW":  "^SSMI",       # Switzerland SMI
+        ".ST":  "^OMX",        # Sweden OMX
         ".TO":  "^GSPTSE",     # Toronto (TSX Composite)
         ".AX":  "^AXJO",       # Australia (ASX 200)
+        ".KS":  "^KOSPI",      # South Korea KOSPI
+        ".TW":  "^TWII",       # Taiwan Weighted
+        ".SA":  "^BVSP",       # Brazil Bovespa
+        ".J":   "^JTOPI",      # South Africa JSE
+        ".MX":  "^MXX",        # Mexico IPC
+        # China A-shares
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
-        "":     "SPY",         # default for US-listed tickers (no suffix)
     },
 })
