@@ -330,6 +330,23 @@ class PortfolioContext(BaseModel):
         default=None,
         description="Optional snapshot origin label (e.g. 'paper-broker', 'manual').",
     )
+    currency: str | None = Field(
+        default=None,
+        description=(
+            "Optional portfolio reporting currency label (e.g. 'USD', 'JPY'). "
+            "Display-only; TradingAgents performs no FX conversion."
+        ),
+    )
+
+    @field_validator("currency")
+    @classmethod
+    def _normalize_currency(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        cleaned = v.strip().upper()
+        if not cleaned:
+            raise ValueError("currency must be a non-empty label or omitted")
+        return cleaned
 
     def position_for(self, symbol: str) -> PositionSnapshot | None:
         """Return the position matching ``symbol`` (case-insensitive), if any."""
@@ -340,8 +357,17 @@ class PortfolioContext(BaseModel):
         return None
 
 
-def _format_money(value: float) -> str:
-    return f"${value:,.2f}"
+def _format_amount(value: float, currency: str | None = None) -> str:
+    """Format an amount with an optional ISO-style currency label.
+
+    No currency symbols are used: ``$`` is ambiguous across USD/CAD/AUD/HKD,
+    and the framework is market-neutral (non-US equities, crypto). Amounts
+    without a currency render as bare numbers.
+    """
+    text = f"{value:,.2f}"
+    if currency:
+        return f"{text} {currency.strip().upper()}"
+    return text
 
 
 def render_portfolio_context(context: PortfolioContext, symbol: str) -> str:
@@ -350,6 +376,12 @@ def render_portfolio_context(context: PortfolioContext, symbol: str) -> str:
     Only the current instrument's position is itemised; the remaining
     holdings are summarised by count so prompts stay small and stable.
     Never renders ``str(dict)``: every line is an explicit, labelled fact.
+
+    Market-neutral: quantities use generic ``units`` (stocks, ETFs, crypto),
+    and amounts carry the optional portfolio ``currency`` label only. The
+    average entry price is quoted in the instrument's own quote currency,
+    which may differ from the portfolio currency, so it never inherits the
+    portfolio currency label.
     """
     lines = ["Portfolio Context:"]
     snapshot = context.as_of or "timestamp not recorded"
@@ -358,23 +390,29 @@ def render_portfolio_context(context: PortfolioContext, symbol: str) -> str:
 
     capital = []
     if context.portfolio_value is not None:
-        capital.append(f"portfolio value {_format_money(context.portfolio_value)}")
+        capital.append(
+            f"portfolio value {_format_amount(context.portfolio_value, context.currency)}"
+        )
     if context.cash is not None:
-        capital.append(f"cash {_format_money(context.cash)}")
+        capital.append(f"cash {_format_amount(context.cash, context.currency)}")
     if context.buying_power is not None:
-        capital.append(f"buying power {_format_money(context.buying_power)}")
+        capital.append(
+            f"buying power {_format_amount(context.buying_power, context.currency)}"
+        )
     lines.append(
         "- Capital: " + ("; ".join(capital) if capital else "no capital figures provided")
     )
 
     current = context.position_for(symbol)
     if current is not None:
-        detail = f"- Current {current.symbol} position: {current.quantity:g} shares"
+        detail = f"- Current {current.symbol} position: {current.quantity:g} units"
         extras = []
         if current.market_value is not None:
-            extras.append(f"market value {_format_money(current.market_value)}")
+            extras.append(
+                f"market value {_format_amount(current.market_value, context.currency)}"
+            )
         if current.average_entry_price is not None:
-            extras.append(f"avg entry {_format_money(current.average_entry_price)}")
+            extras.append(f"avg entry {_format_amount(current.average_entry_price)}")
         if extras:
             detail += f" ({'; '.join(extras)})"
         lines.append(detail + ".")

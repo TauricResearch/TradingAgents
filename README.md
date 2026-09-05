@@ -251,6 +251,7 @@ context = PortfolioContext(
     portfolio_value=120000.0,
     as_of="2026-01-15",
     source="paper-broker",
+    currency="USD",
 )
 
 _, decision = ta.propagate("NVDA", "2026-01-15", portfolio_context=context)
@@ -264,6 +265,8 @@ tradingagents analyze --portfolio-context /path/to/portfolio.json
 ```
 
 Saved run state records whether a context was present (`portfolio_context_present`) together with the snapshot used. The contract carries no credentials, account identifiers, or broker dependencies.
+
+`currency` is an optional reporting label only; TradingAgents does not perform FX conversion. A changed snapshot starts a fresh checkpointed run instead of resuming stale portfolio state.
 
 ## Persistence and Recovery
 

@@ -45,7 +45,12 @@ from tradingagents.agents.utils.agent_utils import (
     get_portfolio_context_from_state,
     portfolio_prompt_block,
 )
-from tradingagents.graph.propagation import Propagator, normalize_portfolio_context
+from tradingagents.graph.propagation import (
+    MISSING_PORTFOLIO_FINGERPRINT,
+    Propagator,
+    normalize_portfolio_context,
+    portfolio_context_fingerprint,
+)
 
 
 def _sample_context() -> PortfolioContext:
@@ -62,6 +67,7 @@ def _sample_context() -> PortfolioContext:
         buying_power=50000.0,
         as_of="2026-01-15",
         source="paper-broker",
+        currency="USD",
     )
 
 
@@ -139,12 +145,15 @@ class TestPortfolioRendering:
 
     def test_current_position_rendered_with_facts(self):
         text = render_portfolio_context(_sample_context(), "NVDA")
-        assert "10" in text and "NVDA" in text
-        assert "$1,895.00" in text
-        assert "$150.00" in text
-        assert "$25,000.00" in text  # cash
-        assert "$120,000.00" in text  # portfolio value
+        assert "10 units" in text and "NVDA" in text
+        assert "shares" not in text
+        assert "1,895.00 USD" in text
+        assert "avg entry 150.00" in text  # quote currency: no portfolio label
+        assert "USD" not in text.split("avg entry")[1].split("\n")[0]
+        assert "25,000.00 USD" in text  # cash
+        assert "120,000.00 USD" in text  # portfolio value
         assert "2026-01-15" in text and "paper-broker" in text
+        assert "$" not in text
 
     def test_other_holdings_summarized_not_dumped(self):
         text = render_portfolio_context(_sample_context(), "AAPL")
@@ -282,7 +291,7 @@ class TestDecisionNodePrompts:
         )
         text = _prompt_text(captured["prompt"])
         assert "Portfolio Context:" in text
-        assert "$25,000.00" in text
+        assert "25,000.00 USD" in text
 
     def test_pm_prompt_missing_notice_without_context(self):
         captured = {}
@@ -541,3 +550,197 @@ class TestPortfolioContextFileLoader:
         path.write_text(json.dumps({"cash": "lots"}), encoding="utf-8")
         with pytest.raises(typer.BadParameter, match="failed validation"):
             load_portfolio_context_file(str(path))
+
+
+# ---------------------------------------------------------------------------
+# Optional currency label (market-neutral display, no FX conversion)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestPortfolioCurrency:
+    def test_defaults_to_none(self):
+        assert PortfolioContext().currency is None
+
+    def test_normalized_to_uppercase(self):
+        assert PortfolioContext(currency="usd").currency == "USD"
+        assert PortfolioContext(currency="  jpy ").currency == "JPY"
+
+    def test_blank_rejected(self):
+        with pytest.raises(ValidationError):
+            PortfolioContext(currency="   ")
+
+    def test_currency_participates_in_round_trip(self):
+        ctx = PortfolioContext(currency="EUR", cash=100.0)
+        assert PortfolioContext.model_validate(ctx.model_dump(mode="json")) == ctx
+
+
+@pytest.mark.unit
+class TestMarketNeutralRendering:
+    def test_no_currency_renders_bare_numbers(self):
+        ctx = PortfolioContext(
+            positions=[PositionSnapshot(symbol="NVDA", quantity=10.0, market_value=1895.0)],
+            cash=25000.0,
+        )
+        text = render_portfolio_context(ctx, "NVDA")
+        assert "1,895.00" in text
+        assert "25,000.00" in text
+        assert "$" not in text
+
+    def test_crypto_quantity_uses_units(self):
+        ctx = PortfolioContext(
+            positions=[PositionSnapshot(symbol="BTC-USD", quantity=0.5)],
+        )
+        text = render_portfolio_context(ctx, "BTC-USD")
+        assert "0.5 units" in text
+        assert "shares" not in text
+
+    def test_jpy_snapshot_has_no_dollar_sign(self):
+        ctx = PortfolioContext(
+            currency="JPY",
+            positions=[
+                PositionSnapshot(
+                    symbol="7203.T", quantity=100.0, market_value=280000.0,
+                    average_entry_price=2700.0,
+                )
+            ],
+            cash=100000.0,
+            as_of="2026-01-15",
+            source="paper-broker",
+        )
+        text = render_portfolio_context(ctx, "7203.T")
+        assert "280,000.00 JPY" in text
+        assert "100,000.00 JPY" in text
+        assert "100 units" in text
+        assert "$" not in text
+        # Entry price is quoted in the instrument's own currency, which may
+        # differ from the portfolio currency: no inherited label.
+        assert "avg entry 2,700.00" in text
+
+
+# ---------------------------------------------------------------------------
+# Deterministic fingerprint for checkpoint identity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestPortfolioFingerprint:
+    def test_deterministic(self):
+        assert portfolio_context_fingerprint(_sample_context()) == (
+            portfolio_context_fingerprint(_sample_context())
+        )
+
+    def test_model_vs_dict_agree(self):
+        ctx = _sample_context()
+        assert portfolio_context_fingerprint(ctx) == (
+            portfolio_context_fingerprint(ctx.model_dump(mode="json"))
+        )
+
+    def test_dict_key_order_irrelevant(self):
+        a = {"cash": 1000.0, "positions": [{"symbol": "NVDA", "quantity": 10.0}]}
+        b = {"positions": [{"quantity": 10.0, "symbol": "NVDA"}], "cash": 1000.0}
+        assert portfolio_context_fingerprint(a) == portfolio_context_fingerprint(b)
+
+    def test_position_order_irrelevant(self):
+        a = _sample_context()
+        b = _sample_context()
+        b.positions = list(reversed(b.positions))
+        assert portfolio_context_fingerprint(a) == portfolio_context_fingerprint(b)
+
+    def test_changed_holdings_change_fingerprint(self):
+        base = portfolio_context_fingerprint(_sample_context())
+
+        changed_qty = _sample_context()
+        changed_qty.positions[0].quantity = 30.0
+        assert portfolio_context_fingerprint(changed_qty) != base
+
+        changed_cash = _sample_context()
+        changed_cash.cash = 1.0
+        assert portfolio_context_fingerprint(changed_cash) != base
+
+        changed_value = _sample_context()
+        changed_value.portfolio_value = 1.0
+        assert portfolio_context_fingerprint(changed_value) != base
+
+        changed_power = _sample_context()
+        changed_power.buying_power = 1.0
+        assert portfolio_context_fingerprint(changed_power) != base
+
+        changed_list = _sample_context()
+        changed_list.positions = changed_list.positions[:1]
+        assert portfolio_context_fingerprint(changed_list) != base
+
+        changed_asof = _sample_context()
+        changed_asof.as_of = "2026-01-16"
+        assert portfolio_context_fingerprint(changed_asof) != base
+
+        changed_source = _sample_context()
+        changed_source.source = "manual"
+        assert portfolio_context_fingerprint(changed_source) != base
+
+        changed_currency = _sample_context()
+        changed_currency.currency = "EUR"
+        assert portfolio_context_fingerprint(changed_currency) != base
+
+    def test_missing_is_fixed_marker(self):
+        assert portfolio_context_fingerprint(None) == MISSING_PORTFOLIO_FINGERPRINT
+        assert MISSING_PORTFOLIO_FINGERPRINT == "none"
+
+    def test_missing_differs_from_known_empty(self):
+        """Missing context must never share checkpoint identity with a flat portfolio."""
+        assert portfolio_context_fingerprint(None) != (
+            portfolio_context_fingerprint(PortfolioContext())
+        )
+
+    def test_fingerprint_is_short_hex_without_holdings(self):
+        fp = portfolio_context_fingerprint(_sample_context())
+        assert len(fp) == 16
+        int(fp, 16)  # hex
+        assert "NVDA" not in fp and "{" not in fp
+
+
+@pytest.mark.unit
+class TestCheckpointIdentity:
+    def _signature(self, stub_config, portfolio_context=None):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+        stub = MagicMock()
+        stub.config = stub_config
+        stub.selected_analysts = ("market",)
+        return TradingAgentsGraph._run_signature(stub, "stock", portfolio_context)
+
+    def test_default_signature_marks_missing(self):
+        config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        assert "portfolio=none" in self._signature(config)
+
+    def test_same_snapshot_same_signature(self):
+        config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        assert self._signature(config, _sample_context()) == (
+            self._signature(config, _sample_context().model_dump(mode="json"))
+        )
+
+    def test_changed_snapshot_changes_signature(self):
+        config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        changed = _sample_context()
+        changed.positions[0].quantity = 30.0
+        assert self._signature(config, _sample_context()) != (
+            self._signature(config, changed)
+        )
+
+    def test_stale_checkpoint_unreachable(self):
+        """A changed snapshot routes to a different checkpoint thread, so an
+        old-context checkpoint can never be resumed by a new-context run."""
+        from tradingagents.graph.checkpointer import thread_id
+
+        config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        changed = _sample_context()
+        changed.positions[0].quantity = 30.0
+        sig_old = self._signature(config, _sample_context())
+        sig_new = self._signature(config, changed)
+        assert thread_id("NVDA", "2026-01-10", sig_old) != (
+            thread_id("NVDA", "2026-01-10", sig_new)
+        )
+        # ...while an unchanged snapshot reproduces the identical thread.
+        assert thread_id("NVDA", "2026-01-10", sig_old) == (
+            thread_id("NVDA", "2026-01-10", self._signature(config, _sample_context()))
+        )

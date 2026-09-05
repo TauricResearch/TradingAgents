@@ -1173,8 +1173,11 @@ def run_analysis(
         # Recompile with a checkpointer and inject the thread_id so --checkpoint
         # actually saves and resumes on the CLI path (#1249); a no-op when
         # checkpointing is disabled. Torn down in the finally below.
+        # The portfolio snapshot participates in the checkpoint identity so a
+        # changed snapshot starts fresh instead of resuming stale state (#1166).
         checkpoint_tid = graph.begin_checkpoint(
-            selections["ticker"], selections["analysis_date"], selections["asset_type"]
+            selections["ticker"], selections["analysis_date"], selections["asset_type"],
+            portfolio_context=portfolio_context,
         )
         if checkpoint_tid is not None:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_tid
@@ -1289,7 +1292,8 @@ def run_analysis(
             # Clean run: drop this run's checkpoint so a later run starts fresh.
             # A mid-stream failure skips this, keeping the checkpoint for resume.
             graph.clear_checkpoint_on_success(
-                selections["ticker"], selections["analysis_date"], selections["asset_type"]
+                selections["ticker"], selections["analysis_date"], selections["asset_type"],
+                portfolio_context=portfolio_context,
             )
         finally:
             # Always restore the plain uncheckpointed graph, even on failure.
