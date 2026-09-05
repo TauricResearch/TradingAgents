@@ -16,15 +16,13 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 def test_identity_lookup_normalizes_symbol(monkeypatch):
     seen = {}
 
-    class FakeTicker:
-        def __init__(self, symbol):
-            seen["symbol"] = symbol
+    def fake_survey(symbol):
+        seen["symbol"] = symbol
+        return {"company_name": "Gold Futures", "industry": "Commodities"}
 
-        @property
-        def info(self):
-            return {"longName": "Gold Futures", "quoteType": "FUTURE"}
-
-    monkeypatch.setattr(au.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(
+        "tradingagents.dataflows.eastmoney_finance.resolve_company_survey", fake_survey
+    )
     au.resolve_instrument_identity.cache_clear()
 
     identity = au.resolve_instrument_identity("XAUUSD")
@@ -36,22 +34,30 @@ def test_identity_lookup_normalizes_symbol(monkeypatch):
 def test_fetch_returns_normalizes_symbol(monkeypatch):
     queried = []
 
-    class FakeTicker:
-        def __init__(self, symbol):
-            queried.append(symbol)
+    def fake_sina_symbol(symbol):
+        queried.append(symbol)
+        return symbol  # identity mapping keeps the benchmark symbol visible
 
-        def history(self, *args, **kwargs):
-            return pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0]})
+    def fake_kline(sina_symbol, datalen=1023):
+        idx = pd.to_datetime(["2026-01-05", "2026-01-06", "2026-01-07"])
+        return pd.DataFrame(
+            {"Date": idx, "Close": [100.0, 101.0, 102.0]}
+        )
 
-    monkeypatch.setattr(tg.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(
+        "tradingagents.dataflows.sina_market._sina_symbol", fake_sina_symbol
+    )
+    monkeypatch.setattr(
+        "tradingagents.dataflows.sina_market.fetch_sina_kline", fake_kline
+    )
 
     # _fetch_returns does not use ``self``; call unbound to avoid building the graph.
     raw, alpha, days = TradingAgentsGraph._fetch_returns(
-        None, "XAUUSD", "2025-01-02", holding_days=5, benchmark="SPY"
+        None, "600036.SS", "2026-01-05", holding_days=5, benchmark="000001.SS"
     )
 
-    assert queried[0] == "GC=F"  # stock symbol normalized (#984)
-    assert queried[1] == "SPY"   # benchmark left as the canonical symbol
+    assert queried[0] == "600036.SS"  # stock symbol passed to the domestic provider
+    assert queried[1] == "000001.SS"  # benchmark left as the canonical symbol
     assert raw is not None and days is not None
 
 

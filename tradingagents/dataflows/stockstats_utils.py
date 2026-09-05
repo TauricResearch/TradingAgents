@@ -192,19 +192,14 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             data = cached
 
     if data is None:
-        downloaded = yf_retry(lambda: yf.download(
-            canonical,
-            start=start_str,
-            end=end_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        ))
-        downloaded = _ensure_date_column(downloaded.reset_index())
+        from .sina_market import load_sina_ohlcv
+
+        downloaded = load_sina_ohlcv(symbol, curr_date, datalen=1023)
+        downloaded = _ensure_date_column(downloaded)
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
             raise NoMarketDataError(
-                symbol, canonical, "Yahoo Finance returned no rows"
+                symbol, canonical, "Sina Finance returned no rows"
             )
         downloaded.to_csv(data_file, index=False, encoding="utf-8")
         data = downloaded

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import yfinance as yf
+import pandas as pd
 from langgraph.prebuilt import ToolNode
 
 # Import the abstract tool methods from agent_utils
@@ -42,6 +42,16 @@ from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
+
+# Debug-stream labels for the concurrently running analyst branches: their
+# messages live in per-analyst channels now, so report completion is the
+# visible progress signal instead of shared-channel message traces.
+ANALYST_REPORT_LABELS = {
+    "market_report": "Market Analyst",
+    "sentiment_report": "Sentiment Analyst",
+    "news_report": "News Analyst",
+    "fundamentals_report": "Fundamentals Analyst",
+}
 
 
 def _coerce_max_retries(value):
@@ -198,13 +208,15 @@ class TradingAgentsGraph:
                     # LLM and required by its prompt; must be executable here or
                     # the call fails and the model reports it "unavailable").
                     get_verified_market_snapshot,
-                ]
+                ],
+                messages_key="market_messages",
             ),
             "social": ToolNode(
                 [
                     # News tools for social media analysis
                     get_news,
-                ]
+                ],
+                messages_key="sentiment_messages",
             ),
             "news": ToolNode(
                 [
@@ -214,7 +226,8 @@ class TradingAgentsGraph:
                     get_insider_transactions,
                     get_macro_indicators,
                     get_prediction_markets,
-                ]
+                ],
+                messages_key="news_messages",
             ),
             "fundamentals": ToolNode(
                 [
@@ -223,7 +236,8 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
-                ]
+                ],
+                messages_key="fundamentals_messages",
             ),
         }
 
@@ -259,18 +273,29 @@ class TradingAgentsGraph:
         actual_holding_days)`` or ``(None, None, None)`` if price data is
         unavailable (too recent, delisted, or network error).
         """
-        from tradingagents.dataflows.symbol_utils import normalize_symbol
-
         try:
             start = datetime.strptime(trade_date, "%Y-%m-%d")
             end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
             end_str = end.strftime("%Y-%m-%d")
 
-            # Normalize so the realized-return lookup hits the same instrument
-            # the analysis priced (e.g. XAUUSD -> GC=F) (#984). The benchmark is
-            # already a canonical Yahoo symbol from ``_resolve_benchmark``.
-            stock = yf.Ticker(normalize_symbol(ticker)).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
+            def _domestic_history(symbol: str):
+                from tradingagents.dataflows.sina_market import (
+                    _sina_symbol,
+                    fetch_sina_kline,
+                )
+
+                sina_symbol = _sina_symbol(symbol)
+                if not sina_symbol:
+                    return None
+                frame = fetch_sina_kline(sina_symbol, datalen=1023)
+                return frame[
+                    frame["Date"].between(pd.to_datetime(start), pd.to_datetime(end))
+                ]
+
+            stock = _domestic_history(ticker)
+            bench = _domestic_history(benchmark)
+            if stock is None or bench is None:
+                return None, None, None
 
             if len(stock) < 2 or len(bench) < 2:
                 return None, None, None
@@ -351,8 +376,14 @@ class TradingAgentsGraph:
         Keyed into the checkpoint thread ID so a resume under a different analyst
         selection, debate/risk depth, or asset mode starts fresh instead of
         silently continuing the previous graph (#1089).
+
+        ``gv`` is the graph-topology version: bumping it invalidates checkpoints
+        written by an older graph layout (e.g. the pre-parallel serial analyst
+        chain) so a resume under a changed topology starts fresh instead of
+        replaying against the new shape.
         """
         return "|".join([
+            "gv=2",
             "analysts=" + ",".join(self.selected_analysts),
             f"debate={self.config['max_debate_rounds']}",
             f"risk={self.config['max_risk_discuss_rounds']}",
@@ -440,6 +471,7 @@ class TradingAgentsGraph:
         if self.debug:
             trace = []
             last_printed = None
+            seen_reports = set()
             for chunk in self.graph.stream(init_agent_state, **args):
                 if chunk["messages"]:
                     msg = chunk["messages"][-1]
@@ -450,7 +482,11 @@ class TradingAgentsGraph:
                     if signature != last_printed:
                         msg.pretty_print()
                         last_printed = signature
-                    trace.append(chunk)
+                for report_key, label in ANALYST_REPORT_LABELS.items():
+                    if chunk.get(report_key) and report_key not in seen_reports:
+                        seen_reports.add(report_key)
+                        print(f"--- {label} report ready ---")
+                trace.append(chunk)
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}

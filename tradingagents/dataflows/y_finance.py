@@ -32,7 +32,20 @@ def get_YFin_data_online(
     # end_date row (and the current day when end_date is today). Request one day
     # past end_date so the requested range is actually inclusive (#986/#987).
     end_inclusive = (end_dt + relativedelta(days=1)).strftime("%Y-%m-%d")
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_inclusive))
+
+    # Prefer the on-disk OHLCV cache (same freshness rules as the indicator
+    # path) so repeated analyses do not hammer Yahoo and trip its rate limit.
+    data = None
+    try:
+        cached = load_ohlcv(symbol, end_date)
+        cached = cached[cached["Date"] >= pd.to_datetime(start_date)]
+        if not cached.empty:
+            data = cached
+    except Exception:  # noqa: BLE001 - fall through to the live fetch below
+        data = None
+
+    if data is None:
+        data = yf_retry(lambda: ticker.history(start=start_date, end=end_inclusive))
 
     # Empty result means the symbol is unknown/delisted. Raise a typed error
     # instead of returning prose: the routing layer turns it into a single

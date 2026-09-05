@@ -1,7 +1,7 @@
 """Backwards-compatibility shim for the renamed module.
 
-The agent is now ``sentiment_analyst`` and aggregates Yahoo Finance news,
-StockTwits cashtag streams, and Reddit posts into a single sentiment
+The agent is now ``sentiment_analyst`` and aggregates Chinese news and
+community data (Sina Finance news + Eastmoney Guba) into a single sentiment
 report. Import from ``tradingagents.agents.analysts.sentiment_analyst``
 going forward; this module will be removed in a future release.
 

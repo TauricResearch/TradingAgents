@@ -14,7 +14,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from tradingagents.dataflows import interface, stockstats_utils
+from tradingagents.dataflows import interface, sina_market, stockstats_utils
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
@@ -33,16 +33,19 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
 
     def test_empty_download_raises_and_does_not_cache(self):
         empty = pd.DataFrame()
-        with mock.patch.object(stockstats_utils.yf, "download", return_value=empty), \
-                self.assertRaises(NoMarketDataError):
-            stockstats_utils.load_ohlcv("FAKE", "2026-01-01")
+        with mock.patch.object(
+            sina_market, "load_sina_ohlcv", return_value=empty
+        ), self.assertRaises(NoMarketDataError):
+            stockstats_utils.load_ohlcv("600036.SS", "2026-01-01")
         # Nothing should have been written to the cache.
         self.assertEqual(os.listdir(self._tmp), [])
 
         # A second call must re-attempt the fetch (no poisoned cache served).
-        with mock.patch.object(stockstats_utils.yf, "download", return_value=empty) as dl2:
+        with mock.patch.object(
+            sina_market, "load_sina_ohlcv", return_value=empty
+        ) as dl2:
             with self.assertRaises(NoMarketDataError):
-                stockstats_utils.load_ohlcv("FAKE", "2026-01-01")
+                stockstats_utils.load_ohlcv("600036.SS", "2026-01-01")
             self.assertTrue(dl2.called)
 
 
@@ -50,18 +53,17 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
 class TestRouteToVendorSentinel(unittest.TestCase):
     def test_no_data_from_all_vendors_returns_sentinel(self):
         def raises_no_data(symbol, *a, **k):
-            raise NoMarketDataError(symbol, "GC=F", "no rows")
+            raise NoMarketDataError(symbol, symbol, "no rows")
 
-        patched = {"yfinance": raises_no_data, "alpha_vantage": raises_no_data}
+        patched = {"sina": raises_no_data, "alpha_vantage": raises_no_data}
         with mock.patch.dict(
             interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
         ):
             result = interface.route_to_vendor(
-                "get_stock_data", "XAUUSD+", "2026-01-01", "2026-01-10"
+                "get_stock_data", "600036.SS", "2026-01-01", "2026-01-10"
             )
         self.assertIn("NO_DATA_AVAILABLE", result)
-        self.assertIn("XAUUSD+", result)
-        self.assertIn("GC=F", result)
+        self.assertIn("600036.SS", result)
         self.assertIn("Do not estimate", result)
 
     def test_unconfigured_fallback_does_not_mask_no_data(self):
@@ -74,12 +76,12 @@ class TestRouteToVendorSentinel(unittest.TestCase):
         def raises_unavailable(symbol, *a, **k):
             raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
 
-        patched = {"yfinance": raises_no_data, "alpha_vantage": raises_unavailable}
+        patched = {"sina": raises_no_data, "alpha_vantage": raises_unavailable}
         with mock.patch.dict(
             interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
         ):
             result = interface.route_to_vendor(
-                "get_stock_data", "FAKE", "2026-01-01", "2026-01-10"
+                "get_stock_data", "600036.SS", "2026-01-01", "2026-01-10"
             )
         self.assertIn("NO_DATA_AVAILABLE", result)
 

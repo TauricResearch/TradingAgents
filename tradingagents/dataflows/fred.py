@@ -69,6 +69,11 @@ MACRO_SERIES = {
     "consumer_sentiment": "UMCSENT",
     "housing_starts": "HOUST",
     "retail_sales": "RSAFS",
+    # International / China references the news agent occasionally reaches for.
+    "china_cpi": "CHNCPIALLMINMEI",
+    "chinese_cpi": "CHNCPIALLMINMEI",
+    "china_gdp": "CHNGDPNQDSMEI",
+    "chinese_gdp": "CHNGDPNQDSMEI",
 }
 
 
@@ -165,7 +170,20 @@ def get_macro_data(
     except ValueError as e:
         return f"FRED: {e}"
 
-    meta = _request("series", {"series_id": series_id}).get("seriess") or []
+    try:
+        meta = _request("series", {"series_id": series_id}).get("seriess") or []
+    except ValueError as exc:
+        # A well-formed but non-existent series ID is an input problem, not a
+        # transient FRED failure. Return guidance to the analyst instead of
+        # surfacing a noisy vendor warning and degrading the whole category.
+        if "series does not exist" in str(exc).lower():
+            return (
+                f"FRED series '{series_id}' not found for indicator '{indicator}'. "
+                "Use a known alias (e.g. 'cpi', 'core_pce', 'unemployment', "
+                "'fed_funds_rate', '10y_treasury', 'yield_curve', 'china_cpi') "
+                "or a valid FRED series ID."
+            )
+        raise
     if not meta:
         return (
             f"FRED series '{series_id}' not found. Pass a known alias "

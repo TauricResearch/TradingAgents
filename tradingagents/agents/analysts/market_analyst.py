@@ -8,9 +8,14 @@ from tradingagents.agents.utils.agent_utils import (
     get_verified_market_snapshot,
 )
 
+# Upper bound on agent -> tools -> agent rounds inside the analyst branch. The
+# branch is now a single self-contained node (so the four analysts can run
+# concurrently and converge once), and this cap keeps a tool-happy model from
+# looping forever.
+MAX_ANALYST_TOOL_ROUNDS = 8
 
-def create_market_analyst(llm):
 
+def create_market_analyst(llm, tool_node=None):
     def market_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
@@ -69,7 +74,7 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
                     " Today's date is {current_date}; treat it as 'now' for all analysis and tool-call date ranges. {instrument_context}\n"
                     "{system_message}",
                 ),
-                MessagesPlaceholder(variable_name="messages"),
+                MessagesPlaceholder(variable_name="market_messages"),
             ]
         )
 
@@ -80,15 +85,27 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
-
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        # Self-contained branch loop: run the LLM, execute any tool calls it
+        # requests via the branch ToolNode, and repeat until it produces a
+        # final report (or the round cap is hit).
+        messages = list(state["market_messages"])
+        result = None
+        for _ in range(MAX_ANALYST_TOOL_ROUNDS):
+            result = chain.invoke(messages)
+            if not getattr(result, "tool_calls", None):
+                break
+            if tool_node is None:
+                break
+            # ToolNode returns only the newly produced ToolMessages; append
+            # them to the running history so the next LLM round still sees the
+            # preceding AIMessage(tool_calls) that each ToolMessage answers.
+            messages = messages + [result]
+            output = tool_node.invoke({"market_messages": messages})
+            messages = messages + list(output["market_messages"])
+        report = result.content if result is not None else ""
 
         return {
-            "messages": [result],
+            "market_messages": messages,
             "market_report": report,
         }
 

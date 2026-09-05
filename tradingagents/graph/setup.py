@@ -12,7 +12,6 @@ from tradingagents.agents import (
     create_conservative_debator,
     create_fundamentals_analyst,
     create_market_analyst,
-    create_msg_delete,
     create_neutral_debator,
     create_news_analyst,
     create_portfolio_manager,
@@ -73,10 +72,16 @@ class GraphSetup:
         plan = build_analyst_execution_plan(selected_analysts)
 
         analyst_factories = {
-            "market": lambda: create_market_analyst(self.quick_thinking_llm),
+            "market": lambda: create_market_analyst(
+                self.quick_thinking_llm, tool_node=self.tool_nodes["market"]
+            ),
             "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
-            "news": lambda: create_news_analyst(self.quick_thinking_llm),
-            "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
+            "news": lambda: create_news_analyst(
+                self.quick_thinking_llm, tool_node=self.tool_nodes["news"]
+            ),
+            "fundamentals": lambda: create_fundamentals_analyst(
+                self.quick_thinking_llm, tool_node=self.tool_nodes["fundamentals"]
+            ),
         }
 
         # Create researcher and manager nodes
@@ -97,8 +102,6 @@ class GraphSetup:
         # Add analyst nodes to the graph
         for spec in plan.specs:
             workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
-            workflow.add_node(spec.clear_node, create_msg_delete())
-            workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])
 
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
@@ -110,29 +113,15 @@ class GraphSetup:
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        # Define edges
-        # Start with the first analyst
-        workflow.add_edge(START, plan.specs[0].agent_node)
-
-        # Connect analysts in sequence
-        for i, spec in enumerate(plan.specs):
-            current_analyst = spec.agent_node
-            current_tools = spec.tool_node
-            current_clear = spec.clear_node
-
-            # Add conditional edges for current analyst
-            workflow.add_conditional_edges(
-                current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{spec.key}"),
-                [current_tools, current_clear],
-            )
-            workflow.add_edge(current_tools, current_analyst)
-
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(plan.specs) - 1:
-                workflow.add_edge(current_clear, plan.specs[i + 1].agent_node)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+        # Define edges. All selected analysts start concurrently: each branch
+        # is one self-contained node (LLM -> tools -> LLM loop over its own
+        # message channel) writing exactly one report key, so the branches
+        # share no mutable state and finish in the same superstep. They
+        # converge at the Bull Researcher, which runs once all branches have
+        # completed.
+        for spec in plan.specs:
+            workflow.add_edge(START, spec.agent_node)
+            workflow.add_edge(spec.agent_node, "Bull Researcher")
 
         # Both research-debate edges share the complete DEBATE_PATH_MAP (#1088).
         for debate_node in ("Bull Researcher", "Bear Researcher"):

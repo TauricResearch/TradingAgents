@@ -31,8 +31,15 @@ class Propagator:
         fall back to ticker-only context via
         ``get_instrument_context_from_state``.
         """
+        initial_messages = [("human", company_name)]
         return {
-            "messages": [("human", company_name)],
+            "messages": initial_messages,
+            # Each analyst branch starts from the same task message; the
+            # branches run concurrently and never share message history.
+            "market_messages": list(initial_messages),
+            "sentiment_messages": list(initial_messages),
+            "news_messages": list(initial_messages),
+            "fundamentals_messages": list(initial_messages),
             "company_of_interest": company_name,
             "asset_type": asset_type,
             "instrument_context": instrument_context,

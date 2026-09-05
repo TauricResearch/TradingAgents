@@ -1,9 +1,15 @@
 """Shared pytest fixtures that prevent CI hangs when API keys are absent."""
 
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from dotenv import load_dotenv
+
+# Prefer the project .env over stale/placeholder process-environment keys so
+# integration tests that hit live providers run against the real credential.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 
 
 def pytest_configure(config):

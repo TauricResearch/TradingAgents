@@ -110,9 +110,8 @@ def test_sentiment_prompt_states_constraint(monkeypatch):
     from tradingagents.agents.schemas import SentimentBand, SentimentReport
 
     # Pre-fetched sources are stubbed so the prompt builds without network I/O.
-    monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
-    monkeypatch.setattr(sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
-    monkeypatch.setattr(sentiment.get_news, "func", lambda *a, **k: "news", raising=False)
+    monkeypatch.setattr(sentiment, "fetch_sina_news", lambda *a, **k: "news")
+    monkeypatch.setattr(sentiment, "fetch_eastmoney_guba", lambda *a, **k: "guba")
 
     captured = {}
     llm = _capturing_llm(captured, SentimentReport(
@@ -121,7 +120,7 @@ def test_sentiment_prompt_states_constraint(monkeypatch):
     ))
     sentiment.create_sentiment_analyst(llm)({
         "company_of_interest": "NVDA", "trade_date": "2026-01-15",
-        "asset_type": "stock", "messages": [],
+        "asset_type": "stock", "sentiment_messages": [],
     })
     text = _prompt_text(captured["prompt"])
     assert NO_EXTERNAL_TOOLS in text

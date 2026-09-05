@@ -3,7 +3,6 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-import yfinance as yf
 from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
@@ -85,7 +84,7 @@ def resolve_instrument_identity(ticker: str) -> dict:
     the price action to a narrative and invent an identity that then cascaded
     through every downstream agent.
 
-    Best-effort by design: if yfinance is unavailable, rate-limited, or doesn't
+    Best-effort by design: if the domestic provider is unavailable or doesn't
     recognise the ticker, we return ``{}`` and the caller falls back to
     ticker-only context rather than failing before analysis starts. Cached so
     the lookup happens at most once per ticker per process.
@@ -93,29 +92,28 @@ def resolve_instrument_identity(ticker: str) -> dict:
     The symbol is normalized first (e.g. ``XAUUSD`` -> ``GC=F``) so identity
     resolves for the same instrument the price path actually fetches (#983).
     """
+    from tradingagents.dataflows.eastmoney_finance import resolve_company_survey
     from tradingagents.dataflows.symbol_utils import normalize_symbol
 
     try:
-        info = yf.Ticker(normalize_symbol(ticker)).info or {}
+        info = resolve_company_survey(normalize_symbol(ticker))
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}
 
     identity: dict[str, str] = {}
-    company_name = _clean_identity_value(info.get("longName")) or _clean_identity_value(
-        info.get("shortName")
-    )
+    company_name = _clean_identity_value(info.get("company_name"))
     if company_name:
         identity["company_name"] = company_name
-    for source_key, target_key in (
-        ("sector", "sector"),
-        ("industry", "industry"),
-        ("exchange", "exchange"),
-        ("quoteType", "quote_type"),
-    ):
-        value = _clean_identity_value(info.get(source_key))
-        if value:
-            identity[target_key] = value
+    industry = _clean_identity_value(info.get("industry"))
+    if industry:
+        identity["industry"] = industry
+        sector = industry.split("-", 1)[0].strip()
+        if sector:
+            identity["sector"] = sector
+    exchange = _clean_identity_value(info.get("exchange"))
+    if exchange:
+        identity["exchange"] = exchange
     return identity
 
 

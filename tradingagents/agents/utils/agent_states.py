@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from langgraph.graph import MessagesState
+from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 
@@ -51,6 +52,16 @@ class AgentState(MessagesState):
     trade_date: Annotated[str, "What date we are trading at"]
 
     sender: Annotated[str, "Agent that sent this message"]
+
+    # Per-analyst message channels. The four analysts are independent: each has
+    # its own agent -> tools -> agent loop, and the branches run concurrently
+    # from START. Keeping the message history in per-analyst channels (instead
+    # of one shared list) makes routing and tool execution branch-safe — a
+    # router or ToolNode never sees another branch's messages.
+    market_messages: Annotated[list, add_messages]
+    sentiment_messages: Annotated[list, add_messages]
+    news_messages: Annotated[list, add_messages]
+    fundamentals_messages: Annotated[list, add_messages]
 
     # research step
     market_report: Annotated[str, "Report from the Market Analyst"]

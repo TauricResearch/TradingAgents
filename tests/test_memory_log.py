@@ -490,13 +490,18 @@ class TestDeferredReflection:
         stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
         spy_prices   = [400.0, 402.0, 404.0, 403.0, 405.0, 406.0]
         mock_graph = MagicMock(spec=TradingAgentsGraph)
-        with patch("yfinance.Ticker") as mock_ticker_cls:
-            def _make_ticker(sym):
-                m = MagicMock()
-                m.history.return_value = _price_df(spy_prices if sym == "SPY" else stock_prices)
-                return m
-            mock_ticker_cls.side_effect = _make_ticker
-            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-01-05")
+        with patch("tradingagents.dataflows.sina_market._sina_symbol", side_effect=lambda s: s), \
+                patch("tradingagents.dataflows.sina_market.fetch_sina_kline") as mock_kline:
+            def _make_kline(sina_symbol, datalen=1023):
+                prices = spy_prices if sina_symbol == "000001.SS" else stock_prices
+                dates = pd.to_datetime(
+                    ["2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12"]
+                )
+                return pd.DataFrame({"Date": dates, "Close": prices})
+            mock_kline.side_effect = _make_kline
+            raw, alpha, days = TradingAgentsGraph._fetch_returns(
+                mock_graph, "600036.SS", "2026-01-05", benchmark="000001.SS"
+            )
         assert raw is not None and alpha is not None and days is not None
         assert isinstance(raw, float) and isinstance(alpha, float) and isinstance(days, int)
         assert days == 5
@@ -526,13 +531,18 @@ class TestDeferredReflection:
         stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
         spy_prices   = [400.0, 402.0, 403.0]
         mock_graph = MagicMock(spec=TradingAgentsGraph)
-        with patch("yfinance.Ticker") as mock_ticker_cls:
-            def _make_ticker(sym):
-                m = MagicMock()
-                m.history.return_value = _price_df(spy_prices if sym == "SPY" else stock_prices)
-                return m
-            mock_ticker_cls.side_effect = _make_ticker
-            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-01-05")
+        with patch("tradingagents.dataflows.sina_market._sina_symbol", side_effect=lambda s: s), \
+                patch("tradingagents.dataflows.sina_market.fetch_sina_kline") as mock_kline:
+            def _make_kline(sina_symbol, datalen=1023):
+                prices = spy_prices if sina_symbol == "000001.SS" else stock_prices
+                dates = pd.to_datetime(
+                    ["2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12"]
+                )[:len(prices)]
+                return pd.DataFrame({"Date": dates, "Close": prices})
+            mock_kline.side_effect = _make_kline
+            raw, alpha, days = TradingAgentsGraph._fetch_returns(
+                mock_graph, "600036.SS", "2026-01-05", benchmark="000001.SS"
+            )
         assert raw is not None and alpha is not None and days is not None
         assert days == 2
 

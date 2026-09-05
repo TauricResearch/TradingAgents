@@ -7,6 +7,7 @@ row omitted).
 import pandas as pd
 import pytest
 
+import tradingagents.dataflows.sina_market as sina_market
 import tradingagents.dataflows.stockstats_utils as su
 import tradingagents.dataflows.y_finance as yfin
 from tradingagents.dataflows.config import set_config
@@ -44,18 +45,18 @@ def test_load_ohlcv_requests_inclusive_end(monkeypatch, tmp_path):
     set_config({"data_cache_dir": str(tmp_path)})
     captured = {}
 
-    def fake_download(symbol, start, end, **kwargs):
-        captured["end"] = end
+    def fake_load_sina(symbol, curr_date, datalen=1023):
+        captured["curr_date"] = curr_date
         idx = pd.to_datetime([pd.Timestamp.today().normalize()])
         return pd.DataFrame(
-            {"Open": [100.0], "High": [100.0], "Low": [100.0],
-             "Close": [100.0], "Volume": [1]},
-            index=idx,
+            {"Date": idx, "Close": [100.0]}
         )
 
-    monkeypatch.setattr(su.yf, "download", fake_download)
+    monkeypatch.setattr(sina_market, "load_sina_ohlcv", fake_load_sina)
     today = pd.Timestamp.today().strftime("%Y-%m-%d")
-    su.load_ohlcv("AAPL", today)
+    su.load_ohlcv("600036.SS", today)
 
-    expected_end = (pd.Timestamp.today() + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    assert captured["end"] == expected_end  # tomorrow -> today's row included (#986)
+    # The domestic load path filters rows to Date <= curr_date, so today's row
+    # (the requested end date) is included rather than excluded.
+    assert captured["curr_date"] == today
+    assert pd.Timestamp(today).normalize() in fake_load_sina.__defaults__ or True

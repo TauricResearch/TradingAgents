@@ -20,47 +20,53 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
     def setUp(self):
         resolve_instrument_identity.cache_clear()
 
-    def test_resolves_company_metadata_from_yfinance(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
-            mock.return_value.info = {
-                "longName": "TOTO LTD.",
-                "shortName": "TOTO",
-                "sector": "Industrials",
-                "industry": "Building Products & Equipment",
+    def test_resolves_company_metadata_from_domestic_provider(self):
+        with patch(
+            "tradingagents.dataflows.eastmoney_finance.resolve_company_survey",
+            return_value={
+                "company_name": "TOTO LTD.",
+                "industry": "Industrials-Building Products & Equipment",
                 "exchange": "PNK",
-                "quoteType": "EQUITY",
-            }
-            identity = resolve_instrument_identity("totdy")
-        mock.assert_called_once_with("TOTDY")
+            },
+        ) as mock:
+            identity = resolve_instrument_identity("600036.SS")
+        mock.assert_called_once()
         self.assertEqual(identity["company_name"], "TOTO LTD.")
         self.assertEqual(identity["sector"], "Industrials")
-        self.assertEqual(identity["industry"], "Building Products & Equipment")
+        self.assertEqual(identity["industry"], "Industrials-Building Products & Equipment")
         self.assertEqual(identity["exchange"], "PNK")
 
-    def test_falls_back_to_short_name(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
-            mock.return_value.info = {"shortName": "TOTO", "sector": "Industrials"}
-            identity = resolve_instrument_identity("TOTDY")
+    def test_falls_back_to_company_name_only(self):
+        with patch(
+            "tradingagents.dataflows.eastmoney_finance.resolve_company_survey",
+            return_value={"company_name": "TOTO"},
+        ):
+            identity = resolve_instrument_identity("600036.SS")
         self.assertEqual(identity["company_name"], "TOTO")
+        self.assertNotIn("sector", identity)
 
     def test_skips_placeholder_values(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
-            mock.return_value.info = {"longName": "  ", "sector": "None", "industry": "n/a"}
-            identity = resolve_instrument_identity("TOTDY")
+        with patch(
+            "tradingagents.dataflows.eastmoney_finance.resolve_company_survey",
+            return_value={"company_name": "  ", "industry": "None", "exchange": "n/a"},
+        ):
+            identity = resolve_instrument_identity("600036.SS")
         self.assertEqual(identity, {})
 
     def test_fails_open_on_exception(self):
         with patch(
-            "tradingagents.agents.utils.agent_utils.yf.Ticker",
+            "tradingagents.dataflows.eastmoney_finance.resolve_company_survey",
             side_effect=RuntimeError("rate limited"),
         ):
-            self.assertEqual(resolve_instrument_identity("TOTDY"), {})
+            self.assertEqual(resolve_instrument_identity("600036.SS"), {})
 
     def test_result_is_cached(self):
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
-            mock.return_value.info = {"longName": "TOTO LTD."}
-            first = resolve_instrument_identity("TOTDY")
-            second = resolve_instrument_identity("TOTDY")
+        with patch(
+            "tradingagents.dataflows.eastmoney_finance.resolve_company_survey",
+            return_value={"company_name": "TOTO LTD."},
+        ) as mock:
+            first = resolve_instrument_identity("600036.SS")
+            second = resolve_instrument_identity("600036.SS")
         mock.assert_called_once()  # second call served from cache
         self.assertEqual(first, second)
 
@@ -103,8 +109,10 @@ class GetInstrumentContextFromStateTests(unittest.TestCase):
         self.assertEqual(get_instrument_context_from_state(state), "PRECOMPUTED")
 
     def test_fallback_is_network_free_ticker_only(self):
-        # No instrument_context and no yfinance call — must not hit the network.
-        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock:
+        # No instrument_context and no identity lookup — must not hit the network.
+        with patch(
+            "tradingagents.dataflows.eastmoney_finance.resolve_company_survey"
+        ) as mock:
             context = get_instrument_context_from_state(
                 {"company_of_interest": "NVDA", "asset_type": "stock"}
             )

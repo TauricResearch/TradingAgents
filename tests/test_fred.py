@@ -51,6 +51,8 @@ class FredResolutionTests(unittest.TestCase):
     def test_alias_maps_to_series_id(self):
         self.assertEqual(fred._resolve_series_id("cpi"), "CPIAUCSL")
         self.assertEqual(fred._resolve_series_id("unemployment"), "UNRATE")
+        self.assertEqual(fred._resolve_series_id("china_cpi"), "CHNCPIALLMINMEI")
+        self.assertEqual(fred._resolve_series_id("chinese_gdp"), "CHNGDPNQDSMEI")
 
     def test_alias_is_case_and_separator_insensitive(self):
         self.assertEqual(fred._resolve_series_id("Fed Funds Rate"), "FEDFUNDS")
@@ -119,6 +121,21 @@ class FredFormattingTests(unittest.TestCase):
         with mock.patch.object(fred, "_request", side_effect=_request_stub(meta=no_series)):
             out = fred.get_macro_data("totally_unknown_xyz", "2025-09-30", 30)
         self.assertIn("not found", out)
+
+    def test_bad_request_for_unknown_series_returns_guidance(self):
+        # FRED returns HTTP 400 for a series that does not exist. Treat that as
+        # an actionable tool result rather than a vendor failure.
+        def _bad_request(path, params):
+            if path == "series":
+                raise ValueError(
+                    "FRED request failed: Bad Request. The series does not exist."
+                )
+            raise AssertionError(f"unexpected FRED path: {path}")
+
+        with mock.patch.object(fred, "_request", side_effect=_bad_request):
+            out = fred.get_macro_data("not_a_real_series", "2025-09-30", 30)
+        self.assertIn("'NOT_A_REAL_SERIES' not found", out)
+        self.assertIn("not_a_real_series", out)
 
     def test_long_series_is_truncated_but_change_uses_full_range(self):
         # Build > MAX_ROWS observations deterministically.

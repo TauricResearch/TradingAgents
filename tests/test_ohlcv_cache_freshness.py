@@ -77,15 +77,17 @@ def test_load_ohlcv_refetches_stale_same_day_cache(tmp_path, monkeypatch):
 
     calls = []
 
-    def _fake_download(*a, **k):
+    def _fake_load_sina(symbol, curr_date, datalen=1023):
         calls.append(1)
         return pd.DataFrame(
             {"Date": pd.to_datetime(["2026-07-17", "2026-07-18"]), "Close": [100.0, 222.0]}
-        ).set_index("Date")
+        )
 
-    monkeypatch.setattr(su.yf, "download", _fake_download)
+    monkeypatch.setattr(
+        "tradingagents.dataflows.sina_market.load_sina_ohlcv", _fake_load_sina
+    )
 
-    out = su.load_ohlcv("AAPL", TODAY.strftime("%Y-%m-%d"))
+    out = su.load_ohlcv("600036.SS", TODAY.strftime("%Y-%m-%d"))
 
     assert calls, "stale same-day cache must trigger a refetch"
     assert 222.0 in out["Close"].values, "refreshed close must reach the caller"
