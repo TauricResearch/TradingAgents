@@ -21,7 +21,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
 # numeric field instead of omitting it. Coerce those to None so the structured
@@ -253,6 +253,139 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Portfolio Context (#1166)
+# ---------------------------------------------------------------------------
+
+
+class PositionSnapshot(BaseModel):
+    """A single instrument holding inside a portfolio snapshot.
+
+    Broker-neutral by design: no account identifiers, order ids, credentials,
+    or broker-specific fields. Quantity is signed (negative for short) and in
+    the instrument's native share/coin units.
+    """
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    symbol: str = Field(
+        description="Instrument symbol exactly as the caller tracks it (e.g. 'NVDA').",
+    )
+    quantity: float = Field(
+        description="Signed position size in native units (negative for short).",
+    )
+    market_value: float | None = Field(
+        default=None,
+        description="Optional current market value in the portfolio currency.",
+    )
+    average_entry_price: float | None = Field(
+        default=None,
+        description="Optional average entry price in the instrument's quote currency.",
+    )
+
+    @field_validator("symbol")
+    @classmethod
+    def _strip_symbol(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("symbol must be a non-empty string")
+        return cleaned
+
+
+class PortfolioContext(BaseModel):
+    """Optional, broker-neutral snapshot of the portfolio being analysed.
+
+    Threaded through the graph as plain JSON-safe data so it survives
+    checkpointing. ``None`` at the graph entrypoint means the context was not
+    provided; a ``PortfolioContext`` with empty ``positions`` means a known
+    flat portfolio. The two states are deliberately distinct: agents must not
+    present sizing guidance as portfolio-grounded when no context was given.
+    """
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    positions: list[PositionSnapshot] = Field(
+        default_factory=list,
+        description="Open positions. Empty means a known flat portfolio.",
+    )
+    cash: float | None = Field(
+        default=None,
+        description="Optional available cash in the portfolio currency.",
+    )
+    portfolio_value: float | None = Field(
+        default=None,
+        description="Optional total portfolio value in the portfolio currency.",
+    )
+    buying_power: float | None = Field(
+        default=None,
+        description="Optional buying power in the portfolio currency.",
+    )
+    as_of: str | None = Field(
+        default=None,
+        description="Optional snapshot timestamp (ISO-8601 expected, free-form accepted).",
+    )
+    source: str | None = Field(
+        default=None,
+        description="Optional snapshot origin label (e.g. 'paper-broker', 'manual').",
+    )
+
+    def position_for(self, symbol: str) -> PositionSnapshot | None:
+        """Return the position matching ``symbol`` (case-insensitive), if any."""
+        wanted = symbol.strip().upper()
+        for position in self.positions:
+            if position.symbol.upper() == wanted:
+                return position
+        return None
+
+
+def _format_money(value: float) -> str:
+    return f"${value:,.2f}"
+
+
+def render_portfolio_context(context: PortfolioContext, symbol: str) -> str:
+    """Render a deterministic portfolio block focused on ``symbol``.
+
+    Only the current instrument's position is itemised; the remaining
+    holdings are summarised by count so prompts stay small and stable.
+    Never renders ``str(dict)``: every line is an explicit, labelled fact.
+    """
+    lines = ["Portfolio Context:"]
+    snapshot = context.as_of or "timestamp not recorded"
+    origin = context.source or "unspecified"
+    lines.append(f"- Snapshot: {snapshot} (source: {origin})")
+
+    capital = []
+    if context.portfolio_value is not None:
+        capital.append(f"portfolio value {_format_money(context.portfolio_value)}")
+    if context.cash is not None:
+        capital.append(f"cash {_format_money(context.cash)}")
+    if context.buying_power is not None:
+        capital.append(f"buying power {_format_money(context.buying_power)}")
+    lines.append(
+        "- Capital: " + ("; ".join(capital) if capital else "no capital figures provided")
+    )
+
+    current = context.position_for(symbol)
+    if current is not None:
+        detail = f"- Current {current.symbol} position: {current.quantity:g} shares"
+        extras = []
+        if current.market_value is not None:
+            extras.append(f"market value {_format_money(current.market_value)}")
+        if current.average_entry_price is not None:
+            extras.append(f"avg entry {_format_money(current.average_entry_price)}")
+        if extras:
+            detail += f" ({'; '.join(extras)})"
+        lines.append(detail + ".")
+    elif not context.positions:
+        lines.append("- Holdings: known flat portfolio, no open positions.")
+    else:
+        lines.append(
+            f"- Holdings: no current {symbol.strip() or 'requested-instrument'} position; "
+            f"{len(context.positions)} other position(s) held."
+        )
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
