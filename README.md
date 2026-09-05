@@ -117,24 +117,53 @@ pip install .
 
 #### One-Click Install with Auto Setup
 
-For Windows users, a convenience install script creates the venv, installs dependencies, creates dynamic wrappers, and adds the folder to PATH:
+A single cross-platform installer (`install.py`, stdlib only) creates the venv, installs dependencies editable, writes `tradingagents` launchers, adds the repo to PATH, and runs `npm install` for the web app:
 
-```powershell
-# From the repo root, with TradingAgents folder inside
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\install.ps1
+```bash
+# From the repo root — Windows, Linux, or macOS (needs Python 3.10+):
+python install.py
+# Preview without changing anything:
+python install.py --dry-run
+# Skip the web/Node setup:
+python install.py --no-web
 ```
 
-After restart, run `tradingagents` from any terminal.
+After restart, run `tradingagents` from any **new** terminal (Node.js is required for Browser mode: https://nodejs.org).
 
 Manual steps equivalent to the script:
 ```bash
-python -m venv TradingAgents\.venv
-TradingAgents\.venv\Scripts\python.exe -m pip install --upgrade pip
-TradingAgents\.venv\Scripts\python.exe -m pip install -e .
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install --upgrade pip   # Windows
+.venv/Scripts/python.exe -m pip install -e .            # Windows
+# Linux/macOS: use .venv/bin/python instead of .venv/Scripts/python.exe
 ```
 
-Create dynamic wrappers `tradingagents.bat` / `tradingagents.ps1` in the parent folder and add that folder to User PATH to run `tradingagents` from anywhere.
+### Interfaces: CLI, Dashboards, and Web App
+
+Besides the classic terminal flow, this repo ships two web UIs (no extra
+dependencies — the panels server is stdlib-only; the full app needs `npm install`, handled by `install.py`):
+
+- **Scroll dashboard** (always on): every run serves a live, independently
+  scrollable mirror at `http://127.0.0.1:8765` (+1 per parallel session) —
+  Progress / Messages & Tools / Current Report with Markdown, a floating
+  per-agent activity card (click any event for full context), and a prompt
+  bar answering the post-run questions (save/path/display/tables) from the page.
+- **Full web app** (`web/`, Next.js): optional CLI replacement. `tradingagents`
+  asks Browser-or-CLI first (30s auto-CLI); Browser builds/serves the app and
+  exits the CLI. Tabs: **Dashboard** (step-by-step run wizard mirroring every
+  CLI prompt, live quote widget), **Live** (panels + stats + prompt bar),
+  **Reports** (all sessions with bulk delete + open-in-Explorer), **Tables**
+  (LLM-normalized per-agent HTML tables, generate on demand), **Settings**
+  (provider API keys saved live to `.env` + Test-key connectivity checks).
+- **Run analysis from the web**: the app drives the exact CLI pipeline via
+  `tradingagents web` (JSON API on `:8787` by default).
+
+Extra provider/model work in this tree: Opencode Zen full catalog (free +
+paid) with a persisted catalog picker, NVIDIA reasoning effort, Zen
+Responses-API routing for `gpt-*`/`grok-*`/`muse-spark-*` models, Ollama
+Cloud + Qwen/GLM/MiniMax China entries, dynamic `(configured)` provider
+labels, per-section report tables (`tables.json`/`tables.md`), and a run
+done-state (frozen timer, done/error status).
 
 ### Docker
 
