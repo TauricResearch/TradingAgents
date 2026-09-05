@@ -120,6 +120,10 @@ class MessageBuffer:
 
     def __init__(self, max_length=300):
         self.messages = deque(maxlen=max_length)
+        # Owning agent per message entry (aligned with self.messages;
+        # None for system-level entries). Lets the UIs group the feed
+        # per agent instead of showing an anonymous message blob.
+        self.message_agents = deque(maxlen=max_length)
         self.tool_calls = deque(maxlen=max_length)
         self.current_report = None
         self.final_report = None  # Store the complete final report
@@ -162,6 +166,7 @@ class MessageBuffer:
         self.final_report = None
         self.current_agent = None
         self.messages.clear()
+        self.message_agents.clear()
         self.tool_calls.clear()
         self._processed_message_ids.clear()
         self._touch()
@@ -200,6 +205,7 @@ class MessageBuffer:
     def add_message(self, message_type, content):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
+        self.message_agents.append(self.current_agent)
         self._touch()
 
     def add_tool_call(self, tool_name, args):
@@ -210,7 +216,11 @@ class MessageBuffer:
     def update_agent_status(self, agent, status):
         if agent in self.agent_status:
             self.agent_status[agent] = status
-            self.current_agent = agent
+            # current_agent must mean "actually working right now": pending
+            # transitions for not-yet-started agents must not overwrite it,
+            # or the heartbeat names whoever was touched last (#issue).
+            if status == "in_progress":
+                self.current_agent = agent
             self._touch()
 
     def update_report_section(self, section_name, content):

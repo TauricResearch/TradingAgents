@@ -62,9 +62,13 @@ def build_snapshot(message_buffer, stats_handler=None, start_time=None, meta=Non
         combined.append(
             {"time": timestamp, "type": "Tool", "content": f"{tool_name}({args_str})"}
         )
-    for timestamp, msg_type, content in list(message_buffer.messages)[-_MAX_MESSAGES:]:
+    agents = list(getattr(message_buffer, "message_agents", []))[-_MAX_MESSAGES:]
+    entries = list(message_buffer.messages)[-_MAX_MESSAGES:]
+    for i, (timestamp, msg_type, content) in enumerate(entries):
+        agent = agents[i] if i < len(agents) else None
         combined.append(
-            {"time": timestamp, "type": str(msg_type), "content": clip(content)}
+            {"time": timestamp, "type": str(msg_type), "agent": agent,
+             "content": clip(content)}
         )
     # Chronological for natural top-to-bottom reading with follow-scroll.
     messages = combined[-_MAX_MESSAGES:]
@@ -334,18 +338,21 @@ $('actclose').onclick = () => { $('actmodal').style.display = 'none'; };
 $('actmodal').onclick = e => { if (e.target.id === 'actmodal') $('actmodal').style.display = 'none'; };
 function renderActivity(msgs){
   const list = $('actlist');
-  const items = msgs.slice(-30).reverse();
-  if (!items.length) { list.innerHTML = '<span class="empty">Waiting for agent events…</span>'; return; }
-  list.innerHTML = items.map((x, i) => {
+  // Agent messages only — tool calls already live in Messages & Tools.
+  const agents = msgs.map((x, i) => ({...x, i})).filter(x => x.type !== 'Tool');
+  const items = agents.slice(-30).reverse();
+  if (!items.length) { list.innerHTML = '<span class="empty">Waiting for agent messages…</span>'; return; }
+  list.innerHTML = items.map(x => {
     const prev = String(x.content || '').replace(/\\s+/g, ' ').slice(0, 140);
-    return `<div class="act" data-i="${msgs.length - 1 - i}">` +
-      `<div class="meta">${esc(x.time)} · ${esc(x.type)}</div>` +
+    const who = x.agent ? esc(x.agent) + ' · ' : '';
+    return `<div class="act" data-i="${x.i}">` +
+      `<div class="meta">${who}${esc(x.time)} · ${esc(x.type)}</div>` +
       `<div class="prev">${esc(prev)}${String(x.content || '').length > 140 ? '…' : ''}</div></div>`;
   }).join('');
   list.querySelectorAll('.act').forEach(el => {
     el.onclick = () => {
       const x = msgs[+el.dataset.i];
-      $('acttitle').textContent = `${x.time} · ${x.type}`;
+      $('acttitle').textContent = `${x.agent ? x.agent + ' · ' : ''}${x.time} · ${x.type}`;
       $('actbody').textContent = x.content || '(empty)';
       $('actmodal').style.display = 'flex';
     };
