@@ -24,6 +24,7 @@ class RunRecord:
         self.pending_prompt = {"question": None, "default": None, "answer": None}
         self.stats_handler = None
         self.start_time = None
+        self.finished_at = None  # frozen clock for completed/failed runs
         self.final_state = None
         self.thread = None
 
@@ -77,8 +78,11 @@ class RunManager:
                     run_record=record,
                 )
             except Exception as exc:  # surface crash to the UI, keep server up
+                import time as _time
+
                 record.error = f"{type(exc).__name__}: {exc}"
                 record.status = "error"
+                record.finished_at = _time.time()
 
         record.thread = threading.Thread(target=_target, daemon=False)
         with self._lock:

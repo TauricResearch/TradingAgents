@@ -475,6 +475,14 @@ class _Handler(BaseHTTPRequestHandler):
                     snap["status"] = rec.status
                     snap["pending_prompt"] = rec.pending_prompt
                     snap["error"] = rec.error
+                    if (
+                        rec.status in ("done", "error")
+                        and rec.finished_at
+                        and rec.start_time
+                    ):
+                        snap["elapsed_seconds"] = max(
+                            0, int(rec.finished_at - rec.start_time)
+                        )
                     return _json(self, snap)
                 except Exception as exc:
                     return _json(self, {"active": False, "error": str(exc)})

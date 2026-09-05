@@ -1791,6 +1791,7 @@ def run_analysis(checkpoint: bool | None = None, selections: dict | None = None,
     if run_record is not None:
         run_record.final_state = final_state
         run_record.status = "done"
+        run_record.finished_at = time.time()
 
 
 @app.callback(invoke_without_command=True)
