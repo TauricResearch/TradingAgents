@@ -144,7 +144,13 @@ class TradingAgentsGraph:
             self.tool_nodes,
             self.conditional_logic,
             decision_mode=_resolve_decision_mode(self.config),
+            debate_first_speaker=self.config.get("debate_first_speaker", "bull"),
         )
+        # GraphSetup resolves "random" to a concrete "bull"/"bear" once, in
+        # its own __init__ -- mirrored here so callers/logging (decide.py)
+        # and _run_signature can read the value actually used for this
+        # decision without reaching into graph_setup's internals.
+        self.debate_first_speaker = self.graph_setup.debate_first_speaker
 
         self.propagator = Propagator(
             max_recur_limit=self.config.get("max_recur_limit", 100),
@@ -373,6 +379,12 @@ class TradingAgentsGraph:
             f"debate={self.config['max_debate_rounds']}",
             f"risk={self.config['max_risk_discuss_rounds']}",
             f"asset={asset_type}",
+            # Resolved value (never "random" itself -- GraphSetup already
+            # rolled it once in __init__), since it changes which researcher
+            # node the debate enters at. Without this, a checkpoint resume
+            # under a freshly-constructed TradingAgentsGraph could re-roll a
+            # different order than the in-progress run started with.
+            f"debate_first_speaker={self.debate_first_speaker}",
         ])
 
     def propagate(self, company_name, trade_date, asset_type: str = "stock", external_signal_context: str = ""):

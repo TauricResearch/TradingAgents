@@ -175,6 +175,14 @@ def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", contex
     if unpriced_models:
         print(f"decide.py: no pricing entry for model(s) {unpriced_models} — cost_usd is a partial total", file=sys.stderr)
 
+    # debate_first_speaker defaults to "random" (default_config.py) and is
+    # resolved once per decision at GraphSetup construction time -- surfaced
+    # here (not just internal state) so cron.log/the returned dict can be
+    # audited later against decision_outcomes for the last-speaker bias
+    # trading-workspace#26 found, without needing a DB schema change.
+    debate_first_speaker_used = ta.debate_first_speaker
+    print(f"decide.py: debate_first_speaker={debate_first_speaker_used} for {ticker}@{trade_date}")
+
     return {
         "ticker": ticker,
         "trade_date": trade_date,
@@ -185,6 +193,7 @@ def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", contex
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "cost_usd": cost_usd,
         "token_usage": usage_handler.usage_metadata,
+        "debate_first_speaker": debate_first_speaker_used,
     }
 
 

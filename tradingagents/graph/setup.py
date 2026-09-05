@@ -1,5 +1,6 @@
 # TradingAgents/graph/setup.py
 
+import random
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -53,6 +54,7 @@ class GraphSetup:
         tool_nodes: dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
         decision_mode: str = "debate",
+        debate_first_speaker: str = "bull",
     ):
         """Initialize with required components.
 
@@ -62,14 +64,39 @@ class GraphSetup:
         (trading-workspace TradingAgents#19) replaces it with a single Factor
         Extractor LLM call + a deterministic scorer (decision_model.py) --
         the LLM extracts named factors, a fixed formula makes the call.
+
+        debate_first_speaker: "bull" (default here -- deterministic, for
+        direct/test callers), "bear", or "random" -- who opens the research
+        debate in "debate" mode. should_continue_debate() (conditional_logic.py)
+        just alternates away from whoever last spoke, so this one flag also
+        determines who gets the LAST word before Research Manager synthesizes.
+
+        trading-workspace#26 finding (2026-09-04/05): a fixed order (Bull
+        always opens, so Bear always speaks last) measurably skews ratings
+        bearish -- a 15-ticker paired probe (bull-first vs bear-first, same
+        inputs) cut Underweight calls from 4/15 to 1/15 just by swapping who
+        speaks last. Neither fixed order is neutral; "random" (resolved HERE,
+        once per GraphSetup instance -- i.e. once per decision, since each
+        real decision constructs a fresh TradingAgentsGraph/GraphSetup) is
+        the actual fix, so neither side gets a structural speaking-order
+        advantage over many decisions. DEFAULT_CONFIG's own default is
+        "random" (default_config.py) -- "bull" is kept as this constructor's
+        own default only for direct callers/tests that want deterministic
+        graph shape. Only "debate" mode reads this; "structured"/"off" have
+        no researcher debate.
         """
         if decision_mode not in ("debate", "off", "structured"):
             raise ValueError(f"Unknown decision_mode: {decision_mode!r}")
+        if debate_first_speaker not in ("bull", "bear", "random"):
+            raise ValueError(f"Unknown debate_first_speaker: {debate_first_speaker!r}")
+        if debate_first_speaker == "random":
+            debate_first_speaker = random.choice(("bull", "bear"))
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
         self.decision_mode = decision_mode
+        self.debate_first_speaker = debate_first_speaker
 
     def setup_graph(
         self, selected_analysts=("market", "social", "news", "fundamentals")
@@ -161,7 +188,7 @@ class GraphSetup:
                 workflow.add_edge(current_clear, plan.specs[i + 1].agent_node)
             else:
                 next_node = {
-                    "debate": "Bull Researcher",
+                    "debate": "Bear Researcher" if self.debate_first_speaker == "bear" else "Bull Researcher",
                     "structured": "Factor Extractor",
                     "off": "Trader",
                 }[self.decision_mode]

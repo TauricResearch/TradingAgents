@@ -15,6 +15,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_DEBATE_ENABLED":       "debate_enabled",
     "TRADINGAGENTS_DECISION_MODE":        "decision_mode",
+    "TRADINGAGENTS_DEBATE_FIRST_SPEAKER": "debate_first_speaker",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
@@ -134,6 +135,21 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # comment above). None (the default) means "not set" -- falls back to
     # debate_enabled.
     "decision_mode": None,
+    # Who opens the "debate" mode's Bull/Bear Researcher exchange: "bull",
+    # "bear", or "random" (default). Since should_continue_debate() (graph/
+    # conditional_logic.py) just alternates away from whoever last spoke,
+    # this also determines who gets the LAST word before Research Manager
+    # synthesizes. A trading-workspace probe (2026-09-04/05) confirmed a
+    # FIXED order is not neutral -- with Bull always opening (so Bear always
+    # last, the behavior before this default changed), a 15-ticker paired
+    # test cut Underweight calls from 4/15 to 1/15 just by swapping who spoke
+    # last. Neither fixed order is the fix; "random" is -- resolved once per
+    # decision (graph/setup.py, at GraphSetup construction time) so neither
+    # side gets a structural speaking-order advantage over many decisions.
+    # Pin to "bull"/"bear" via TRADINGAGENTS_DEBATE_FIRST_SPEAKER for
+    # deterministic/reproducible runs (e.g. retro batches). Only read in
+    # "debate" mode; "structured"/"off" have no researcher debate.
+    "debate_first_speaker": "random",
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,

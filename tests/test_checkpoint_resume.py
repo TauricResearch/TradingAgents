@@ -199,6 +199,7 @@ class TestCheckpointSignature(unittest.TestCase):
         g = object.__new__(TradingAgentsGraph)
         g.selected_analysts = ("market", "news")
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        g.debate_first_speaker = "bull"
         base = g._run_signature("stock")
 
         self.assertNotEqual(base, g._run_signature("crypto"))     # asset mode
@@ -209,8 +210,16 @@ class TestCheckpointSignature(unittest.TestCase):
         self.assertNotEqual(base, g._run_signature("stock"))      # debate depth
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 5}
         self.assertNotEqual(base, g._run_signature("stock"))      # risk depth
-        # Stable for identical inputs.
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
+        # debate_first_speaker is resolved ("bull"/"bear", never "random"
+        # itself -- GraphSetup rolls it once in __init__) before it ever
+        # reaches _run_signature, so a checkpoint resume can't silently
+        # re-roll a different debate order than the in-progress run started
+        # with (trading-workspace#26).
+        g.debate_first_speaker = "bear"
+        self.assertNotEqual(base, g._run_signature("stock"))      # debate first speaker
+        # Stable for identical inputs.
+        g.debate_first_speaker = "bull"
         self.assertEqual(base, g._run_signature("stock"))
 
 

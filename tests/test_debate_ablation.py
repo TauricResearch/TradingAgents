@@ -85,6 +85,66 @@ class TestStructuredDecisionModeGraphStructure:
             GraphSetup(llm, llm, tool_nodes, cl, decision_mode="bogus")
 
 
+@pytest.mark.unit
+class TestDebateFirstSpeaker:
+    """trading-workspace#26 (2026-09-05): a fixed Bull-first/Bear-last debate
+    order measurably skews ratings bearish (a 15-ticker paired probe cut
+    Underweight calls 4/15 -> 1/15 by swapping who spoke last). Fix is
+    debate_first_speaker="random" (DEFAULT_CONFIG's own default), resolved
+    once per GraphSetup instance -- i.e. once per decision."""
+
+    def _entry_node(self, debate_first_speaker):
+        cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
+        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
+        llm = MagicMock()
+        gs = GraphSetup(llm, llm, tool_nodes, cl, decision_mode="debate",
+                         debate_first_speaker=debate_first_speaker)
+        graph = gs.setup_graph(("market",)).compile()
+        targets = [e.target for e in graph.get_graph().edges if e.source == "Msg Clear Market"]
+        assert len(targets) == 1
+        return targets[0], gs.debate_first_speaker
+
+    def test_bull_first_enters_at_bull_researcher(self):
+        entry, resolved = self._entry_node("bull")
+        assert entry == "Bull Researcher"
+        assert resolved == "bull"
+
+    def test_bear_first_enters_at_bear_researcher(self):
+        entry, resolved = self._entry_node("bear")
+        assert entry == "Bear Researcher"
+        assert resolved == "bear"
+
+    def test_random_resolves_to_a_valid_concrete_choice(self):
+        """"random" must never leak through to the graph itself -- setup_graph's
+        next_node lookup only knows "bull"/"bear" for decision_mode="debate"."""
+        entry, resolved = self._entry_node("random")
+        assert resolved in ("bull", "bear")
+        assert entry == ("Bull Researcher" if resolved == "bull" else "Bear Researcher")
+
+    def test_random_hits_both_branches_over_many_draws(self):
+        """A real distribution check, not just a valid-value check -- guards
+        against e.g. a copy-paste that always returns the same branch."""
+        seen = {self._entry_node("random")[1] for _ in range(50)}
+        assert seen == {"bull", "bear"}
+
+    def test_default_graph_setup_still_uses_bull(self):
+        """GraphSetup's OWN default stays deterministic ("bull") for direct/
+        test callers -- only DEFAULT_CONFIG's default is "random" (that's a
+        trading_graph.py-level choice, not this constructor's)."""
+        cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
+        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
+        llm = MagicMock()
+        gs = GraphSetup(llm, llm, tool_nodes, cl, decision_mode="debate")  # no debate_first_speaker kwarg
+        assert gs.debate_first_speaker == "bull"
+
+    def test_unknown_debate_first_speaker_raises(self):
+        cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
+        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
+        llm = MagicMock()
+        with pytest.raises(ValueError, match="Unknown debate_first_speaker"):
+            GraphSetup(llm, llm, tool_nodes, cl, decision_mode="debate", debate_first_speaker="bogus")
+
+
 def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = None):
     if proposal is None:
         proposal = TraderProposal(action=TraderAction.BUY, reasoning="Strong setup.")
