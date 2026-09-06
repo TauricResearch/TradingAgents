@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.utils.agent_utils import (
+    external_signal_prompt_block,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -22,6 +23,11 @@ def create_research_manager(llm):
         history = state["investment_debate_state"].get("history", "")
 
         investment_debate_state = state["investment_debate_state"]
+        # TradingAgents#30: the debate is where the upstream direction was
+        # getting lost -- restate it to the facilitator so "balanced -> Hold"
+        # is weighed against a stated prior rather than a blank.
+        external_block = external_signal_prompt_block(state, require_justification=True)
+        external_section = f"\n{external_block}\n" if external_block else ""
 
         prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
 
@@ -39,7 +45,7 @@ There is no existing position to manage. Every decision here is a fresh entry, t
 - **Sell**: Strong conviction in the bear thesis; the case for a fresh short entry now is clear
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
-
+{external_section}
 ---
 
 **Debate History:**

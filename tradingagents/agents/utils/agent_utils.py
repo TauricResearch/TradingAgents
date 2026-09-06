@@ -43,6 +43,8 @@ __all__ = [
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
     "get_external_signal_context_from_state",
+    "get_external_signal_direction_from_state",
+    "external_signal_prompt_block",
     "get_language_instruction",
     "create_msg_delete",
 ]
@@ -215,6 +217,46 @@ def get_external_signal_context_from_state(state: Mapping[str, Any]) -> str:
     start, so an absent value just means "no prior signal to consider"."""
     context = state.get("external_signal_context")
     return context if isinstance(context, str) and context.strip() else ""
+
+
+def get_external_signal_direction_from_state(state: Mapping[str, Any]) -> str:
+    """"up" / "down" when the external signal carried an explicit direction
+    (trading-workspace TradingAgents#30), else "". Set at run start from
+    decide.py's --context (a technical scanner's side, or news-gap-ml's
+    sector_direction); never derived inside the graph."""
+    direction = state.get("external_signal_direction")
+    return direction if direction in ("up", "down") else ""
+
+
+def external_signal_prompt_block(state: Mapping[str, Any], require_justification: bool = False) -> str:
+    """Prompt passage every reasoning agent appends when an external signal was
+    injected (TradingAgents#30), or "" when there is none.
+
+    Background: news-gap-ml's sector leg passed "GST rate cuts boost FMCG /
+    sector_direction=up" as context and 93 such decisions came back 43 Hold /
+    11 Underweight / 0 bullish -- the debate simply never engaged with the
+    upstream direction. The block states the signal and its direction in one
+    place; with ``require_justification`` (Trader, Portfolio Manager) it also
+    obliges the agent to say explicitly what evidence overrides the signal
+    whenever its call goes the other way or abstains. The signal stays a prior
+    the agent can reject -- but no longer one it can silently ignore."""
+    context = get_external_signal_context_from_state(state)
+    if not context:
+        return ""
+    direction = get_external_signal_direction_from_state(state)
+    lines = ["**External signal (prior from the upstream scanner, not authoritative):** " + context]
+    if direction:
+        stance = "BULLISH (up)" if direction == "up" else "BEARISH (down)"
+        lines.append(f"Upstream direction for this instrument: {stance}.")
+        if require_justification:
+            lines.append(
+                "Treat this direction as your prior. You may reject it, but if your call "
+                "points the other way, or is Hold, you must state explicitly which specific "
+                "evidence from the reports overrides it -- 'no company-specific catalyst "
+                "found' is not sufficient when the upstream signal itself is a dated, "
+                "sector-wide catalyst for this session."
+            )
+    return "\n".join(lines)
 
 
 def create_msg_delete():

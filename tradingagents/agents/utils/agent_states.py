@@ -85,3 +85,4 @@ class AgentState(MessagesState):
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]
     external_signal_context: Annotated[str, "Prior signal from an external scanner injected at run start (trading-workspace#37) — informational, not authoritative"]
+    external_signal_direction: Annotated[str, "'up' / 'down' / '' -- explicit direction of the external signal (TradingAgents#30); a prior the Trader/PM must justify contradicting, and a signed prior in decision_model.py"]

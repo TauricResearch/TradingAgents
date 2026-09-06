@@ -24,6 +24,8 @@ import logging
 
 from tradingagents.agents.schemas import FactorExtraction
 from tradingagents.agents.utils.agent_utils import (
+    external_signal_prompt_block,
+    get_external_signal_direction_from_state,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -50,11 +52,24 @@ def create_factor_extractor(llm):
     def factor_extractor_node(state) -> dict:
         company_name = state["company_of_interest"]
         instrument_context = get_instrument_context_from_state(state)
+        # TradingAgents#30: the upstream signal is shown so a sector-wide,
+        # same-session catalyst the ticker-scoped news search never surfaced
+        # can still be recorded as dated_catalyst_present. Its direction is
+        # NOT for the extractor to copy into the direction fields -- the
+        # deterministic scorer applies it as a separate signed prior.
+        external_block = external_signal_prompt_block(state)
+        external_section = (
+            f"\n{external_block}\nThe signal above is a dated, same-session event for this instrument's "
+            f"sector/basket -- if the reports do not contradict it, count it towards dated_catalyst_present. "
+            f"Do NOT fold its direction into technical_direction/sentiment_direction; those must reflect the "
+            f"reports only. The scorer applies the signal's direction separately.\n"
+            if external_block else ""
+        )
 
         prompt = f"""You are extracting structured factors from analyst reports for {company_name}. {instrument_context}
 
 Your ONLY job is to read the four reports below and extract the factors in the schema -- you are not making a trading decision, a separate deterministic step does that from your factors alone. Score honestly: if the technical picture is genuinely two-sided, technical_confidence should be low, not padded to look decisive. If no analyst identified a catalyst that resolves within this decision's own short holding window (same session or next open), dated_catalyst_present must be false even if a longer-horizon story exists.
-
+{external_section}
 **Market Report:**
 {state.get('market_report', 'N/A')}
 
@@ -81,7 +96,10 @@ Your ONLY job is to read the four reports below and extract the factors in the s
         if factors is None:
             factors = _NEUTRAL_FACTORS
 
-        investment_plan = score_factors(factors, company_name=company_name)
+        investment_plan = score_factors(
+            factors, company_name=company_name,
+            external_direction=get_external_signal_direction_from_state(state) or None,
+        )
 
         return {
             "extracted_factors": factors,

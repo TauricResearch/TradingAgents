@@ -1,4 +1,5 @@
 from tradingagents.agents.utils.agent_utils import (
+    external_signal_prompt_block,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -16,6 +17,8 @@ def create_bull_researcher(llm):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
         instrument_context = get_instrument_context_from_state(state)
+        external_block = external_signal_prompt_block(state)  # TradingAgents#30
+        external_line = f"{external_block}\n" if external_block else ""
         asset_type = state.get("asset_type", "stock")
         target_label = "stock" if asset_type == "stock" else "asset"
         fundamentals_label = (
@@ -35,7 +38,7 @@ Key points to focus on:
 
 Resources available:
 {instrument_context}
-Market research report: {market_research_report}
+{external_line}Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}

@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage
 
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.utils.agent_utils import (
+    external_signal_prompt_block,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -39,6 +40,12 @@ def create_trader(llm, debate_enabled: bool = True):
     def trader_node(state, name):
         company_name = state["company_of_interest"]
         instrument_context = get_instrument_context_from_state(state)
+        # TradingAgents#30: the upstream signal (and its direction) is stated
+        # to the Trader directly -- it must not depend on whether an analyst
+        # happened to carry it into a report -- and contradicting it or
+        # sitting on Hold now has to be justified in `reasoning`.
+        external_block = external_signal_prompt_block(state, require_justification=True)
+        external_section = f"\n\n{external_block}" if external_block else ""
 
         if debate_enabled:
             investment_plan = state["investment_plan"]
@@ -59,7 +66,8 @@ def create_trader(llm, debate_enabled: bool = True):
                         f"plan tailored for {company_name}. {instrument_context} This plan incorporates "
                         f"insights from current technical market trends, macroeconomic indicators, and "
                         f"social media sentiment. Use this plan as a foundation for evaluating your next "
-                        f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
+                        f"trading decision.\n\nProposed Investment Plan: {investment_plan}"
+                        f"{external_section}\n\n"
                         f"Leverage these insights to make an informed and strategic decision."
                     ),
                 },
@@ -87,7 +95,8 @@ def create_trader(llm, debate_enabled: bool = True):
                         f"Market Report: {state.get('market_report', 'N/A')}\n\n"
                         f"Sentiment Report: {state.get('sentiment_report', 'N/A')}\n\n"
                         f"News Report: {state.get('news_report', 'N/A')}\n\n"
-                        f"Fundamentals Report: {state.get('fundamentals_report', 'N/A')}\n\n"
+                        f"Fundamentals Report: {state.get('fundamentals_report', 'N/A')}"
+                        f"{external_section}\n\n"
                         f"Weigh these directly and make an informed, strategic trading decision."
                     ),
                 },

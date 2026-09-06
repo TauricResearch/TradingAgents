@@ -387,7 +387,8 @@ class TradingAgentsGraph:
             f"debate_first_speaker={self.debate_first_speaker}",
         ])
 
-    def propagate(self, company_name, trade_date, asset_type: str = "stock", external_signal_context: str = ""):
+    def propagate(self, company_name, trade_date, asset_type: str = "stock", external_signal_context: str = "",
+                  external_signal_direction: str = ""):
         """Run the trading agents graph for a company on a specific date.
 
         ``asset_type`` selects between the stock pipeline (default) and the
@@ -401,6 +402,9 @@ class TradingAgentsGraph:
         natural-language summary of a prior signal from an external scanner
         (e.g. news-gap-ml's technical-trigger leg) for the market analyst to
         reason about — see Propagator.create_initial_state().
+        ``external_signal_direction`` ("up"/"down"/"", TradingAgents#30) is
+        that signal's explicit direction, carried as a prior through the
+        Trader/Portfolio Manager prompts and the structured-mode scorer.
         """
         self.ticker = company_name
 
@@ -430,6 +434,7 @@ class TradingAgentsGraph:
             return self._run_graph(
                 company_name, trade_date, asset_type=asset_type,
                 external_signal_context=external_signal_context,
+                external_signal_direction=external_signal_direction,
             )
         finally:
             if self._checkpointer_ctx is not None:
@@ -452,7 +457,8 @@ class TradingAgentsGraph:
             )
         return write_report_tree(final_state, ticker, save_path)
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock", external_signal_context: str = ""):
+    def _run_graph(self, company_name, trade_date, asset_type: str = "stock", external_signal_context: str = "",
+                   external_signal_direction: str = ""):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents.
@@ -465,6 +471,7 @@ class TradingAgentsGraph:
             past_context=past_context,
             instrument_context=instrument_context,
             external_signal_context=external_signal_context,
+            external_signal_direction=external_signal_direction,
         )
         args = self.propagator.get_graph_args()
 

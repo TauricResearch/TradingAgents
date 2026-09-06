@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
+    external_signal_prompt_block,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -39,6 +40,16 @@ def create_portfolio_manager(llm):
             if past_context
             else ""
         )
+        # TradingAgents#30: state the upstream signal and make contradicting
+        # it (or abstaining) something the PM has to argue for explicitly in
+        # external_signal_disagreement_reason, not something that happens by
+        # omission because no agent upstream carried it through.
+        external_block = external_signal_prompt_block(state, require_justification=True)
+        external_section = (
+            f"\n{external_block}\nIf your rating disagrees with that direction or is Hold, fill "
+            f"`external_signal_disagreement_reason` with the specific overriding evidence; leave it null if you agree.\n"
+            if external_block else ""
+        )
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
@@ -65,7 +76,7 @@ Before finalizing, check your own `Time Horizon` and `Executive Summary` text: i
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
-{lessons_line}
+{lessons_line}{external_section}
 **Risk Analysts Debate History:**
 {history}
 

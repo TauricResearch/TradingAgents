@@ -40,8 +40,21 @@ _SELL_THRESHOLD = -0.5
 # override a strong, catalyst-backed case, but several should.
 _RISK_FLAG_DAMPING_PER_FLAG = 0.15
 
+# TradingAgents#30 -- signed prior from the upstream signal's explicit
+# direction (news-gap-ml's sector_direction, or a technical scanner's side).
+# Added to the raw score before clamping: with otherwise neutral factors an
+# "up" signal lands at +0.25 -> Overweight (never Underweight), while
+# factors leaning the other way at >= 0.25 combined weight still cancel it
+# back to Hold and stronger contrary evidence still flips it. So the prior
+# breaks ties in the signal's favour and raises the bar for contradicting
+# it; it does not override the reports. Tunable like every other constant
+# here -- recalibrate against decision_outcomes once >= 50 post-change
+# sector decisions exist (the issue's acceptance bar).
+_EXTERNAL_SIGNAL_PRIOR_WEIGHT = 0.25
+_EXTERNAL_SIGNAL_SIGN = {"up": 1.0, "down": -1.0}
 
-def _combined_score(factors) -> float:
+
+def _combined_score(factors, external_direction: str | None = None) -> float:
     """Confidence-weighted sum of the technical and sentiment directions,
     clamped to [-1, 1].
 
@@ -54,10 +67,14 @@ def _combined_score(factors) -> float:
     genuinely damps toward zero regardless of how many sources are present,
     while a single fully-confident source can still reach full conviction
     (direction=1, confidence=1 -> 1.0) and two aligned confident sources can
-    reinforce past what either alone would reach (clamped at the cap)."""
+    reinforce past what either alone would reach (clamped at the cap).
+
+    ``external_direction`` ("up"/"down"/None) adds the signed
+    _EXTERNAL_SIGNAL_PRIOR_WEIGHT prior before the clamp (TradingAgents#30)."""
     raw = (
         factors.technical_direction * factors.technical_confidence
         + factors.sentiment_direction * factors.sentiment_confidence
+        + _EXTERNAL_SIGNAL_SIGN.get(external_direction or "", 0.0) * _EXTERNAL_SIGNAL_PRIOR_WEIGHT
     )
     return max(-1.0, min(1.0, raw))
 
@@ -74,9 +91,16 @@ def _rating_for_score(score: float) -> PortfolioRating:
     return PortfolioRating.HOLD
 
 
-def compute_rating(factors) -> tuple[PortfolioRating, float, str]:
+def compute_rating(factors, external_direction: str | None = None) -> tuple[PortfolioRating, float, str]:
     """Returns (rating, final_score, reason) -- the pure decision logic,
-    separated from ResearchPlan rendering so it's directly unit-testable."""
+    separated from ResearchPlan rendering so it's directly unit-testable.
+
+    ``external_direction`` ("up"/"down"/None, TradingAgents#30) is the
+    upstream signal's explicit direction, applied as a signed prior to the
+    combined score. It does NOT bypass the catalyst hard gates: a sector fire
+    is itself a dated catalyst, and the Factor Extractor is shown the signal
+    so it can record it as one -- the gate stays the extractor's honest call."""
+    external_direction = external_direction if external_direction in _EXTERNAL_SIGNAL_SIGN else None
     if not factors.dated_catalyst_present:
         return (
             PortfolioRating.HOLD, 0.0,
@@ -94,28 +118,33 @@ def compute_rating(factors) -> tuple[PortfolioRating, float, str]:
             "hard gate to Hold.",
         )
 
-    score = _combined_score(factors)
+    score = _combined_score(factors, external_direction)
     n_flags = len(factors.risk_flags)
     if n_flags:
         damping = max(0.0, 1.0 - _RISK_FLAG_DAMPING_PER_FLAG * n_flags)
         score *= damping
 
     rating = _rating_for_score(score)
+    prior_note = ""
+    if external_direction:
+        signed = _EXTERNAL_SIGNAL_SIGN[external_direction] * _EXTERNAL_SIGNAL_PRIOR_WEIGHT
+        prior_note = f", external signal {external_direction} prior {signed:+.2f}"
     reason = (
         f"Combined confidence-weighted score {score:+.2f} "
         f"(technical {factors.technical_direction:+.2f}@{factors.technical_confidence:.2f} conf, "
         f"sentiment {factors.sentiment_direction:+.2f}@{factors.sentiment_confidence:.2f} conf"
+        + prior_note
         + (f", damped {n_flags} risk flag(s)" if n_flags else "")
         + f") -> {rating.value}."
     )
     return rating, score, reason
 
 
-def score_factors(factors, company_name: str) -> str:
+def score_factors(factors, company_name: str, external_direction: str | None = None) -> str:
     """Maps FactorExtraction -> a rendered ResearchPlan string, the same
     shape state["investment_plan"] already holds for the debate_enabled=True
     path, so Trader/Portfolio Manager consume it unchanged."""
-    rating, score, reason = compute_rating(factors)
+    rating, score, reason = compute_rating(factors, external_direction)
 
     rationale_parts = [reason]
     if factors.dated_catalyst_present and factors.catalyst_hours_to_resolution is not None:

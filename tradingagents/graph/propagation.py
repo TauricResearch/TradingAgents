@@ -23,6 +23,7 @@ class Propagator:
         past_context: str = "",
         instrument_context: str = "",
         external_signal_context: str = "",
+        external_signal_direction: str = "",
     ) -> dict[str, Any]:
         """Create the initial state for the agent graph.
 
@@ -37,7 +38,15 @@ class Propagator:
         news-gap-ml's technical-trigger leg) — informational context for the
         market analyst to reason *about*, not a substitute for its own
         independent analysis. Empty by default; most callers never set it.
+
+        ``external_signal_direction`` ("up" / "down" / "", TradingAgents#30) is
+        that signal's explicit direction, kept separate from the prose so the
+        deterministic scorer can use it as a signed prior and decide.py can
+        report whether the final rating agreed with it. Anything other than
+        "up"/"down" is stored as "".
         """
+        if external_signal_direction not in ("up", "down"):
+            external_signal_direction = ""
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
@@ -46,6 +55,7 @@ class Propagator:
             "trade_date": str(trade_date),
             "past_context": past_context,
             "external_signal_context": external_signal_context,
+            "external_signal_direction": external_signal_direction,
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",

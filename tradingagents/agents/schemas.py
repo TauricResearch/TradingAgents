@@ -340,11 +340,29 @@ class PortfolioDecision(BaseModel):
             "of the directional thesis already covered in investment_thesis."
         ),
     )
+    external_signal_disagreement_reason: str | None = Field(
+        default=None,
+        description=(
+            "Only when the prompt states an external signal with an explicit "
+            "direction (TradingAgents#30): if your rating points the OPPOSITE "
+            "way, or is Hold, name the specific evidence from the reports that "
+            "overrides that signal. 'No company-specific catalyst found' is not "
+            "sufficient on its own -- the signal is itself a dated sector-wide "
+            "catalyst. Null when there is no external signal or you agree with it."
+        ),
+    )
 
     @field_validator("price_target", mode="before")
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+    @field_validator("external_signal_disagreement_reason", mode="before")
+    @classmethod
+    def _nullish_reason_to_none(cls, v):
+        if isinstance(v, str) and v.strip().lower() in _NULLISH_FLOAT:
+            return None
+        return v
 
 
 def render_pm_decision(decision: PortfolioDecision) -> str:
@@ -370,6 +388,8 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
         parts.extend(["", f"**Price Target**: {decision.price_target}"])
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+    if decision.external_signal_disagreement_reason:
+        parts.extend(["", f"**External Signal Disagreement**: {decision.external_signal_disagreement_reason}"])
     return "\n".join(parts)
 
 
