@@ -1,0 +1,68 @@
+name: Sync upstream
+
+# Opens a PR when TauricResearch/TradingAgents moves ahead of this fork.
+# Does NOT auto-merge: overlapping files need a keep-both resolution
+# (see docs/UPSTREAM_SYNC.md). Never use GitHub's "Sync fork" button.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/TauricResearch/TradingAgents.git
+          git fetch upstream --tags --prune
+          git fetch origin --prune
+
+      - name: Open sync PR or conflict issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          AHEAD_BEHIND=$(git rev-list --left-right --count origin/main...upstream/main)
+          FORK_ONLY=${AHEAD_BEHIND%%$'\t'*}
+          UPSTREAM_ONLY=${AHEAD_BEHIND##*$'\t'}
+          echo "fork-only=$FORK_ONLY upstream-only=$UPSTREAM_ONLY"
+          if [ "$UPSTREAM_ONLY" = "0" ]; then
+            echo "already up to date"
+            exit 0
+          fi
+
+          STAMP=$(date -u +%F)
+          BRANCH="sync/upstream-$STAMP"
+          INCOMING=$(git log --oneline --no-merges origin/main..upstream/main)
+
+          git checkout -B "$BRANCH" origin/main
+          if git merge --no-edit upstream/main; then
+            git push -u origin "$BRANCH"
+            if gh pr list --head "$BRANCH" --state open --json number --jq 'length' | grep -qx 0; then
+              gh pr create \
+                --title "sync: pull upstream TradingAgents ($STAMP)" \
+                --body "$(printf 'Automatic weekly sync from TauricResearch/TradingAgents.\n\nThis merge was clean. Review still required — do not squash away fork-only files.\n\nPolicy: `docs/UPSTREAM_SYNC.md`\n\nIncoming:\n```\n%s\n```\n' "$INCOMING")"
+            fi
+          else
+            CONFLICTS=$(git diff --name-only --diff-filter=U)
+            git merge --abort
+            TITLE="Upstream sync needs a keep-both merge ($STAMP)"
+            BODY=$(printf 'TauricResearch/TradingAgents is %s commit(s) ahead. A straight merge conflicts.\n\nRun locally:\n\n```\npython scripts/sync_upstream.py\n```\n\nThen resolve with `docs/UPSTREAM_SYNC.md` (keep fork additions AND the upstream fix; never `-X ours` / `-X theirs`).\n\nConflict files from this attempt:\n```\n%s\n```\n\nIncoming:\n```\n%s\n```\n' "$UPSTREAM_ONLY" "$CONFLICTS" "$INCOMING")
+            if ! gh issue list --search "$TITLE" --state open --json number --jq 'length' | grep -qx 0; then
+              echo "issue already open"
+            else
+              gh issue create --title "$TITLE" --body "$BODY"
+            fi
+            exit 1
+          fi
