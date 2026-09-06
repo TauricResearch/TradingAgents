@@ -134,6 +134,34 @@ _BULLISH_RATINGS = {"Buy", "Overweight"}
 _BEARISH_RATINGS = {"Sell", "Underweight"}
 
 
+def _news_context_passage(signal: dict) -> str:
+    """news-gap-ml#92: the ticker's own GDELT coverage, riding along on a
+    sector fire. Rendered as leads, not as a signal -- the score's tone
+    features carry ~+0.02 AUC over random and the rest is India VIX, so the
+    number is labelled for exactly what it is."""
+    count = signal.get("news_article_count")
+    if not isinstance(count, int) or count <= 0:
+        return ""
+    bits = [f"news-gap-ml's GDELT feed also matched {count} article{'s' if count != 1 else ''} to this company today"]
+    tone = signal.get("news_avg_tone")
+    if isinstance(tone, (int, float)):
+        bits.append(f"average tone {tone:+.2f}")
+    score = signal.get("news_score")
+    if isinstance(score, (int, float)):
+        hit = signal.get("news_score_hit")
+        bits.append(
+            f"its gap model scored p(big gap)={score:.2f}"
+            + (" (above its 0.50 threshold)" if hit else " (below its 0.50 threshold)" if hit is False else "")
+        )
+    passage = "; ".join(bits) + "."
+    urls = [u for u in (signal.get("news_urls") or []) if isinstance(u, str) and u]
+    if urls:
+        passage += " Article URLs (leads for your own news search, unverified): " + " ".join(urls[:3]) + "."
+    passage += (" That model is a volatility gauge more than a news signal -- weight the articles by what they say, "
+                "not by the score.")
+    return passage
+
+
 def parse_external_signal(raw_json: str) -> tuple[str, str]:
     """--context JSON -> (natural-language passage, direction) where direction
     is "up" / "down" / "" (TradingAgents#30).
@@ -170,6 +198,9 @@ def parse_external_signal(raw_json: str) -> tuple[str, str]:
             "its stock-level implications with your own tools rather than assuming either that it holds "
             "or that 'no company-specific news' means no catalyst."
         )
+        news_block = _news_context_passage(signal)
+        if news_block:
+            parts.append(news_block)
         return " ".join(parts), direction
 
     direction = _SIDE_TO_DIRECTION.get(str(signal.get("side", "")).lower(), "")

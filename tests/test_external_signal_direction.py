@@ -21,6 +21,7 @@ These tests pin, without any LLM call:
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -100,6 +101,40 @@ class TestParseExternalSignal:
         text, direction = self.decide.parse_external_signal('{"sector_theme": "x", "sector_direction": "sideways"}')
         assert direction == ""
         assert "expected direction" not in text
+
+    def test_sector_payload_renders_news_context_block(self):
+        """news-gap-ml#92: the ticker's own GDELT coverage rides along on the
+        sector fire -- article count, tone, the score labelled against its
+        threshold, URLs as leads -- without changing the direction prior."""
+        raw = json.dumps({
+            "sector_theme": "GST rate cuts boost FMCG", "sector_direction": "up",
+            "sector_headline": "GST Council slashes rates",
+            "news_score": 0.41, "news_score_hit": False, "news_article_count": 3, "news_avg_tone": -2.35,
+            "news_urls": ["https://x/very-negative", "https://x/positive", "https://x/mild", "https://x/fourth"],
+        })
+        text, direction = self.decide.parse_external_signal(raw)
+        assert direction == "up"
+        assert "matched 3 articles" in text
+        assert "average tone -2.35" in text
+        assert "p(big gap)=0.41 (below its 0.50 threshold)" in text
+        assert "https://x/very-negative https://x/positive https://x/mild" in text
+        assert "https://x/fourth" not in text  # capped at 3
+        assert "volatility gauge" in text  # labelled for what the model is
+
+    def test_sector_payload_news_block_absent_without_articles(self):
+        text, _ = self.decide.parse_external_signal(
+            '{"sector_theme": "x", "sector_direction": "up", "news_article_count": 0, "news_score": 0.2}')
+        assert "GDELT" not in text and "p(big gap)" not in text
+        text, _ = self.decide.parse_external_signal('{"sector_theme": "x", "sector_direction": "up"}')
+        assert "GDELT" not in text
+
+    def test_sector_payload_news_block_score_hit_and_singular(self):
+        text, _ = self.decide.parse_external_signal(
+            '{"sector_theme": "x", "sector_direction": "down", "news_article_count": 1, '
+            '"news_score": 0.62, "news_score_hit": true}')
+        assert "matched 1 article to" in text
+        assert "p(big gap)=0.62 (above its 0.50 threshold)" in text
+        assert "Article URLs" not in text
 
     def test_technical_payload_maps_side_to_direction(self):
         text, direction = self.decide.parse_external_signal('{"side": "long", "action": "entry", "score": 78.5}')
