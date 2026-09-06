@@ -7,9 +7,9 @@ import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
+from .date_window import in_window
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
-from .utils import in_news_window
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -100,7 +100,7 @@ def get_news_yfinance(
             data = _extract_article_data(article)
 
             # Keep only articles within the requested window (look-ahead safe).
-            if not in_news_window(data["pub_date"], start_dt, end_dt):
+            if not in_window(data["pub_date"], start_dt, end_dt):
                 continue
 
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
@@ -187,7 +187,7 @@ def get_global_news_yfinance(
             # Extract uniformly (flat + nested) and apply the same look-ahead-safe
             # window filter, so flat articles can't leak future news (#1007).
             data = _extract_article_data(article)
-            if not in_news_window(data["pub_date"], start_dt, curr_dt):
+            if not in_window(data["pub_date"], start_dt, curr_dt):
                 continue
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:

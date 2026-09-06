@@ -12,6 +12,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 
+import pytz
 import requests
 
 from .errors import VendorNotConfiguredError
@@ -19,6 +20,12 @@ from .errors import VendorNotConfiguredError
 logger = logging.getLogger(__name__)
 
 FRED_API_BASE = "https://api.stlouisfed.org/fred"
+
+# FRED's realtime clock runs on US Central (St. Louis Fed). It rejects a
+# realtime date in its own future with a 400, so the vintage pin is clamped to
+# this rather than the caller's local date (#1275). pytz (already a dependency)
+# bundles its own tz database, so this works where system tzdata is absent.
+FRED_TZ = pytz.timezone("America/Chicago")
 
 # Network timeout (seconds) so a stalled request can't hang the agents,
 # mirroring the Alpha Vantage client.
@@ -115,6 +122,16 @@ def _resolve_series_id(indicator: str) -> str:
     return candidate
 
 
+def _fred_today() -> str:
+    """FRED's current calendar date (US Central) as ``yyyy-mm-dd``.
+
+    The vintage pin is clamped to this: FRED rejects a ``realtime_start`` after
+    its own today with a 400, and ``curr_date`` on a live run comes from the
+    caller's local clock, which can already be tomorrow in Chicago.
+    """
+    return datetime.now(FRED_TZ).strftime("%Y-%m-%d")
+
+
 def _request(path: str, params: dict) -> dict:
     """GET a FRED endpoint, surfacing FRED's JSON error body on a bad request."""
     api_params = {**params, "api_key": get_api_key(), "file_type": "json"}
@@ -143,8 +160,12 @@ def get_macro_data(
     Args:
         indicator: A friendly alias (e.g. "cpi", "unemployment", "10y_treasury")
             or a raw FRED series ID (e.g. "CPIAUCSL", "DGS10").
-        curr_date: End of the window (yyyy-mm-dd); no later observations are
-            returned, so a past date never leaks future data.
+        curr_date: The as-of date (yyyy-mm-dd). It bounds the observation window
+            AND pins the data vintage: FRED is queried with the realtime bounds
+            set to ``curr_date`` (clamped to FRED's own today) so a historical
+            run sees the values that were actually published by that date, not
+            later revisions. Without this, revision-prone series (CPI, GDP, ...)
+            would leak future information into a backtest (#1275).
         look_back_days: Trailing window length; ``None`` uses DEFAULT_LOOKBACK_DAYS.
 
     Returns:
@@ -157,6 +178,17 @@ def get_macro_data(
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
 
+    # Pin the data vintage. FRED defaults both realtime bounds to today, serving
+    # the LATEST revision of every observation; a single-day realtime interval
+    # asks for the values known as of the pin instead, on both the metadata and
+    # observations requests (#1275). Clamp to FRED's today: on a live run
+    # curr_date is the caller's local date, which can be a day ahead of Chicago,
+    # and a realtime date in FRED's future 400s -> the routing layer would then
+    # drop macro data silently. A past curr_date is unaffected, so historical
+    # point-in-time behaviour is preserved.
+    pit = min(curr_date, _fred_today())
+    realtime = {"realtime_start": pit, "realtime_end": pit}
+
     # Invalid LLM-supplied indicator: return guidance rather than raising, so a
     # bad argument doesn't abort the run (the routing layer also degrades macro
     # data, but a specific message is more useful to the analyst).
@@ -165,7 +197,7 @@ def get_macro_data(
     except ValueError as e:
         return f"FRED: {e}"
 
-    meta = _request("series", {"series_id": series_id}).get("seriess") or []
+    meta = _request("series", {"series_id": series_id, **realtime}).get("seriess") or []
     if not meta:
         return (
             f"FRED series '{series_id}' not found. Pass a known alias "
@@ -184,6 +216,7 @@ def get_macro_data(
             "observation_start": start_date,
             "observation_end": curr_date,
             "sort_order": "asc",
+            **realtime,
         },
     ).get("observations", [])
 
@@ -204,8 +237,10 @@ def get_macro_data(
 
     if not points:
         return header + (
-            f"\nNo observations for {series_id} in this window. The series may "
-            f"report less frequently than the window length; widen look_back_days."
+            f"\nNo observations for {series_id} in this window at the {pit} "
+            f"vintage. The series may report less frequently than the window "
+            f"(try a longer look_back_days), or have no vintage published by "
+            f"then (unpublished as of {pit}, or before ALFRED coverage begins)."
         )
 
     first_date, first_val = points[0]

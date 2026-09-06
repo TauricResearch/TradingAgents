@@ -1,41 +1,24 @@
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Annotated
 
 import pandas as pd
-from dateutil.relativedelta import relativedelta
 
 SavePathType = Annotated[str, "File path to save data. If None, data is not saved."]
-
-
-def _as_utc(dt: datetime) -> datetime:
-    """Normalize a datetime to UTC-aware; a naive value is assumed to be UTC.
-
-    Window bounds arrive naive (parsed from ``yyyy-mm-dd``) while article
-    timestamps may be offset-aware, so every operand is normalized before
-    comparison -- stripping tzinfo instead of converting (the old behavior)
-    made filtering depend on the wall-clock offset the timestamp happened to
-    carry, e.g. misreading 2025-05-10T01:00+05:00 (really 05-09T20:00Z) as
-    05-10 and dropping it (#1126).
-    """
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
 
 
 def in_news_window(pub_date, start_dt, end_dt) -> bool:
     """Whether an article belongs in the half-open window ``[start_dt, end_dt + 1 day)``.
 
-    Shared by every news vendor (yfinance, Indian RSS, ...) so look-ahead
-    safety is enforced identically regardless of source: dated articles are
-    kept only if they fall in the window; an undated article is kept only
-    when the window reaches the present (live run), since a historical/backtest
-    window can't prove it isn't future news (#992/#1007). Every operand is
-    normalized to UTC and the upper bound is exclusive, so an article stamped
-    exactly at midnight after end_dt cannot leak into a historical run (#1126).
+    Thin wrapper around :func:`tradingagents.dataflows.date_window.in_window` so
+    Indian RSS and Yahoo share one look-ahead rule. Dated articles are kept
+    only if they fall in the window; an undated article is kept only when the
+    window reaches the present (live run), since a historical/backtest window
+    can't prove it isn't future news (#992/#1007/#1126).
     """
-    end = _as_utc(end_dt)
-    if pub_date is not None:
-        return _as_utc(start_dt) <= _as_utc(pub_date) < end + relativedelta(days=1)
-    return end >= datetime.now(timezone.utc) - relativedelta(days=1)
+    from .date_window import in_window
+
+    return in_window(pub_date, start_dt, end_dt)
 
 # Tickers can contain letters, digits, dot, dash, underscore, caret
 # (index symbols like ^GSPC), equals (futures like GC=F), plus

@@ -3,34 +3,34 @@ into a historical window.
 
 Regressions for #992 (flat articles bypassed the date filter), #1007 (global
 news injected future articles), #993 (empty-after-filter returned a blank body),
-#1126 (in_news_window's upper bound was inclusive and it stripped tzinfo
-instead of converting to UTC, both fixed for every vendor sharing it -- see
-tradingagents/dataflows/utils.py).
+and #1126 (inclusive upper bound leaked the midnight-after article; host-local
+timestamp parsing made filtering machine-dependent). Indian RSS still uses the
+shared ``in_news_window`` wrapper; Yahoo now goes through ``date_window.in_window``.
 """
-import calendar
 from datetime import datetime, timezone
 
 import pytest
 
 import tradingagents.dataflows.yfinance_news as ynews
+from tradingagents.dataflows.date_window import in_window
 from tradingagents.dataflows.utils import in_news_window
 
 
 def _epoch(date_str):
-    # calendar.timegm (not time.mktime) so this is host-timezone-independent --
-    # providerPublishTime is genuine UTC epoch seconds, and _extract_article_data
-    # now parses it as UTC-aware (#1126), so the fixture must encode it the same way.
-    return calendar.timegm(datetime.strptime(date_str, "%Y-%m-%d").timetuple())
+    """Epoch seconds for UTC midnight of ``date_str`` (host-timezone independent)."""
+    return int(datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
 
 
 @pytest.mark.unit
 def test_flat_article_publish_time_is_parsed():
     # #992: flat articles now carry a pub_date (was always None -> unfilterable).
+    # #1126: parsed as UTC-aware, so the date can't shift with the host timezone.
     data = ynews._extract_article_data(
         {"title": "X", "publisher": "P", "link": "l", "providerPublishTime": _epoch("2025-05-09")}
     )
     assert data["pub_date"] is not None
-    assert data["pub_date"].strftime("%Y-%m-%d") == "2025-05-09"
+    assert data["pub_date"].tzinfo is not None
+    assert data["pub_date"] == datetime(2025, 5, 9, tzinfo=timezone.utc)
 
 
 @pytest.mark.unit
@@ -39,17 +39,21 @@ def test_window_excludes_future_and_undated_in_backtest():
     end = datetime(2025, 5, 9)  # historical window (well in the past)
     inside = datetime(2025, 5, 5)
     future = datetime(2025, 6, 1)
+    assert in_window(inside, start, end) is True
+    assert in_window(future, start, end) is False     # look-ahead blocked
+    assert in_window(None, start, end) is False        # undated -> excluded in backtest
+    # Indian RSS still goes through the shared wrapper; keep the two in lockstep.
     assert in_news_window(inside, start, end) is True
-    assert in_news_window(future, start, end) is False     # look-ahead blocked
-    assert in_news_window(None, start, end) is False        # undated -> excluded in backtest
+    assert in_news_window(future, start, end) is False
+    assert in_news_window(None, start, end) is False
 
 
 @pytest.mark.unit
 def test_window_keeps_undated_in_live_window():
     # Live window (reaches today): undated articles can't be "future", so keep them.
-    start = datetime.now()
-    end = datetime.now()
-    assert in_news_window(None, start, end) is True
+    now = datetime.now(timezone.utc)
+    assert in_window(None, now, now) is True
+    assert in_news_window(None, now, now) is True
 
 
 @pytest.mark.unit
@@ -60,6 +64,8 @@ def test_upper_bound_is_exclusive():
     end = datetime(2025, 5, 9)
     midnight_after = datetime(2025, 5, 10, 0, 0, 0, tzinfo=timezone.utc)
     last_moment = datetime(2025, 5, 9, 23, 59, 59, tzinfo=timezone.utc)
+    assert in_window(midnight_after, start, end) is False
+    assert in_window(last_moment, start, end) is True
     assert in_news_window(midnight_after, start, end) is False
     assert in_news_window(last_moment, start, end) is True
 
@@ -71,6 +77,7 @@ def test_offset_aware_timestamp_is_converted_not_truncated():
     start = datetime(2025, 5, 1)
     end = datetime(2025, 5, 9)
     aware = datetime.fromisoformat("2025-05-10T01:00:00+05:00")
+    assert in_window(aware, start, end) is True
     assert in_news_window(aware, start, end) is True
 
 

@@ -64,7 +64,7 @@ def _parse_rss_items(content: bytes, limit: int) -> list[dict]:
         if pubdate_el is not None and pubdate_el.text:
             try:
                 # Keep whatever offset the feed provides (most RSS pubDate values
-                # carry one, e.g. "+0530" or "GMT") -- in_news_window/_as_utc
+                # carry one, e.g. "+0530" or "GMT") -- in_news_window/date_window
                 # converts correctly regardless. Stripping it here instead (the
                 # old behavior) discarded the real offset and silently misread
                 # the timestamp as UTC, the same class of bug fixed for the

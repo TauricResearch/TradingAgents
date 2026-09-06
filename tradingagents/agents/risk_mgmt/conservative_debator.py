@@ -1,6 +1,7 @@
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
+    opponent_argument_or_opening,
 )
 
 
@@ -10,8 +11,12 @@ def create_conservative_debator(llm):
         history = risk_debate_state.get("history", "")
         conservative_history = risk_debate_state.get("conservative_history", "")
 
-        current_aggressive_response = risk_debate_state.get("current_aggressive_response", "")
-        current_neutral_response = risk_debate_state.get("current_neutral_response", "")
+        current_aggressive_response = opponent_argument_or_opening(
+            risk_debate_state.get("current_aggressive_response", ""), "aggressive analyst"
+        )
+        current_neutral_response = opponent_argument_or_opening(
+            risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
+        )
 
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]

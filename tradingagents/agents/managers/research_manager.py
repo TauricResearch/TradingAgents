@@ -44,7 +44,7 @@ There is no existing position to manage. Every decision here is a fresh entry, t
 - **Underweight**: Cautious bear lean; a fresh short entry is worth taking, though conviction is not maximal
 - **Sell**: Strong conviction in the bear thesis; the case for a fresh short entry now is clear
 
-Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
+Commit to a directional stance only when the debate's strongest arguments clearly warrant one. Choose Hold when the evidence is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure; do not manufacture a direction merely to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
 {external_section}
 ---
 

@@ -60,17 +60,53 @@ def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+def _local_midnight(value) -> pd.Timestamp:
+    """A single timestamp as its naive, midnight-normalized local date (or NaT)."""
+    if pd.isna(value):
+        return pd.NaT
+    try:
+        ts = pd.Timestamp(value)
+    except (ValueError, TypeError):
+        return pd.NaT
+    if ts.tzinfo is not None:
+        ts = ts.tz_localize(None)  # drop tz, keep the local wall-clock date
+    return ts.normalize()
+
+
+def _normalize_dates(dates) -> pd.Series:
+    """Parse to naive, midnight-normalized dates so tz-aware or intraday
+    timestamps compare correctly against the naive ``curr_date`` cutoff (#1201).
+
+    Normalized per element: 5 years of yfinance bars span daylight-saving
+    changes (and cache CSVs round-trip the offsets as strings), so the series can
+    carry mixed UTC offsets that ``pd.to_datetime`` cannot unify without
+    ``utc=True`` — which would shift non-US (positive-offset) markets to the
+    previous day. Keeping each bar's own local date avoids both.
+    """
+    return pd.to_datetime(pd.Series(dates).map(_local_midnight))
+
+
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
-    """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
+    """Normalize a stock DataFrame for stockstats: parse/normalize dates and
+    coerce prices to numeric (NaN where invalid). Dropping incomplete rows and
+    filling gaps is left to ``_fill_price_gaps`` so the caller can first inspect
+    the latest in-range bar (#1201)."""
     data = _ensure_date_column(data)
-    data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+    data["Date"] = _normalize_dates(data["Date"])
     data = data.dropna(subset=["Date"])
 
     price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
     data[price_cols] = data[price_cols].apply(pd.to_numeric, errors="coerce")
-    data = data.dropna(subset=["Close"])
-    data[price_cols] = data[price_cols].ffill().bfill()
+    return data
 
+
+def _fill_price_gaps(data: pd.DataFrame) -> pd.DataFrame:
+    """Drop rows with no close and forward/back-fill remaining price gaps so
+    indicators compute on a continuous series."""
+    price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
+    # copy() so a filtered (sliced) input is written to safely, not via a view.
+    data = data.dropna(subset=["Close"]).copy()
+    data[price_cols] = data[price_cols].ffill().bfill()
     return data
 
 
@@ -159,7 +195,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     safe_symbol = safe_ticker_component(canonical)
 
     config = get_config()
-    curr_date_dt = pd.to_datetime(curr_date)
+    curr_date_dt = pd.to_datetime(curr_date).normalize()
 
     # Cache uses a fixed window (5y to today) so one file per symbol.
     today_date = pd.Timestamp.today()
@@ -211,8 +247,19 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
 
     data = _clean_dataframe(data)
 
-    # Filter to curr_date to prevent look-ahead bias in backtesting
+    # Filter to curr_date to prevent look-ahead bias in backtesting.
     data = data[data["Date"] <= curr_date_dt]
+
+    # Guard the latest in-range bar before dropping incomplete rows: a newest bar
+    # with no close is "not settled yet", not "does not exist". Silently dropping
+    # it would make the previous trading day look like the latest (#1201); raise
+    # instead so the router surfaces it rather than fabricating a fallback.
+    if not data.empty and pd.isna(data["Close"].iloc[-1]):
+        raise NoMarketDataError(
+            symbol, canonical, "latest in-range OHLCV bar has no closing price"
+        )
+
+    data = _fill_price_gaps(data)
 
     # Reject a stale frame (latest row far older than curr_date) rather than
     # feeding year-old prices into indicators (#1021).
