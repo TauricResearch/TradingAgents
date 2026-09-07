@@ -156,6 +156,8 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
+News comes from yfinance by default. To pull it from a Keenable web search instead, set `config["tool_vendors"]["get_news"] = "keenable"` (ticker news) and/or `config["tool_vendors"]["get_global_news"] = "keenable"` (macro headlines, using `global_news_queries`). To switch the whole `news_data` category, chain it with a vendor that also serves insider transactions, e.g. `config["data_vendors"]["news_data"] = "keenable,yfinance"`. No account is needed: it works keyless out of the box. Setting `KEENABLE_API_KEY` is optional and only lifts the keyless per-IP rate limits (10 requests/s, 1000/hour). Results are bounded to the analysis window on the server and re-checked locally, so a historical run never sees articles published after its as-of date.
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
