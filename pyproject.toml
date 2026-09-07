@@ -39,6 +39,10 @@ dev = [
     "pytest>=8.0",
     "pytest-subtests>=0.13",
 ]
+dashboard = [
+    "streamlit>=1.35.0",
+    "plotly>=5.20.0",
+]
 # Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
 # stays lean: pip install "tradingagents[bedrock]".
 bedrock = [

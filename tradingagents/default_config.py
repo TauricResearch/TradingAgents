@@ -26,6 +26,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    # Vietnam market regulations & tax model
+    "TRADINGAGENTS_VN_MARKET_ENABLED":       "vn_market_enabled",
+    "TRADINGAGENTS_VN_TAX_RATE_SELL":        "vn_tax_rate_sell",
+    "TRADINGAGENTS_VN_TRADING_FEE_RATE":     "vn_trading_fee_rate",
+    "TRADINGAGENTS_VN_ALLOW_SHORT_SELLING":  "vn_allow_short_selling",
 }
 
 
@@ -165,6 +170,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".AX":  "^AXJO",       # Australia (ASX 200)
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
+        ".VN":  "E1VFVN30.VN", # Vietnam (VN30 ETF on HOSE)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
+    # Vietnam market regulations and tax friction model
+    "vn_market_enabled": False,
+    "vn_tax_rate_sell": 0.001,
+    "vn_trading_fee_rate": 0.0015,
+    "vn_allow_short_selling": False,
+    "vn_price_limit_hose": 0.07,
+    "vn_price_limit_hnx": 0.10,
+    "vn_price_limit_upcom": 0.15,
+    "vn_settlement_days": 2,
 })

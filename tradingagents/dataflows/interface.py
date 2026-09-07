@@ -28,6 +28,11 @@ from .y_finance import (
     get_stock_stats_indicators_window,
     get_YFin_data_online,
 )
+from .vn_data import (
+    get_vietnam_macro_data,
+    get_vietnam_news,
+    is_vietnam_symbol,
+)
 from .yfinance_news import get_global_news_yfinance, get_news_yfinance
 
 logger = logging.getLogger(__name__)
@@ -82,6 +87,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "vietnam",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -124,6 +130,7 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "vietnam": get_vietnam_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
@@ -136,6 +143,7 @@ VENDOR_METHODS = {
     # macro_data
     "get_macro_indicators": {
         "fred": get_fred_macro_data,
+        "vietnam": lambda *args, **kwargs: get_vietnam_macro_data(),
     },
     # prediction_markets
     "get_prediction_markets": {
@@ -167,6 +175,9 @@ def get_vendor(category: str, method: str = None) -> str:
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
+    if method == "get_macro_indicators" and args and any(k in str(args[0]).lower() for k in ("vietnam", "vn", "sbv")):
+        return get_vietnam_macro_data()
+
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
@@ -199,7 +210,11 @@ def route_to_vendor(method: str, *args, **kwargs):
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            return impl_func(*args, **kwargs)
+            res = impl_func(*args, **kwargs)
+            if method == "get_news" and args and is_vietnam_symbol(str(args[0])):
+                if not res or "no news" in str(res).lower() or not str(res).strip():
+                    return get_vietnam_news(*args, **kwargs)
+            return res
         except VendorRateLimitError:
             logger.warning("Vendor %r rate-limited for %s; trying next vendor.", vendor, method)
             continue

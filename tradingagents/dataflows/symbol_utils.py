@@ -67,6 +67,9 @@ _ALIASES = {
     "GER40": "^GDAXI", "GER30": "^GDAXI", "DE40": "^GDAXI",
     "UK100": "^FTSE", "JP225": "^N225", "JPN225": "^N225",
     "FRA40": "^FCHI", "EU50": "^STOXX50E", "HK50": "^HSI",
+    # Vietnam Index / Proxies -> Yahoo VN30 ETF symbol
+    "VNINDEX": "E1VFVN30.VN", "^VNINDEX": "E1VFVN30.VN",
+    "VN30": "E1VFVN30.VN", "^VN30": "E1VFVN30.VN",
 }
 
 # Yahoo symbols may contain letters, digits, and these structural characters.
@@ -122,6 +125,10 @@ def normalize_symbol(raw: str) -> str:
     s = raw.strip().upper()
     # Broker CFD/qualifier suffixes Yahoo never uses.
     s = s.rstrip("+")
+
+    # Vietnam broker style (e.g. HPG:VN -> HPG.VN)
+    if s.endswith(":VN"):
+        s = f"{s[:-3]}.VN"
 
     crypto = _normalize_crypto(s)
     if s in _ALIASES:

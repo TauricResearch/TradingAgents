@@ -180,6 +180,13 @@ def build_instrument_context(
             " Treat it as a crypto asset rather than a company, and do not "
             "assume company fundamentals are available."
         )
+
+    from tradingagents.dataflows.vn_data import get_vietnam_regulatory_prompt, is_vietnam_symbol
+    if is_vietnam_symbol(ticker) or (
+        identity and str(identity.get("exchange", "")).upper() in {"HOSE", "HNX", "UPCOM", "VNX"}
+    ):
+        context += f"\n\n{get_vietnam_regulatory_prompt()}"
+
     return context
 
 
