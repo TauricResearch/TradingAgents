@@ -22,6 +22,7 @@ def _reset_config():
     # Hard reset: set_config() merges, so empty DEFAULT dicts (e.g. tool_vendors)
     # don't clear keys leaked by other tests. Replace the global outright.
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+    interface.reset_circuit_breaker()
 
 
 def _no_data(symbol, *a, **k):
