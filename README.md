@@ -110,6 +110,20 @@ conda create -n tradingagents python=3.12
 conda activate tradingagents
 ```
 
+On macOS or Linux, `conda activate` is a shell function. Run `conda init` and
+`conda activate` as your normal user, not with `sudo`; using `sudo` initializes
+root's shell and cannot activate the environment in your current terminal. If
+your shell reports that Conda has not been initialized, run this once and open
+a new terminal (or restart the shell):
+
+```bash
+conda init "$(basename "$SHELL")"
+conda activate tradingagents
+```
+
+For a one-off command when shell activation is unavailable, use `conda run`
+instead, for example `conda run -n tradingagents pip install .`.
+
 Install the package and its dependencies:
 ```bash
 pip install .
