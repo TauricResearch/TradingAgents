@@ -145,5 +145,39 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
         self.assertEqual(sel["openai_reasoning_effort"], "high")
 
 
+@pytest.mark.unit
+class TestReasoningEffortOfferedForCodex(unittest.TestCase):
+    def test_codex_provider_is_asked_for_reasoning_effort(self):
+        # openai_codex serves the same GPT-5 family over the ChatGPT-subscription
+        # endpoint and TradingAgentsGraph._get_provider_kwargs forwards
+        # openai_reasoning_effort for it, so Step 8 must offer the knob here too
+        # — otherwise the config key is wired end-to-end but can only ever be set
+        # through the env var.
+        import cli.main as m
+
+        with mock.patch.dict(
+            os.environ, {"TRADINGAGENTS_OPENAI_REASONING_EFFORT": ""}, clear=False
+        ), \
+             mock.patch.object(m, "fetch_announcements", return_value=None), \
+             mock.patch.object(m, "display_announcements"), \
+             mock.patch.object(m, "get_ticker", return_value="AAPL"), \
+             mock.patch.object(m, "get_analysis_date", return_value="2026-05-29"), \
+             mock.patch.object(m, "select_analysts", return_value=[]), \
+             mock.patch.object(m, "select_research_depth", return_value=1), \
+             mock.patch.object(m, "ensure_api_key"), \
+             mock.patch.object(
+                 m, "select_llm_provider",
+                 return_value=("openai_codex", "https://chatgpt.com/backend-api/codex"),
+             ), \
+             mock.patch.object(m, "ask_output_language", return_value="English"), \
+             mock.patch.object(m, "select_shallow_thinking_agent", return_value="gpt-5.4-mini"), \
+             mock.patch.object(m, "select_deep_thinking_agent", return_value="gpt-5.6-sol"), \
+             mock.patch.object(m, "ask_openai_reasoning_effort", return_value="high") as prompt_effort:
+            sel = m.get_user_selections()
+
+        prompt_effort.assert_called_once()
+        self.assertEqual(sel["openai_reasoning_effort"], "high")
+
+
 if __name__ == "__main__":
     unittest.main()
