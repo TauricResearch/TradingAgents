@@ -562,16 +562,33 @@ def get_user_selections():
             f"[green]Detected asset type:[/green] {asset_type.value}"
         )
 
-    # Step 2: Analysis date
-    default_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    console.print(
-        create_question_box(
-            "Step 2: Analysis Date",
-            "Enter the analysis date (YYYY-MM-DD)",
-            default_date,
+    # Step 2: Analysis date (skipped when TRADINGAGENTS_ANALYSIS_DATE is set;
+    # use "today" for current date)
+    date_from_env = os.environ.get("TRADINGAGENTS_ANALYSIS_DATE")
+    if date_from_env:
+        if date_from_env.lower() == "today":
+            analysis_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        else:
+            try:
+                parsed_date = datetime.datetime.strptime(date_from_env, "%Y-%m-%d")
+                if parsed_date.date() > datetime.datetime.now().date():
+                    console.print(f"[red]Error: TRADINGAGENTS_ANALYSIS_DATE ({date_from_env}) cannot be in the future[/red]")
+                    raise typer.Exit(1)
+                analysis_date = date_from_env
+            except ValueError:
+                console.print(f"[red]Error: Invalid date format in TRADINGAGENTS_ANALYSIS_DATE: {date_from_env}. Expected YYYY-MM-DD.[/red]")
+                raise typer.Exit(1)
+        console.print(f"[green]✓ Analysis date from environment:[/green] {analysis_date}")
+    else:
+        default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        console.print(
+            create_question_box(
+                "Step 2: Analysis Date",
+                "Enter the analysis date (YYYY-MM-DD)",
+                default_date,
+            )
         )
-    )
-    analysis_date = get_analysis_date()
+        analysis_date = get_analysis_date()
 
     # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
     if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
@@ -588,16 +605,38 @@ def get_user_selections():
         )
         output_language = ask_output_language()
 
-    # Step 4: Select analysts
-    console.print(
-        create_question_box(
-            "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+    # Step 4: Select analysts (skipped when TRADINGAGENTS_ANALYSTS is set;
+    # use "all" for all analysts, or comma-separated: "market,social,news,fundamentals")
+    analysts_from_env = os.environ.get("TRADINGAGENTS_ANALYSTS")
+    if analysts_from_env:
+        from cli.models import AnalystType as _AT
+        from cli.utils import filter_analysts_for_asset_type
+        if analysts_from_env.lower() == "all":
+            selected_analysts = list(_AT)
+        else:
+            try:
+                selected_analysts = [_AT(a.strip().lower()) for a in analysts_from_env.split(",")]
+            except ValueError:
+                valid_analysts = ", ".join(a.value for a in _AT)
+                console.print(f"[red]Error: Invalid analyst in TRADINGAGENTS_ANALYSTS. Valid options are: {valid_analysts}[/red]")
+                raise typer.Exit(1)
+        selected_analysts = filter_analysts_for_asset_type(selected_analysts, asset_type)
+        if not selected_analysts:
+            console.print("[red]Error: No valid analysts selected after filtering for asset type.[/red]")
+            raise typer.Exit(1)
+        console.print(
+            f"[green]✓ Analysts from environment:[/green] {', '.join(a.value for a in selected_analysts)}"
         )
-    )
-    selected_analysts = select_analysts(asset_type)
-    console.print(
-        f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
-    )
+    else:
+        console.print(
+            create_question_box(
+                "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+            )
+        )
+        selected_analysts = select_analysts(asset_type)
+        console.print(
+            f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
+        )
 
     # Step 5: Research depth (skipped when both round counts are set via env).
     # Research depth maps to the debate + risk round counts; when both are
