@@ -30,7 +30,7 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree
@@ -43,6 +43,37 @@ from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_trade_date(trade_date: str) -> str:
+    """Validate a programmatic run date before any vendor request is made.
+
+    The interactive CLI already rejects future dates, but callers of
+    ``TradingAgentsGraph.propagate`` can bypass that prompt.  Letting a future
+    date reach the data tools makes them request an impossible Yahoo range and
+    can produce a misleading downstream no-data error (#1118).
+    """
+    value = str(trade_date)
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%d")
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"trade_date must be a valid date in YYYY-MM-DD format, got {trade_date!r}"
+        ) from exc
+
+    # Reject non-canonical values such as a datetime string even if a future
+    # parser would otherwise accept them.
+    if parsed.strftime("%Y-%m-%d") != value:
+        raise ValueError(
+            f"trade_date must be a valid date in YYYY-MM-DD format, got {trade_date!r}"
+        )
+
+    today = get_current_date()
+    if value > today:
+        raise ValueError(
+            f"trade_date cannot be in the future: {value} is after {today}"
+        )
+    return value
 
 
 def _coerce_max_retries(value):
@@ -417,6 +448,7 @@ class TradingAgentsGraph:
         ``tradingagents.agents.utils.rating.is_review`` before mapping it to the
         PortfolioRating enum.
         """
+        trade_date = _validate_trade_date(trade_date)
         self.ticker = company_name
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
