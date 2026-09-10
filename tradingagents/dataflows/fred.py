@@ -10,6 +10,7 @@ the routing layer treats it as "unavailable" rather than a hard crash.
 """
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 
 import pytz
@@ -132,6 +133,17 @@ def _fred_today() -> str:
     return datetime.now(FRED_TZ).strftime("%Y-%m-%d")
 
 
+# The API key travels as a query parameter, so requests' own HTTPError message
+# — which quotes the full URL — would print it into any log or traceback that
+# catches it. Scrub it on the way out.
+_API_KEY_IN_URL = re.compile(r"(api_key=)[^&\s]+")
+
+
+def redact(text: str) -> str:
+    """Replace any ``api_key=...`` value in ``text`` with a placeholder."""
+    return _API_KEY_IN_URL.sub(r"\1REDACTED", str(text))
+
+
 def _request(path: str, params: dict) -> dict:
     """GET a FRED endpoint, surfacing FRED's JSON error body on a bad request."""
     api_params = {**params, "api_key": get_api_key(), "file_type": "json"}
@@ -145,8 +157,13 @@ def _request(path: str, params: dict) -> dict:
             message = response.json().get("error_message", response.text)
         except ValueError:
             message = response.text
-        raise ValueError(f"FRED request failed: {message}")
-    response.raise_for_status()
+        raise ValueError(f"FRED request failed: {redact(message)}")
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        # Re-raise the same class so callers matching on HTTPError still work,
+        # and keep the response attached for status-code-based retry logic.
+        raise requests.HTTPError(redact(exc), response=response) from None
     return response.json()
 
 
