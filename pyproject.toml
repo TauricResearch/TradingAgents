@@ -44,9 +44,11 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+plugin = ["mcp==1.26.0"]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-mcp = "tradingagents.plugin.server:main"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
