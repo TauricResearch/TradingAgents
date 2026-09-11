@@ -304,14 +304,15 @@ def _fetch_requesty_models() -> list[tuple[str, str]]:
 
     Requesty's /v1/models is an authenticated OpenAI-shaped listing; it returns
     no per-model ``name``, so the id doubles as the label. When REQUESTY_API_KEY
-    is unset the endpoint 401s, which is caught and reported like OpenRouter's
-    fetch so the user can still fall back to Custom model ID.
+    is unset the endpoint would 401, so skip the request entirely and let the
+    caller fall back to Custom model ID (the key is collected later in the
+    setup flow, so there is nothing to send yet).
     """
     import requests
-    headers = {}
     key = os.environ.get("REQUESTY_API_KEY")
-    if key:
-        headers["Authorization"] = f"Bearer {key}"
+    if not key:
+        return []
+    headers = {"Authorization": f"Bearer {key}"}
     try:
         resp = requests.get(
             "https://router.requesty.ai/v1/models", headers=headers, timeout=10
@@ -322,7 +323,12 @@ def _fetch_requesty_models() -> list[tuple[str, str]]:
         # explicitly so the prompt's "latest available" label holds regardless of
         # response ordering (mirrors the OpenRouter fetch).
         models.sort(key=lambda m: m.get("created") or 0, reverse=True)
-        return [(m.get("name") or m["id"], m["id"]) for m in models]
+        # Only keep entries with a string id; the id is split on "/" downstream.
+        return [
+            (m.get("name") or m["id"], m["id"])
+            for m in models
+            if isinstance(m.get("id"), str)
+        ]
     except Exception as e:
         console.print(f"\n[yellow]Could not fetch Requesty models: {e}[/yellow]")
         return []
