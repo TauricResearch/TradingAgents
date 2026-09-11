@@ -2,6 +2,7 @@
 mode, required prompts exit cleanly on cancel, and the model list is
 newest-first with a mainstream shortlist and a Custom-ID escape hatch."""
 
+import os
 from unittest import mock
 
 import pytest
@@ -46,9 +47,35 @@ class TestRequestyLatestFirst:
         resp = mock.Mock()
         resp.json.return_value = payload
         resp.raise_for_status = mock.Mock()
-        with mock.patch("requests.get", return_value=resp):
+        with mock.patch("requests.get", return_value=resp), \
+             mock.patch.dict("os.environ", {"REQUESTY_API_KEY": "test-key"}):
             out = prompts._fetch_requesty_models()
         assert [mid for _, mid in out] == ["openai/new", "openai/mid", "openai/old"]
+
+    def test_skips_request_when_key_unset(self):
+        # Without a key the endpoint would 401; the fetch must return early
+        # rather than spend the timeout on a request that cannot succeed.
+        env = {k: v for k, v in os.environ.items() if k != "REQUESTY_API_KEY"}
+        with mock.patch.dict("os.environ", env, clear=True), \
+             mock.patch("requests.get") as get:
+            out = prompts._fetch_requesty_models()
+        assert out == []
+        get.assert_not_called()
+
+    def test_ignores_entries_without_string_id(self):
+        payload = {"data": [
+            {"id": "openai/ok", "created": 3000},
+            {"created": 2000},
+            {"id": None, "created": 1000},
+            {"id": 42, "created": 500},
+        ]}
+        resp = mock.Mock()
+        resp.json.return_value = payload
+        resp.raise_for_status = mock.Mock()
+        with mock.patch("requests.get", return_value=resp), \
+             mock.patch.dict("os.environ", {"REQUESTY_API_KEY": "test-key"}):
+            out = prompts._fetch_requesty_models()
+        assert out == [("openai/ok", "openai/ok")]
 
 
 @pytest.mark.unit
