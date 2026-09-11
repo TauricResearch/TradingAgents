@@ -8,7 +8,13 @@ import pytest
 
 
 def test_credentials_are_presence_only(monkeypatch):
-    from tradingagents.plugin.server import get_capabilities
+    from tradingagents.plugin.server import (
+        AnalysisSettings,
+        Capabilities,
+        DataSourceCapability,
+        RoleCapability,
+        get_capabilities,
+    )
 
     monkeypatch.setenv("FRED_API_KEY", "secret-sentinel-123")
     monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
@@ -19,7 +25,64 @@ def test_credentials_are_presence_only(monkeypatch):
     assert result.data_sources["alpha_vantage"].credential_present is False
     assert "secret-sentinel-123" not in result.model_dump_json()
     assert result.available_tools == ["get_capabilities"]
+    assert result.planned_data_tools == [
+        "get_stock_data",
+        "get_indicators",
+        "get_verified_market_snapshot",
+        "get_fundamentals",
+        "get_balance_sheet",
+        "get_cashflow",
+        "get_income_statement",
+        "get_news",
+        "get_global_news",
+        "get_insider_transactions",
+        "get_macro_indicators",
+        "get_prediction_markets",
+        "resolve_instrument_identity",
+        "fetch_stocktwits_messages",
+        "fetch_reddit_posts",
+        "get_decision_history",
+    ]
+    assert result.api_runner_settings == [
+        "llm_provider",
+        "deep_think_llm",
+        "quick_think_llm",
+        "backend_url",
+        "temperature",
+        "llm_max_retries",
+        "max_tokens",
+        "google_thinking_level",
+        "openai_reasoning_effort",
+        "anthropic_effort",
+    ]
+    assert set(result.data_sources) == {
+        "alpha_vantage",
+        "fred",
+        "yfinance",
+        "polymarket",
+        "stocktwits",
+        "reddit",
+    }
+    assert all(
+        result.data_sources[name].credential_env is None
+        and result.data_sources[name].credential_present is None
+        for name in ("yfinance", "polymarket", "stocktwits", "reddit")
+    )
+    assert result.schema_version == 1
     assert result.analysis_settings.available is False
+    assert result.analysis_settings.model_dump() == {
+        "available": False,
+        "asset_types": ["stock", "crypto"],
+        "analysts": ["market", "social", "news", "fundamentals"],
+        "debate_rounds": 1,
+        "risk_rounds": 1,
+        "output_language": "English",
+        "vendor_selection": "ordered category and per-tool overrides",
+    }
+    assert all(
+        model.model_config.get("extra") == "forbid"
+        for model in (RoleCapability, AnalysisSettings, DataSourceCapability, Capabilities)
+    )
     assert [role.key for role in result.roles[:4]] == [
         "market",
         "social",
