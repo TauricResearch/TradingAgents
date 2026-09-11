@@ -2,7 +2,7 @@
 
 Date: 2026-09-11
 
-Status: Design sections approved in conversation; written specification awaiting review. Implementation has not started.
+Status: Written specification approved in conversation. Implementation plan requested; implementation has not started.
 
 PRD: [TradingAgents Codex plugin and MCP integration](../../../tasks/prd-tradingagents-codex-plugin-mcp.md).
 Architecture: [Overall plugin architecture](2026-09-11-codex-plugin-architecture.md).
