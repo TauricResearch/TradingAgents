@@ -24,7 +24,9 @@ See: https://github.com/TauricResearch/TradingAgents/issues/557
 See: https://github.com/TauricResearch/TradingAgents/issues/796
 """
 
+from collections.abc import Mapping
 from datetime import datetime, timedelta
+from typing import Any
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -40,12 +42,40 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows import config
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 
 
 def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
+
+
+def build_sentiment_prompt(
+    state: Mapping[str, Any], *, output_language: str, news_block: str,
+    stocktwits_block: str, reddit_block: str,
+) -> str:
+    """Build the complete sentiment system message from recorded evidence."""
+    ticker = state["company_of_interest"]
+    end_date = state["trade_date"]
+    start_date = _seven_days_back(end_date)
+    instrument_context = get_instrument_context_from_state(state)
+    return (
+        "You are a helpful AI assistant, collaborating with other assistants."
+        " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
+        " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
+        f" Today's date is {end_date}; treat it as 'now' for all analysis. {instrument_context}"
+        " " + NO_EXTERNAL_TOOLS + "\n"
+        + _build_system_message(
+            ticker=ticker,
+            start_date=start_date,
+            end_date=end_date,
+            news_block=news_block,
+            stocktwits_block=stocktwits_block,
+            reddit_block=reddit_block,
+            output_language=output_language,
+        )
+    )
 
 
 def create_sentiment_analyst(llm):
@@ -62,7 +92,6 @@ def create_sentiment_analyst(llm):
         ticker = state["company_of_interest"]
         end_date = state["trade_date"]
         start_date = _seven_days_back(end_date)
-        instrument_context = get_instrument_context_from_state(state)
 
         # Pre-fetch all three sources. Each fetcher degrades gracefully and
         # returns a string (no exceptions surface from here), so the LLM
@@ -75,10 +104,10 @@ def create_sentiment_analyst(llm):
         )
         reddit_block = fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date)
 
-        system_message = _build_system_message(
-            ticker=ticker,
-            start_date=start_date,
-            end_date=end_date,
+        language = config.get_config().get("output_language", "English")
+        system_message = build_sentiment_prompt(
+            state,
+            output_language=language,
             news_block=news_block,
             stocktwits_block=stocktwits_block,
             reddit_block=reddit_block,
@@ -86,25 +115,12 @@ def create_sentiment_analyst(llm):
 
         prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    # No tool-calling here: the data is pre-fetched into the
-                    # prompt, so tool-range wording would only invite a
-                    # hallucinated tool call (#1130).
-                    " Today's date is {current_date}; treat it as 'now' for all analysis. {instrument_context}"
-                    " " + NO_EXTERNAL_TOOLS +
-                    "\n{system_message}",
-                ),
+                ("system", "{system_message}"),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(current_date=end_date)
-        prompt = prompt.partial(instrument_context=instrument_context)
 
         # Format the template into a concrete message list so the structured
         # and free-text paths receive the same input. No bind_tools — the
@@ -135,6 +151,7 @@ def _build_system_message(
     news_block: str,
     stocktwits_block: str,
     reddit_block: str,
+    output_language: str | None = None,
 ) -> str:
     """Assemble the sentiment-analyst system message with structured data blocks."""
     return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three complementary data sources that have already been collected for you.
@@ -189,7 +206,7 @@ Fill the following fields:
 - **confidence**: low / medium / high, based on data quality and sample size.
 - **narrative**: Full source-by-source breakdown, divergences, dominant narrative themes, catalysts and risks, and a markdown summary table of key sentiment signals (direction, source, supporting evidence).
 
-{get_language_instruction()}"""
+{get_language_instruction(output_language)}"""
 
 
 # ---------------------------------------------------------------------------

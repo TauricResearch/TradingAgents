@@ -65,6 +65,76 @@ def test_fundamentals_builder_preserves_legacy_tuple_body():
     assert 'for specific financial statements.",)' in prompt
 
 
+def test_sentiment_uses_recorded_blocks(monkeypatch):
+    from tradingagents.agents.analysts import sentiment_analyst as module
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("prompt builder fetched evidence")
+
+    monkeypatch.setattr(module.get_news, "func", forbidden)
+    monkeypatch.setattr(module, "fetch_stocktwits_messages", forbidden)
+    monkeypatch.setattr(module, "fetch_reddit_posts", forbidden)
+    state = {"company_of_interest": "SHOP.TO", "trade_date": "2026-09-10"}
+    blocks = {
+        "news_block": "news {verbatim}",
+        "stocktwits_block": "<unavailable>",
+        "reddit_block": "saved reddit",
+    }
+    prompt = module.build_sentiment_prompt(state, output_language="French", **blocks)
+    assert all(block in prompt for block in blocks.values())
+    assert "2026-09-03" in prompt and "2026-09-10" in prompt
+    assert "SHOP.TO" in prompt and "French" in prompt
+
+
+def test_sentiment_factory_uses_recorded_blocks_for_fallback(monkeypatch):
+    from tradingagents.agents.analysts import sentiment_analyst as module
+
+    monkeypatch.setattr(module.config, "get_config", lambda: {"output_language": "French"})
+    news = MagicMock(return_value="<unavailable>")
+    stocktwits = MagicMock(return_value="saved stocktwits")
+    reddit = MagicMock(return_value="<unavailable>")
+    monkeypatch.setattr(module.get_news, "func", news)
+    monkeypatch.setattr(module, "fetch_stocktwits_messages", stocktwits)
+    monkeypatch.setattr(module, "fetch_reddit_posts", reddit)
+    structured = MagicMock()
+    structured.invoke.side_effect = ValueError("bad JSON")
+    llm = MagicMock()
+    llm.with_structured_output.return_value = structured
+    llm.invoke.return_value = AIMessage(content="Fallback sentiment.")
+    state = {
+        "company_of_interest": "SHOP.TO",
+        "trade_date": "2026-09-10",
+        "instrument_context": "The instrument is SHOP.TO; Company: ACME {Holdings}.",
+        "messages": [],
+    }
+
+    result = module.create_sentiment_analyst(llm)(state)
+
+    news.assert_called_once_with("SHOP.TO", "2026-09-03", "2026-09-10")
+    stocktwits.assert_called_once_with(
+        "SHOP.TO", limit=30, start_date="2026-09-03", end_date="2026-09-10"
+    )
+    reddit.assert_called_once_with("SHOP.TO", start_date="2026-09-03", end_date="2026-09-10")
+    assert llm.invoke.call_args.args[0][0].content == module.build_sentiment_prompt(
+        state,
+        output_language="French",
+        news_block="<unavailable>",
+        stocktwits_block="saved stocktwits",
+        reddit_block="<unavailable>",
+    )
+    assert result["sentiment_report"] == "Fallback sentiment."
+
+
+def test_social_media_alias_delegates_to_sentiment_analyst(monkeypatch):
+    from tradingagents.agents.analysts import sentiment_analyst as module
+
+    expected = object()
+    monkeypatch.setattr(module, "create_sentiment_analyst", lambda llm: expected)
+
+    with pytest.deprecated_call():
+        assert module.create_social_media_analyst(object()) is expected
+
+
 @pytest.mark.parametrize(
     ("factory", "builder", "report_key"),
     [
