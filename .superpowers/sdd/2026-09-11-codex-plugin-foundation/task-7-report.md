@@ -151,3 +151,36 @@ emitted only the known `pydantic_settings` `IncompleteFieldDefinitionWarning` on
 
 The unavailable Python 3.10/3.11 interpreters and GitHub Ubuntu matrix remain unavailable
 locally and are not claimed passed.
+
+## Fix round 2
+
+### Findings addressed
+
+1. The strict stdio protocol read loop now checks its shared deadline immediately before and
+   after every selector-read iteration. A continuously-ready stderr stream or newline-free stdout
+   can no longer keep the loop alive past the deadline; existing cleanup remains bounded by that
+   same deadline, and every captured stdout line remains JSON-parsed.
+2. The smoke's synchronous isolated-import probe now has its own 30-second `subprocess.run`
+   timeout. A timeout reports captured stderr/stdout (or `no output`) instead of blocking the
+   coroutine indefinitely; nonzero import failures retain their existing stderr assertion.
+
+### Fix-round commands and actual outputs
+
+```bash
+/tmp/tradingagents-task7-final.pZEgsb/venv/bin/python -m pytest \
+  tests/test_plugin_runtime.py -q
+/tmp/tradingagents-task7-final.pZEgsb/venv/bin/python -m pytest -q
+/tmp/tradingagents-task7-final.pZEgsb/venv/bin/python -m ruff check .
+/tmp/tradingagents-task7-clean.IJJ2KY/venv/bin/python \
+  scripts/smoke_plugin_protocol.py
+git diff --check
+```
+
+Outputs/statuses: protocol runtime tests `6 passed in 0.33s`; full suite `733 passed, 2 skipped,
+18 warnings, 73 subtests passed in 2.54s`; Ruff `All checks passed!`; clean non-editable Python
+3.12 smoke exit 0. The smoke emitted only the known third-party
+`pydantic_settings` `IncompleteFieldDefinitionWarning` on stderr. `git diff --check` exit 0.
+
+The checkout's `.venv` lacks the plugin extra, and a separate stale editable environment fails
+the smoke's deliberate installed-package assertion; validation therefore used the clean
+non-editable plugin environment for smoke and an MCP-enabled test environment for pytest.

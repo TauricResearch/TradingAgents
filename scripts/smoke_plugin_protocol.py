@@ -21,13 +21,18 @@ origin = Path(tradingagents.__file__).resolve()
 roots = [Path(value).resolve() for value in site.getsitepackages()]
 assert any(origin.is_relative_to(root) for root in roots), origin
 """
-    result = subprocess.run(
-        [sys.executable, "-I", "-c", code],
-        cwd=directory,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-I", "-c", code],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired as exc:
+        details = exc.stderr or exc.stdout or "no output"
+        raise AssertionError(f"installed import timed out after 30 seconds: {details}") from exc
     assert result.returncode == 0, result.stderr
 
 

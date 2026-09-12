@@ -136,7 +136,9 @@ def test_stdio_protocol_stdout_is_json_rpc(tmp_path):
     def read_line():
         nonlocal stdout_buffer
         while b"\n" not in stdout_buffer:
+            assert time.monotonic() < deadline, "MCP response timed out"
             assert read_available(), "MCP response timed out"
+            assert time.monotonic() < deadline, "MCP response timed out"
         line, stdout_buffer = stdout_buffer.split(b"\n", 1)
         stdout_lines.append(line.decode() + "\n")
 
