@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from pathlib import Path
 from typing import Annotated
 
 import pandas as pd
@@ -24,6 +25,12 @@ MAX_OHLCV_STALE_DAYS = 10
 # up today's close soon after it publishes, long enough that a day with no bar
 # at all (weekend, holiday) cannot trigger a download on every call.
 OHLCV_CACHE_TTL_SECONDS = 900
+
+# How many days of day-stamped cache files to retain per symbol. The filename
+# embeds the request day, so an older file can never be hit again; retention is
+# only a margin for a process still reading yesterday's file. Without pruning, a
+# long-lived install accumulates one file per symbol per day without bound.
+OHLCV_CACHE_RETENTION_DAYS = 7
 
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
@@ -181,6 +188,26 @@ def _needs_same_day_refresh(data_file, curr_date_dt, today_date) -> bool:
     return time.time() - os.path.getmtime(data_file) > OHLCV_CACHE_TTL_SECONDS
 
 
+def _prune_stale_ohlcv_cache(cache_dir: str, safe_symbol: str, keep: str) -> None:
+    """Drop this symbol's day-stamped cache files from earlier days.
+
+    Only files belonging to ``safe_symbol`` are considered, and only those past
+    the retention window, so a concurrent reader or a racing prune is left
+    alone. ``safe_symbol`` is validated by :func:`safe_ticker_component`, which
+    rejects glob metacharacters, so it is safe to interpolate into the pattern.
+    """
+    cutoff = time.time() - OHLCV_CACHE_RETENTION_DAYS * 86400
+    keep_path = Path(keep)
+    for path in Path(cache_dir).glob(f"{safe_symbol}-YFin-data-*.csv"):
+        if path == keep_path:
+            continue
+        try:
+            if os.path.getmtime(path) < cutoff:
+                path.unlink()
+        except OSError:
+            pass  # a concurrent reader/writer or a racing prune: leave it
+
+
 def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
@@ -243,6 +270,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
                 symbol, canonical, "Yahoo Finance returned no rows"
             )
         downloaded.to_csv(data_file, index=False, encoding="utf-8")
+        _prune_stale_ohlcv_cache(config["data_cache_dir"], safe_symbol, data_file)
         data = downloaded
 
     data = _clean_dataframe(data)

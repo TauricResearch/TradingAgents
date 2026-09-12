@@ -107,3 +107,33 @@ def test_load_ohlcv_reuses_fresh_same_day_cache(tmp_path, monkeypatch):
 
     monkeypatch.setattr(su.yf, "download", _fail_download)
     su.load_ohlcv("AAPL", TODAY.strftime("%Y-%m-%d"))
+
+
+@pytest.mark.unit
+def test_stale_cache_files_for_the_same_symbol_are_pruned(tmp_path, monkeypatch):
+    """The day-stamped cache name makes yesterday's file dead weight: without
+    pruning, a long-lived install accumulates one file per symbol per day."""
+    monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: TODAY))
+
+    def _aged(name):
+        f = tmp_path / name
+        pd.DataFrame({"Date": ["2026-07-17"], "Close": [1.0]}).to_csv(f, index=False)
+        old = time.time() - (su.OHLCV_CACHE_RETENTION_DAYS + 1) * 86400
+        os.utime(f, (old, old))
+        return f
+
+    stale = _aged("AAPL-YFin-data-2019-07-18-2019-07-19.csv")
+    other_symbol = _aged("MSFT-YFin-data-2019-07-18-2019-07-19.csv")
+
+    monkeypatch.setattr(
+        su.yf, "download",
+        lambda *a, **k: pd.DataFrame(
+            {"Date": pd.to_datetime(["2026-07-17", "2026-07-18"]), "Close": [100.0, 222.0]}
+        ).set_index("Date"),
+    )
+
+    su.load_ohlcv("AAPL", TODAY.strftime("%Y-%m-%d"))
+
+    assert not stale.exists(), "an earlier day's cache file for this symbol must go"
+    assert other_symbol.exists(), "another symbol's cache must be untouched"
