@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
@@ -12,20 +15,15 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows import config
 
 
-def create_research_manager(llm):
-    structured_llm = bind_structured(llm, ResearchPlan, "Research Manager")
+def build_research_manager_prompt(state: Mapping[str, Any], *, output_language: str) -> str:
+    """Build the Research Manager prompt without invoking the model."""
+    history = state["investment_debate_state"].get("history", "")
+    return f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
 
-    def research_manager_node(state) -> dict:
-        instrument_context = get_instrument_context_from_state(state)
-        history = state["investment_debate_state"].get("history", "")
-
-        investment_debate_state = state["investment_debate_state"]
-
-        prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
-
-{instrument_context}
+{get_instrument_context_from_state(state)}
 
 ---
 
@@ -43,28 +41,36 @@ Commit to a directional stance only when the debate's strongest arguments clearl
 **Debate History:**
 {history}
 
-{NO_EXTERNAL_TOOLS}""" + get_language_instruction()
+{NO_EXTERNAL_TOOLS}""" + get_language_instruction(output_language)
 
-        investment_plan = invoke_structured_or_freetext(
-            structured_llm,
-            llm,
-            prompt,
-            render_research_plan,
-            "Research Manager",
-        )
 
-        new_investment_debate_state = {
-            "judge_decision": investment_plan,
+def apply_research_manager_output(state: Mapping[str, Any], output: str) -> dict[str, Any]:
+    investment_debate_state = state["investment_debate_state"]
+    return {
+        "investment_debate_state": {
+            "judge_decision": output,
             "history": investment_debate_state.get("history", ""),
             "bear_history": investment_debate_state.get("bear_history", ""),
             "bull_history": investment_debate_state.get("bull_history", ""),
-            "current_response": investment_plan,
+            "current_response": output,
             "count": investment_debate_state["count"],
-        }
+        },
+        "investment_plan": output,
+    }
 
-        return {
-            "investment_debate_state": new_investment_debate_state,
-            "investment_plan": investment_plan,
-        }
+
+def create_research_manager(llm):
+    structured_llm = bind_structured(llm, ResearchPlan, "Research Manager")
+
+    def research_manager_node(state) -> dict:
+        language = config.get_config().get("output_language", "English")
+        investment_plan = invoke_structured_or_freetext(
+            structured_llm,
+            llm,
+            build_research_manager_prompt(state, output_language=language),
+            render_research_plan,
+            "Research Manager",
+        )
+        return apply_research_manager_output(state, investment_plan)
 
     return research_manager_node
