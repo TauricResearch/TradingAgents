@@ -12,6 +12,7 @@ import pytest
 
 import tradingagents.dataflows.alpha_vantage_common as av
 import tradingagents.dataflows.alpha_vantage_fundamentals as avf
+import tradingagents.dataflows.alpha_vantage_news as avn
 import tradingagents.dataflows.alpha_vantage_stock as avs
 
 
@@ -133,3 +134,18 @@ def test_unparseable_body_is_never_served_untrimmed(monkeypatch):
 def test_empty_body_still_passes_through(monkeypatch):
     monkeypatch.setattr(avs, "_make_api_request", lambda *a, **k: "")
     assert avs.get_stock("IBM", "2024-05-09", "2024-05-10") == ""
+
+
+@pytest.mark.unit
+def test_global_news_none_args_use_config_defaults(monkeypatch):
+    # #1326: the LLM tool call passes look_back_days=None / limit=None
+    # explicitly (rather than omitting them), which used to bypass the
+    # function's literal defaults and crash inside timedelta(days=None).
+    captured = {}
+    monkeypatch.setattr(
+        avn, "_make_api_request", lambda fn, params: captured.update(params) or "{}"
+    )
+    config = avn.get_config()
+    result = avn.get_global_news("2024-05-10", look_back_days=None, limit=None)
+    assert result == "{}"
+    assert captured["limit"] == str(config["global_news_article_limit"])
