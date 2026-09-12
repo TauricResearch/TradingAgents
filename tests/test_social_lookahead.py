@@ -28,7 +28,7 @@ class _JsonResp:
     def __exit__(self, *a):
         return False
 
-    def read(self):
+    def read(self, *a):
         return self._body
 
 

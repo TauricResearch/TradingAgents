@@ -64,6 +64,26 @@ def _stocktwits_symbol(ticker: str) -> str:
     return f"{base}.X" if base else ticker.strip().upper()
 
 
+# A symbol stream is a page of messages; cap the read so a compromised or
+# misbehaving endpoint can't stream an unbounded body into memory before we
+# parse it. A timeout bounds idle time, not total bytes.
+_MAX_FEED_BYTES = 5 * 1024 * 1024
+
+
+def _read_capped(resp) -> bytes:
+    """Read a response body bounded to ``_MAX_FEED_BYTES``, raising on overflow.
+
+    Overflow raises ``http.client.HTTPException``, which the fetch path already
+    treats as a failed fetch (degrade to the placeholder).
+    """
+    data = resp.read(_MAX_FEED_BYTES + 1)
+    if len(data) > _MAX_FEED_BYTES:
+        raise http.client.HTTPException(
+            f"StockTwits response exceeded {_MAX_FEED_BYTES} bytes; refusing to parse"
+        )
+    return data
+
+
 def fetch_stocktwits_messages(
     ticker: str,
     limit: int = 30,
@@ -87,7 +107,7 @@ def fetch_stocktwits_messages(
     req = Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
     try:
         with urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read())
+            data = json.loads(_read_capped(resp))
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).
