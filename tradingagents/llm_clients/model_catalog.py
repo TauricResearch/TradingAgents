@@ -78,6 +78,24 @@ _KIMI_MODELS: dict[str, list[ModelOption]] = {
 }
 
 
+# Shared model list for Mistral's La Plateforme API.
+# Source: docs.mistral.ai/models/overview. Mistral pins dated snapshots
+# (e.g. mistral-large-2512) rather than "-latest" aliases so pricing and
+# behavior stay stable — same rationale as the Qwen list above.
+_MISTRAL_MODEL_CHOICES: list[ModelOption] = [
+    ("Mistral Large 3 - Latest flagship MoE, 262K ctx", "mistral-large-2512"),
+    ("Mistral Medium 3.5 - Frontier-class, agentic & coding", "mistral-medium-2604"),
+    ("Mistral Small 4 - Fast, unifies instruct/reasoning/coding, 256K ctx", "mistral-small-2603"),
+    ("Ministral 8B - Lightweight edge model, low cost", "ministral-8b-2512"),
+    ("Ministral 3B - Smallest edge model, lowest cost", "ministral-3b-2512"),
+    ("Custom model ID", "custom"),
+]
+_MISTRAL_MODELS: dict[str, list[ModelOption]] = {
+    "quick": _MISTRAL_MODEL_CHOICES,
+    "deep": _MISTRAL_MODEL_CHOICES,
+}
+
+
 _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
     "quick": [
         ("MiniMax-M3 - Latest, 1M ctx, native multimodal", "MiniMax-M3"),
@@ -196,11 +214,11 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # Generic OpenAI-compatible endpoint: the model is whatever the user's
     # server serves, so only "Custom model ID" is offered.
     "openai_compatible": _CUSTOM_ONLY,
+    "mistral": _MISTRAL_MODELS,
     # Hosted OpenAI-compatible providers that serve many (and frequently
     # changing) models — offer "Custom model ID" rather than a list that goes
     # stale. The endpoint + key are wired by the provider; the user picks the
     # model their account has access to.
-    "mistral": _CUSTOM_ONLY,
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
