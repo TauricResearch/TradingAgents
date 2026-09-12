@@ -3,6 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tradingagents.agents.risk_mgmt.aggressive_debator import apply_aggressive_output
+from tradingagents.agents.risk_mgmt.conservative_debator import apply_conservative_output
+from tradingagents.agents.risk_mgmt.neutral_debator import apply_neutral_output
 from tradingagents.agents.schemas import PortfolioRating, ResearchPlan, TraderAction, TraderProposal
 
 
@@ -70,6 +73,38 @@ def _trader_state(market_report="TECHNICAL_SENTINEL"):
         "asset_type": "crypto",
         "investment_plan": "PLAN_SENTINEL",
         "market_report": market_report,
+    }
+
+
+def _risk_state(**responses):
+    debate = {
+        "history": "RISK_DEBATE_SENTINEL",
+        "aggressive_history": "saved aggressive",
+        "conservative_history": "saved conservative",
+        "neutral_history": "saved neutral",
+        "current_aggressive_response": "last aggressive",
+        "current_conservative_response": "last conservative",
+        "current_neutral_response": "last neutral",
+        "count": 4,
+    }
+    debate.update(responses)
+    return {
+        "company_of_interest": "BTC-USD",
+        "asset_type": "crypto",
+        "market_report": "MARKET_SENTINEL",
+        "sentiment_report": "SENTIMENT_SENTINEL",
+        "news_report": "NEWS_SENTINEL",
+        "fundamentals_report": "FUNDAMENTALS_SENTINEL",
+        "trader_investment_plan": "TRADER_PLAN_SENTINEL",
+        "risk_debate_state": debate,
+    }
+
+
+def _portfolio_state(past_context=""):
+    return {
+        **_risk_state(),
+        "investment_plan": "INVESTMENT_PLAN_SENTINEL",
+        "past_context": past_context,
     }
 
 
@@ -254,3 +289,187 @@ def test_structured_factories_fall_back_to_freetext(monkeypatch, factory_name, f
 
     field = "investment_plan" if module_name == "research_manager" else "trader_investment_plan"
     assert result[field] == "FREETEXT_OUTPUT"
+
+
+@pytest.mark.parametrize(
+    "key,label,apply",
+    [
+        ("aggressive", "Aggressive", apply_aggressive_output),
+        ("conservative", "Conservative", apply_conservative_output),
+        ("neutral", "Neutral", apply_neutral_output),
+    ],
+)
+def test_risk_patch(key, label, apply):
+    debate = {"history": "prior", "count": 4, "latest_speaker": "prior"}
+    for role in ("aggressive", "conservative", "neutral"):
+        debate[f"{role}_history"] = f"saved {role}"
+        debate[f"current_{role}_response"] = f"last {role}"
+    state = {"risk_debate_state": debate}
+    before = deepcopy(state)
+    result = apply(state, "new")["risk_debate_state"]
+    assert state == before
+    assert result["count"] == 5 and result["latest_speaker"] == label
+    assert result["history"] == f"prior\n{label} Analyst: new"
+    assert result[f"{key}_history"] == f"saved {key}\n{label} Analyst: new"
+    assert result[f"current_{key}_response"] == f"{label} Analyst: new"
+    for other in {"aggressive", "conservative", "neutral"} - {key}:
+        assert result[f"{other}_history"] == debate[f"{other}_history"]
+        assert result[f"current_{other}_response"] == debate[f"current_{other}_response"]
+
+
+@pytest.mark.parametrize(
+    ("module_name", "builder_name"),
+    [
+        ("aggressive_debator", "build_aggressive_prompt"),
+        ("conservative_debator", "build_conservative_prompt"),
+        ("neutral_debator", "build_neutral_prompt"),
+    ],
+)
+def test_risk_builders_are_pure_and_include_all_inputs(monkeypatch, module_name, builder_name):
+    module = __import__(f"tradingagents.agents.risk_mgmt.{module_name}", fromlist=["*"])
+    monkeypatch.setattr(module.config, "get_config", lambda: pytest.fail("global config read"))
+    prompt = getattr(module, builder_name)(
+        _risk_state(
+            current_aggressive_response="",
+            current_conservative_response="",
+            current_neutral_response="",
+        ),
+        output_language="French",
+    )
+    for sentinel in (
+        "MARKET_SENTINEL",
+        "SENTIMENT_SENTINEL",
+        "NEWS_SENTINEL",
+        "FUNDAMENTALS_SENTINEL",
+        "TRADER_PLAN_SENTINEL",
+        "RISK_DEBATE_SENTINEL",
+    ):
+        assert sentinel in prompt
+    assert prompt.count("has not spoken yet") == 2
+    assert "French" in prompt
+
+
+@pytest.mark.parametrize(
+    ("module_name", "factory_name", "builder_name", "updater_name"),
+    [
+        (
+            "aggressive_debator",
+            "create_aggressive_debator",
+            "build_aggressive_prompt",
+            "apply_aggressive_output",
+        ),
+        (
+            "conservative_debator",
+            "create_conservative_debator",
+            "build_conservative_prompt",
+            "apply_conservative_output",
+        ),
+        (
+            "neutral_debator",
+            "create_neutral_debator",
+            "build_neutral_prompt",
+            "apply_neutral_output",
+        ),
+    ],
+)
+def test_risk_factories_use_shared_prompt_and_update(
+    monkeypatch, module_name, factory_name, builder_name, updater_name
+):
+    module = __import__(f"tradingagents.agents.risk_mgmt.{module_name}", fromlist=["*"])
+    monkeypatch.setattr(module.config, "get_config", lambda: {"output_language": "French"})
+    llm = MagicMock()
+    llm.invoke.return_value = MagicMock(content="RISK_OUTPUT")
+    state = _risk_state()
+
+    result = getattr(module, factory_name)(llm)(state)
+
+    assert llm.invoke.call_args.args[0] == getattr(module, builder_name)(
+        state, output_language="French"
+    )
+    assert result == getattr(module, updater_name)(state, "RISK_OUTPUT")
+
+
+@pytest.mark.parametrize("past_context", ["", "PRIOR_LESSON_SENTINEL"])
+def test_portfolio_builder_and_update_are_pure(monkeypatch, past_context):
+    from tradingagents.agents.managers import portfolio_manager
+
+    state = _portfolio_state(past_context)
+    before = deepcopy(state)
+    monkeypatch.setattr(portfolio_manager.config, "get_config", lambda: pytest.fail("global config read"))
+    prompt = portfolio_manager.build_portfolio_manager_prompt(state, output_language="French")
+    result = portfolio_manager.apply_portfolio_manager_output(state, "DECISION_OUTPUT")
+
+    assert state == before
+    assert "RISK_DEBATE_SENTINEL" in prompt and "INVESTMENT_PLAN_SENTINEL" in prompt
+    assert "TRADER_PLAN_SENTINEL" in prompt and "French" in prompt
+    assert ("PRIOR_LESSON_SENTINEL" in prompt) is bool(past_context)
+    assert result == {
+        "risk_debate_state": {
+            "judge_decision": "DECISION_OUTPUT",
+            "history": "RISK_DEBATE_SENTINEL",
+            "aggressive_history": "saved aggressive",
+            "conservative_history": "saved conservative",
+            "neutral_history": "saved neutral",
+            "latest_speaker": "Judge",
+            "current_aggressive_response": "last aggressive",
+            "current_conservative_response": "last conservative",
+            "current_neutral_response": "last neutral",
+            "count": 4,
+        },
+        "final_trade_decision": "DECISION_OUTPUT",
+    }
+
+
+def test_portfolio_factory_uses_shared_prompt_and_update(monkeypatch):
+    from tradingagents.agents.managers import portfolio_manager
+
+    monkeypatch.setattr(portfolio_manager.config, "get_config", lambda: {"output_language": "French"})
+    captured = {}
+    llm = _structured_llm(
+        captured,
+        PortfolioRating.HOLD,
+    )
+    state = _portfolio_state()
+    monkeypatch.setattr(portfolio_manager, "render_pm_decision", lambda output: "DECISION_OUTPUT")
+
+    result = portfolio_manager.create_portfolio_manager(llm)(state)
+
+    assert captured["prompt"] == portfolio_manager.build_portfolio_manager_prompt(
+        state, output_language="French"
+    )
+    assert result == portfolio_manager.apply_portfolio_manager_output(state, "DECISION_OUTPUT")
+
+
+def test_reflection_builder_and_adapter_match():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from tradingagents.graph.reflection import Reflector, build_reflection_messages
+
+    model = Mock()
+    model.invoke.return_value = SimpleNamespace(content="lesson")
+    reflector = Reflector(model)
+    assert reflector.reflect_on_final_decision("decision", 0.042, 0.021, "^N225") == "lesson"
+    messages = build_reflection_messages("decision", 0.042, 0.021, "^N225")
+    model.invoke.assert_called_once_with(messages)
+    assert "+4.2%" in messages[1][1] and "Alpha vs ^N225: +2.1%" in messages[1][1]
+
+
+def test_reflection_builder_honors_custom_prompt_and_negative_default_returns():
+    from tradingagents.graph.reflection import (
+        Reflector,
+        build_reflection_messages,
+        get_log_reflection_prompt,
+    )
+
+    messages = build_reflection_messages("decision", -0.042, -0.021)
+    assert messages[0] == ("system", get_log_reflection_prompt())
+    assert "Raw return: -4.2%" in messages[1][1]
+    assert "Alpha vs SPY: -2.1%" in messages[1][1]
+
+    model = MagicMock()
+    model.invoke.return_value = MagicMock(content="lesson")
+    reflector = Reflector(model)
+    reflector.log_reflection_prompt = "CUSTOM_PROMPT"
+    reflector.reflect_on_final_decision("decision", 0.0, 0.0)
+    assert model.invoke.call_args.args[0][0] == ("system", "CUSTOM_PROMPT")

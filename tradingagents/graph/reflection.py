@@ -3,6 +3,42 @@
 from typing import Any
 
 
+def get_log_reflection_prompt() -> str:
+    """Return the concise system prompt for deferred decision reflections."""
+    return (
+        "You are a trading analyst reviewing your own past decision now that the outcome is known.\n"
+        "Write exactly 2-4 sentences of plain prose (no bullets, no headers, no markdown).\n\n"
+        "Cover in order:\n"
+        "1. Was the directional call correct? (cite the alpha figure)\n"
+        "2. Which part of the investment thesis held or failed?\n"
+        "3. One concrete lesson to apply to the next similar analysis.\n\n"
+        "Be specific and terse. Your output will be stored verbatim in a decision log "
+        "and re-read by future analysts, so every word must earn its place."
+    )
+
+
+def build_reflection_messages(
+    final_decision: str,
+    raw_return: float,
+    alpha_return: float,
+    benchmark_name: str = "SPY",
+    *,
+    system_prompt: str | None = None,
+) -> list[tuple[str, str]]:
+    """Build the model messages for a deferred decision reflection without I/O."""
+    return [
+        ("system", get_log_reflection_prompt() if system_prompt is None else system_prompt),
+        (
+            "human",
+            (
+                f"Raw return: {raw_return:+.1%}\n"
+                f"Alpha vs {benchmark_name}: {alpha_return:+.1%}\n\n"
+                f"Final Decision:\n{final_decision}"
+            ),
+        ),
+    ]
+
+
 class Reflector:
     """Handles reflection on trading decisions."""
 
@@ -17,16 +53,7 @@ class Reflector:
         Produces 2-4 sentences of plain prose — compact enough to be re-injected
         into future agent prompts without bloating the context window.
         """
-        return (
-            "You are a trading analyst reviewing your own past decision now that the outcome is known.\n"
-            "Write exactly 2-4 sentences of plain prose (no bullets, no headers, no markdown).\n\n"
-            "Cover in order:\n"
-            "1. Was the directional call correct? (cite the alpha figure)\n"
-            "2. Which part of the investment thesis held or failed?\n"
-            "3. One concrete lesson to apply to the next similar analysis.\n\n"
-            "Be specific and terse. Your output will be stored verbatim in a decision log "
-            "and re-read by future analysts, so every word must earn its place."
-        )
+        return get_log_reflection_prompt()
 
     def reflect_on_final_decision(
         self,
@@ -43,15 +70,11 @@ class Reflector:
         for US tickers, ``"^N225"`` for ``.T`` listings); defaults to SPY for
         callers that haven't been updated to thread the benchmark through.
         """
-        messages = [
-            ("system", self.log_reflection_prompt),
-            (
-                "human",
-                (
-                    f"Raw return: {raw_return:+.1%}\n"
-                    f"Alpha vs {benchmark_name}: {alpha_return:+.1%}\n\n"
-                    f"Final Decision:\n{final_decision}"
-                ),
-            ),
-        ]
+        messages = build_reflection_messages(
+            final_decision,
+            raw_return,
+            alpha_return,
+            benchmark_name,
+            system_prompt=self.log_reflection_prompt,
+        )
         return self.quick_thinking_llm.invoke(messages).content

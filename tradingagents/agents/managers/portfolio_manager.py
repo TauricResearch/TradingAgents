@@ -10,6 +10,9 @@ back gracefully to free-text generation.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
@@ -20,27 +23,23 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows import config
 
 
-def create_portfolio_manager(llm):
-    structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
+def build_portfolio_manager_prompt(state: Mapping[str, Any], *, output_language: str) -> str:
+    """Build the Portfolio Manager prompt without invoking the model."""
+    instrument_context = get_instrument_context_from_state(state)
 
-    def portfolio_manager_node(state) -> dict:
-        instrument_context = get_instrument_context_from_state(state)
+    history = state["risk_debate_state"]["history"]
+    research_plan = state["investment_plan"]
+    trader_plan = state["trader_investment_plan"]
 
-        history = state["risk_debate_state"]["history"]
-        risk_debate_state = state["risk_debate_state"]
-        research_plan = state["investment_plan"]
-        trader_plan = state["trader_investment_plan"]
+    past_context = state.get("past_context", "")
+    lessons_line = (
+        f"- Lessons from prior decisions and outcomes:\n{past_context}\n" if past_context else ""
+    )
 
-        past_context = state.get("past_context", "")
-        lessons_line = (
-            f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
-            if past_context
-            else ""
-        )
-
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
+    return f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 {instrument_context}
 
@@ -64,18 +63,14 @@ def create_portfolio_manager(llm):
 
 Ground every conclusion in specific evidence from the analysts. Commit to a directional call only when the evidence clearly supports one; choose Hold when the case is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure, rather than forcing a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
 
-{NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
+{NO_EXTERNAL_TOOLS}{get_language_instruction(output_language)}"""
 
-        final_trade_decision = invoke_structured_or_freetext(
-            structured_llm,
-            llm,
-            prompt,
-            render_pm_decision,
-            "Portfolio Manager",
-        )
 
-        new_risk_debate_state = {
-            "judge_decision": final_trade_decision,
+def apply_portfolio_manager_output(state: Mapping[str, Any], output: str) -> dict[str, Any]:
+    risk_debate_state = state["risk_debate_state"]
+    return {
+        "risk_debate_state": {
+            "judge_decision": output,
             "history": risk_debate_state["history"],
             "aggressive_history": risk_debate_state["aggressive_history"],
             "conservative_history": risk_debate_state["conservative_history"],
@@ -85,11 +80,24 @@ Ground every conclusion in specific evidence from the analysts. Commit to a dire
             "current_conservative_response": risk_debate_state["current_conservative_response"],
             "current_neutral_response": risk_debate_state["current_neutral_response"],
             "count": risk_debate_state["count"],
-        }
+        },
+        "final_trade_decision": output,
+    }
 
-        return {
-            "risk_debate_state": new_risk_debate_state,
-            "final_trade_decision": final_trade_decision,
-        }
+
+def create_portfolio_manager(llm):
+    structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
+
+    def portfolio_manager_node(state) -> dict:
+        language = config.get_config().get("output_language", "English")
+
+        final_trade_decision = invoke_structured_or_freetext(
+            structured_llm,
+            llm,
+            build_portfolio_manager_prompt(state, output_language=language),
+            render_pm_decision,
+            "Portfolio Manager",
+        )
+        return apply_portfolio_manager_output(state, final_trade_decision)
 
     return portfolio_manager_node
