@@ -15,7 +15,7 @@ from tradingagents.agents.utils.agent_utils import get_language_instruction
 _AGENTS_DIR = Path(__file__).resolve().parents[1] / "tradingagents" / "agents"
 
 # Every node whose text reaches the saved report. If you add a report-producing
-# agent, add it here — and make it call get_language_instruction().
+# agent, add it here — and make its builder accept the explicit language.
 REPORT_AGENTS = [
     "analysts/market_analyst.py",
     "analysts/news_analyst.py",
@@ -53,7 +53,7 @@ def test_report_agent_applies_language_instruction(rel):
     path = _AGENTS_DIR / rel
     assert path.exists(), f"missing agent module: {rel}"
     src = path.read_text(encoding="utf-8")
-    assert "get_language_instruction()" in src, (
-        f"{rel} does not apply get_language_instruction(); its output would "
-        f"ignore the configured output_language (#740/#801)."
+    assert "get_language_instruction(output_language)" in src, (
+        f"{rel} does not apply the explicit output_language to its builder; its "
+        "output could ignore the configured language."
     )

@@ -1,5 +1,7 @@
 import builtins
+import contextlib
 import json
+import os
 import selectors
 import subprocess
 import sys
@@ -96,20 +98,47 @@ def test_stdio_protocol_stdout_is_json_rpc(tmp_path):
     )
     deadline = time.monotonic() + 30
     stdout_lines = []
+    stdout_buffer = b""
+    stderr_buffer = b""
+    selector = selectors.DefaultSelector()
+    assert process.stdout is not None
+    assert process.stderr is not None
+    stdout_fd = process.stdout.fileno()
+    stderr_fd = process.stderr.fileno()
+    os.set_blocking(stdout_fd, False)
+    os.set_blocking(stderr_fd, False)
+    selector.register(stdout_fd, selectors.EVENT_READ, "stdout")
+    selector.register(stderr_fd, selectors.EVENT_READ, "stderr")
 
     def send(message):
         assert process.stdin is not None
         process.stdin.write(json.dumps(message) + "\n")
         process.stdin.flush()
 
+    def read_available() -> bool:
+        nonlocal stdout_buffer, stderr_buffer
+        events = selector.select(max(0, deadline - time.monotonic()))
+        if not events:
+            return False
+        for key, _ in events:
+            try:
+                chunk = os.read(key.fd, 4096)
+            except BlockingIOError:
+                continue
+            if not chunk:
+                selector.unregister(key.fd)
+            elif key.data == "stdout":
+                stdout_buffer += chunk
+            else:
+                stderr_buffer += chunk
+        return True
+
     def read_line():
-        assert process.stdout is not None
-        with selectors.DefaultSelector() as selector:
-            selector.register(process.stdout, selectors.EVENT_READ)
-            assert selector.select(max(0, deadline - time.monotonic())), "MCP response timed out"
-        line = process.stdout.readline()
-        assert line, "MCP server closed stdout before responding"
-        stdout_lines.append(line)
+        nonlocal stdout_buffer
+        while b"\n" not in stdout_buffer:
+            assert read_available(), "MCP response timed out"
+        line, stdout_buffer = stdout_buffer.split(b"\n", 1)
+        stdout_lines.append(line.decode() + "\n")
 
     try:
         send(
@@ -137,11 +166,17 @@ def test_stdio_protocol_stdout_is_json_rpc(tmp_path):
                 process.wait(timeout=max(0, deadline - time.monotonic()))
             except subprocess.TimeoutExpired:
                 process.kill()
-                process.wait()
-        assert process.stdout is not None
-        assert process.stderr is not None
-        stdout_lines.extend(process.stdout.readlines())
-        process.stderr.read()
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    process.wait(timeout=max(0, deadline - time.monotonic()))
+        while selector.get_map() and time.monotonic() < deadline:
+            if not read_available():
+                break
+        selector.close()
+        while b"\n" in stdout_buffer:
+            line, stdout_buffer = stdout_buffer.split(b"\n", 1)
+            stdout_lines.append(line.decode() + "\n")
+        if stdout_buffer:
+            stdout_lines.append(stdout_buffer.decode())
 
     responses = [json.loads(line) for line in stdout_lines]
     assert all(response["jsonrpc"] == "2.0" for response in responses)

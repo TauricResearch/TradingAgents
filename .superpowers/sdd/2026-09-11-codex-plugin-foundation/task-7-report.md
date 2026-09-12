@@ -106,3 +106,48 @@ The new GitHub Actions `plugin` job retains the required Linux matrix: 3.10, 3.1
 | GitHub Ubuntu matrix | Unavailable locally; must pass in CI before treating matrix compatibility as complete. |
 
 Open concerns: the pre-existing full-suite i18n source-text mismatch must be reconciled outside Task 7; and the third-party stderr warning noted above is non-protocol noise worth tracking if clean stderr becomes a future requirement. Host manifest/activation and a real plugin workflow are still later US-018/US-005+ work.
+
+## Fix round 1
+
+### Findings addressed
+
+1. `tests/test_plugin_runtime.py` no longer calls blocking `readline()`, `readlines()`, or an
+   unbounded post-timeout `wait()`. It sets both pipes nonblocking, reads with `selectors` and a
+   shared 30-second deadline, retains partial bytes until newline boundaries, parses every
+   captured stdout line, and bounds terminate/kill/wait/drain cleanup by that same deadline.
+2. `tests/test_i18n_coverage.py` now checks each listed report builder for the explicit
+   `get_language_instruction(output_language)` contract. It does not revert explicit language
+   propagation; the existing builder behavior tests remain in the covering suite.
+
+### Fix-round commands and actual outputs
+
+```bash
+python -m pytest tests/test_plugin_runtime.py::test_stdio_protocol_stdout_is_json_rpc \
+  tests/test_i18n_coverage.py -q
+```
+
+Output: `15 passed in 0.83s`.
+
+```bash
+python -m pytest tests/test_plugin_runtime.py tests/test_plugin_capabilities.py \
+  tests/test_shared_analyst_prompts.py tests/test_shared_synthesis.py \
+  tests/test_i18n_coverage.py -q
+```
+
+Output: `71 passed in 0.97s`.
+
+```bash
+python -m pytest -q
+ruff check .
+python -m pip wheel . --no-deps -w /tmp/tradingagents-foundation-dist
+git diff --check
+/tmp/tradingagents-task7-clean.IJJ2KY/venv/bin/python scripts/smoke_plugin_protocol.py
+```
+
+Outputs/statuses: `733 passed, 2 skipped, 18 warnings, 73 subtests passed in 2.37s` (pytest
+exit 0); `All checks passed!` (Ruff exit 0); wheel `tradingagents-0.4.0-py3-none-any.whl` built
+(exit 0); diff check exit 0; non-editable Python 3.12.13 protocol smoke exit 0. The smoke again
+emitted only the known `pydantic_settings` `IncompleteFieldDefinitionWarning` on stderr.
+
+The unavailable Python 3.10/3.11 interpreters and GitHub Ubuntu matrix remain unavailable
+locally and are not claimed passed.
