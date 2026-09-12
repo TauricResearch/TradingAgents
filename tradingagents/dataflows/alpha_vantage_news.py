@@ -1,4 +1,5 @@
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
+from .config import get_config
 
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
@@ -23,20 +24,30 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_global_news(curr_date, look_back_days: int = 7, limit: int = 50) -> dict[str, str] | str:
+def get_global_news(
+    curr_date, look_back_days: int | None = None, limit: int | None = None
+) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format.
-        look_back_days: Number of days to look back (default 7).
-        limit: Maximum number of articles (default 50).
+        look_back_days: Number of days to look back. ``None`` falls back to
+            ``global_news_lookback_days`` from the active config.
+        limit: Maximum number of articles. ``None`` falls back to
+            ``global_news_article_limit`` from the active config.
 
     Returns:
         Dictionary containing global news sentiment data or JSON string.
     """
     from datetime import datetime, timedelta
+
+    config = get_config()
+    if look_back_days is None:
+        look_back_days = config["global_news_lookback_days"]
+    if limit is None:
+        limit = config["global_news_article_limit"]
 
     # Calculate start date
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
