@@ -76,6 +76,27 @@ def _coerce_max_tokens(value):
     return n
 
 
+def _store_final_decision(
+    memory_log: TradingMemoryLog, company_name: str, trade_date, final_state: dict
+) -> None:
+    """Append a completed run's decision to the memory log.
+
+    Shared by the programmatic and CLI paths. A run that produced no final
+    decision (an interrupted stream) is skipped with a warning rather than
+    raising, so the CLI cannot be aborted by a missing state key at teardown.
+    """
+    decision = final_state.get("final_trade_decision")
+    if not decision:
+        logger.warning(
+            "No final_trade_decision for %s on %s; nothing written to the memory log",
+            company_name, trade_date,
+        )
+        return
+    memory_log.store_decision(
+        ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+    )
+
+
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
@@ -364,6 +385,26 @@ class TradingAgentsGraph:
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
 
+    def prepare_memory_context(self, company_name: str, trade_date) -> str:
+        """Settle prior decisions and return the past-context block for prompts.
+
+        Shared by ``propagate`` and the CLI so the decision log is read
+        identically on either entry point: pending entries for the ticker are
+        resolved first, then resolved lessons are gated to the run date (#1251).
+        """
+        self._resolve_pending_entries(company_name)
+        return self.memory_log.get_past_context(
+            company_name, as_of=self._memory_as_of(trade_date)
+        )
+
+    def record_decision(self, company_name: str, trade_date, final_state: dict) -> None:
+        """Append the run's final decision to the memory log.
+
+        Shared by ``propagate`` and the CLI so a completed run is recorded the
+        same way on both entry points.
+        """
+        _store_final_decision(self.memory_log, company_name, trade_date, final_state)
+
     def resolve_instrument_context(self, ticker: str, asset_type: str = "stock") -> str:
         """Resolve ticker identity once and return the full instrument context.
 
@@ -419,13 +460,15 @@ class TradingAgentsGraph:
         """
         self.ticker = company_name
 
-        # Resolve any pending memory-log entries for this ticker before the pipeline runs.
-        self._resolve_pending_entries(company_name)
+        # Settle pending memory-log entries and build the past-context block
+        # before the pipeline runs; shared with the CLI path.
+        past_context = self.prepare_memory_context(company_name, trade_date)
 
         with self.checkpoint_scope(company_name, trade_date, asset_type) as thread_id_value:
             return self._run_graph(
                 company_name, trade_date, asset_type=asset_type,
                 checkpoint_thread_id=thread_id_value,
+                past_context=past_context,
             )
 
     def begin_checkpoint(self, company_name, trade_date, asset_type: str = "stock") -> str | None:
@@ -507,15 +550,19 @@ class TradingAgentsGraph:
         return write_report_tree(final_state, ticker, save_path)
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
-                   checkpoint_thread_id: str | None = None):
-        """Execute the graph and write the resulting state to disk and memory log."""
+                   checkpoint_thread_id: str | None = None,
+                   past_context: str | None = None):
+        """Execute the graph and write the resulting state to disk and memory log.
+
+        ``past_context`` is built once by the caller via
+        :meth:`prepare_memory_context`; recomputing it here only as a fallback
+        keeps direct callers of this private method working.
+        """
         # Initialize state — inject memory log context for PM and the
         # deterministically resolved instrument identity for all agents. On a
-        # historical run, gate lessons to those whose outcome was known by the
-        # trade date so a backtest can't learn from the future (#1251).
-        past_context = self.memory_log.get_past_context(
-            company_name, as_of=self._memory_as_of(trade_date)
-        )
+        # historical run, lessons are already gated to the trade date (#1251).
+        if past_context is None:
+            past_context = self.prepare_memory_context(company_name, trade_date)
         instrument_context = self.resolve_instrument_context(company_name, asset_type)
         init_agent_state = self.propagator.create_initial_state(
             company_name,
@@ -562,11 +609,7 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # Store decision for deferred reflection on the next same-ticker run.
-        self.memory_log.store_decision(
-            ticker=company_name,
-            trade_date=trade_date,
-            final_trade_decision=final_state["final_trade_decision"],
-        )
+        _store_final_decision(self.memory_log, company_name, trade_date, final_state)
 
         # Clear checkpoint on successful completion to avoid stale state.
         self.clear_checkpoint_on_success(company_name, trade_date, asset_type)
