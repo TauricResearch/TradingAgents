@@ -1,4 +1,9 @@
 import builtins
+import json
+import selectors
+import subprocess
+import sys
+import time
 
 import pytest
 
@@ -71,3 +76,73 @@ def test_main_hints_install_when_mcp_is_missing(tmp_path, monkeypatch, capsys):
     assert exc_info.value.code == 1
     assert captured.out == ""
     assert "Install the plugin runtime with: python -m pip install 'tradingagents[plugin]'" in captured.err
+
+
+def test_stdio_protocol_stdout_is_json_rpc(tmp_path):
+    pytest.importorskip("mcp")
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "tradingagents.plugin.server",
+            "--state-dir",
+            str(tmp_path / "state"),
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=tmp_path,
+    )
+    deadline = time.monotonic() + 30
+    stdout_lines = []
+
+    def send(message):
+        assert process.stdin is not None
+        process.stdin.write(json.dumps(message) + "\n")
+        process.stdin.flush()
+
+    def read_line():
+        assert process.stdout is not None
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            assert selector.select(max(0, deadline - time.monotonic())), "MCP response timed out"
+        line = process.stdout.readline()
+        assert line, "MCP server closed stdout before responding"
+        stdout_lines.append(line)
+
+    try:
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest", "version": "1.0"},
+                },
+            }
+        )
+        read_line()
+        send({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
+        send({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+        read_line()
+    finally:
+        if process.stdin:
+            process.stdin.close()
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=max(0, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        assert process.stdout is not None
+        assert process.stderr is not None
+        stdout_lines.extend(process.stdout.readlines())
+        process.stderr.read()
+
+    responses = [json.loads(line) for line in stdout_lines]
+    assert all(response["jsonrpc"] == "2.0" for response in responses)
+    assert [response["id"] for response in responses] == [1, 2]
