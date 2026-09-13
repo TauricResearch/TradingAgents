@@ -156,6 +156,24 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
+#### Devin CLI
+
+TradingAgents can also use an authenticated [Devin CLI](https://devin.ai) installation as its LLM backend via a local OpenAI-compatible bridge — no direct LLM-provider API key required for the LLM. Start the bridge in one terminal, then run TradingAgents in another:
+
+```bash
+# Terminal 1: start the bridge (uses the Devin CLI's configured/default model)
+python -m devin_bridge
+
+# Terminal 2: point TradingAgents at the bridge
+export TRADINGAGENTS_LLM_PROVIDER=openai_compatible
+export TRADINGAGENTS_LLM_BACKEND_URL=http://127.0.0.1:8765/v1
+export TRADINGAGENTS_QUICK_THINK_LLM=devin-quick
+export TRADINGAGENTS_DEEP_THINK_LLM=devin-deep
+tradingagents
+```
+
+To use a specific model, pass `--model <id>` (discover IDs with `python -m devin_bridge --list-models`). See [`devin_bridge/USER_GUIDE.md`](devin_bridge/USER_GUIDE.md) for full setup and troubleshooting. Data-provider credentials (FRED, Alpha Vantage, etc.) are separate and may still be required.
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
