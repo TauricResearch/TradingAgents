@@ -36,7 +36,7 @@ def create_research_manager(llm):
 - **Underweight**: Cautious view; recommend trimming exposure
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 
-Commit to a directional stance only when the debate's strongest arguments clearly warrant one. Choose Hold when the evidence is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure; do not manufacture a direction merely to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
+A bull/bear debate is adversarial by construction, so the mere presence of conflicting arguments is NOT grounds for Hold — resolving that conflict and saying which side wins is the job. Commit to the side with the clearly stronger arguments; choose Hold only when the evidence is genuinely balanced after that weighing, or too thin to support any call. Do not manufacture a direction merely to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
 
 ---
 

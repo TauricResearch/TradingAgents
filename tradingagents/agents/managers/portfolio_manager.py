@@ -62,7 +62,7 @@ def create_portfolio_manager(llm):
 
 ---
 
-Ground every conclusion in specific evidence from the analysts. Commit to a directional call only when the evidence clearly supports one; choose Hold when the case is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure, rather than forcing a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
+Ground every conclusion in specific evidence from the analysts. The risk debate is adversarial by construction, so the mere presence of conflicting arguments is NOT grounds for Hold — resolving that conflict and saying which stance wins is the job. Commit to the side with the clearly stronger arguments; choose Hold only when the evidence is genuinely balanced after that weighing, or too thin to support any call, rather than forcing a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 

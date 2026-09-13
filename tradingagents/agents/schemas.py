@@ -96,10 +96,12 @@ class ResearchPlan(BaseModel):
     recommendation: PortfolioRating = Field(
         description=(
             "The investment recommendation. Exactly one of Buy / Overweight / "
-            "Hold / Underweight / Sell. Choose Hold when the evidence is "
-            "balanced, materially conflicting, ambiguous, or insufficient to "
-            "justify changing exposure; otherwise commit to the side with the "
-            "clearly stronger arguments. Do not pick a direction merely to be "
+            "Hold / Underweight / Sell. The debate is adversarial by "
+            "construction, so conflicting arguments alone are NOT grounds for "
+            "Hold — resolving that conflict is the job. Commit to the side "
+            "with the clearly stronger arguments; choose Hold only when the "
+            "evidence is genuinely balanced after that weighing, or too thin "
+            "to support any call. Do not pick a direction merely to be "
             "decisive."
         ),
     )
@@ -221,10 +223,13 @@ class PortfolioDecision(BaseModel):
     rating: PortfolioRating = Field(
         description=(
             "The final position rating. Exactly one of Buy / Overweight / Hold / "
-            "Underweight / Sell, picked based on the analysts' debate. Choose "
-            "Hold when the case is balanced, materially conflicting, ambiguous, "
-            "or insufficient to justify changing exposure, rather than forcing a "
-            "direction to appear decisive."
+            "Underweight / Sell, picked based on the analysts' debate. The "
+            "debate is adversarial by construction, so conflicting arguments "
+            "alone are NOT grounds for Hold — resolving that conflict is the "
+            "job. Commit to the side with the clearly stronger arguments; "
+            "choose Hold only when the evidence is genuinely balanced after "
+            "that weighing, or too thin to support any call, rather than "
+            "forcing a direction to appear decisive."
         ),
     )
     executive_summary: str = Field(
