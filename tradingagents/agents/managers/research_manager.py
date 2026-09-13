@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.utils.agent_utils import (
+    build_cacheable_system_content,
     get_instrument_context_from_state,
     get_language_instruction,
 )
@@ -23,11 +24,8 @@ def create_research_manager(llm):
 
         investment_debate_state = state["investment_debate_state"]
 
-        prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
-
-{instrument_context}
-
----
+        system_content = build_cacheable_system_content(
+            """You are the Research Manager and debate facilitator. Critically evaluate the debate and deliver a clear, actionable investment plan for the trader.
 
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
@@ -38,12 +36,21 @@ def create_research_manager(llm):
 
 Commit to a directional stance only when the debate's strongest arguments clearly warrant one. Choose Hold when the evidence is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure; do not manufacture a direction merely to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
 
----
-
-**Debate History:**
-{history}
-
-{NO_EXTERNAL_TOOLS}""" + get_language_instruction()
+"""
+            + NO_EXTERNAL_TOOLS
+            + get_language_instruction(),
+            llm,
+        )
+        prompt = [
+            {"role": "system", "content": system_content},
+            {
+                "role": "user",
+                "content": (
+                    f"Analysis context:\nInstrument context: {instrument_context}\n\n"
+                    f"Debate history:\n{history}"
+                ),
+            },
+        ]
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,

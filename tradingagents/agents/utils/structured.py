@@ -38,7 +38,6 @@ NO_EXTERNAL_TOOLS = (
     "or search the web; if something is missing, say so explicitly."
 )
 
-
 def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
     """Return ``llm.with_structured_output(schema)`` or ``None`` if unsupported.
 
