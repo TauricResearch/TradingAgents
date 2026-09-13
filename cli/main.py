@@ -1001,6 +1001,27 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
+def _finalize_streamed_run(graph, selections: dict, trace: list[dict]) -> dict:
+    """Finalize a successful CLI stream consistently with ``propagate()``."""
+    final_state = {}
+    for chunk in trace:
+        final_state.update(chunk)
+
+    graph.memory_log.store_decision(
+        ticker=selections["ticker"],
+        trade_date=selections["analysis_date"],
+        final_trade_decision=final_state["final_trade_decision"],
+    )
+
+    graph.clear_checkpoint_on_success(
+        selections["ticker"],
+        selections["analysis_date"],
+        selections["asset_type"],
+    )
+
+    return final_state
+
+
 def run_analysis(checkpoint: bool | None = None):
     # First get all user selections
     selections = get_user_selections()
@@ -1243,20 +1264,12 @@ def run_analysis(checkpoint: bool | None = None):
 
                 trace.append(chunk)
 
-            # Clean run: drop this run's checkpoint so a later run starts fresh.
-            # A mid-stream failure skips this, keeping the checkpoint for resume.
-            graph.clear_checkpoint_on_success(
-                selections["ticker"], selections["analysis_date"], selections["asset_type"]
-            )
+            # Finalize only after the stream completes successfully. Persist the
+            # decision before clearing the checkpoint so CLI runs match propagate().
+            final_state = _finalize_streamed_run(graph, selections, trace)
         finally:
             # Always restore the plain uncheckpointed graph, even on failure.
             graph.end_checkpoint()
-
-        # Streamed chunks are per-node deltas, not full state. Merge them
-        # so every report field populated across the run is present.
-        final_state = {}
-        for chunk in trace:
-            final_state.update(chunk)
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
