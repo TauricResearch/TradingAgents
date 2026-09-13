@@ -10,6 +10,8 @@ differ from the broker / TradingView / MT5 style symbols users often type:
     EURUSD            EURUSD=X          spot forex pairs take a ``=X`` suffix
     BTCUSD            BTC-USD           crypto pairs use a ``-`` separator
     SPX500, US500     ^GSPC             index CFDs map to Yahoo index symbols
+    09992.HK          9992.HK           Yahoo HK symbols are 4 digits, not the
+                                         5-digit HKEX code
 
 Passing the raw broker symbol to Yahoo returns an empty result, which the
 agents previously received as free text and could hallucinate a price
@@ -72,6 +74,14 @@ _ALIASES = {
 # Yahoo symbols may contain letters, digits, and these structural characters.
 _YAHOO_SAFE = re.compile(r"^[A-Za-z0-9._\-\^=]+$")
 
+# HKEX lists codes with up to 5 digits (e.g. 00700, 09992), but Yahoo's HK
+# symbols are always 4 digits, derived by dropping the padding and re-padding
+# to 4 (00700 -> 0700.HK, 09992 -> 9992.HK). Typing the 5-digit HKEX code
+# straight through (09992.HK) 404s on Yahoo with no indication why, and the
+# agents have been seen hallucinating a company identity to fill the gap
+# (#957). This rule is idempotent on already-correct 4-digit symbols.
+_HK_SUFFIX_RE = re.compile(r"^(\d{1,5})\.HK$")
+
 
 # Crypto quote currencies that all map to Yahoo's USD pair. Yahoo lists only
 # ``<BASE>-USD`` (not the USDT/USDC stablecoin pairs), so a broker symbol quoted
@@ -109,7 +119,10 @@ def normalize_symbol(raw: str) -> str:
       2. Crypto rule: a known crypto base quoted in USD/USDT/USDC (dashed or
          not) -> ``BASE-USD``.
       3. Forex rule: six letters that are two ISO currency codes -> ``PAIR=X``.
-      4. Otherwise the upper-cased symbol is returned unchanged (plain
+      4. HK rule: a numeric ``.HK`` code is re-padded to Yahoo's 4-digit form
+         (``09992.HK`` -> ``9992.HK``; already-4-digit codes like
+         ``0700.HK`` pass through unchanged).
+      5. Otherwise the upper-cased symbol is returned unchanged (plain
          equities, ETFs, Yahoo-native symbols like ``GC=F`` or ``^GSPC``).
 
     A trailing ``+`` (broker CFD marker, e.g. ``XAUUSD+``) is stripped before
@@ -124,12 +137,15 @@ def normalize_symbol(raw: str) -> str:
     s = s.rstrip("+")
 
     crypto = _normalize_crypto(s)
+    hk_match = _HK_SUFFIX_RE.match(s)
     if s in _ALIASES:
         canonical = _ALIASES[s]
     elif crypto is not None:
         canonical = crypto
     elif len(s) == 6 and s[:3] in _FOREX_CURRENCIES and s[3:] in _FOREX_CURRENCIES:
         canonical = f"{s}=X"
+    elif hk_match is not None:
+        canonical = f"{str(int(hk_match.group(1))).zfill(4)}.HK"
     else:
         canonical = s
 
