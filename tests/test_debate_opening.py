@@ -55,6 +55,13 @@ def _risk_state(**responses):
     return {**_REPORTS, "trader_investment_plan": "plan", "risk_debate_state": base}
 
 
+def _prompt_text(prompt) -> str:
+    """Flatten either a legacy string prompt or a LangChain message list."""
+    if isinstance(prompt, str):
+        return prompt
+    return "\n".join(str(getattr(message, "content", "")) for message in prompt)
+
+
 # --- shared helper ----------------------------------------------------------
 
 @pytest.mark.unit
@@ -73,7 +80,7 @@ def test_helper_marks_empty_and_passes_through():
 def test_researcher_opening_has_no_phantom_opponent(factory, opponent):
     captured = {}
     factory(_capturing_llm(captured))(_investment_state(""))
-    assert "has not spoken yet" in captured["prompt"]
+    assert "has not spoken yet" in _prompt_text(captured["prompt"])
 
 
 @pytest.mark.unit
@@ -81,8 +88,9 @@ def test_researcher_passes_real_opponent_argument():
     captured = {}
     state = _investment_state("Bear Analyst: valuation is stretched")
     create_bull_researcher(_capturing_llm(captured))(state)
-    assert "valuation is stretched" in captured["prompt"]
-    assert "has not spoken yet" not in captured["prompt"]
+    text = _prompt_text(captured["prompt"])
+    assert "valuation is stretched" in text
+    assert "has not spoken yet" not in text
 
 
 # --- risk debators ----------------------------------------------------------
@@ -94,8 +102,9 @@ def test_researcher_passes_real_opponent_argument():
 def test_risk_opening_has_no_phantom_opponent(factory):
     captured = {}
     factory(_capturing_llm(captured))(_risk_state())
+    text = _prompt_text(captured["prompt"])
     # Both opponent slots were empty -> two opening markers, no fabricated args.
-    assert captured["prompt"].count("has not spoken yet") == 2
+    assert text.count("has not spoken yet") == 2
 
 
 @pytest.mark.unit
@@ -106,6 +115,7 @@ def test_risk_passes_real_opponent_arguments():
         current_neutral_response="Neutral Analyst: hold steady",
     )
     create_aggressive_debator(_capturing_llm(captured))(state)
-    assert "trim risk" in captured["prompt"]
-    assert "hold steady" in captured["prompt"]
-    assert "has not spoken yet" not in captured["prompt"]
+    text = _prompt_text(captured["prompt"])
+    assert "trim risk" in text
+    assert "hold steady" in text
+    assert "has not spoken yet" not in text

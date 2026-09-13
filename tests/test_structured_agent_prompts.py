@@ -208,10 +208,22 @@ def test_trader_system_prompt_is_stable_across_states():
 
     _assert_stable_split(
         create_trader,
-        {"company_of_interest": "AAA", "investment_plan": "plan one"},
-        {"company_of_interest": "BBB", "investment_plan": "plan two"},
+        {
+            "company_of_interest": "AAA",
+            "investment_plan": "plan one",
+            "market_report": "Technical report one",
+        },
+        {
+            "company_of_interest": "BBB",
+            "investment_plan": "plan two",
+            "market_report": "Technical report two",
+        },
         TraderProposal(action=TraderAction.HOLD, reasoning="x"),
-        (("AAA", "BBB"), ("plan one", "plan two")),
+        (
+            ("AAA", "BBB"),
+            ("plan one", "plan two"),
+            ("Technical report one", "Technical report two"),
+        ),
     )
 
 

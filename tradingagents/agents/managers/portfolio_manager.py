@@ -22,6 +22,7 @@ from tradingagents.agents.utils.structured import (
     invoke_structured_or_freetext,
 )
 
+
 def create_portfolio_manager(llm):
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
