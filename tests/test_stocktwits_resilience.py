@@ -60,10 +60,42 @@ class TestStockTwitsCryptoSymbols:
             ("BRK-B", "BRK-B"),       # dashed class share: untouched
             ("GOLD", "GOLD"),         # real equity (aliases elsewhere): untouched here
             ("XYZ-USD", "XYZ-USD"),   # unknown base: not treated as crypto
+            # Indian listings: StockTwits indexes the bare cashtag (#1345)
+            ("RELIANCE.NS", "RELIANCE"),
+            ("HDFCBANK.BO", "HDFCBANK"),
+            ("infy.ns", "INFY"),      # case-insensitive, like every other row
+            ("TCS.NSE", "TCS"),
+            ("SBIN.BSE", "SBIN"),
+            # Dotted symbols StockTwits DOES index: a generic "strip after the
+            # dot" would send these to another security's stream.
+            ("BRK.B", "BRK.B"),
+            ("BF.B", "BF.B"),
+            # Other exchange suffixes are deliberately left alone: `$SHEL` on
+            # StockTwits is the US ADR, a different instrument from `SHEL.L`.
+            ("SHEL.L", "SHEL.L"),
+            ("7203.T", "7203.T"),
+            # A symbol that is ONLY a suffix must not become empty and build
+            # `streams/symbol/.json`.
+            (".NS", ".NS"),
         ],
     )
     def test_symbol_mapping(self, ticker, expected):
         assert stocktwits._stocktwits_symbol(ticker) == expected
+
+    def test_indian_listing_requests_the_bare_cashtag_endpoint(self):
+        """End to end: the suffix is gone from the URL the fetcher opens, which
+        is the only place the mapping has an effect (#1345)."""
+        seen = {}
+
+        def _capture(req, timeout=None):
+            seen["url"] = req.full_url
+            raise HTTPError(req.full_url, 404, "Not Found", {}, None)
+
+        with patch("tradingagents.dataflows.stocktwits.urlopen", _capture):
+            stocktwits.fetch_stocktwits_messages("RELIANCE.NS")
+
+        assert "/streams/symbol/RELIANCE.json" in seen["url"], seen["url"]
+        assert ".NS" not in seen["url"], seen["url"]
 
     def test_crypto_pair_requests_dot_x_endpoint(self):
         seen = {}

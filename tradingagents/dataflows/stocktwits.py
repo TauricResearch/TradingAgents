@@ -53,15 +53,43 @@ def _within_window(messages, start_date, end_date):
     return kept
 
 
+# Indian exchange suffixes Yahoo appends and StockTwits does not use: it
+# indexes these listings as bare cashtags (``$RELIANCE``), so ``RELIANCE.NS``
+# 404s and the sentiment analyst reads an empty stream as "Neutral, low
+# confidence" (#1345).
+#
+# An explicit set, NOT "strip whatever follows the last dot". Two reasons, and
+# both are wrong answers rather than missed ones:
+#
+#   * ``BRK.B`` and ``BF.B`` are real StockTwits symbols. A generic rule turns
+#     them into ``$BRK`` and ``$BF`` — a different security's stream.
+#   * A London or Tokyo suffix is worse than useless: ``SHEL.L`` stripped to
+#     ``$SHEL`` resolves on StockTwits to the US ADR, so the analyst would read
+#     sentiment about a related but distinct instrument and never know.
+#
+# Extending this to another exchange therefore needs evidence that StockTwits
+# carries that listing under the bare symbol, not just that Yahoo suffixes it.
+_BARE_CASHTAG_SUFFIXES = (".NS", ".BO", ".NSE", ".BSE")
+
+
 def _stocktwits_symbol(ticker: str) -> str:
-    """Map a crypto pair to StockTwits' ``<BASE>.X`` convention.
+    """Map a symbol to the form StockTwits indexes it under.
 
     StockTwits lists crypto as ``BTC.X`` (Yahoo's ``BTC-USD`` form 404s), so any
-    crypto symbol resolves to its base plus ``.X``; other symbols pass through
-    upper-cased.
+    crypto symbol resolves to its base plus ``.X``. An Indian listing drops its
+    exchange suffix (``RELIANCE.NS`` -> ``RELIANCE``). Everything else passes
+    through upper-cased.
     """
     base = crypto_base(ticker)
-    return f"{base}.X" if base else ticker.strip().upper()
+    if base:
+        return f"{base}.X"
+    symbol = ticker.strip().upper()
+    for suffix in _BARE_CASHTAG_SUFFIXES:
+        # `!= suffix` so a symbol that IS the suffix cannot become empty and
+        # produce `streams/symbol/.json`.
+        if symbol.endswith(suffix) and symbol != suffix:
+            return symbol[: -len(suffix)]
+    return symbol
 
 
 def fetch_stocktwits_messages(
