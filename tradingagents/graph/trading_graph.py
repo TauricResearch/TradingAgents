@@ -30,7 +30,7 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree
@@ -43,6 +43,20 @@ from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_trade_date(trade_date) -> str:
+    """The run date as a canonical ``YYYY-MM-DD`` string no later than today."""
+    value = str(trade_date)
+    try:
+        canonical = datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d") == value
+    except ValueError:
+        canonical = False
+    if not canonical:
+        raise ValueError(f"trade_date must be a date in YYYY-MM-DD format, got {trade_date!r}")
+    if value > get_current_date():
+        raise ValueError(f"trade_date cannot be in the future: {value}")
+    return value
 
 
 def _coerce_max_retries(value):
@@ -417,6 +431,7 @@ class TradingAgentsGraph:
         ``tradingagents.agents.utils.rating.is_review`` before mapping it to the
         PortfolioRating enum.
         """
+        trade_date = _validate_trade_date(trade_date)
         self.ticker = company_name
 
         with self.checkpoint_scope(company_name, trade_date, asset_type) as thread_id_value:

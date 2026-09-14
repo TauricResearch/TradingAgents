@@ -59,6 +59,39 @@ def coverage_gap(
     return f"<{source} unavailable for {start_date}..{end_date}: {reason}, so this is not an absence of {subject}>"
 
 
+def _parse(date: str | None) -> datetime | None:
+    try:
+        return datetime.strptime(date, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return None
+
+
+def as_of(requested: str | None, trade_date: str) -> str | None:
+    """The date a tool serves: the model's date, but never later than the run's.
+
+    A model can omit the date or pass today's instead of the analysis date, which
+    would walk past every point-in-time guard behind the tool. An empty
+    ``trade_date`` (a direct call outside a graph run) passes the request through.
+    """
+    if not trade_date:
+        return requested
+    parsed = _parse(requested)
+    return requested if parsed is not None and parsed <= _parse(trade_date) else trade_date
+
+
+def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, str]:
+    """``[start, end]`` with its end clamped to the run date.
+
+    A window wholly after the run date keeps its length and moves back to end there.
+    """
+    end = as_of(end_date, trade_date)
+    start, old_end = _parse(start_date), _parse(end_date)
+    if end == end_date or start is None or start <= _parse(end):
+        return start_date, end
+    span = (old_end - start) if old_end is not None and old_end >= start else timedelta(0)
+    return f"{_parse(end) - span:%Y-%m-%d}", end
+
+
 def withhold_live_profile(curr_date: str | None, label: str) -> str | None:
     """Notice to serve instead of a live-only company profile, or None to serve it.
 

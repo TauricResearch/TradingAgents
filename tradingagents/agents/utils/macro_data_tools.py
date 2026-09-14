@@ -1,7 +1,9 @@
 from typing import Annotated
 
 from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
 
+from tradingagents.dataflows.date_window import as_of
 from tradingagents.dataflows.interface import route_to_vendor
 
 
@@ -17,6 +19,7 @@ def get_macro_indicators(
     look_back_days: Annotated[
         int | None, "Trailing window length in days; omit for a 1-year window"
     ] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
     Retrieve a macroeconomic indicator time series from FRED (Federal Reserve
@@ -33,4 +36,4 @@ def get_macro_indicators(
     Returns:
         str: A formatted markdown report of the macro series
     """
-    return route_to_vendor("get_macro_indicators", indicator, curr_date, look_back_days)
+    return route_to_vendor("get_macro_indicators", indicator, as_of(curr_date, trade_date), look_back_days)
