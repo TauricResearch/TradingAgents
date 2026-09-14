@@ -103,10 +103,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.4 Mini - Fast, strong coding and tool use", "gpt-5.4-mini"),
         ],
         "deep": [
-            ("GPT-5.6 - Latest frontier reasoning (Sol)", "gpt-5.6"),
+            ("GPT-6 Astra - Latest frontier reasoning", "gpt-6-astra"),
+            ("GPT-5.6 - Frontier reasoning (Sol)", "gpt-5.6"),
             ("GPT-5.6 Terra - Balances intelligence and cost", "gpt-5.6-terra"),
             ("GPT-5.5 - Previous-gen frontier, 1M context", "gpt-5.5"),
-            ("GPT-5.4 - Cost-effective, 1M context", "gpt-5.4"),
         ],
     },
     "anthropic": {
@@ -115,20 +115,21 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Haiku 4.5 - Fastest with near-frontier intelligence", "claude-haiku-4-5"),
         ],
         "deep": [
-            ("Claude Fable 5 - Most capable, long-running agents", "claude-fable-5"),
-            ("Claude Opus 4.8 - Frontier agentic coding and reasoning", "claude-opus-4-8"),
+            ("Claude Opus 5 - Frontier agentic and enterprise work", "claude-opus-5"),
+            ("Claude Fable 5.1 - Most capable, demanding long-horizon reasoning", "claude-fable-5-1"),
             ("Claude Sonnet 5 - Near-frontier intelligence at Sonnet cost", "claude-sonnet-5"),
-            ("Claude Opus 4.7 - Previous frontier, long-running agents", "claude-opus-4-7"),
         ],
     },
     "google": {
         "quick": [
-            ("Gemini 3.5 Flash - Latest, frontier agentic + coding (GA)", "gemini-3.5-flash"),
+            ("Gemini 3.8 Flash - Most capable Flash", "gemini-3.8-flash"),
+            ("Gemini 3.5 Flash Lite - Fast and cost-efficient", "gemini-3.5-flash-lite"),
             ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite"),
         ],
         "deep": [
+            ("Gemini 3.8 Flash - Most capable Flash, 1M context", "gemini-3.8-flash"),
             ("Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)", "gemini-3.1-pro-preview"),
-            ("Gemini 3.5 Flash - Latest GA, strong agentic + coding", "gemini-3.5-flash"),
+            ("Gemini 3.5 Flash - Previous Flash, strong agentic + coding", "gemini-3.5-flash"),
         ],
     },
     "xai": {
@@ -213,8 +214,17 @@ def get_model_options(provider: str, mode: str) -> list[ModelOption]:
     return MODEL_OPTIONS[provider.lower()][mode]
 
 
+# Still served by the provider but no longer offered in the picker. Known to
+# validation so existing configs that name them run without an unknown-model
+# warning.
+LEGACY_MODELS: dict[str, list[str]] = {
+    "openai": ["gpt-5.4"],
+    "anthropic": ["claude-fable-5", "claude-opus-4-8", "claude-opus-4-7"],
+}
+
+
 def get_known_models() -> dict[str, list[str]]:
-    """Build known model names from the shared CLI catalog."""
+    """Build known model names from the shared CLI catalog plus legacy IDs."""
     return {
         provider: sorted(
             {
@@ -222,6 +232,7 @@ def get_known_models() -> dict[str, list[str]]:
                 for options in mode_options.values()
                 for _, value in options
             }
+            | set(LEGACY_MODELS.get(provider, []))
         )
         for provider, mode_options in MODEL_OPTIONS.items()
     }

@@ -53,3 +53,14 @@ class ModelValidationTests(unittest.TestCase):
                     client.get_llm()
 
                 self.assertEqual(caught, [])
+
+
+def test_legacy_ids_stay_valid_without_being_offered():
+    from tradingagents.llm_clients.model_catalog import LEGACY_MODELS, MODEL_OPTIONS
+    from tradingagents.llm_clients.validators import validate_model
+
+    for provider, ids in LEGACY_MODELS.items():
+        offered = {v for opts in MODEL_OPTIONS[provider].values() for _, v in opts}
+        for model in ids:
+            assert validate_model(provider, model), model
+            assert model not in offered, f"{model} is legacy but still in the picker"
