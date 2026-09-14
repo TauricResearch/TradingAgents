@@ -211,7 +211,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate("NVDA", "2026-09-01")
 print(decision)
 ```
 
@@ -228,7 +228,7 @@ config["quick_think_llm"] = "gpt-5.6-luna" # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate("NVDA", "2026-09-01")
 print(decision)
 ```
 
@@ -259,7 +259,7 @@ tradingagents analyze --clear-checkpoints    # reset before running
 config = DEFAULT_CONFIG.copy()
 config["checkpoint_enabled"] = True
 ta = TradingAgentsGraph(config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate("NVDA", "2026-09-01")
 ```
 
 ## Reproducibility
