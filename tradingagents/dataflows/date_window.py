@@ -32,6 +32,33 @@ def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> 
     return end >= datetime.now(timezone.utc) - timedelta(days=1)
 
 
+def coverage_gap(
+    dates, start_date: str, end_date: str, source: str, subject: str
+) -> str | None:
+    """Placeholder for a window a feed did not fully observe, else None.
+
+    Yahoo news and the Reddit and StockTwits feeds return their latest items
+    whatever window is asked for, so "none found" over a window they never
+    observed would claim an absence nobody saw. A window is observed when
+    coverage reaches its first day and it ends by today; an empty result is then
+    a real absence and this returns None.
+
+    ``dates`` are the returned items' timestamps, plus the lookback start for a
+    feed with a fixed lookback. The oldest one bounds coverage only for a feed
+    returned newest-first and unbroken in time; a merged or relevance-ranked
+    result passes no dates, leaving only the present as the bound.
+    """
+    now = datetime.now(timezone.utc)
+    oldest = min((to_utc(d) for d in dates if d is not None), default=now)
+    if datetime.strptime(end_date, "%Y-%m-%d").date() > now.date():
+        reason = "the window extends past today"
+    elif oldest.date() > datetime.strptime(start_date, "%Y-%m-%d").date():
+        reason = f"it only serves recent items (coverage starts {oldest:%Y-%m-%d})"
+    else:
+        return None
+    return f"<{source} unavailable for {start_date}..{end_date}: {reason}, so this is not an absence of {subject}>"
+
+
 def withhold_live_profile(curr_date: str | None, label: str) -> str | None:
     """Notice to serve instead of a live-only company profile, or None to serve it.
 

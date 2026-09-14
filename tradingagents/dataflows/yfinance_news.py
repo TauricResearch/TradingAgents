@@ -7,7 +7,7 @@ import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
-from .date_window import in_window
+from .date_window import coverage_gap, in_window
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
 
@@ -84,10 +84,7 @@ def get_news_yfinance(
     resolved = "" if canonical == ticker else f" (resolved to {canonical})"
     try:
         stock = yf.Ticker(canonical)
-        news = yf_retry(lambda: stock.get_news(count=article_limit))
-
-        if not news:
-            return f"No news found for {ticker}{resolved}"
+        news = yf_retry(lambda: stock.get_news(count=article_limit)) or []
 
         # Parse date range for filtering
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -112,7 +109,11 @@ def get_news_yfinance(
             filtered_count += 1
 
         if filtered_count == 0:
-            return f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
+            gap = coverage_gap(
+                (_extract_article_data(a)["pub_date"] for a in news),
+                start_date, end_date, "Yahoo Finance news", f"news for {ticker}{resolved}",
+            )
+            return gap or f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
 
         return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
 
@@ -173,9 +174,6 @@ def get_global_news_yfinance(
             if len(all_news) >= limit:
                 break
 
-        if not all_news:
-            return f"No global news found for {curr_date}"
-
         # Calculate date range
         curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
         start_dt = curr_dt - relativedelta(days=look_back_days)
@@ -200,7 +198,10 @@ def get_global_news_yfinance(
         # All candidates fell outside the window -> say so rather than return an
         # empty-bodied report (#993).
         if kept == 0:
-            return f"No global news found between {start_date} and {curr_date}"
+            # Results merge several fuzzy searches, so their timestamps prove no
+            # continuous coverage; judge the window against the present only.
+            gap = coverage_gap((), start_date, curr_date, "Yahoo Finance global news", "market news")
+            return gap or f"No global news found between {start_date} and {curr_date}"
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 

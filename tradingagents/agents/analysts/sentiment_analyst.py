@@ -13,6 +13,10 @@ the LLM is invoked and injects them into the prompt as structured blocks:
                            user-labeled Bullish/Bearish sentiment tags
   3. Reddit posts        — r/wallstreetbets, r/stocks, r/investing
 
+Each source is trimmed to the analysis window. These text feeds serve recent
+items and are not archived as of a past date, so sentiment inputs for a
+historical run are not guaranteed to be point-in-time.
+
 The agent does not use tool-calling; the data is in the prompt from
 turn 0. Output uses the structured-output pattern (json_schema for
 OpenAI/xAI, response_schema for Gemini, tool-use for Anthropic), falling

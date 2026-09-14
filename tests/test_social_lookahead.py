@@ -71,9 +71,10 @@ def test_stocktwits_historical_window_excludes_recent(monkeypatch):
     recent = [_msg("2026-08-30T12:00:00Z", "Bullish"), _msg("2026-08-29T09:00:00Z")]
     monkeypatch.setattr(stocktwits, "urlopen", lambda *a, **k: _JsonResp({"messages": recent}))
     out = stocktwits.fetch_stocktwits_messages("AAPL", start_date="2026-05-01", end_date="2026-05-08")
-    assert "no StockTwits messages" in out
     assert "2026-05-01..2026-05-08" in out
     assert "Bullish: 1" not in out  # the recent bullish message did not leak
+    # Coverage starts after the window: unavailable, never a claim of silence.
+    assert "unavailable" in out and "not an absence" in out
 
 
 @pytest.mark.unit
@@ -107,7 +108,7 @@ def test_reddit_historical_window_excludes_recent(monkeypatch):
         start_date="2026-05-01", end_date="2026-05-08",
     )
     assert "NOW" not in out
-    assert "no posts" in out.lower() or "no reddit posts" in out.lower()
+    assert "unavailable" in out and "not an absence" in out
 
 
 @pytest.mark.unit
@@ -119,3 +120,90 @@ def test_reddit_live_window_keeps_in_range(monkeypatch):
         start_date="2026-05-01", end_date="2026-05-08",
     )
     assert "INRANGE" in out
+
+
+# --- coverage vs absence --------------------------------------------------------
+# The public feeds only serve recent items. When everything fetched postdates the
+# window the source cannot answer for that date; reporting "no posts" there is a
+# claim about the market that was never observed.
+
+@pytest.mark.unit
+def test_stocktwits_covered_but_empty_window_is_a_real_absence(monkeypatch):
+    # The stream reaches back before the window (an older message exists) yet
+    # nothing falls inside it: that is genuine silence.
+    msgs = [_msg("2026-08-30T12:00:00Z"), _msg("2026-04-20T12:00:00Z")]
+    monkeypatch.setattr(stocktwits, "urlopen", lambda *a, **k: _JsonResp({"messages": msgs}))
+    out = stocktwits.fetch_stocktwits_messages("AAPL", start_date="2026-05-01", end_date="2026-05-08")
+    assert "no StockTwits messages" in out
+    assert "unavailable" not in out
+
+
+@pytest.mark.unit
+def test_reddit_covered_but_empty_window_is_a_real_absence(monkeypatch):
+    posts = [{"title": "NOW", "created_utc": _epoch("2026-08-30"), "source": "rss"},
+             {"title": "OLD", "created_utc": _epoch("2026-04-20"), "source": "rss"}]
+    monkeypatch.setattr(reddit, "_fetch_subreddit", lambda *a, **k: posts)
+    out = reddit.fetch_reddit_posts(
+        "AAPL", subreddits=("stocks",), inter_request_delay=0,
+        start_date="2026-05-01", end_date="2026-05-08",
+    )
+    assert "no reddit posts" in out.lower()
+    assert "unavailable" not in out
+
+
+@pytest.mark.unit
+def test_reddit_empty_feed_for_an_old_window_is_unavailable(monkeypatch):
+    # Search is limited to the last week, so an empty response says nothing
+    # about a window from months ago: there are no timestamps to go on, and the
+    # lookback bound alone must decide.
+    monkeypatch.setattr(reddit, "_fetch_subreddit", lambda *a, **k: [])
+    out = reddit.fetch_reddit_posts(
+        "AAPL", subreddits=("stocks",), inter_request_delay=0,
+        start_date="2024-05-01", end_date="2024-05-08",
+    )
+    assert "unavailable" in out and "not an absence" in out
+
+
+@pytest.mark.unit
+def test_reddit_live_empty_feed_is_a_real_absence(monkeypatch):
+    monkeypatch.setattr(reddit, "_fetch_subreddit", lambda *a, **k: [])
+    out = reddit.fetch_reddit_posts("AAPL", subreddits=("stocks",), inter_request_delay=0)
+    assert "no reddit posts" in out.lower() and "past 7 days" in out
+    assert "unavailable" not in out
+
+
+
+@pytest.mark.unit
+def test_stocktwits_empty_stream_for_a_past_window_is_unavailable(monkeypatch):
+    monkeypatch.setattr(stocktwits, "urlopen", lambda *a, **k: _JsonResp({"messages": []}))
+    out = stocktwits.fetch_stocktwits_messages("AAPL", start_date="2026-05-01", end_date="2026-05-08")
+    assert "unavailable" in out and "not an absence" in out
+
+
+
+@pytest.mark.unit
+def test_reddit_window_straddling_the_lookback_is_unavailable(monkeypatch):
+    # Ten days ago through five days ago: the week-long search never reaches the
+    # first three days, so an empty result cannot stand for the whole window.
+    from datetime import timedelta
+    today = datetime.now(timezone.utc).date()
+    monkeypatch.setattr(reddit, "_fetch_subreddit", lambda *a, **k: [])
+    out = reddit.fetch_reddit_posts(
+        "AAPL", subreddits=("stocks",), inter_request_delay=0,
+        start_date=str(today - timedelta(days=10)), end_date=str(today - timedelta(days=5)),
+    )
+    assert "unavailable" in out
+
+
+@pytest.mark.unit
+def test_reddit_standard_week_window_empty_is_a_real_absence(monkeypatch):
+    # The graph's window is [trade_date - 7, trade_date]; the week-long search
+    # covers it, so an empty result is genuine silence.
+    from datetime import timedelta
+    today = datetime.now(timezone.utc).date()
+    monkeypatch.setattr(reddit, "_fetch_subreddit", lambda *a, **k: [])
+    out = reddit.fetch_reddit_posts(
+        "AAPL", subreddits=("stocks",), inter_request_delay=0,
+        start_date=str(today - timedelta(days=7)), end_date=str(today),
+    )
+    assert "no reddit posts" in out.lower() and "unavailable" not in out
