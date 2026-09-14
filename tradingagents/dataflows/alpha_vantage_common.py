@@ -4,9 +4,9 @@ from datetime import datetime
 from io import StringIO
 
 import pandas as pd
-import requests
 
 from .errors import VendorNotConfiguredError, VendorRateLimitError
+from .utils import get_scrubbed
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -66,10 +66,11 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         AlphaVantageRateLimitError: When API rate limit is exceeded
     """
     # Create a copy of params to avoid modifying the original
+    api_key = get_api_key()
     api_params = params.copy()
     api_params.update({
         "function": function_name,
-        "apikey": get_api_key(),
+        "apikey": api_key,
         "source": "trading_agents",
     })
 
@@ -83,8 +84,9 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
 
-    response = requests.get(API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT)
-    response.raise_for_status()
+    response = get_scrubbed(
+        API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT, secret=api_key
+    )
 
     response_text = response.text
 
