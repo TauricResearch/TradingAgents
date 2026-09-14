@@ -164,21 +164,19 @@ def _assert_ohlcv_not_stale(
         )
 
 
-def _needs_same_day_refresh(data_file, curr_date_dt, today_date) -> bool:
-    """Whether a cached frame must be refetched to reflect the requested day.
+def _cache_is_fresh(data_file, curr_date_dt, now) -> bool:
+    """Whether the symbol's cached download can serve this request.
 
-    The cache file is keyed per day, so without this a run started before the
-    day's bar was final keeps serving that snapshot to every later run (#1150).
-    Two distinct staleness cases exist for a current-day request: the bar may be
-    missing entirely, or present but still in progress — Yahoo publishes a
-    partial daily candle during market hours, whose ``Close`` is not the closing
-    price. Row inspection cannot tell a partial bar from a final one, so the TTL
-    governs every current-day cache. Historical requests always reuse the cache,
-    since those rows are immutable.
+    The file holds the download made on the day it was written, so it serves
+    only that day. A current-day request also refetches once the file is older
+    than the TTL: Yahoo publishes a partial daily candle during market hours,
+    whose ``Close`` is not the closing price, and row inspection cannot tell it
+    from a final one (#1150).
     """
-    if curr_date_dt.date() < today_date.date():
+    written = pd.Timestamp.fromtimestamp(os.path.getmtime(data_file))
+    if written.date() != now.date():
         return False
-    return time.time() - os.path.getmtime(data_file) > OHLCV_CACHE_TTL_SECONDS
+    return curr_date_dt.date() < now.date() or (now - written).total_seconds() <= OHLCV_CACHE_TTL_SECONDS
 
 
 def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
@@ -197,19 +195,19 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date).normalize()
 
-    # Cache uses a fixed window (5y to today) so one file per symbol.
-    today_date = pd.Timestamp.today()
-    start_date = today_date - pd.DateOffset(years=5)
+    # One cache file per symbol, holding the latest 5y-to-today download.
+    now = pd.Timestamp.today()
+    start_date = now - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
     # yfinance ``end`` is EXCLUSIVE; request tomorrow so today's row is included
     # when curr_date is the current day (#986). Look-ahead is still prevented by
     # the curr_date filter below.
-    end_str = (today_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    end_str = (now + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
         config["data_cache_dir"],
-        f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
+        f"{safe_symbol}-YFin-data.csv",
     )
 
     # A cached file may be empty if a prior fetch failed (unknown symbol,
@@ -218,12 +216,10 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     data = None
     if os.path.exists(data_file):
         cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
-        # Serve the cache only when it is usable and not a stale snapshot of the
-        # day being requested (#1150); otherwise fall through and refetch.
         if (
             not cached.empty
             and "Close" in cached.columns
-            and not _needs_same_day_refresh(data_file, curr_date_dt, today_date)
+            and _cache_is_fresh(data_file, curr_date_dt, now)
         ):
             data = cached
 

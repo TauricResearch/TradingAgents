@@ -13,6 +13,8 @@ anywhere counts as no data and the staleness check judges the rest.
 """
 from __future__ import annotations
 
+import os
+
 import pandas as pd
 import pytest
 
@@ -89,9 +91,9 @@ def _run_load(monkeypatch, tmp_path, frame, curr_date):
     monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     today = pd.Timestamp(curr_date)
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
-    start = (today - pd.DateOffset(years=5)).strftime("%Y-%m-%d")
-    end = (today + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    (tmp_path / f"AAPL-YFin-data-{start}-{end}.csv").write_text(frame.to_csv(index=False))
+    cache_file = tmp_path / "AAPL-YFin-data.csv"
+    cache_file.write_text(frame.to_csv(index=False))
+    os.utime(cache_file, (today.timestamp(), today.timestamp()))
 
     def _fail_download(*a, **k):
         raise AssertionError("should use the seeded cache, not download")
