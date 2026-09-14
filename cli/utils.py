@@ -643,7 +643,11 @@ def ensure_api_key(provider: str) -> str | None:
         return None
 
     env_path = find_dotenv(usecwd=True) or str(Path.cwd() / ".env")
-    Path(env_path).touch(exist_ok=True)
+    # The file holds credentials, so make it owner-only before writing: create
+    # it 0600 when absent, and tighten an existing one (set_key keeps the mode).
+    if not os.path.exists(env_path):
+        os.close(os.open(env_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
+    os.chmod(env_path, 0o600)
     set_key(env_path, env_var, key)
     os.environ[env_var] = key
     console.print(f"[green]Saved {env_var} to {env_path}[/green]")
