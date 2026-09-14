@@ -1110,18 +1110,10 @@ def run_analysis(checkpoint: bool | None = None):
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # Initialize state and get graph args with callbacks.
-        # Resolve the instrument identity once here so all agents anchor to
-        # the real company (#814); the CLI builds state directly rather than
-        # going through propagate(), so this must happen on the CLI path too.
-        instrument_context = graph.resolve_instrument_context(
-            selections["ticker"], selections["asset_type"]
-        )
-        init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"],
-            selections["analysis_date"],
-            asset_type=selections["asset_type"],
-            instrument_context=instrument_context,
+        # The same initial state propagate() builds: settled decision log, past
+        # context and resolved instrument identity.
+        init_agent_state = graph.create_run_state(
+            selections["ticker"], selections["analysis_date"], selections["asset_type"]
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
@@ -1243,20 +1235,22 @@ def run_analysis(checkpoint: bool | None = None):
 
                 trace.append(chunk)
 
-            # Clean run: drop this run's checkpoint so a later run starts fresh.
-            # A mid-stream failure skips this, keeping the checkpoint for resume.
+            # Streamed chunks are per-node deltas, not full state. Merge them
+            # so every report field populated across the run is present.
+            final_state = {}
+            for chunk in trace:
+                final_state.update(chunk)
+
+            # Clean run: log the decision, then drop this run's checkpoint so a
+            # later run starts fresh. A mid-stream failure skips both, keeping
+            # the checkpoint for resume.
+            graph.record_decision(selections["ticker"], selections["analysis_date"], final_state)
             graph.clear_checkpoint_on_success(
                 selections["ticker"], selections["analysis_date"], selections["asset_type"]
             )
         finally:
             # Always restore the plain uncheckpointed graph, even on failure.
             graph.end_checkpoint()
-
-        # Streamed chunks are per-node deltas, not full state. Merge them
-        # so every report field populated across the run is present.
-        final_state = {}
-        for chunk in trace:
-            final_state.update(chunk)
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:

@@ -419,9 +419,6 @@ class TradingAgentsGraph:
         """
         self.ticker = company_name
 
-        # Resolve any pending memory-log entries for this ticker before the pipeline runs.
-        self._resolve_pending_entries(company_name)
-
         with self.checkpoint_scope(company_name, trade_date, asset_type) as thread_id_value:
             return self._run_graph(
                 company_name, trade_date, asset_type=asset_type,
@@ -506,24 +503,39 @@ class TradingAgentsGraph:
             )
         return write_report_tree(final_state, ticker, save_path)
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
-                   checkpoint_thread_id: str | None = None):
-        """Execute the graph and write the resulting state to disk and memory log."""
-        # Initialize state — inject memory log context for PM and the
-        # deterministically resolved instrument identity for all agents. On a
-        # historical run, gate lessons to those whose outcome was known by the
-        # trade date so a backtest can't learn from the future (#1251).
-        past_context = self.memory_log.get_past_context(
-            company_name, as_of=self._memory_as_of(trade_date)
-        )
-        instrument_context = self.resolve_instrument_context(company_name, asset_type)
-        init_agent_state = self.propagator.create_initial_state(
+    def create_run_state(self, company_name, trade_date, asset_type: str = "stock"):
+        """Build a run's initial state; propagate() and the CLI both start here.
+
+        Settles this ticker's pending decisions first, then injects the lessons
+        known by the trade date for the Portfolio Manager (#1251) and the
+        resolved instrument identity for every agent (#814). An entry point that
+        assembled the state itself would skip the decision log.
+        """
+        self._resolve_pending_entries(company_name)
+        return self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
-            past_context=past_context,
-            instrument_context=instrument_context,
+            past_context=self.memory_log.get_past_context(
+                company_name, as_of=self._memory_as_of(trade_date)
+            ),
+            instrument_context=self.resolve_instrument_context(company_name, asset_type),
         )
+
+    def record_decision(self, company_name, trade_date, final_state):
+        """Log a finished run's decision for reflection on the next same-ticker run."""
+        decision = final_state.get("final_trade_decision")
+        if not decision:
+            logger.warning("No final decision for %s on %s; nothing logged", company_name, trade_date)
+            return
+        self.memory_log.store_decision(
+            ticker=company_name, trade_date=trade_date, final_trade_decision=decision
+        )
+
+    def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
+                   checkpoint_thread_id: str | None = None):
+        """Execute the graph and write the resulting state to disk and memory log."""
+        init_agent_state = self.create_run_state(company_name, trade_date, asset_type)
         args = self.propagator.get_graph_args()
 
         # Inject the checkpoint thread_id (from checkpoint_scope) so the same
@@ -561,12 +573,7 @@ class TradingAgentsGraph:
         # Log state to disk.
         self._log_state(trade_date, final_state)
 
-        # Store decision for deferred reflection on the next same-ticker run.
-        self.memory_log.store_decision(
-            ticker=company_name,
-            trade_date=trade_date,
-            final_trade_decision=final_state["final_trade_decision"],
-        )
+        self.record_decision(company_name, trade_date, final_state)
 
         # Clear checkpoint on successful completion to avoid stale state.
         self.clear_checkpoint_on_success(company_name, trade_date, asset_type)
