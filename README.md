@@ -110,7 +110,13 @@ conda create -n tradingagents python=3.12
 conda activate tradingagents
 ```
 
-Install the package and its dependencies:
+Or with [uv](https://docs.astral.sh/uv/):
+```bash
+uv venv --python 3.12
+source .venv/bin/activate
+```
+
+Install the package and its dependencies (`uv pip install .` with uv):
 ```bash
 pip install .
 ```
@@ -122,6 +128,8 @@ Alternatively, run with Docker:
 cp .env.example .env  # add your API keys
 docker compose run --rm tradingagents
 ```
+
+After updating the repository, rebuild the image with `docker compose build`.
 
 For local models with Ollama:
 ```bash
