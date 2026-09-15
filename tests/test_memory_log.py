@@ -568,9 +568,10 @@ class TestDeferredReflection:
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.config = {
             "benchmark_ticker": "QQQ",
-            "benchmark_map": {"": "SPY", ".T": "^N225"},
+            "benchmark_map": {"": "SPY", ".T": "^N225", ".TW": "^TWII"},
         }
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "7203.T") == "QQQ"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "2330.TW") == "QQQ"
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "NVDA") == "QQQ"
 
     def test_resolve_benchmark_suffix_map(self):
@@ -588,6 +589,25 @@ class TestDeferredReflection:
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "0700.HK") == "^HSI"
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "RELIANCE.NS") == "^NSEI"
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "AZN.L") == "^FTSE"
+
+    def test_resolve_benchmark_taiwan(self):
+        """``.TW`` (TWSE) routes to TAIEX and ``.TWO`` (TPEx) to the TPEx index
+        via the default benchmark_map; the neighbouring ``.T`` (Tokyo) /
+        ``.TO`` (Toronto) suffixes are unaffected -- ``endswith(".T")`` must
+        not swallow ``.TW``, nor ``.TW`` swallow ``.TWO``."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"benchmark_ticker": None,
+                             "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "2330.TW") == "^TWII"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "2454.TW") == "^TWII"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "3443.TW") == "^TWII"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "6488.TWO") == "^TWOII"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "5274.two") == "^TWOII"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "7203.T") == "^N225"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "0700.HK") == "^HSI"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "SHOP.TO") == "^GSPTSE"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "AAPL") == "SPY"
 
     def test_resolve_benchmark_china_a_shares(self):
         """A-share tickers route to their exchange composite (uses the real

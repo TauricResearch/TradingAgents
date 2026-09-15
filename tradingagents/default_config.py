@@ -160,11 +160,43 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".BO":  "^BSESN",      # BSE India (Sensex)
         ".T":   "^N225",       # Tokyo (Nikkei 225)
         ".HK":  "^HSI",        # Hong Kong (Hang Seng)
+        ".TW":  "^TWII",       # Taiwan (TAIEX)
+        ".TWO": "^TWOII",      # Taiwan TPEx / OTC (TPEx Index)
         ".L":   "^FTSE",       # London (FTSE 100)
         ".TO":  "^GSPTSE",     # Toronto (TSX Composite)
         ".AX":  "^AXJO",       # Australia (ASX 200)
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         "":     "SPY",         # default for US-listed tickers (no suffix)
+    },
+    # Market profiles: the single place that says which exchange suffixes
+    # belong to a market and what that market's defaults are. Resolve a
+    # ticker to its profile via ``tradingagents.dataflows.market_profiles``
+    # instead of testing ``ticker.endswith(".TW")`` at call sites, so
+    # market-specific behaviour (sentiment sources, data vendors, ...) reads
+    # one table. A ticker whose suffix matches no profile is the ``default``
+    # (US-listed) market. ``benchmarks`` is keyed by suffix because one
+    # market can span several exchanges with their own index; each row must
+    # agree with the matching ``benchmark_map`` entry above, which stays the
+    # resolver's source so existing overrides keep working unchanged.
+    "market_profiles": {
+        "taiwan": {
+            "suffixes": [".TW", ".TWO"],  # TWSE main board / TPEx (OTC) on Yahoo
+            "benchmarks": {
+                ".TW":  "^TWII",          # TAIEX
+                ".TWO": "^TWOII",         # TPEx Index
+            },
+            "currency": "TWD",
+            "locale": "zh-TW",
+            # Retail social feeds the sentiment analyst may query for this
+            # market (subset of "stocktwits", "reddit"). Empty means neither is
+            # queried: their cashtag/subreddit coverage is US-centric, so a
+            # Taiwan ticker mostly returns empty or off-topic posts that would
+            # read as a (false) neutral signal. The analyst is told the source
+            # was not enabled, which is missing coverage, not an observation.
+            # Omit the key on a profile to keep the default (both enabled);
+            # Yahoo News is not governed here and is always fetched.
+            "social_sources": [],
+        },
     },
 })
