@@ -188,6 +188,15 @@ DEFAULT_CONFIG = _apply_env_overrides({
             },
             "currency": "TWD",
             "locale": "zh-TW",
+            # Retail social feeds the sentiment analyst may query for this
+            # market (subset of "stocktwits", "reddit"). Empty means neither is
+            # queried: their cashtag/subreddit coverage is US-centric, so a
+            # Taiwan ticker mostly returns empty or off-topic posts that would
+            # read as a (false) neutral signal. The analyst is told the source
+            # was not enabled, which is missing coverage, not an observation.
+            # Omit the key on a profile to keep the default (both enabled);
+            # Yahoo News is not governed here and is always fetched.
+            "social_sources": [],
         },
     },
 })

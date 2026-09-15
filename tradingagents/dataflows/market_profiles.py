@@ -21,6 +21,13 @@ from tradingagents.default_config import DEFAULT_CONFIG
 MARKET_DEFAULT = "default"
 MARKET_TAIWAN = "taiwan"
 
+# Retail social feeds the sentiment analyst can pre-fetch. A market profile
+# narrows this via ``social_sources``; a profile without the key, and the
+# default market, get both.
+SOCIAL_SOURCE_STOCKTWITS = "stocktwits"
+SOCIAL_SOURCE_REDDIT = "reddit"
+DEFAULT_SOCIAL_SOURCES: tuple[str, ...] = (SOCIAL_SOURCE_STOCKTWITS, SOCIAL_SOURCE_REDDIT)
+
 
 def _profiles(config: Mapping | None) -> Mapping[str, Mapping]:
     source = config if config is not None else DEFAULT_CONFIG
@@ -62,3 +69,18 @@ def get_market_profile(ticker: str, config: Mapping | None = None) -> Mapping:
     if market == MARKET_DEFAULT:
         return {}
     return _profiles(config).get(market, {})
+
+
+def resolve_social_sources(ticker: str, config: Mapping | None = None) -> tuple[str, ...]:
+    """Return the social feeds the sentiment analyst may query for ``ticker``.
+
+    Reads ``social_sources`` from the ticker's market profile; the default
+    market and profiles that omit the key get :data:`DEFAULT_SOCIAL_SOURCES`.
+    An explicit empty list disables every social feed for that market (the
+    analyst then reports the feeds as not enabled rather than querying them).
+    Yahoo News is outside this list and is always fetched.
+    """
+    sources = get_market_profile(ticker, config).get("social_sources")
+    if sources is None:
+        return DEFAULT_SOCIAL_SOURCES
+    return tuple(str(s).strip().lower() for s in sources if str(s).strip())

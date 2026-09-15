@@ -40,8 +40,29 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.market_profiles import (
+    SOCIAL_SOURCE_REDDIT,
+    SOCIAL_SOURCE_STOCKTWITS,
+    resolve_market,
+    resolve_social_sources,
+)
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
+
+
+def _not_enabled_placeholder(source_label: str, ticker: str, market: str) -> str:
+    """Placeholder for a social feed the market profile turns off.
+
+    Deliberately distinct from the fetchers' own ``<unavailable ...>`` (queried,
+    failed) and ``<no ... found>`` (queried, empty) placeholders: this feed was
+    never queried, so the analyst must treat it as missing coverage rather than
+    as an empty or neutral observation.
+    """
+    return (
+        f"<{source_label} not enabled for the {market} market: {ticker.upper()} was not "
+        "queried; missing coverage, not an absence of posts and not a neutral signal>"
+    )
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -64,16 +85,28 @@ def create_sentiment_analyst(llm):
         start_date = _seven_days_back(end_date)
         instrument_context = get_instrument_context_from_state(state)
 
-        # Pre-fetch all three sources. Each fetcher degrades gracefully and
-        # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
+        # Pre-fetch the sources. Each fetcher degrades gracefully and returns
+        # a string (no exceptions surface from here), so the LLM always sees
+        # something — either real data or a clear placeholder. News is always
+        # fetched; the social feeds are gated by the ticker's market profile
+        # (``market_profiles[...]["social_sources"]``) and, when a feed is not
+        # enabled, replaced by a not-enabled placeholder without any request.
         news_block = get_news.func(ticker, start_date, end_date)
+        config = get_config()
+        market = resolve_market(ticker, config)
+        social_sources = resolve_social_sources(ticker, config)
         # Pass the analysis window so a historical run trims social posts to it
         # instead of leaking today's chatter into a backtest (#1220).
-        stocktwits_block = fetch_stocktwits_messages(
-            ticker, limit=30, start_date=start_date, end_date=end_date
-        )
-        reddit_block = fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date)
+        if SOCIAL_SOURCE_STOCKTWITS in social_sources:
+            stocktwits_block = fetch_stocktwits_messages(
+                ticker, limit=30, start_date=start_date, end_date=end_date
+            )
+        else:
+            stocktwits_block = _not_enabled_placeholder("StockTwits", ticker, market)
+        if SOCIAL_SOURCE_REDDIT in social_sources:
+            reddit_block = fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date)
+        else:
+            reddit_block = _not_enabled_placeholder("Reddit", ticker, market)
 
         system_message = _build_system_message(
             ticker=ticker,
@@ -174,7 +207,7 @@ Community discussion. Engagement signal via upvote score and comment count. Subr
 
 5. **Identify recurring narrative themes.** What topic keeps coming up across sources? That's the dominant narrative driving current sentiment.
 
-6. **Be honest about data limits.** If StockTwits returned only a handful of messages, or one or more sources returned an "<unavailable>" placeholder, the sentiment read is less robust — flag this explicitly in the `confidence` field and the narrative. If the sources are silent on a given subreddit, say so.
+6. **Be honest about data limits.** If StockTwits returned only a handful of messages, or one or more sources returned an "<unavailable>" placeholder, the sentiment read is less robust — flag this explicitly in the `confidence` field and the narrative. If the sources are silent on a given subreddit, say so. A source marked "not enabled" for this market was never queried: that is missing coverage, not a neutral sentiment observation. Do not infer bullish, bearish, or neutral sentiment from its absence; lower `confidence` accordingly and base the read on the sources that were actually collected.
 
 7. **Identify catalysts and risks** that emerge across sources — news of upcoming earnings, product launches, competitive threats, macro headlines, etc.
 
@@ -184,7 +217,7 @@ Community discussion. Engagement signal via upvote score and comment count. Subr
 
 Fill the following fields:
 
-- **overall_band**: Exactly one of Bullish / Mildly Bullish / Neutral / Mixed / Mildly Bearish / Bearish. Use Mixed when sources point in clearly different directions; Neutral only when all sources are genuinely silent.
+- **overall_band**: Exactly one of Bullish / Mildly Bullish / Neutral / Mixed / Mildly Bearish / Bearish. Use Mixed when sources point in clearly different directions; Neutral only when all sources are genuinely silent (a source that was not enabled is missing, not silent).
 - **overall_score**: A number from 0 (maximally bearish) to 10 (maximally bullish); 5 is neutral. Keep it consistent with overall_band.
 - **confidence**: low / medium / high, based on data quality and sample size.
 - **narrative**: Full source-by-source breakdown, divergences, dominant narrative themes, catalysts and risks, and a markdown summary table of key sentiment signals (direction, source, supporting evidence).
