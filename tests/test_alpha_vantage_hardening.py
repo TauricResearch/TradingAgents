@@ -151,3 +151,18 @@ def test_request_error_message_carries_no_key(monkeypatch):
     with pytest.raises(requests.Timeout) as caught:
         av._make_api_request("OVERVIEW", {"symbol": "IBM"})
     assert key not in str(caught.value)
+
+
+@pytest.mark.unit
+def test_global_news_omitted_optionals_use_the_configured_defaults(monkeypatch):
+    """The tool passes None for an omitted look_back_days or limit (#1326)."""
+    from tradingagents.dataflows import alpha_vantage_news
+
+    monkeypatch.setattr(alpha_vantage_news, "get_config",
+                        lambda: {"global_news_lookback_days": 3, "global_news_article_limit": 9})
+    seen = {}
+    monkeypatch.setattr(alpha_vantage_news, "_make_api_request", lambda fn, params: seen.update(params) or "{}")
+
+    alpha_vantage_news.get_global_news("2026-08-14", None, None)
+
+    assert seen["time_from"].startswith("20260811") and seen["limit"] == "9"
