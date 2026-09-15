@@ -185,6 +185,11 @@ class TradingAgentsGraph:
             if effort:
                 kwargs["effort"] = effort
 
+        elif provider == "conversation":
+            for key in ("conversation_dir", "conversation_timeout"):
+                if self.config.get(key) is not None:
+                    kwargs[key] = self.config[key]
+
         # Sampling temperature is cross-provider: forward it whenever set.
         # float() here so a value coming from a TRADINGAGENTS_TEMPERATURE env
         # string ("0.2") works the same as a programmatic float.
