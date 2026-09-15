@@ -455,7 +455,8 @@ def get_income_statement(
 
 
 def get_insider_transactions(
-    ticker: Annotated[str, "ticker symbol of the company"]
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str | None, "only filings on or before this date, yyyy-mm-dd"] = None,
 ):
     """Get insider transactions data from yfinance."""
     canonical = normalize_symbol(ticker)
@@ -467,6 +468,16 @@ def get_insider_transactions(
         # so report it plainly rather than treating the symbol as invalid.
         if data is None or data.empty:
             return f"No insider transactions reported for symbol '{canonical}'"
+
+        if curr_date:
+            filed = data["Start Date"]
+            kept = data[filed <= pd.Timestamp(curr_date)]
+            if kept.empty:
+                return (
+                    f"<insider transactions unavailable for {canonical} as of {curr_date}: "
+                    f"Yahoo serves recent filings only (coverage starts {filed.min():%Y-%m-%d})>"
+                )
+            data = kept
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
