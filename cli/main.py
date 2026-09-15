@@ -19,6 +19,7 @@ from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
+from cli import backtest_command
 from cli.announcements import display_announcements, fetch_announcements
 from cli.utils import (
     ask_anthropic_effort,
@@ -1301,20 +1302,12 @@ def run_analysis(checkpoint: bool | None = None):
         display_complete_report(final_state)
 
 
-@app.command()
-def analyze(
-    checkpoint: bool | None = typer.Option(
-        None,
-        "--checkpoint/--no-checkpoint",
-        help="Enable/disable checkpoint-resume (save state after each node so a "
-        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
-    ),
-    clear_checkpoints: bool = typer.Option(
-        False,
-        "--clear-checkpoints",
-        help="Delete all saved checkpoints before running (force fresh start).",
-    ),
-):
+def _analyze(checkpoint: bool | None = None, clear_checkpoints: bool = False):
+    """The interactive analysis flow, with plain Python defaults.
+
+    Kept separate from the Typer command so the no-subcommand path below can
+    call it without Typer's ``OptionInfo`` sentinels standing in for values.
+    """
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
@@ -1332,6 +1325,38 @@ def analyze(
             err=True,
         )
         raise typer.Exit(code=1) from None
+
+
+@app.command()
+def analyze(
+    checkpoint: bool | None = typer.Option(
+        None,
+        "--checkpoint/--no-checkpoint",
+        help="Enable/disable checkpoint-resume (save state after each node so a "
+        "crashed run can resume). Omit to honor TRADINGAGENTS_CHECKPOINT_ENABLED.",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="Delete all saved checkpoints before running (force fresh start).",
+    ),
+):
+    _analyze(checkpoint=checkpoint, clear_checkpoints=clear_checkpoints)
+
+
+# Registered from its own module: the backtest command is non-interactive and
+# shares none of the prompt machinery above.
+app.command(name="backtest")(backtest_command.backtest)
+
+
+@app.callback(invoke_without_command=True)
+def _default(ctx: typer.Context):
+    """TradingAgents: multi-agent LLM financial trading framework."""
+    # Until `backtest` landed this was a single-command app, so a bare
+    # `tradingagents` ran the analysis. Typer would now demand a subcommand;
+    # dispatching here keeps the original invocation working.
+    if ctx.invoked_subcommand is None:
+        _analyze()
 
 
 if __name__ == "__main__":

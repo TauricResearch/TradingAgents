@@ -6,9 +6,9 @@ import pandas as pd
 import pytest
 
 from tradingagents.backtest.metrics import (
-    alpha_per_1k_usd,
     buy_and_hold,
     compute_metrics,
+    cost_per_alpha_point,
     hit_rate,
     random_rating_baseline,
     summarize,
@@ -256,13 +256,20 @@ def test_baseline_preserves_the_rating_mix():
 # Cost efficiency and summarize
 # ---------------------------------------------------------------------------
 
-def test_alpha_per_1k_usd():
-    assert alpha_per_1k_usd(0.10, 500.0) == pytest.approx(0.20)
+def test_cost_per_alpha_point():
+    # $500 bought 10 percentage points of alpha, so $50 per point.
+    assert cost_per_alpha_point(0.10, 500.0) == pytest.approx(50.0)
 
 
 @pytest.mark.parametrize("cost", [None, 0.0])
-def test_alpha_per_1k_usd_is_none_without_spend(cost):
-    assert alpha_per_1k_usd(0.10, cost) is None
+def test_cost_per_alpha_point_is_none_without_spend(cost):
+    assert cost_per_alpha_point(0.10, cost) is None
+
+
+@pytest.mark.parametrize("alpha", [None, 0.0, -0.05])
+def test_cost_per_alpha_point_is_none_without_positive_alpha(alpha):
+    """There is no meaningful price for alpha that was never earned."""
+    assert cost_per_alpha_point(alpha, 500.0) is None
 
 
 def test_summarize_computes_alpha_against_a_benchmark():

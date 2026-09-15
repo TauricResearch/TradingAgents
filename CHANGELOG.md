@@ -6,6 +6,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Backtest harness (`tradingagents backtest`).** Replays the agent graph over
+  a date range and scores the decisions as a portfolio, with a markdown
+  scorecard, `equity.csv` and a JSON payload. This is the consumer the
+  point-in-time work in 0.3.x/0.4.0 was building toward — FRED vintage pinning
+  (#1275), the shared social/news window (#1220), indicator cutoffs and the
+  decision log's resolution-date gate (#1251) were all justified by a backtest
+  that did not exist until now.
+
+  Producing decisions and scoring them are separate. Each decision is appended
+  to a JSONL store as it is produced; the portfolio, metrics and scorecard read
+  that back, so re-scoring under a different weight map or cost model costs no
+  LLM calls (`--score-only`). The same property makes a run resumable: a later
+  run with the same label skips stored decisions and retries failed ones, above
+  the per-node recovery `--checkpoint` already provides (#1249). The store is
+  keyed by a signature covering models, analyst selection and debate depth, so
+  a config change starts a fresh experiment rather than blending two curves.
+
+  Fills are at the next bar's open, never the decision bar's close — filling at
+  the close would be the look-ahead the rest of the framework prevents. `Hold`
+  carries the position by default, matching the Research Manager's definition;
+  `REVIEW` (#1170) is never traded and is counted separately.
+
+- **Look-ahead enforcement (`--strict-point-in-time`).** A guard on the vendor
+  dispatch path aborts any decision whose data requests reach past its trade
+  date, turning the point-in-time guarantees into an invariant that fails
+  loudly. `route_to_vendor` gained a `set_request_guard` hook for it; the hook
+  is `None` by default and adds no overhead on the normal path.
+
+- **Cost accounting.** Token usage is recorded per decision and the scorecard
+  reports what a run cost to produce alongside what it earned, including cost
+  per percentage point of alpha. No price table ships with the framework —
+  provider prices rot and a stale table produces a confident number nobody
+  re-checks — so rates come from `config["llm_prices"]` or
+  `TRADINGAGENTS_LLM_PRICES`, and an unpriced model reports tokens without
+  dollars.
+
+- **Baselines in every scorecard.** Results are reported against buy-and-hold
+  of the benchmark, buy-and-hold of the traded names, and random re-orderings
+  of the agent's *own* rating mix run through the identical execution model, so
+  a Buy-everything agent in a rising market cannot read as skilled.
+
+### Changed
+
+- `StatsCallbackHandler` moved from `cli/stats_handler.py` to
+  `tradingagents/stats.py` so the package no longer imports from the CLI. The
+  old import path still works.
+- Benchmark resolution moved to `dataflows.symbol_utils.resolve_benchmark`,
+  shared by the graph's deferred reflection and the backtest scorecard so both
+  measure alpha against the same index.
+
 ## [0.4.0] — 2026-08-31
 
 Look-ahead and point-in-time fixes across the data and memory layers, clearer

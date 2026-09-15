@@ -30,6 +30,30 @@ from .errors import NoMarketDataError as NoMarketDataError
 logger = logging.getLogger(__name__)
 
 
+def resolve_benchmark(ticker: str, config: dict) -> str:
+    """Pick the benchmark ticker for alpha calculation against ``ticker``.
+
+    ``config["benchmark_ticker"]`` overrides everything when set; otherwise the
+    suffix map matches the ticker's exchange suffix (e.g. ``.T`` for Tokyo).
+    US-listed tickers without a dotted suffix fall through to the empty-suffix
+    entry (SPY by default). Unrecognised suffixes (including US tickers with
+    dots like ``BRK.B``) also fall back to that entry, which is the right
+    default because the alpha calculation works in USD.
+
+    Shared by the graph's deferred reflection and the backtest scorecard so the
+    two report alpha against the same index.
+    """
+    explicit = config.get("benchmark_ticker")
+    if explicit:
+        return explicit
+    benchmark_map = config.get("benchmark_map", {})
+    ticker_upper = ticker.upper()
+    for suffix, benchmark in benchmark_map.items():
+        if suffix and ticker_upper.endswith(suffix.upper()):
+            return benchmark
+    return benchmark_map.get("", "SPY")
+
+
 # ISO-4217 codes common enough to appear in retail forex pairs. A bare
 # six-letter symbol whose halves are BOTH in this set is treated as a spot
 # forex pair and given Yahoo's ``=X`` suffix.

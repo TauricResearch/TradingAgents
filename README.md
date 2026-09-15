@@ -170,6 +170,8 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+Two subcommands are available. `tradingagents analyze` is the interactive flow above, and running `tradingagents` with no subcommand still goes straight to it. `tradingagents backtest` replays the agents over a date range non-interactively and scores the result — see [Backtesting](#backtesting).
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
@@ -261,6 +263,71 @@ config["checkpoint_enabled"] = True
 ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
+
+## Backtesting
+
+`tradingagents backtest` replays the agent graph across a date range and scores the resulting decisions as a portfolio. It is the consumer of the point-in-time work in the data layer: FRED pins its vintage to the as-of date, news and social are trimmed to the analysis window, indicators are cut at the trade date, and the decision log only replays lessons whose outcome was already known.
+
+```bash
+tradingagents backtest --tickers NVDA --start 2026-01-05 --end 2026-06-30
+```
+
+```bash
+# Several names, replayed concurrently, with look-ahead enforcement on.
+tradingagents backtest --tickers NVDA,AAPL,MSFT --start 2026-01-05 --end 2026-06-30 \
+    --workers 3 --strict-point-in-time
+```
+
+Output lands in `~/.tradingagents/logs/backtests/<label>/`: a `scorecard.md` written to be pasted into an issue, the same figures as `scorecard.json`, an `equity.csv`, and the `decisions.jsonl` that produced them.
+
+### Producing decisions and scoring them are separate
+
+Running the agents is slow and costs real money. Scoring what they decided is free. Every decision is appended to `decisions.jsonl` as soon as it is produced, and the scorer reads that file back — so re-scoring under different execution rules never re-runs an agent:
+
+```bash
+# No LLM calls, no network: re-scores the stored run in milliseconds.
+tradingagents backtest --tickers NVDA --start 2026-01-05 --end 2026-06-30 \
+    --score-only --hold-policy flat --slippage-bps 15
+```
+
+The same property makes a run resumable. Interrupting is safe: a later run with the same `--label` skips the decisions already stored and retries the ones that failed. This sits above `--checkpoint`, which recovers *within* a single decision; the store recovers *across* them.
+
+The store is keyed by a signature covering the models, analyst selection and debate depth, so changing the configuration starts a fresh experiment rather than blending two into one equity curve.
+
+### How decisions become trades
+
+Ratings map to target weights (`Buy` 1.0, `Overweight` 0.5, `Underweight` -0.5, `Sell` -1.0), long-only unless you pass `--allow-short`. `Hold` carries the current position by default, matching the Research Manager's definition of it; `--hold-policy flat` reads it as a neutral target instead. `REVIEW` is never traded — it means the decision had no parseable rating — and is counted separately.
+
+Fills happen at the **next bar's open**, never the decision bar's close. A decision dated D is built from data through D, so filling it at D's close would be exactly the look-ahead the rest of the framework prevents. Every rebalance pays commission and slippage on the traded notional.
+
+### The baselines
+
+A return figure with no reference point is not a result, so every scorecard reports three:
+
+- Buy and hold the benchmark (SPY for US listings, resolved per-market elsewhere).
+- Buy and hold the traded names.
+- **Random ratings** drawn from the agent's *own* rating mix, run through the identical execution model. If the agent is 80% Buy in a rising market, so is the monkey, and only the timing differs. Beating ~50% of those trials means the ratings carried no timing information beyond their directional bias.
+
+### Cost reporting
+
+Token usage is recorded per decision, and the scorecard reports what the run cost to produce alongside what it earned — including cost per percentage point of alpha, so two configurations with the same alpha are not mistaken for equally good.
+
+No price table ships with the framework: provider prices change on their own schedule and a stale table produces a confident number nobody re-checks. Supply rates in dollars per million tokens and anything unpriced reports tokens without dollars.
+
+```python
+config["llm_prices"] = {
+    "gpt-5.6":      {"input": 1.25, "output": 10.00},
+    "gpt-5.6-luna": {"input": 0.15, "output": 0.60},
+}
+```
+
+or point `TRADINGAGENTS_LLM_PRICES` at a JSON file of the same shape.
+
+### Enforcing the point-in-time rule
+
+`--strict-point-in-time` installs a guard on the vendor dispatch path that aborts any decision whose data requests reach past its trade date. It turns the framework's look-ahead guarantees from a claim into an invariant that fails loudly, which is worth switching on when adding a data vendor.
+
+> Backtest results are research output, not investment advice, and not a strategy with a replicable return. Simulated figures ignore market impact, borrow costs, taxes and the survivorship of whatever tickers you chose.
 
 ## Reproducibility
 

@@ -254,17 +254,28 @@ def _percentile(sorted_values: list[float], q: float) -> float:
     return sorted_values[low] + (sorted_values[high] - sorted_values[low]) * (position - low)
 
 
-def alpha_per_1k_usd(alpha: float, cost_usd: float | None) -> float | None:
-    """Excess return earned per $1,000 of LLM spend.
+def cost_per_alpha_point(alpha: float | None, cost_usd: float | None) -> float | None:
+    """Dollars of LLM spend per percentage point of alpha earned.
 
     The metric that makes an agent framework's cost legible: two configurations
-    with the same alpha are not equally good if one costs ten times more to run.
-    Returns ``None`` when spend is unknown (an unpriced model) or zero, rather
-    than dividing by zero or implying infinite efficiency.
+    with the same alpha are not equally good if one costs ten times more to
+    produce it.
+
+    Deliberately expressed this way round rather than as "alpha per $1,000
+    spent". The latter reads as a rate and invites multiplying up — a $10 run
+    that earned 27% alpha would be reported as 2,658% per $1,000, which is not
+    a thing that would happen. Cost per point makes the same comparison without
+    implying the result scales with spend.
+
+    Returns ``None`` when spend is unknown (an unpriced model), zero, or when
+    alpha is not positive — there is no meaningful price for alpha that was
+    never earned.
     """
+    if alpha is None or alpha <= 0:
+        return None
     if not cost_usd or cost_usd <= 0:
         return None
-    return alpha / (cost_usd / 1000.0)
+    return cost_usd / (alpha * 100.0)
 
 
 def summarize(

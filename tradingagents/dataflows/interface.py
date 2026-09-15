@@ -165,8 +165,31 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+# Optional inspection hook called before every vendor dispatch, installed via
+# ``set_request_guard``. The backtest harness uses it to assert that no request
+# reaches for data past the as-of date, turning the look-ahead fixes (#1220,
+# #1251, #1275) into an invariant that can fail a test rather than a claim.
+# ``None`` (the default) means no hook and no overhead on the normal path.
+_request_guard = None
+
+
+def set_request_guard(guard):
+    """Install (or clear, with ``None``) the pre-dispatch inspection hook.
+
+    ``guard`` is called as ``guard(method, args, kwargs)`` before the vendor
+    chain runs. Raising from it aborts the request. Returns the previously
+    installed guard so callers can restore it.
+    """
+    global _request_guard
+    previous = _request_guard
+    _request_guard = guard
+    return previous
+
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
+    if _request_guard is not None:
+        _request_guard(method, args, kwargs)
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]

@@ -22,6 +22,7 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -82,6 +83,11 @@ class BacktestSpec:
     asset_type: str = "stock"
     selected_analysts: tuple[str, ...] = ("market", "social", "news", "fundamentals")
     max_workers: int = 1
+    # Enforce the point-in-time rule during the run: any vendor request for a
+    # date past the trade date aborts that decision. Off by default because the
+    # guard is global process state and a violation costs a decision; on, it
+    # makes the framework's look-ahead invariant testable end to end.
+    strict_point_in_time: bool = False
 
     def __post_init__(self):
         if not self.tickers:
@@ -249,6 +255,21 @@ class BacktestRunner:
                 ticker, date, position, len(dates), record.rating, error=record.error,
             ))
 
+    @contextmanager
+    def _point_in_time_scope(self, date: str):
+        """Hold this decision to its trade date, when the spec asks for it.
+
+        A no-op context when ``strict_point_in_time`` is off, so the normal path
+        carries no dispatch-hook overhead.
+        """
+        if not self.spec.strict_point_in_time:
+            yield
+            return
+        from tradingagents.backtest.guard import point_in_time_guard
+
+        with point_in_time_guard(date, strict=True):
+            yield
+
     def _run_point(
         self,
         ticker: str,
@@ -266,7 +287,8 @@ class BacktestRunner:
         baseline = handler.get_stats()
         try:
             graph = graph_provider()
-            _, signal = graph.propagate(ticker, date, self.spec.asset_type)
+            with self._point_in_time_scope(date):
+                _, signal = graph.propagate(ticker, date, self.spec.asset_type)
             usage = handler.delta_since(baseline)
             return DecisionRecord(
                 ticker=ticker,
