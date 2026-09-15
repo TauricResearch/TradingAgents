@@ -69,6 +69,10 @@ class TestNormalizeSymbol(unittest.TestCase):
     def test_hk_code_case_insensitive_suffix(self):
         self.assertEqual(normalize_symbol("09992.hk"), "9992.HK")
 
+    def test_shanghai_sh_suffix_maps_to_yahoo_ss(self):
+        self.assertEqual(normalize_symbol("600519.sh"), "600519.SS")
+        self.assertEqual(normalize_symbol("600519.SS"), "600519.SS")
+
 
 @pytest.mark.unit
 class TestNoMarketDataError(unittest.TestCase):

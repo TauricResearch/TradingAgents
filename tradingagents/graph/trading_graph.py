@@ -274,11 +274,13 @@ class TradingAgentsGraph:
         entry, which is the right default because the alpha calculation works
         in USD.
         """
+        from tradingagents.dataflows.symbol_utils import normalize_symbol
+
         explicit = self.config.get("benchmark_ticker")
         if explicit:
             return explicit
         benchmark_map = self.config.get("benchmark_map", {})
-        ticker_upper = ticker.upper()
+        ticker_upper = normalize_symbol(ticker)
         for suffix, benchmark in benchmark_map.items():
             if suffix and ticker_upper.endswith(suffix.upper()):
                 return benchmark
