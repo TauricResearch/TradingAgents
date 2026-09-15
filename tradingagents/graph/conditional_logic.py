@@ -1,6 +1,7 @@
-# TradingAgents/graph/conditional_logic.py
+from langgraph.graph import END
 
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.graph.analyst_execution import ANALYST_NODE_SPECS, AnalystNodeSpec
 
 
 class ConditionalLogic:
@@ -13,41 +14,44 @@ class ConditionalLogic:
 
     def should_continue_market(self, state: AgentState):
         """Determine if market analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
+        messages = state.get("market_messages") or state.get("messages", [])
+        last_message = messages[-1] if messages else None
+        if last_message and getattr(last_message, "tool_calls", None):
             return "tools_market"
-        return "Msg Clear Market"
+        return "analyst_barrier"
 
     def should_continue_social(self, state: AgentState):
-        """Determine if sentiment-analyst tool round should continue.
-
-        Method name keeps the legacy ``social`` suffix to match the
-        ``AnalystType.SOCIAL = "social"`` wire value (saved-config
-        back-compat); the returned ``clear_node`` label uses the v0.2.5
-        rename so it matches the node registered by the execution plan.
-        """
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
+        """Determine if sentiment analysis should continue."""
+        messages = state.get("sentiment_messages") or state.get("messages", [])
+        last_message = messages[-1] if messages else None
+        if last_message and getattr(last_message, "tool_calls", None):
             return "tools_social"
-        return "Msg Clear Sentiment"
+        return "analyst_barrier"
 
     def should_continue_news(self, state: AgentState):
         """Determine if news analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
+        messages = state.get("news_messages") or state.get("messages", [])
+        last_message = messages[-1] if messages else None
+        if last_message and getattr(last_message, "tool_calls", None):
             return "tools_news"
-        return "Msg Clear News"
+        return "analyst_barrier"
 
     def should_continue_fundamentals(self, state: AgentState):
         """Determine if fundamentals analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
+        messages = state.get("fundamentals_messages") or state.get("messages", [])
+        last_message = messages[-1] if messages else None
+        if last_message and getattr(last_message, "tool_calls", None):
             return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
+        return "analyst_barrier"
+
+    def should_continue_barrier(
+        self, state: AgentState, plan_specs: list[AnalystNodeSpec] | None = None
+    ) -> str:
+        """Check if all active analyst reports are complete before proceeding to debate."""
+        specs = plan_specs if plan_specs is not None else list(ANALYST_NODE_SPECS.values())
+        if all(bool(state.get(spec.report_key)) for spec in specs):
+            return "Bull Researcher"
+        return END
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""

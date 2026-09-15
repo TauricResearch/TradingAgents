@@ -220,13 +220,15 @@ class TradingAgentsGraph:
                     # LLM and required by its prompt; must be executable here or
                     # the call fails and the model reports it "unavailable").
                     get_verified_market_snapshot,
-                ]
+                ],
+                messages_key="market_messages",
             ),
             "social": ToolNode(
                 [
                     # News tools for social media analysis
                     get_news,
-                ]
+                ],
+                messages_key="sentiment_messages",
             ),
             "news": ToolNode(
                 [
@@ -236,7 +238,8 @@ class TradingAgentsGraph:
                     get_insider_transactions,
                     get_macro_indicators,
                     get_prediction_markets,
-                ]
+                ],
+                messages_key="news_messages",
             ),
             "fundamentals": ToolNode(
                 [
@@ -245,7 +248,8 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
-                ]
+                ],
+                messages_key="fundamentals_messages",
             ),
         }
 
@@ -535,18 +539,21 @@ class TradingAgentsGraph:
         graph_input = self.checkpoint_input(init_agent_state)
         if self.debug:
             trace = []
-            last_printed = None
+            seen_printed = set()
             for chunk in self.graph.stream(graph_input, **args):
-                if chunk["messages"]:
-                    msg = chunk["messages"][-1]
-                    # Nodes after the trader don't append to messages, so the
-                    # same trailing message repeats across chunks. Print it only
-                    # when it changes (#1027); the trace/state merge is unchanged.
-                    signature = (type(msg).__name__, getattr(msg, "content", None))
-                    if signature != last_printed:
-                        msg.pretty_print()
-                        last_printed = signature
-                    trace.append(chunk)
+                for channel in (
+                    "market_messages",
+                    "sentiment_messages",
+                    "news_messages",
+                    "fundamentals_messages",
+                    "messages",
+                ):
+                    for msg in chunk.get(channel, []):
+                        msg_id = getattr(msg, "id", None) or (type(msg).__name__, str(getattr(msg, "content", None)))
+                        if msg_id not in seen_printed:
+                            seen_printed.add(msg_id)
+                            msg.pretty_print()
+                trace.append(chunk)
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}

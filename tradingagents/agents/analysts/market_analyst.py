@@ -80,7 +80,8 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        messages = state.get("market_messages") or state.get("messages", [])
+        result = chain.invoke(messages)
 
         report = ""
 
@@ -88,7 +89,7 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
             report = result.content
 
         return {
-            "messages": [result],
+            "market_messages": [result],
             "market_report": report,
         }
 
