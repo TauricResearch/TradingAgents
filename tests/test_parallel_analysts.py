@@ -2,16 +2,13 @@ import sqlite3
 import unittest
 from unittest.mock import MagicMock
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 from langgraph.checkpoint.sqlite import SqliteSaver
-from langgraph.graph import END, START
+from langgraph.graph import END
 
 from tradingagents.agents.utils.agent_states import AgentState
-from tradingagents.graph.analyst_execution import (
-    ANALYST_NODE_SPECS,
-    build_analyst_execution_plan,
-)
+from tradingagents.graph.analyst_execution import build_analyst_execution_plan
 from tradingagents.graph.conditional_logic import ConditionalLogic
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.setup import GraphSetup
