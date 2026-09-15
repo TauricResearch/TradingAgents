@@ -846,6 +846,58 @@ def display_complete_report(final_state):
             console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
 
+def maybe_save_and_display_report(final_state, ticker: str, config: dict):
+    """Handle the post-analysis save/display prompts (#1133).
+
+    When TRADINGAGENTS_SAVE_REPORT / TRADINGAGENTS_DISPLAY_REPORT are set, the
+    prompts are skipped and the env-overlaid DEFAULT_CONFIG booleans decide —
+    auto-save goes straight to the default reports/<sanitized-ticker>_<timestamp>
+    path under results_dir. Unset, both prompts stay interactive.
+    """
+    # Presence of the env var decides interactive vs auto; the coerced boolean
+    # in DEFAULT_CONFIG (False unless the var is set) is the answer.
+    save_from_env = os.environ.get("TRADINGAGENTS_SAVE_REPORT")
+    if save_from_env:
+        save_report = DEFAULT_CONFIG["save_report"]
+        console.print(f"[green]✓ Save report from environment:[/green] {save_report}")
+    else:
+        save_choice = typer.prompt("Save report?", default="Y").strip().upper()
+        save_report = save_choice in ("Y", "YES", "")
+
+    if save_report:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Under results_dir, not the working directory: in Docker the working
+        # directory is inside the container and the report goes with it, while
+        # results_dir is the mounted volume the rest of the run already writes to.
+        save_path = (Path(config["results_dir"]) / "reports"
+                     / f"{safe_ticker_component(ticker)}_{timestamp}")
+        if not save_from_env:
+            save_path_str = typer.prompt(
+                "Save path (press Enter for default)",
+                default=str(save_path)
+            ).strip()
+            save_path = Path(save_path_str)
+        try:
+            report_file = save_report_to_disk(final_state, ticker, save_path)
+            console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
+            console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+        except Exception as e:
+            console.print(f"[red]Error saving report: {e}[/red]")
+
+    display_from_env = os.environ.get("TRADINGAGENTS_DISPLAY_REPORT")
+    if display_from_env:
+        display_report = DEFAULT_CONFIG["display_report"]
+        console.print(f"[green]✓ Display report from environment:[/green] {display_report}")
+    else:
+        display_choice = typer.prompt(
+            "\nDisplay full report on screen?", default="Y"
+        ).strip().upper()
+        display_report = display_choice in ("Y", "YES", "")
+
+    if display_report:
+        display_complete_report(final_state)
+
+
 def update_research_team_status(status):
     """Update status for research team members (not Trader)."""
     research_team = ["Bull Researcher", "Bear Researcher", "Research Manager"]
@@ -1328,31 +1380,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    # Prompt to save report
-    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
-    if save_choice in ("Y", "YES", ""):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Under results_dir, not the working directory: in Docker the working
-        # directory is inside the container and the report goes with it, while
-        # results_dir is the mounted volume the rest of the run already writes to.
-        default_path = (Path(config["results_dir"]) / "reports"
-                        / f"{safe_ticker_component(selections['ticker'])}_{timestamp}")
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
-        save_path = Path(save_path_str)
-        try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
-            console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
-            console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
-        except Exception as e:
-            console.print(f"[red]Error saving report: {e}[/red]")
-
-    # Prompt to display full report
-    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
-    if display_choice in ("Y", "YES", ""):
-        display_complete_report(final_state)
+    maybe_save_and_display_report(final_state, selections["ticker"], config)
 
 
 @app.callback(invoke_without_command=True)

@@ -26,6 +26,8 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert dc.DEFAULT_CONFIG["backend_url"] is None
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
     assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
+    assert dc.DEFAULT_CONFIG["save_report"] is False
+    assert dc.DEFAULT_CONFIG["display_report"] is False
 
 
 def test_string_overrides(monkeypatch):
@@ -118,6 +120,20 @@ def test_invalid_bool_raises(monkeypatch, bad):
         importlib.reload(default_config_module)
     monkeypatch.delenv("TRADINGAGENTS_CHECKPOINT_ENABLED", raising=False)
     importlib.reload(default_config_module)
+
+
+@pytest.mark.parametrize(
+    "env_var,key",
+    [
+        ("TRADINGAGENTS_SAVE_REPORT", "save_report"),
+        ("TRADINGAGENTS_DISPLAY_REPORT", "display_report"),
+    ],
+)
+@pytest.mark.parametrize("raw,expected", [("true", True), ("False", False)])
+def test_report_prompt_bool_coercion(monkeypatch, env_var, key, raw, expected):
+    """The post-analysis prompt overrides coerce like other booleans (#1133)."""
+    dc = _reload_with_env(monkeypatch, **{env_var: raw})
+    assert dc.DEFAULT_CONFIG[key] is expected
 
 
 def test_unknown_env_var_is_ignored(monkeypatch):

@@ -7,6 +7,7 @@ provider/model/language must skip its interactive prompt and use the value.
 
 import os
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -143,6 +144,96 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
         # The reasoning-effort prompt is skipped; the value comes from env config.
         prompt_effort.assert_not_called()
         self.assertEqual(sel["openai_reasoning_effort"], "high")
+
+
+@pytest.mark.unit
+class TestReportPromptsSkippedFromEnv(unittest.TestCase):
+    """The post-analysis save/display prompts honor env overrides (#1133)."""
+
+    def _run_helper(self, env, fake_overrides, prompt_answers):
+        """Run maybe_save_and_display_report with patched env/config/IO.
+
+        The environ is rebuilt without both report vars first, so "unset" cases
+        stay deterministic even on machines that export them globally.
+        """
+        import cli.main as m
+
+        env_clean = {
+            k: v for k, v in os.environ.items()
+            if k not in ("TRADINGAGENTS_SAVE_REPORT", "TRADINGAGENTS_DISPLAY_REPORT")
+        }
+        env_clean.update(env)
+
+        fake_cfg = dict(m.DEFAULT_CONFIG)
+        fake_cfg.update(fake_overrides)
+        report_file = mock.Mock()
+        report_file.name = "complete_report.md"
+
+        with mock.patch.dict(os.environ, env_clean, clear=True), \
+             mock.patch.object(m, "DEFAULT_CONFIG", fake_cfg), \
+             mock.patch.object(m, "typer") as fake_typer, \
+             mock.patch.object(m, "save_report_to_disk", return_value=report_file) as save_disk, \
+             mock.patch.object(m, "display_complete_report") as display:
+            fake_typer.prompt.side_effect = prompt_answers
+            m.maybe_save_and_display_report(
+                {"market_report": "r"}, "AAPL", {"results_dir": "/base"}
+            )
+
+        return fake_typer, save_disk, display
+
+    def test_save_env_true_autosaves_to_default_path_without_prompts(self):
+        fake_typer, save_disk, display = self._run_helper(
+            {
+                "TRADINGAGENTS_SAVE_REPORT": "true",
+                "TRADINGAGENTS_DISPLAY_REPORT": "false",
+            },
+            {"save_report": True, "display_report": False},
+            [],
+        )
+
+        fake_typer.prompt.assert_not_called()
+        save_disk.assert_called_once()
+        save_path = save_disk.call_args[0][2]
+        self.assertEqual(save_path.parent, Path("/base") / "reports")
+        self.assertTrue(save_path.name.startswith("AAPL_"))
+        display.assert_not_called()
+
+    def test_save_env_false_skips_prompt_without_saving(self):
+        fake_typer, save_disk, display = self._run_helper(
+            {"TRADINGAGENTS_SAVE_REPORT": "false"},
+            {"save_report": False},
+            ["N"],  # only the display prompt runs; answer No
+        )
+
+        save_disk.assert_not_called()
+        display.assert_not_called()
+        fake_typer.prompt.assert_called_once()
+
+    def test_display_env_true_skips_prompt(self):
+        fake_typer, save_disk, display = self._run_helper(
+            {
+                "TRADINGAGENTS_SAVE_REPORT": "false",
+                "TRADINGAGENTS_DISPLAY_REPORT": "true",
+            },
+            {"save_report": False, "display_report": True},
+            [],
+        )
+
+        fake_typer.prompt.assert_not_called()
+        save_disk.assert_not_called()
+        display.assert_called_once()
+
+    def test_env_unset_keeps_interactive_prompts(self):
+        fake_typer, save_disk, display = self._run_helper(
+            {},
+            {},
+            ["Y", "", "Y"],  # save? yes; save path: default; display? yes
+        )
+
+        self.assertEqual(fake_typer.prompt.call_count, 3)
+        self.assertIn("Save report?", fake_typer.prompt.call_args_list[0][0][0])
+        save_disk.assert_called_once()
+        display.assert_called_once()
 
 
 if __name__ == "__main__":
