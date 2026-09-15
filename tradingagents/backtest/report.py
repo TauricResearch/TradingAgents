@@ -112,7 +112,10 @@ def score(
             "n_review": sum(1 for r in ratings if r == "REVIEW"),
             "tickers": sorted(decisions_by_ticker),
             "rating_mix": _rating_mix(ratings),
-            "first_decision": records[0].date if records else None,
+            # min/max, not records[0]: decisions() sorts by (ticker, date), so
+            # the first record is the alphabetically-first ticker's start, not
+            # the earliest decision in the run.
+            "first_decision": min((r.date for r in records), default=None),
             "last_decision": max((r.date for r in records), default=None),
         },
         "performance": metrics.as_dict(),

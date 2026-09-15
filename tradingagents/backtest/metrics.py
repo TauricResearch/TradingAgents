@@ -216,7 +216,9 @@ def random_rating_baseline(
     config = config or PortfolioConfig()
     dates = [d for d, _ in decisions]
     ratings = [r for _, r in decisions]
-    if len(dates) < 2 or len(set(ratings)) < 2:
+    # n_trials < 1 is how the CLI disables the baseline; it must return None
+    # rather than reaching the empty-list average below.
+    if n_trials < 1 or len(dates) < 2 or len(set(ratings)) < 2:
         return None
 
     rng = random.Random(seed)

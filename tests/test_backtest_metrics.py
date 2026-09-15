@@ -233,6 +233,18 @@ def test_random_baseline_needs_a_rating_mix():
     assert random_rating_baseline(decisions, prices, 0.0) is None
 
 
+@pytest.mark.parametrize("n_trials", [0, -1])
+def test_random_baseline_is_disabled_by_a_non_positive_trial_count(n_trials):
+    """--baseline-trials 0 documents disabling it; it must not divide by zero."""
+    prices = _long_frame()
+    decisions = [
+        (d.strftime("%Y-%m-%d"), r)
+        for d, r in zip(prices.index[::5], ["Buy", "Sell", "Buy", "Hold"], strict=False)
+    ]
+
+    assert random_rating_baseline(decisions, prices, 0.0, n_trials=n_trials) is None
+
+
 def test_random_baseline_needs_enough_decisions():
     assert random_rating_baseline([("2026-01-05", "Buy")], _long_frame(), 0.0) is None
 

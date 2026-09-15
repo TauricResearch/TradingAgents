@@ -138,6 +138,19 @@ def test_random_baseline_is_omitted_for_a_multi_ticker_run(tmp_path):
     assert set(payload["per_ticker"]) == {"AAPL", "NVDA"}
 
 
+def test_the_window_spans_the_earliest_and_latest_decision(tmp_path):
+    """decisions() sorts by (ticker, date), so the first record is not the earliest."""
+    store = seeded_store(tmp_path)   # NVDA, starting 2026-01-05
+    store.append(DecisionRecord(
+        ticker="AAPL", date="2025-12-01", signature=SIG, rating="Buy"
+    ))
+
+    payload = score(store, {"NVDA": frame(), "AAPL": frame()}, signature=SIG)
+
+    assert payload["coverage"]["first_decision"] == "2025-12-01"
+    assert payload["coverage"]["last_decision"] >= "2026-01-05"
+
+
 def test_signature_filters_the_scored_decisions(tmp_path):
     store = seeded_store(tmp_path)
     store.append(DecisionRecord(

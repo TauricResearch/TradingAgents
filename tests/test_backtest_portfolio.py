@@ -77,6 +77,15 @@ def test_decision_after_the_last_bar_never_fills():
     assert result.equity.iloc[-1] == pytest.approx(100_000.0)
 
 
+def test_decisions_sharing_a_date_with_a_none_rating_do_not_raise():
+    """Sorting whole tuples would compare None against a string."""
+    result = simulate(
+        [("2026-01-05", None), ("2026-01-05", "Buy")], frame(), free_config()
+    )
+
+    assert result.weights.iloc[-1] in (0.0, 1.0)
+
+
 def test_latest_decision_wins_when_several_map_to_one_fill_bar():
     """Two dates across a weekend fill on the same open; the later one saw more."""
     prices = frame(dates=["2026-01-09", "2026-01-12"], opens=[100.0, 100.0])

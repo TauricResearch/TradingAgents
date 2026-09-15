@@ -285,12 +285,29 @@ def test_analyze_is_still_addressable_by_name(monkeypatch):
     assert called["ran"] == {"checkpoint": True}
 
 
+_BASE_ARGS = ["backtest", "--tickers", "NVDA", "--start", "2026-01-01", "--end", "2026-06-01"]
+
+
 @pytest.mark.parametrize("args", [
     ["backtest", "--tickers", "NVDA", "--start", "2026-06-01", "--end", "2026-01-01"],
     ["backtest", "--tickers", "", "--start", "2026-01-01", "--end", "2026-06-01"],
+    ["backtest", "--tickers", "../etc", "--start", "2026-01-01", "--end", "2026-06-01"],
+    [*_BASE_ARGS, "--hold-policy", "hold"],
+    [*_BASE_ARGS, "--capital", "0"],
+    [*_BASE_ARGS, "--commission-bps", "-1"],
 ])
-def test_bad_backtest_arguments_exit_cleanly(args):
-    from cli import main as cli_main
+def test_bad_backtest_arguments_exit_cleanly(args, monkeypatch):
+    """Every invalid flag must be caught before any agent runs.
+
+    The execution rules are only used when scoring, so building them after the
+    replay would let a typo discard a backtest that had already been paid for.
+    """
+    from cli import backtest_command, main as cli_main
+
+    def never(*a, **kw):
+        raise AssertionError("the replay must not start with invalid arguments")
+
+    monkeypatch.setattr(backtest_command, "_produce", never)
 
     result = CliRunner().invoke(cli_main.app, args)
 

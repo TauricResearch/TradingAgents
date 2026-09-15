@@ -36,6 +36,21 @@ def _cache_path(cache_dir: Path, ticker: str, start: str, end: str) -> Path:
     return cache_dir / f"{safe_ticker_component(ticker)}_{start}_{end}.csv"
 
 
+def normalize_index(frame: pd.DataFrame) -> pd.DataFrame:
+    """Return ``frame`` indexed by tz-naive midnight timestamps.
+
+    Done before anything else touches the bars, because a tz-aware index does
+    not survive the CSV cache. yfinance stamps each bar in the exchange's local
+    zone, so a window spanning a DST change writes mixed UTC offsets
+    (``-05:00`` in winter, ``-04:00`` in summer); pandas cannot parse those back
+    into a single ``DatetimeIndex`` and yields a string index instead, which
+    ``simulate`` then rejects. Since only the calendar date matters for daily
+    bars, dropping the zone up front keeps a re-score working over any window.
+    """
+    index = pd.DatetimeIndex(pd.to_datetime(frame.index, utc=True))
+    return frame.set_axis(index.tz_localize(None).normalize())
+
+
 def fetch_prices(ticker: str, start: str, end: str) -> pd.DataFrame:
     """Download daily ``Open``/``Close`` bars for ``ticker``.
 
@@ -47,7 +62,7 @@ def fetch_prices(ticker: str, start: str, end: str) -> pd.DataFrame:
     history = yf.Ticker(normalize_symbol(ticker)).history(start=start, end=end)
     if history is None or history.empty:
         return pd.DataFrame(columns=["Open", "Close"], index=pd.DatetimeIndex([]))
-    return history[["Open", "Close"]]
+    return normalize_index(history[["Open", "Close"]])
 
 
 def load_prices(
@@ -85,20 +100,43 @@ def load_prices(
     return out
 
 
+def _read_cache(path: Path) -> pd.DataFrame | None:
+    """Read a cached frame, or ``None`` if it is unusable.
+
+    A truncated or corrupt file often still parses as CSV and yields an empty
+    or column-less frame. Returning that would silently drop the ticker from
+    the scorecard; returning ``None`` sends the caller back to the fetcher.
+    """
+    try:
+        # Re-normalise on the way back in as well: an older cache file, or one
+        # written by hand, may still carry tz-aware stamps.
+        frame = normalize_index(pd.read_csv(path, index_col=0, parse_dates=True))
+    except (OSError, ValueError, TypeError, pd.errors.ParserError) as exc:
+        logger.warning("Ignoring unreadable price cache %s: %s", path, exc)
+        return None
+
+    if frame.empty or not {"Open", "Close"}.issubset(frame.columns):
+        logger.warning("Ignoring incomplete price cache %s; refetching.", path)
+        return None
+    return frame
+
+
 def _load_one(ticker, start, end, cache: Path | None, fetcher) -> pd.DataFrame | None:
     path = _cache_path(cache, ticker, start, end) if cache is not None else None
 
     if path is not None and path.exists():
-        try:
-            return pd.read_csv(path, index_col=0, parse_dates=True)
-        except (OSError, ValueError, pd.errors.ParserError) as exc:
-            logger.warning("Ignoring unreadable price cache %s: %s", path, exc)
+        cached = _read_cache(path)
+        if cached is not None:
+            return cached
 
     try:
         frame = fetcher(ticker, start, end)
     except Exception as exc:  # noqa: BLE001 - one bad symbol must not end scoring
         logger.warning("Could not fetch prices for %s: %s", ticker, exc)
         return None
+
+    if frame is not None and not frame.empty:
+        frame = normalize_index(frame)
 
     if path is not None and frame is not None and not frame.empty:
         try:

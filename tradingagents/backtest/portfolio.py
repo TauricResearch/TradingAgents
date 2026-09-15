@@ -182,8 +182,11 @@ def simulate(
     # Map each decision to the bar it fills on. When several decisions land on
     # the same fill bar (e.g. two dates across a weekend), the most recent one
     # wins — it saw strictly more information.
+    # Sorted by date only: sorting whole tuples would compare ratings when two
+    # decisions share a date, and a ``None`` rating (which this function
+    # explicitly accepts) is not orderable against a string.
     fills: dict[int, tuple[str, str | None]] = {}
-    for date, rating in sorted(decisions):
+    for date, rating in sorted(decisions, key=lambda d: d[0]):
         bar = _fill_bar_for(date, index)
         if bar is not None:
             fills[bar] = (date, rating)

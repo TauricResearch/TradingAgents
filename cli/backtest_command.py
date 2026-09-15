@@ -107,11 +107,19 @@ def backtest(
     out_dir = _run_dir(config["results_dir"], run_label)
     store = DecisionStore(out_dir / "decisions.jsonl")
 
+    # Validate everything before the expensive phase. The execution rules are
+    # only used when scoring, but building them after the replay would let a
+    # typo in --hold-policy discard a backtest that had already been paid for.
     try:
         spec = BacktestSpec(
             tickers=ticker_list, start=start, end=end, every_n_days=every,
             selected_analysts=analyst_list, max_workers=workers,
             strict_point_in_time=strict_pit,
+        )
+        portfolio_config = PortfolioConfig(
+            hold_policy=hold_policy, allow_short=allow_short,
+            commission_bps=commission_bps, slippage_bps=slippage_bps,
+            initial_cash=capital,
         )
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
@@ -125,11 +133,7 @@ def backtest(
     if not score_only:
         _produce(runner, spec, out_dir)
 
-    _score(runner, store, spec, config, out_dir, PortfolioConfig(
-        hold_policy=hold_policy, allow_short=allow_short,
-        commission_bps=commission_bps, slippage_bps=slippage_bps,
-        initial_cash=capital,
-    ), baseline_trials)
+    _score(runner, store, spec, config, out_dir, portfolio_config, baseline_trials)
 
 
 def _produce(runner: BacktestRunner, spec: BacktestSpec, out_dir: Path) -> None:
