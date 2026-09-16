@@ -176,7 +176,7 @@ Launch the interactive CLI:
 tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
 
 ### Markets and tickers
 
@@ -300,6 +300,12 @@ from tradingagents.agents.utils.memory import TradingMemoryLog
 dates = iter_grid("2026-06-01", "2026-08-01", every_n_days=7)
 result = run_backtest(["NVDA", "AAPL"], dates, config, selected_analysts=["market", "news"])
 print(summarize(TradingMemoryLog({"memory_log_path": str(result.log_path)})).render())
+```
+
+From the CLI:
+
+```bash
+tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 ```
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. Your own decision log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
