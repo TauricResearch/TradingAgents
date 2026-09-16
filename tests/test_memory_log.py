@@ -136,6 +136,23 @@ class TestTradingMemoryLogCore:
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
         assert len(log.load_entries()) == 1
 
+    def test_store_decision_idempotent_after_the_entry_resolves(self, tmp_path):
+        """A settled entry still blocks a duplicate.
+
+        The guard matched only pending entries, so re-running a ticker and date
+        whose outcome had already been settled appended a second entry: the same
+        decision counted twice in past context and in any aggregate over the log.
+        """
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        log.update_with_outcome("NVDA", "2026-01-10", 0.05, 0.02, 5, "worked", "2026-01-17")
+
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["pending"] is False  # the settled record is kept, not replaced
+
     def test_batch_update_resolves_multiple_entries(self, tmp_path):
         """batch_update_with_outcomes resolves multiple pending entries in one write."""
         log = make_log(tmp_path)
