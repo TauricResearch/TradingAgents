@@ -242,6 +242,25 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Current holdings
+
+By default the agents do not know what you hold, so their guidance is written for a reader who applies it to their own position. Pass a portfolio to have the trader, the risk analysts and the portfolio manager work against your actual book.
+
+```python
+from tradingagents.portfolio import PortfolioContext
+
+portfolio = PortfolioContext.model_validate({
+    "cash": 25000.0,
+    "currency": "USD",
+    "positions": [{"ticker": "NVDA", "quantity": 120, "average_price": 150.0}],
+})
+_, decision = ta.propagate("NVDA", "2026-09-01", portfolio=portfolio)
+```
+
+The CLI takes the same content as a JSON file: `tradingagents --portfolio my_book.json`.
+
+An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.
@@ -269,6 +288,21 @@ config["checkpoint_enabled"] = True
 ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-09-01")
 ```
+
+## Evaluating decisions over time
+
+One run gives one decision, which cannot tell you whether the system decides well. `run_backtest` runs the same pipeline over a grid of tickers and dates, writes to a decision log of its own, and scores the decisions whose holding window has since traded.
+
+```python
+from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.agents.utils.memory import TradingMemoryLog
+
+dates = iter_grid("2026-06-01", "2026-08-01", every_n_days=7)
+result = run_backtest(["NVDA", "AAPL"], dates, config, selected_analysts=["market", "news"])
+print(summarize(TradingMemoryLog({"memory_log_path": str(result.log_path)})).render())
+```
+
+Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. Your own decision log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
 
 ## Reproducibility
 
