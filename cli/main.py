@@ -1001,7 +1001,7 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None):
+def run_analysis(checkpoint: bool | None = None, portfolio=None):
     # First get all user selections
     selections = get_user_selections()
 
@@ -1113,7 +1113,7 @@ def run_analysis(checkpoint: bool | None = None):
         # The same initial state propagate() builds: settled decision log, past
         # context and resolved instrument identity.
         init_agent_state = graph.create_run_state(
-            selections["ticker"], selections["analysis_date"], selections["asset_type"]
+            selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
@@ -1123,7 +1123,7 @@ def run_analysis(checkpoint: bool | None = None):
         # actually saves and resumes on the CLI path (#1249); a no-op when
         # checkpointing is disabled. Torn down in the finally below.
         checkpoint_tid = graph.begin_checkpoint(
-            selections["ticker"], selections["analysis_date"], selections["asset_type"]
+            selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
         )
         if checkpoint_tid is not None:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_tid
@@ -1246,7 +1246,7 @@ def run_analysis(checkpoint: bool | None = None):
             # the checkpoint for resume.
             graph.record_decision(selections["ticker"], selections["analysis_date"], final_state)
             graph.clear_checkpoint_on_success(
-                selections["ticker"], selections["analysis_date"], selections["asset_type"]
+                selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
             )
         finally:
             # Always restore the plain uncheckpointed graph, even on failure.
@@ -1308,13 +1308,28 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    portfolio: str = typer.Option(
+        None,
+        "--portfolio",
+        help="JSON file with current holdings and cash, so the trader, risk and "
+        "portfolio agents size against your actual position.",
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+    portfolio_context = None
+    if portfolio:
+        from tradingagents.portfolio import load_portfolio
+        try:
+            portfolio_context = load_portfolio(portfolio)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from None
+
     try:
-        run_analysis(checkpoint=checkpoint)
+        run_analysis(checkpoint=checkpoint, portfolio=portfolio_context)
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit

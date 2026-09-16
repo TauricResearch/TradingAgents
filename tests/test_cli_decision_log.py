@@ -69,7 +69,7 @@ class _FakeGraph:
         self.graph = self
         self.propagator = self
 
-    def create_run_state(self, ticker, trade_date, asset_type="stock"):
+    def create_run_state(self, ticker, trade_date, asset_type="stock", portfolio=None):
         self.calls.append(("create_run_state", ticker, trade_date))
         return {"messages": [], "company_of_interest": ticker}
 

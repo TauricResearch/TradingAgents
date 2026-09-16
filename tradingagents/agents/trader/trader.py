@@ -10,6 +10,7 @@ from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
     get_language_instruction,
+    get_portfolio_context_from_state,
 )
 from tradingagents.agents.utils.structured import (
     NO_EXTERNAL_TOOLS,
@@ -31,6 +32,7 @@ def create_trader(llm):
         # report is empty when the user did not select the market analyst, so
         # only offer it (and the grounding instruction) when it has content.
         market_report = (state["market_report"] or "").strip()
+        portfolio_context = get_portfolio_context_from_state(state)
 
         if market_report:
             grounding = (
@@ -67,6 +69,7 @@ def create_trader(llm):
                     f"Here is the research team's investment plan for {company_name}. "
                     f"{instrument_context}\n\n"
                     f"{report_section}"
+                    f"{portfolio_context}\n\n"
                     f"Proposed Investment Plan:\n{investment_plan}\n\n"
                     f"Make an informed, strategic trading decision."
                 ),

@@ -201,6 +201,23 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
     )
 
 
+def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
+    """Return the caller's portfolio block, or a notice that none was given.
+
+    A run without portfolio context must not read as a flat book: the agents
+    would otherwise size as if the caller held nothing, which is a claim about
+    an account we were never told about.
+    """
+    context = state.get("portfolio_context")
+    if isinstance(context, str) and context.strip():
+        return context
+    return (
+        "Portfolio context: not provided. You do not know the caller's current "
+        "holdings or cash, so do not assume a flat book; give direction and "
+        "sizing guidance in terms the caller can apply to their own position."
+    )
+
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add a context-anchored placeholder.
