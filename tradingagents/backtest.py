@@ -100,12 +100,13 @@ class BacktestSummary:
                 f"- {rating}: n={score.count}, beat the benchmark "
                 f"{score.hit_rate:.0%}, mean alpha {score.mean_alpha:+.2%}"
             )
-        lines += [
-            "",
-            "Pending cells are not scored above; re-run to settle them.",
+        lines.append("")
+        if self.pending:
+            lines.append("Pending cells are not scored above; re-run to settle them.")
+        lines.append(
             "One model sampling per cell, and text feeds are not archived, so "
-            "these figures are indicative rather than repeatable.",
-        ]
+            "these figures are indicative rather than repeatable."
+        )
         return "\n".join(lines)
 
 

@@ -179,3 +179,10 @@ def test_a_failed_settlement_does_not_lose_the_remaining_tickers(tmp_path, monke
     assert result.cells_run == 2
     assert settled == ["AAPL"]
     assert result.settlement_failures == [("NVDA", "reflector timed out")]
+
+
+@pytest.mark.unit
+def test_pending_note_appears_only_when_something_is_pending(tmp_path):
+    settled = [("NVDA", "2026-01-05", DECISION, (0.1, 0.05))]
+    assert "Pending" not in summarize(_log_with(tmp_path, settled)).render()
+    assert "Pending" in summarize(_log_with(tmp_path, settled + [("AAPL", "2026-01-05", DECISION, None)])).render()

@@ -14,8 +14,8 @@ import cli.main as m
 # Minimal selections dict shaped like get_user_selections()'s return value.
 SELECTIONS = {
     "research_depth": 5,
-    "shallow_thinker": "gpt-5.4-mini",
-    "deep_thinker": "gpt-5.5",
+    "quick_think_llm": "gpt-5.4-mini",
+    "deep_think_llm": "gpt-5.5",
     "backend_url": None,
     "llm_provider": "openai",
     "google_thinking_level": None,

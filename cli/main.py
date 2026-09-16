@@ -20,6 +20,7 @@ from rich.table import Table
 from rich.text import Text
 
 from cli.announcements import display_announcements, fetch_announcements
+from cli.prefs import load_last_run, sanitize, save_last_run
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
     ask_anthropic_effort,
@@ -41,6 +42,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
@@ -49,6 +51,7 @@ from tradingagents.graph.analyst_execution import (
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.portfolio import load_portfolio
 from tradingagents.reporting import write_report_tree
 
 console = Console()
@@ -493,7 +496,14 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 
 
 def get_user_selections():
-    """Get all user selections before starting the analysis display."""
+    """Ask for the run's settings, offering the previous run's answers."""
+    selections = _prompt_selections(load_last_run())
+    save_last_run(selections)
+    return selections
+
+
+def _prompt_selections(prefs):
+    """Walk the selection steps. ``prefs`` prefills, the environment skips."""
     # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
@@ -586,7 +596,7 @@ def get_user_selections():
                 "Select the language for analyst reports and final decision"
             )
         )
-        output_language = ask_output_language()
+        output_language = ask_output_language(prefs.get("output_language"))
 
     # Step 4: Select analysts
     console.print(
@@ -594,7 +604,8 @@ def get_user_selections():
             "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
         )
     )
-    selected_analysts = select_analysts(asset_type)
+    prefs = sanitize(prefs, asset_type.value)
+    selected_analysts = select_analysts(asset_type, prefs.get("analysts"))
     console.print(
         f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
@@ -619,7 +630,7 @@ def get_user_selections():
                 "Step 5: Research Depth", "Select your research depth level"
             )
         )
-        selected_research_depth = select_research_depth()
+        selected_research_depth = select_research_depth(prefs.get("research_depth"))
 
     # Step 6: LLM Provider (skipped when set via TRADINGAGENTS_LLM_PROVIDER).
     # The backend URL comes from TRADINGAGENTS_LLM_BACKEND_URL when set,
@@ -641,7 +652,7 @@ def get_user_selections():
                 "Step 6: LLM Provider", "Select your LLM provider"
             )
         )
-        selected_llm_provider, backend_url = select_llm_provider()
+        selected_llm_provider, backend_url = select_llm_provider(prefs.get("llm_provider"))
 
         # Providers with regional endpoints prompt for the region as a secondary
         # step so the main dropdown stays clean (mainland China and international
@@ -688,8 +699,13 @@ def get_user_selections():
                 "Step 7: Thinking Agents", "Select your thinking agents for analysis"
             )
         )
-        selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-        selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+        remembered = prefs if prefs.get("llm_provider") == selected_llm_provider else {}
+        selected_shallow_thinker = select_shallow_thinking_agent(
+            selected_llm_provider, remembered.get("quick_think_llm")
+        )
+        selected_deep_thinker = select_deep_thinking_agent(
+            selected_llm_provider, remembered.get("deep_think_llm")
+        )
 
     # Step 8: Provider-specific reasoning/thinking configuration. Each knob is
     # settable via its TRADINGAGENTS_* env var; when that var is set (or the
@@ -732,8 +748,8 @@ def get_user_selections():
         "research_depth": selected_research_depth,
         "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
-        "shallow_thinker": selected_shallow_thinker,
-        "deep_thinker": selected_deep_thinker,
+        "quick_think_llm": selected_shallow_thinker,
+        "deep_think_llm": selected_deep_thinker,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
@@ -985,8 +1001,8 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
         config["max_debate_rounds"] = selections["research_depth"]
     if not os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"):
         config["max_risk_discuss_rounds"] = selections["research_depth"]
-    config["quick_think_llm"] = selections["shallow_thinker"]
-    config["deep_think_llm"] = selections["deep_thinker"]
+    config["quick_think_llm"] = selections["quick_think_llm"]
+    config["deep_think_llm"] = selections["deep_think_llm"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
     # Provider-specific thinking configuration
@@ -1295,8 +1311,9 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         display_complete_report(final_state)
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 def analyze(
+    ctx: typer.Context,
     checkpoint: bool | None = typer.Option(
         None,
         "--checkpoint/--no-checkpoint",
@@ -1315,6 +1332,9 @@ def analyze(
         "portfolio agents size against your actual position.",
     ),
 ):
+    """Run an analysis. This is what a bare `tradingagents` does."""
+    if ctx.invoked_subcommand is not None:
+        return
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
@@ -1341,6 +1361,44 @@ def analyze(
             err=True,
         )
         raise typer.Exit(code=1) from None
+
+
+@app.command()
+def backtest(
+    tickers: str = typer.Argument(..., help="Comma-separated tickers, e.g. NVDA,AAPL"),
+    start: str = typer.Option(..., "--start", help="First analysis date, YYYY-MM-DD"),
+    end: str = typer.Option(..., "--end", help="Last analysis date, YYYY-MM-DD"),
+    every: int = typer.Option(7, "--every", help="Days between analysis dates"),
+    analysts: str = typer.Option(
+        None, "--analysts", help="Comma-separated analysts to run; omit for all four"
+    ),
+    asset_type: str = typer.Option("stock", "--asset-type", help="stock or crypto"),
+    portfolio: str = typer.Option(
+        None, "--portfolio", help="JSON file with holdings and cash, held constant across the grid"
+    ),
+):
+    """Score past decisions over a grid of tickers and dates."""
+    from tradingagents.agents.utils.memory import TradingMemoryLog
+
+    try:
+        dates = iter_grid(start, end, every)
+        book = load_portfolio(portfolio) if portfolio else None
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+    names = [t.strip() for t in tickers.split(",") if t.strip()]
+    kwargs = {"asset_type": asset_type, "portfolio": book}
+    if analysts:
+        kwargs["selected_analysts"] = [a.strip().lower() for a in analysts.split(",") if a.strip()]
+
+    result = run_backtest(names, dates, DEFAULT_CONFIG, **kwargs)
+    console.print(summarize(TradingMemoryLog({"memory_log_path": str(result.log_path)})).render())
+    console.print(f"\nRan {result.cells_run} cells, skipped {result.skipped}. Log: {result.log_path}")
+    for ticker, date, reason in result.failures:
+        console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
+    for ticker, reason in result.settlement_failures:
+        console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
 
 
 if __name__ == "__main__":
