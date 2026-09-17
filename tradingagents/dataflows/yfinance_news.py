@@ -146,7 +146,11 @@ def get_global_news_yfinance(
         limit = config["global_news_article_limit"]
     search_queries = config["global_news_queries"]
 
-    all_news = []
+    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_dt = curr_dt - relativedelta(days=look_back_days)
+    start_date = start_dt.strftime("%Y-%m-%d")
+
+    in_window_news = []
     seen_titles = set()
 
     try:
@@ -157,47 +161,33 @@ def get_global_news_yfinance(
                 enable_fuzzy_query=True,
             ))
 
-            if search.news:
-                for article in search.news:
-                    # Handle both flat and nested structures
-                    if "content" in article:
-                        data = _extract_article_data(article)
-                        title = data["title"]
-                    else:
-                        title = article.get("title", "")
+            for article in search.news or []:
+                # Window first: the limit counts what the run may read, so an
+                # out-of-window article must not spend the budget or cut the
+                # remaining searches short (#1356). Flat articles are filtered
+                # on the same rule, so none can leak future news (#1007).
+                data = _extract_article_data(article)
+                if not in_window(data["pub_date"], start_dt, curr_dt):
+                    continue
+                if data["title"] and data["title"] not in seen_titles:
+                    seen_titles.add(data["title"])
+                    in_window_news.append(data)
 
-                    # Deduplicate by title
-                    if title and title not in seen_titles:
-                        seen_titles.add(title)
-                        all_news.append(article)
-
-            if len(all_news) >= limit:
+            if len(in_window_news) >= limit:
                 break
 
-        # Calculate date range
-        curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-        start_dt = curr_dt - relativedelta(days=look_back_days)
-        start_date = start_dt.strftime("%Y-%m-%d")
-
         news_str = ""
-        kept = 0
-        for article in all_news[:limit]:
-            # Extract uniformly (flat + nested) and apply the same look-ahead-safe
-            # window filter, so flat articles can't leak future news (#1007).
-            data = _extract_article_data(article)
-            if not in_window(data["pub_date"], start_dt, curr_dt):
-                continue
+        for data in in_window_news[:limit]:
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
                 news_str += f"{data['summary']}\n"
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
             news_str += "\n"
-            kept += 1
 
-        # All candidates fell outside the window -> say so rather than return an
+        # Nothing fell inside the window -> say so rather than return an
         # empty-bodied report (#993).
-        if kept == 0:
+        if not news_str:
             # Results merge several fuzzy searches, so their timestamps prove no
             # continuous coverage; judge the window against the present only.
             gap = coverage_gap((), start_date, curr_date, "Yahoo Finance global news", "market news")

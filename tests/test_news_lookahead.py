@@ -213,3 +213,47 @@ def test_coverage_gap_future_window_is_unavailable():
     today = datetime.now(timezone.utc).date()
     out = coverage_gap([], str(today), str(today + timedelta(days=3)), "Feed", "items")
     assert out is not None and "past today" in out
+
+
+@pytest.mark.unit
+def test_out_of_window_articles_do_not_consume_the_article_budget(monkeypatch):
+    """The limit counts articles the run may see, not candidates fetched (#1356).
+
+    Out-of-window items were counted first, so they filled the budget, stopped
+    the remaining searches, and the in-window news was reported as absent.
+    """
+    stale = [{"title": f"OLD {i}", "publisher": "P", "link": "l",
+              "providerPublishTime": _epoch("2025-01-01")} for i in range(2)]
+    wanted = {"title": "IN WINDOW", "publisher": "P", "link": "l",
+              "providerPublishTime": _epoch("2025-05-08")}
+    pages = [stale, [wanted]]
+
+    class FakeSearch:
+        def __init__(self, *a, **k):
+            self.news = pages.pop(0) if pages else []
+
+    monkeypatch.setattr(ynews.yf, "Search", FakeSearch)
+    monkeypatch.setattr(ynews, "get_config", lambda: {
+        "global_news_lookback_days": 7, "global_news_article_limit": 2,
+        "global_news_queries": ["markets", "economy"],
+    })
+
+    out = ynews.get_global_news_yfinance("2025-05-09")
+
+    assert "IN WINDOW" in out
+    assert "OLD 0" not in out
+
+
+@pytest.mark.unit
+def test_the_article_limit_still_caps_what_is_returned(monkeypatch):
+    articles = [{"title": f"NEWS {i}", "publisher": "P", "link": "l",
+                 "providerPublishTime": _epoch("2025-05-08")} for i in range(5)]
+
+    class FakeSearch:
+        def __init__(self, *a, **k):
+            self.news = articles
+
+    monkeypatch.setattr(ynews.yf, "Search", FakeSearch)
+    out = ynews.get_global_news_yfinance("2025-05-09", look_back_days=7, limit=3)
+
+    assert out.count("### ") == 3
