@@ -166,3 +166,20 @@ def test_global_news_omitted_optionals_use_the_configured_defaults(monkeypatch):
     alpha_vantage_news.get_global_news("2026-08-14", None, None)
 
     assert seen["time_from"].startswith("20260811") and seen["limit"] == "9"
+
+
+@pytest.mark.unit
+def test_the_news_window_includes_the_analysis_day(monkeypatch):
+    """time_to was midnight at the start of the end date, so everything
+    published during the analysis day, the most decision-relevant day, was
+    excluded. The yfinance path includes it."""
+    from tradingagents.dataflows import alpha_vantage_news
+
+    seen = {}
+    monkeypatch.setattr(alpha_vantage_news, "_make_api_request",
+                        lambda fn, params: seen.update(params) or "{}")
+
+    alpha_vantage_news.get_news("AAPL", "2026-03-10", "2026-03-14")
+
+    assert seen["time_from"] == "20260310T0000"
+    assert seen["time_to"] == "20260314T2359"

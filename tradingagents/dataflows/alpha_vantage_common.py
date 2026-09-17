@@ -34,8 +34,13 @@ def get_api_key() -> str:
         )
     return api_key
 
-def format_datetime_for_api(date_input) -> str:
-    """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
+def format_datetime_for_api(date_input, end_of_day: bool = False) -> str:
+    """Convert various date formats to the YYYYMMDDTHHMM Alpha Vantage expects.
+
+    A plain date means midnight, which is the start of that day. For the end of
+    a window pass ``end_of_day`` so the day itself is inside it, rather than
+    dropping everything published on the analysis date.
+    """
     if isinstance(date_input, str):
         # If already in correct format, return as-is
         if len(date_input) == 13 and 'T' in date_input:
@@ -43,7 +48,7 @@ def format_datetime_for_api(date_input) -> str:
         # Try to parse common date formats
         try:
             dt = datetime.strptime(date_input, "%Y-%m-%d")
-            return dt.strftime("%Y%m%dT0000")
+            return dt.strftime("%Y%m%dT2359" if end_of_day else "%Y%m%dT0000")
         except ValueError:
             try:
                 dt = datetime.strptime(date_input, "%Y-%m-%d %H:%M")
