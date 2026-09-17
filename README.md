@@ -242,6 +242,24 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Fundamentals as filed
+
+US company statements can come from SEC EDGAR, which records the date every figure was filed. A run dated in the past then reads the statements exactly as they stood that day: a fiscal year that has ended but has not been filed yet is not served, and a figure restated later still reads as first reported. Apple's 2008 total assets were filed as $39.6B and restated to $36.2B in 2010, and a run dated in between gets $39.6B.
+
+EDGAR needs no account or API key. Add the vendor to the chain:
+
+```python
+config["data_vendors"]["fundamental_data"] = "sec_edgar,yfinance"
+```
+
+SEC asks callers to identify themselves and refuses requests that carry no contact address, so a default one is sent. Set your own so SEC can reach you rather than the project:
+
+```bash
+SEC_EDGAR_USER_AGENT="Your Name your@email.com"
+```
+
+It covers companies that file with the SEC, including foreign companies listed in the US. Anything else, such as Hong Kong or A-share listings, falls through to the next vendor in the chain. EDGAR's machine-readable filings begin in 2009, and a fourth quarter is reported as unavailable rather than derived, because filers publish it only inside the annual figure.
+
 ### Current holdings
 
 By default the agents do not know what you hold, so their guidance is written for a reader who applies it to their own position. Pass a portfolio to have the trader, the risk analysts and the portfolio manager work against your actual book.
