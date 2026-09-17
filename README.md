@@ -176,6 +176,8 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
+For your own portfolio's data and investment policy, the optional `investboard` data vendor reads from your [Investboard](https://investboard.de) account: `pip install tradingagents-investboard`, then `tradingagents-investboard connect` (browser sign-in, no API key), and select it with `config["data_vendors"]["core_stock_apis"] = "investboard"`.
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env

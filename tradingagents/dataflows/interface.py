@@ -152,6 +152,12 @@ VENDOR_METHODS = {
     },
 }
 
+# Optional vendors that live in their own package register themselves here when
+# that package is installed. A no-op otherwise; the default config is unchanged.
+from .investboard import register as _register_investboard  # noqa: E402
+
+_register_investboard()
+
 def get_category_for_method(method: str) -> str:
     """Get the category that contains the specified method."""
     for category, info in TOOLS_CATEGORIES.items():
