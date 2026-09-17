@@ -278,7 +278,9 @@ class TradingAgentsGraph:
 
         explicit = self.config.get("benchmark_ticker")
         if explicit:
-            return explicit
+            # Same alias mapping as the analyzed ticker; an unmapped alias finds
+            # no prices, and the decision would stay pending for good.
+            return normalize_symbol(explicit)
         benchmark_map = self.config.get("benchmark_map", {})
         ticker_upper = normalize_symbol(ticker)
         for suffix, benchmark in benchmark_map.items():
@@ -361,12 +363,19 @@ class TradingAgentsGraph:
             )
             if raw is None:
                 continue  # price not available yet — try again next run
-            reflection = self.reflector.reflect_on_final_decision(
-                final_decision=entry.get("decision", ""),
-                raw_return=raw,
-                alpha_return=alpha,
-                benchmark_name=benchmark,
-            )
+            try:
+                reflection = self.reflector.reflect_on_final_decision(
+                    final_decision=entry.get("decision", ""),
+                    raw_return=raw,
+                    alpha_return=alpha,
+                    benchmark_name=benchmark,
+                )
+            except Exception as exc:
+                # Reflection calls a provider, and this runs on the way into a
+                # new run: a transient failure leaves the entry pending for the
+                # next one rather than stopping the analysis that was asked for.
+                logger.warning("Reflection failed for %s on %s: %s", ticker, entry["date"], exc)
+                continue
             updates.append({
                 "ticker": ticker,
                 "trade_date": entry["date"],
