@@ -306,7 +306,9 @@ class TradingAgentsGraph:
 
         try:
             start = datetime.strptime(trade_date, "%Y-%m-%d")
-            end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
+            # holding_days counts trading days, so ask for the calendar span they
+            # occupy (about 7 for every 5) plus a week for holidays.
+            end = start + timedelta(days=round(holding_days * 7 / 5) + 7)
             end_str = end.strftime("%Y-%m-%d")
 
             # Normalize so the realized-return lookup hits the same instrument
@@ -359,7 +361,8 @@ class TradingAgentsGraph:
         updates = []
         for entry in pending:
             raw, alpha, days, resolution_date = self._fetch_returns(
-                ticker, entry["date"], benchmark=benchmark,
+                ticker, entry["date"], self.config.get("holding_period_days", 5),
+                benchmark=benchmark,
             )
             if raw is None:
                 continue  # price not available yet — try again next run
@@ -369,6 +372,7 @@ class TradingAgentsGraph:
                     raw_return=raw,
                     alpha_return=alpha,
                     benchmark_name=benchmark,
+                    holding_days=days,
                 )
             except Exception as exc:
                 # Reflection calls a provider, and this runs on the way into a

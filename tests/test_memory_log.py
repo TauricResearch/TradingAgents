@@ -695,6 +695,7 @@ class TestDeferredReflection:
         log = make_log(tmp_path)
         log.store_decision("AAPL", "2026-01-10", DECISION_BUY)
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {}
         mock_graph.memory_log = log
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5, "2026-01-12"))
         TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
@@ -708,6 +709,7 @@ class TestDeferredReflection:
         mock_reflector = MagicMock()
         mock_reflector.reflect_on_final_decision.return_value = "Momentum confirmed."
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {}
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5, "2026-01-12"))
@@ -727,6 +729,7 @@ class TestDeferredReflection:
         log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
         mock_reflector = MagicMock()
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {}
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
         mock_graph._fetch_returns = MagicMock(return_value=(None, None, None, None))
@@ -957,7 +960,7 @@ def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp
     graph.memory_log.store_decision("NVDA", "2026-01-12", "Rating: Sell\n\ny")
     monkeypatch.setattr(graph, "_resolve_benchmark", lambda t: "SPY", raising=False)
     monkeypatch.setattr(graph, "_fetch_returns",
-                        lambda t, d, benchmark=None: (0.01, 0.005, 5, "2026-01-19"), raising=False)
+                        lambda t, d, holding_days=5, benchmark=None: (0.01, 0.005, holding_days, "2026-01-19"), raising=False)
 
     class _Reflector:
         calls = 0
@@ -974,3 +977,66 @@ def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp
 
     entries = graph.memory_log.load_entries()
     assert [e["pending"] for e in entries] == [True, False]  # the failed one waits for next time
+
+
+@pytest.mark.unit
+def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
+    """A decision written for months should not be graded at a week without the
+    operator choosing that window."""
+    from tradingagents.agents.utils.memory import TradingMemoryLog
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"memory_log_path": str(tmp_path / "m.md"), "holding_period_days": 21}
+    graph.memory_log = TradingMemoryLog(graph.config)
+    graph.memory_log.store_decision("NVDA", "2026-01-05", "**Rating**: Buy\n\nx")
+    monkeypatch.setattr(graph, "_resolve_benchmark", lambda t: "SPY", raising=False)
+    asked = {}
+
+    def _returns(ticker, date, holding_days=5, benchmark=None):
+        asked["holding_days"] = holding_days
+        return 0.05, 0.02, holding_days, "2026-02-02"
+
+    monkeypatch.setattr(graph, "_fetch_returns", _returns, raising=False)
+    graph.reflector = type("R", (), {"reflect_on_final_decision": lambda self, **kw: "lesson"})()
+
+    graph._resolve_pending_entries("NVDA")
+
+    assert asked["holding_days"] == 21
+    assert graph.memory_log.load_entries()[0]["holding"] == "21d"
+
+
+@pytest.mark.unit
+def test_the_reflection_states_the_window_it_judges():
+    """Judging a months-long thesis on a week's alpha, without saying so, turns
+    a scope mismatch into a lesson that the call was wrong."""
+    from tradingagents.graph.reflection import Reflector
+
+    prompt = Reflector(None)._system_prompt(holding_days=5)
+    assert "5" in prompt and "trading day" in prompt
+
+
+@pytest.mark.unit
+def test_a_longer_window_asks_for_enough_price_history(monkeypatch):
+    """Trading days are not calendar days: a 21-day window needs about a month
+    of bars, and asking for 28 days left every outcome unsettled."""
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    graph = object.__new__(TradingAgentsGraph)
+    asked = {}
+
+    class _Ticker:
+        def __init__(self, symbol):
+            self.symbol = symbol
+
+        def history(self, start, end):
+            asked["start"], asked["end"] = start, end
+            import pandas as pd
+            days = pd.bdate_range(start, end)
+            return pd.DataFrame({"Close": range(len(days))}, index=days)
+
+    monkeypatch.setattr("tradingagents.graph.trading_graph.yf.Ticker", _Ticker)
+
+    raw, alpha, days, resolved = graph._fetch_returns("NVDA", "2026-06-01", 21, benchmark="SPY")
+
+    assert days == 21 and resolved is not None, (raw, alpha, days, resolved)
