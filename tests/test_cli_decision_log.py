@@ -73,6 +73,10 @@ class _FakeGraph:
         self.calls.append(("create_run_state", ticker, trade_date))
         return {"messages": [], "company_of_interest": ticker}
 
+    def process_signal(self, text):
+        from tradingagents.graph.signal_processing import SignalProcessor
+        return SignalProcessor.process_signal(None, text)
+
     def record_decision(self, ticker, trade_date, final_state):
         self.calls.append(("record_decision", ticker, trade_date, final_state.get("final_trade_decision")))
 

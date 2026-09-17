@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.agents.utils.rating import RATING_REVIEW
 from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -92,9 +93,11 @@ class BacktestSummary:
     resolved: int
     pending: int
     by_rating: dict[str, RatingScore]
+    unscored: int = 0
 
     def render(self) -> str:
-        lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"]
+        lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"
+                 + (f" · unscored: {self.unscored}" if self.unscored else "")]
         for rating, score in self.by_rating.items():
             lines.append(
                 f"- {rating}: n={score.count}, beat the benchmark "
@@ -163,7 +166,10 @@ def run_backtest(
 def summarize(memory_log: TradingMemoryLog) -> BacktestSummary:
     """Score the settled decisions in a log, by rating."""
     entries = memory_log.load_entries()
-    resolved = [(e, _alpha(e)) for e in entries if not e["pending"]]
+    # A decision with no readable rating has no direction, so it can neither
+    # count for nor against the system; it is reported as unscored instead.
+    resolved = [(e, _alpha(e)) for e in entries
+                if not e["pending"] and e["rating"] != RATING_REVIEW]
     resolved = [(e, a) for e, a in resolved if a is not None]
     by_rating: dict[str, RatingScore] = {}
     for rating in dict.fromkeys(e["rating"] for e, _ in resolved):
@@ -173,5 +179,7 @@ def summarize(memory_log: TradingMemoryLog) -> BacktestSummary:
             hit_rate=sum(a > 0 for a in alphas) / len(alphas),
             mean_alpha=sum(alphas) / len(alphas),
         )
-    return BacktestSummary(resolved=len(resolved), pending=len(entries) - len(resolved),
-                           by_rating=by_rating)
+    unscored = sum(1 for e in entries if e["rating"] == RATING_REVIEW)
+    return BacktestSummary(resolved=len(resolved),
+                           pending=len(entries) - len(resolved) - unscored,
+                           by_rating=by_rating, unscored=unscored)

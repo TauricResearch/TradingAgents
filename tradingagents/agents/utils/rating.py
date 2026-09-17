@@ -8,10 +8,10 @@ The same five-tier scale (Buy, Overweight, Hold, Underweight, Sell) is used by:
 
 Centralising it here avoids drift between those call sites.
 
-``extract_rating`` returns ``None`` when no rating can be found, so the graph can
-surface an explicit ``REVIEW`` signal instead of a fabricated ``Hold`` (#1170).
-``parse_rating`` keeps the legacy silent-default behaviour for callers (e.g. the
-memory log) that need a rating string regardless.
+``extract_rating`` returns ``None`` when no rating can be found, and every
+caller turns that into ``REVIEW`` rather than a tradeable position: a decision
+nobody can read is not a Hold, and a Hold recorded in its place is quoted back to
+the next run as a call that was never made (#1170).
 """
 
 from __future__ import annotations
@@ -32,9 +32,13 @@ RATING_REVIEW = "REVIEW"
 
 _RATING_SET = {r.lower() for r in RATINGS_5_TIER}
 
-# Matches "Rating: X" / "rating - X" / "Rating: **X**" — tolerates markdown
-# bold wrappers and either a colon or hyphen separator.
-_RATING_LABEL_RE = re.compile(r"rating.*?[:\-][\s*]*(\w+)", re.IGNORECASE)
+# Matches "Rating: X" / "rating - X" / "Rating — **X**" — tolerates markdown
+# bold wrappers and any dash or colon a model writes as the separator.
+_RATING_LABEL_RE = re.compile(r"rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
+                              re.IGNORECASE)
+
+# A line presenting the scale rather than a decision ("Rating Scale: Buy, ...").
+_RATING_SCALE_RE = re.compile(r"rating\s*(scale|options|legend)", re.IGNORECASE)
 
 # Standalone 5-tier word anywhere (word boundaries so "Buyer"/"Holding" don't match).
 _RATING_WORD_RE = re.compile(
@@ -54,25 +58,31 @@ def extract_rating(text: str) -> str | None:
         return None
     norm = unicodedata.normalize("NFKC", text)
 
+    # The labelled rating, taking the last one written: a decision states its
+    # rating after discussing the alternatives. Lines presenting the scale
+    # itself are a legend the model echoed, not a call.
+    labelled = None
     for line in norm.splitlines():
+        if _RATING_SCALE_RE.search(line):
+            continue
         m = _RATING_LABEL_RE.search(line)
         if m and m.group(1).lower() in _RATING_SET:
-            return m.group(1).capitalize()
+            labelled = m.group(1).capitalize()
+    if labelled:
+        return labelled
 
-    m = _RATING_WORD_RE.search(norm)
-    if m:
-        return m.group(1).capitalize()
+    # No label. A single rating word in the text is the call; several are an
+    # argument, and picking one of them reports a direction nobody decided --
+    # prose that rejects a Buy before concluding Underweight read as Buy.
+    named = {m.group(1).capitalize() for m in _RATING_WORD_RE.finditer(norm)}
+    return named.pop() if len(named) == 1 else None
 
-    return None
 
+def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
+    """Extract a 5-tier rating, or ``REVIEW`` when the decision has none.
 
-def parse_rating(text: str, default: str = "Hold") -> str:
-    """Extract a 5-tier rating, falling back to ``default`` when none is found.
-
-    Legacy convenience wrapper: it always returns a rating string, so an
-    unparseable decision silently becomes ``default`` (``Hold``). Callers that
-    must distinguish "no rating" from a real Hold should use
-    :func:`extract_rating` (or the graph's REVIEW-surfacing signal) instead.
+    For callers that need a string for every decision, such as the memory log's
+    entry tag. The default is the review sentinel, never a tradeable rating.
     """
     rating = extract_rating(text)
     return rating if rating is not None else default

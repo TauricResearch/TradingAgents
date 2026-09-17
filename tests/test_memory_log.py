@@ -193,10 +193,14 @@ class TestTradingMemoryLogCore:
         log.store_decision("AAPL", "2026-01-11", DECISION_OVERWEIGHT)
         assert log.load_entries()[0]["rating"] == "Overweight"
 
-    def test_rating_fallback_hold(self, tmp_path):
+    def test_an_unreadable_decision_is_tagged_for_review(self, tmp_path):
+        """Not a Hold: a fabricated rating is quoted back to the next run as a
+        call that was never made, and counted in the backtest figures."""
+        from tradingagents.agents.utils.rating import RATING_REVIEW
+
         log = make_log(tmp_path)
         log.store_decision("MSFT", "2026-01-12", DECISION_NO_RATING)
-        assert log.load_entries()[0]["rating"] == "Hold"
+        assert log.load_entries()[0]["rating"] == RATING_REVIEW
 
     def test_rating_priority_over_prose(self, tmp_path):
         """'Rating: X' label wins even when an opposing rating word appears earlier in prose."""
