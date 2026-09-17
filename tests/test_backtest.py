@@ -186,3 +186,63 @@ def test_pending_note_appears_only_when_something_is_pending(tmp_path):
     settled = [("NVDA", "2026-01-05", DECISION, (0.1, 0.05))]
     assert "Pending" not in summarize(_log_with(tmp_path, settled)).render()
     assert "Pending" in summarize(_log_with(tmp_path, settled + [("AAPL", "2026-01-05", DECISION, None)])).render()
+
+
+# --- scoring reads the direction the rating claimed ---------------------------
+
+def _scored(tmp_path, rows):
+    log = _log_with(tmp_path, rows)
+    return summarize(log).by_rating
+
+
+@pytest.mark.unit
+def test_a_bearish_call_that_fell_counts_as_right(tmp_path):
+    """Alpha below the benchmark is the outcome a Sell predicted; scoring it as
+    a miss reported the system as wrong exactly when it was right."""
+    scores = _scored(tmp_path, [
+        ("NVDA", "2026-01-05", "**Rating**: Sell\n\nx", (-0.08, -0.05)),
+        ("AAPL", "2026-01-05", "**Rating**: Underweight\n\nx", (-0.03, -0.02)),
+    ])
+    assert scores["Sell"].hit_rate == 1.0
+    assert scores["Underweight"].hit_rate == 1.0
+
+
+@pytest.mark.unit
+def test_a_bearish_call_that_rose_counts_as_wrong(tmp_path):
+    scores = _scored(tmp_path, [("NVDA", "2026-01-05", "**Rating**: Sell\n\nx", (0.08, 0.05))])
+    assert scores["Sell"].hit_rate == 0.0
+
+
+@pytest.mark.unit
+def test_a_bullish_call_is_scored_the_same_way_as_before(tmp_path):
+    scores = _scored(tmp_path, [
+        ("NVDA", "2026-01-05", "**Rating**: Buy\n\nx", (0.10, 0.04)),
+        ("AAPL", "2026-01-05", "**Rating**: Buy\n\nx", (-0.02, -0.02)),
+    ])
+    assert scores["Buy"].hit_rate == 0.5
+
+
+@pytest.mark.unit
+def test_hold_claims_no_direction_so_it_gets_no_hit_rate(tmp_path):
+    scores = _scored(tmp_path, [("NVDA", "2026-01-05", "**Rating**: Hold\n\nx", (0.01, 0.005))])
+    assert scores["Hold"].hit_rate is None
+    assert scores["Hold"].mean_alpha == 0.005
+
+
+@pytest.mark.unit
+def test_the_report_names_the_window_the_scores_cover(tmp_path):
+    text = summarize(_log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "**Rating**: Buy\n\nx", (0.1, 0.05))])).render()
+    assert "5" in text and "day" in text.lower()
+    assert "Hold" not in text or "no direction" in text.lower()
+
+
+@pytest.mark.unit
+def test_the_window_reported_is_the_one_the_outcomes_used(tmp_path):
+    """The log records the window each outcome was measured over; the summary
+    must not claim a different one."""
+    log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
+    log.store_decision("NVDA", "2026-01-05", "**Rating**: Buy\n\nx")
+    log.update_with_outcome("NVDA", "2026-01-05", 0.1, 0.04, 21, "note", "2026-02-01")
+
+    assert "21 trading days" in summarize(log).render()

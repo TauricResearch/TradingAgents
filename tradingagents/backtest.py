@@ -81,10 +81,15 @@ class BacktestResult:
     settlement_failures: list[tuple[str, str]] = field(default_factory=list)
 
 
+# What each rating claims will happen, so an outcome can be scored against it.
+# Hold claims no direction, so nothing about alpha proves it right or wrong.
+_DIRECTION = {"Buy": 1, "Overweight": 1, "Hold": 0, "Underweight": -1, "Sell": -1}
+
+
 @dataclass
 class RatingScore:
     count: int
-    hit_rate: float
+    hit_rate: float | None
     mean_alpha: float
 
 
@@ -94,19 +99,23 @@ class BacktestSummary:
     pending: int
     by_rating: dict[str, RatingScore]
     unscored: int = 0
+    holding: str = ""
 
     def render(self) -> str:
         lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"
                  + (f" · unscored: {self.unscored}" if self.unscored else "")]
         for rating, score in self.by_rating.items():
+            called = (f"called the direction {score.hit_rate:.0%}"
+                      if score.hit_rate is not None else "no direction claimed")
             lines.append(
-                f"- {rating}: n={score.count}, beat the benchmark "
-                f"{score.hit_rate:.0%}, mean alpha {score.mean_alpha:+.2%}"
+                f"- {rating}: n={score.count}, {called}, "
+                f"mean alpha {score.mean_alpha:+.2%} vs the benchmark"
             )
         lines.append("")
         if self.pending:
             lines.append("Pending cells are not scored above; re-run to settle them.")
         lines.append(
+            f"Alpha is measured over {self.holding} after each analysis date. "
             "One model sampling per cell, and text feeds are not archived, so "
             "these figures are indicative rather than repeatable."
         )
@@ -174,12 +183,17 @@ def summarize(memory_log: TradingMemoryLog) -> BacktestSummary:
     by_rating: dict[str, RatingScore] = {}
     for rating in dict.fromkeys(e["rating"] for e, _ in resolved):
         alphas = [a for e, a in resolved if e["rating"] == rating]
+        direction = _DIRECTION.get(rating, 0)
         by_rating[rating] = RatingScore(
             count=len(alphas),
-            hit_rate=sum(a > 0 for a in alphas) / len(alphas),
+            hit_rate=(sum(a * direction > 0 for a in alphas) / len(alphas)) if direction else None,
             mean_alpha=sum(alphas) / len(alphas),
         )
     unscored = sum(1 for e in entries if e["rating"] == RATING_REVIEW)
+    # Report the window the outcomes were actually measured over, from the log.
+    windows = {f"{e['holding'][:-1]} trading days" for e, _ in resolved
+               if (e.get("holding") or "").endswith("d")}
     return BacktestSummary(resolved=len(resolved),
                            pending=len(entries) - len(resolved) - unscored,
-                           by_rating=by_rating, unscored=unscored)
+                           by_rating=by_rating, unscored=unscored,
+                           holding=", ".join(sorted(windows)) or "the configured window")
