@@ -43,6 +43,14 @@ The debate always contains conflicting arguments; deciding which side is stronge
 **Debate History:**
 {history}
 
+## Output
+
+Write these sections, in this order, starting with the recommendation on its own line:
+
+- **Recommendation**: exactly one of Buy / Overweight / Hold / Underweight / Sell
+- **Rationale**: which arguments decided it
+- **Strategic Actions**: concrete steps for the trader, sized against a standard allocation
+
 {NO_EXTERNAL_TOOLS}""" + get_language_instruction()
 
         investment_plan = invoke_structured_or_freetext(
