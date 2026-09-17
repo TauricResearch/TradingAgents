@@ -179,12 +179,16 @@ def _cache_is_fresh(data_file, curr_date_dt, now) -> bool:
     return curr_date_dt.date() < now.date() or (now - written).total_seconds() <= OHLCV_CACHE_TTL_SECONDS
 
 
-def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
+def load_ohlcv(symbol: str, curr_date: str, fill_gaps: bool = True) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
     Downloads 5 years of data up to today and caches per symbol. On
     subsequent calls the cache is reused. Rows after curr_date are
     filtered out so backtests never see future prices.
+
+    ``fill_gaps`` carries prices forward over gaps so indicators compute on a
+    continuous series. Pass ``False`` to read the values as the vendor reported
+    them, leaving a cell that was never reported empty.
     """
     # Resolve broker/forex symbols (XAUUSD+ -> GC=F) to Yahoo's convention,
     # then reject values that would escape the cache directory when
@@ -262,7 +266,10 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             data["Date"].iloc[-1].date(), data["Date"].iloc[settled[-1]].date(),
         )
 
-    data = _fill_price_gaps(data)
+    # Indicators need a continuous series, so gaps are carried forward. A caller
+    # that reports the numbers themselves asks for the frame as it was reported:
+    # a filled cell is the previous session's price under this session's date.
+    data = _fill_price_gaps(data) if fill_gaps else data.dropna(subset=["Close"]).copy()
 
     # Reject a stale frame (latest row far older than curr_date) rather than
     # feeding year-old prices into indicators (#1021).
