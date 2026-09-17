@@ -284,6 +284,65 @@ What does not vary anymore: the analyzed company identity is resolved determinis
 
 Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
 
+## Troubleshooting
+
+Both problems below surface as a `curl_cffi` error, because `yfinance` uses `curl_cffi` as
+its HTTP client. They are otherwise unrelated: the first fails at import, before anything
+runs; the second fails mid-run, when market data is fetched.
+
+### `ImportError: symbol not found in flat namespace (_SCDynamicStoreCopyProxies)` on macOS
+
+`curl_cffi`'s bundled libcurl resolves this symbol against the macOS SystemConfiguration
+framework. Every report so far has come from an Anaconda or Miniconda environment — look
+for `/opt/anaconda3/envs/...` in the traceback — where conda's own libraries sit in front
+of the system ones. The Python version is not the cause; it has been reported identically
+on 3.12 and 3.13.
+
+Install into a plain virtual environment created by a non-conda Python:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python -c "import yfinance; print(yfinance.__version__)"
+```
+
+Pinning `yfinance` back to a release predating `curl_cffi` is sometimes suggested as a way
+out. It is not one here: this project requires `yfinance>=1.4.1`, and an older release will
+not satisfy the install.
+
+### `CurlError: ... curl: (7) Failed to connect to fc.yahoo.com port 443 ... Connection refused`
+
+`yfinance` collects a session cookie from `fc.yahoo.com` before it calls the Yahoo data
+endpoints. Refused immediately — "after 0 ms" — means nothing on the path accepted the
+connection, which makes this a network question rather than a framework bug or a Python
+version mismatch. Check reachability from the same environment the run uses:
+
+```bash
+python -c "from curl_cffi import requests; print(requests.get('https://fc.yahoo.com', timeout=10, impersonate='chrome').status_code)"
+```
+
+`404` is the healthy answer — `yfinance` only wants the cookie that response sets. If the
+command raises instead, the block is between you and Yahoo: a proxy, a firewall, a DNS
+override, or the container network. Under Docker, run the check inside the container, and
+pass `HTTP_PROXY` / `HTTPS_PROXY` through if you are behind a corporate proxy.
+
+Where Yahoo stays unreachable, move the data vendors to Alpha Vantage and set
+`ALPHA_VANTAGE_API_KEY`:
+
+```python
+config = DEFAULT_CONFIG.copy()
+# Build a new dict: DEFAULT_CONFIG.copy() is shallow, so editing the nested
+# one in place would change the default for the rest of the process too.
+config["data_vendors"] = dict(
+    config["data_vendors"],
+    core_stock_apis="alpha_vantage",
+    technical_indicators="alpha_vantage",
+    fundamental_data="alpha_vantage",
+    news_data="alpha_vantage",
+)
+```
+
 ## Contributing
 
 Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
