@@ -78,8 +78,8 @@ _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 
 # Reddit's maximum page size. A week of posts for a ticker across the default
-# subreddits fits comfortably (a busy symbol measured 12), so one full page keeps
-# a high-volume subreddit from crowding the others out of a combined search.
+# subreddits fits well inside one page, which keeps a high-volume subreddit from
+# crowding the others out of a combined search.
 _FEED_PAGE = 100
 
 

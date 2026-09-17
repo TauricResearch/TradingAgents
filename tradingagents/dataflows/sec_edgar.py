@@ -7,8 +7,8 @@ figure that was later restated is not what investors saw at the time.
 
 EDGAR reports every fact with the date it was filed, so a run dated ``curr_date``
 serves exactly what was on file by then, restatements included at the vintage
-that was current. Apple's 2008 total assets read as 39.6B until the 2010
-amendment; a 2009 run should see 39.6B, and does.
+that was current: Apple's 2008 total assets read 39.6B until the 2010 amendment
+restated them to 36.2B.
 
 Access needs no key or account, only a User-Agent identifying the caller, which
 SEC requires and refuses requests without. US filers only: anything absent from
