@@ -3,6 +3,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_portfolio_context_from_state,
     opponent_argument_or_opening,
+    report_or_absent,
 )
 
 
@@ -19,10 +20,10 @@ def create_aggressive_debator(llm):
             risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
         )
 
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = report_or_absent(state["market_report"], "market")
+        sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
+        news_report = report_or_absent(state["news_report"], "news")
+        fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
         instrument_context = get_instrument_context_from_state(state)
         portfolio_context = get_portfolio_context_from_state(state)
 
