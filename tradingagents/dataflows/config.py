@@ -2,7 +2,9 @@ from copy import deepcopy
 
 import tradingagents.default_config as default_config
 
-# Use default config but allow it to be overridden
+# Use default config but allow it to be overridden. Kept None until first
+# get_config()/set_config()/initialize_config() so importing this module
+# (e.g. during pytest collection) does not eagerly materialize config (#194).
 _config: dict | None = None
 
 
@@ -35,7 +37,3 @@ def get_config() -> dict:
     if _config is None:
         initialize_config()
     return deepcopy(_config)
-
-
-# Initialize with default config
-initialize_config()

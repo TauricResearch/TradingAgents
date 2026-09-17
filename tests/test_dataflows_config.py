@@ -59,3 +59,18 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         fresh = get_config()
         self.assertEqual(fresh["tool_vendors"]["get_stock_data"], "alpha_vantage")
         self.assertEqual(fresh["tool_vendors"]["get_news"], "alpha_vantage")
+
+
+def test_config_module_import_is_lazy():
+    """Importing dataflows.config must not force-initialize the global (issue #194)."""
+    import importlib
+    import tradingagents.dataflows.config as config_module
+
+    # Reset to simulate a fresh import state
+    config_module._config = None
+    reloaded = importlib.reload(config_module)
+    assert reloaded._config is None
+    # First get_config() initializes
+    cfg = reloaded.get_config()
+    assert isinstance(cfg, dict)
+    assert reloaded._config is not None
