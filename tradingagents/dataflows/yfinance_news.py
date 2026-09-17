@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 from .config import get_config
 from .date_window import in_window
+from .news_format import trim_summary
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
 
@@ -104,8 +105,9 @@ def get_news_yfinance(
                 continue
 
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
-            if data["summary"]:
-                news_str += f"{data['summary']}\n"
+            summary = trim_summary(data["summary"])
+            if summary:
+                news_str += f"{summary}\n"
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
             news_str += "\n"
@@ -190,8 +192,9 @@ def get_global_news_yfinance(
             if not in_window(data["pub_date"], start_dt, curr_dt):
                 continue
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
-            if data["summary"]:
-                news_str += f"{data['summary']}\n"
+            summary = trim_summary(data["summary"])
+            if summary:
+                news_str += f"{summary}\n"
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
             news_str += "\n"

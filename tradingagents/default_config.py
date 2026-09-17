@@ -122,6 +122,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
     "global_news_article_limit": 10,      # max articles for global/macro news
     "global_news_lookback_days": 7,       # macro news lookback window
+    # Per-article summary budget. Vendors serve anything from a one-line blurb
+    # to the full article body, and an unbounded body is what made a single
+    # news call dominate an analyst's context (#291). 0 disables the trim.
+    "news_article_max_chars": 600,        # max characters of each article summary
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [
