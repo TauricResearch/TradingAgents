@@ -42,6 +42,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from tradingagents.agents.utils.rating import is_review
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
@@ -916,21 +917,16 @@ def extract_content_string(content):
     """Extract string content from various message formats.
     Returns None if no meaningful text content is found.
     """
-    import ast
-
     def is_empty(val):
-        """Check if value is empty using Python's truthiness."""
-        if val is None or val == '':
-            return True
+        """Whether a value carries nothing to show.
+
+        Text is judged by whether anything was written, not by what it would
+        mean as Python: a report saying "0" or "None" is a message the run
+        produced, and reading it as a falsy literal dropped it from the display.
+        """
         if isinstance(val, str):
-            s = val.strip()
-            if not s:
-                return True
-            try:
-                return not bool(ast.literal_eval(s))
-            except (ValueError, SyntaxError):
-                return False  # Can't parse = real text
-        return not bool(val)
+            return not val.strip()
+        return val is None or not bool(val)
 
     if is_empty(content):
         return None
@@ -1097,7 +1093,9 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4):
+    # The alternate screen keeps a layout taller than the window from redrawing
+    # by scrolling; the final report prints after this block, on the normal screen.
+    with Live(layout, refresh_per_second=4, screen=True):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1286,6 +1284,15 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
 
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
+
+    # A decision nobody can read is not a position. Say so here rather than
+    # leaving the run to look like a normal result.
+    if is_review(graph.process_signal(final_state.get("final_trade_decision", ""))):
+        console.print(
+            "[yellow]No rating could be read from the final decision, so this run "
+            "is recorded for review rather than as a position. Re-run, or read the "
+            "decision text below and judge it yourself.[/yellow]\n"
+        )
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
     # Prompt to save report

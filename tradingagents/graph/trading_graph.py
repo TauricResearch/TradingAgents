@@ -659,7 +659,8 @@ class TradingAgentsGraph:
 
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+            # Reports can be in any language and this file is read by a person.
+            json.dump(self.log_states_dict[str(trade_date)], f, indent=4, ensure_ascii=False)
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
