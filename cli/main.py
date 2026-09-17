@@ -44,6 +44,7 @@ from cli.utils import (
 )
 from tradingagents.agents.utils.rating import is_review
 from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
@@ -674,7 +675,9 @@ def _prompt_selections(prefs):
         # The generic OpenAI-compatible endpoint has no default; ask for it if
         # neither the menu nor the environment supplied one.
         if selected_llm_provider == "openai_compatible" and not backend_url:
-            backend_url = prompt_openai_compatible_url()
+            remembered_url = (prefs.get("backend_url")
+                              if prefs.get("llm_provider") == selected_llm_provider else None)
+            backend_url = prompt_openai_compatible_url(remembered_url)
 
         # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
         # before model selection so it's obvious where we're connecting.
@@ -983,6 +986,29 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
+def _run_directory(config: dict, ticker: str, trade_date: str) -> Path:
+    """Where this run writes, with the ticker validated as a path component.
+
+    Every other path that interpolates a ticker checks it first; a value of
+    ".." here would place the run outside the results directory.
+    """
+    return Path(config["results_dir"]) / safe_ticker_component(ticker) / trade_date
+
+
+def _announce_checkpoint_state(graph, ticker: str, trade_date: str) -> None:
+    """Say whether this run resumed a saved one, where the user can see it.
+
+    The graph logs this, but nothing in the CLI configures logging and the live
+    view owns the screen, so a resume was invisible.
+    """
+    if getattr(graph, "_resuming", False):
+        message_buffer.add_message(
+            "System", f"Resuming the saved run for {ticker} on {trade_date}"
+        )
+    else:
+        message_buffer.add_message("System", f"Starting fresh for {ticker} on {trade_date}")
+
+
 def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     """Assemble the run config from interactive selections, honoring env precedence.
 
@@ -993,10 +1019,17 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     # Research depth sets both round counts, but an explicit env override
     # (TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
     # interactive selection — leave the env-applied value in place (#977).
-    if not os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS"):
-        config["max_debate_rounds"] = selections["research_depth"]
-    if not os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"):
-        config["max_risk_discuss_rounds"] = selections["research_depth"]
+    for env_var, key in (("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "max_debate_rounds"),
+                         ("TRADINGAGENTS_MAX_RISK_ROUNDS", "max_risk_discuss_rounds")):
+        if os.environ.get(env_var):
+            # The depth prompt still appeared (it is skipped only when both are
+            # set), so say which half of the answer the environment overrode.
+            console.print(
+                f"[green]✓ {key} from environment:[/green] {config[key]} "
+                f"(set by {env_var}, so the research depth you chose does not apply to it)"
+            )
+        else:
+            config[key] = selections["research_depth"]
     config["quick_think_llm"] = selections["quick_think_llm"]
     config["deep_think_llm"] = selections["deep_think_llm"]
     config["backend_url"] = selections["backend_url"]
@@ -1043,7 +1076,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
     start_time = time.time()
 
     # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    results_dir = _run_directory(config, selections["ticker"], selections["analysis_date"])
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -1299,7 +1332,11 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        # Under results_dir, not the working directory: in Docker the working
+        # directory is inside the container and the report goes with it, while
+        # results_dir is the mounted volume the rest of the run already writes to.
+        default_path = (Path(config["results_dir"]) / "reports"
+                        / f"{safe_ticker_component(selections['ticker'])}_{timestamp}")
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",
             default=str(default_path)
@@ -1383,6 +1420,9 @@ def backtest(
     portfolio: str = typer.Option(
         None, "--portfolio", help="JSON file with holdings and cash, held constant across the grid"
     ),
+    run_id: str = typer.Option(
+        None, "--run-id", help="Continue an earlier sweep: its cells are skipped and its log reused"
+    ),
 ):
     """Score past decisions over a grid of tickers and dates."""
     from tradingagents.agents.utils.memory import TradingMemoryLog
@@ -1395,11 +1435,19 @@ def backtest(
         raise typer.Exit(code=1) from None
 
     names = [t.strip() for t in tickers.split(",") if t.strip()]
-    kwargs = {"asset_type": asset_type, "portfolio": book}
+    if not names:
+        console.print("[red]No ticker to analyze; pass them comma-separated, e.g. NVDA,AAPL[/red]")
+        raise typer.Exit(code=1)
+
+    kwargs = {"asset_type": asset_type, "portfolio": book, "run_id": run_id}
     if analysts:
         kwargs["selected_analysts"] = [a.strip().lower() for a in analysts.split(",") if a.strip()]
 
-    result = run_backtest(names, dates, DEFAULT_CONFIG, **kwargs)
+    try:
+        result = run_backtest(names, dates, DEFAULT_CONFIG, **kwargs)
+    except Exception as exc:  # a missing key or an unknown analyst is a setup error
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
     console.print(summarize(TradingMemoryLog({"memory_log_path": str(result.log_path)})).render())
     console.print(f"\nRan {result.cells_run} cells, skipped {result.skipped}. Log: {result.log_path}")
     for ticker, date, reason in result.failures:

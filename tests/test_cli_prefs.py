@@ -141,3 +141,29 @@ def test_a_custom_language_is_remembered_without_breaking_the_next_run():
         select.return_value.ask.return_value = "English"
         ask_output_language(load_last_run()["output_language"])
     assert select.call_args.kwargs["default"] is None
+
+
+@pytest.mark.unit
+def test_a_remembered_endpoint_is_offered_back(monkeypatch):
+    """Users of a local or custom endpoint retyped the URL every run: it was
+    remembered and validated, then never read."""
+    import cli.main as m
+
+    save_last_run({"llm_provider": "openai_compatible", "backend_url": "http://localhost:1234/v1"})
+    offered = {}
+    monkeypatch.setattr(m, "select_llm_provider", lambda default=None: ("openai_compatible", None))
+    monkeypatch.setattr(m, "prompt_openai_compatible_url",
+                        lambda default=None: offered.setdefault("default", default) or "http://x/v1")
+    monkeypatch.setattr(m, "fetch_announcements", lambda: [])
+    monkeypatch.setattr(m, "display_announcements", lambda *a: None)
+    monkeypatch.setattr(m, "get_ticker", lambda: "NVDA")
+    monkeypatch.setattr(m, "get_analysis_date", lambda: "2026-09-01")
+    monkeypatch.setattr(m, "ask_output_language", lambda default=None: "English")
+    monkeypatch.setattr(m, "select_analysts", lambda asset_type, default=None: [AnalystType.MARKET])
+    monkeypatch.setattr(m, "select_research_depth", lambda default=None: 1)
+    monkeypatch.setattr(m, "select_shallow_thinking_agent", lambda p, default=None: "local-model")
+    monkeypatch.setattr(m, "select_deep_thinking_agent", lambda p, default=None: "local-model")
+
+    m.get_user_selections()
+
+    assert offered["default"] == "http://localhost:1234/v1"

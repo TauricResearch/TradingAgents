@@ -38,6 +38,8 @@ def iter_grid(start_date: str, end_date: str, every_n_days: int = 1) -> list[str
     start, end = _canonical(start_date), _canonical(end_date)
     if every_n_days < 1:
         raise ValueError("every_n_days must be at least 1")
+    if end < start:
+        raise ValueError(f"the grid ends before it starts: {end_date} is before {start_date}")
 
     last = min(end, datetime.strptime(get_current_date(), "%Y-%m-%d"))
     dates, cursor = [], start

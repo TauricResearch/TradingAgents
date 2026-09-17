@@ -83,3 +83,25 @@ def test_glm_resolves_to_the_endpoint_its_key_belongs_to():
     assert get_api_key_env("glm") == "ZHIPU_API_KEY"
     assert "z.ai" in OPENAI_COMPATIBLE_PROVIDERS["glm"].base_url
     assert "bigmodel.cn" in OPENAI_COMPATIBLE_PROVIDERS["glm-cn"].base_url
+
+
+@pytest.mark.unit
+def test_a_half_set_round_count_says_which_value_won(capsys, monkeypatch):
+    """With only one of the two round-count variables set, the depth prompt is
+    still shown but half the answer is discarded; the user was never told."""
+    import cli.main as m
+
+    monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "1")
+    monkeypatch.delenv("TRADINGAGENTS_MAX_RISK_ROUNDS", raising=False)
+    printed = []
+    monkeypatch.setattr(m.console, "print", lambda *a, **k: printed.append(str(a[0]) if a else ""))
+
+    config = m._build_run_config({
+        "ticker": "NVDA", "analysis_date": "2026-09-01", "asset_type": "stock",
+        "analysts": [], "research_depth": 5, "llm_provider": "openai",
+        "quick_think_llm": "gpt-5.6-luna", "deep_think_llm": "gpt-5.6",
+        "backend_url": None, "output_language": "English",
+    }, None)
+
+    assert config["max_risk_discuss_rounds"] == 5
+    assert any("TRADINGAGENTS_MAX_DEBATE_ROUNDS" in line for line in printed), printed

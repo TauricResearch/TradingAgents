@@ -400,11 +400,12 @@ def resolve_backend_url(
     return env_url or menu_url or provider_default_url(provider)
 
 
-def prompt_openai_compatible_url() -> str:
+def prompt_openai_compatible_url(default=None) -> str:
     """Prompt for a custom OpenAI-compatible endpoint base URL."""
     url = questionary.text(
         "Enter the OpenAI-compatible base URL "
         "(e.g. http://localhost:8000/v1 for vLLM, http://localhost:1234/v1 for LM Studio):",
+        default=default or "",
         validate=lambda x: x.strip().startswith(("http://", "https://"))
         or "Enter a URL starting with http:// or https://",
     ).ask()

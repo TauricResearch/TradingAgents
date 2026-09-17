@@ -89,3 +89,61 @@ def test_every_command_is_registered_when_run_as_a_module():
                          capture_output=True, text=True, timeout=120)
     assert out.returncode == 0, out.stderr[-400:]
     assert "--start" in out.stdout
+
+
+@pytest.mark.unit
+def test_the_cli_says_whether_a_run_resumed(monkeypatch):
+    """The README promises the user can tell a resumed run from a fresh one.
+    The graph logs it, but nothing configures logging, so it was never shown."""
+    import cli.main as m
+
+    messages = []
+    monkeypatch.setattr(m.message_buffer, "add_message",
+                        lambda kind, text: messages.append(text), raising=False)
+
+    m._announce_checkpoint_state(type("G", (), {"_resuming": True})(), "NVDA", "2026-01-10")
+    m._announce_checkpoint_state(type("G", (), {"_resuming": False})(), "NVDA", "2026-01-10")
+
+    assert any("resum" in text.lower() for text in messages)
+    assert any("fresh" in text.lower() for text in messages)
+
+
+@pytest.mark.unit
+def test_backtest_can_continue_an_interrupted_sweep(runner, monkeypatch, tmp_path):
+    """Resuming is what makes a long sweep practical, and the Python API has it."""
+    swept = []
+    monkeypatch.setattr(m, "run_backtest", lambda *a, **kw: swept.append(kw) or _Result(tmp_path))
+    monkeypatch.setattr(m, "summarize", lambda log: _Summary())
+
+    result = runner.invoke(m.app, ["backtest", "NVDA", "--start", "2026-06-01",
+                                   "--end", "2026-06-08", "--run-id", "20260617_120000"])
+
+    assert result.exit_code == 0, result.output
+    assert swept[0]["run_id"] == "20260617_120000"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("args, expected", [
+    (["backtest", "NVDA", "--start", "2026-08-01", "--end", "2026-06-08"], "before"),
+    (["backtest", ",,", "--start", "2026-06-01", "--end", "2026-06-08"], "ticker"),
+])
+def test_backtest_rejects_input_that_would_sweep_nothing(runner, args, expected):
+    """An inverted range or an empty ticker list reported a clean zero-cell run,
+    which reads as 'nothing to find' rather than 'you asked for nothing'."""
+    result = runner.invoke(m.app, args)
+    assert result.exit_code == 1
+    assert expected in result.output.lower()
+
+
+@pytest.mark.unit
+def test_backtest_reports_a_setup_failure_in_one_line(runner, monkeypatch):
+    """A missing key or a bad analyst name produced a raw traceback."""
+    def _explode(*a, **kw):
+        raise ValueError("API key for provider 'openai' is not set")
+
+    monkeypatch.setattr(m, "run_backtest", _explode)
+    result = runner.invoke(m.app, ["backtest", "NVDA", "--start", "2026-06-01", "--end", "2026-06-08"])
+
+    assert result.exit_code == 1
+    assert "API key" in result.output
+    assert "Traceback" not in result.output
