@@ -225,7 +225,8 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
-                               key_optional=True, placeholder_key="ollama"),
+                               key_optional=True, placeholder_key="ollama",
+                               chat_class=LocalCompatibleChatOpenAI),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(
         require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI
