@@ -87,7 +87,7 @@ def _bare_graph(tmp_path):
     graph.propagator = Propagator()
     graph.selected_analysts = ["market"]
     graph._resolve_pending_entries = lambda t: None
-    graph.resolve_instrument_context = lambda t, a="stock": ""
+    graph.resolve_instrument_context = lambda t, a="stock", d=None: ""
     graph._memory_as_of = lambda d: None
     return graph
 
