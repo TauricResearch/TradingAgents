@@ -67,3 +67,19 @@ def test_checkpoint_flag_overrides_env(flag):
     with mock.patch.object(m, "DEFAULT_CONFIG", patched):
         cfg = m._build_run_config(SELECTIONS, checkpoint=flag)
     assert cfg["checkpoint_enabled"] is flag
+
+
+@pytest.mark.unit
+def test_glm_resolves_to_the_endpoint_its_key_belongs_to():
+    """The provider table, the client registry and the key mapping must name the
+    same platform: glm is Z.AI international (ZHIPU_API_KEY) and glm-cn is
+    BigModel China. A mismatch sends the key to the other platform and every
+    call fails auth."""
+    from cli.utils import resolve_backend_url
+    from tradingagents.llm_clients.api_key_env import get_api_key_env
+    from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+
+    assert resolve_backend_url("glm", None, None) == OPENAI_COMPATIBLE_PROVIDERS["glm"].base_url
+    assert get_api_key_env("glm") == "ZHIPU_API_KEY"
+    assert "z.ai" in OPENAI_COMPATIBLE_PROVIDERS["glm"].base_url
+    assert "bigmodel.cn" in OPENAI_COMPATIBLE_PROVIDERS["glm-cn"].base_url
