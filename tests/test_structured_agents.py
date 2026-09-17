@@ -134,6 +134,51 @@ class TestNullishFloatCoercion:
         assert p.entry_price == 612.40
         assert p.stop_loss is None
 
+    def test_qualified_price_is_reduced_to_its_number(self):
+        # A model writing for a human qualifies the level (#1102). These used to
+        # raise, which cost the caller the whole object.
+        for written, expected in (
+            ("~215", 215.0),
+            ("≈215.5", 215.5),
+            ("about 215", 215.0),
+            ("approx. 215", 215.0),
+            ("USD 215", 215.0),
+            ("215 USD", 215.0),
+        ):
+            d = PortfolioDecision(
+                rating=PortfolioRating.HOLD,
+                executive_summary="s",
+                investment_thesis="t",
+                price_target=written,
+            )
+            assert d.price_target == expected, written
+
+    def test_range_is_dropped_rather_than_narrowed_to_one_end(self):
+        # A range names two levels; picking one invents precision the model
+        # never stated, the same reason a percentage is dropped.
+        for written in ("$180-200", "180 to 200", "180 – 200"):
+            d = PortfolioDecision(
+                rating=PortfolioRating.HOLD,
+                executive_summary="s",
+                investment_thesis="t",
+                price_target=written,
+            )
+            assert d.price_target is None, written
+
+    def test_unreadable_price_never_fails_the_whole_decision(self):
+        # The point of an optional field: an unusable answer costs that field,
+        # not the rating, summary and thesis alongside it (#1102).
+        for written in ("$215 by Q3 2026", "high conviction", "see thesis"):
+            d = PortfolioDecision(
+                rating=PortfolioRating.SELL,
+                executive_summary="exit into strength",
+                investment_thesis="margin compression is structural",
+                price_target=written,
+            )
+            assert d.price_target is None, written
+            assert d.rating is PortfolioRating.SELL
+            assert d.investment_thesis == "margin compression is structural"
+
 
 @pytest.mark.unit
 class TestRenderResearchPlan:

@@ -18,6 +18,7 @@ so that:
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Literal
 
@@ -29,25 +30,54 @@ from pydantic import BaseModel, Field, field_validator
 # strings ("189.5") to float.
 _NULLISH_FLOAT = {"", "none", "n/a", "na", "null", "nil", "-", "tbd", "unknown"}
 
+# Placeholder for an optional field the model left unset. Rendered in place of
+# omitting the line entirely, so a report always carries the same sections and
+# a consumer can distinguish "no target" from "this report has no such line".
+NOT_PROVIDED = "Not provided"
+
+# One price, optionally qualified the way a model writes it for a human: an
+# approximation marker, a currency symbol, or a currency code on either side.
+# Anchored, so a number buried in prose ("$215 by Q3 2026") does not match --
+# guessing which number was meant is how a stop ends up on the wrong level.
+_QUALIFIED_PRICE = re.compile(
+    r"""^
+    (?:[~≈]|[Aa]pprox\.?|[Aa]bout|[Aa]round|[Cc]irca|ca\.)?\s*
+    (?:[$€£¥₹]|[A-Z]{3}\s)?\s*      # a symbol, or an uppercase code: USD 215
+    (-?\d+(?:\.\d+)?)
+    \s*(?:[A-Z]{3})?                # or the code trailing: 215 USD
+    \s*$""",
+    re.VERBOSE,
+)
+
 
 def _coerce_optional_float(value):
     """Normalise an LLM-written optional numeric field before validation.
 
-    Three shapes show up in practice: a placeholder string ("None", "N/A") in
+    Four shapes show up in practice: a placeholder string ("None", "N/A") in
     place of an omitted value (#1058); a percentage where a price was asked for
-    ("15%", #1288); and a human-formatted price ("$1,234.50"). A percentage
-    cannot be salvaged into an absolute level -- reading "15%" as 15 would put a
-    stop at $15 on a $600 stock -- so it is dropped like a placeholder, leaving
-    one bad field to null out instead of failing the whole proposal. A formatted
-    price is reduced to its number. Anything else passes through to pydantic.
+    ("15%", #1288); a human-formatted price ("$1,234.50"); and a price the model
+    qualified or spread over a range ("~215", "USD 215", "$180-200", #1102).
+
+    A percentage cannot be salvaged into an absolute level -- reading "15%" as
+    15 would put a stop at $15 on a $600 stock -- so it is dropped like a
+    placeholder, and a range is dropped for the same reason: it names two
+    levels and picking one would invent a precision the model did not state.
+    A formatted or qualified price is reduced to its number.
+
+    Anything still unreadable is dropped rather than raised. A single
+    unparseable price used to fail validation for the entire object, so one bad
+    field discarded the rating, the summary and the thesis with it and quietly
+    degraded the run to free text (#1102) -- the opposite of what an optional
+    field should cost.
     """
     if not isinstance(value, str):
         return value
     text = value.strip()
     if text.lower() in _NULLISH_FLOAT or text.endswith("%"):
         return None
-    cleaned = text.replace(",", "").lstrip("$€£¥").strip()
-    return cleaned or None
+    cleaned = text.replace(",", "")
+    match = _QUALIFIED_PRICE.match(cleaned)
+    return match.group(1) if match else None
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +272,15 @@ class PortfolioDecision(BaseModel):
     )
     price_target: float | None = Field(
         default=None,
-        description="Optional target price in the instrument's quote currency.",
+        description=(
+            "Target price as an absolute number in the instrument's quote "
+            "currency (e.g. 215.5), never a percentage and never a range -- "
+            "state the midpoint if you are reasoning about a band. Give your "
+            "best estimate whenever the analysis supports one, even a rough "
+            "level, and explain how you arrived at it in the investment "
+            "thesis. Omit it only when the evidence cannot support any level, "
+            "and say so in the thesis."
+        ),
     )
     time_horizon: str | None = Field(
         default=None,
@@ -262,6 +300,14 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     so the rendered output preserves the exact section headers (``**Rating**``,
     ``**Executive Summary**``, ``**Investment Thesis**``) that downstream
     parsers and the report writers already handle.
+
+    Every section is always present. ``price_target`` and ``time_horizon`` used
+    to be dropped from the report when the model left them unset, so a reader
+    could not tell an absent target from a report that never carries one, and a
+    consumer looking for the line had no stable section to read (#1102). They
+    now render with an explicit ``Not provided`` marker instead -- the fields
+    stay optional, so a run with no defensible target says so plainly rather
+    than being pushed into inventing a number.
     """
     parts = [
         f"**Rating**: {decision.rating.value}",
@@ -269,11 +315,11 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
         f"**Executive Summary**: {decision.executive_summary}",
         "",
         f"**Investment Thesis**: {decision.investment_thesis}",
+        "",
+        f"**Price Target**: {decision.price_target if decision.price_target is not None else NOT_PROVIDED}",
+        "",
+        f"**Time Horizon**: {decision.time_horizon or NOT_PROVIDED}",
     ]
-    if decision.price_target is not None:
-        parts.extend(["", f"**Price Target**: {decision.price_target}"])
-    if decision.time_horizon:
-        parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
 
 
