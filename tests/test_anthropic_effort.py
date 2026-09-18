@@ -96,3 +96,43 @@ class TestEffortGate:
         assert captured["kwargs"]["max_tokens"] == 1024
         assert captured["kwargs"]["timeout"] == 30
         assert "effort" not in captured["kwargs"]
+
+
+@pytest.mark.unit
+class TestPromptCachingAndTokenScaling:
+    def test_prompt_caching_marks_system_and_tools(self):
+        payload = {
+            "model": "claude-sonnet-5",
+            "system": "Static trading instructions",
+            "tools": [
+                {"name": "alpha", "description": "First tool"},
+                {"name": "beta", "description": "Second tool"},
+            ],
+        }
+
+        cached = mod._apply_prompt_caching(payload)
+
+        assert payload["system"] == "Static trading instructions"
+        assert "cache_control" not in payload
+        assert cached["cache_control"] == {"type": "ephemeral"}
+        assert cached["system"][0]["cache_control"] == {"type": "ephemeral"}
+        assert cached["tools"][-1]["cache_control"] == {"type": "ephemeral"}
+
+    @pytest.mark.parametrize(
+        "model,effort,expected",
+        [
+            ("claude-sonnet-5", "low", 8192),
+            ("claude-sonnet-5", "medium", 12288),
+            ("claude-sonnet-5", "high", 16384),
+            ("claude-fable-5", "high", 24576),
+            ("claude-mythos-5", "high", 24576),
+            ("claude-mythos-preview", "high", 24576),
+        ],
+    )
+    def test_effort_allocates_dynamic_token_floor(self, model, effort, expected):
+        assert mod._resolve_anthropic_max_tokens(model, effort, None) == expected
+
+    def test_explicit_max_tokens_are_respected(self):
+        assert mod._resolve_anthropic_max_tokens(
+            "claude-sonnet-5", "high", 1024
+        ) == 1024
