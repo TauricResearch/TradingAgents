@@ -47,7 +47,7 @@ group Phase 1: Analyst Reports (sequential)
   DI --> ANALYSTS : price/indicator data
   ANALYSTS --> GRAPH : {market_report: "..."}
 
-  GRAPH -> ANALYSTS : social_media_analyst(state)
+  GRAPH -> ANALYSTS : sentiment_analyst(state)
   ANALYSTS -> DI : get_news() [sentiment sources]
   DI --> ANALYSTS : social data
   ANALYSTS --> GRAPH : {sentiment_report: "..."}

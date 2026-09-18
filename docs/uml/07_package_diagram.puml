@@ -11,7 +11,7 @@ package "tradingagents" {
       [market_analyst]
       [news_analyst]
       [fundamentals_analyst]
-      [social_media_analyst]
+      [sentiment_analyst]
     }
     package "researchers" {
       [bull_researcher]
@@ -87,7 +87,7 @@ package "cli" {
   [main]
   [config]
   [models]
-  [utils]
+  component "utils" as cli_utils
   [stats_handler]
   [announcements]
 }
@@ -125,7 +125,7 @@ package "Third-Party" {
 [setup] --> [conditional_logic]
 [setup] --> [market_analyst]
 [setup] --> [news_analyst]
-[setup] --> [social_media_analyst]
+[setup] --> [sentiment_analyst]
 [setup] --> [fundamentals_analyst]
 [setup] --> [bull_researcher]
 [setup] --> [bear_researcher]
@@ -139,7 +139,7 @@ package "Third-Party" {
 [market_analyst] --> [core_stock_tools]
 [market_analyst] --> [technical_indicators_tools]
 [news_analyst] --> [news_data_tools]
-[social_media_analyst] --> [news_data_tools]
+[sentiment_analyst] --> [news_data_tools]
 [fundamentals_analyst] --> [fundamental_data_tools]
 
 [core_stock_tools] --> [interface]
