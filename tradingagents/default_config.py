@@ -174,4 +174,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
+    "market_vendor_affinity": {
+        "brapi": (".SA",),  # brapi.dev só cobre tickers da B3 (sufixo .SA)
+    },
 })

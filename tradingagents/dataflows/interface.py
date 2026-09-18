@@ -206,6 +206,16 @@ def route_to_vendor(method: str, *args, **kwargs):
     else:
         vendor_chain = all_available_vendors
 
+    ticker_hint = args[0] if args and isinstance(args[0], str) else None
+    if ticker_hint:
+        affinity = get_config().get("market_vendor_affinity", {})
+        market_filtered = [
+            v for v in vendor_chain
+            if not affinity.get(v) or any(ticker_hint.upper().endswith(s) for s in affinity[v])
+        ]
+        if market_filtered:
+            vendor_chain = market_filtered
+
     last_no_data: NoMarketDataError | None = None
     last_unavailable: VendorRateLimitError | None = None
     first_error: Exception | None = None
