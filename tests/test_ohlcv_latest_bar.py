@@ -93,7 +93,13 @@ def _run_load(monkeypatch, tmp_path, frame, curr_date):
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache_file = tmp_path / "AAPL-YFin-data.csv"
     cache_file.write_text(frame.to_csv(index=False))
-    os.utime(cache_file, (today.timestamp(), today.timestamp()))
+# pandas reads a naive Timestamp's .timestamp() as UTC, while load_ohlcv reads
+# the mtime back with pd.Timestamp.fromtimestamp(), which returns LOCAL time.
+# Seeding the mtime through pandas therefore lands a day early anywhere west of
+# UTC, so _cache_is_fresh sees a file "written" yesterday and refetches. Going
+# via datetime keeps both sides local, so this holds off a UTC machine too.
+    seeded = today.to_pydatetime().timestamp()
+    os.utime(cache_file, (seeded, seeded))
 
     def _fail_download(*a, **k):
         raise AssertionError("should use the seeded cache, not download")
@@ -189,7 +195,8 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache = tmp_path / "AAPL-YFin-data.csv"
     cache.write_text(frame.to_csv(index=False))
-    os.utime(cache, (today.timestamp(), today.timestamp()))
+    seeded = today.to_pydatetime().timestamp()  # local mtime, see note above
+    os.utime(cache, (seeded, seeded))
     monkeypatch.setattr(su.yf, "download", lambda *a, **k: (_ for _ in ()).throw(
         AssertionError("should read the seeded cache")))
 
