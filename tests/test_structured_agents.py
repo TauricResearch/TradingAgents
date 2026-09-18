@@ -61,12 +61,13 @@ class TestRenderTraderProposal:
         assert "**Position Sizing**: 6% of portfolio" in md
         assert "FINAL TRANSACTION PROPOSAL: **BUY**" in md
 
-    def test_optional_fields_omitted_when_absent(self):
+    def test_optional_fields_are_named_as_not_provided(self):
+        """An omitted line reads as a field nobody asked for; the reader cannot
+        tell it from a level the trader declined to set."""
         p = TraderProposal(action=TraderAction.SELL, reasoning="Guidance cut.")
         md = render_trader_proposal(p)
-        assert "Entry Price" not in md
-        assert "Stop Loss" not in md
-        assert "Position Sizing" not in md
+        for field in ("Entry Price", "Stop Loss", "Position Sizing"):
+            assert f"**{field}**: not provided" in md
         assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
 
 
@@ -503,3 +504,45 @@ def test_conflict_alone_is_not_a_hold_trigger(source):
     assert "conflict alone is not a reason to Hold" in text or \
         "Conflicting arguments alone are not a reason to Hold" in text
     assert "materially conflicting" not in text
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("written", ["150-160", "150 to 160", "around 150", "150/160", "~150"])
+def test_a_price_written_as_a_range_drops_only_that_field(written):
+    """Anything that is not a single number becomes None. Letting it through
+    fails the whole decision's validation, and the run falls back to free text,
+    losing every other field the model got right."""
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+
+    decision = PortfolioDecision(rating=PortfolioRating.BUY, executive_summary="s",
+                                 investment_thesis="t", price_target=written)
+    assert decision.price_target is None
+
+
+@pytest.mark.unit
+def test_a_price_that_is_a_number_survives():
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+
+    decision = PortfolioDecision(rating=PortfolioRating.BUY, executive_summary="s",
+                                 investment_thesis="t", price_target="$1,150.25")
+    assert decision.price_target == 1150.25
+
+
+@pytest.mark.unit
+def test_a_field_the_model_did_not_give_says_so():
+    """An omitted line and a line never asked for read the same to an analyst."""
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating, render_pm_decision
+
+    rendered = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.HOLD, executive_summary="s", investment_thesis="t"))
+    assert "Price Target" in rendered and "not provided" in rendered.lower()
+
+
+@pytest.mark.unit
+def test_the_trader_names_the_levels_it_did_not_give():
+    from tradingagents.agents.schemas import TraderAction, TraderProposal, render_trader_proposal
+
+    rendered = render_trader_proposal(TraderProposal(action=TraderAction.HOLD, reasoning="r"))
+    for field in ("Entry Price", "Stop Loss", "Position Sizing"):
+        assert field in rendered
+    assert rendered.lower().count("not provided") == 3
