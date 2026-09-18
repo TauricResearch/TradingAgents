@@ -82,13 +82,17 @@ class _Summary:
 def test_every_command_is_registered_when_run_as_a_module():
     """README documents `python -m cli.main`, which executes the file top to
     bottom, so a command defined after the __main__ block would not exist."""
+    import re
     import subprocess
     import sys
 
     out = subprocess.run([sys.executable, "-m", "cli.main", "backtest", "--help"],
                          capture_output=True, text=True, timeout=120)
     assert out.returncode == 0, out.stderr[-400:]
-    assert "--start" in out.stdout
+    # Where the terminal takes colour, help styles each option and splits
+    # "--start" across escape sequences, so read the text without them.
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", out.stdout)
+    assert "--start" in plain
 
 
 @pytest.mark.unit
