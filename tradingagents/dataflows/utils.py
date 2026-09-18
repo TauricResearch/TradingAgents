@@ -62,3 +62,16 @@ def get_scrubbed(url: str, *, params: dict, timeout: float, secret: str, passthr
     except requests.RequestException as exc:
         error = type(exc)(str(exc).replace(secret, "***")) if secret else exc
     raise error
+
+
+def vendor_reachable(url: str, timeout: float = 5.0) -> bool:
+    """Whether the vendor answers at all, for telling silence from an outage.
+
+    A client that returns an empty result instead of raising leaves those two
+    cases indistinguishable. Called only when a result is empty.
+    """
+    try:
+        requests.head(url, timeout=timeout, allow_redirects=True)
+        return True
+    except requests.RequestException:
+        return False

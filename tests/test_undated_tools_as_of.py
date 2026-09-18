@@ -149,3 +149,80 @@ def test_an_indicator_that_could_not_be_read_is_not_shown_as_a_blank_value():
                            side_effect=RuntimeError("cache parse failed")), \
             pytest.raises(VendorError):
         y_finance.get_stockstats_indicator("AAPL", "rsi", "2026-05-08")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("func, args", [
+    # A past date withholds the live profile before any request, so the
+    # fundamentals case is exercised on the date it does fetch.
+    ("get_fundamentals", ("AAPL", None)),
+    ("get_balance_sheet", ("AAPL", "annual", "2026-09-01")),
+    ("get_cashflow", ("AAPL", "annual", "2026-09-01")),
+    ("get_income_statement", ("AAPL", "annual", "2026-09-01")),
+    ("get_insider_transactions", ("AAPL", "2026-09-01")),
+])
+def test_a_yfinance_failure_is_a_vendor_error_not_a_report(func, args):
+    """Returning the failure as text makes the router count it as an answer, so
+    the chain stops and the analyst reads the error message as if it were data.
+    yfinance serves the default path, so this is the one that matters most."""
+    from tradingagents.dataflows import y_finance
+    from tradingagents.dataflows.errors import VendorError
+
+    with mock.patch.object(y_finance.yf, "Ticker", side_effect=RuntimeError("yahoo hiccup")), \
+            pytest.raises(VendorError):
+        getattr(y_finance, func)(*args)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("func, args", [
+    ("get_news_yfinance", ("AAPL", "2026-08-25", "2026-09-01")),
+    ("get_global_news_yfinance", ("2026-09-01", 7, 5)),
+])
+def test_a_yfinance_news_failure_is_a_vendor_error_not_a_report(func, args):
+    from tradingagents.dataflows import yfinance_news
+    from tradingagents.dataflows.errors import VendorError
+
+    target = "Ticker" if "global" not in func else "Search"
+    with mock.patch.object(yfinance_news.yf, target, side_effect=RuntimeError("yahoo hiccup")), \
+            pytest.raises(VendorError):
+        getattr(yfinance_news, func)(*args)
+
+
+@pytest.mark.unit
+def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
+    """yfinance returns an empty frame when it cannot reach Yahoo, with no
+    exception. Reporting that as "no data for AAPL" tells the analyst the
+    company has no balance sheet, when the truth is we could not ask."""
+    import pandas as pd
+
+    from tradingagents.dataflows import y_finance
+    from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+
+    empty = mock.Mock(quarterly_balance_sheet=pd.DataFrame(), balance_sheet=pd.DataFrame())
+    monkeypatch.setattr(y_finance.yf, "Ticker", lambda s: empty)
+
+    monkeypatch.setattr(y_finance, "vendor_reachable", lambda url: False)
+    with pytest.raises(VendorRateLimitError, match="unreachable"):
+        y_finance.get_balance_sheet("AAPL", "annual", "2026-09-01")
+
+    monkeypatch.setattr(y_finance, "vendor_reachable", lambda url: True)
+    with pytest.raises(NoMarketDataError):
+        y_finance.get_balance_sheet("AAPL", "annual", "2026-09-01")
+
+
+@pytest.mark.unit
+def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
+    """A throttled or unreachable chain used to raise RuntimeError('No available
+    vendor'), which ends the run, and never said the vendor was the problem."""
+    from tradingagents.dataflows import interface
+    from tradingagents.dataflows.errors import VendorRateLimitError
+
+    def _down(*a, **k):
+        raise VendorRateLimitError("Yahoo Finance is unreachable")
+
+    monkeypatch.setitem(interface.VENDOR_METHODS["get_balance_sheet"], "yfinance", _down)
+
+    out = interface.route_to_vendor("get_balance_sheet", "AAPL", "annual", "2026-09-01")
+
+    assert "unavailable" in out.lower() and "unreachable" in out.lower()
+    assert "delisted" not in out.lower()  # not a claim about the symbol
