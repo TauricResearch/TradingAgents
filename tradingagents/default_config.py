@@ -137,12 +137,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # routed to vendors you didn't choose. For ordered fallback, list several,
     # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
-        "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
-        "prediction_markets": "polymarket",  # Options: polymarket (keyless)
+        # yfinance 已移除 — A股优先，美股功能后期恢复
+        "core_stock_apis": "eastmoney,alpha_vantage",
+        "technical_indicators": "eastmoney,alpha_vantage",
+        "fundamental_data": "eastmoney,alpha_vantage",
+        "news_data": "eastmoney,alpha_vantage",
+        "macro_data": "",                     # FRED 未配置，A股暂不需要美国宏数据
+        "prediction_markets": "",              # Polymarket 美国政治事件，A股不适用
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
