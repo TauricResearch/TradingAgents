@@ -11,6 +11,8 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from .brapi_fundamentals import get_fundamentals as get_brapi_fundamentals
+from .brapi_stock import get_stock_data as get_brapi_stock
 from .config import get_config
 from .errors import (
     NoMarketDataError,
@@ -88,6 +90,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "brapi",  # B3 (Brazilian exchange) prices and fundamentals; needs BRAPI_TOKEN
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -103,6 +106,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "brapi": get_brapi_stock,
     },
     # technical_indicators
     "get_indicators": {
@@ -113,6 +117,7 @@ VENDOR_METHODS = {
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "brapi": get_brapi_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
