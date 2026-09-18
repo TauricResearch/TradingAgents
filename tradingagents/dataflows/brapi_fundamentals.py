@@ -50,7 +50,6 @@ def get_fundamentals(
     key_stats = result.get("defaultKeyStatistics") or {}
     fin_data = result.get("financialData") or {}
     profile = result.get("summaryProfile") or {}
-    dividends = result.get("dividendsData") or {}
 
     fields = [
         ("Name", result.get("longName") or result.get("shortName")),
