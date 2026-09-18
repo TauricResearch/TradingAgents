@@ -31,6 +31,42 @@ services:
     profiles:
       - ollama
 
+  # Web Platform Services
+  tradingagents-backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+      - ./backend/data:/app/backend/data
+      - ./results:/app/results
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      default:
+        aliases:
+          - backend
+    profiles:
+      - web
+
+  tradingagents-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      tradingagents-backend:
+        condition: service_healthy
+    networks:
+      - default
+    profiles:
+      - web
+
 volumes:
   tradingagents_data:
   ollama_data:

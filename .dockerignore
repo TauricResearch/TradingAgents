@@ -13,3 +13,10 @@ results
 eval_results
 Dockerfile
 docker-compose.yml
+frontend/node_modules
+frontend/dist
+backend/data/*.db
+backend/data/*.db-wal
+backend/data/*.db-shm
+backend/data/cache
+

@@ -221,3 +221,12 @@ __marimo__/
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/
+
+# Web Platform
+node_modules/
+backend/data/
+frontend/dist/
+frontend/node_modules/
+*.db
+*.db-wal
+*.db-shm
