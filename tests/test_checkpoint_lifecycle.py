@@ -153,3 +153,20 @@ def test_cli_style_usage_saves_then_resumes():
 
         # Cleared on success -> a later run starts fresh.
         assert checkpoint_step(tmp, "AAPL", "2026-05-08", sig) is None
+
+
+@pytest.mark.unit
+def test_clearing_removes_the_database_sidecars(tmp_path):
+    """SQLite writes -wal and -shm next to the database; leaving them behind
+    means a cleared checkpoint still has committed state on disk."""
+    from tradingagents.graph.checkpointer import clear_all_checkpoints
+
+    cp = tmp_path / "checkpoints"
+    cp.mkdir(parents=True)
+    for suffix in (".db", ".db-wal", ".db-shm"):
+        (cp / f"NVDA{suffix}").write_text("x")
+
+    cleared = clear_all_checkpoints(str(tmp_path))
+
+    assert cleared == 1
+    assert list(cp.iterdir()) == []
