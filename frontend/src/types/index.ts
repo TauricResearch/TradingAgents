@@ -110,3 +110,24 @@ export interface APIKeysUpdateRequest {
   keys: Record<string, string>;
 }
 
+export interface BatchDeletePayload {
+  job_ids: string[];
+  force?: boolean;
+}
+
+export interface BatchDeleteResponse {
+  message: string;
+  deleted_count: number;
+  job_ids: string[];
+}
+
+export interface DeleteJobResponse {
+  message: string;
+  job_id: string;
+}
+
+export interface ClearJobsResponse {
+  message: string;
+  deleted_count: number;
+}
+

@@ -89,3 +89,20 @@ class APIKeysStatusResponse(BaseModel):
 class APIKeysUpdateRequest(BaseModel):
     keys: dict[str, str] = Field(..., description="Mapping of provider/feed key to new secret string")
 
+class BatchDeleteRequest(BaseModel):
+    job_ids: list[str] = Field(..., description="List of job IDs to delete")
+    force: bool = Field(False, description="Whether to force cancel and delete active jobs")
+
+class BatchDeleteResponse(BaseModel):
+    message: str
+    deleted_count: int
+    job_ids: list[str]
+
+class DeleteJobResponse(BaseModel):
+    message: str
+    job_id: str
+
+class ClearJobsResponse(BaseModel):
+    message: str
+    deleted_count: int
+

@@ -22,6 +22,8 @@ from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 from tradingagents.graph.trading_graph import TradingAgentsGraph  # noqa: E402
 from tradingagents.reporting import write_report_tree  # noqa: E402
 
+from ..core.security import sanitize_sensitive_text
+
 logger = logging.getLogger(__name__)
 
 def extract_price_level(text: str, label_keywords: list[str]) -> float | None:
@@ -324,8 +326,8 @@ def run_analysis_task(
 
     except Exception as exc:
         duration = round(time.time() - start_time, 2)
-        err_msg = f"{type(exc).__name__}: {str(exc)}"
-        tb = traceback.format_exc()
+        err_msg = sanitize_sensitive_text(f"{type(exc).__name__}: {str(exc)}")
+        tb = sanitize_sensitive_text(traceback.format_exc())
         logger.error(f"Job {job_id} failed with error: {tb}")
 
         emit("job_failed", {

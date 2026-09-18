@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Response
 
 from ...core.database import db
+from ...core.security import sanitize_date, sanitize_ticker
 from ...models.schemas import JobReportResponse
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -83,10 +84,8 @@ async def download_report_md(job_id: str, tab: str = "complete"):
     if not content:
         raise HTTPException(status_code=404, detail=f"No markdown content available for tab '{tab}'")
 
-    raw_ticker = job.get("ticker", "REPORT")
-    clean_ticker = "".join(c for c in raw_ticker if c.isalnum() or c in ("-", "_")).upper() or "REPORT"
-    raw_date = str(job.get("trade_date", "DATE"))
-    clean_date = "".join(c for c in raw_date if c.isalnum() or c in ("-", "_")) or "DATE"
+    clean_ticker = sanitize_ticker(job.get("ticker"), default="REPORT")
+    clean_date = sanitize_date(str(job.get("trade_date", "DATE")), default="DATE")
     tab_suffix = clean_tab.capitalize() if clean_tab not in ("complete", "overview") else "Complete"
     filename = f"TradingAgents_{clean_ticker}_{clean_date}_{tab_suffix}.md"
 

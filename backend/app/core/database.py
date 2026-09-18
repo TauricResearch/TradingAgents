@@ -192,6 +192,36 @@ class Database:
             conn.execute(sql, params)
             conn.commit()
 
+    def delete_job(self, job_id: str) -> bool:
+        """Delete a single job from database. Cascades to job_events and job_reports."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def delete_jobs_batch(self, job_ids: list[str]) -> int:
+        """Delete multiple jobs in a single transaction. Cascades to job_events and job_reports."""
+        if not job_ids:
+            return 0
+        placeholders = ",".join("?" for _ in job_ids)
+        sql = f"DELETE FROM jobs WHERE id IN ({placeholders})"
+        with self.get_connection() as conn:
+            cursor = conn.execute(sql, tuple(job_ids))
+            conn.commit()
+            return cursor.rowcount
+
+    def clear_jobs(self, status: str | None = None, all_finished: bool = False) -> int:
+        """Clear jobs matching criteria. Cascades to job_events and job_reports."""
+        with self.get_connection() as conn:
+            if status:
+                cursor = conn.execute("DELETE FROM jobs WHERE status = ?", (status,))
+            elif all_finished:
+                cursor = conn.execute("DELETE FROM jobs WHERE status IN ('completed', 'failed', 'cancelled')")
+            else:
+                cursor = conn.execute("DELETE FROM jobs")
+            conn.commit()
+            return cursor.rowcount
+
     # Events Operations
     def add_event(self, job_id: str, event_type: str, data: dict[str, Any]):
         now = datetime.utcnow().isoformat() + "Z"

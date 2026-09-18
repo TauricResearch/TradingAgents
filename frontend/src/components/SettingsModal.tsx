@@ -115,36 +115,36 @@ const SettingsModalComponent: React.FC<SettingsModalProps> = ({ isOpen, onClose 
   const dataKeys = keysList.filter((k) => k.category === 'data');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/85">
-      <div className="w-full max-w-2xl bg-dark-900 border border-dark-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-dark-950/85">
+      <div className="w-full max-w-2xl bg-dark-900 border border-dark-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92dvh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-dark-700/80 flex items-center justify-between bg-dark-850/60">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-dark-750 border border-dark-600 flex items-center justify-center text-brand-cyan">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-dark-700/80 flex items-center justify-between bg-dark-850/60 shrink-0">
+          <div className="flex items-center space-x-2 sm:space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-dark-750 border border-dark-600 flex items-center justify-center text-brand-cyan shrink-0">
               <Key className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-100 font-mono tracking-wide">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-100 font-mono tracking-wide">
                 Terminal Settings & API Management
               </h2>
-              <p className="text-[11px] text-slate-400 font-sans">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 font-sans">
                 Configure cloud intelligence providers, market data feeds, and local preferences
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-dark-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-dark-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-dark-700/60 px-6 bg-dark-850/30">
+        {/* Tab Navigation (Horizontal scrollable) */}
+        <div className="flex border-b border-dark-700/60 px-3 sm:px-6 bg-dark-850/30 overflow-x-auto no-scrollbar shrink-0">
           <button
             onClick={() => setActiveTab('llm')}
-            className={`flex items-center space-x-2 py-3 px-3 text-xs font-semibold border-b-2 transition-all ${
+            className={`flex items-center space-x-2 py-2.5 sm:py-3 px-3 text-xs font-semibold border-b-2 transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'llm'
                 ? 'border-brand-cyan text-brand-cyan'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -156,7 +156,7 @@ const SettingsModalComponent: React.FC<SettingsModalProps> = ({ isOpen, onClose 
 
           <button
             onClick={() => setActiveTab('data')}
-            className={`flex items-center space-x-2 py-3 px-3 text-xs font-semibold border-b-2 transition-all ${
+            className={`flex items-center space-x-2 py-2.5 sm:py-3 px-3 text-xs font-semibold border-b-2 transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'data'
                 ? 'border-brand-emerald text-brand-emerald'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -168,7 +168,7 @@ const SettingsModalComponent: React.FC<SettingsModalProps> = ({ isOpen, onClose 
 
           <button
             onClick={() => setActiveTab('preferences')}
-            className={`flex items-center space-x-2 py-3 px-3 text-xs font-semibold border-b-2 transition-all ${
+            className={`flex items-center space-x-2 py-2.5 sm:py-3 px-3 text-xs font-semibold border-b-2 transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'preferences'
                 ? 'border-brand-amber text-brand-amber'
                 : 'border-transparent text-slate-400 hover:text-slate-200'

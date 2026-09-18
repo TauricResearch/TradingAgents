@@ -17,6 +17,7 @@ from ...models.schemas import (  # noqa: E402
     APIKeysUpdateRequest,
     ConfigOptionsResponse,
 )
+from ...core.security import mask_secret_key
 
 router = APIRouter(prefix="/config", tags=["Configuration"])
 
@@ -33,17 +34,6 @@ KEY_DEFINITIONS = [
     {"provider": "alpha_vantage", "env_var": "ALPHA_VANTAGE_API_KEY", "category": "data"},
     {"provider": "fred", "env_var": "FRED_API_KEY", "category": "data"},
 ]
-
-
-def _mask_key(val: str | None) -> str:
-    if not val:
-        return ""
-    val = val.strip()
-    if len(val) >= 8:
-        return f"{val[:3]}...{val[-4:]}"
-    elif len(val) > 2:
-        return f"{val[0]}...{val[-1]}"
-    return "***"
 
 ANALYSTS_METADATA = [
     {
@@ -156,7 +146,7 @@ async def get_api_keys_status():
                 env_var=item["env_var"],
                 category=item["category"],
                 configured=is_set,
-                preview=_mask_key(val) if is_set else ""
+                preview=mask_secret_key(val) if is_set else ""
             )
         )
     return {"keys": items}

@@ -1,18 +1,35 @@
-import { Job, JobCreatePayload, JobReport, JobEvent, ConfigOptions, MemoryEntry, APIKeysStatusResponse } from '../types';
+import { 
+  Job, 
+  JobCreatePayload, 
+  JobReport, 
+  JobEvent, 
+  ConfigOptions, 
+  MemoryEntry, 
+  APIKeysStatusResponse,
+  DeleteJobResponse,
+  BatchDeleteResponse,
+  ClearJobsResponse
+} from '../types';
 
 const API_BASE = '/api/v1';
+
+async function handleResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `${fallbackMessage}: ${res.statusText}`);
+  }
+  return res.json();
+}
 
 export async function fetchJobs(status?: string): Promise<{ jobs: Job[]; total: number }> {
   const url = status ? `${API_BASE}/jobs?status=${encodeURIComponent(status)}` : `${API_BASE}/jobs`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch jobs: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, 'Failed to fetch jobs');
 }
 
 export async function fetchJob(jobId: string): Promise<Job> {
   const res = await fetch(`${API_BASE}/jobs/${jobId}`);
-  if (!res.ok) throw new Error(`Failed to fetch job ${jobId}: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, `Failed to fetch job ${jobId}`);
 }
 
 export async function createJob(payload: JobCreatePayload): Promise<Job> {
@@ -21,42 +38,59 @@ export async function createJob(payload: JobCreatePayload): Promise<Job> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Failed to create job: ${res.statusText}`);
-  }
-  return res.json();
+  return handleResponse(res, 'Failed to create job');
 }
 
 export async function cancelJob(jobId: string): Promise<{ message: string; status: string }> {
   const res = await fetch(`${API_BASE}/jobs/${jobId}/cancel`, { method: 'POST' });
-  if (!res.ok) throw new Error(`Failed to cancel job ${jobId}: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, `Failed to cancel job ${jobId}`);
+}
+
+export async function deleteJob(jobId: string, force: boolean = false): Promise<DeleteJobResponse> {
+  const url = force ? `${API_BASE}/jobs/${jobId}?force=true` : `${API_BASE}/jobs/${jobId}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  return handleResponse(res, `Failed to delete job ${jobId}`);
+}
+
+export async function batchDeleteJobs(jobIds: string[], force: boolean = false): Promise<BatchDeleteResponse> {
+  const res = await fetch(`${API_BASE}/jobs/batch-delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job_ids: jobIds, force }),
+  });
+  return handleResponse(res, 'Failed to delete selected jobs');
+}
+
+export async function clearJobsHistory(status?: string, allFinished: boolean = false): Promise<ClearJobsResponse> {
+  let url = `${API_BASE}/jobs?`;
+  if (status) {
+    url += `status=${encodeURIComponent(status)}`;
+  } else if (allFinished) {
+    url += 'all_finished=true';
+  }
+  const res = await fetch(url, { method: 'DELETE' });
+  return handleResponse(res, 'Failed to clear jobs history');
 }
 
 export async function fetchReport(jobId: string): Promise<JobReport> {
   const res = await fetch(`${API_BASE}/reports/${jobId}`);
-  if (!res.ok) throw new Error(`Failed to fetch report: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, 'Failed to fetch report');
 }
 
 export async function fetchJobHistory(jobId: string): Promise<JobEvent[]> {
   const res = await fetch(`${API_BASE}/jobs/${jobId}/history`);
-  if (!res.ok) throw new Error(`Failed to fetch job history: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, 'Failed to fetch job history');
 }
 
 export async function fetchConfigOptions(): Promise<ConfigOptions> {
   const res = await fetch(`${API_BASE}/config/options`);
-  if (!res.ok) throw new Error(`Failed to fetch config options: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, 'Failed to fetch config options');
 }
 
 export async function fetchMemoryLog(ticker?: string): Promise<{ total_entries: number; entries: MemoryEntry[] }> {
   const url = ticker ? `${API_BASE}/memory?ticker=${encodeURIComponent(ticker)}` : `${API_BASE}/memory`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch memory: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, 'Failed to fetch memory');
 }
 
 export function subscribeToJobEvents(
@@ -128,8 +162,7 @@ export function subscribeToJobEvents(
 
 export async function fetchApiKeys(): Promise<APIKeysStatusResponse> {
   const res = await fetch(`${API_BASE}/config/keys`);
-  if (!res.ok) throw new Error(`Failed to fetch API keys: ${res.statusText}`);
-  return res.json();
+  return handleResponse(res, 'Failed to fetch API keys');
 }
 
 export async function updateApiKeys(keys: Record<string, string>): Promise<APIKeysStatusResponse> {
@@ -138,11 +171,7 @@ export async function updateApiKeys(keys: Record<string, string>): Promise<APIKe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ keys }),
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Failed to update API keys: ${res.statusText}`);
-  }
-  return res.json();
+  return handleResponse(res, 'Failed to update API keys');
 }
 
 export function getReportDownloadUrl(jobId: string, tab: string = 'complete'): string {

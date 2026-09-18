@@ -12,6 +12,8 @@
   }
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #e2e8f0;
+    background-color: #07090e;
   }
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', monospace;
@@ -20,27 +22,59 @@
 
 /* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F17;
+  background: #0b0f17;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E2B45;
+  background: #1e2b45;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2A3B5C;
+  background: #2a3b5c;
 }
 
-/* Sleek High-Performance Card Style */
+/* Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Glassmorphism & Surface Tokens */
 .glass-panel {
-  background: #0E1424;
+  background: linear-gradient(180deg, rgba(17, 23, 38, 0.75) 0%, rgba(11, 15, 23, 0.9) 100%);
   border: 1px solid rgba(42, 59, 92, 0.5);
+  backdrop-filter: blur(8px);
 }
 
 .glass-panel-hover {
@@ -48,24 +82,147 @@
 }
 .glass-panel-hover:hover {
   border-color: rgba(6, 182, 212, 0.5);
-  box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.15);
+  box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.2);
 }
 
 /* Glow effects */
 .glow-emerald {
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
 }
 
 .glow-rose {
-  box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+  box-shadow: 0 0 15px rgba(244, 63, 94, 0.25);
 }
 
 .glow-cyan {
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+}
+
+.glow-amber {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
 }
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Enhanced Range Slider Controls */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #1e2b45;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #06b6d4;
+  cursor: pointer;
+  margin-top: -5px;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #22d3ee;
+}
+
+/* Markdown Report Styling in Terminal */
+.markdown-body {
+  color: #cbd5e1;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  color: #f1f5f9;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body h1 {
+  font-size: 1.15rem;
+  color: #38bdf8;
+  border-bottom: 1px solid rgba(42, 59, 92, 0.6);
+  padding-bottom: 0.4rem;
+}
+
+.markdown-body h2 {
+  font-size: 1rem;
+  color: #2dd4bf;
+}
+
+.markdown-body h3 {
+  font-size: 0.875rem;
+  color: #a78bfa;
+}
+
+.markdown-body p {
+  margin-bottom: 0.85rem;
+}
+
+.markdown-body ul, .markdown-body ol {
+  padding-left: 1.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.markdown-body li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid #06b6d4;
+  background: rgba(6, 182, 212, 0.05);
+  padding: 0.6rem 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  margin: 1rem 0;
+  color: #e2e8f0;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.markdown-body th {
+  background-color: #111726;
+  color: #38bdf8;
+  border: 1px solid #1e2b45;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.markdown-body td {
+  border: 1px solid #1e2b45;
+  padding: 0.45rem 0.75rem;
+  color: #cbd5e1;
+}
+
+.markdown-body tr:nth-child(even) {
+  background-color: rgba(17, 23, 38, 0.4);
+}
+
+.markdown-body tr:hover {
+  background-color: rgba(30, 43, 69, 0.4);
 }
 
 /* Institutional Clean Print Stylesheet */
@@ -107,7 +264,6 @@
     box-shadow: none !important;
   }
 
-  /* Clean table borders for paper printing */
   table {
     border-collapse: collapse !important;
     width: 100% !important;
@@ -145,4 +301,3 @@
     background-color: #f8fafc !important;
   }
 }
-

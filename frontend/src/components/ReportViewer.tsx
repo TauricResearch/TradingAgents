@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { JobReport } from '../types';
@@ -15,9 +15,12 @@ import {
   Globe, 
   BarChart3,
   Printer,
-  Download
+  Download,
+  Percent,
+  Scale
 } from 'lucide-react';
 import { downloadReportMarkdown } from '../services/api';
+import { toast } from './Toast';
 
 interface ReportViewerProps {
   report: JobReport | null;
@@ -47,13 +50,53 @@ const ReportViewerComponent: React.FC<ReportViewerProps> = ({ report, loading, o
     }
   };
 
+  const activeContent = getActiveTabContent();
+
   const handleDownloadMarkdown = () => {
     if (!report) return;
-    const content = getActiveTabContent();
-    downloadReportMarkdown(report.job_id, report.ticker, report.trade_date, activeTab, content);
+    downloadReportMarkdown(report.job_id, report.ticker, report.trade_date, activeTab, activeContent);
     setDownloaded(true);
+    toast.success(`Downloaded ${activeTab} report as Markdown`);
     setTimeout(() => setDownloaded(false), 2000);
   };
+
+  const handleCopyMarkdown = () => {
+    if (!activeContent) return;
+    navigator.clipboard.writeText(activeContent);
+    setCopied(true);
+    toast.success(`Copied ${activeTab} report section to clipboard`);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Quantitative calculations for financial metrics
+  const financialMetrics = useMemo(() => {
+    if (!report) return null;
+    const entry = typeof report.entry_price === 'number' ? report.entry_price : parseFloat(String(report.entry_price || ''));
+    const target = typeof report.target_price === 'number' ? report.target_price : parseFloat(String(report.target_price || ''));
+    const stop = typeof report.stop_loss === 'number' ? report.stop_loss : parseFloat(String(report.stop_loss || ''));
+
+    let upsidePct: number | null = null;
+    let riskPct: number | null = null;
+    let riskRewardRatio: string | null = null;
+
+    if (!isNaN(entry) && !isNaN(target) && entry > 0) {
+      upsidePct = ((target - entry) / entry) * 100;
+    }
+    if (!isNaN(entry) && !isNaN(stop) && entry > 0) {
+      riskPct = (Math.abs(entry - stop) / entry) * 100;
+    }
+    if (upsidePct !== null && riskPct !== null && riskPct > 0) {
+      const reward = Math.abs(target - entry);
+      const risk = Math.abs(entry - stop);
+      riskRewardRatio = (reward / risk).toFixed(2);
+    }
+
+    return { entry, target, stop, upsidePct, riskPct, riskRewardRatio };
+  }, [report]);
 
   if (loading) {
     return (
@@ -74,7 +117,7 @@ const ReportViewerComponent: React.FC<ReportViewerProps> = ({ report, loading, o
         </p>
         <button
           onClick={onBackToArena}
-          className="mt-4 px-3 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs font-mono text-brand-cyan hover:bg-dark-750"
+          className="mt-4 px-3.5 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs font-mono text-brand-cyan hover:bg-dark-750 transition-colors"
         >
           Return to Live Arena
         </button>
@@ -86,26 +129,22 @@ const ReportViewerComponent: React.FC<ReportViewerProps> = ({ report, loading, o
   const isBuy = recommendation.includes('BUY') || recommendation.includes('OVERWEIGHT');
   const isSell = recommendation.includes('SELL') || recommendation.includes('UNDERWEIGHT');
 
-  const handleCopyMarkdown = () => {
-    const textToCopy = report.complete_report_md || report.executive_summary || '';
-    navigator.clipboard.writeText(textToCopy);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
+  const reportTabs = [
+    { key: 'overview', label: 'Complete Report', icon: <FileText className="w-3.5 h-3.5" />, hasData: !!report.complete_report_md },
+    { key: 'market', label: 'Technicals & Indicators', icon: <TrendingUp className="w-3.5 h-3.5" />, hasData: !!report.market_report_md },
+    { key: 'sentiment', label: 'Social Sentiment', icon: <Smile className="w-3.5 h-3.5" />, hasData: !!report.sentiment_report_md },
+    { key: 'news', label: 'Macro & Prediction', icon: <Globe className="w-3.5 h-3.5" />, hasData: !!report.news_report_md },
+    { key: 'fundamentals', label: 'Financial Statements', icon: <BarChart3 className="w-3.5 h-3.5" />, hasData: !!report.fundamentals_report_md },
+  ];
 
   return (
-    <div id="report-printable-area" className="flex-1 flex flex-col h-full bg-dark-950 overflow-y-auto">
-
+    <div id="report-printable-area" className="flex-1 flex flex-col h-full bg-dark-950 overflow-y-auto font-sans">
       {/* Top Banner: Verdict & Metrics */}
-      <div className="p-6 border-b border-dark-700/60 bg-gradient-to-b from-dark-900 to-dark-950">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
+      <div className="p-3 sm:p-6 border-b border-dark-700/60 bg-gradient-to-b from-dark-900 to-dark-950 shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <div
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl border-2 ${
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shadow-2xl border-2 shrink-0 ${
                 isBuy
                   ? 'bg-brand-emerald/20 border-brand-emerald text-brand-emerald glow-emerald'
                   : isSell
@@ -113,27 +152,27 @@ const ReportViewerComponent: React.FC<ReportViewerProps> = ({ report, loading, o
                   : 'bg-brand-amber/20 border-brand-amber text-brand-amber'
               }`}
             >
-              <Award className="w-8 h-8" />
+              <Award className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
 
             <div>
-              <div className="flex items-center space-x-2.5">
-                <span className="text-xl font-bold font-mono tracking-wide text-slate-100">
+              <div className="flex items-center space-x-2 sm:space-x-2.5">
+                <span className="text-lg sm:text-2xl font-bold font-mono tracking-wide text-slate-100">
                   {report.ticker}
                 </span>
-                <span className="text-xs font-mono text-slate-400">
-                  Trade Date: {report.trade_date}
+                <span className="text-xs font-mono text-slate-400 bg-dark-800 px-2 py-0.5 rounded border border-dark-700">
+                  {report.trade_date}
                 </span>
               </div>
-              <div className="flex items-center space-x-2 mt-1">
-                <span className="text-xs text-slate-400 font-medium">Final Rating:</span>
+              <div className="flex items-center space-x-2 mt-1.5">
+                <span className="text-xs text-slate-400 font-medium">Verdict:</span>
                 <span
-                  className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                  className={`text-xs font-mono font-bold px-3 py-0.5 rounded-full uppercase tracking-wider ${
                     isBuy
-                      ? 'bg-brand-emerald text-dark-950'
+                      ? 'bg-brand-emerald text-dark-950 shadow-sm shadow-brand-emerald/30'
                       : isSell
-                      ? 'bg-brand-rose text-white'
-                      : 'bg-brand-amber text-dark-950'
+                      ? 'bg-brand-rose text-white shadow-sm shadow-brand-rose/30'
+                      : 'bg-brand-amber text-dark-950 shadow-sm shadow-brand-amber/30'
                   }`}
                 >
                   {recommendation}
@@ -142,185 +181,146 @@ const ReportViewerComponent: React.FC<ReportViewerProps> = ({ report, loading, o
             </div>
           </div>
 
-          {/* Target Levels & Actions */}
-          <div className="flex flex-wrap items-center gap-3">
-            {report.entry_price && (
-              <div className="px-3 py-1.5 rounded-lg bg-dark-850 border border-dark-700/80 font-mono text-xs">
+          {/* Target Levels & Derived Financial Metrics */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {financialMetrics?.entry && (
+              <div className="px-3 py-1.5 rounded-xl bg-dark-850 border border-dark-700 font-mono text-xs shadow-sm">
                 <div className="text-[10px] text-slate-400 flex items-center space-x-1">
                   <DollarSign className="w-3 h-3 text-brand-cyan" />
                   <span>Entry Target</span>
                 </div>
-                <div className="font-bold text-slate-100">${report.entry_price}</div>
+                <div className="font-bold text-slate-100 tabular-nums">${financialMetrics.entry}</div>
               </div>
             )}
 
-            {report.stop_loss && (
-              <div className="px-3 py-1.5 rounded-lg bg-dark-850 border border-dark-700/80 font-mono text-xs">
+            {financialMetrics?.stop && (
+              <div className="px-3 py-1.5 rounded-xl bg-dark-850 border border-dark-700 font-mono text-xs shadow-sm">
                 <div className="text-[10px] text-slate-400 flex items-center space-x-1">
                   <ShieldAlert className="w-3 h-3 text-brand-rose" />
                   <span>Stop Loss</span>
                 </div>
-                <div className="font-bold text-brand-rose">${report.stop_loss}</div>
+                <div className="font-bold text-brand-rose tabular-nums">${financialMetrics.stop}</div>
               </div>
             )}
 
-            {report.target_price && (
-              <div className="px-3 py-1.5 rounded-lg bg-dark-850 border border-dark-700/80 font-mono text-xs">
+            {financialMetrics?.target && (
+              <div className="px-3 py-1.5 rounded-xl bg-dark-850 border border-dark-700 font-mono text-xs shadow-sm">
                 <div className="text-[10px] text-slate-400 flex items-center space-x-1">
                   <Target className="w-3 h-3 text-brand-emerald" />
                   <span>Price Target</span>
                 </div>
-                <div className="font-bold text-brand-emerald tabular-nums">${report.target_price}</div>
+                <div className="font-bold text-brand-emerald tabular-nums">${financialMetrics.target}</div>
               </div>
             )}
 
-            <div className="flex items-center space-x-2 no-print">
+            {financialMetrics && financialMetrics.upsidePct !== null && (
+              <div className="px-3 py-1.5 rounded-xl bg-dark-850 border border-brand-emerald/30 font-mono text-xs shadow-sm">
+                <div className="text-[10px] text-slate-400 flex items-center space-x-1">
+                  <Percent className="w-3 h-3 text-brand-emerald" />
+                  <span>Return Target</span>
+                </div>
+                <div className={`font-bold tabular-nums ${financialMetrics.upsidePct >= 0 ? 'text-brand-emerald' : 'text-brand-rose'}`}>
+                  {financialMetrics.upsidePct >= 0 ? `+${financialMetrics.upsidePct.toFixed(1)}%` : `${financialMetrics.upsidePct.toFixed(1)}%`}
+                </div>
+              </div>
+            )}
+
+            {financialMetrics && financialMetrics.riskRewardRatio && (
+              <div className="px-3 py-1.5 rounded-xl bg-dark-850 border border-brand-amber/30 font-mono text-xs shadow-sm">
+                <div className="text-[10px] text-slate-400 flex items-center space-x-1">
+                  <Scale className="w-3 h-3 text-brand-amber" />
+                  <span>R:R Ratio</span>
+                </div>
+                <div className="font-bold text-brand-amber tabular-nums">{financialMetrics.riskRewardRatio}x</div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:space-x-1.5 no-print ml-auto sm:ml-0">
               <button
                 onClick={handleDownloadMarkdown}
                 title="Download Report as Markdown (.md) File"
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-dark-800 hover:bg-dark-700 border border-brand-emerald/40 text-xs font-mono text-brand-emerald transition-colors active:scale-95 shadow-sm"
+                className="flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-750 border border-dark-700 text-slate-300 hover:text-brand-cyan text-xs font-mono transition-colors active:scale-95"
               >
                 {downloaded ? <Check className="w-3.5 h-3.5 text-brand-emerald" /> : <Download className="w-3.5 h-3.5" />}
-                <span>{downloaded ? 'Downloaded' : 'Download MD'}</span>
+                <span className="hidden md:inline">{downloaded ? 'Downloaded' : 'Download MD'}</span>
               </button>
 
               <button
                 onClick={handlePrint}
-                title="Print or Save Institutional PDF Report"
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-dark-800 hover:bg-dark-700 border border-dark-600 text-xs font-mono text-slate-200 transition-colors active:scale-95"
+                title="Print or Export Institutional PDF"
+                className="flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-750 border border-dark-700 text-slate-300 hover:text-slate-100 text-xs font-mono transition-colors active:scale-95"
               >
-                <Printer className="w-3.5 h-3.5 text-brand-cyan" />
-                <span>Export PDF</span>
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Export PDF</span>
               </button>
 
               <button
                 onClick={handleCopyMarkdown}
-                title="Copy Full Report Markdown to Clipboard"
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-dark-800 hover:bg-dark-700 border border-dark-600 text-xs font-mono text-slate-200 transition-colors active:scale-95"
+                title="Copy Active Section to Clipboard"
+                className="flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-750 border border-dark-700 text-slate-300 hover:text-slate-100 text-xs font-mono transition-colors active:scale-95"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-brand-emerald" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copied' : 'Copy MD'}</span>
+                <span className="hidden md:inline">{copied ? 'Copied' : 'Copy MD'}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Executive Summary Card */}
+        {/* Executive Thesis Callout */}
         {report.executive_summary && (
-          <div className="mt-4 p-4 rounded-xl bg-dark-850/80 border border-dark-700/80 shadow-inner">
-            <h4 className="text-xs font-bold text-slate-300 uppercase font-mono tracking-wider mb-1.5 flex items-center space-x-1.5">
-              <span>Portfolio Manager Executive Thesis</span>
+          <div className="mt-4 p-4 rounded-xl bg-dark-850/80 border border-dark-700/80">
+            <h4 className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+              Portfolio Manager Executive Thesis
             </h4>
-            <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-line font-sans">
+            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans">
               {report.executive_summary}
             </p>
           </div>
         )}
       </div>
 
-      {/* Report Tabs Navigation */}
-      <div className="px-6 border-b border-dark-700/60 bg-dark-900 flex space-x-2 no-print">
-        {[
-          { id: 'overview', label: 'Complete Report', icon: <FileText className="w-3.5 h-3.5" /> },
-          { id: 'market', label: 'Technicals & Indicators', icon: <TrendingUp className="w-3.5 h-3.5" /> },
-          { id: 'sentiment', label: 'Social Sentiment', icon: <Smile className="w-3.5 h-3.5" /> },
-          { id: 'news', label: 'Macro & Prediction', icon: <Globe className="w-3.5 h-3.5" /> },
-          { id: 'fundamentals', label: 'Financial Statements', icon: <BarChart3 className="w-3.5 h-3.5" /> },
-        ].map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id as any)}
-            className={`flex items-center space-x-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all ${
-              activeTab === t.id
-                ? 'border-brand-emerald text-brand-emerald'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {t.icon}
-            <span>{t.label}</span>
-          </button>
-        ))}
+      {/* Sub-Report Navigation Tabs */}
+      <div className="px-3 sm:px-6 pt-3 border-b border-dark-700/60 bg-dark-900 flex items-center space-x-1 sm:space-x-2 overflow-x-auto no-scrollbar shrink-0 no-print">
+        {reportTabs.map((t) => {
+          const isActive = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key as any)}
+              className={`flex items-center space-x-1.5 px-3 py-2 border-b-2 text-xs font-medium transition-all shrink-0 ${
+                isActive
+                  ? 'border-brand-emerald text-brand-emerald bg-brand-emerald/5'
+                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-dark-600'
+              }`}
+            >
+              {t.icon}
+              <span>{t.label}</span>
+              {t.hasData && (
+                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-brand-emerald' : 'bg-slate-600'}`} />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-
-      {/* Tab Content Display */}
-      <div className="p-6 font-sans">
-        <div className="max-w-4xl mx-auto glass-panel p-6 rounded-xl border border-dark-700/80 leading-relaxed text-slate-200 text-xs">
-          {activeTab === 'overview' && <MarkdownRenderer content={report.complete_report_md || ''} />}
-          {activeTab === 'market' && <MarkdownRenderer content={report.market_report_md || ''} />}
-          {activeTab === 'sentiment' && <MarkdownRenderer content={report.sentiment_report_md || ''} />}
-          {activeTab === 'news' && <MarkdownRenderer content={report.news_report_md || ''} />}
-          {activeTab === 'fundamentals' && <MarkdownRenderer content={report.fundamentals_report_md || ''} />}
-        </div>
+      {/* Report Markdown Content */}
+      <div className="flex-1 p-4 sm:p-8 max-w-5xl mx-auto w-full">
+        {activeContent ? (
+          <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-dark-700/80 shadow-xl printable-content">
+            <div className="markdown-body">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {activeContent}
+              </ReactMarkdown>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-20 text-xs font-mono text-slate-500">
+            No specific analysis notes recorded for this section.
+          </div>
+        )}
       </div>
     </div>
-  );
-};
-
-const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
-  if (!content || !content.trim()) {
-    return <div className="text-slate-500 italic py-4">No report content recorded for this section.</div>;
-  }
-
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        h1: ({ node, ...props }) => (
-          <h1 className="text-base font-bold text-slate-100 border-b border-dark-700 pb-2 mb-4 mt-6 first:mt-0 font-mono flex items-center gap-2" {...props} />
-        ),
-        h2: ({ node, ...props }) => (
-          <h2 className="text-sm font-bold text-brand-emerald mb-3 mt-5 font-mono" {...props} />
-        ),
-        h3: ({ node, ...props }) => (
-          <h3 className="text-xs font-bold text-brand-cyan mb-2 mt-4 font-mono uppercase tracking-wider" {...props} />
-        ),
-        h4: ({ node, ...props }) => (
-          <h4 className="text-xs font-semibold text-slate-300 mb-1.5 mt-3 font-mono" {...props} />
-        ),
-        p: ({ node, ...props }) => (
-          <p className="mb-3 leading-relaxed text-slate-300 text-xs font-sans" {...props} />
-        ),
-        ul: ({ node, ...props }) => (
-          <ul className="list-disc list-inside space-y-1 mb-3 text-slate-300 text-xs font-sans" {...props} />
-        ),
-        ol: ({ node, ...props }) => (
-          <ol className="list-decimal list-inside space-y-1 mb-3 text-slate-300 text-xs font-sans" {...props} />
-        ),
-        li: ({ node, ...props }) => (
-          <li className="text-slate-300 leading-relaxed" {...props} />
-        ),
-        table: ({ node, ...props }) => (
-          <div className="overflow-x-auto my-4 rounded-lg border border-dark-700/80 shadow-sm">
-            <table className="min-w-full divide-y divide-dark-700 text-xs font-mono" {...props} />
-          </div>
-        ),
-        thead: ({ node, ...props }) => (
-          <thead className="bg-dark-800 text-slate-200" {...props} />
-        ),
-        th: ({ node, ...props }) => (
-          <th className="px-3 py-2 text-left font-bold border-b border-dark-700 text-[11px] tracking-wider uppercase text-slate-400" {...props} />
-        ),
-        td: ({ node, ...props }) => (
-          <td className="px-3 py-2 border-b border-dark-800/60 text-slate-300 text-[11px]" {...props} />
-        ),
-        blockquote: ({ node, ...props }) => (
-          <blockquote className="border-l-2 border-brand-cyan bg-dark-850/60 px-3 py-2 my-3 text-xs italic text-slate-300 rounded-r" {...props} />
-        ),
-        code: ({ node, inline, ...props }: any) => (
-          inline ? (
-            <code className="px-1.5 py-0.5 rounded bg-dark-800 text-brand-cyan font-mono text-[11px]" {...props} />
-          ) : (
-            <pre className="p-3 my-3 rounded-lg bg-dark-900 border border-dark-700 font-mono text-[11px] text-slate-200 overflow-x-auto" {...props} />
-          )
-        ),
-        strong: ({ node, ...props }) => (
-          <strong className="font-bold text-slate-100" {...props} />
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
   );
 };
 

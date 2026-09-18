@@ -10,6 +10,7 @@ from typing import Any
 
 from ..core.config import settings
 from ..core.database import db
+from ..core.security import sanitize_sensitive_data, sanitize_sensitive_text
 from .runner import run_analysis_task
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,9 @@ class JobManager:
 
     def _broadcast_event(self, job_id: str, event_type: str, data: dict[str, Any]):
         """Persist event to DB and broadcast to all active SSE subscribers."""
+        # Sanitize data to prevent sensitive key/secret leakage
+        data = sanitize_sensitive_data(data)
+
         # 1. Persist in database
         try:
             db.add_event(job_id, event_type, data)
@@ -207,9 +211,10 @@ class JobManager:
             self._broadcast_event(job_id, "job_cancelled", {"job_id": job_id})
         except Exception as e:
             completed_at = datetime.utcnow().isoformat() + "Z"
-            logger.error(f"Unhandled error in _execute_job {job_id}: {e}")
-            db.update_job_status(job_id, status="failed", current_stage="Failed with error", error_message=str(e), completed_at=completed_at)
-            self._broadcast_event(job_id, "job_failed", {"job_id": job_id, "error": str(e)})
+            safe_err = sanitize_sensitive_text(str(e))
+            logger.error(f"Unhandled error in _execute_job {job_id}: {safe_err}")
+            db.update_job_status(job_id, status="failed", current_stage="Failed with error", error_message=safe_err, completed_at=completed_at)
+            self._broadcast_event(job_id, "job_failed", {"job_id": job_id, "error": safe_err})
         finally:
             self._cancel_events.pop(job_id, None)
             async with self._lock:
