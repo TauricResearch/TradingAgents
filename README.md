@@ -190,6 +190,10 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
 
+To supply the agents' answers from an assistant in your current chat instead of
+an LLM API, use the optional [conversation provider](CONVERSATION.md). This is an
+active file-exchange workflow, not an unattended model endpoint.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
