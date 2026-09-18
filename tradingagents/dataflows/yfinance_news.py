@@ -7,7 +7,8 @@ import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
-from .date_window import in_window
+from .date_window import coverage_gap, in_window
+from .errors import NoMarketDataError
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
 
@@ -84,10 +85,7 @@ def get_news_yfinance(
     resolved = "" if canonical == ticker else f" (resolved to {canonical})"
     try:
         stock = yf.Ticker(canonical)
-        news = yf_retry(lambda: stock.get_news(count=article_limit))
-
-        if not news:
-            return f"No news found for {ticker}{resolved}"
+        news = yf_retry(lambda: stock.get_news(count=article_limit)) or []
 
         # Parse date range for filtering
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -112,12 +110,16 @@ def get_news_yfinance(
             filtered_count += 1
 
         if filtered_count == 0:
-            return f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
+            gap = coverage_gap(
+                (_extract_article_data(a)["pub_date"] for a in news),
+                start_date, end_date, "Yahoo Finance news", f"news for {ticker}{resolved}",
+            )
+            return gap or f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
 
         return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
 
     except Exception as e:
-        return f"Error fetching news for {ticker}: {str(e)}"
+        raise NoMarketDataError(ticker, ticker, f"news unavailable: {e}") from e
 
 
 def get_global_news_yfinance(
@@ -145,7 +147,11 @@ def get_global_news_yfinance(
         limit = config["global_news_article_limit"]
     search_queries = config["global_news_queries"]
 
-    all_news = []
+    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_dt = curr_dt - relativedelta(days=look_back_days)
+    start_date = start_dt.strftime("%Y-%m-%d")
+
+    in_window_news = []
     seen_titles = set()
 
     try:
@@ -156,53 +162,39 @@ def get_global_news_yfinance(
                 enable_fuzzy_query=True,
             ))
 
-            if search.news:
-                for article in search.news:
-                    # Handle both flat and nested structures
-                    if "content" in article:
-                        data = _extract_article_data(article)
-                        title = data["title"]
-                    else:
-                        title = article.get("title", "")
+            for article in search.news or []:
+                # Window first: the limit counts what the run may read, so an
+                # out-of-window article must not spend the budget or cut the
+                # remaining searches short (#1356). Flat articles are filtered
+                # on the same rule, so none can leak future news (#1007).
+                data = _extract_article_data(article)
+                if not in_window(data["pub_date"], start_dt, curr_dt):
+                    continue
+                if data["title"] and data["title"] not in seen_titles:
+                    seen_titles.add(data["title"])
+                    in_window_news.append(data)
 
-                    # Deduplicate by title
-                    if title and title not in seen_titles:
-                        seen_titles.add(title)
-                        all_news.append(article)
-
-            if len(all_news) >= limit:
+            if len(in_window_news) >= limit:
                 break
 
-        if not all_news:
-            return f"No global news found for {curr_date}"
-
-        # Calculate date range
-        curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-        start_dt = curr_dt - relativedelta(days=look_back_days)
-        start_date = start_dt.strftime("%Y-%m-%d")
-
         news_str = ""
-        kept = 0
-        for article in all_news[:limit]:
-            # Extract uniformly (flat + nested) and apply the same look-ahead-safe
-            # window filter, so flat articles can't leak future news (#1007).
-            data = _extract_article_data(article)
-            if not in_window(data["pub_date"], start_dt, curr_dt):
-                continue
+        for data in in_window_news[:limit]:
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
                 news_str += f"{data['summary']}\n"
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
             news_str += "\n"
-            kept += 1
 
-        # All candidates fell outside the window -> say so rather than return an
+        # Nothing fell inside the window -> say so rather than return an
         # empty-bodied report (#993).
-        if kept == 0:
-            return f"No global news found between {start_date} and {curr_date}"
+        if not news_str:
+            # Results merge several fuzzy searches, so their timestamps prove no
+            # continuous coverage; judge the window against the present only.
+            gap = coverage_gap((), start_date, curr_date, "Yahoo Finance global news", "market news")
+            return gap or f"No global news found between {start_date} and {curr_date}"
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
     except Exception as e:
-        return f"Error fetching global news: {str(e)}"
+        raise NoMarketDataError("global news", "global news", f"unavailable: {e}") from e

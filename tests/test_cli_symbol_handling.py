@@ -60,3 +60,16 @@ def test_cli_normalize_delegates_to_data_layer():
     # CLI must produce the same canonical symbol the data path will price.
     for raw in ("XAUUSD", "BTCUSD", "btc-usdt", "AAPL"):
         assert normalize_ticker_symbol(raw) == normalize_symbol(raw)
+
+
+@pytest.mark.unit
+def test_the_run_directory_cannot_escape_the_results_directory(tmp_path, monkeypatch):
+    """Every other path that interpolates a ticker validates it first; the CLI's
+    own results tree did not, so a ticker of '..' wrote a level up."""
+    import cli.main as m
+
+    with pytest.raises(ValueError):
+        m._run_directory({"results_dir": str(tmp_path)}, "..", "2026-09-01")
+
+    ok = m._run_directory({"results_dir": str(tmp_path)}, "NVDA", "2026-09-01")
+    assert str(ok).startswith(str(tmp_path))

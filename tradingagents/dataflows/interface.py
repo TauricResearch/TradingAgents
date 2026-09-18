@@ -19,6 +19,11 @@ from .errors import (
 )
 from .fred import get_macro_data as get_fred_macro_data
 from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
+from .sec_edgar import (
+    get_balance_sheet as get_sec_edgar_balance_sheet,
+    get_cashflow as get_sec_edgar_cashflow,
+    get_income_statement as get_sec_edgar_income_statement,
+)
 from .y_finance import (
     get_balance_sheet as get_yfinance_balance_sheet,
     get_cashflow as get_yfinance_cashflow,
@@ -79,6 +84,7 @@ TOOLS_CATEGORIES = {
 
 VENDOR_LIST = [
     "yfinance",
+    "sec_edgar",
     "fred",
     "polymarket",
     "alpha_vantage",
@@ -110,14 +116,17 @@ VENDOR_METHODS = {
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
+        "sec_edgar": get_sec_edgar_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
+        "sec_edgar": get_sec_edgar_cashflow,
         "yfinance": get_yfinance_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
+        "sec_edgar": get_sec_edgar_income_statement,
         "yfinance": get_yfinance_income_statement,
     },
     # news_data
@@ -193,6 +202,7 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_chain = all_available_vendors
 
     last_no_data: NoMarketDataError | None = None
+    last_unavailable: VendorRateLimitError | None = None
     first_error: Exception | None = None
     for vendor in vendor_chain:
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -200,8 +210,11 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except VendorRateLimitError:
-            logger.warning("Vendor %r rate-limited for %s; trying next vendor.", vendor, method)
+        except VendorRateLimitError as e:
+            logger.warning("Vendor %r unavailable for %s: %s; trying next vendor.", vendor, method, e)
+            # Kept so an all-unavailable chain can say the vendor was the
+            # problem, rather than reporting nothing about the symbol.
+            last_unavailable = e
             continue
         except VendorNotConfiguredError as e:
             logger.warning("Vendor %r not configured for %s; trying next vendor.", vendor, method)
@@ -250,6 +263,15 @@ def route_to_vendor(method: str, *args, **kwargs):
     # first real error (e.g. the primary vendor's network failure). Optional
     # enrichment categories degrade to a sentinel instead, so flavour data can't
     # abort the run.
+    # Every vendor was throttled or unreachable: that is a fact about the
+    # vendors, not about the instrument, and it must not end the run.
+    if last_unavailable is not None:
+        return (
+            f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
+            f"({last_unavailable}). This says nothing about the instrument; report the "
+            f"data as unavailable and do not estimate or fabricate values."
+        )
+
     if first_error is not None:
         if category in OPTIONAL_CATEGORIES:
             logger.warning("Optional %s unavailable for %s: %s", category, method, first_error)

@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.interface import route_to_vendor
 
@@ -13,6 +14,7 @@ def get_prediction_markets(
         "'US election', or a sector/company event.",
     ],
     limit: Annotated[int | None, "Max markets to return; omit for a default of 6"] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
     Retrieve live, market-implied probabilities for forward-looking events from
@@ -28,4 +30,4 @@ def get_prediction_markets(
     Returns:
         str: A formatted markdown report of matching prediction markets
     """
-    return route_to_vendor("get_prediction_markets", topic, limit)
+    return route_to_vendor("get_prediction_markets", topic, limit, trade_date or None)

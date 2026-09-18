@@ -17,9 +17,10 @@ from tradingagents.llm_clients.openai_client import (
     "model,expected",
     [
         ("gpt-5.5", True), ("gpt-5.4", True), ("gpt-5.4-mini", True),
-        ("gpt-5.5-pro", True), ("o1", True), ("o3-mini", True),
+        ("gpt-5.5-pro", True), ("gpt-6-astra", True), ("o1", True), ("o3-mini", True),
         ("gpt-4.1", False), ("gpt-4o", False), ("gpt-4o-mini", False),
-        ("gpt-3.5-turbo", False),
+        ("gpt-3.5-turbo", False), ("gpt-10", True),
+        ("gpt-5foo", False), ("gpt-60x", False), ("o3rd-party", False),
     ],
 )
 def test_supports_reasoning_effort(model, expected):

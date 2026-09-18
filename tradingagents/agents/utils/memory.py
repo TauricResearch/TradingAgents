@@ -36,11 +36,14 @@ class TradingMemoryLog:
         """Append pending entry at end of propagate(). No LLM call."""
         if not self._log_path:
             return
-        # Idempotency guard: fast raw-text scan instead of full parse
+        # Idempotency guard: fast raw-text scan instead of full parse. Any entry
+        # for this ticker and date blocks another, pending or settled: a re-run
+        # after the outcome landed would otherwise count the same decision twice
+        # in past context and in every aggregate over the log.
         if self._log_path.exists():
             raw = self._log_path.read_text(encoding="utf-8")
             for line in raw.splitlines():
-                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("| pending]"):
+                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("]"):
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"

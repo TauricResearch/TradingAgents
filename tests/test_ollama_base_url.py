@@ -197,3 +197,28 @@ def test_ollama_offers_custom_model_id():
         assert "custom" in values, f"Ollama {mode!r} missing 'custom' option: {entries}"
         # Custom option is last so it doesn't push the curated defaults off-screen
         assert values[-1] == "custom", f"'custom' should be last entry: {values}"
+
+
+@pytest.mark.unit
+def test_structured_output_suppresses_object_tool_choice(monkeypatch):
+    """Ollama rejects the object-form tool_choice like other local servers
+    (#1062), and a local model ID has no capability entry saying otherwise, so
+    it takes the same client as the generic local endpoint."""
+    from langchain_openai import ChatOpenAI
+    from pydantic import BaseModel
+
+    from tradingagents.llm_clients import create_llm_client
+
+    class Schema(BaseModel):
+        x: int
+
+    captured = {}
+    monkeypatch.setattr(
+        ChatOpenAI,
+        "with_structured_output",
+        lambda self, schema, method=None, **kw: captured.update({"method": method, **kw}) or "BOUND",
+    )
+
+    create_llm_client(provider="ollama", model="qwen3:30b").get_llm().with_structured_output(Schema)
+
+    assert captured["tool_choice"] is None

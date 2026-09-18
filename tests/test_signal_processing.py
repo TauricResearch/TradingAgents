@@ -56,8 +56,9 @@ class TestParseRating:
         )
         assert parse_rating(text) == "Sell"
 
-    def test_no_rating_returns_default(self):
-        assert parse_rating("No clear directional signal at this time.") == "Hold"
+    def test_no_rating_is_flagged_for_review_not_defaulted(self):
+        # A decision nobody can read is not a Hold; recording one invents a call.
+        assert parse_rating("No clear directional signal at this time.") == RATING_REVIEW
 
     def test_no_rating_custom_default(self):
         assert parse_rating("Plain prose.", default="Underweight") == "Underweight"
@@ -116,9 +117,9 @@ class TestExtractRating:
         # substrings inside larger words must not match
         assert extract_rating("The buyer was holding shares.") is None
 
-    def test_parse_rating_keeps_silent_default_for_compat(self):
-        # parse_rating (used by the memory log) intentionally keeps Hold default.
-        assert parse_rating("No rating here.") == "Hold"
+    def test_parse_rating_defaults_to_review(self):
+        # The memory log tags an unreadable decision REVIEW, never a tradeable rating.
+        assert parse_rating("No rating here.") == RATING_REVIEW
         assert parse_rating("No rating here.", default="Underweight") == "Underweight"
 
 

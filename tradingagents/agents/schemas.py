@@ -39,7 +39,12 @@ def _coerce_optional_float(value):
     cannot be salvaged into an absolute level -- reading "15%" as 15 would put a
     stop at $15 on a $600 stock -- so it is dropped like a placeholder, leaving
     one bad field to null out instead of failing the whole proposal. A formatted
-    price is reduced to its number. Anything else passes through to pydantic.
+    price is reduced to its number.
+
+    Anything that is not a single number is dropped the same way. A range
+    ("150-160") or a hedge ("around 150") would otherwise reach pydantic, fail
+    validation, and discard the whole decision, losing every field the model got
+    right along with the price.
     """
     if not isinstance(value, str):
         return value
@@ -47,7 +52,10 @@ def _coerce_optional_float(value):
     if text.lower() in _NULLISH_FLOAT or text.endswith("%"):
         return None
     cleaned = text.replace(",", "").lstrip("$€£¥").strip()
-    return cleaned or None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -96,11 +104,10 @@ class ResearchPlan(BaseModel):
     recommendation: PortfolioRating = Field(
         description=(
             "The investment recommendation. Exactly one of Buy / Overweight / "
-            "Hold / Underweight / Sell. Choose Hold when the evidence is "
-            "balanced, materially conflicting, ambiguous, or insufficient to "
-            "justify changing exposure; otherwise commit to the side with the "
-            "clearly stronger arguments. Do not pick a direction merely to be "
-            "decisive."
+            "Hold / Underweight / Sell. Conflicting arguments alone are not a "
+            "reason to Hold: commit to the stronger side, sized by how "
+            "decisively it wins. Choose Hold only when the evidence is still "
+            "balanced after weighing, or too thin to support a call."
         ),
     )
     rationale: str = Field(
@@ -113,7 +120,9 @@ class ResearchPlan(BaseModel):
     strategic_actions: str = Field(
         description=(
             "Concrete steps for the trader to implement the recommendation, "
-            "including position sizing guidance consistent with the rating."
+            "including sizing guidance relative to a standard allocation. The "
+            "research team does not see the caller's holdings; the trader and "
+            "portfolio manager apply the actual position."
         ),
     )
 
@@ -191,12 +200,12 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         "",
         f"**Reasoning**: {proposal.reasoning}",
     ]
-    if proposal.entry_price is not None:
-        parts.extend(["", f"**Entry Price**: {proposal.entry_price}"])
-    if proposal.stop_loss is not None:
-        parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
-    if proposal.position_sizing:
-        parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
+    # Named even when absent, so a reader can tell a level the trader chose not
+    # to give from one the schema never asked for.
+    for label, value in (("Entry Price", proposal.entry_price),
+                         ("Stop Loss", proposal.stop_loss),
+                         ("Position Sizing", proposal.position_sizing)):
+        parts.extend(["", f"**{label}**: {value if value is not None and value != '' else 'not provided'}"])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
@@ -221,10 +230,11 @@ class PortfolioDecision(BaseModel):
     rating: PortfolioRating = Field(
         description=(
             "The final position rating. Exactly one of Buy / Overweight / Hold / "
-            "Underweight / Sell, picked based on the analysts' debate. Choose "
-            "Hold when the case is balanced, materially conflicting, ambiguous, "
-            "or insufficient to justify changing exposure, rather than forcing a "
-            "direction to appear decisive."
+            "Underweight / Sell, picked based on the analysts' debate. "
+            "Conflicting arguments alone are not a reason to Hold: commit to the "
+            "stronger side, sized by how decisively it wins. Choose Hold only "
+            "when the evidence is still balanced after weighing, or too thin to "
+            "support a call."
         ),
     )
     executive_summary: str = Field(
@@ -270,10 +280,11 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
         "",
         f"**Investment Thesis**: {decision.investment_thesis}",
     ]
-    if decision.price_target is not None:
-        parts.extend(["", f"**Price Target**: {decision.price_target}"])
-    if decision.time_horizon:
-        parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+    # Named even when absent: a missing line reads as a field nobody asked for,
+    # so a reader cannot tell "no target" from "target not reported".
+    target = decision.price_target if decision.price_target is not None else "not provided"
+    parts.extend(["", f"**Price Target**: {target}"])
+    parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'not provided'}"])
     return "\n".join(parts)
 
 

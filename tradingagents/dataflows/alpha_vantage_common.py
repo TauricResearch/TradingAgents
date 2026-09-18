@@ -4,9 +4,9 @@ from datetime import datetime
 from io import StringIO
 
 import pandas as pd
-import requests
 
 from .errors import VendorNotConfiguredError, VendorRateLimitError
+from .utils import get_scrubbed
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -34,8 +34,13 @@ def get_api_key() -> str:
         )
     return api_key
 
-def format_datetime_for_api(date_input) -> str:
-    """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
+def format_datetime_for_api(date_input, end_of_day: bool = False) -> str:
+    """Convert various date formats to the YYYYMMDDTHHMM Alpha Vantage expects.
+
+    A plain date means midnight, which is the start of that day. For the end of
+    a window pass ``end_of_day`` so the day itself is inside it, rather than
+    dropping everything published on the analysis date.
+    """
     if isinstance(date_input, str):
         # If already in correct format, return as-is
         if len(date_input) == 13 and 'T' in date_input:
@@ -43,7 +48,7 @@ def format_datetime_for_api(date_input) -> str:
         # Try to parse common date formats
         try:
             dt = datetime.strptime(date_input, "%Y-%m-%d")
-            return dt.strftime("%Y%m%dT0000")
+            return dt.strftime("%Y%m%dT2359" if end_of_day else "%Y%m%dT0000")
         except ValueError:
             try:
                 dt = datetime.strptime(date_input, "%Y-%m-%d %H:%M")
@@ -66,10 +71,11 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         AlphaVantageRateLimitError: When API rate limit is exceeded
     """
     # Create a copy of params to avoid modifying the original
+    api_key = get_api_key()
     api_params = params.copy()
     api_params.update({
         "function": function_name,
-        "apikey": get_api_key(),
+        "apikey": api_key,
         "source": "trading_agents",
     })
 
@@ -83,8 +89,9 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
 
-    response = requests.get(API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT)
-    response.raise_for_status()
+    response = get_scrubbed(
+        API_BASE_URL, params=api_params, timeout=REQUEST_TIMEOUT, secret=api_key
+    )
 
     response_text = response.text
 

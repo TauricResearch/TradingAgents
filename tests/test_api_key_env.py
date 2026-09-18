@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import stat
 from unittest.mock import patch
 
 import pytest
@@ -146,3 +147,47 @@ def test_ensure_api_key_updates_existing_env_file(monkeypatch, tmp_path, cli_uti
     assert "OPENAI_API_KEY" in content and "sk-existing" in content
     assert "OTHER=value" in content
     assert "OPENROUTER_API_KEY" in content and "sk-openrouter-new" in content
+
+
+def _prompt_key(cli_utils, monkeypatch, tmp_path, key="sk-typed-in"):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(cli_utils, "find_dotenv", lambda **k: "")
+    with patch.object(cli_utils, "questionary") as mock_q:
+        mock_q.password.return_value.ask.return_value = key
+        cli_utils.ensure_api_key("openai")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_saved_key_file_is_owner_only(monkeypatch, cli_utils, tmp_path):
+    # The prompt writes a real credential; the file must not be readable by
+    # other local users whatever the umask is.
+    old = os.umask(0o002)
+    try:
+        _prompt_key(cli_utils, monkeypatch, tmp_path)
+    finally:
+        os.umask(old)
+    env = tmp_path / ".env"
+    assert "sk-typed-in" in env.read_text()
+    assert stat.S_IMODE(env.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_existing_key_file_is_tightened_before_writing(monkeypatch, cli_utils, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("OTHER=1\n")
+    os.chmod(env, 0o664)
+    _prompt_key(cli_utils, monkeypatch, tmp_path)
+    assert stat.S_IMODE(env.stat().st_mode) == 0o600
+    assert "OTHER=1" in env.read_text()
+
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_read_only_key_file_is_still_updated(monkeypatch, cli_utils, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("OTHER=1\n")
+    os.chmod(env, 0o400)
+    _prompt_key(cli_utils, monkeypatch, tmp_path)
+    assert "sk-typed-in" in env.read_text()
+    assert stat.S_IMODE(env.stat().st_mode) == 0o600

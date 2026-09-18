@@ -77,8 +77,8 @@ class TestCliSkipsPromptsFromEnv(unittest.TestCase):
         # The env values flow into the returned selections.
         self.assertEqual(sel["llm_provider"], "openai")
         self.assertEqual(sel["backend_url"], "https://opencode.ai/zen/go/v1")
-        self.assertEqual(sel["shallow_thinker"], "deepseek-v4-pro")
-        self.assertEqual(sel["deep_thinker"], "kimi-k2.5")
+        self.assertEqual(sel["quick_think_llm"], "deepseek-v4-pro")
+        self.assertEqual(sel["deep_think_llm"], "kimi-k2.5")
         self.assertEqual(sel["output_language"], "Japanese")
 
 

@@ -1,6 +1,7 @@
 import logging
 
-from .alpha_vantage_common import AlphaVantageNotConfiguredError, _make_api_request
+from .alpha_vantage_common import _make_api_request
+from .errors import NoMarketDataError, VendorError
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +65,11 @@ def get_indicator(
     }
 
     if indicator not in supported_indicators:
-        raise ValueError(
-            f"Indicator {indicator} is not supported. Please choose from: {list(supported_indicators.keys())}"
+        # A vendor error, not a caller error: another vendor may compute it, and
+        # the router decides. yfinance rejects a name nobody serves.
+        raise NoMarketDataError(
+            symbol, symbol,
+            f"Alpha Vantage does not serve {indicator}; it serves {list(supported_indicators)}"
         )
 
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -134,12 +138,13 @@ def get_indicator(
                 "time_period": str(time_period),
                 "datatype": "csv"
             })
-        elif indicator == "vwma":
-            # Alpha Vantage doesn't have direct VWMA, so we'll return an informative message
-            # In a real implementation, this would need to be calculated from OHLCV data
-            return f"## VWMA (Volume Weighted Moving Average) for {symbol}:\n\nVWMA calculation requires OHLCV data and is not directly available from Alpha Vantage API.\nThis indicator would need to be calculated from the raw stock data using volume-weighted price averaging.\n\n{indicator_descriptions.get('vwma', 'No description available.')}"
         else:
-            return f"Error: Indicator {indicator} not implemented yet."
+            # This vendor has no endpoint for the indicator. Raising lets the
+            # router try the next vendor, which computes it; returning prose
+            # counted as a successful answer and ended the chain here.
+            raise NoMarketDataError(
+                symbol, symbol, f"Alpha Vantage does not serve the {indicator} indicator"
+            )
 
         # Parse CSV data and extract values for the date range
         lines = data.strip().split('\n')
@@ -209,11 +214,11 @@ def get_indicator(
 
         return result_str
 
-    except AlphaVantageNotConfiguredError:
-        # Vendor unavailable (no API key). Let it propagate so the router can
-        # fall back / emit the no-data sentinel instead of returning this as a
-        # successful-looking error string.
+    except VendorError:
+        # Unavailable vendor, throttle, or an indicator this vendor does not
+        # serve. Let it propagate so the router falls back to a vendor that can,
+        # instead of returning the failure as a successful-looking string.
         raise
     except Exception as e:
         logger.warning("Alpha Vantage indicator %s failed: %s", indicator, e)
-        return f"Error retrieving {indicator} data: {str(e)}"
+        raise NoMarketDataError(symbol, symbol, f"{indicator} unavailable: {e}") from e

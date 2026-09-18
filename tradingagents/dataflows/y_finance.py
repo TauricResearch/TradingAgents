@@ -7,14 +7,19 @@ import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .date_window import withhold_live_profile
+from .errors import VendorError, VendorRateLimitError
 from .stockstats_utils import (
     StockstatsUtils,
     _assert_ohlcv_not_stale,
     filter_financials_by_date,
     load_ohlcv,
+    raise_for_empty,
     yf_retry,
 )
 from .symbol_utils import NoMarketDataError, normalize_symbol
+from .utils import vendor_reachable
+
+_YAHOO_HOST = "https://query2.finance.yahoo.com"
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +47,7 @@ def get_YFin_data_online(
     # instead of returning prose: the routing layer turns it into a single
     # unambiguous "no data" signal so the agent never fabricates a price.
     if data.empty:
-        raise NoMarketDataError(
-            symbol, canonical, f"no rows between {start_date} and {end_date}"
-        )
+        raise_for_empty(symbol, canonical, f"rows between {start_date} and {end_date}")
 
     # Remove timezone info from index for cleaner output
     if data.index.tz is not None:
@@ -189,7 +192,7 @@ def get_stock_stats_indicators_window(
         for date_str, value in date_values:
             ind_string += f"{date_str}: {value}\n"
 
-    except NoMarketDataError:
+    except VendorError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
     except Exception as e:
         logger.warning("Bulk stockstats fetch failed, falling back per-day: %s", e)
@@ -264,11 +267,15 @@ def get_stockstats_indicator(
             indicator,
             curr_date,
         )
-    except NoMarketDataError:
+    except VendorError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
     except Exception as e:
-        logger.warning("Stockstats indicator %s failed on %s: %s", indicator, curr_date, e)
-        return ""
+        # An empty string renders as "2026-05-08: " in the indicator table, which
+        # reads as no value that day rather than a read that failed. Raise so the
+        # router can try the next vendor or report the series unavailable.
+        raise NoMarketDataError(
+            symbol, symbol, f"{indicator} could not be read for {curr_date}: {e}"
+        ) from e
 
     return str(indicator_value)
 
@@ -296,7 +303,7 @@ def get_fundamentals(
         info = yf_retry(lambda: ticker_obj.info)
 
         if not info:
-            raise NoMarketDataError(ticker, canonical, "no fundamentals returned")
+            raise_for_empty(ticker, canonical, "fundamentals")
 
         fields = [
             ("Name", info.get("longName")),
@@ -343,10 +350,10 @@ def get_fundamentals(
 
         return header + "\n".join(lines)
 
-    except NoMarketDataError:
+    except VendorError:
         raise
     except Exception as e:
-        return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+        raise NoMarketDataError(ticker, canonical, f"fundamentals unavailable: {e}") from e
 
 
 def get_balance_sheet(
@@ -367,21 +374,22 @@ def get_balance_sheet(
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
-            raise NoMarketDataError(ticker, canonical, "no balance sheet data")
+            raise_for_empty(ticker, canonical, "balance sheet data")
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
 
         # Add header information
         header = f"# Balance Sheet data for {canonical} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        header += _PERIOD_END_VINTAGE
 
         return header + csv_string
 
-    except NoMarketDataError:
+    except VendorError:
         raise
     except Exception as e:
-        return f"Error retrieving balance sheet for {ticker}: {str(e)}"
+        raise NoMarketDataError(ticker, canonical, f"balance sheet unavailable: {e}") from e
 
 
 def get_cashflow(
@@ -402,21 +410,22 @@ def get_cashflow(
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
-            raise NoMarketDataError(ticker, canonical, "no cash flow data")
+            raise_for_empty(ticker, canonical, "cash flow data")
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
 
         # Add header information
         header = f"# Cash Flow data for {canonical} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        header += _PERIOD_END_VINTAGE
 
         return header + csv_string
 
-    except NoMarketDataError:
+    except VendorError:
         raise
     except Exception as e:
-        return f"Error retrieving cash flow for {ticker}: {str(e)}"
+        raise NoMarketDataError(ticker, canonical, f"cash flow unavailable: {e}") from e
 
 
 def get_income_statement(
@@ -437,25 +446,49 @@ def get_income_statement(
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
-            raise NoMarketDataError(ticker, canonical, "no income statement data")
+            raise_for_empty(ticker, canonical, "income statement data")
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
 
         # Add header information
         header = f"# Income Statement data for {canonical} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        header += _PERIOD_END_VINTAGE
 
         return header + csv_string
 
-    except NoMarketDataError:
+    except VendorError:
         raise
     except Exception as e:
-        return f"Error retrieving income statement for {ticker}: {str(e)}"
+        raise NoMarketDataError(ticker, canonical, f"income statement unavailable: {e}") from e
+
+
+# Rows are dated by the transaction, which is when the insider traded, not when
+# the market learned of it: a Form 4 is filed up to two business days later and
+# this vendor reports no filing date, so the most recent rows may not have been
+# public on the analysis date.
+_TRANSACTION_DATE_VINTAGE = (
+    "# Rows are dated by transaction date. A trade becomes public when its Form 4 "
+    "is filed, up to two business days later, so the newest rows may not have been "
+    "known on this date.\n\n"
+)
+
+
+# This vendor dates a statement by the period it covers, not by the day it was
+# filed, and carries no filing date to do better. A company files weeks after its
+# period ends, so a run dated in that gap can be served figures that were not yet
+# public. Say so rather than implying the stricter guarantee (SEC EDGAR, which
+# does carry filing dates, serves US filers as filed).
+_PERIOD_END_VINTAGE = (
+    "# Periods are cut at the fiscal period end; this vendor does not report "
+    "filing dates, so the most recent period may not have been published yet.\n\n"
+)
 
 
 def get_insider_transactions(
-    ticker: Annotated[str, "ticker symbol of the company"]
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str | None, "only transactions on or before this date, yyyy-mm-dd"] = None,
 ):
     """Get insider transactions data from yfinance."""
     canonical = normalize_symbol(ticker)
@@ -466,16 +499,29 @@ def get_insider_transactions(
         # Empty is normal here (many valid symbols have no insider filings),
         # so report it plainly rather than treating the symbol as invalid.
         if data is None or data.empty:
+            if not vendor_reachable(_YAHOO_HOST):
+                raise VendorRateLimitError("Yahoo Finance is unreachable; insider filings were not retrieved")
             return f"No insider transactions reported for symbol '{canonical}'"
+
+        if curr_date:
+            traded = data["Start Date"]
+            kept = data[traded <= pd.Timestamp(curr_date)]
+            if kept.empty:
+                return (
+                    f"<insider transactions unavailable for {canonical} as of {curr_date}: "
+                    f"Yahoo serves recent transactions only (coverage starts {traded.min():%Y-%m-%d})>"
+                )
+            data = kept
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
 
         # Add header information
         header = f"# Insider Transactions data for {canonical}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        header += _TRANSACTION_DATE_VINTAGE
 
         return header + csv_string
 
     except Exception as e:
-        return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+        raise NoMarketDataError(ticker, canonical, f"insider transactions unavailable: {e}") from e
