@@ -195,17 +195,17 @@ def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
     company has no balance sheet, when the truth is we could not ask."""
     import pandas as pd
 
-    from tradingagents.dataflows import y_finance
+    from tradingagents.dataflows import stockstats_utils, y_finance
     from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
 
     empty = mock.Mock(quarterly_balance_sheet=pd.DataFrame(), balance_sheet=pd.DataFrame())
     monkeypatch.setattr(y_finance.yf, "Ticker", lambda s: empty)
 
-    monkeypatch.setattr(y_finance, "vendor_reachable", lambda url: False)
+    monkeypatch.setattr(stockstats_utils, "vendor_reachable", lambda url: False)
     with pytest.raises(VendorRateLimitError, match="unreachable"):
         y_finance.get_balance_sheet("AAPL", "annual", "2026-09-01")
 
-    monkeypatch.setattr(y_finance, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(stockstats_utils, "vendor_reachable", lambda url: True)
     with pytest.raises(NoMarketDataError):
         y_finance.get_balance_sheet("AAPL", "annual", "2026-09-01")
 
@@ -226,3 +226,23 @@ def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
 
     assert "unavailable" in out.lower() and "unreachable" in out.lower()
     assert "delisted" not in out.lower()  # not a claim about the symbol
+
+
+@pytest.mark.unit
+def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch):
+    """Prices are the most-used path, so an outage there must not read as a
+    delisted symbol either."""
+    import pandas as pd
+
+    from tradingagents.dataflows import stockstats_utils, y_finance
+    from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+
+    monkeypatch.setattr(y_finance.yf, "Ticker", lambda s: mock.Mock(history=lambda **k: pd.DataFrame()))
+
+    monkeypatch.setattr(stockstats_utils, "vendor_reachable", lambda url: False)
+    with pytest.raises(VendorRateLimitError, match="unreachable"):
+        y_finance.get_YFin_data_online("AAPL", "2026-09-01", "2026-09-10")
+
+    monkeypatch.setattr(stockstats_utils, "vendor_reachable", lambda url: True)
+    with pytest.raises(NoMarketDataError):
+        y_finance.get_YFin_data_online("AAPL", "2026-09-01", "2026-09-10")

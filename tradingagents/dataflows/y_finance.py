@@ -13,6 +13,7 @@ from .stockstats_utils import (
     _assert_ohlcv_not_stale,
     filter_financials_by_date,
     load_ohlcv,
+    raise_for_empty,
     yf_retry,
 )
 from .symbol_utils import NoMarketDataError, normalize_symbol
@@ -46,9 +47,7 @@ def get_YFin_data_online(
     # instead of returning prose: the routing layer turns it into a single
     # unambiguous "no data" signal so the agent never fabricates a price.
     if data.empty:
-        raise NoMarketDataError(
-            symbol, canonical, f"no rows between {start_date} and {end_date}"
-        )
+        raise_for_empty(symbol, canonical, f"rows between {start_date} and {end_date}")
 
     # Remove timezone info from index for cleaner output
     if data.index.tz is not None:
@@ -304,7 +303,7 @@ def get_fundamentals(
         info = yf_retry(lambda: ticker_obj.info)
 
         if not info:
-            _raise_for_empty(ticker, canonical, "fundamentals")
+            raise_for_empty(ticker, canonical, "fundamentals")
 
         fields = [
             ("Name", info.get("longName")),
@@ -375,7 +374,7 @@ def get_balance_sheet(
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
-            _raise_for_empty(ticker, canonical, "balance sheet data")
+            raise_for_empty(ticker, canonical, "balance sheet data")
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
@@ -411,7 +410,7 @@ def get_cashflow(
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
-            _raise_for_empty(ticker, canonical, "cash flow data")
+            raise_for_empty(ticker, canonical, "cash flow data")
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
@@ -447,7 +446,7 @@ def get_income_statement(
         data = filter_financials_by_date(data, curr_date)
 
         if data.empty:
-            _raise_for_empty(ticker, canonical, "income statement data")
+            raise_for_empty(ticker, canonical, "income statement data")
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
@@ -487,17 +486,6 @@ _PERIOD_END_VINTAGE = (
 )
 
 
-def _raise_for_empty(ticker: str, canonical: str, what: str) -> None:
-    """Report an empty result as an absence, or as an outage if Yahoo is down.
-
-    yfinance returns an empty frame for a failed request rather than raising, so
-    without this an outage reads as "this company reports no {what}".
-    """
-    if not vendor_reachable(_YAHOO_HOST):
-        raise VendorRateLimitError(f"Yahoo Finance is unreachable; no {what} was retrieved")
-    raise NoMarketDataError(ticker, canonical, f"no {what}")
-
-
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str | None, "only transactions on or before this date, yyyy-mm-dd"] = None,
@@ -511,6 +499,8 @@ def get_insider_transactions(
         # Empty is normal here (many valid symbols have no insider filings),
         # so report it plainly rather than treating the symbol as invalid.
         if data is None or data.empty:
+            if not vendor_reachable(_YAHOO_HOST):
+                raise VendorRateLimitError("Yahoo Finance is unreachable; insider filings were not retrieved")
             return f"No insider transactions reported for symbol '{canonical}'"
 
         if curr_date:

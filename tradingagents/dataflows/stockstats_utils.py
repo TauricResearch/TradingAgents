@@ -9,10 +9,13 @@ from stockstats import wrap
 from yfinance.exceptions import YFRateLimitError
 
 from .config import get_config
+from .errors import VendorRateLimitError
 from .symbol_utils import NoMarketDataError, normalize_symbol
-from .utils import safe_ticker_component
+from .utils import safe_ticker_component, vendor_reachable
 
 logger = logging.getLogger(__name__)
+
+_YAHOO_HOST = "https://query2.finance.yahoo.com"
 
 # A vendor's latest OHLCV row this many calendar days before the requested date
 # is treated as stale. Generous enough to span long holiday weekends, tight
@@ -24,6 +27,17 @@ MAX_OHLCV_STALE_DAYS = 10
 # up today's close soon after it publishes, long enough that a day with no bar
 # at all (weekend, holiday) cannot trigger a download on every call.
 OHLCV_CACHE_TTL_SECONDS = 900
+
+
+def raise_for_empty(symbol: str, canonical: str, what: str) -> None:
+    """Report an empty Yahoo result as an absence, or as an outage if it is one.
+
+    yfinance returns an empty frame for a failed request rather than raising, so
+    without this a Yahoo outage reads as "this symbol has no {what}".
+    """
+    if not vendor_reachable(_YAHOO_HOST):
+        raise VendorRateLimitError(f"Yahoo Finance is unreachable; no {what} was retrieved")
+    raise NoMarketDataError(symbol, canonical, f"no {what}")
 
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
@@ -239,9 +253,7 @@ def load_ohlcv(symbol: str, curr_date: str, fill_gaps: bool = True) -> pd.DataFr
         downloaded = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
-            raise NoMarketDataError(
-                symbol, canonical, "Yahoo Finance returned no rows"
-            )
+            raise_for_empty(symbol, canonical, "price rows")
         downloaded.to_csv(data_file, index=False, encoding="utf-8")
         data = downloaded
 
