@@ -183,3 +183,31 @@ def test_the_news_window_includes_the_analysis_day(monkeypatch):
 
     assert seen["time_from"] == "20260310T0000"
     assert seen["time_to"] == "20260314T2359"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("indicator", ["vwma", "mfi"])
+def test_an_indicator_this_vendor_lacks_lets_the_next_one_serve_it(indicator):
+    """Returning prose counts as success to the router, so the chain stops at a
+    vendor that cannot compute the indicator while the next one can."""
+    from tradingagents.dataflows import alpha_vantage_indicator
+    from tradingagents.dataflows.errors import VendorError
+
+    with pytest.raises(VendorError):
+        alpha_vantage_indicator.get_indicator("AAPL", indicator, "2026-05-08", 30)
+
+
+@pytest.mark.unit
+def test_ticker_news_asks_for_only_as_many_articles_as_configured(monkeypatch):
+    """The endpoint returns 50 articles with per-article sentiment arrays by
+    default, and the whole payload went into the prompt."""
+    from tradingagents.dataflows import alpha_vantage_news
+
+    monkeypatch.setattr(alpha_vantage_news, "get_config", lambda: {"news_article_limit": 8})
+    seen = {}
+    monkeypatch.setattr(alpha_vantage_news, "_make_api_request",
+                        lambda fn, params: seen.update(params) or "{}")
+
+    alpha_vantage_news.get_news("AAPL", "2026-03-10", "2026-03-14")
+
+    assert seen["limit"] == "8"

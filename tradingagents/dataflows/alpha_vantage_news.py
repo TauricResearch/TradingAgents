@@ -18,10 +18,13 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
         Dictionary containing news sentiment data or JSON string.
     """
 
+    # Without a limit the endpoint returns 50 articles, each with per-ticker
+    # sentiment arrays, and all of it reaches the prompt.
     params = {
         "tickers": ticker,
         "time_from": format_datetime_for_api(start_date),
         "time_to": format_datetime_for_api(end_date, end_of_day=True),
+        "limit": str(get_config()["news_article_limit"]),
     }
 
     return _make_api_request("NEWS_SENTIMENT", params)
