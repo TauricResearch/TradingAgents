@@ -53,7 +53,8 @@ def create_fundamentals_analyst(llm):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        messages = state.get("fundamentals_messages") or state.get("messages", [])
+        result = chain.invoke(messages)
 
         report = ""
 
@@ -61,7 +62,7 @@ def create_fundamentals_analyst(llm):
             report = result.content
 
         return {
-            "messages": [result],
+            "fundamentals_messages": [result],
             "fundamentals_report": report,
         }
 

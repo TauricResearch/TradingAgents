@@ -10,6 +10,7 @@ class AnalystNodeSpec:
     clear_node: str
     tool_node: str
     report_key: str
+    messages_key: str
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,7 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         clear_node="Msg Clear Market",
         tool_node="tools_market",
         report_key="market_report",
+        messages_key="market_messages",
     ),
     "social": AnalystNodeSpec(
         # Wire key stays "social" for saved-config back-compat; the
@@ -35,6 +37,7 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         clear_node="Msg Clear Sentiment",
         tool_node="tools_social",
         report_key="sentiment_report",
+        messages_key="sentiment_messages",
     ),
     "news": AnalystNodeSpec(
         key="news",
@@ -42,6 +45,7 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         clear_node="Msg Clear News",
         tool_node="tools_news",
         report_key="news_report",
+        messages_key="news_messages",
     ),
     "fundamentals": AnalystNodeSpec(
         key="fundamentals",
@@ -49,6 +53,7 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         clear_node="Msg Clear Fundamentals",
         tool_node="tools_fundamentals",
         report_key="fundamentals_report",
+        messages_key="fundamentals_messages",
     ),
 }
 
@@ -118,6 +123,7 @@ def sync_analyst_tracker_from_chunk(
     tracker: AnalystWallTimeTracker,
     chunk: dict[str, str],
     now: float | None = None,
+    parallel: bool = False,
 ) -> None:
     current_time = monotonic() if now is None else now
     active_found = False
@@ -130,6 +136,6 @@ def sync_analyst_tracker_from_chunk(
             tracker.mark_completed(spec.key, completed_at=current_time)
             continue
 
-        if not active_found:
+        if parallel or not active_found:
             tracker.mark_started(spec.key, started_at=current_time)
             active_found = True

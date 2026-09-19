@@ -12,7 +12,6 @@ from tradingagents.agents import (
     create_conservative_debator,
     create_fundamentals_analyst,
     create_market_analyst,
-    create_msg_delete,
     create_neutral_debator,
     create_news_analyst,
     create_portfolio_manager,
@@ -97,8 +96,13 @@ class GraphSetup:
         # Add analyst nodes to the graph
         for spec in plan.specs:
             workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
-            workflow.add_node(spec.clear_node, create_msg_delete())
             workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])
+
+        # Add fan-in barrier node for analyst synchronization
+        def barrier_node(state: AgentState):
+            return {}
+
+        workflow.add_node("analyst_barrier", barrier_node)
 
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
@@ -111,28 +115,30 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
-        # Start with the first analyst
-        workflow.add_edge(START, plan.specs[0].agent_node)
-
-        # Connect analysts in sequence
-        for i, spec in enumerate(plan.specs):
+        # Fan out from START to all selected analysts in parallel
+        for spec in plan.specs:
             current_analyst = spec.agent_node
             current_tools = spec.tool_node
-            current_clear = spec.clear_node
 
-            # Add conditional edges for current analyst
+            workflow.add_edge(START, current_analyst)
+
+            # Add conditional edges for current analyst: continue tools or report to barrier
             workflow.add_conditional_edges(
                 current_analyst,
                 getattr(self.conditional_logic, f"should_continue_{spec.key}"),
-                [current_tools, current_clear],
+                [current_tools, "analyst_barrier"],
             )
             workflow.add_edge(current_tools, current_analyst)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(plan.specs) - 1:
-                workflow.add_edge(current_clear, plan.specs[i + 1].agent_node)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+        # Barrier conditional router: only routes to Bull Researcher once all analysts complete
+        def barrier_router(state: AgentState) -> str:
+            return self.conditional_logic.should_continue_barrier(state, plan.specs)
+
+        workflow.add_conditional_edges(
+            "analyst_barrier",
+            barrier_router,
+            {"Bull Researcher": "Bull Researcher", END: END},
+        )
 
         # Both research-debate edges share the complete DEBATE_PATH_MAP (#1088).
         for debate_node in ("Bull Researcher", "Bear Researcher"):

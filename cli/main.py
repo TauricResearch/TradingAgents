@@ -49,7 +49,6 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
-    get_initial_analyst_node,
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -872,19 +871,16 @@ ANALYST_REPORT_MAP = {
 def update_analyst_statuses(message_buffer, chunk, wall_time_tracker=None):
     """Update analyst statuses based on accumulated report state.
 
-    Logic:
-    - Store new report content from the current chunk if present
-    - Check accumulated report_sections (not just current chunk) for status
+    In parallel execution, all active analysts run concurrently:
     - Analysts with reports = completed
-    - First analyst without report = in_progress
-    - Remaining analysts without reports = pending
+    - Analysts without reports = in_progress
     - When all analysts done, set Bull Researcher to in_progress
     """
     selected = message_buffer.selected_analysts
-    found_active = False
+    all_completed = True
 
     if wall_time_tracker is not None:
-        sync_analyst_tracker_from_chunk(wall_time_tracker, chunk)
+        sync_analyst_tracker_from_chunk(wall_time_tracker, chunk, parallel=True)
 
     for analyst_key in ANALYST_ORDER:
         if analyst_key not in selected:
@@ -902,15 +898,13 @@ def update_analyst_statuses(message_buffer, chunk, wall_time_tracker=None):
 
         if has_report:
             message_buffer.update_agent_status(agent_name, "completed")
-        elif not found_active:
-            message_buffer.update_agent_status(agent_name, "in_progress")
-            found_active = True
         else:
-            message_buffer.update_agent_status(agent_name, "pending")
+            message_buffer.update_agent_status(agent_name, "in_progress")
+            all_completed = False
 
     # When all analysts complete, transition research team to in_progress
     if (
-        not found_active
+        all_completed
         and selected
         and message_buffer.agent_status.get("Bull Researcher") == "pending"
     ):
@@ -1145,10 +1139,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        # Update agent status to in_progress for the first analyst
-        first_analyst = get_initial_analyst_node(analyst_execution_plan)
-        message_buffer.update_agent_status(first_analyst, "in_progress")
-        analyst_wall_time_tracker.mark_started(selected_analyst_keys[0])
+        # Update agent status to in_progress for all selected analysts concurrently
+        for spec in analyst_execution_plan.specs:
+            message_buffer.update_agent_status(spec.agent_node, "in_progress")
+            analyst_wall_time_tracker.mark_started(spec.key)
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Create spinner text
@@ -1181,8 +1175,20 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         trace = []
         try:
             for chunk in graph.graph.stream(graph.checkpoint_input(init_agent_state), **args):
-                # Process all messages in chunk, deduplicating by message ID
-                for message in chunk.get("messages", []):
+                # Process all messages in chunk across all channels, deduplicating by message ID
+                chunk_messages = []
+                for msg_key in (
+                    "messages",
+                    "market_messages",
+                    "sentiment_messages",
+                    "news_messages",
+                    "fundamentals_messages",
+                ):
+                    raw_msgs = chunk.get(msg_key)
+                    if isinstance(raw_msgs, list):
+                        chunk_messages.extend(raw_msgs)
+
+                for message in chunk_messages:
                     msg_id = getattr(message, "id", None)
                     if msg_id is not None:
                         if msg_id in message_buffer._processed_message_ids:
