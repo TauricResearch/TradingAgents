@@ -59,3 +59,53 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         fresh = get_config()
         self.assertEqual(fresh["tool_vendors"]["get_stock_data"], "alpha_vantage")
         self.assertEqual(fresh["tool_vendors"]["get_news"], "alpha_vantage")
+
+
+@pytest.mark.unit
+class DataflowsConfigScopeTests(unittest.TestCase):
+    """A second graph built with the defaults must not inherit the first graph's vendors (#1369)."""
+
+    def setUp(self):
+        set_config(copy.deepcopy(default_config.DEFAULT_CONFIG))
+
+    def test_full_config_rebuilds_from_defaults(self):
+        first = copy.deepcopy(default_config.DEFAULT_CONFIG)
+        first["tool_vendors"] = {"get_balance_sheet": "sec_edgar,yfinance"}
+        set_config(first)
+
+        set_config(copy.deepcopy(default_config.DEFAULT_CONFIG))
+
+        fresh = get_config()
+        self.assertNotIn("get_balance_sheet", fresh["tool_vendors"])
+
+    def test_partial_update_still_merges_onto_current(self):
+        first = copy.deepcopy(default_config.DEFAULT_CONFIG)
+        first["tool_vendors"] = {"get_balance_sheet": "sec_edgar,yfinance"}
+        set_config(first)
+
+        set_config({"llm_provider": "openai"})
+
+        fresh = get_config()
+        self.assertEqual(fresh["llm_provider"], "openai")
+        self.assertEqual(fresh["tool_vendors"]["get_balance_sheet"], "sec_edgar,yfinance")
+
+    def test_concurrent_threads_read_their_own_config(self):
+        import threading
+
+        results = {}
+
+        def run(name, vendor):
+            config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+            config["tool_vendors"] = {"get_balance_sheet": vendor}
+            set_config(config)
+            results[name] = get_config()["tool_vendors"]["get_balance_sheet"]
+
+        alpha = threading.Thread(target=run, args=("alpha", "alpha_vantage"))
+        edgar = threading.Thread(target=run, args=("edgar", "sec_edgar,yfinance"))
+        alpha.start()
+        edgar.start()
+        alpha.join()
+        edgar.join()
+
+        self.assertEqual(results["alpha"], "alpha_vantage")
+        self.assertEqual(results["edgar"], "sec_edgar,yfinance")
