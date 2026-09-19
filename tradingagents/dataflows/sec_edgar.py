@@ -66,7 +66,8 @@ _STATEMENTS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
                                  "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations")),
         ("Investing Cash Flow", ("NetCashProvidedByUsedInInvestingActivities",)),
         ("Financing Cash Flow", ("NetCashProvidedByUsedInFinancingActivities",)),
-        ("Capital Expenditure", ("PaymentsToAcquirePropertyPlantAndEquipment",)),
+        ("Capital Expenditure", ("PaymentsToAcquirePropertyPlantAndEquipment",
+                                 "PaymentsToAcquireProductiveAssets")),
     ],
 }
 
