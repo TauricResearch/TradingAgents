@@ -5,14 +5,27 @@ on:
     branches: [main]
   pull_request:
 
+# None of these jobs write to the repo, packages, or checks.
+permissions:
+  contents: read
+
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Include the workflow name so a different workflow on the same ref cannot
+  # cancel this one.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Cancel superseded PR runs, but keep a result for every commit on main.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Pinned so a new ruff release cannot add rules to the strict select and turn
+  # main red without a commit. Bump deliberately.
+  RUFF_VERSION: "0.16.8"
 
 jobs:
   test:
     name: tests (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -22,6 +35,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
       - name: Install (with dev extras)
         run: |
           python -m pip install --upgrade pip
@@ -32,29 +47,39 @@ jobs:
   smoke-install:
     name: clean-install smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
       - name: Fresh install (no dev extras) and import
         run: |
           python -m pip install --upgrade pip
           pip install .
-          # Catches undeclared runtime deps (e.g. #994 python-dotenv): a bare
-          # install must import the package and the CLI module.
+          # Import from OUTSIDE the checkout. `python -c` prepends the cwd to
+          # sys.path, so running this at the repo root imports ./tradingagents
+          # and ./cli from the source tree rather than the freshly installed
+          # distribution -- the check would pass even if the package shipped
+          # nothing. Leaving the directory is what makes this job actually
+          # catch undeclared runtime deps (e.g. #994 python-dotenv) and modules
+          # missing from the built artifact.
+          cd "$RUNNER_TEMP"
           python -c "import tradingagents, cli.main; print('clean-install import OK')"
 
   lint:
     name: ruff (strict, full repo)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install "ruff>=0.15"
+        run: pip install "ruff==${RUFF_VERSION}"
       - name: Lint the repository
         # The repo is fully clean under the strict select, so we lint everything
         # (generated results/ is excluded via pyproject extend-exclude).
