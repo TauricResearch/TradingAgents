@@ -1,0 +1,7 @@
+Terminal 1 — backend:
+cd D:\TradingAgents
+.\.venv\Scripts\python.exe -m uvicorn webui.backend.app:app --port 8000
+
+Terminal 2 — frontend:
+cd D:\TradingAgents\webui\frontend
+npm run dev
