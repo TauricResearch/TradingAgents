@@ -23,7 +23,8 @@ class TradingMemoryLog:
             self._log_path = Path(path).expanduser()
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
         # Optional cap on resolved entries. None disables rotation.
-        self._max_entries = cfg.get("memory_log_max_entries")
+        max_ent = cfg.get("memory_log_max_entries")
+        self._max_entries = int(max_ent) if max_ent is not None else None
 
     # --- Write path (Phase A) ---
 

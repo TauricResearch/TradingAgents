@@ -81,3 +81,33 @@ class TestProviderKwargsTemperature:
 
     def test_empty_string_omitted(self):
         assert "temperature" not in self._kwargs_for("")
+
+
+@pytest.mark.unit
+class TestEnvOverridesExtended:
+    def test_env_overrides_memory_and_news_config(self, monkeypatch):
+        import tradingagents.default_config as dc
+
+        monkeypatch.setenv("TRADINGAGENTS_MEMORY_LOG_MAX_ENTRIES", "25")
+        monkeypatch.setenv("TRADINGAGENTS_MAX_RECUR_LIMIT", "150")
+        monkeypatch.setenv("TRADINGAGENTS_NEWS_ARTICLE_LIMIT", "30")
+        monkeypatch.setenv("TRADINGAGENTS_GLOBAL_NEWS_ARTICLE_LIMIT", "15")
+        monkeypatch.setenv("TRADINGAGENTS_GLOBAL_NEWS_LOOKBACK_DAYS", "14")
+
+        importlib.reload(dc)
+        assert dc.DEFAULT_CONFIG["memory_log_max_entries"] in ("25", 25)
+        assert dc.DEFAULT_CONFIG["max_recur_limit"] == 150
+        assert dc.DEFAULT_CONFIG["news_article_limit"] == 30
+        assert dc.DEFAULT_CONFIG["global_news_article_limit"] == 15
+        assert dc.DEFAULT_CONFIG["global_news_lookback_days"] == 14
+
+        for var in (
+            "TRADINGAGENTS_MEMORY_LOG_MAX_ENTRIES",
+            "TRADINGAGENTS_MAX_RECUR_LIMIT",
+            "TRADINGAGENTS_NEWS_ARTICLE_LIMIT",
+            "TRADINGAGENTS_GLOBAL_NEWS_ARTICLE_LIMIT",
+            "TRADINGAGENTS_GLOBAL_NEWS_LOOKBACK_DAYS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+        importlib.reload(dc)
+
