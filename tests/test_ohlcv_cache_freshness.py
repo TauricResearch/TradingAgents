@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 import tradingagents.dataflows.stockstats_utils as su
+from tests.conftest import local_epoch
 
 NOW = pd.Timestamp("2026-07-18 12:00")
 STALE = su.OHLCV_CACHE_TTL_SECONDS + 60
@@ -21,7 +22,7 @@ STALE = su.OHLCV_CACHE_TTL_SECONDS + 60
 def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026-07-17"):
     f = tmp_path / name
     pd.DataFrame({"Date": [last_date], "Close": [100.0]}).to_csv(f, index=False)
-    written = NOW.timestamp() - age_seconds
+    written = local_epoch(NOW) - age_seconds
     os.utime(f, (written, written))
     return f
 
@@ -35,6 +36,20 @@ def _load(tmp_path, monkeypatch, curr_date, download):
 
 def _fail_download(*a, **k):
     raise AssertionError("fresh cache must not refetch")
+
+
+@pytest.mark.unit
+def test_stamped_mtime_round_trips_through_the_freshness_read():
+    """The convention these tests depend on, asserted directly (#1372).
+
+    ``_cache_is_fresh`` reads an mtime back with ``pd.Timestamp.fromtimestamp``,
+    which returns local time; stamping with ``pd.Timestamp.timestamp()`` writes
+    a naive value as UTC. The two disagreed by the machine's UTC offset, so the
+    cases below silently passed or failed depending on where they ran. Pinning
+    the round-trip here states the requirement in one place instead of leaving
+    it implicit in every ``os.utime`` call.
+    """
+    assert pd.Timestamp.fromtimestamp(local_epoch(NOW)) == NOW
 
 
 @pytest.mark.unit
@@ -99,7 +114,7 @@ def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
         monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda now=now: now))
         su.load_ohlcv("AAPL", "2026-07-17")
         written = list(tmp_path.glob("AAPL-*.csv"))
-        os.utime(written[0], (now.timestamp(), now.timestamp()))
+        os.utime(written[0], (local_epoch(now), local_epoch(now)))
 
     assert len(downloads) == 3, "each new day refetches"
     assert [p.name for p in tmp_path.iterdir()] == ["AAPL-YFin-data.csv"]

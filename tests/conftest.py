@@ -6,6 +6,24 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+def local_epoch(ts) -> float:
+    """Epoch seconds for a naive wall-clock ``Timestamp``, as the cache reads it back.
+
+    ``pd.Timestamp.timestamp()`` interprets a naive value as **UTC**, while
+    ``pd.Timestamp.fromtimestamp`` — which ``_cache_is_fresh`` uses to read a
+    cache file's mtime — returns **local** time. Stamping a file with the former
+    left the two conventions disagreeing by the machine's UTC offset, so the
+    OHLCV cache tests only passed where that offset stayed under the 900-second
+    TTL (#1372).
+
+    ``datetime.timestamp()`` on a naive value uses local time, so it is the
+    convention that round-trips through ``pd.Timestamp.fromtimestamp``. Tests
+    that stamp an mtime for the cache checks must go through here rather than
+    calling ``.timestamp()`` directly.
+    """
+    return ts.to_pydatetime().timestamp()
+
+
 def pytest_configure(config):
     for marker in ("unit", "integration", "smoke"):
         config.addinivalue_line("markers", f"{marker}: {marker}-level tests")
