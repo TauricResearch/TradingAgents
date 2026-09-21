@@ -93,6 +93,34 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 }
 
 
+# Shared model list for Volcengine Ark "Coding Plan" (火山方舟编程套餐).
+# The plan fronts several vendors' coding models behind one subscription key;
+# Model Name is case-insensitive (lowercase shown here). `ark-code-latest` is
+# the plan's auto-routing alias — the console decides which backing model
+# answers each request, so it is the safest default. Source:
+# volcengine.com/docs/82379/1925114 + 1928262. Model names below were
+# verified live against the plan endpoint; kimi-k3 / deepseek-v3.2 are
+# listed in some docs but the API rejects them with UnsupportedModel.
+_ARK_CODING_MODELS: dict[str, list[ModelOption]] = {
+    "quick": [
+        ("ark-code-latest - Auto-routed by the Ark console (recommended)", "ark-code-latest"),
+        ("Doubao-Seed-2.1-turbo - Fast Doubao", "doubao-seed-2.1-turbo"),
+        ("Doubao-Seed-2.0-lite - Cheapest Doubao", "doubao-seed-2.0-lite"),
+        ("GLM-5.3-Flash - Fast GLM coding model", "glm-5.3-flash"),
+        ("MiniMax-M3 - 1M ctx, agentic coding", "minimax-m3"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("ark-code-latest - Auto-routed by the Ark console (recommended)", "ark-code-latest"),
+        ("Doubao-Seed-Evolving - Long-horizon agentic coding", "doubao-seed-evolving"),
+        ("GLM-5.3 - Flagship GLM coding model, 1M ctx", "glm-5.3"),
+        ("Kimi-K2.8-Preview - 1M ctx, agentic coding", "kimi-k2.8-preview"),
+        ("DeepSeek-V4-Pro - Flagship reasoning, 1M ctx", "deepseek-v4-pro"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -219,6 +247,9 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
+    # Volcengine Ark Coding Plan: a fixed, documented model lineup behind one
+    # subscription key, so offer the real list plus a custom escape hatch.
+    "ark-coding": _ARK_CODING_MODELS,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
 }

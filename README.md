@@ -170,10 +170,13 @@ export MISTRAL_API_KEY=...         # Mistral
 export MOONSHOT_API_KEY=...        # Kimi (Moonshot)
 export GROQ_API_KEY=...            # Groq
 export NVIDIA_API_KEY=...          # NVIDIA NIM
+export ARK_CODING_API_KEY=...      # Volcengine Ark "Coding Plan" (火山方舟编程套餐)
 export FRED_API_KEY=...            # FRED macro data (free, optional)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
 ```
+
+For Volcengine Ark's **Coding Plan** (火山方舟编程套餐), set `llm_provider: "ark-coding"` and `ARK_CODING_API_KEY` to the plan's dedicated key. The plan is a subscription that fronts several vendors' coding models (Doubao / Kimi / GLM / MiniMax / DeepSeek) behind one endpoint; `ark-code-latest` auto-routes to whichever backing model the Ark console selects. This uses the plan endpoint (`https://ark.cn-beijing.volces.com/api/plan/v3`), which is separate from the general Ark platform endpoint (`/api/v3`) and its `ARK_API_KEY` — pointing the plan at `/api/v3` bills pay-as-you-go instead of drawing down the subscription.
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
@@ -227,7 +230,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), Kimi (Moonshot), Groq, NVIDIA NIM, Mistral, Volcengine Ark Coding Plan, OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
 
 ### Python Usage
 

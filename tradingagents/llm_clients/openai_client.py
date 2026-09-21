@@ -224,6 +224,13 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
+    # Volcengine Ark "Coding Plan" (火山方舟编程套餐). A subscription endpoint
+    # that fronts several vendors' coding models (Doubao / Kimi / GLM / MiniMax
+    # / DeepSeek) behind one dedicated key. The plan lives on /api/plan/v3 — a
+    # *separate* endpoint and key from the general Ark platform (/api/v3), so
+    # pointing the plan at /api/v3 would bill pay-as-you-go instead of drawing
+    # down the subscription.
+    "ark-coding": ProviderSpec(base_url="https://ark.cn-beijing.volces.com/api/plan/v3"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama",
                                chat_class=LocalCompatibleChatOpenAI),

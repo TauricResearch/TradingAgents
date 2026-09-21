@@ -40,6 +40,7 @@ def test_registry_membership():
     ("kimi", "https://api.moonshot.ai/v1", NormalizedChatOpenAI, False),
     ("groq", "https://api.groq.com/openai/v1", NormalizedChatOpenAI, False),
     ("nvidia", "https://integrate.api.nvidia.com/v1", NormalizedChatOpenAI, False),
+    ("ark-coding", "https://ark.cn-beijing.volces.com/api/plan/v3", NormalizedChatOpenAI, False),
     ("ollama", "http://localhost:11434/v1", LocalCompatibleChatOpenAI, False),
 ])
 def test_registry_spec(provider, base_url, chat_class, responses):
