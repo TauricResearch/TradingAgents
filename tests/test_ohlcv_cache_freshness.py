@@ -18,10 +18,22 @@ NOW = pd.Timestamp("2026-07-18 12:00")
 STALE = su.OHLCV_CACHE_TTL_SECONDS + 60
 
 
+def _mtime(ts):
+    """``ts`` as the epoch value that reads back as ``ts`` on the cache's clock.
+
+    ``pd.Timestamp.timestamp()`` reads a naive timestamp as UTC, but
+    ``_cache_is_fresh`` reads mtimes back with ``pd.Timestamp.fromtimestamp``,
+    which returns local time — so seeding an mtime that way shifts it by the
+    local offset and these tests only describe the intended clock under UTC.
+    A naive ``datetime.timestamp()`` is local, making the round trip exact.
+    """
+    return ts.to_pydatetime().timestamp()
+
+
 def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026-07-17"):
     f = tmp_path / name
     pd.DataFrame({"Date": [last_date], "Close": [100.0]}).to_csv(f, index=False)
-    written = NOW.timestamp() - age_seconds
+    written = _mtime(NOW) - age_seconds
     os.utime(f, (written, written))
     return f
 
@@ -99,7 +111,7 @@ def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
         monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda now=now: now))
         su.load_ohlcv("AAPL", "2026-07-17")
         written = list(tmp_path.glob("AAPL-*.csv"))
-        os.utime(written[0], (now.timestamp(), now.timestamp()))
+        os.utime(written[0], (_mtime(now), _mtime(now)))
 
     assert len(downloads) == 3, "each new day refetches"
     assert [p.name for p in tmp_path.iterdir()] == ["AAPL-YFin-data.csv"]

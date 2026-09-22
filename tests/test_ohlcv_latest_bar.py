@@ -21,6 +21,20 @@ import pytest
 from tradingagents.dataflows import stockstats_utils as su
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
+
+def _mtime(ts):
+    """``ts`` as the epoch value that reads back as ``ts`` on the cache's clock.
+
+    ``pd.Timestamp.timestamp()`` reads a naive timestamp as UTC, but the cache
+    freshness check reads mtimes back with ``pd.Timestamp.fromtimestamp``, which
+    returns local time — so seeding an mtime that way shifts it by the local
+    offset, and a cache meant to be current can land on the previous day and be
+    refetched. A naive ``datetime.timestamp()`` is local, making the round trip
+    exact.
+    """
+    return ts.to_pydatetime().timestamp()
+
+
 # --- date normalization -----------------------------------------------------
 
 @pytest.mark.unit
@@ -93,7 +107,7 @@ def _run_load(monkeypatch, tmp_path, frame, curr_date):
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache_file = tmp_path / "AAPL-YFin-data.csv"
     cache_file.write_text(frame.to_csv(index=False))
-    os.utime(cache_file, (today.timestamp(), today.timestamp()))
+    os.utime(cache_file, (_mtime(today), _mtime(today)))
 
     def _fail_download(*a, **k):
         raise AssertionError("should use the seeded cache, not download")
@@ -189,7 +203,7 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache = tmp_path / "AAPL-YFin-data.csv"
     cache.write_text(frame.to_csv(index=False))
-    os.utime(cache, (today.timestamp(), today.timestamp()))
+    os.utime(cache, (_mtime(today), _mtime(today)))
     monkeypatch.setattr(su.yf, "download", lambda *a, **k: (_ for _ in ()).throw(
         AssertionError("should read the seeded cache")))
 
