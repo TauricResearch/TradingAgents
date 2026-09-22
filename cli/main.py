@@ -1302,6 +1302,42 @@ def run_analysis(checkpoint: bool | None = None):
 
 
 @app.command()
+def ui(
+    port: int = typer.Option(
+        8501,
+        "--port",
+        "-p",
+        help="Port to run the Streamlit UI web app server on.",
+    ),
+    host: str = typer.Option(
+        "localhost",
+        "--host",
+        "-h",
+        help="Host address to bind the Streamlit UI web app server.",
+    ),
+):
+    """Launch the TradingAgents Streamlit UI web application."""
+    import subprocess
+    ui_script = Path(__file__).parent / "ui.py"
+    cmd = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(ui_script),
+        "--server.port",
+        str(port),
+        "--server.address",
+        host,
+    ]
+    console.print(f"[bold green]Starting TradingAgents Web UI on http://{host}:{port}...[/bold green]")
+    try:
+        subprocess.run(cmd, check=True)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]TradingAgents UI server stopped.[/yellow]")
+
+
+@app.command()
 def analyze(
     checkpoint: bool | None = typer.Option(
         None,

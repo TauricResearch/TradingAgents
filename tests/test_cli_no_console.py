@@ -38,7 +38,7 @@ def test_missing_console_prints_actionable_message(monkeypatch):
 
     monkeypatch.setattr(m, "run_analysis", _boom)
 
-    result = CliRunner().invoke(m.app, [])
+    result = CliRunner().invoke(m.app, ["analyze"])
     assert result.exit_code == 1
     assert "no Windows console available" in result.output
     # The raw prompt_toolkit traceback must not reach the user.
@@ -53,5 +53,5 @@ def test_unrelated_errors_still_propagate(monkeypatch):
         raise ValueError("unrelated")
 
     monkeypatch.setattr(m, "run_analysis", _boom)
-    result = CliRunner().invoke(m.app, [])
+    result = CliRunner().invoke(m.app, ["analyze"])
     assert isinstance(result.exception, ValueError)
