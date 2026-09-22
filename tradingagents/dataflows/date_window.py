@@ -117,5 +117,7 @@ def withhold_live_profile(curr_date: str | None, label: str) -> str | None:
         f"rather than {curr_date} (companies rename and get reclassified). "
         f"Serving them would put post-decision information into a {curr_date} "
         f"analysis. Point-in-time fundamentals for {curr_date} are available "
-        f"from the balance sheet, income statement, and cash flow tools."
+        f"from the balance sheet, income statement, and cash flow tools, and "
+        f"point-in-time valuation (market cap, P/E, P/B) from the "
+        f"`get_valuation` tool."
     )

@@ -29,6 +29,7 @@ import requests
 
 from .config import get_config
 from .errors import NoMarketDataError, VendorRateLimitError
+from .stockstats_utils import load_ohlcv
 
 logger = logging.getLogger(__name__)
 
@@ -172,13 +173,23 @@ def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, 
     return dict(sorted(values.items())), chosen_unit
 
 
-def _statement(kind: str, ticker: str, freq: str, curr_date: str, title: str) -> str:
+def _filer_facts(ticker: str, curr_date: str) -> tuple[str, dict]:
+    """Resolve the filer and load its facts, the shared preamble of the tools.
+
+    ``curr_date`` defaults to today for a live run, and a non-filer is reported
+    as such: the router reads that as "no data from this vendor" instead of a
+    transport error.
+    """
     curr_date = curr_date or datetime.now().strftime("%Y-%m-%d")
     cik = cik_for(ticker)
     if cik is None:
         raise NoMarketDataError(ticker, ticker, "not a US SEC filer")
-
     facts = _cached_json(_FACTS_URL.format(cik=cik), f"CIK{cik}.json")
+    return curr_date, facts
+
+
+def _statement(kind: str, ticker: str, freq: str, curr_date: str, title: str) -> str:
+    curr_date, facts = _filer_facts(ticker, curr_date)
     us_gaap = (facts.get("facts") or {}).get("us-gaap")
     if not us_gaap:
         raise NoMarketDataError(ticker, ticker, "US filer with no us-gaap facts")
@@ -227,3 +238,160 @@ def get_income_statement(ticker: str, freq: str = "quarterly", curr_date: str | 
 def get_cashflow(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
     """Cash flow statement as filed on or before ``curr_date``."""
     return _statement("cashflow", ticker, freq, curr_date, "Cash Flow Statement")
+
+
+def _latest_dei_share_count(facts: dict, curr_date: str) -> tuple[str, str, float] | None:
+    """(cover date, filed date, shares) for the newest count filed by ``curr_date``.
+
+    Filers state common shares outstanding on every cover page
+    (``dei:EntityCommonStockSharesOutstanding``) with the date the count was
+    measured, so a run dated in the past reads the count that was public then,
+    not the one on today's cover. The filed date travels with it: a revision
+    re-states the same cover date, and when it became known is the fact a
+    point-in-time run depends on.
+    """
+    dei = (facts.get("facts") or {}).get("dei") or {}
+    covers = (
+        (dei.get("EntityCommonStockSharesOutstanding") or {}).get("units", {}).get("shares", [])
+    )
+    latest = None
+    for cover in covers:
+        if cover["filed"] > curr_date:
+            continue
+        end = cover.get("end") or cover["filed"]
+        # (end, filed) decides recency: a higher cover date wins, and among
+        # revisions of the same cover date the last filed wins — the count
+        # known on the analysis date is the one the run reads.
+        if latest is None or (end, cover["filed"]) >= (latest[0], latest[1]):
+            latest = (end, cover["filed"], float(cover["val"]))
+    if latest is None:
+        return None
+    return latest[0], latest[1], latest[2]
+
+
+def _valuation_markdown(title: str, curr_date: str, rows: list[tuple[str, str, str]]) -> str:
+    """A one-line-per-metric table; every row carries its own provenance."""
+    lines = [
+        f"# {title}",
+        "",
+        f"# Point-in-time as of: {curr_date}",
+        "",
+        "| Metric | Value | As-of / filed |",
+        "|---|---|---|",
+    ]
+    lines += [f"| {metric} | {value} | {when} |" for metric, value, when in rows]
+    return "\n".join(lines) + "\n"
+
+
+def _newest_period(as_of_result: tuple[dict, str]) -> tuple[str, float] | None:
+    """(period end, value) for the newest period a statement served, or None."""
+    values = as_of_result[0] if as_of_result else {}
+    if not values:
+        return None
+    end = max(values)
+    return end, values[end]
+
+
+def get_valuation(ticker: str, curr_date: str | None = None) -> str:
+    """Valuation snapshot built only from what was public by ``curr_date``.
+
+    Vendors' valuation fields (market cap, multiples) are present-day values
+    with no historical vintage, so a run dated in the past gets them withheld
+    (#1300, #1374). This builds a conservative replacement instead: the last
+    settled close at or before ``curr_date`` times the most recently filed
+    cover page share count for market cap; filed diluted EPS and stockholders
+    equity for per-share and book multiples. Everything carries its as-of date,
+    and what cannot be derived from filings is reported unavailable rather
+    than invented. Enterprise value is deliberately not derived: filings
+    carry carrying values, not the market value of debt that the formula needs.
+    """
+    curr_date, facts = _filer_facts(ticker, curr_date)
+    us_gaap = (facts.get("facts") or {}).get("us-gaap") or {}
+
+    shares = _latest_dei_share_count(facts, curr_date)
+    # Equity is an instant fact, so the span argument is not consulted; EPS is
+    # a duration fact, and the annual figure is taken first — a quarter alone
+    # understates the denominator, and a trailing figure would sum filings
+    # that were never filed together.
+    equity = _newest_period(_as_of(
+        us_gaap,
+        ("StockholdersEquity",
+         "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"),
+        curr_date,
+        _SPANS["annual"],  # instant fact: only the period key matters, not the span
+    ))
+    eps = _newest_period(_as_of(
+        us_gaap, ("EarningsPerShareDiluted",), curr_date, _SPANS["annual"],
+    ))
+    eps_basis = "annual"
+    if eps is None:
+        eps = _newest_period(_as_of(
+            us_gaap, ("EarningsPerShareDiluted",), curr_date, _SPANS["quarterly"],
+        ))
+        eps_basis = "quarterly"
+    price, price_date = _last_settled_close(ticker, curr_date)
+
+    rows: list[tuple[str, str, str]] = [
+        ("Close", f"{price:.2f} USD" if price is not None else "unavailable",
+         price_date or "no settled close on or before the analysis date"),
+    ]
+
+    if shares is not None:
+        rows.append(("Shares Outstanding (cover page)", f"{shares[2]:,.0f}",
+                     f"measured {shares[0]}, filed {shares[1]}"))
+    else:
+        rows.append(("Shares Outstanding (cover page)", "unavailable",
+                     "no cover page count filed by the analysis date"))
+
+    if price is not None and shares is not None:
+        rows.append(("Market Cap", f"{price * shares[2] / 1e9:.2f}B USD",
+                     f"close {price_date} x shares measured {shares[0]} (filed {shares[1]})"))
+    else:
+        rows.append(("Market Cap", "unavailable", "needs both a close and a share count"))
+
+    if price is not None and equity is not None and equity[1] and shares:
+        book_per_share = equity[1] / shares[2]
+        if book_per_share <= 0:
+            # Negative equity is a real state (insolvency), but a negative
+            # multiple reads as a cheapness signal an agent will act on.
+            rows.append(("Price / Book", "not meaningful",
+                         f"book value per share is {book_per_share:.2f} (equity as of {equity[0]})"))
+        else:
+            rows.append(("Price / Book", f"{price / book_per_share:.2f}",
+                         f"close {price_date} / book per share (equity as of {equity[0]})"))
+    else:
+        rows.append(("Price / Book", "unavailable",
+                     "needs a close, a share count and filed stockholders equity"))
+
+    if price is not None and eps is not None and eps[1]:
+        if eps[1] < 0:
+            rows.append(("Price / Earnings", "not meaningful",
+                         f"diluted EPS is {eps[1]:.2f} for period ending {eps[0]} ({eps_basis})"))
+        else:
+            rows.append(("Price / Earnings", f"{price / eps[1]:.2f}",
+                         f"close {price_date} / diluted EPS for period ending {eps[0]} ({eps_basis})"))
+    else:
+        rows.append(("Price / Earnings", "unavailable",
+                     "needs a close and a nonzero filed diluted EPS"))
+
+    rows.append(("Enterprise Value", "unavailable",
+                 "not derivable from filings: they carry carrying values, not the market value of debt"))
+
+    return _valuation_markdown(f"Valuation snapshot for {ticker.upper()}", curr_date, rows)
+
+
+def _last_settled_close(ticker: str, curr_date: str) -> tuple[float | None, str | None]:
+    """The last settled close at or before ``curr_date``, with its date.
+
+    Prices come from the same OHLCV layer the market analyst uses, so the
+    snapshot and the price history cannot disagree. A missing price leaves
+    valuation rows unavailable rather than aborting the whole tool: the
+    filings-side facts are still served.
+    """
+    try:
+        data = load_ohlcv(ticker, curr_date, fill_gaps=False)
+        row = data.iloc[-1]
+        return float(row["Close"]), str(row["Date"].date())
+    except Exception as exc:  # noqa: BLE001 — price is one factor, not the whole answer
+        logger.warning("No settled close for %s by %s: %s", ticker, curr_date, exc)
+        return None, None

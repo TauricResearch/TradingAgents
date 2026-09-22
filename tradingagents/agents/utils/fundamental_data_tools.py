@@ -8,6 +8,28 @@ from tradingagents.dataflows.interface import route_to_vendor
 
 
 @tool
+def get_valuation(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Point-in-time valuation snapshot: market cap, P/E, P/B as of curr_date.
+    Built from SEC EDGAR filings (cover page shares outstanding, filed EPS and
+    equity) and the last settled close, so every figure carries the date it was
+    public. Use for valuation metrics on a past analysis date, where vendor
+    fundamentals are withheld as present-day only.
+    Args:
+        ticker (str): Ticker symbol of the company
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+    Returns:
+        str: A valuation table with per-metric as-of dates and reasons for
+        anything unavailable.
+    """
+    return route_to_vendor("get_valuation", ticker, as_of(curr_date, trade_date))
+
+
+@tool
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],

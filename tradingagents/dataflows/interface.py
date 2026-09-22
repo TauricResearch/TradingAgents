@@ -23,6 +23,7 @@ from .sec_edgar import (
     get_balance_sheet as get_sec_edgar_balance_sheet,
     get_cashflow as get_sec_edgar_cashflow,
     get_income_statement as get_sec_edgar_income_statement,
+    get_valuation as get_sec_edgar_valuation,
 )
 from .y_finance import (
     get_balance_sheet as get_yfinance_balance_sheet,
@@ -57,7 +58,8 @@ TOOLS_CATEGORIES = {
             "get_fundamentals",
             "get_balance_sheet",
             "get_cashflow",
-            "get_income_statement"
+            "get_income_statement",
+            "get_valuation",
         ]
     },
     "news_data": {
@@ -128,6 +130,13 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "sec_edgar": get_sec_edgar_income_statement,
         "yfinance": get_yfinance_income_statement,
+    },
+    # Point-in-time valuation built from filings (#1374). SEC EDGAR only: the
+    # cover page share counts and filed statements it derives from exist
+    # nowhere else, and routing to a live vendor would reintroduce exactly the
+    # leak the withhold guard exists to prevent (#1300).
+    "get_valuation": {
+        "sec_edgar": get_sec_edgar_valuation,
     },
     # news_data
     "get_news": {

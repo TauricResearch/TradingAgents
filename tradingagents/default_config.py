@@ -147,6 +147,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        # Point-in-time valuation is SEC-only: it is derived from filed cover
+        # page share counts and statements (#1374), so no other vendor can
+        # serve it. Pinning it here keeps a fundamentals category configured
+        # for a live vendor from breaking the tool the withhold guard points
+        # at (#1300).
+        "get_valuation": "sec_edgar",
     },
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all
