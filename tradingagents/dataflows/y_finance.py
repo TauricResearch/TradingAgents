@@ -519,3 +519,22 @@ def get_insider_transactions(
 
     except Exception as e:
         raise NoMarketDataError(ticker, canonical, f"insider transactions unavailable: {e}") from e
+
+
+def get_company_profile(ticker: str) -> dict:
+    """Yahoo's current profile for ``ticker``: name, sector, industry and the like."""
+    canonical = normalize_symbol(ticker)
+    try:
+        return yf_retry(lambda: yf.Ticker(canonical).info) or {}
+    except Exception as e:
+        raise NoMarketDataError(ticker, canonical, f"profile unavailable: {e}") from e
+
+
+def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
+    """Daily closes from ``start_date`` up to, not including, ``end_date``."""
+    canonical = normalize_symbol(symbol)
+    try:
+        history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date))
+    except Exception as e:
+        raise NoMarketDataError(symbol, canonical, f"prices unavailable: {e}") from e
+    return history["Close"] if "Close" in history else pd.Series(dtype=float)

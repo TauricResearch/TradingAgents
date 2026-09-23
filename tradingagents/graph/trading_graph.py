@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import yfinance as yf
 from langgraph.prebuilt import ToolNode
 
 # Import the abstract tool methods from agent_utils
@@ -31,6 +30,7 @@ from tradingagents.agents.utils.agent_utils import (
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
+from tradingagents.dataflows.y_finance import get_closes
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree
@@ -302,8 +302,6 @@ class TradingAgentsGraph:
         the full holding window has not traded (#1169), or the symbol is delisted
         or unreachable.
         """
-        from tradingagents.dataflows.symbol_utils import normalize_symbol
-
         try:
             start = datetime.strptime(trade_date, "%Y-%m-%d")
             # holding_days counts trading days, so ask for the calendar span they
@@ -311,11 +309,9 @@ class TradingAgentsGraph:
             end = start + timedelta(days=round(holding_days * 7 / 5) + 7)
             end_str = end.strftime("%Y-%m-%d")
 
-            # Normalize so the realized-return lookup hits the same instrument
-            # the analysis priced (e.g. XAUUSD -> GC=F) (#984). The benchmark is
-            # already a canonical Yahoo symbol from ``_resolve_benchmark``.
-            stock = yf.Ticker(normalize_symbol(ticker)).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
+            # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984).
+            stock = get_closes(ticker, trade_date, end_str)
+            bench = get_closes(benchmark, trade_date, end_str)
 
             # Require the full holding window in both series. A rerun before it
             # has traded leaves the entry pending to retry next run, rather than
@@ -323,14 +319,8 @@ class TradingAgentsGraph:
             if len(stock) <= holding_days or len(bench) <= holding_days:
                 return None, None, None, None
 
-            raw = float(
-                (stock["Close"].iloc[holding_days] - stock["Close"].iloc[0])
-                / stock["Close"].iloc[0]
-            )
-            bench_ret = float(
-                (bench["Close"].iloc[holding_days] - bench["Close"].iloc[0])
-                / bench["Close"].iloc[0]
-            )
+            raw = float((stock.iloc[holding_days] - stock.iloc[0]) / stock.iloc[0])
+            bench_ret = float((bench.iloc[holding_days] - bench.iloc[0]) / bench.iloc[0])
             alpha = raw - bench_ret
             # The date of the last price bar used is when this outcome became
             # known — the point-in-time cutoff for injecting the lesson (#1251).

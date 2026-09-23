@@ -20,7 +20,7 @@ from pydantic import Field
 from tradingagents.agents import schemas
 from tradingagents.agents.analysts import sentiment_analyst
 from tradingagents.agents.utils import agent_utils
-from tradingagents.dataflows import interface, market_data_validator
+from tradingagents.dataflows import interface, market_data_validator, y_finance
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph import trading_graph
 
@@ -106,7 +106,7 @@ def offline(monkeypatch, tmp_path):
                         lambda *a, **k: called.add("ohlcv") or prices.copy())
     monkeypatch.setattr(sentiment_analyst, "fetch_stocktwits_messages", lambda *a, **k: "no posts")
     monkeypatch.setattr(sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "no posts")
-    monkeypatch.setattr(agent_utils.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
+    monkeypatch.setattr(y_finance.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
     agent_utils.resolve_instrument_identity.cache_clear()
     return called
 
