@@ -29,7 +29,7 @@ from tradingagents.agents.utils.agent_utils import (
     resolve_instrument_identity,
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
@@ -452,7 +452,8 @@ class TradingAgentsGraph:
         trade_date = _validate_trade_date(trade_date)
         self.ticker = company_name
 
-        with self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
+        with run_config(self.config), \
+                self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
             return self._run_graph(
                 company_name, trade_date, asset_type=asset_type,
                 checkpoint_thread_id=thread_id_value, portfolio=portfolio,
@@ -564,7 +565,8 @@ class TradingAgentsGraph:
         that is done analyzing a ticker (a backtest sweep, a scheduled job) calls
         this to settle it now.
         """
-        self._resolve_pending_entries(company_name)
+        with run_config(self.config):
+            self._resolve_pending_entries(company_name)
 
     def record_decision(self, company_name, trade_date, final_state):
         """Log a finished run's decision for reflection on the next same-ticker run."""
