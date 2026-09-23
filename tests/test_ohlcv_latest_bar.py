@@ -21,6 +21,13 @@ import pytest
 from tradingagents.dataflows import stockstats_utils as su
 from tradingagents.dataflows.symbol_utils import NoMarketDataError
 
+
+def _stamp(path, ts):
+    """Set ``path``'s mtime to the wall-clock ``ts``, read back in local time as
+    the cache does. A naive ``pd.Timestamp.timestamp()`` would be taken as UTC."""
+    t = ts.to_pydatetime().timestamp()
+    os.utime(path, (t, t))
+
 # --- date normalization -----------------------------------------------------
 
 @pytest.mark.unit
@@ -93,7 +100,7 @@ def _run_load(monkeypatch, tmp_path, frame, curr_date):
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache_file = tmp_path / "AAPL-YFin-data.csv"
     cache_file.write_text(frame.to_csv(index=False))
-    os.utime(cache_file, (today.timestamp(), today.timestamp()))
+    _stamp(cache_file, today)
 
     def _fail_download(*a, **k):
         raise AssertionError("should use the seeded cache, not download")
@@ -189,7 +196,7 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache = tmp_path / "AAPL-YFin-data.csv"
     cache.write_text(frame.to_csv(index=False))
-    os.utime(cache, (today.timestamp(), today.timestamp()))
+    _stamp(cache, today)
     monkeypatch.setattr(su.yf, "download", lambda *a, **k: (_ for _ in ()).throw(
         AssertionError("should read the seeded cache")))
 
