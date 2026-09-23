@@ -128,7 +128,7 @@ def test_ticker_news_window_before_feed_coverage_is_unavailable(monkeypatch):
     out = ynews.get_news_yfinance("AAPL", "2026-08-07", "2026-08-14")
     assert "RECENT" not in out
     assert "unavailable" in out and "not an absence" in out
-    assert "2026-09-10" in out  # says how far back the feed actually reaches
+    assert "2026-09-10" not in out  # an article after the window
 
 
 @pytest.mark.unit

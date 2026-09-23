@@ -53,7 +53,7 @@ def coverage_gap(
     if datetime.strptime(end_date, "%Y-%m-%d").date() > now.date():
         reason = "the window extends past today"
     elif oldest.date() > datetime.strptime(start_date, "%Y-%m-%d").date():
-        reason = f"it only serves recent items (coverage starts {oldest:%Y-%m-%d})"
+        reason = "it only serves recent items"
     else:
         return None
     return f"<{source} unavailable for {start_date}..{end_date}: {reason}, so this is not an absence of {subject}>"
@@ -111,7 +111,7 @@ def withhold_live_profile(curr_date: str | None, label: str) -> str | None:
         f"# Company Fundamentals for {label}\n"
         f"# Point-in-time as of: {curr_date}\n\n"
         f"Profile fundamentals are withheld for this date. This vendor serves "
-        f"only present-day values ({today}) with no historical vintage: market "
+        f"only present-day values with no historical vintage: market "
         f"cap, valuation multiples, the 52-week range and TTM income move with "
         f"today's quote, and even the name, sector and industry reflect today "
         f"rather than {curr_date} (companies rename and get reclassified). "

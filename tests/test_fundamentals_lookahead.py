@@ -68,7 +68,7 @@ class TestYFinanceHistoricalRun:
         out = _yf(_PAST)
         assert f"Point-in-time as of: {_PAST}" in out
         assert "withheld" in out
-        assert _PAST in out and _TODAY in out
+        assert _PAST in out and _TODAY not in out
 
     def test_no_wall_clock_retrieval_stamp(self):
         # The old header stamped datetime.now(), which is what surfaced the leak.

@@ -442,7 +442,7 @@ def get_insider_transactions(
             if kept.empty:
                 return (
                     f"<insider transactions unavailable for {canonical} as of {curr_date}: "
-                    f"Yahoo serves recent transactions only (coverage starts {traded.min():%Y-%m-%d})>"
+                    "Yahoo serves recent transactions only>"
                 )
             data = kept
 

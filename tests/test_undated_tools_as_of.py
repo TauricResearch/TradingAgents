@@ -42,7 +42,7 @@ def test_yfinance_insider_filings_after_the_date_are_dropped():
 def test_yfinance_insider_date_before_coverage_is_unavailable_not_absent():
     out = _yf_insider(_insider_frame("2026-09-08", "2025-06-02"), "2024-01-01")
     assert "unavailable" in out and "No insider transactions reported" not in out
-    assert "2025-06-02" in out  # where coverage starts
+    assert "2025-06-02" not in out  # a transaction after the run date
 
 
 @pytest.mark.unit
@@ -271,3 +271,27 @@ def test_a_historical_run_is_not_told_todays_date(func, args):
         out = getattr(y_finance, func)(*args)
 
     assert date.today().isoformat() not in out
+
+
+def _dates_after(text: str, cutoff: str) -> list[str]:
+    import re
+    return [d for d in re.findall(r"\d{4}-\d{2}-\d{2}", text) if d > cutoff]
+
+
+@pytest.mark.unit
+def test_an_unavailable_notice_names_no_date_after_the_run():
+    """A notice explaining why data is missing named where the vendor's coverage
+    starts or today's date, both after a historical run's date."""
+    from tradingagents.agents.utils.agent_utils import build_instrument_context
+    from tradingagents.dataflows.date_window import coverage_gap, withhold_live_profile
+    from tradingagents.dataflows.utils import get_current_date
+
+    today = get_current_date()
+    notices = [
+        coverage_gap([pd.Timestamp(today, tz="UTC")], "2025-01-01", "2025-01-07", "Feed", "news"),
+        withhold_live_profile("2025-01-07", "AAPL"),
+        _yf_insider(_insider_frame(today), "2025-01-07"),
+        build_instrument_context("EXMP", "stock", {"company_name": "Example"}, curr_date="2025-01-07"),
+    ]
+    for notice in notices:
+        assert _dates_after(notice, "2025-01-07") == [], notice

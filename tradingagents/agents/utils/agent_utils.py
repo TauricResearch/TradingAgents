@@ -183,9 +183,9 @@ def build_instrument_context(
         today = get_current_date()
         if curr_date and str(curr_date) < today:
             context += (
-                f" This identity is how the vendor describes the instrument today "
-                f"({today}), not necessarily on {curr_date}: a name or "
-                f"classification changed since then would read as the current one."
+                f" This identity is how the vendor describes the instrument today, "
+                f"not necessarily on {curr_date}: a name or classification changed "
+                f"since then would read as the current one."
             )
 
     if is_crypto:
