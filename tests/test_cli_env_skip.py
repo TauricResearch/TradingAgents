@@ -147,3 +147,20 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.unit
+def test_the_users_real_prefs_file_is_never_touched():
+    """Tests here call the real ``get_user_selections``, which saves.
+
+    Deliberately placed in this file and not in ``test_cli_prefs.py``: that one
+    redirects the path with its own autouse fixture, so the guard would pass
+    there whether or not the shared one in conftest exists. Here it fails if
+    that shared fixture is ever dropped.
+    """
+    from pathlib import Path
+
+    import cli.prefs
+
+    real = Path.home() / ".tradingagents" / "cli_prefs.json"
+    assert cli.prefs._PREFS_PATH != real

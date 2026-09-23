@@ -56,6 +56,23 @@ def _isolate_config():
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_cli_prefs(tmp_path, monkeypatch):
+    """Point the CLI preferences file at tmp for every test.
+
+    ``get_user_selections`` saves the answers it collected, so any test that
+    calls it writes a preferences file. Without this, that write lands on the
+    real ``~/.tradingagents/cli_prefs.json`` and replaces what the user saved:
+    running the suite cost them their remembered analyst team, provider and
+    models.
+
+    Autouse and global rather than per-file, because the trap is easy to fall
+    into again — a new test only has to reach ``get_user_selections`` to write
+    to the user's home directory, with nothing in the test to hint that it did.
+    """
+    monkeypatch.setattr("cli.prefs._PREFS_PATH", tmp_path / "cli_prefs.json")
+
+
 @pytest.fixture()
 def mock_llm_client():
     client = MagicMock()
