@@ -50,6 +50,26 @@ def test_a_refusal_has_no_rating_and_is_not_defaulted():
     assert parse_rating(REFUSAL) == RATING_REVIEW
 
 
+CLAIM_CHECKED = ("**Rating**: Buy\n\n**Investment Thesis**: Gross margin expanded to 75%.\n\n"
+                 "**Claim Check**: 1 statement read from the Investment Thesis, 1 checkable "
+                 "against the analyst reports: 1 contradicted.\n\n"
+                 "**Rating after claim check**: REVIEW (the Portfolio Manager rated Buy; "
+                 "1 claim contradicted by the analyst reports)")
+
+
+@pytest.mark.unit
+def test_a_decision_the_claim_check_sent_to_review_has_no_rating():
+    """The claim check appends a labelled REVIEW after the Portfolio Manager's
+    rating; as the last label it wins, so no reader trades the Buy."""
+    assert extract_rating(CLAIM_CHECKED) is None
+    assert parse_rating(CLAIM_CHECKED) == RATING_REVIEW
+
+
+@pytest.mark.unit
+def test_a_review_label_before_the_final_rating_does_not_override_it():
+    assert extract_rating("Rating: REVIEW pending data\n\nRating: Hold") == "Hold"
+
+
 @pytest.mark.unit
 def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
     """A free-text answer that echoes the rating scale was read as the first
@@ -78,12 +98,13 @@ def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
     from tradingagents.graph.signal_processing import SignalProcessor
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
-    for text in (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate."):
+    texts = (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate.", CLAIM_CHECKED)
+    for text in texts:
         log.store_decision("NVDA", f"2026-01-0{len(log.load_entries()) + 1}", text)
 
-    signals = [SignalProcessor.process_signal(None, text)
-               for text in (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate.")]
+    signals = [SignalProcessor.process_signal(None, text) for text in texts]
     assert [e["rating"] for e in log.load_entries()] == signals
+    assert signals[-1] == RATING_REVIEW
 
 
 @pytest.mark.unit

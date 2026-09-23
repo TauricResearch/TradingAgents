@@ -117,24 +117,40 @@ below a threshold; never exceed `max_debate_rounds` / `max_risk_discuss_rounds`.
 
 ### 4. Check the Portfolio Manager's claims against the reports
 
-**Goal:** catch evidence the Portfolio Manager invented or misread.
+**Goal:** catch evidence the Portfolio Manager invented or misread. It never
+reads the analyst reports: its prompt holds the research plan, the trader's
+plan, the risk debate and past lessons. A fact in its thesis has passed through
+two or three LLM summaries before it gets there.
 
-**Jev question (one per claim × relevant report section):**
+**Jev questions:**
 
-| Id | Primitive | Question |
-| --- | --- | --- |
-| `support` | Choice | How does `source_section` relate to `claim`? Options: supports, contradicts, says nothing. |
+| Id | Primitive | Asked | Question |
+| --- | --- | --- | --- |
+| `checkable` | Noul | once per claim | Is `claim` a fact about `instrument`, its business, stock, industry or market that an analyst report could confirm or refute? Assessments such as "margins are expanding" count. Recommendations, plans, price targets, the writer's own forecasts, remarks about the debate or the analysts, past lessons, holdings and generic caveats do not. |
+| `source` | Choice | same request | Which analyst report would state the facts in `claim`? The options are the reports written in this run, each described. Skipped when there is only one. |
+| `relation` | Choice | once per checkable claim × section | How does `section` relate to `claim`? Options: supports (states or implies at least one of its points and contradicts none), contradicts, says nothing. |
 
-**Policy in code:** split the Investment Thesis into claims (sentences or
-bullets); pair each with the analyst report sections it could come from.
-Accept a claim when any section supports it with high confidence; flag
-contradicted claims; send decisions with contradicted or unsupported key
-claims to `REVIEW`. Numeric claims are checked by the existing
-[`market_data_validator.py`](../tradingagents/dataflows/market_data_validator.py),
-not by Jev.
+**Policy in code:** split the Investment Thesis into claims (bullets and
+sentences). Pair each checkable claim with the sections of every report it
+could come from. Accept a claim when some section supports it with high
+confidence; otherwise flag it as contradicted when some section contradicts it
+with high confidence; otherwise it is unsupported. Send the decision to
+`REVIEW` when a claim is contradicted, or when unsupported claims are both
+several and at least half of the checkable ones. Figures are matched in code
+(the cookbook's string-match step): a number in a checkable claim that no
+report states is listed, but does not send the decision to `REVIEW` on its own,
+since the Portfolio Manager legitimately derives figures such as the upside to
+its target. The first survey planned to check numeric claims with
+[`market_data_validator.py`](../tradingagents/dataflows/market_data_validator.py).
+That does not work: the module only builds the price and indicator snapshot the
+Market Analyst treats as ground truth, checks no claims, and covers none of the
+figures from the other three reports.
 
-**Where:** after [`portfolio_manager.py`](../tradingagents/agents/managers/portfolio_manager.py)
+**Where:** the end of
+[`portfolio_manager.py`](../tradingagents/agents/managers/portfolio_manager.py)
 (the same check also fits the Research Manager's plan).
+
+**Status:** built. See [Fit 4 as built](#fit-4-as-built).
 
 **Jev sources:** [Double-Checking Citations](https://docs.typesafe.ai/cookbooks/citation_check.md).
 
@@ -230,8 +246,8 @@ model, using analyst-report agreement judgments from fits 2 and 3.
    item, isolated to one agent, testable with `tests/test_social_lookahead.py`
    and `tests/test_stocktwits_resilience.py`. Fixes untrusted social text in
    prompts and the LLM-chosen sentiment score.
-2. **Fit 3**: debate convergence, a direct cost saving.
-3. **Fit 4**: claim verification on the final decision.
+2. ~~**Fit 4**~~ (built, ahead of fit 3): claim verification on the final decision.
+3. **Fit 3**: debate convergence, a direct cost saving.
 4. **Fits 6–10** as needed.
 5. **Fit 5** once the backtest has enough resolved decisions.
 
@@ -272,3 +288,97 @@ dropped; its stance of −0.71 would otherwise have pulled the score bearish.
 cut-offs are all in `SentimentPolicy`. They are cookbook starting points, not
 values fitted to this domain. Once backtest decisions resolve, tune them
 against alpha, then pin `jev_model` to the versioned id they were tuned on.
+
+## Fit 4 as built
+
+**Code:** [`claim_check.py`](../tradingagents/agents/utils/claim_check.py)
+(claim and section splitting, questions, `ClaimCheckPolicy`, figures, output),
+one call at the end of
+[`portfolio_manager.py`](../tradingagents/agents/managers/portfolio_manager.py),
+and the `REVIEW` label in [`rating.py`](../tradingagents/agents/utils/rating.py).
+Tests: [`test_jev_claim_check.py`](../tests/test_jev_claim_check.py) and
+[`test_rating_integrity.py`](../tests/test_rating_integrity.py). There is no new
+graph node, so the CLI and web UI statuses and the checkpoint signature are
+unchanged.
+
+**Flow per decision:**
+1. The Investment Thesis is read from the rendered decision: `**Investment Thesis**:`
+   up to `**Price Target**` or `**Time Horizon**`, or a `## Investment Thesis`
+   heading on the free-text path, or else the whole text minus the rating line.
+   Code splits it into bullets and sentences, strips markdown, and drops
+   fragments under 25 characters and repeats. The first 20 claims are checked.
+2. Each written analyst report is split at its headings (a bold line counts as
+   one). Parts over 2,400 characters are cut at paragraph blocks, with tables
+   kept whole, and parts under 400 characters are merged with a neighbour.
+3. One request per claim asks `checkable` and, with two or more reports,
+   `source`. The state is the instrument (ticker, name and classification, read
+   from the context resolved at run start) and the claim.
+4. One request per checkable claim and section of each report with
+   P(source) ≥ 0.15 asks `relation`. The state adds the section: its report,
+   heading and text.
+5. Code gives each claim a verdict: supported if its best P(supports) is at
+   least 0.60; otherwise contradicted if its best P(contradicts) is at least
+   0.80; otherwise not found. The section behind the verdict (for a claim not
+   found, the closest one) is kept for the output.
+6. Code lists each figure in a checkable claim that no report states when
+   rounded to the claim's precision. It reads %, $, x, bps, K/M/B/T and
+   million/billion/trillion, and skips years, dates, periods ("12 months"),
+   counts under 10, and numbers inside names or labels such as Q3, 10-K, H100
+   and S&P 500. Signs are ignored, since direction is Jev's question.
+7. The decision goes to `REVIEW` when a claim is contradicted, or when at least
+   2 claims are not found and they are at least half of the checkable ones.
+   Unmatched figures alone never do. With no checkable claims, only a note is
+   added.
+
+**Output:** a block appended to the decision, so `judge_decision`,
+`final_trade_decision`, the saved report and the memory log all carry it. It is
+kept short, because past decisions come back into later prompts through
+`memory.get_past_context`:
+
+```
+**Claim Check**: 10 statements read from the Investment Thesis, 7 checkable against the analyst reports: 5 supported, 1 contradicted, 1 not found. 2 figures in no report. (Claims judged by TypeSafe Jev; figures matched in code.)
+- Contradicted: "Gross margin expanded to 76% on pricing power, showing the Blackwell ramp is already paying off." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 0.93)
+- Not found: "Microsoft signed a multi-year supply agreement for Blackwell Ultra systems last week." (closest: news report, "Company news / Industry / Macro"; supports 0.12)
+- Figure in no report: 76% in "Gross margin expanded to 76% on pricing power, showing the Blackwell ramp is already paying off."
+- Figure in no report: $19.2 billion in "Free cash flow reached $19.2 billion in the quarter, funding the enlarged buyback."
+
+**Rating after claim check**: REVIEW (the Portfolio Manager rated Buy; 1 claim contradicted by the analyst reports)
+```
+
+This is the format, rendered by the code for the live-check script's decision
+with hand-set verdicts, not a recorded run. `extract_rating` reads a
+last labelled `REVIEW` as no rating, so the signal, the memory log tag, the
+backtest (as unscored), the CLI and the web UI all show `REVIEW`. The
+Portfolio Manager's own rating stays in the text. A quoted claim has any
+`rating:` separator removed, so it can never read as a later rating label.
+
+**Degrades:** with no `TYPESAFE_API_KEY`, `jev_enabled: False`, no `jev` extra,
+`jev_claim_check: False` (`TRADINGAGENTS_JEV_CLAIM_CHECK=false`), or no analyst
+report in the run, the decision is exactly as before. If any Jev request fails
+after the SDK's retries, a warning is logged and the decision is kept unchecked,
+never partly checked.
+
+**Load:** about one request per claim plus one per checkable claim and routed
+section. That is roughly 10 + 70 requests for a full four-report run, or 8–10 s
+at `MAX_CONCURRENT_REQUESTS = 8`. This is an estimate: it has not been measured
+live yet.
+
+**Live check:** not yet run. The session that built fit 4 had no
+`TYPESAFE_API_KEY`, and its network policy blocked `api.typesafe.ai`.
+[`scripts/jev_claim_check_live.py`](../scripts/jev_claim_check_live.py) holds
+hand-written NVDA reports and a Buy decision with three planted failures: a
+contradicted fact (gross margin "expanded to 76%" when the report says it fell
+to 71.2%), an invented fact (a Microsoft supply deal), and an invented figure
+(free cash flow of $19.2 billion when the report says $13.5 billion). Run it and
+record the results here. Offline, with every section answering "says nothing",
+the figure check flagged exactly the two planted figures (76% and
+$19.2 billion) among the 7 claims a stub marked checkable.
+
+**To tune next:** every threshold is in `ClaimCheckPolicy` and is a cookbook
+starting point (the cookbook auto-accepts at 0.8). A decision sent to `REVIEW`
+is left out of the backtest figures, so tuning needs the Portfolio Manager's
+own rating from the text of those decisions, compared with the outcomes of the
+ones that passed. Also worth watching live: sentences that open with a pronoun
+("It grew 22%") reach Jev without their subject, and the checkable filter
+decides how many of the Portfolio Manager's remarks about the debate are
+checked at all.

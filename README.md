@@ -27,7 +27,7 @@
 
 ---
 
-> **TradingAgents-Jev** is a fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) (Apache 2.0). It adds [TypeSafe Jev](https://docs.typesafe.ai) per-item judgments to the Sentiment Analyst and a browser UI; see [TypeSafe Jev (optional)](#typesafe-jev-optional) and [Browser UI](#browser-ui). All credit for the underlying framework goes to the original authors.
+> **TradingAgents-Jev** is a fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) (Apache 2.0). It adds [TypeSafe Jev](https://docs.typesafe.ai) per-item judgments to the Sentiment Analyst, a check of the Portfolio Manager's claims against the analyst reports, and a browser UI; see [TypeSafe Jev (optional)](#typesafe-jev-optional) and [Browser UI](#browser-ui). All credit for the underlying framework goes to the original authors.
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
@@ -207,7 +207,9 @@ Model settings live in the sidebar and share the CLI's remembered answers and `.
 
 ### TypeSafe Jev (optional)
 
-With `pip install ".[jev]"` and `TYPESAFE_API_KEY` set, the Sentiment Analyst first judges each news article and social post with [TypeSafe Jev](https://docs.typesafe.ai). It drops items about other companies, repeats, and posts carrying instructions aimed at an AI system, then computes the sentiment band, score and confidence from per-item stances; the LLM writes only the narrative. Set `TRADINGAGENTS_JEV_ENABLED=false` to keep the previous behaviour. Details: [docs/jev-use-cases.md](docs/jev-use-cases.md).
+With `pip install ".[jev]"` and `TYPESAFE_API_KEY` set, the Sentiment Analyst first judges each news article and social post with [TypeSafe Jev](https://docs.typesafe.ai). It drops items about other companies, repeats, and posts carrying instructions aimed at an AI system, then computes the sentiment band, score and confidence from per-item stances; the LLM writes only the narrative.
+
+At the end of the run, the Portfolio Manager's Investment Thesis is checked against the analyst reports, which the Portfolio Manager never reads itself. Jev judges which claims are checkable facts and whether each report section supports or contradicts them; figures are matched in code. The result is appended to the decision, and a contradicted claim, or a thesis whose claims are mostly not found in the reports, turns the rating into `REVIEW` instead of a trade. Set `TRADINGAGENTS_JEV_CLAIM_CHECK=false` to turn off the claim check alone, or `TRADINGAGENTS_JEV_ENABLED=false` to keep the previous behaviour everywhere. Details: [docs/jev-use-cases.md](docs/jev-use-cases.md).
 
 ### Markets and tickers
 

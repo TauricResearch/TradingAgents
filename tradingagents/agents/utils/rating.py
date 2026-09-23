@@ -12,6 +12,12 @@ Centralising it here avoids drift between those call sites.
 caller turns that into ``REVIEW`` rather than a tradeable position: a decision
 nobody can read is not a Hold, and a Hold recorded in its place is quoted back to
 the next run as a call that was never made (#1170).
+
+It also returns ``None`` when the last labelled rating is ``REVIEW`` itself. The
+claim check (``claim_check.py``) appends ``**Rating after claim check**: REVIEW``
+when the analyst reports contradict the Portfolio Manager's thesis, and the
+signal, the memory log, the backtest, the CLI and the web UI all read that
+decision as REVIEW through this function.
 """
 
 from __future__ import annotations
@@ -51,8 +57,9 @@ def extract_rating(text: str) -> str | None:
 
     Two-pass strategy on the NFKC-normalized text (so fullwidth punctuation like
     ``Rating：Overweight`` is matched the same as ASCII):
-    1. An explicit "Rating: X" label (tolerant of markdown bold).
-    2. The first standalone 5-tier rating word found anywhere.
+    1. An explicit "Rating: X" label (tolerant of markdown bold). The last one
+       wins, and a last label of ``REVIEW`` means no rating.
+    2. The only standalone 5-tier rating word in the text, if there is just one.
     """
     if not text:
         return None
@@ -66,8 +73,15 @@ def extract_rating(text: str) -> str | None:
         if _RATING_SCALE_RE.search(line):
             continue
         m = _RATING_LABEL_RE.search(line)
-        if m and m.group(1).lower() in _RATING_SET:
-            labelled = m.group(1).capitalize()
+        if not m:
+            continue
+        word = m.group(1).lower()
+        if word in _RATING_SET:
+            labelled = word.capitalize()
+        elif word == RATING_REVIEW.lower():
+            labelled = RATING_REVIEW
+    if labelled == RATING_REVIEW:
+        return None
     if labelled:
         return labelled
 
