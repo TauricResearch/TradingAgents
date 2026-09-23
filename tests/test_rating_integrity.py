@@ -32,6 +32,42 @@ def test_a_rating_argued_against_is_not_read_as_the_decision():
 
 
 @pytest.mark.unit
+def test_a_rating_the_thesis_quotes_does_not_replace_the_decision():
+    from tradingagents.agents.schemas import (
+        PortfolioDecision,
+        PortfolioRating,
+        render_pm_decision,
+    )
+
+    thesis = ("Valuation is stretched at 38x forward earnings.\n"
+              "- Street consensus rating: Buy (28 of 35 analysts), already priced in.")
+    rendered = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.HOLD, executive_summary="Stay flat into earnings.",
+        investment_thesis=thesis,
+    ))
+    free_text = f"## NVDA\n\n- **Rating**: Hold\n- **Investment Thesis**: {thesis}"
+    assert extract_rating(rendered) == "Hold"
+    assert extract_rating(free_text) == "Hold"
+
+
+@pytest.mark.unit
+def test_only_the_opening_line_is_the_header():
+    text = "Inputs:\n- Research Manager\n  - Rating: Buy\n\n**Rating**: Hold\n\nStay flat."
+    assert extract_rating(text) == "Hold"
+
+
+@pytest.mark.unit
+def test_a_word_ending_in_rating_is_not_a_rating_label():
+    text = "Operating margin: Sell-side models still assume expansion. Final rating: Overweight."
+    assert extract_rating(text) == "Overweight"
+
+
+@pytest.mark.unit
+def test_a_label_written_straight_after_cjk_text_is_read():
+    assert extract_rating("多头主张 Buy，空头主张 Sell。\n最终Rating：Hold") == "Hold"
+
+
+@pytest.mark.unit
 def test_prose_naming_several_ratings_without_a_label_needs_review():
     """Nothing in the text says which one is the call, so guessing risks
     reporting the opposite of the decision."""
@@ -57,6 +93,8 @@ def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
     text = ("**Rating Scale**: Buy, Overweight, Hold, Underweight, Sell.\n\n"
             "**Rating**: Sell\n\nExit the position.")
     assert extract_rating(text) == "Sell"
+    assert extract_rating("**Rating**: Buy / Overweight / Hold / Underweight / Sell\n\n"
+                          "**Rating**: Sell") == "Sell"
 
 
 # --- the readers agree ------------------------------------------------------
