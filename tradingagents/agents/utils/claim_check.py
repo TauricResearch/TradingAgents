@@ -12,15 +12,18 @@ the reports:
    instrument or its market (not a recommendation, a forecast, or a remark
    about the debate) and which report would state it.
 3. One request per checkable claim and section of the reports it could come
-   from asks whether the section supports it, contradicts it, or says nothing.
+   from asks whether the section supports it, contradicts it, or says nothing,
+   and whether telling which would take comparing numbers.
 4. The verdicts, the figures check and whether the decision goes to REVIEW are
    decided in code, from the thresholds in ``ClaimCheckPolicy``.
 
-Figures are matched as strings in code, not by Jev, which cannot compare
-numbers: a number in a checkable claim that no report states, at the claim's
-precision, is listed. It does not send the decision to REVIEW on its own,
-because the Portfolio Manager legitimately derives figures such as the upside
-to its target.
+Jev cannot compare numbers. A section that settles a claim only through
+numbers ("29.5x forward earnings" against "a five-year average of 36x") neither
+supports nor contradicts it; the claim is left unverified. Figures are matched
+as strings in code: a number in a checkable claim that no report states, at the
+claim's precision, is listed. It does not send the decision to REVIEW on its
+own, because the Portfolio Manager legitimately derives figures such as the
+upside to its target.
 
 The typesafe SDK is imported only when questions are built, so the Portfolio
 Manager can import this module without the ``jev`` extra installed.
@@ -127,8 +130,9 @@ def claim_questions(sources: Sequence[str]) -> dict:
 
 
 def relation_questions() -> dict:
-    """Request B: how one report section bears on one claim."""
-    from typesafe_sdk import Choice
+    """Request B: how one report section bears on one claim, and whether telling
+    that would take comparing numbers."""
+    from typesafe_sdk import Choice, Noul, NoulCriteria
 
     # "Supports" asks for one of the claim's points rather than all of them: a
     # compound claim often draws its parts from different sections, and would
@@ -144,6 +148,22 @@ def relation_questions() -> dict:
                             "something else, or mentions the topic without confirming or "
                             "denying the claim.",
         },
+    ), "needs_numbers": Noul(
+        # Live, the relation for "trades below its five-year average" against
+        # "29.5x forward ... five-year average of 36x" was a coin flip, true or
+        # false; this question separated such pairs (≥ 0.86) from the rest (≤ 0.23).
+        instructions="To tell whether `section` confirms or denies `claim`, would you have to "
+                     "compare two numbers from it or calculate something, because `section` does "
+                     "not say it in words?",
+        criteria=NoulCriteria(
+            true="`claim` says one value is above, below, higher, lower, cheaper or richer than "
+                 "another, or states a difference, ratio or change, and `section` gives only the "
+                 "numbers, so the answer depends on which number is larger or on arithmetic.",
+            false="`section` itself says in words what `claim` asserts or its opposite (for "
+                  "example 'rose', 'fell', 'above', 'below', 'expanded'), or `claim` can be "
+                  "matched against `section` by reading alone, or `section` does not address "
+                  "`claim`.",
+        ),
     )}
 
 
@@ -164,6 +184,11 @@ class ClaimCheckPolicy:
     source_floor: float = 0.15      # sections of reports with P(source) below are not asked
     supported_min: float = 0.60     # best P(supports) at or above: supported
     contradicted_min: float = 0.80  # else best P(contradicts) at or above: contradicted
+    # A section with P(needs_numbers) at or above neither supports nor contradicts;
+    # when one addresses the claim (P(supports) + P(contradicts) at or above
+    # addressed_min) and no other section decides it, the claim is unverified.
+    needs_numbers_max: float = 0.50
+    addressed_min: float = 0.50
     # REVIEW when any claim is contradicted, or when at least this many checkable
     # claims are unsupported and they are at least this share of the checkable ones.
     review_unsupported_min: int = 2
@@ -531,8 +556,9 @@ def unstated_figures(claim: str, stated: Sequence[Figure]) -> list[str]:
 class ClaimResult:
     claim: str
     checkable: float
-    verdict: str  # supported, contradicted, unsupported, not_checkable
-    probability: float = 0.0  # P(supports) or P(contradicts) behind the verdict
+    verdict: str  # supported, contradicted, unverified, unsupported, not_checkable
+    # P(supports), P(contradicts) or, when unverified, P(needs_numbers) behind the verdict
+    probability: float = 0.0
     section: Section | None = None  # the section behind the verdict, or the closest one
     sources: Mapping[str, float] = field(default_factory=dict)
     figures: tuple[str, ...] = ()  # figures no report states
@@ -625,7 +651,10 @@ def run_check(
     )
     judged: dict[int, list[tuple[Section, Mapping[str, float]]]] = {}
     for (i, section), response in zip(pairs, relations, strict=True):
-        judged.setdefault(i, []).append((section, response.answers["relation"].probabilities))
+        answers = response.answers
+        judged.setdefault(i, []).append((section, {
+            **answers["relation"].probabilities, "needs_numbers": answers["needs_numbers"].noul,
+        }))
 
     results = []
     for i, result in enumerate(first_pass):
@@ -645,22 +674,40 @@ def claim_verdict(
     relations: Sequence[tuple[Section, Mapping[str, float]]],
     policy: ClaimCheckPolicy = DEFAULT_POLICY,
 ) -> tuple[str, float, Section | None]:
-    """Supported by the best section, else contradicted by the worst, else unsupported.
+    """Supported by the best section, else contradicted by the worst, else
+    unverified when a section addresses it only through numbers, else unsupported.
+
+    Each relation maps ``supports``, ``contradicts`` and ``says_nothing``, plus
+    ``needs_numbers``. Sections that need numbers compared are left out of
+    support and contradiction, since Jev cannot compare numbers.
 
     Returns the verdict, its probability, and the section behind it (for an
     unsupported claim, the closest one).
     """
     if not relations:
         return "unsupported", 0.0, None
-    support = max(relations, key=lambda r: r[1].get("supports", 0.0))
-    p_support = support[1].get("supports", 0.0)
-    if p_support >= policy.supported_min:
-        return "supported", p_support, support[0]
-    against = max(relations, key=lambda r: r[1].get("contradicts", 0.0))
-    p_against = against[1].get("contradicts", 0.0)
-    if p_against >= policy.contradicted_min:
-        return "contradicted", p_against, against[0]
-    return "unsupported", p_support, support[0]
+
+    def supports(r):
+        return r[1].get("supports", 0.0)
+
+    def contradicts(r):
+        return r[1].get("contradicts", 0.0)
+
+    worded = [r for r in relations if r[1].get("needs_numbers", 0.0) < policy.needs_numbers_max]
+    if worded:
+        support = max(worded, key=supports)
+        if supports(support) >= policy.supported_min:
+            return "supported", supports(support), support[0]
+        against = max(worded, key=contradicts)
+        if contradicts(against) >= policy.contradicted_min:
+            return "contradicted", contradicts(against), against[0]
+    numeric = [r for r in relations if r[1].get("needs_numbers", 0.0) >= policy.needs_numbers_max]
+    if numeric:
+        closest = max(numeric, key=lambda r: supports(r) + contradicts(r))
+        if supports(closest) + contradicts(closest) >= policy.addressed_min:
+            return "unverified", closest[1]["needs_numbers"], closest[0]
+    support = max(relations, key=supports)
+    return "unsupported", supports(support), support[0]
 
 
 def review_decision(
@@ -709,10 +756,12 @@ def render_claim_check(check: ClaimCheck, pm_rating: str | None) -> str:
         return (f"**Claim Check**: {read}; none is a checkable fact about the instrument "
                 f"or its market, so nothing was checked against the analyst reports.")
 
-    counts = {v: len(check.with_verdict(v)) for v in ("supported", "contradicted", "unsupported")}
+    counts = {v: len(check.with_verdict(v))
+              for v in ("supported", "contradicted", "unverified", "unsupported")}
     tally = ", ".join(f"{n} {label}" for n, label in (
         (counts["supported"], "supported"),
         (counts["contradicted"], "contradicted"),
+        (counts["unverified"], "unverified"),
         (counts["unsupported"], "not found"),
     ) if n)
     unmatched = [(r, f) for r in checkable for f in r.figures]
@@ -725,6 +774,9 @@ def render_claim_check(check: ClaimCheck, pm_rating: str | None) -> str:
     for r in check.with_verdict("contradicted"):
         lines.append(f'- Contradicted: "{_quote(r.claim)}" ({r.section.label}; '
                      f"contradicts {r.probability:.2f})")
+    for r in check.with_verdict("unverified"):
+        lines.append(f'- Unverified: "{_quote(r.claim)}" ({r.section.label}; '
+                     f"needs a numeric comparison {r.probability:.2f})")
     for r in check.with_verdict("unsupported"):
         where = (f"closest: {r.section.label}; supports {r.probability:.2f}"
                  if r.section else "no report section could hold it")

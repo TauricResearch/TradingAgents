@@ -314,12 +314,16 @@ unchanged.
    `source`. The state is the instrument (ticker, name and classification, read
    from the context resolved at run start) and the claim.
 4. One request per checkable claim and section of each report with
-   P(source) ≥ 0.15 asks `relation`. The state adds the section: its report,
-   heading and text.
-5. Code gives each claim a verdict: supported if its best P(supports) is at
-   least 0.60; otherwise contradicted if its best P(contradicts) is at least
-   0.80; otherwise not found. The section behind the verdict (for a claim not
-   found, the closest one) is kept for the output.
+   P(source) ≥ 0.15 asks `relation` and `needs_numbers`: would telling the
+   relation take comparing numbers, because the section does not say it in
+   words? The state adds the section: its report, heading and text.
+5. Code gives each claim a verdict. Sections with P(needs_numbers) ≥ 0.50 are
+   left out of support and contradiction, since Jev cannot compare numbers.
+   Over the rest: supported if the best P(supports) is at least 0.60; otherwise
+   contradicted if the best P(contradicts) is at least 0.80. Otherwise the
+   claim is unverified if a left-out section addresses it (P(supports) +
+   P(contradicts) ≥ 0.50), and not found if none does. The section behind the
+   verdict (for a claim not found, the closest one) is kept for the output.
 6. Code lists each figure in a checkable claim that no report states when
    rounded to the claim's precision. It reads %, $, x, bps, K/M/B/T and
    million/billion/trillion, and skips years, dates, periods ("12 months"),
@@ -327,8 +331,8 @@ unchanged.
    and S&P 500. Signs are ignored, since direction is Jev's question.
 7. The decision goes to `REVIEW` when a claim is contradicted, or when at least
    2 claims are not found and they are at least half of the checkable ones.
-   Unmatched figures alone never do. With no checkable claims, only a note is
-   added.
+   Unverified claims and unmatched figures never do. With no checkable claims,
+   only a note is added.
 
 **Output:** a block appended to the decision, so `judge_decision`,
 `final_trade_decision`, the saved report and the memory log all carry it. It is
@@ -336,19 +340,19 @@ kept short, because past decisions come back into later prompts through
 `memory.get_past_context`:
 
 ```
-**Claim Check**: 10 statements read from the Investment Thesis, 7 checkable against the analyst reports: 3 supported, 3 contradicted, 1 not found. 2 figures in no report. (Claims judged by TypeSafe Jev; figures matched in code.)
+**Claim Check**: 10 statements read from the Investment Thesis, 7 checkable against the analyst reports: 3 supported, 2 contradicted, 1 unverified, 1 not found. 2 figures in no report. (Claims judged by TypeSafe Jev; figures matched in code.)
 - Contradicted: "Gross margin expanded to 76% on pricing power, showing the Blackwell ramp is already paying off." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 1.00)
 - Contradicted: "Free cash flow reached $19.2 billion in the quarter, funding the enlarged buyback." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 0.99)
-- Contradicted: "At 29.5x forward earnings the stock trades below its five-year average multiple." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 0.95)
-- Not found: "Microsoft signed a multi-year supply agreement for Blackwell Ultra systems last week." (closest: news report, "Company news / Industry / Macro"; supports 0.01)
+- Unverified: "At 29.5x forward earnings the stock trades below its five-year average multiple." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; needs a numeric comparison 0.94)
+- Not found: "Microsoft signed a multi-year supply agreement for Blackwell Ultra systems last week." (closest: news report, "Company news / Industry / Macro"; supports 0.02)
 - Figure in no report: 76% in "Gross margin expanded to 76% on pricing power, showing the Blackwell ramp is already paying off."
 - Figure in no report: $19.2 billion in "Free cash flow reached $19.2 billion in the quarter, funding the enlarged buyback."
 
-**Rating after claim check**: REVIEW (the Portfolio Manager rated Buy; 3 claims contradicted by the analyst reports)
+**Rating after claim check**: REVIEW (the Portfolio Manager rated Buy; 2 claims contradicted by the analyst reports)
 ```
 
-This is the first run of the live check below, as recorded. The P/E line is a
-false positive (the report gives 29.5x against a 36x average). `extract_rating` reads a
+This is a recorded run of the live check below, after the numeric-comparison
+fix. `extract_rating` reads a
 last labelled `REVIEW` as no rating, so the signal, the memory log tag, the
 backtest (as unscored), the CLI and the web UI all show `REVIEW`. The
 Portfolio Manager's own rating stays in the text. A quoted claim has any
@@ -381,19 +385,36 @@ averages and MACD) and the Fed cut were supported every time. The three remarks
 (who won the debate, the lesson, the plan) scored checkable ≤ 0.08, and the
 routing put every checkable claim on the right report.
 
-One false positive: "At 29.5x forward earnings the stock trades below its
-five-year average multiple" is true by the report (29.5x against 36x). Jev
-judged it contradicted on two runs (0.95, 0.85) and supported on one (0.61).
-Claims that need a comparison between two numbers are the unstable case. Alone,
-this claim would have sent a correct decision to `REVIEW`.
+One false positive in those first runs: "At 29.5x forward earnings the stock
+trades below its five-year average multiple" is true by the report (29.5x
+against 36x). Jev judged it contradicted on two runs (0.95, 0.85) and supported
+on one (0.61). Alone, this claim would have sent a correct decision to `REVIEW`.
+A probe showed why. Asked 3 times each, the relation for this claim and for its
+false twin ("trades above") came out either way, since Jev cannot compare
+numbers. The `needs_numbers` question separated the comparison pairs (0.86–0.94)
+from the rest, genuine contradictions included (≤ 0.23), and it held steady
+across runs.
+
+**After the fix (3 more runs each):** the P/E claim is unverified every time
+(needs_numbers 0.93–0.94), and the three planted failures are caught as before,
+still sending the decision to `REVIEW`. The same thesis without the planted
+failures now keeps its Buy on every run (3 supported, 1 unverified). A worded
+contradiction whose figures all appear in a report ("Operating margin rose to
+60.8%" against "60.8%, down from 62.1%") has needs_numbers 0.14–0.17, so the fix
+leaves it alone. Its P(contradicts) sits at 0.85–0.90, near the 0.80 bar, and
+one run in three fell under it (not found).
+
+The cost: a comparison whose direction is wrong ("trades above its average" at
+29.5x against 36x) is also unverified, not contradicted. Jev could not tell it
+apart from the true one either way.
 
 **To tune next:** every threshold is in `ClaimCheckPolicy` and is a cookbook
 starting point (the cookbook auto-accepts at 0.8). A decision sent to `REVIEW`
 is left out of the backtest figures, so tuning needs the Portfolio Manager's
 own rating from the text of those decisions, compared with the outcomes of the
-ones that passed. The comparison false positive above is the first thing to
-address: options are a higher contradict bar, or asking Jev a second question
-before a contradiction counts. Also worth watching live: sentences that open with a pronoun
+ones that passed. To catch comparisons with the wrong direction, code would
+have to find the two numbers being compared, which is not done yet. Also worth
+watching live: sentences that open with a pronoun
 ("It grew 22%") reach Jev without their subject, and the checkable filter
 decides how many of the Portfolio Manager's remarks about the debate are
 checked at all.

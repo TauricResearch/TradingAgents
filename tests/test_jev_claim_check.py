@@ -10,7 +10,8 @@ A fake client stands in for the service: it answers from markers in the claim
 and section text, so the tests pin the policy and the plumbing, not the model.
 Claim markers: ``[fact]`` (checkable), ``[src:<report>]`` (routing), and
 ``[key:<name>]``; a section marks its relation to a claim with
-``[supports:<name>]`` or ``[contra:<name>]``, and says nothing about the rest.
+``[supports:<name>]`` or ``[contra:<name>]``, and says nothing about the rest;
+``[numeric:<name>]`` marks a relation that would take comparing numbers.
 """
 
 from __future__ import annotations
@@ -73,7 +74,9 @@ def _relation_answers(state):
     relation = next(
         (r for r in _RELATIONS if key and f"[{r}:{key.group(1)}]" in text), None
     )
-    return {"relation": _choice(dict(_RELATIONS[relation] if relation else _NOTHING))}
+    numeric = bool(key) and f"[numeric:{key.group(1)}]" in text
+    return {"relation": _choice(dict(_RELATIONS[relation] if relation else _NOTHING)),
+            "needs_numbers": _noul(0.9 if numeric else 0.1)}
 
 
 class FakeJev:
@@ -338,9 +341,9 @@ _A = cc.Section("fundamentals", "Revenue", "a")
 _B = cc.Section("news", "Macro", "b")
 
 
-def _rel(section, supports=0.05, contradicts=0.05):
+def _rel(section, supports=0.05, contradicts=0.05, needs_numbers=0.1):
     return section, {"supports": supports, "contradicts": contradicts,
-                     "says_nothing": 1 - supports - contradicts}
+                     "says_nothing": 1 - supports - contradicts, "needs_numbers": needs_numbers}
 
 
 @pytest.mark.unit
@@ -363,6 +366,23 @@ class TestVerdict:
     def test_thresholds_come_from_the_policy(self):
         strict = cc.ClaimCheckPolicy(supported_min=0.95)
         assert cc.claim_verdict([_rel(_A, supports=0.9)], strict)[0] == "unsupported"
+
+    @pytest.mark.parametrize("relation", [{"contradicts": 0.95}, {"supports": 0.9}, {"supports": 0.58, "contradicts": 0.42}])
+    def test_a_section_that_needs_numbers_compared_leaves_the_claim_unverified(self, relation):
+        """Live, "trades below its five-year average" against 29.5x and 36x came
+        out either way: Jev cannot compare numbers, so neither side counts."""
+        assert cc.claim_verdict([_rel(_A, needs_numbers=0.93, **relation), _rel(_B)]) == ("unverified", 0.93, _A)
+
+    def test_a_worded_section_still_decides_next_to_a_numeric_one(self):
+        verdict, _, section = cc.claim_verdict([_rel(_A, contradicts=0.9, needs_numbers=0.9),
+                                                _rel(_B, supports=0.8)])
+        assert (verdict, section) == ("supported", _B)
+        verdict, _, section = cc.claim_verdict([_rel(_A, supports=0.9, needs_numbers=0.9),
+                                                _rel(_B, contradicts=0.9)])
+        assert (verdict, section) == ("contradicted", _B)
+
+    def test_a_numeric_section_that_says_nothing_is_not_a_verdict(self):
+        assert cc.claim_verdict([_rel(_A, supports=0.2, contradicts=0.1, needs_numbers=0.9)])[0] == "unsupported"
 
 
 def _result(verdict, figures=()):
@@ -391,6 +411,9 @@ class TestReviewPolicy:
 
     def test_unstated_figures_alone_never_do(self):
         assert cc.review_decision([_result("supported", figures=("45%", "$9B"))])[0] is False
+
+    def test_unverified_claims_never_do(self):
+        assert cc.review_decision([_result("unverified")] * 3 + [_result("supported")])[0] is False
 
 
 # ---------------------------------------------------------------------------
@@ -493,6 +516,18 @@ class TestOutput:
         assert '- Figure in no report: 45% in "Hyperscaler capex rose 45%' in block
         assert "REVIEW (the Portfolio Manager rated Buy; 1 claim contradicted by the analyst " \
                "reports; 3 of 6 checkable claims not found in the analyst reports)" in block
+
+    def test_a_claim_that_needs_numbers_compared_is_listed_as_unverified(self):
+        thesis = THESIS.replace("[key:margin]", "[key:revenue]") + (
+            "\n- At 29.5x forward earnings it trades below its average multiple [fact] [src:fundamentals] [key:pe]")
+        reports = dict(REPORTS, fundamentals=REPORTS["fundamentals"] + (
+            "\n\n## Valuation\n29.5x forward earnings against a five-year average of 36x. [contra:pe] [numeric:pe]"))
+        decision, check = _check(thesis, reports)
+        block = cc.render_claim_check(check, "Buy")
+        assert "4 checkable against the analyst reports: 3 supported, 1 unverified." in block
+        assert '- Unverified: "At 29.5x forward earnings it trades below its average multiple' in block
+        assert block.endswith("; needs a numeric comparison 0.90)")
+        assert not check.review and extract_rating(f"{decision}\n\n{block}") == "Buy"
 
     def test_a_supported_thesis_keeps_its_rating(self):
         thesis = THESIS.replace("[key:margin]", "[key:revenue]")

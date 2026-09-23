@@ -16,7 +16,8 @@ failures:
   3. an invented figure   - free cash flow of $19.2 billion (reports: $13.5 billion)
 Expected: (1) contradicted, (2) not found, (3) figure listed, and the decision
 sent to REVIEW. The supported claims, the debate remarks and the plan should
-come out supported or not checkable.
+come out supported or not checkable, and the P/E comparison (true: 29.5x against
+a 36x average) unverified, since Jev cannot compare numbers.
 """
 
 from __future__ import annotations
