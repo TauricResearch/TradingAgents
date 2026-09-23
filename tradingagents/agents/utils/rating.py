@@ -32,10 +32,18 @@ RATING_REVIEW = "REVIEW"
 
 _RATING_SET = {r.lower() for r in RATINGS_5_TIER}
 
+# The line a decision opens with ("**Rating**: Hold"), as rendered or as the
+# Portfolio Manager prompt asks a free-text answer to start.
+_RATING_HEADER_RE = re.compile(r"[\s#*_\-]*rating[\s*_]*[:\-\u2010-\u2015][\s*]*(\w+)",
+                               re.IGNORECASE)
+
 # Matches "Rating: X" / "rating - X" / "Rating — **X**" — tolerates markdown
 # bold wrappers and any dash or colon a model writes as the separator.
-_RATING_LABEL_RE = re.compile(r"rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
-                              re.IGNORECASE)
+# A letter before "rating" makes it part of another word ("Operating"). Unlike
+# \b, the lookbehind still matches after CJK text, as in "最终Rating：Hold".
+_RATING_LABEL_RE = re.compile(
+    r"(?<![a-z])rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)", re.IGNORECASE
+)
 
 # A line presenting the scale rather than a decision ("Rating Scale: Buy, ...").
 _RATING_SCALE_RE = re.compile(r"rating\s*(scale|options|legend)", re.IGNORECASE)
@@ -49,20 +57,33 @@ _RATING_WORD_RE = re.compile(
 def extract_rating(text: str) -> str | None:
     """Extract a 5-tier rating from prose, or ``None`` if none is present.
 
-    Two-pass strategy on the NFKC-normalized text (so fullwidth punctuation like
+    Three passes on the NFKC-normalized text (so fullwidth punctuation like
     ``Rating：Overweight`` is matched the same as ASCII):
-    1. An explicit "Rating: X" label (tolerant of markdown bold).
-    2. The first standalone 5-tier rating word found anywhere.
+    1. The rating header, a "Rating: X" line that opens the decision.
+    2. The last line with a "Rating: X" label (tolerant of markdown bold).
+    3. The only standalone 5-tier rating word in the text.
     """
     if not text:
         return None
     norm = unicodedata.normalize("NFKC", text)
+    lines = norm.splitlines()
+
+    # The header is the call. Only the line that opens the decision, below any
+    # blank or "#" title lines, can be the header, because a "Rating: X" line
+    # further down may be a quote. A header naming several tiers echoes the scale.
+    for line in lines:
+        m = _RATING_HEADER_RE.match(line)
+        tiers = {t.lower() for t in _RATING_WORD_RE.findall(line)}
+        if m and tiers == {m.group(1).lower()}:
+            return m.group(1).capitalize()
+        if line.strip() and not line.lstrip().startswith("#"):
+            break
 
     # The labelled rating, taking the last one written: a decision states its
     # rating after discussing the alternatives. Lines presenting the scale
     # itself are a legend the model echoed, not a call.
     labelled = None
-    for line in norm.splitlines():
+    for line in lines:
         if _RATING_SCALE_RE.search(line):
             continue
         m = _RATING_LABEL_RE.search(line)
