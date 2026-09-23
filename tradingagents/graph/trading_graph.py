@@ -28,6 +28,7 @@ from tradingagents.agents.utils.agent_utils import (
     resolve_instrument_identity,
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.agents.utils.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
 from tradingagents.dataflows.y_finance import get_closes
@@ -40,7 +41,6 @@ from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
 from .reflection import Reflector
 from .setup import GraphSetup
-from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,6 @@ class TradingAgentsGraph:
             max_recur_limit=self.config.get("max_recur_limit", 100),
         )
         self.reflector = Reflector(self.quick_thinking_llm)
-        self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
         # State tracking
         self.curr_state = None
@@ -655,5 +654,5 @@ class TradingAgentsGraph:
             json.dump(entry, f, indent=4, ensure_ascii=False)
 
     def process_signal(self, full_signal):
-        """Process a signal to extract the core decision."""
-        return self.signal_processor.process_signal(full_signal)
+        """The decision's 5-tier rating, or REVIEW when it has none."""
+        return parse_rating(full_signal)

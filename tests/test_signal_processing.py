@@ -1,11 +1,7 @@
-"""Tests for the shared rating heuristic and the SignalProcessor adapter.
+"""The rating heuristic that reads the decision's 5-tier rating.
 
-The Portfolio Manager produces a typed PortfolioDecision via structured
-output and renders it to markdown that always contains a ``**Rating**: X``
-header.  The deterministic heuristic in ``tradingagents.agents.utils.rating``
-is therefore sufficient to extract the rating downstream — no second LLM
-call is needed — and SignalProcessor is now a thin adapter that delegates
-to it.
+The Portfolio Manager's rendered decision always carries a ``**Rating**: X``
+header, so the rating is read deterministically; no second model call is made.
 """
 
 import pytest
@@ -14,10 +10,8 @@ from tradingagents.agents.utils.rating import (
     RATING_REVIEW,
     RATINGS_5_TIER,
     extract_rating,
-    is_review,
     parse_rating,
 )
-from tradingagents.graph.signal_processing import SignalProcessor
 
 # ---------------------------------------------------------------------------
 # Heuristic parser
@@ -67,44 +61,9 @@ class TestParseRating:
         for r in RATINGS_5_TIER:
             assert parse_rating(f"Rating: {r}") == r
 
-
-# ---------------------------------------------------------------------------
-# SignalProcessor: thin adapter over the heuristic
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestSignalProcessor:
-    def test_returns_rating_from_pm_markdown(self):
-        sp = SignalProcessor()
-        md = "**Rating**: Overweight\n\n**Executive Summary**: Build gradually."
-        assert sp.process_signal(md) == "Overweight"
-
-    def test_makes_no_llm_calls(self):
-        """SignalProcessor must not invoke the LLM it was constructed with —
-        the rating is parseable from the rendered PM markdown directly."""
-        from unittest.mock import MagicMock
-
-        llm = MagicMock()
-        sp = SignalProcessor(llm)
-        sp.process_signal("Rating: Buy\nDetails.")
-        llm.invoke.assert_not_called()
-        llm.with_structured_output.assert_not_called()
-
-    def test_unparseable_signal_is_review_not_silent_hold(self):
-        # #1170: an unrecognizable decision must surface REVIEW, not a fabricated
-        # tradeable Hold.
-        sp = SignalProcessor()
-        signal = sp.process_signal("Plain prose without a recommendation.")
-        assert signal == RATING_REVIEW
-        assert is_review(signal)
-        assert signal not in RATINGS_5_TIER
-
     def test_fullwidth_colon_is_parsed_not_reviewed(self):
-        # #1170: `Rating：Overweight` (fullwidth colon) used to defeat the regex
-        # and silently become Hold; NFKC normalization now parses it.
-        sp = SignalProcessor()
-        assert sp.process_signal("Rating：Overweight\n理由はこちら。") == "Overweight"
+        # `Rating：Overweight` (fullwidth colon) is read, not sent to review (#1170).
+        assert parse_rating("Rating：Overweight\n理由はこちら。") == "Overweight"
 
 
 @pytest.mark.unit
@@ -131,7 +90,6 @@ class TestGraphSignalContract:
     def _bare_graph(self):
         from tradingagents.graph.trading_graph import TradingAgentsGraph
         g = object.__new__(TradingAgentsGraph)
-        g.signal_processor = SignalProcessor()
         return g
 
     def test_graph_surfaces_review(self):
