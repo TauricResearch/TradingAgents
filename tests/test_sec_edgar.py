@@ -237,3 +237,14 @@ def test_an_uninstalled_checkout_still_identifies_itself(monkeypatch):
 
     monkeypatch.setattr(sec_edgar.metadata, "version", _missing)
     assert "@" in sec_edgar._user_agent()
+
+
+@pytest.mark.unit
+def test_capital_expenditure_is_found_under_either_tag_filers_use(monkeypatch):
+    """NVIDIA and Amazon report purchases of productive assets, not of property and equipment."""
+    facts = {"facts": {"us-gaap": {"PaymentsToAcquireProductiveAssets": {"units": {"USD": [
+        _fact("2024-12-31", 70_000_000, "2025-02-10", start="2024-01-01")]}}}}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+    out = sec_edgar.get_cashflow("AAPL", "annual", "2025-03-01")
+    assert [r for r in out.splitlines() if r.startswith("Capital Expenditure")] == ["Capital Expenditure,70"]
