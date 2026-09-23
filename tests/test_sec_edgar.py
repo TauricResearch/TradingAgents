@@ -248,3 +248,48 @@ def test_capital_expenditure_is_found_under_either_tag_filers_use(monkeypatch):
                         lambda url: TICKER_MAP if "company_tickers" in url else facts)
     out = sec_edgar.get_cashflow("AAPL", "annual", "2025-03-01")
     assert [r for r in out.splitlines() if r.startswith("Capital Expenditure")] == ["Capital Expenditure,70"]
+
+
+def _columns(out):
+    return [line for line in out.splitlines() if line.startswith(",")][0].split(",")[1:]
+
+
+@pytest.mark.unit
+def test_an_annual_balance_sheet_has_no_quarter_end_columns():
+    """A balance has no span, so a 10-Q's quarter-end balance passed as annual."""
+    annual = _columns(sec_edgar.get_balance_sheet("AAPL", "annual", "2024-11-15"))
+    quarterly = _columns(sec_edgar.get_balance_sheet("AAPL", "quarterly", "2024-11-15"))
+    assert "2022-03-26" not in annual and "2024-09-28" in annual
+    assert "2022-03-26" in quarterly
+
+
+@pytest.mark.unit
+def test_a_twelve_month_total_from_a_quarterly_report_is_not_a_fiscal_year(monkeypatch):
+    """Amazon's 10-Qs report trailing twelve months, which passed the annual span
+    check and read as fiscal years overlapping the real ones."""
+    facts = {"facts": {"us-gaap": {"NetCashProvidedByUsedInOperatingActivities": {"units": {"USD": [
+        _fact("2024-12-31", 115_000_000_000, "2025-02-07", start="2024-01-01"),
+        _fact("2025-03-31", 113_000_000_000, "2025-05-02", form="10-Q", fp="Q1", start="2024-04-01"),
+    ]}}}}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+    assert _columns(sec_edgar.get_cashflow("AAPL", "annual", "2025-06-01")) == ["2024-12-31"]
+
+
+@pytest.mark.unit
+def test_a_recast_outside_the_annual_report_still_counts_from_its_filing(monkeypatch):
+    """Filers recast past years in an 8-K after a split or spin-off. The annual
+    report decides the columns; the value is the latest filing of any form."""
+    facts = {"facts": {"us-gaap": {"EarningsPerShareDiluted": {"units": {"USD/shares": [
+        _fact("2017-03-31", 16.97, "2017-06-15", form="20-F", start="2016-04-01"),
+        _fact("2017-03-31", 2.12, "2019-09-30", form="6-K", start="2016-04-01"),
+    ]}}}}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+
+    def eps(date):
+        out = sec_edgar.get_income_statement("AAPL", "annual", date)
+        return [line for line in out.splitlines() if line.startswith("Diluted EPS")][0].split(",")[1]
+
+    assert eps("2019-01-01") == "16.97"
+    assert eps("2020-01-01") == "2.12"

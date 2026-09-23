@@ -76,6 +76,12 @@ _STATEMENTS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
 # end date, so a match on the end date alone can report half a year as a quarter.
 _SPANS = {"quarterly": (60, 115), "annual": (300, 400)}
 
+# A fiscal year is a period an annual report covers. A 10-Q balance has no span
+# to reject, and some filers' 10-Qs report twelve-month totals that pass the span
+# check, so either would read as a fiscal year. The value is still the latest
+# filing of any form: a recast after a split or spin-off counts from its filing.
+_ANNUAL_FORMS = ("10-K", "20-F", "40-F")
+
 
 def _user_agent() -> str:
     """Who SEC sees. No account or key exists; callers identify themselves.
@@ -138,7 +144,8 @@ def cik_for(ticker: str) -> str | None:
     return None
 
 
-def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, int]) -> tuple[dict, str]:
+def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, int],
+           forms: tuple[str, ...] = ()) -> tuple[dict, str]:
     """({period end: value}, unit) for the first tag the filer reports, as known then.
 
     A period reported more than once takes its latest filing on or before the
@@ -155,6 +162,7 @@ def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, 
     for tag in tags:
         for unit, unit_values in ((facts.get(tag) or {}).get("units", {})).items():
             latest: dict[str, dict] = {}
+            covered: set[str] = set()   # period ends a filing of ``forms`` reports
             for fact in unit_values:
                 if fact["filed"] > curr_date or fact["end"] in values:
                     continue
@@ -164,9 +172,12 @@ def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, 
                     days = (date.fromisoformat(fact["end"]) - date.fromisoformat(fact["start"])).days
                     if not low <= days <= high:
                         continue
+                if not forms or fact.get("form", "").startswith(forms):
+                    covered.add(fact["end"])
                 seen = latest.get(fact["end"])
                 if seen is None or fact["filed"] >= seen["filed"]:
                     latest[fact["end"]] = fact
+            latest = {end: fact for end, fact in latest.items() if end in covered}
             if latest:
                 chosen_unit = unit
                 values.update({end: fact["val"] for end, fact in latest.items()})
@@ -184,8 +195,10 @@ def _statement(kind: str, ticker: str, freq: str, curr_date: str, title: str) ->
     if not us_gaap:
         raise NoMarketDataError(ticker, ticker, "US filer with no us-gaap facts")
 
-    span = _SPANS["quarterly" if freq.lower() == "quarterly" else "annual"]
-    lines = {label: _as_of(us_gaap, tags, curr_date, span) for label, tags in _STATEMENTS[kind]}
+    quarterly = freq.lower() == "quarterly"
+    span = _SPANS["quarterly" if quarterly else "annual"]
+    forms = () if quarterly else _ANNUAL_FORMS
+    lines = {label: _as_of(us_gaap, tags, curr_date, span, forms) for label, tags in _STATEMENTS[kind]}
     periods = sorted({end for values, _ in lines.values() for end in values})
     if not periods:
         raise NoMarketDataError(ticker, ticker, f"no {freq} {title.lower()} filed by {curr_date}")
