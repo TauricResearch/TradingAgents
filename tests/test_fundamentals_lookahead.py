@@ -110,7 +110,6 @@ class TestLiveRunUnchanged:
         out = _yf(_TODAY)
         for value in _LEAKY:
             assert value in out
-        assert "Data retrieved on:" in out
         assert "withheld" not in out
 
     def test_yfinance_absent_curr_date_returns_the_full_profile(self):

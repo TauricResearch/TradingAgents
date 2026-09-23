@@ -246,3 +246,28 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch)
     monkeypatch.setattr(stockstats_utils, "vendor_reachable", lambda url: True)
     with pytest.raises(NoMarketDataError):
         y_finance.get_YFin_data_online("AAPL", "2026-09-01", "2026-09-10")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("func, args", [
+    ("get_YFin_data_online", ("AAPL", "2025-06-02", "2025-06-06")),
+    ("get_balance_sheet", ("AAPL", "quarterly", "2025-06-06")),
+    ("get_cashflow", ("AAPL", "quarterly", "2025-06-06")),
+    ("get_income_statement", ("AAPL", "quarterly", "2025-06-06")),
+    ("get_insider_transactions", ("AAPL", "2025-06-06")),
+])
+def test_a_historical_run_is_not_told_todays_date(func, args):
+    """A header stamped with the wall clock tells a backtest when it is really running."""
+    from datetime import date
+
+    statement = pd.DataFrame({pd.Timestamp("2025-03-31"): [1.0]}, index=["Total Assets"])
+    prices = pd.DataFrame({"Open": [1.0], "High": [1.0], "Low": [1.0], "Close": [1.0], "Volume": [1]},
+                          index=pd.DatetimeIndex(["2025-06-02"], name="Date"))
+    ticker = mock.Mock(quarterly_balance_sheet=statement, quarterly_cashflow=statement,
+                       quarterly_income_stmt=statement,
+                       insider_transactions=_insider_frame("2025-05-30"),
+                       history=lambda **k: prices)
+    with mock.patch.object(y_finance.yf, "Ticker", return_value=ticker):
+        out = getattr(y_finance, func)(*args)
+
+    assert date.today().isoformat() not in out

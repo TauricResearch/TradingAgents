@@ -71,8 +71,7 @@ def get_YFin_data_online(
     # agent (and user) can see which instrument was actually priced.
     label = canonical if canonical == symbol.upper() else f"{canonical} (from {symbol})"
     header = f"# Stock data for {label} from {start_date} to {end_date}\n"
-    header += f"# Total records: {len(data)}\n"
-    header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    header += f"# Total records: {len(data)}\n\n"
 
     return header + csv_string
 
@@ -345,8 +344,7 @@ def get_fundamentals(
         if not lines:
             raise NoMarketDataError(ticker, canonical, "no fundamental fields returned")
 
-        header = f"# Company Fundamentals for {canonical}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header = f"# Company Fundamentals for {canonical}\n\n"
 
         return header + "\n".join(lines)
 
@@ -381,7 +379,6 @@ def get_balance_sheet(
 
         # Add header information
         header = f"# Balance Sheet data for {canonical} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         header += _PERIOD_END_VINTAGE
 
         return header + csv_string
@@ -417,7 +414,6 @@ def get_cashflow(
 
         # Add header information
         header = f"# Cash Flow data for {canonical} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         header += _PERIOD_END_VINTAGE
 
         return header + csv_string
@@ -453,7 +449,6 @@ def get_income_statement(
 
         # Add header information
         header = f"# Income Statement data for {canonical} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         header += _PERIOD_END_VINTAGE
 
         return header + csv_string
@@ -518,7 +513,6 @@ def get_insider_transactions(
 
         # Add header information
         header = f"# Insider Transactions data for {canonical}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         header += _TRANSACTION_DATE_VINTAGE
 
         return header + csv_string
