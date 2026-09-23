@@ -120,7 +120,7 @@ def _log_with(tmp_path, rows):
         log.store_decision(ticker, date, decision)
         if outcome is not None:
             log.update_with_outcome(ticker, date, outcome[0], outcome[1], 5, "note", "2026-02-01")
-    return log
+    return tmp_path / "m.md"
 
 
 @pytest.mark.unit
@@ -245,4 +245,32 @@ def test_the_window_reported_is_the_one_the_outcomes_used(tmp_path):
     log.store_decision("NVDA", "2026-01-05", "**Rating**: Buy\n\nx")
     log.update_with_outcome("NVDA", "2026-01-05", 0.1, 0.04, 21, "note", "2026-02-01")
 
-    assert "21 trading days" in summarize(log).render()
+    assert "21 trading days" in summarize(tmp_path / "m.md").render()
+
+
+@pytest.mark.unit
+def test_a_backtest_result_is_summarized_directly(tmp_path):
+    """The result names its own log, so a caller never builds the log to score it."""
+    from tradingagents.backtest import BacktestResult
+
+    path = _log_with(tmp_path, [("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.10, 0.04))])
+
+    assert summarize(BacktestResult(run_id="r", log_path=path)).resolved == 1
+
+
+@pytest.mark.unit
+def test_a_log_path_that_does_not_exist_is_an_error_not_an_empty_summary(tmp_path):
+    missing = tmp_path / "no-such-dir" / "m.md"
+
+    with pytest.raises(FileNotFoundError):
+        summarize(missing)
+    assert not missing.parent.exists()
+
+
+@pytest.mark.unit
+def test_a_result_whose_cells_all_failed_summarizes_as_empty(tmp_path):
+    from tradingagents.backtest import BacktestResult
+
+    result = BacktestResult(run_id="r", log_path=tmp_path / "never-written.md")
+
+    assert summarize(result).resolved == 0

@@ -175,9 +175,15 @@ def run_backtest(
     return result
 
 
-def summarize(memory_log: TradingMemoryLog) -> BacktestSummary:
-    """Score the settled decisions in a log, by rating."""
-    entries = memory_log.load_entries()
+def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
+    """Score the settled decisions of a backtest, or of a decision log at a path, by rating."""
+    if isinstance(source, BacktestResult):
+        path = source.log_path      # a run whose cells all failed wrote no log: nothing to score
+    elif Path(source).is_file():
+        path = Path(source)
+    else:
+        raise FileNotFoundError(f"no decision log at {source}")
+    entries = TradingMemoryLog({"memory_log_path": str(path)}).load_entries()
     # A decision with no readable rating has no direction, so it can neither
     # count for nor against the system; it is reported as unscored instead.
     resolved = [(e, _alpha(e)) for e in entries

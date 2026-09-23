@@ -1372,7 +1372,6 @@ def backtest(
     ),
 ):
     """Score past decisions over a grid of tickers and dates."""
-    from tradingagents.agents.utils.memory import TradingMemoryLog
 
     try:
         dates = iter_grid(start, end, every)
@@ -1395,7 +1394,7 @@ def backtest(
     except Exception as exc:  # a missing key or an unknown analyst is a setup error
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None
-    console.print(summarize(TradingMemoryLog({"memory_log_path": str(result.log_path)})).render())
+    console.print(summarize(result).render())
     console.print(f"\nRan {result.cells_run} cells, skipped {result.skipped}. Log: {result.log_path}")
     for ticker, date, reason in result.failures:
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")

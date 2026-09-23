@@ -325,11 +325,10 @@ One run gives one decision, which cannot tell you whether the system decides wel
 
 ```python
 from tradingagents.backtest import iter_grid, run_backtest, summarize
-from tradingagents.agents.utils.memory import TradingMemoryLog
 
 dates = iter_grid("2026-06-01", "2026-08-01", every_n_days=7)
 result = run_backtest(["NVDA", "AAPL"], dates, config, selected_analysts=["market", "news"])
-print(summarize(TradingMemoryLog({"memory_log_path": str(result.log_path)})).render())
+print(summarize(result).render())
 ```
 
 From the CLI:

@@ -98,7 +98,7 @@ def test_an_unscored_decision_is_left_out_of_the_backtest_figures(tmp_path):
     log.store_decision("AAPL", "2026-01-05", REFUSAL)
     log.update_with_outcome("AAPL", "2026-01-05", 0.1, 0.04, 5, "note", "2026-02-01")
 
-    summary = summarize(log)
+    summary = summarize(tmp_path / "m.md")
     assert set(summary.by_rating) == {"Buy"}
 
 
