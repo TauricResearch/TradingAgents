@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 

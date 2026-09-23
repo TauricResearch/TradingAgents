@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.decision_log import TradingMemoryLog
 
 DECISION = "Rating: Buy\n\nbuy it"
 

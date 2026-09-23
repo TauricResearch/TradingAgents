@@ -7,7 +7,7 @@ import pytest
 
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
-from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -886,12 +886,12 @@ class TestLegacyRemoval:
 
     def test_financial_situation_memory_removed(self):
         """FinancialSituationMemory must not be importable from the memory module."""
-        import tradingagents.agents.utils.memory as m
+        import tradingagents.decision_log as m
         assert not hasattr(m, "FinancialSituationMemory")
 
     def test_bm25_not_imported(self):
         """rank_bm25 must not be present in the memory module namespace."""
-        import tradingagents.agents.utils.memory as m
+        import tradingagents.decision_log as m
         assert not hasattr(m, "BM25Okapi")
 
     def test_reflect_and_remember_removed(self):
@@ -957,7 +957,7 @@ class TestLegacyRemoval:
 def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp_path, monkeypatch):
     """Settling past decisions happens on the way into a new run, and reflection
     calls an LLM. A transient failure there must not stop the new analysis."""
-    from tradingagents.agents.utils.memory import TradingMemoryLog
+    from tradingagents.decision_log import TradingMemoryLog
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
     graph = object.__new__(TradingAgentsGraph)
@@ -990,7 +990,7 @@ def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp
 def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
     """A decision written for months should not be graded at a week without the
     operator choosing that window."""
-    from tradingagents.agents.utils.memory import TradingMemoryLog
+    from tradingagents.decision_log import TradingMemoryLog
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
     graph = object.__new__(TradingAgentsGraph)

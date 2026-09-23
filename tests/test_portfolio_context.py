@@ -76,7 +76,7 @@ def test_load_reads_a_valid_file(tmp_path):
 # --- threading through the graph --------------------------------------------
 
 def _bare_graph(tmp_path):
-    from tradingagents.agents.utils.memory import TradingMemoryLog
+    from tradingagents.decision_log import TradingMemoryLog
     from tradingagents.graph.propagation import Propagator
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
