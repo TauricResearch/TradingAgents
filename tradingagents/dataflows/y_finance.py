@@ -299,8 +299,7 @@ def get_fundamentals(
         return withheld
 
     try:
-        ticker_obj = yf.Ticker(canonical)
-        info = yf_retry(lambda: ticker_obj.info)
+        info = yf_retry(lambda: yf.Ticker(canonical).info)
 
         if not info:
             raise_for_empty(ticker, canonical, "fundamentals")
@@ -523,5 +522,7 @@ def get_insider_transactions(
 
         return header + csv_string
 
+    except VendorError:
+        raise
     except Exception as e:
         raise NoMarketDataError(ticker, canonical, f"insider transactions unavailable: {e}") from e

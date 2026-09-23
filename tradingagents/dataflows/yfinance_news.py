@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 from .config import get_config
 from .date_window import coverage_gap, in_window
-from .errors import NoMarketDataError
+from .errors import NoMarketDataError, VendorError
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
 
@@ -118,6 +118,8 @@ def get_news_yfinance(
 
         return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
 
+    except VendorError:
+        raise
     except Exception as e:
         raise NoMarketDataError(ticker, ticker, f"news unavailable: {e}") from e
 
@@ -196,5 +198,7 @@ def get_global_news_yfinance(
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
+    except VendorError:
+        raise
     except Exception as e:
         raise NoMarketDataError("global news", "global news", f"unavailable: {e}") from e

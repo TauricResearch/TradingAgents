@@ -14,6 +14,7 @@ anywhere counts as no data and the staleness check judges the rest.
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -97,7 +98,7 @@ def _run_load(monkeypatch, tmp_path, frame, curr_date):
 
     def _fail_download(*a, **k):
         raise AssertionError("should use the seeded cache, not download")
-    monkeypatch.setattr(su.yf, "download", _fail_download)
+    monkeypatch.setattr(su.yf, "Ticker", lambda symbol: SimpleNamespace(history=_fail_download))
     return su.load_ohlcv("AAPL", curr_date)
 
 
@@ -190,8 +191,8 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     cache = tmp_path / "AAPL-YFin-data.csv"
     cache.write_text(frame.to_csv(index=False))
     os.utime(cache, (today.timestamp(), today.timestamp()))
-    monkeypatch.setattr(su.yf, "download", lambda *a, **k: (_ for _ in ()).throw(
-        AssertionError("should read the seeded cache")))
+    monkeypatch.setattr(su.yf, "Ticker", lambda symbol: SimpleNamespace(
+        history=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should read the seeded cache"))))
 
     out = mdv.build_verified_market_snapshot("AAPL", "2026-05-08", 3)
 
