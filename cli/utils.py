@@ -99,39 +99,6 @@ def filter_analysts_for_asset_type(
     ]
 
 
-def get_analysis_date() -> str:
-    """Prompt the user to enter a date in YYYY-MM-DD format."""
-    import re
-    from datetime import datetime
-
-    def validate_date(date_str: str) -> bool:
-        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
-            return False
-        try:
-            datetime.strptime(date_str, "%Y-%m-%d")
-            return True
-        except ValueError:
-            return False
-
-    date = questionary.text(
-        "Enter the analysis date (YYYY-MM-DD):",
-        validate=lambda x: validate_date(x.strip())
-        or "Please enter a valid date in YYYY-MM-DD format.",
-        style=questionary.Style(
-            [
-                ("text", "fg:green"),
-                ("highlighted", "noinherit"),
-            ]
-        ),
-    ).ask()
-
-    if not date:
-        console.print("\n[red]No date provided. Exiting...[/red]")
-        exit(1)
-
-    return date.strip()
-
-
 def _matching_choice(options, default):
     """The option value equal to ``default``, or None to leave the menu as is."""
     return next((value for _, value in options if value == default), None)

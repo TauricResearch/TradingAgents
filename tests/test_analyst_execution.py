@@ -49,7 +49,7 @@ class AnalystWallTimeTrackerTests(unittest.TestCase):
         tracker.mark_started("market", started_at=10.0)
         tracker.mark_completed("market", completed_at=13.5)
 
-        self.assertEqual(tracker.get_wall_times(), {"market": 3.5})
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.50s")
 
     def test_formats_summary_in_plan_order(self):
         plan = build_analyst_execution_plan(["news", "market"])
@@ -70,21 +70,18 @@ class AnalystWallTimeTrackerTests(unittest.TestCase):
         tracker = AnalystWallTimeTracker(plan)
 
         sync_analyst_tracker_from_chunk(tracker, {}, now=10.0)
-        self.assertEqual(tracker.get_wall_times(), {})
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: pending")
 
         sync_analyst_tracker_from_chunk(
             tracker,
             {"market_report": "done"},
             now=13.0,
         )
-        self.assertEqual(tracker.get_wall_times(), {"market": 3.0})
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.00s")
 
         sync_analyst_tracker_from_chunk(
             tracker,
             {"market_report": "done", "news_report": "done"},
             now=18.0,
         )
-        self.assertEqual(
-            tracker.get_wall_times(),
-            {"market": 3.0, "news": 5.0},
-        )
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.00s | News 5.00s")

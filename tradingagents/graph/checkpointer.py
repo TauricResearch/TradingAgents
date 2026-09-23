@@ -51,11 +51,6 @@ def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver
         conn.close()
 
 
-def has_checkpoint(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> bool:
-    """Check whether a resumable checkpoint exists for ticker+date."""
-    return checkpoint_step(data_dir, ticker, date, signature) is not None
-
-
 def checkpoint_step(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> int | None:
     """Return the step number of the latest checkpoint, or None if none exists."""
     db = _db_path(data_dir, ticker)

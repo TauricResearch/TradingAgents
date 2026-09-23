@@ -145,9 +145,6 @@ class TradingAgentsGraph:
         )
         self.reflector = Reflector(self.quick_thinking_llm)
 
-        # State tracking
-        self.curr_state = None
-
         # Graph-shape-affecting run choices, kept for the checkpoint signature.
         self.selected_analysts = tuple(selected_analysts)
 
@@ -537,9 +534,6 @@ class TradingAgentsGraph:
                 final_state.update(chunk)
         else:
             final_state = self.graph.invoke(graph_input, **args)
-
-        # Store current state for reflection.
-        self.curr_state = final_state
 
         # Log state to disk.
         self._log_state(trade_date, final_state)

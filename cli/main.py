@@ -112,9 +112,7 @@ class MessageBuffer:
         self.messages = deque(maxlen=max_length)
         self.tool_calls = deque(maxlen=max_length)
         self.current_report = None
-        self.final_report = None  # Store the complete final report
         self.agent_status = {}
-        self.current_agent = None
         self.report_sections = {}
         self.selected_analysts = []
         self._processed_message_ids = set()
@@ -148,8 +146,6 @@ class MessageBuffer:
 
         # Reset other state
         self.current_report = None
-        self.final_report = None
-        self.current_agent = None
         self.messages.clear()
         self.tool_calls.clear()
         self._processed_message_ids.clear()
@@ -186,7 +182,6 @@ class MessageBuffer:
     def update_agent_status(self, agent, status):
         if agent in self.agent_status:
             self.agent_status[agent] = status
-            self.current_agent = agent
 
     def update_report_section(self, section_name, content):
         if section_name in self.report_sections:
@@ -218,50 +213,6 @@ class MessageBuffer:
             self.current_report = (
                 f"### {section_titles[latest_section]}\n{latest_content}"
             )
-
-        # Update the final complete report
-        self._update_final_report()
-
-    def _update_final_report(self):
-        report_parts = []
-
-        # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
-        if any(self.report_sections.get(section) for section in analyst_sections):
-            report_parts.append("## Analyst Team Reports")
-            if self.report_sections.get("market_report"):
-                report_parts.append(
-                    f"### Market Analysis\n{self.report_sections['market_report']}"
-                )
-            if self.report_sections.get("sentiment_report"):
-                report_parts.append(
-                    f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
-                )
-            if self.report_sections.get("news_report"):
-                report_parts.append(
-                    f"### News Analysis\n{self.report_sections['news_report']}"
-                )
-            if self.report_sections.get("fundamentals_report"):
-                report_parts.append(
-                    f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
-                )
-
-        # Research Team Reports
-        if self.report_sections.get("investment_plan"):
-            report_parts.append("## Research Team Decision")
-            report_parts.append(f"{self.report_sections['investment_plan']}")
-
-        # Trading Team Reports
-        if self.report_sections.get("trader_investment_plan"):
-            report_parts.append("## Trading Team Plan")
-            report_parts.append(f"{self.report_sections['trader_investment_plan']}")
-
-        # Portfolio Management Decision
-        if self.report_sections.get("final_trade_decision"):
-            report_parts.append("## Portfolio Management Decision")
-            report_parts.append(f"{self.report_sections['final_trade_decision']}")
-
-        self.final_report = "\n\n".join(report_parts) if report_parts else None
 
 
 message_buffer = MessageBuffer()
@@ -778,11 +729,6 @@ def get_analysis_date():
             console.print(
                 "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
             )
-
-
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
-    """Save the complete analysis report to disk (shared CLI/API writer)."""
-    return write_report_tree(final_state, ticker, save_path)
 
 
 def display_complete_report(final_state):
@@ -1344,7 +1290,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = write_report_tree(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:

@@ -103,9 +103,6 @@ class AnalystWallTimeTracker:
         finished_at = monotonic() if completed_at is None else completed_at
         self._wall_times[analyst_key] = max(0.0, finished_at - started_at)
 
-    def get_wall_times(self) -> dict[str, float]:
-        return dict(self._wall_times)
-
     def format_summary(self) -> str:
         parts = []
         for spec in self.plan.specs:

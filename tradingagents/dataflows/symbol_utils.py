@@ -71,9 +71,6 @@ _ALIASES = {
     "FRA40": "^FCHI", "EU50": "^STOXX50E", "HK50": "^HSI",
 }
 
-# Yahoo symbols may contain letters, digits, and these structural characters.
-_YAHOO_SAFE = re.compile(r"^[A-Za-z0-9._\-\^=]+$")
-
 # HKEX codes as Yahoo spells them: the number zero-padded to 4 digits (#957).
 _HK_CODE = re.compile(r"^(\d{1,5})\.HK$")
 _SHANGHAI_SH = re.compile(r"^(\d{6})\.SH$")
@@ -150,7 +147,3 @@ def normalize_symbol(raw: str) -> str:
         logger.info("Resolved symbol %r to Yahoo symbol %r", raw, canonical)
     return canonical
 
-
-def is_yahoo_safe(symbol: str) -> bool:
-    """True when ``symbol`` only contains characters Yahoo symbols use."""
-    return bool(symbol) and _YAHOO_SAFE.fullmatch(symbol) is not None

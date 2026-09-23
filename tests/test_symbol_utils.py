@@ -7,7 +7,6 @@ import pytest
 from tradingagents.dataflows.symbol_utils import (
     NoMarketDataError,
     crypto_base,
-    is_yahoo_safe,
     normalize_symbol,
 )
 
@@ -86,17 +85,6 @@ class TestNoMarketDataError(unittest.TestCase):
     def test_canonical_defaults_to_symbol(self):
         err = NoMarketDataError("FOOBAR")
         self.assertEqual(err.canonical, "FOOBAR")
-
-
-@pytest.mark.unit
-class TestIsYahooSafe(unittest.TestCase):
-    def test_accepts_structural_chars(self):
-        for sym in ("AAPL", "GC=F", "^GSPC", "BRK.B", "BTC-USD"):
-            self.assertTrue(is_yahoo_safe(sym))
-
-    def test_rejects_slash_and_space(self):
-        for sym in ("a/b", "AA PL", ""):
-            self.assertFalse(is_yahoo_safe(sym))
 
 
 @pytest.mark.unit
