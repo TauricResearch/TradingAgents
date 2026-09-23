@@ -83,7 +83,6 @@ def get_indicator(
         series_type = required_series_type
 
     try:
-        # Get indicator data for the period
         if indicator == "close_50_sma":
             data = _make_api_request("SMA", {
                 "symbol": symbol,
@@ -146,12 +145,10 @@ def get_indicator(
                 symbol, symbol, f"Alpha Vantage does not serve the {indicator} indicator"
             )
 
-        # Parse CSV data and extract values for the date range
         lines = data.strip().split('\n')
         if len(lines) < 2:
             return f"Error: No data returned for {indicator}"
 
-        # Parse header and data
         header = [col.strip() for col in lines[0].split(',')]
         try:
             date_col_idx = header.index('time')
@@ -185,10 +182,8 @@ def get_indicator(
             if len(values) > value_col_idx:
                 try:
                     date_str = values[date_col_idx].strip()
-                    # Parse the date
                     date_dt = datetime.strptime(date_str, "%Y-%m-%d")
 
-                    # Check if date is in our range
                     if before <= date_dt <= curr_date_dt:
                         value = values[value_col_idx].strip()
                         result_data.append((date_dt, value))

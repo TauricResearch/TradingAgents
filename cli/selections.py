@@ -45,11 +45,9 @@ def get_user_selections():
 
 def _prompt_selections(prefs):
     """Walk the selection steps. ``prefs`` prefills, the environment skips."""
-    # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
-    # Create welcome box content
     welcome_content = f"{welcome_ascii}\n"
     welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
@@ -58,7 +56,6 @@ def _prompt_selections(prefs):
         "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
     )
 
-    # Create and center the welcome box
     welcome_box = Panel(
         welcome_content,
         border_style="green",
@@ -74,7 +71,6 @@ def _prompt_selections(prefs):
     announcements = fetch_announcements()
     display_announcements(console, announcements)
 
-    # Create a boxed questionnaire for each step
     def create_question_box(title, prompt, default=None):
         box_content = f"[bold]{title}[/bold]\n"
         box_content += f"[dim]{prompt}[/dim]"

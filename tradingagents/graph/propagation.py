@@ -1,5 +1,3 @@
-# TradingAgents/graph/propagation.py
-
 from typing import Any
 
 from tradingagents.agents.state import InvestDebateState, RiskDebateState

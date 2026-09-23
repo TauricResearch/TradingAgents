@@ -154,7 +154,6 @@ class TradingMemoryLog:
                 and tag_line.startswith(pending_prefix)
                 and tag_line.endswith("| pending]")
             ):
-                # Parse rating from the existing pending tag
                 fields = [f.strip() for f in tag_line[1:-1].split("|")]
                 rating = fields[2]
                 new_tag = self._resolved_tag(
@@ -189,7 +188,6 @@ class TradingMemoryLog:
         text = self._log_path.read_text(encoding="utf-8")
         blocks = text.split(self._SEPARATOR)
 
-        # Build lookup keyed by (trade_date, ticker) for O(1) dispatch
         update_map = {(u["trade_date"], u["ticker"]): u for u in updates}
 
         new_blocks = []

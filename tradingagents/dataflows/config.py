@@ -61,5 +61,4 @@ def get_config() -> dict:
     return deepcopy(_config)
 
 
-# Initialize with default config
 initialize_config()

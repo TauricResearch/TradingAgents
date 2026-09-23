@@ -1,5 +1,3 @@
-# TradingAgents/graph/setup.py
-
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -84,29 +82,24 @@ class GraphSetup:
             "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
         }
 
-        # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
         bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
         research_manager_node = create_research_manager(self.deep_thinking_llm)
         trader_node = create_trader(self.quick_thinking_llm)
 
-        # Create risk analysis nodes
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
 
-        # Create workflow
         workflow = StateGraph(AgentState)
 
-        # Add analyst nodes to the graph
         for spec in plan.specs:
             workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
             workflow.add_node(spec.clear_node, create_msg_delete())
             if spec.tools:
                 workflow.add_node(spec.tool_node, ToolNode(list(spec.tools)))
 
-        # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
@@ -116,11 +109,8 @@ class GraphSetup:
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        # Define edges
-        # Start with the first analyst
         workflow.add_edge(START, plan.specs[0].agent_node)
 
-        # Connect analysts in sequence
         for i, spec in enumerate(plan.specs):
             if spec.tools:
                 workflow.add_conditional_edges(

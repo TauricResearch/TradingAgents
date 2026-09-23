@@ -1,5 +1,3 @@
-# TradingAgents/graph/trading_graph.py
-
 import json
 import logging
 import os
@@ -64,17 +62,13 @@ class TradingAgentsGraph:
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
-        # Update the interface's config
         set_config(self.config)
 
-        # Create necessary directories
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
-        # Initialize LLMs with provider-specific thinking configuration
         llm_kwargs = build_llm_kwargs(self.config)
 
-        # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
 
@@ -96,7 +90,6 @@ class TradingAgentsGraph:
 
         self.memory_log = TradingMemoryLog(self.config)
 
-        # Initialize components
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config["max_debate_rounds"],
             max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],

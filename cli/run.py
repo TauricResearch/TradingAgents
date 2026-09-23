@@ -99,7 +99,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
 
     config = _build_run_config(selections, checkpoint)
 
-    # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
@@ -108,7 +107,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
     analyst_execution_plan = build_analyst_execution_plan(selected_analyst_keys)
     analyst_wall_time_tracker = AnalystWallTimeTracker(analyst_execution_plan)
 
-    # Initialize the graph with callbacks bound to LLMs
     graph = TradingAgentsGraph(
         selected_analyst_keys,
         config=config,
@@ -116,13 +114,11 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         callbacks=[stats_handler],
     )
 
-    # Initialize message buffer with selected analysts
     message_buffer.init_for_analysis(selected_analyst_keys)
 
     # Track start time for elapsed display
     start_time = time.time()
 
-    # Create result directory
     results_dir = _run_directory(config, selections["ticker"], selections["analysis_date"])
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
@@ -173,7 +169,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
     message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
     message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
 
-    # Now start the display layout
     layout = create_layout()
 
     # The alternate screen keeps a layout taller than the window from redrawing
@@ -182,7 +177,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        # Add initial messages
         message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
         if selections["asset_type"] != "stock":
             message_buffer.add_message("System", f"Detected asset type: {selections['asset_type']}")
@@ -195,13 +189,11 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        # Update agent status to in_progress for the first analyst
         first_analyst = analyst_execution_plan.specs[0].agent_node
         message_buffer.update_agent_status(first_analyst, "in_progress")
         analyst_wall_time_tracker.mark_started(selected_analyst_keys[0])
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        # Create spinner text
         spinner_text = (
             f"Analyzing {selections['ticker']} on {selections['analysis_date']}..."
         )
@@ -232,7 +224,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         trace = []
         try:
             for chunk in graph.graph.stream(graph.checkpoint_input(init_agent_state), **args):
-                # Process all messages in chunk, deduplicating by message ID
                 for message in chunk.get("messages", []):
                     msg_id = getattr(message, "id", None)
                     if msg_id is not None:
@@ -251,7 +242,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
                             else:
                                 message_buffer.add_tool_call(tool_call.name, tool_call.args)
 
-                # Update analyst statuses based on report state (runs on every chunk)
                 update_analyst_statuses(
                     message_buffer,
                     chunk,
@@ -328,7 +318,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
                         message_buffer.update_agent_status("Neutral Analyst", "completed")
                         message_buffer.update_agent_status("Portfolio Manager", "completed")
 
-                # Update the display
                 update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
                 trace.append(chunk)
@@ -350,7 +339,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
             # Always restore the plain uncheckpointed graph, even on failure.
             graph.end_checkpoint()
 
-        # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
             message_buffer.update_agent_status(agent, "completed")
 
@@ -359,7 +347,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
         message_buffer.add_message("System", analyst_wall_time_tracker.format_summary())
 
-        # Update final report sections
         for section in message_buffer.report_sections:
             if section in final_state:
                 message_buffer.update_report_section(section, final_state[section])

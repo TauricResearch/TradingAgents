@@ -180,7 +180,6 @@ def get_stock_stats_indicators_window(
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
 
-        # Build the result string
         ind_string = ""
         for date_str, value in date_values:
             ind_string += f"{date_str}: {value}\n"
@@ -225,16 +224,13 @@ def _get_stock_stats_bulk(
     df = wrap(data)
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
 
-    # Calculate the indicator for all rows at once
     df[indicator]  # This triggers stockstats to calculate the indicator
 
-    # Create a dictionary mapping date strings to indicator values
     result_dict = {}
     for _, row in df.iterrows():
         date_str = row["Date"]
         indicator_value = row[indicator]
 
-        # Handle NaN/None values
         if pd.isna(indicator_value):
             result_dict[date_str] = "N/A"
         else:
@@ -271,7 +267,6 @@ def get_stockstats_indicator(
         ) from e
 
     return str(indicator_value)
-
 
 
 

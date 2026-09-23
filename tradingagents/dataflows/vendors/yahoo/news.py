@@ -15,7 +15,6 @@ from tradingagents.dataflows.vendors.yahoo.ohlcv import yf_retry
 
 def _extract_article_data(article: dict) -> dict:
     """Extract article data from yfinance news format (handles nested 'content' structure)."""
-    # Handle nested content structure
     if "content" in article:
         content = article["content"]
         title = content.get("title", "No title")
@@ -23,11 +22,9 @@ def _extract_article_data(article: dict) -> dict:
         provider = content.get("provider", {})
         publisher = provider.get("displayName", "Unknown")
 
-        # Get URL from canonicalUrl or clickThroughUrl
         url_obj = content.get("canonicalUrl") or content.get("clickThroughUrl") or {}
         link = url_obj.get("url", "")
 
-        # Get publish date
         pub_date_str = content.get("pubDate", "")
         pub_date = None
         if pub_date_str:
@@ -87,7 +84,6 @@ def get_news_yfinance(
         stock = yf.Ticker(canonical)
         news = yf_retry(lambda: stock.get_news(count=article_limit)) or []
 
-        # Parse date range for filtering
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 

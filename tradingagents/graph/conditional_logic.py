@@ -1,5 +1,3 @@
-# TradingAgents/graph/conditional_logic.py
-
 from tradingagents.agents.state import AgentState
 
 

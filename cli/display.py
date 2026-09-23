@@ -20,8 +20,6 @@ from tradingagents.graph.analyst_execution import (
     AnalystExecutionPlan,
 )
 
-# Create a deque to store recent messages with a maximum length
-
 console = Console()
 
 
@@ -72,20 +70,16 @@ class MessageBuffer:
         """
         self.selected_analysts = [a.lower() for a in selected_analysts]
 
-        # Build agent_status dynamically
         self.agent_status = {}
 
-        # Add selected analysts
         for analyst_key in self.selected_analysts:
             if analyst_key in self.ANALYST_MAPPING:
                 self.agent_status[self.ANALYST_MAPPING[analyst_key]] = "pending"
 
-        # Add fixed teams
         for team_agents in self.FIXED_AGENTS.values():
             for agent in team_agents:
                 self.agent_status[agent] = "pending"
 
-        # Build report_sections dynamically
         self.report_sections = {}
         for section, (analyst_key, _) in self.REPORT_SECTIONS.items():
             if analyst_key is None or analyst_key in self.selected_analysts:
@@ -140,14 +134,12 @@ class MessageBuffer:
         latest_section = None
         latest_content = None
 
-        # Find the most recently updated section
         for section, content in self.report_sections.items():
             if content is not None:
                 latest_section = section
                 latest_content = content
 
         if latest_section and latest_content:
-            # Format the current section for display
             section_titles = {
                 "market_report": "Market Analysis",
                 "sentiment_report": "Social Sentiment",
@@ -229,7 +221,6 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         "Portfolio Management": ["Portfolio Manager"],
     }
 
-    # Filter teams to only include agents that are in agent_status
     teams = {}
     for team, agents in all_teams.items():
         active_agents = [a for a in agents if a in message_buffer.agent_status]
@@ -237,7 +228,6 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             teams[team] = active_agents
 
     for team, agents in teams.items():
-        # Add first agent with team name
         first_agent = agents[0]
         status = message_buffer.agent_status.get(first_agent, "pending")
         if status == "in_progress":
@@ -254,7 +244,6 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             status_cell = f"[{status_color}]{status}[/{status_color}]"
         progress_table.add_row(team, first_agent, status_cell)
 
-        # Add remaining agents in team
         for agent in agents[1:]:
             status = message_buffer.agent_status.get(agent, "pending")
             if status == "in_progress":
@@ -271,7 +260,6 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
                 status_cell = f"[{status_color}]{status}[/{status_color}]"
             progress_table.add_row("", agent, status_cell)
 
-        # Add horizontal line after each team
         progress_table.add_row("─" * 20, "─" * 20, "─" * 20, style="dim")
 
     layout["progress"].update(
@@ -297,12 +285,10 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Combine tool calls and messages
     all_messages = []
 
-    # Add tool calls
     for timestamp, tool_name, args in message_buffer.tool_calls:
         formatted_args = format_tool_args(args)
         all_messages.append((timestamp, "Tool", f"{tool_name}: {formatted_args}"))
 
-    # Add regular messages
     for timestamp, msg_type, content in message_buffer.messages:
         content_str = str(content) if content else ""
         if len(content_str) > 200:
@@ -312,15 +298,11 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Sort by timestamp descending (newest first)
     all_messages.sort(key=lambda x: x[0], reverse=True)
 
-    # Calculate how many messages we can show based on available space
     max_messages = 12
 
-    # Get the first N messages (newest ones)
     recent_messages = all_messages[:max_messages]
 
-    # Add messages to table (already in newest-first order)
     for timestamp, msg_type, content in recent_messages:
-        # Format content with word wrapping
         wrapped_content = Text(content, overflow="fold")
         messages_table.add_row(timestamp, msg_type, wrapped_content)
 
@@ -364,7 +346,6 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     reports_completed = message_buffer.get_completed_reports_count()
     reports_total = len(message_buffer.report_sections)
 
-    # Build stats parts
     stats_parts = [f"Agents: {agents_completed}/{agents_total}"]
 
     # LLM and tool stats from callback handler

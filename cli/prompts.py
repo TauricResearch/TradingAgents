@@ -140,7 +140,6 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK, default=None) -> li
 def select_research_depth(default=None) -> int:
     """Select research depth using an interactive selection."""
 
-    # Define research depth options with their corresponding values
     DEPTH_OPTIONS = [
         ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
         ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
