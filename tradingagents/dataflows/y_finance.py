@@ -64,11 +64,10 @@ def get_YFin_data_online(
         if col in data.columns:
             data[col] = data[col].round(2)
 
-    # Convert DataFrame to CSV string
     csv_string = data.to_csv()
 
-    # Add header information; note the resolved symbol when it differs so the
-    # agent (and user) can see which instrument was actually priced.
+    # Name the resolved symbol when it differs, so the reader sees which
+    # instrument was priced.
     label = canonical if canonical == symbol.upper() else f"{canonical} (from {symbol})"
     header = f"# Stock data for {label} from {start_date} to {end_date}\n"
     header += f"# Total records: {len(data)}\n\n"
@@ -354,39 +353,41 @@ def get_fundamentals(
         raise NoMarketDataError(ticker, canonical, f"fundamentals unavailable: {e}") from e
 
 
+# This vendor dates a statement by the period it covers, not by the day it was
+# filed, and carries no filing date to do better. A company files weeks after its
+# period ends, so a run dated in that gap can be served figures that were not yet
+# public. Say so rather than implying the stricter guarantee (SEC EDGAR, which
+# does carry filing dates, serves US filers as filed).
+_PERIOD_END_VINTAGE = (
+    "# Periods are cut at the fiscal period end; this vendor does not report "
+    "filing dates, so the most recent period may not have been published yet.\n\n"
+)
+
+
+def _statement(ticker, freq, curr_date, title, quarterly_attr, annual_attr) -> str:
+    """One financial statement as CSV, cut at ``curr_date`` by period end."""
+    canonical = normalize_symbol(ticker)
+    what = title.lower()
+    try:
+        ticker_obj = yf.Ticker(canonical)
+        attr = quarterly_attr if freq.lower() == "quarterly" else annual_attr
+        data = filter_financials_by_date(yf_retry(lambda: getattr(ticker_obj, attr)), curr_date)
+        if data.empty:
+            raise_for_empty(ticker, canonical, f"{what} data")
+        return f"# {title} data for {canonical} ({freq})\n" + _PERIOD_END_VINTAGE + data.to_csv()
+    except VendorError:
+        raise
+    except Exception as e:
+        raise NoMarketDataError(ticker, canonical, f"{what} unavailable: {e}") from e
+
+
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get balance sheet data from yfinance."""
-    canonical = normalize_symbol(ticker)
-    try:
-        ticker_obj = yf.Ticker(canonical)
-
-        if freq.lower() == "quarterly":
-            data = yf_retry(lambda: ticker_obj.quarterly_balance_sheet)
-        else:
-            data = yf_retry(lambda: ticker_obj.balance_sheet)
-
-        data = filter_financials_by_date(data, curr_date)
-
-        if data.empty:
-            raise_for_empty(ticker, canonical, "balance sheet data")
-
-        # Convert to CSV string for consistency with other functions
-        csv_string = data.to_csv()
-
-        # Add header information
-        header = f"# Balance Sheet data for {canonical} ({freq})\n"
-        header += _PERIOD_END_VINTAGE
-
-        return header + csv_string
-
-    except VendorError:
-        raise
-    except Exception as e:
-        raise NoMarketDataError(ticker, canonical, f"balance sheet unavailable: {e}") from e
+    return _statement(ticker, freq, curr_date, "Balance Sheet", "quarterly_balance_sheet", "balance_sheet")
 
 
 def get_cashflow(
@@ -395,33 +396,7 @@ def get_cashflow(
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get cash flow data from yfinance."""
-    canonical = normalize_symbol(ticker)
-    try:
-        ticker_obj = yf.Ticker(canonical)
-
-        if freq.lower() == "quarterly":
-            data = yf_retry(lambda: ticker_obj.quarterly_cashflow)
-        else:
-            data = yf_retry(lambda: ticker_obj.cashflow)
-
-        data = filter_financials_by_date(data, curr_date)
-
-        if data.empty:
-            raise_for_empty(ticker, canonical, "cash flow data")
-
-        # Convert to CSV string for consistency with other functions
-        csv_string = data.to_csv()
-
-        # Add header information
-        header = f"# Cash Flow data for {canonical} ({freq})\n"
-        header += _PERIOD_END_VINTAGE
-
-        return header + csv_string
-
-    except VendorError:
-        raise
-    except Exception as e:
-        raise NoMarketDataError(ticker, canonical, f"cash flow unavailable: {e}") from e
+    return _statement(ticker, freq, curr_date, "Cash Flow", "quarterly_cashflow", "cashflow")
 
 
 def get_income_statement(
@@ -430,33 +405,7 @@ def get_income_statement(
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get income statement data from yfinance."""
-    canonical = normalize_symbol(ticker)
-    try:
-        ticker_obj = yf.Ticker(canonical)
-
-        if freq.lower() == "quarterly":
-            data = yf_retry(lambda: ticker_obj.quarterly_income_stmt)
-        else:
-            data = yf_retry(lambda: ticker_obj.income_stmt)
-
-        data = filter_financials_by_date(data, curr_date)
-
-        if data.empty:
-            raise_for_empty(ticker, canonical, "income statement data")
-
-        # Convert to CSV string for consistency with other functions
-        csv_string = data.to_csv()
-
-        # Add header information
-        header = f"# Income Statement data for {canonical} ({freq})\n"
-        header += _PERIOD_END_VINTAGE
-
-        return header + csv_string
-
-    except VendorError:
-        raise
-    except Exception as e:
-        raise NoMarketDataError(ticker, canonical, f"income statement unavailable: {e}") from e
+    return _statement(ticker, freq, curr_date, "Income Statement", "quarterly_income_stmt", "income_stmt")
 
 
 # Rows are dated by the transaction, which is when the insider traded, not when
@@ -467,17 +416,6 @@ _TRANSACTION_DATE_VINTAGE = (
     "# Rows are dated by transaction date. A trade becomes public when its Form 4 "
     "is filed, up to two business days later, so the newest rows may not have been "
     "known on this date.\n\n"
-)
-
-
-# This vendor dates a statement by the period it covers, not by the day it was
-# filed, and carries no filing date to do better. A company files weeks after its
-# period ends, so a run dated in that gap can be served figures that were not yet
-# public. Say so rather than implying the stricter guarantee (SEC EDGAR, which
-# does carry filing dates, serves US filers as filed).
-_PERIOD_END_VINTAGE = (
-    "# Periods are cut at the fiscal period end; this vendor does not report "
-    "filing dates, so the most recent period may not have been published yet.\n\n"
 )
 
 
@@ -508,14 +446,7 @@ def get_insider_transactions(
                 )
             data = kept
 
-        # Convert to CSV string for consistency with other functions
-        csv_string = data.to_csv()
-
-        # Add header information
-        header = f"# Insider Transactions data for {canonical}\n"
-        header += _TRANSACTION_DATE_VINTAGE
-
-        return header + csv_string
+        return f"# Insider Transactions data for {canonical}\n" + _TRANSACTION_DATE_VINTAGE + data.to_csv()
 
     except Exception as e:
         raise NoMarketDataError(ticker, canonical, f"insider transactions unavailable: {e}") from e
