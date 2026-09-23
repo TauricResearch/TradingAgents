@@ -25,6 +25,17 @@ class TestExactIdMatches:
         assert caps.supports_tool_choice is False
         assert caps.requires_reasoning_content_roundtrip is True
 
+    def test_deepseek_flash_alias_rejects_tool_choice(self):
+        """``deepseek-flash`` is what the model picker offers for V4.1 Flash.
+
+        It was falling through to _DEFAULT (tool_choice on), so every
+        structured-output call 400'd with "Thinking mode does not support
+        this tool_choice" and burned a retry as free text.
+        """
+        caps = get_capabilities("deepseek-flash")
+        assert caps.supports_tool_choice is False
+        assert caps.requires_reasoning_content_roundtrip is True
+
     def test_deepseek_v4_pro_rejects_tool_choice(self):
         caps = get_capabilities("deepseek-v4-pro")
         assert caps.supports_tool_choice is False
@@ -46,6 +57,10 @@ class TestPatternMatches:
 
     def test_reasoner_variant_inherits_thinking_quirks(self):
         caps = get_capabilities("deepseek-reasoner-pro")
+        assert caps.supports_tool_choice is False
+
+    def test_future_flash_variant_inherits_thinking_quirks(self):
+        caps = get_capabilities("deepseek-flash-lite")
         assert caps.supports_tool_choice is False
 
     def test_minimax_m3_inherits_thinking_quirks(self):
@@ -127,6 +142,9 @@ class TestOpenRouterDeepSeekNamespace:
 
     def test_prefixed_reasoner_suppresses_tool_choice(self):
         assert get_capabilities("deepseek/deepseek-reasoner").supports_tool_choice is False
+
+    def test_prefixed_flash_alias_suppresses_tool_choice(self):
+        assert get_capabilities("deepseek/deepseek-flash").supports_tool_choice is False
 
     def test_prefixed_chat_selects_deepseek_chat_not_default(self):
         # Must resolve to _DEEPSEEK_CHAT, not _DEFAULT: supports_json_schema=False
