@@ -1042,7 +1042,7 @@ def test_a_longer_window_asks_for_enough_price_history(monkeypatch):
             days = pd.bdate_range(start, end)
             return pd.DataFrame({"Close": range(len(days))}, index=days)
 
-    monkeypatch.setattr("tradingagents.dataflows.y_finance.yf.Ticker", _Ticker)
+    monkeypatch.setattr("tradingagents.dataflows.vendors.yahoo.market.yf.Ticker", _Ticker)
 
     raw, alpha, days, resolved = graph._fetch_returns("NVDA", "2026-06-01", 21, benchmark="SPY")
 

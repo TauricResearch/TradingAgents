@@ -23,7 +23,7 @@ from tradingagents.agents.utils.news_data_tools import (
 from tradingagents.agents.utils.prediction_markets_tools import get_prediction_markets
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 from tradingagents.dataflows.date_window import get_current_date
-from tradingagents.dataflows.y_finance import get_company_profile
+from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
 
 # Public surface: the data tools are imported here so agents and the graph
 # import them from one place, plus the instrument/language helpers defined below.

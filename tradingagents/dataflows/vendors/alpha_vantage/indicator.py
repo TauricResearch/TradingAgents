@@ -1,7 +1,7 @@
 import logging
 
-from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 from tradingagents.dataflows.errors import NoMarketDataError, VendorError
+from tradingagents.dataflows.vendors.alpha_vantage.common import _make_api_request
 
 logger = logging.getLogger(__name__)
 

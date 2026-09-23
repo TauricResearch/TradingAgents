@@ -20,7 +20,8 @@ from pydantic import Field
 from tradingagents.agents import schemas
 from tradingagents.agents.analysts import sentiment_analyst
 from tradingagents.agents.utils import agent_utils
-from tradingagents.dataflows import market_data_validator, router, y_finance
+from tradingagents.dataflows import router
+from tradingagents.dataflows.vendors.yahoo import market as yahoo_market, snapshot
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph import trading_graph
 
@@ -102,11 +103,11 @@ def offline(monkeypatch, tmp_path):
         "Date": pd.bdate_range(end=TRADE_DATE, periods=60),
         "Open": 100.0, "High": 101.0, "Low": 99.0, "Close": 100.5, "Volume": 1_000_000,
     })
-    monkeypatch.setattr(market_data_validator, "load_ohlcv",
+    monkeypatch.setattr(snapshot, "load_ohlcv",
                         lambda *a, **k: called.add("ohlcv") or prices.copy())
     monkeypatch.setattr(sentiment_analyst, "fetch_stocktwits_messages", lambda *a, **k: "no posts")
     monkeypatch.setattr(sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "no posts")
-    monkeypatch.setattr(y_finance.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
+    monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
     agent_utils.resolve_instrument_identity.cache_clear()
     return called
 

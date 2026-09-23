@@ -12,10 +12,10 @@ import os
 import pandas as pd
 import pytest
 
-import tradingagents.dataflows.stockstats_utils as su
+from tradingagents.dataflows.vendors.yahoo import ohlcv
 
 NOW = pd.Timestamp("2026-07-18 12:00")
-STALE = su.OHLCV_CACHE_TTL_SECONDS + 60
+STALE = ohlcv.OHLCV_CACHE_TTL_SECONDS + 60
 
 
 def _stamp(path, ts):
@@ -33,10 +33,10 @@ def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026
 
 
 def _load(tmp_path, monkeypatch, curr_date, download):
-    monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
-    monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: NOW))
-    monkeypatch.setattr(su.yf, "download", download)
-    return su.load_ohlcv("AAPL", curr_date)
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: NOW))
+    monkeypatch.setattr(ohlcv.yf, "download", download)
+    return ohlcv.load_ohlcv("AAPL", curr_date)
 
 
 def _fail_download(*a, **k):
@@ -46,27 +46,27 @@ def _fail_download(*a, **k):
 @pytest.mark.unit
 def test_current_day_cache_past_ttl_is_not_fresh(tmp_path):
     # Today's bar missing or still in progress: row inspection can't tell, so the TTL governs.
-    assert su._cache_is_fresh(_write(tmp_path, age_seconds=STALE), NOW.normalize(), NOW) is False
+    assert ohlcv._cache_is_fresh(_write(tmp_path, age_seconds=STALE), NOW.normalize(), NOW) is False
     f = _write(tmp_path, age_seconds=STALE, last_date="2026-07-18")
-    assert su._cache_is_fresh(f, NOW.normalize(), NOW) is False
+    assert ohlcv._cache_is_fresh(f, NOW.normalize(), NOW) is False
 
 
 @pytest.mark.unit
 def test_recent_cache_is_fresh(tmp_path):
     # Written moments ago: don't hammer the vendor (weekend/holiday guard).
-    assert su._cache_is_fresh(_write(tmp_path), NOW.normalize(), NOW) is True
+    assert ohlcv._cache_is_fresh(_write(tmp_path), NOW.normalize(), NOW) is True
 
 
 @pytest.mark.unit
 def test_historical_request_uses_todays_cache_past_the_ttl(tmp_path):
     f = _write(tmp_path, age_seconds=STALE, last_date="2026-04-30")
-    assert su._cache_is_fresh(f, pd.Timestamp("2026-05-01"), NOW) is True
+    assert ohlcv._cache_is_fresh(f, pd.Timestamp("2026-05-01"), NOW) is True
 
 
 @pytest.mark.unit
 def test_a_download_from_an_earlier_day_is_not_fresh(tmp_path):
     f = _write(tmp_path, age_seconds=13 * 3600)  # yesterday 23:00
-    assert su._cache_is_fresh(f, pd.Timestamp("2026-05-01"), NOW) is False
+    assert ohlcv._cache_is_fresh(f, pd.Timestamp("2026-05-01"), NOW) is False
 
 
 @pytest.mark.unit
@@ -95,15 +95,15 @@ def test_load_ohlcv_reuses_fresh_same_day_cache(tmp_path, monkeypatch):
 @pytest.mark.unit
 def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
     """A later day's download replaces the symbol's file instead of adding one (#1330)."""
-    monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     frame = pd.DataFrame({"Date": pd.to_datetime(["2026-07-16", "2026-07-17"]), "Close": [1.0, 2.0]})
     downloads = []
-    monkeypatch.setattr(su.yf, "download", lambda *a, **k: downloads.append(1) or frame.set_index("Date"))
+    monkeypatch.setattr(ohlcv.yf, "download", lambda *a, **k: downloads.append(1) or frame.set_index("Date"))
 
     for day in ("2026-07-18 10:00", "2026-07-19 10:00", "2026-07-20 10:00"):
         now = pd.Timestamp(day)
-        monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda now=now: now))
-        su.load_ohlcv("AAPL", "2026-07-17")
+        monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda now=now: now))
+        ohlcv.load_ohlcv("AAPL", "2026-07-17")
         written = list(tmp_path.glob("AAPL-*.csv"))
         _stamp(written[0], now)
 

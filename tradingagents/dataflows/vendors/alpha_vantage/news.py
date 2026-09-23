@@ -1,7 +1,10 @@
 import json
 
-from tradingagents.dataflows.alpha_vantage_common import _make_api_request, format_datetime_for_api
 from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.vendors.alpha_vantage.common import (
+    _make_api_request,
+    format_datetime_for_api,
+)
 
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:

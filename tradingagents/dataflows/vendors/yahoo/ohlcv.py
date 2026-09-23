@@ -1,11 +1,9 @@
 import logging
 import os
 import time
-from typing import Annotated
 
 import pandas as pd
 import yfinance as yf
-from stockstats import wrap
 from yfinance.exceptions import YFRateLimitError
 
 from tradingagents.dataflows.config import get_config
@@ -15,7 +13,7 @@ from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_compon
 
 logger = logging.getLogger(__name__)
 
-_YAHOO_HOST = "https://query2.finance.yahoo.com"
+YAHOO_HOST = "https://query2.finance.yahoo.com"
 
 # A vendor's latest OHLCV row this many calendar days before the requested date
 # is treated as stale. Generous enough to span long holiday weekends, tight
@@ -35,7 +33,7 @@ def raise_for_empty(symbol: str, canonical: str, what: str) -> None:
     yfinance returns an empty frame for a failed request rather than raising, so
     without this a Yahoo outage reads as "this symbol has no {what}".
     """
-    if not vendor_reachable(_YAHOO_HOST):
+    if not vendor_reachable(YAHOO_HOST):
         raise VendorRateLimitError(f"Yahoo Finance is unreachable; no {what} was retrieved")
     raise NoMarketDataError(symbol, canonical, f"no {what}")
 
@@ -290,41 +288,3 @@ def load_ohlcv(symbol: str, curr_date: str, fill_gaps: bool = True) -> pd.DataFr
     return data
 
 
-def filter_financials_by_date(data: pd.DataFrame, curr_date: str) -> pd.DataFrame:
-    """Drop financial statement columns (fiscal period timestamps) after curr_date.
-
-    yfinance financial statements use fiscal period end dates as columns.
-    Columns after curr_date represent future data and are removed to
-    prevent look-ahead bias.
-    """
-    if not curr_date or data.empty:
-        return data
-    cutoff = pd.Timestamp(curr_date)
-    mask = pd.to_datetime(data.columns, errors="coerce") <= cutoff
-    return data.loc[:, mask]
-
-
-class StockstatsUtils:
-    @staticmethod
-    def get_stock_stats(
-        symbol: Annotated[str, "ticker symbol for the company"],
-        indicator: Annotated[
-            str, "quantitative indicators based off of the stock data for the company"
-        ],
-        curr_date: Annotated[
-            str, "curr date for retrieving stock price data, YYYY-mm-dd"
-        ],
-    ):
-        data = load_ohlcv(symbol, curr_date)
-        df = wrap(data)
-        df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-        curr_date_str = pd.to_datetime(curr_date).strftime("%Y-%m-%d")
-
-        df[indicator]  # trigger stockstats to calculate the indicator
-        matching_rows = df[df["Date"].str.startswith(curr_date_str)]
-
-        if not matching_rows.empty:
-            indicator_value = matching_rows[indicator].values[0]
-            return indicator_value
-        else:
-            return "N/A: Not a trading day (weekend or holiday)"

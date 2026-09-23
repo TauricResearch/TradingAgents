@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-import tradingagents.dataflows.market_data_validator as validator
+import tradingagents.dataflows.vendors.yahoo.snapshot as validator
 
 
 def _sample_ohlcv() -> pd.DataFrame:

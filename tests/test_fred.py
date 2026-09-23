@@ -12,8 +12,9 @@ import requests
 
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
-from tradingagents.dataflows import fred, router
+from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.vendors import fred
 
 # A small, stable set of observations to format against.
 _META = {

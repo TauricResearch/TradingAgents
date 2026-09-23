@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-import tradingagents.dataflows.yfinance_news as ynews
+import tradingagents.dataflows.vendors.yahoo.news as ynews
 from tradingagents.dataflows.date_window import in_window
 
 

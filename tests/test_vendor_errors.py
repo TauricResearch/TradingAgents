@@ -11,10 +11,6 @@ import pytest
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
 from tradingagents.dataflows import router
-from tradingagents.dataflows.alpha_vantage_common import (
-    AlphaVantageNotConfiguredError,
-    AlphaVantageRateLimitError,
-)
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.errors import (
     NoMarketDataError,
@@ -22,7 +18,11 @@ from tradingagents.dataflows.errors import (
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
-from tradingagents.dataflows.fred import FredNotConfiguredError
+from tradingagents.dataflows.vendors.alpha_vantage.common import (
+    AlphaVantageNotConfiguredError,
+    AlphaVantageRateLimitError,
+)
+from tradingagents.dataflows.vendors.fred import FredNotConfiguredError
 
 
 @pytest.mark.unit

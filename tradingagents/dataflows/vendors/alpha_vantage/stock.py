@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from tradingagents.dataflows.alpha_vantage_common import (
+from tradingagents.dataflows.vendors.alpha_vantage.common import (
     _filter_csv_by_date_range,
     _make_api_request,
 )

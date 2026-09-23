@@ -19,7 +19,12 @@ from unittest import mock
 
 import pytest
 
-from tradingagents.dataflows import alpha_vantage_fundamentals as av, date_window, y_finance
+from tradingagents.dataflows import date_window
+from tradingagents.dataflows.vendors.alpha_vantage import fundamentals as av
+from tradingagents.dataflows.vendors.yahoo import (
+    fundamentals as yahoo_fundamentals,
+    market as yahoo_market,
+)
 
 _TODAY = "2026-09-07"
 _PAST = "2024-05-10"
@@ -42,9 +47,9 @@ _LEAKY = ("3500000000000", "34.2", "260.1", "391000000000",
 
 def _yf(curr_date, info=_INFO, today=_TODAY):
     with mock.patch.object(date_window, "get_current_date", return_value=today), \
-         mock.patch.object(y_finance, "yf_retry", lambda fn: info), \
-         mock.patch.object(y_finance.yf, "Ticker"):
-        return y_finance.get_fundamentals("AAPL", curr_date)
+         mock.patch.object(yahoo_fundamentals, "yf_retry", lambda fn: info), \
+         mock.patch.object(yahoo_market.yf, "Ticker"):
+        return yahoo_fundamentals.get_fundamentals("AAPL", curr_date)
 
 
 def _av(curr_date, today=_TODAY):
@@ -78,8 +83,8 @@ class TestYFinanceHistoricalRun:
         # The response would only be discarded; skipping it also avoids burning
         # vendor quota on a call whose result cannot be used.
         with mock.patch.object(date_window, "get_current_date", return_value=_TODAY), \
-             mock.patch.object(y_finance.yf, "Ticker") as tk:
-            y_finance.get_fundamentals("AAPL", _PAST)
+             mock.patch.object(yahoo_market.yf, "Ticker") as tk:
+            yahoo_fundamentals.get_fundamentals("AAPL", _PAST)
         tk.assert_not_called()
 
 

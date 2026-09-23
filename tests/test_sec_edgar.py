@@ -13,8 +13,8 @@ from unittest import mock
 
 import pytest
 
-from tradingagents.dataflows import sec_edgar
 from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.vendors import sec_edgar
 
 _REAL_FETCH = sec_edgar._fetch_json
 

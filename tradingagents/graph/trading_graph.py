@@ -17,7 +17,7 @@ from tradingagents.agents.utils.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
-from tradingagents.dataflows.y_finance import get_closes
+from tradingagents.dataflows.vendors.yahoo.market import get_closes
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.reporting import write_report_tree

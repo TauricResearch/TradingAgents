@@ -9,8 +9,8 @@ from dateutil.relativedelta import relativedelta
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.date_window import coverage_gap, in_window
 from tradingagents.dataflows.errors import NoMarketDataError
-from tradingagents.dataflows.stockstats_utils import yf_retry
 from tradingagents.dataflows.symbols import normalize_symbol
+from tradingagents.dataflows.vendors.yahoo.ohlcv import yf_retry
 
 
 def _extract_article_data(article: dict) -> dict:
