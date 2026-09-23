@@ -34,6 +34,10 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
 
     def test_empty_download_raises_and_does_not_cache(self):
         empty = pd.DataFrame()
+        # Yahoo answers, so an empty download means the symbol has no data.
+        reachable = mock.patch.object(ohlcv, "vendor_reachable", return_value=True)
+        reachable.start()
+        self.addCleanup(reachable.stop)
         with mock.patch.object(ohlcv.yf, "download", return_value=empty), \
                 self.assertRaises(NoMarketDataError):
             ohlcv.load_ohlcv("FAKE", "2026-01-01")

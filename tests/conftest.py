@@ -1,6 +1,7 @@
 """Shared pytest fixtures that prevent CI hangs when API keys are absent."""
 
 import os
+import socket
 
 import pytest
 
@@ -29,6 +30,19 @@ _blank_settings_overlay()
 def pytest_configure(config):
     for marker in ("unit", "integration", "smoke"):
         config.addinivalue_line("markers", f"{marker}: {marker}-level tests")
+
+
+@pytest.fixture(autouse=True)
+def _no_network(request, monkeypatch):
+    """Tests do not reach the network; one that must is marked integration."""
+    if request.node.get_closest_marker("integration"):
+        return
+
+    def refuse(self, address):
+        raise OSError(f"test tried to reach the network: {address}")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket.socket, "connect_ex", refuse)
 
 
 _API_KEY_ENV_VARS = (
