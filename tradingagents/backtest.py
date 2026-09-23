@@ -17,6 +17,7 @@ cell rather than a position carried forward.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -81,6 +82,7 @@ class BacktestResult:
     skipped: int = 0
     failures: list[tuple[str, str, str]] = field(default_factory=list)
     settlement_failures: list[tuple[str, str]] = field(default_factory=list)
+    stopped: bool = False  # should_stop ended the sweep before every cell ran
 
 
 # What each rating claims will happen, so an outcome can be scored against it.
@@ -132,12 +134,18 @@ def run_backtest(
     portfolio=None,
     selected_analysts=("market", "social", "news", "fundamentals"),
     run_id: str | None = None,
+    on_cell: Callable[[str, str], None] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> BacktestResult:
     """Analyze every ticker on every date, into a decision log of this run's own.
 
     The live log stays untouched: a sweep would otherwise flood the context that
     real runs read back. Cells already in this run's log are skipped, so an
     interrupted sweep resumes by being run again.
+
+    ``on_cell(ticker, date)`` is called before each cell runs. ``should_stop``
+    is checked before each cell; once it returns true no further cell starts and
+    nothing is settled, so a stopped sweep resumes like an interrupted one.
     """
     # run_id becomes a path segment, so it is validated like a ticker: an
     # absolute or dotted value would otherwise place the run outside results_dir.
@@ -151,21 +159,27 @@ def run_backtest(
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
     done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}
 
-    for ticker in tickers:
-        for date in dates:
-            if (ticker, date) in done:
-                result.skipped += 1
-                continue
-            try:
-                graph.propagate(ticker, date, asset_type, portfolio=portfolio)
-                result.cells_run += 1
-            except Exception as exc:  # one unreachable vendor must not end the sweep
-                logger.warning("Backtest cell %s %s failed: %s", ticker, date, exc)
-                result.failures.append((ticker, date, str(exc)))
+    cells = [(ticker, date) for ticker in tickers for date in dates]
+    for ticker, date in cells:
+        if (ticker, date) in done:
+            result.skipped += 1
+            continue
+        if should_stop is not None and should_stop():
+            result.stopped = True
+            break
+        if on_cell is not None:
+            on_cell(ticker, date)
+        try:
+            graph.propagate(ticker, date, asset_type, portfolio=portfolio)
+            result.cells_run += 1
+        except Exception as exc:  # one unreachable vendor must not end the sweep
+            logger.warning("Backtest cell %s %s failed: %s", ticker, date, exc)
+            result.failures.append((ticker, date, str(exc)))
 
     # Settlement runs at the start of the next run for a ticker, so each ticker's
-    # last cell would stay pending without this pass.
-    for ticker in tickers:
+    # last cell would stay pending without this pass. A stopped sweep skips it:
+    # settling calls an LLM, and the resumed sweep settles at its own end.
+    for ticker in [] if result.stopped else tickers:
         try:
             graph.settle_pending(ticker)
         except Exception as exc:  # reflection calls an LLM; one failure is not the sweep's

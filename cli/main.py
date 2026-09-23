@@ -1472,22 +1472,17 @@ def backtest(
 @app.command()
 def ui(
     port: int = typer.Option(8501, "--port", help="Port to serve the UI on"),
-    host: str = typer.Option("localhost", "--host", help="Address to bind; 0.0.0.0 exposes it on your network"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Address to bind; 0.0.0.0 exposes it on your network"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Do not open a browser tab"),
 ):
     """Open the browser UI: live analysis, saved reports and backtests."""
-    import subprocess
-    from importlib.util import find_spec
+    from cli.webui.server import serve
 
-    if find_spec("streamlit") is None:
-        console.print('[red]The UI needs Streamlit: pip install "tradingagents[ui]"[/red]')
-        raise typer.Exit(code=1)
-    script = Path(__file__).parent / "webui" / "app.py"
-    raise typer.Exit(code=subprocess.call([
-        sys.executable, "-m", "streamlit", "run", str(script),
-        "--server.port", str(port), "--server.address", host,
-        "--browser.gatherUsageStats", "false", "--client.toolbarMode", "minimal",
-        "--theme.primaryColor", "#2a78d6",
-    ]))
+    try:
+        serve(host, port, open_browser=not no_browser)
+    except OSError as exc:  # port taken, or an address this machine does not have
+        console.print(f"[red]Could not start the UI on {host}:{port}: {exc}[/red]")
+        raise typer.Exit(code=1) from None
 
 if __name__ == "__main__":
     app()

@@ -1,6 +1,6 @@
 """Background runs and on-disk history for the web UI.
 
-Nothing here imports Streamlit. A run executes on a worker thread and writes
+Nothing here knows about HTTP. A run executes on a worker thread and writes
 into a ``MessageBuffer`` under a lock; the page takes a snapshot under the same
 lock on each refresh, so a long run never blocks the browser and a page reload
 does not lose it.
@@ -20,7 +20,7 @@ from pathlib import Path
 from cli.main import ANALYST_ORDER, MessageBuffer, process_chunk
 from cli.stats_handler import StatsCallbackHandler
 from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.agents.utils.rating import is_review
+from tradingagents.agents.utils.rating import is_review, parse_rating
 from tradingagents.backtest import run_backtest, summarize
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.graph.analyst_execution import (
@@ -76,6 +76,7 @@ class AnalysisJob:
     final_state: dict | None = None
     started: float = 0.0
     finished: float | None = None
+    judgments: dict | None = None  # the Sentiment Analyst's Jev judgments, once made
 
     def __post_init__(self):
         self.analysts = [a for a in ANALYST_ORDER if a in set(self.analysts)]
@@ -124,6 +125,7 @@ class AnalysisJob:
                 "rating": self.rating,
                 "error": self.error,
                 "report_path": self.report_path,
+                "judgments": self.judgments,
             }
 
     def _log(self, text: str) -> None:
@@ -163,6 +165,8 @@ class AnalysisJob:
                         raise _Cancelled
                     with self.lock:
                         process_chunk(self.buffer, chunk, wall_time_tracker=tracker)
+                        if chunk.get("sentiment_judgments"):
+                            self.judgments = chunk["sentiment_judgments"]
                     # Chunks are per-node deltas; merge them into the full state.
                     final_state.update(chunk)
                 graph.record_decision(self.ticker, self.trade_date, final_state)
@@ -223,9 +227,12 @@ class BacktestJob:
     result: object = None
     started: float = 0.0
     finished: float | None = None
+    initial_logged: int = 0
 
     def __post_init__(self):
         self.run_id = safe_ticker_component(self.run_id)
+        self.current: tuple[str, str] | None = None  # (ticker, date) of the running cell
+        self._cancel = threading.Event()
         self._thread: threading.Thread | None = None
 
     @property
@@ -254,8 +261,18 @@ class BacktestJob:
     def cells_logged(self) -> int:
         return len(TradingMemoryLog({"memory_log_path": str(self.log_path)}).load_entries())
 
+    def cancel(self) -> None:
+        """Start no further cell; the running one finishes and is logged."""
+        self._cancel.set()
+
+    @property
+    def stopping(self) -> bool:
+        return self._cancel.is_set() and self.active
+
     def start(self) -> BacktestJob:
         self.started = time.time()
+        # Cells a resumed sweep already had; the time-left estimate counts only new ones.
+        self.initial_logged = self.cells_logged()
         self.status = RUNNING
         self._thread = threading.Thread(target=self._run, name=self.id, daemon=True)
         self._thread.start()
@@ -266,13 +283,18 @@ class BacktestJob:
             self.result = run_backtest(
                 self.tickers, self.dates, self.config, asset_type=self.asset_type,
                 portfolio=self.portfolio, selected_analysts=self.analysts, run_id=self.run_id,
+                on_cell=self._on_cell, should_stop=self._cancel.is_set,
             )
-            self.status = DONE
+            self.status = CANCELLED if self.result.stopped else DONE
         except Exception as exc:
             self.error = f"{type(exc).__name__}: {exc}\n\n{traceback.format_exc()}"
             self.status = FAILED
         finally:
+            self.current = None
             self.finished = time.time()
+
+    def _on_cell(self, ticker: str, date: str) -> None:
+        self.current = (ticker, date)
 
 
 class JobRegistry:
@@ -307,6 +329,14 @@ class SavedReport:
     kind: str  # "report" (complete_report.md) or "state" (full_states_log JSON)
 
     @property
+    def judgments_path(self) -> Path | None:
+        """The Sentiment Analyst's saved Jev judgments, when the run made them."""
+        if self.kind != "report":
+            return None
+        path = self.path.parent / "1_analysts" / "sentiment_judgments.json"
+        return path if path.exists() else None
+
+    @property
     def label(self) -> str:
         when = self.trade_date or self.modified.strftime("%Y-%m-%d %H:%M")
         return f"{self.ticker} · {when}"
@@ -323,8 +353,8 @@ def list_saved_reports(results_dir) -> list[SavedReport]:
         return []
     found = []
     for path in root.rglob("complete_report.md"):
-        ticker = _report_ticker(path)
-        found.append(SavedReport(path, ticker, None, _mtime(path), "report"))
+        ticker, trade_date = _report_header(path)
+        found.append(SavedReport(path, ticker, trade_date, _mtime(path), "report"))
     for path in root.rglob("full_states_log_*.json"):
         # <results>/<TICKER>/TradingAgentsStrategy_logs/full_states_log_<date>.json
         found.append(SavedReport(path, path.parent.parent.name,
@@ -336,14 +366,24 @@ def _mtime(path: Path) -> datetime:
     return datetime.fromtimestamp(path.stat().st_mtime)
 
 
-def _report_ticker(path: Path) -> str:
+def _report_header(path: Path) -> tuple[str, str | None]:
+    """(ticker, analysis date) from a complete report's header.
+
+    Reports written before the header carried the date give None for it, and a
+    report with no readable header falls back to its folder name for the ticker.
+    """
+    ticker, trade_date = path.parent.name.rsplit("_", 2)[0], None
     try:
-        first = path.read_text(encoding="utf-8").splitlines()[0]
-        if first.startswith("# Trading Analysis Report:"):
-            return first.split(":", 1)[1].strip()
-    except (OSError, IndexError):
-        pass
-    return path.parent.name.rsplit("_", 2)[0]
+        with path.open(encoding="utf-8") as f:
+            head = [next(f, "") for _ in range(4)]
+    except OSError:
+        return ticker, None
+    for line in head:
+        if line.startswith("# Trading Analysis Report:"):
+            ticker = line.split(":", 1)[1].strip()
+        elif line.startswith("Analysis date:"):
+            trade_date = line.split(":", 1)[1].strip() or None
+    return ticker, trade_date
 
 
 def load_report_sections(report: SavedReport) -> list[tuple[str, str]]:
@@ -387,6 +427,22 @@ def state_sections(state: dict) -> list[tuple[str, str]]:
         ("V. Portfolio Manager Decision", join([("Portfolio Manager", risk.get("judge_decision"))])),
     ]
     return [(title, body) for title, body in sections if body]
+
+
+def report_rating(sections: list[tuple[str, str]]) -> str:
+    """The Portfolio Manager's rating in a saved report, or REVIEW when unreadable."""
+    body = next((b for t, b in sections if t.startswith("V.")), "")
+    return parse_rating(body)
+
+
+def load_judgments(report: SavedReport) -> dict | None:
+    path = report.judgments_path
+    if path is None:
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def list_backtests(config: dict) -> list[Path]:

@@ -386,6 +386,21 @@ class TestAggregate:
 
 
 @pytest.mark.unit
+def test_judgments_payload_is_plain_data_without_uncounted_stances():
+    judged = [_judged("news", 0.4), _judged("stocktwits", -0.9, verdict="injection"),
+              _judged("news", 0.2, verdict="duplicate")]
+    agg = sj.aggregate(judged, _feeds())
+    payload = sj.judgments_payload(judged, agg, ("2026-08-25", "2026-09-01"))
+
+    assert json.loads(json.dumps(payload)) == payload
+    assert (payload["band"], payload["kept"], payload["total"]) == (agg.band.value, 1, 3)
+    assert payload["dropped"] == {"injection": 1, "duplicate": 1}
+    assert payload["sources"] == {"news": {"stance": 0.4, "kept": 1}}
+    assert [(i["verdict"], i["stance"]) for i in payload["items"]] == [
+        ("kept", 0.4), ("injection", None), ("duplicate", 0.2)]
+
+
+@pytest.mark.unit
 def test_source_block_lists_kept_items_by_materiality_with_tags():
     judged = sj.judge_feeds(FakeJev(), _feeds(twits=[
         _twit("[bull] chatter", label="Bullish"),
@@ -457,10 +472,15 @@ class TestAnalystNode:
         monkeypatch.setattr(sentiment, "jev_client", lambda: client)
         captured = {}
         llm = _llm(captured, SentimentNarrative(narrative="Retail and news both constructive."))
-        report = sentiment.create_sentiment_analyst(llm)(_state())["sentiment_report"]
+        result = sentiment.create_sentiment_analyst(llm)(_state())
+        report = result["sentiment_report"]
 
         assert report.startswith("**Overall Sentiment:** **Bullish**")
         assert "**Basis:** 4 of 7 news and social items kept" in report
+        # The judgments behind the header travel in the state for the browser UI.
+        judgments = result["sentiment_judgments"]
+        assert (judgments["band"], judgments["kept"], judgments["total"]) == ("Bullish", 4, 7)
+        assert len(judgments["items"]) == 7
         assert "Retail and news both constructive." in report
         assert client.closed
 
@@ -486,7 +506,9 @@ class TestAnalystNode:
         captured = {}
         llm = _llm(captured, SentimentReport(
             overall_band=SentimentBand.MIXED, overall_score=5.0, confidence="low", narrative="n"))
-        report = sentiment.create_sentiment_analyst(llm)(_state())["sentiment_report"]
+        result = sentiment.create_sentiment_analyst(llm)(_state())
+        report = result["sentiment_report"]
+        assert "sentiment_judgments" not in result
 
         assert report.startswith("**Overall Sentiment:** **Mixed**")  # the LLM's own header
         assert len(self.fetches) == 1

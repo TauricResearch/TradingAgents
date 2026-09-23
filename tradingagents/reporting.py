@@ -6,6 +6,7 @@ CLI and ``TradingAgentsGraph.save_reports`` both call this, so a headless / API
 run produces the same on-disk report tree a CLI run does.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -27,6 +28,9 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
         analyst_parts.append(("Sentiment Analyst", final_state["sentiment_report"]))
+        if final_state.get("sentiment_judgments"):
+            (analysts_dir / "sentiment_judgments.json").write_text(
+                json.dumps(final_state["sentiment_judgments"], indent=2), encoding="utf-8")
     if final_state.get("news_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
@@ -96,6 +100,9 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
 
     # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    header = f"# Trading Analysis Report: {ticker}\n\n"
+    if final_state.get("trade_date"):
+        header += f"Analysis date: {final_state['trade_date']}\n"
+    header += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
     return save_path / "complete_report.md"

@@ -142,13 +142,14 @@ def create_sentiment_analyst(llm):
                 feeds = _fetch_feeds(ticker, start_date, end_date)
                 judged = _judge(client, feeds, ticker)
             if judged is not None:
-                report_text = _judged_report(
+                report_text, payload = _judged_report(
                     feeds, judged, ticker, start_date, end_date,
                     lambda message: run_prompt(state, message, narrative_llm, _narrative_text),
                 )
                 return {
                     "messages": [AIMessage(content=report_text)],
                     "sentiment_report": report_text,
+                    "sentiment_judgments": payload,
                 }
             # The feeds hold the blocks the fetchers would have returned, so a
             # failed judgment costs no second fetch (Reddit would rate-limit it).
@@ -210,9 +211,14 @@ def _judge(client, feeds: dict[str, Feed], ticker: str):
         return None
 
 
-def _judged_report(feeds, judged, ticker, start_date, end_date, write_narrative) -> str:
-    """The report with its header computed from ``judged`` and an LLM narrative."""
-    from tradingagents.agents.utils.sentiment_judgments import aggregate, describe_drops
+def _judged_report(feeds, judged, ticker, start_date, end_date, write_narrative) -> tuple[str, dict]:
+    """The report, with its header computed from ``judged`` and an LLM narrative,
+    and the judgments as plain data for the run state."""
+    from tradingagents.agents.utils.sentiment_judgments import (
+        aggregate,
+        describe_drops,
+        judgments_payload,
+    )
 
     agg = aggregate(judged, feeds)
     system_message = _build_judged_system_message(
@@ -229,12 +235,13 @@ def _judged_report(feeds, judged, ticker, start_date, end_date, write_narrative)
         f"(dropped: {describe_drops(agg.dropped)}); the header is computed from "
         f"per-item stance judgments (TypeSafe Jev), not chosen by the model."
     )
-    return render_sentiment_report(SentimentReport(
+    report = render_sentiment_report(SentimentReport(
         overall_band=agg.band,
         overall_score=agg.score,
         confidence=agg.confidence,
         narrative=f"{basis}\n\n{narrative}",
     ))
+    return report, judgments_payload(judged, agg, (start_date, end_date))
 
 
 def _build_system_message(

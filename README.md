@@ -194,16 +194,17 @@ You will see a screen where you can select your desired tickers, analysis date, 
 
 ### Browser UI
 
-The same workflow in a browser, plus a history of past reports and a backtest dashboard:
+The same workflow in a browser, plus a history of past reports and a backtest dashboard. It needs nothing beyond the base install:
 ```bash
-pip install ".[ui]"
-tradingagents ui       # opens http://localhost:8501
+tradingagents ui       # serves http://localhost:8501 and opens the Analyze page
+tradingagents ui --port 8600 --no-browser
 ```
-- **Analyze** — pick a ticker, date, analysts and an optional portfolio file, then watch each agent's status, tool calls and report sections as the run streams in. The final rating shows at the end, and the full report is saved under `results_dir/reports`.
-- **Reports** — read any saved report, and browse the decision log with each call's realized return and alpha.
-- **Backtest** — start a grid sweep and follow its progress, then compare mean alpha and hit rate by rating.
+- **Analyze** — pick a ticker, date, analysts and an optional portfolio file, then watch each desk of the pipeline, the metrics, tool calls and report sections as the run streams in. The portfolio manager's rating shows at the end, and the full report is saved under `results_dir/reports`.
+- **Sentiment** — with Jev on, every news article and social post the Sentiment Analyst judged: its stance, event type, relevance and whether it was kept, or dropped as a duplicate, off-topic or an injected instruction. Open it from a live run or from a saved report.
+- **Reports** — read any saved report by section, and browse the decision log with each call's alpha, decision and reflection.
+- **Backtest** — start a grid sweep, follow the cell being run, stop it between cells, then compare mean alpha and hit rate by rating.
 
-Model settings live in the sidebar and share the CLI's remembered answers and `.env` overrides. Runs continue in the background, so reloading the page does not stop them.
+Model settings live in the sidebar of the Analyze page and share the CLI's remembered answers and `.env` overrides. Runs continue in the background, so reloading the page does not stop them. The server binds to `127.0.0.1`; pass `--host 0.0.0.0` only on a network you trust, since the page starts paid LLM runs. `http://localhost:8501/` itself is an overview page, and the light/dark theme follows your system unless you pick one.
 
 ### TypeSafe Jev (optional)
 

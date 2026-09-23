@@ -467,6 +467,36 @@ def _confidence(
     return "medium"
 
 
+def judgments_payload(
+    judged: Sequence[JudgedItem], agg: SentimentAggregate, window: tuple[str, str],
+) -> dict:
+    """Plain data for the run state and the browser UI: the header and every item.
+
+    A dropped item's stance is left out when the drop was injection or off-topic,
+    since it never counted and was judged on text that was not about the company.
+    """
+    def item(j: JudgedItem) -> dict:
+        counted = j.verdict in ("kept", "duplicate")
+        return {
+            "source": j.item.source, "title": j.item.title, "text": j.item.text,
+            "published": j.item.published, "author": j.item.author, "label": j.item.label,
+            "verdict": j.verdict, "event": j.event,
+            "stance": round(j.stance, 3) if counted else None,
+            "about": round(j.about_company, 3), "material": round(j.material_event, 3),
+            "injection": round(j.injection, 3), "opinion": round(j.opinion_only, 3),
+            "duplicate": None if j.duplicate is None else round(j.duplicate, 3),
+        }
+
+    return {
+        "window": list(window),
+        "band": agg.band.value, "score": agg.score, "confidence": agg.confidence,
+        "kept": agg.kept, "total": agg.total, "dropped": dict(agg.dropped),
+        "sources": {s: {"stance": round(m, 3), "kept": n} for s, (m, n) in agg.source_stances.items()},
+        "spread": round(agg.spread, 3), "unavailable": list(agg.unavailable),
+        "items": [item(j) for j in judged],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Prompt rendering
 # ---------------------------------------------------------------------------

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradingAgents</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<script>
+  // Apply the saved theme before first paint, so a light-theme user never sees a dark flash.
+  (function () {
+    var pref = 'system';
+    try { pref = localStorage.getItem('tradingagents-theme') || 'system'; } catch (e) {}
+    var mode = pref;
+    if (pref !== 'light' && pref !== 'dark') {
+      mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    document.documentElement.className = 'theme-' + mode;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="shell">
+  <nav class="side" aria-label="Main" id="side"></nav>
+  <main class="main" id="main" tabindex="-1"></main>
+</div>
+</body>
+</html>

@@ -246,3 +246,24 @@ def test_the_window_reported_is_the_one_the_outcomes_used(tmp_path):
     log.update_with_outcome("NVDA", "2026-01-05", 0.1, 0.04, 21, "note", "2026-02-01")
 
     assert "21 trading days" in summarize(log).render()
+
+
+@pytest.mark.unit
+def test_should_stop_ends_the_sweep_between_cells_without_settling(tmp_path):
+    seen = []
+    result = run_backtest(
+        ["NVDA", "AAPL"], ["2026-01-05", "2026-01-12"], _config(tmp_path),
+        on_cell=lambda ticker, date: seen.append((ticker, date)),
+        should_stop=lambda: len(seen) >= 3,
+    )
+    [graph] = _FakeGraph.instances
+    assert seen == [("NVDA", "2026-01-05"), ("NVDA", "2026-01-12"), ("AAPL", "2026-01-05")]
+    assert graph.calls == seen
+    assert result.stopped and result.cells_run == 3
+    assert graph.settled == []  # the resumed sweep settles at its own end
+
+    # Running again resumes: logged cells are skipped, the last one runs, and it settles.
+    again = run_backtest(["NVDA", "AAPL"], ["2026-01-05", "2026-01-12"], _config(tmp_path),
+                         run_id=result.run_id)
+    assert (again.skipped, again.cells_run, again.stopped) == (3, 1, False)
+    assert _FakeGraph.instances[-1].settled == ["NVDA", "AAPL"]

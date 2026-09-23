@@ -42,10 +42,6 @@ bedrock = [
 jev = [
     "typesafe-sdk>=0.7.1",
 ]
-# Browser UI (`tradingagents ui`): pip install "tradingagents[ui]".
-ui = [
-    "streamlit>=1.46",
-]
 
 [project.scripts]
 tradingagents = "cli.main:app"
@@ -54,7 +50,7 @@ tradingagents = "cli.main:app"
 include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
-cli = ["static/*"]
+cli = ["static/*", "webui/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
