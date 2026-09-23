@@ -2,6 +2,7 @@ import json
 
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
 from .config import get_config
+from .feed import Feed, FeedItem
 
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
@@ -28,6 +29,33 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
     }
 
     return _make_api_request("NEWS_SENTIMENT", params)
+
+
+def get_news_feed(ticker, start_date, end_date) -> Feed:
+    """:func:`get_news` with the feed's articles kept as items.
+
+    The block stays the raw response, as :func:`get_news` returns it; a body that
+    is not a news feed (an unexpected shape) yields no items.
+    """
+    raw = get_news(ticker, start_date, end_date)
+    text = raw if isinstance(raw, str) else json.dumps(raw)
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return Feed(text)
+    articles = payload.get("feed") if isinstance(payload, dict) else None
+    items = []
+    for article in articles if isinstance(articles, list) else []:
+        if not isinstance(article, dict):
+            continue
+        stamp = str(article.get("time_published") or "")  # e.g. 20260915T123000
+        items.append(FeedItem(
+            "news", str(article.get("summary") or ""), title=str(article.get("title") or ""),
+            published=f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}" if len(stamp) >= 8 else "",
+            author=str(article.get("source") or ""),
+        ))
+    return Feed(text, tuple(items))
+
 
 def get_global_news(curr_date, look_back_days: int | None = None, limit: int | None = None) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.

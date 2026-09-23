@@ -26,6 +26,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_JEV_ENABLED":             "jev_enabled",
+    "TRADINGAGENTS_JEV_MODEL":               "jev_model",
 }
 
 
@@ -106,6 +108,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # unbounded reasoning/output and hangs or trips a gateway idle timeout
     # (e.g. some deepseek-v4-flash deployments, #1204).
     "max_tokens": None,
+    # TypeSafe Jev typed judgments (pip install "tradingagents[jev]"). Used only
+    # when TYPESAFE_API_KEY is set; set False to keep the pre-Jev behaviour even
+    # then. The Sentiment Analyst uses it to filter news and social items and to
+    # compute the sentiment score from per-item stances. jev_model None uses the
+    # SDK default (TYPESAFE_DEFAULT_MODEL, else jev-latest); pin a versioned id
+    # such as "jev-1.13.0" once thresholds are tuned against it.
+    "jev_enabled": True,
+    "jev_model": None,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

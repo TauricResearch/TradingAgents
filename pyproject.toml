@@ -38,6 +38,14 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# TypeSafe Jev (System One typed judgments): pip install "tradingagents[jev]".
+jev = [
+    "typesafe-sdk>=0.7.1",
+]
+# Browser UI (`tradingagents ui`): pip install "tradingagents[ui]".
+ui = [
+    "streamlit>=1.46",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

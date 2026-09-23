@@ -9,6 +9,7 @@ from .alpha_vantage import (
     get_indicator as get_alpha_vantage_indicator,
     get_insider_transactions as get_alpha_vantage_insider_transactions,
     get_news as get_alpha_vantage_news,
+    get_news_feed as get_alpha_vantage_news_feed,
     get_stock as get_alpha_vantage_stock,
 )
 from .config import get_config
@@ -33,7 +34,7 @@ from .y_finance import (
     get_stock_stats_indicators_window,
     get_YFin_data_online,
 )
-from .yfinance_news import get_global_news_yfinance, get_news_yfinance
+from .yfinance_news import get_global_news_yfinance, get_news_feed_yfinance, get_news_yfinance
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ TOOLS_CATEGORIES = {
         "description": "News and insider data",
         "tools": [
             "get_news",
+            "get_news_feed",
             "get_global_news",
             "get_insider_transactions",
         ]
@@ -134,6 +136,12 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
     },
+    # get_news with the articles kept as items (dataflows.feed), for the
+    # sentiment analyst's per-item Jev judgments. Not an LLM tool.
+    "get_news_feed": {
+        "alpha_vantage": get_alpha_vantage_news_feed,
+        "yfinance": get_news_feed_yfinance,
+    },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
@@ -159,6 +167,12 @@ def get_category_for_method(method: str) -> str:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
+# A method that serves another tool's data in a different shape follows that
+# tool's override, so a user who pins get_news to a vendor gets the same vendor
+# for its item view.
+_TOOL_VENDOR_ALIASES = {"get_news_feed": "get_news"}
+
+
 def get_vendor(category: str, method: str = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
     Tool-level configuration takes precedence over category-level.
@@ -168,8 +182,9 @@ def get_vendor(category: str, method: str = None) -> str:
     # Check tool-level configuration first (if method provided)
     if method:
         tool_vendors = config.get("tool_vendors", {})
-        if method in tool_vendors:
-            return tool_vendors[method]
+        for name in (method, _TOOL_VENDOR_ALIASES.get(method)):
+            if name in tool_vendors:
+                return tool_vendors[name]
 
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")

@@ -27,6 +27,8 @@
 
 ---
 
+> **TradingAgents-Jev** is a fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) (Apache 2.0). It adds [TypeSafe Jev](https://docs.typesafe.ai) per-item judgments to the Sentiment Analyst and a browser UI; see [TypeSafe Jev (optional)](#typesafe-jev-optional) and [Browser UI](#browser-ui). All credit for the underlying framework goes to the original authors.
+
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
@@ -189,6 +191,23 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
+
+### Browser UI
+
+The same workflow in a browser, plus a history of past reports and a backtest dashboard:
+```bash
+pip install ".[ui]"
+tradingagents ui       # opens http://localhost:8501
+```
+- **Analyze** — pick a ticker, date, analysts and an optional portfolio file, then watch each agent's status, tool calls and report sections as the run streams in. The final rating shows at the end, and the full report is saved under `results_dir/reports`.
+- **Reports** — read any saved report, and browse the decision log with each call's realized return and alpha.
+- **Backtest** — start a grid sweep and follow its progress, then compare mean alpha and hit rate by rating.
+
+Model settings live in the sidebar and share the CLI's remembered answers and `.env` overrides. Runs continue in the background, so reloading the page does not stop them.
+
+### TypeSafe Jev (optional)
+
+With `pip install ".[jev]"` and `TYPESAFE_API_KEY` set, the Sentiment Analyst first judges each news article and social post with [TypeSafe Jev](https://docs.typesafe.ai). It drops items about other companies, repeats, and posts carrying instructions aimed at an AI system, then computes the sentiment band, score and confidence from per-item stances; the LLM writes only the narrative. Set `TRADINGAGENTS_JEV_ENABLED=false` to keep the previous behaviour. Details: [docs/jev-use-cases.md](docs/jev-use-cases.md).
 
 ### Markets and tickers
 

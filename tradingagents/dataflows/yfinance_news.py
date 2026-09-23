@@ -9,6 +9,7 @@ from dateutil.relativedelta import relativedelta
 from .config import get_config
 from .date_window import coverage_gap, in_window
 from .errors import NoMarketDataError
+from .feed import Feed, FeedItem
 from .stockstats_utils import yf_retry
 from .symbol_utils import normalize_symbol
 
@@ -77,6 +78,11 @@ def get_news_yfinance(
     Returns:
         Formatted string containing news articles
     """
+    return get_news_feed_yfinance(ticker, start_date, end_date).text
+
+
+def get_news_feed_yfinance(ticker: str, start_date: str, end_date: str) -> Feed:
+    """:func:`get_news_yfinance` with the articles kept as items."""
     article_limit = get_config()["news_article_limit"]
     # Query Yahoo with the canonical symbol, like every other yfinance path —
     # a raw broker/forex/crypto alias (XAUUSD, BTCUSD) otherwise silently
@@ -92,7 +98,7 @@ def get_news_yfinance(
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
         news_str = ""
-        filtered_count = 0
+        items = []
 
         for article in news:
             data = _extract_article_data(article)
@@ -107,16 +113,25 @@ def get_news_yfinance(
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
             news_str += "\n"
-            filtered_count += 1
+            items.append(FeedItem(
+                "news", data["summary"], title=data["title"],
+                published=f"{data['pub_date']:%Y-%m-%d}" if data["pub_date"] else "",
+                author=data["publisher"],
+            ))
 
-        if filtered_count == 0:
+        if not items:
             gap = coverage_gap(
                 (_extract_article_data(a)["pub_date"] for a in news),
                 start_date, end_date, "Yahoo Finance news", f"news for {ticker}{resolved}",
             )
-            return gap or f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
+            if gap:
+                return Feed(gap, unavailable=True)
+            return Feed(f"No news found for {ticker}{resolved} between {start_date} and {end_date}")
 
-        return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
+        return Feed(
+            f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}",
+            tuple(items),
+        )
 
     except Exception as e:
         raise NoMarketDataError(ticker, ticker, f"news unavailable: {e}") from e

@@ -7,7 +7,12 @@ from .alpha_vantage_fundamentals import (
     get_income_statement,
 )
 from .alpha_vantage_indicator import get_indicator
-from .alpha_vantage_news import get_global_news, get_insider_transactions, get_news
+from .alpha_vantage_news import (
+    get_global_news,
+    get_insider_transactions,
+    get_news,
+    get_news_feed,
+)
 from .alpha_vantage_stock import get_stock
 
 __all__ = [
@@ -19,5 +24,6 @@ __all__ = [
     "get_global_news",
     "get_insider_transactions",
     "get_news",
+    "get_news_feed",
     "get_stock",
 ]

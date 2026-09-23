@@ -30,6 +30,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .date_window import coverage_gap, in_window
+from .feed import Feed, FeedItem
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
@@ -250,6 +251,22 @@ def fetch_reddit_posts(
     that window so a historical run does not leak current discussion into a
     backtest (#1220).
     """
+    return fetch_reddit_feed(
+        ticker, subreddits, limit_per_sub=limit_per_sub, timeout=timeout,
+        start_date=start_date, end_date=end_date,
+    ).text
+
+
+def fetch_reddit_feed(
+    ticker: str,
+    subreddits: Iterable[str] = DEFAULT_SUBREDDITS,
+    *,
+    limit_per_sub: int = 5,
+    timeout: float = 10.0,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> Feed:
+    """:func:`fetch_reddit_posts` with the posts kept as items."""
     # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
     # ("BTC") so the query actually matches discussion instead of near-nothing.
     ticker = crypto_base(ticker) or ticker
@@ -257,7 +274,10 @@ def fetch_reddit_posts(
     label = ", ".join(f"r/{s}" for s in subreddits)
     fetched = _fetch_subreddit_rss(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
     if fetched is None:
-        return f"<Reddit unavailable: fetch failed ({label}); this is not an absence of discussion>"
+        return Feed(
+            f"<Reddit unavailable: fetch failed ({label}); this is not an absence of discussion>",
+            unavailable=True,
+        )
 
     window = bool(start_date and end_date)
     posts = _within_window(fetched, start_date, end_date)
@@ -266,8 +286,10 @@ def fetch_reddit_posts(
             _coverage_dates(fetched), start_date, end_date,
             "Reddit search", f"discussion of {ticker.upper()}",
         )
+        if gap:
+            return Feed(gap, unavailable=True)
         period = f"within {start_date}..{end_date}" if window else "in the past 7 days"
-        return gap or f"<no Reddit posts found mentioning {ticker.upper()} across {label} {period}>"
+        return Feed(f"<no Reddit posts found mentioning {ticker.upper()} across {label} {period}>")
 
     # Group by the subreddit each entry names, in the requested order. Nothing
     # is dropped: an unlabelled post from a one-subreddit request belongs to it,
@@ -279,6 +301,7 @@ def fetch_reddit_posts(
 
     page_full = len(fetched) >= _FEED_PAGE
     blocks = []
+    items = []
     for sub, sub_posts in by_sub.values():
         if not sub_posts:
             blocks.append(
@@ -299,5 +322,8 @@ def fetch_reddit_posts(
                 f"  [{created_str}] {title}"
                 + (f"\n    body excerpt: {selftext}" if selftext else "")
             )
+            items.append(FeedItem(
+                "reddit", selftext, title=title, published=created_str, author=f"r/{sub}",
+            ))
         blocks.append("\n".join(lines))
-    return "\n\n".join(blocks)
+    return Feed("\n\n".join(blocks), tuple(items))

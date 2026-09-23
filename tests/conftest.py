@@ -38,6 +38,17 @@ def _dummy_api_keys(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_jev(monkeypatch):
+    """Keep TypeSafe Jev off unless a test turns it on.
+
+    With a real TYPESAFE_API_KEY in the developer's environment, the Sentiment
+    Analyst would otherwise send every stubbed item to the live service. Tests
+    of the Jev path set the key and inject a fake client.
+    """
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _isolate_config():
     """Reset the global dataflows config before and after each test.
 

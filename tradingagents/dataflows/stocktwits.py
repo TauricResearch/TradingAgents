@@ -22,6 +22,7 @@ from datetime import datetime
 from urllib.request import Request, urlopen
 
 from .date_window import coverage_gap, in_window
+from .feed import Feed, FeedItem
 from .symbol_utils import crypto_base
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,17 @@ def fetch_stocktwits_messages(
     symbol has no messages, or the response shape is unexpected — the
     caller never has to special-case None or exceptions.
     """
+    return fetch_stocktwits_feed(ticker, limit, timeout, start_date, end_date).text
+
+
+def fetch_stocktwits_feed(
+    ticker: str,
+    limit: int = 30,
+    timeout: float = 10.0,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> Feed:
+    """:func:`fetch_stocktwits_messages` with the messages kept as items."""
     url = _API.format(ticker=_stocktwits_symbol(ticker))
     req = Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
     try:
@@ -93,7 +105,7 @@ def fetch_stocktwits_messages(
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).
         logger.warning("StockTwits fetch failed for %s: %s", ticker, exc)
-        return f"<stocktwits unavailable: {type(exc).__name__}>"
+        return Feed(f"<stocktwits unavailable: {type(exc).__name__}>", unavailable=True)
 
     fetched = data.get("messages", []) if isinstance(data, dict) else []
     messages = _within_window(fetched, start_date, end_date)
@@ -103,13 +115,16 @@ def fetch_stocktwits_messages(
                 (_created_at(m) for m in fetched), start_date, end_date,
                 "StockTwits", f"messages about ${ticker.upper()}",
             )
-            return gap or (
+            if gap:
+                return Feed(gap, unavailable=True)
+            return Feed(
                 f"<no StockTwits messages for ${ticker.upper()} within "
                 f"{start_date}..{end_date}>"
             )
-        return f"<no StockTwits messages found for ${ticker.upper()}>"
+        return Feed(f"<no StockTwits messages found for ${ticker.upper()}>")
 
     lines = []
+    items = []
     bullish = bearish = unlabeled = 0
     for m in messages[:limit]:
         created = m.get("created_at", "")
@@ -131,6 +146,10 @@ def fetch_stocktwits_messages(
             unlabeled += 1
             tag = "no-label"
         lines.append(f"[{created} · @{user} · {tag}] {body}")
+        items.append(FeedItem(
+            "stocktwits", body, published=str(created), author=f"@{user}",
+            label=tag if tag != "no-label" else None,
+        ))
 
     total = bullish + bearish + unlabeled
     bull_pct = round(100 * bullish / total) if total else 0
@@ -141,4 +160,4 @@ def fetch_stocktwits_messages(
         f"Unlabeled: {unlabeled} · "
         f"Total: {total} most-recent messages"
     )
-    return summary + "\n\n" + "\n".join(lines)
+    return Feed(summary + "\n\n" + "\n".join(lines), tuple(items))

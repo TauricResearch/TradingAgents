@@ -363,6 +363,30 @@ class SentimentReport(BaseModel):
     )
 
 
+class SentimentNarrative(BaseModel):
+    """The Sentiment Analyst's output when the header is computed in code.
+
+    With Jev, each news and social item is judged on its own and the band,
+    score and confidence are aggregated from those judgments, so the LLM writes
+    only the narrative around the computed header.
+    """
+
+    narrative: str = Field(
+        description=(
+            "Full sentiment report covering, in order: "
+            "(1) source-by-source breakdown with specific evidence (cite item "
+            "counts, per-item stances, notable items); "
+            "(2) cross-source divergences and alignments; "
+            "(3) dominant narrative themes; "
+            "(4) catalysts and risks surfaced by the data; "
+            "(5) a markdown table summarising key sentiment signals, their "
+            "direction, source, and supporting evidence. "
+            "Explain what drives the computed sentiment header; if the evidence "
+            "argues against it, say so here rather than restating a different score."
+        ),
+    )
+
+
 def render_sentiment_report(report: SentimentReport) -> str:
     """Render a SentimentReport to the markdown shape the rest of the system expects.
 
