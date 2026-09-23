@@ -242,10 +242,8 @@ class TradingAgentsGraph:
             ),
             "news": ToolNode(
                 [
-                    # News and insider information
                     get_news,
                     get_global_news,
-                    get_insider_transactions,
                     get_macro_indicators,
                     get_prediction_markets,
                 ]
@@ -257,6 +255,7 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                    get_insider_transactions,
                 ]
             ),
         }
