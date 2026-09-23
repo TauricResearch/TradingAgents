@@ -13,7 +13,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from tradingagents.agents.utils import news_data_tools, prediction_markets_tools
+from tradingagents.agents import tools
 from tradingagents.dataflows.vendors import polymarket
 from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
 from tradingagents.dataflows.vendors.yahoo import (
@@ -82,8 +82,8 @@ def test_polymarket_serves_a_current_run():
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("tool", [news_data_tools.get_insider_transactions,
-                                  prediction_markets_tools.get_prediction_markets], ids=lambda t: t.name)
+@pytest.mark.parametrize("tool", [tools.get_insider_transactions,
+                                  tools.get_prediction_markets], ids=lambda t: t.name)
 def test_trade_date_is_injected_not_model_visible(tool):
     assert "trade_date" in tool.func.__code__.co_varnames
     props = tool.tool_call_schema.model_json_schema()["properties"]
@@ -98,7 +98,7 @@ def test_a_historical_run_is_told_the_identity_is_current(monkeypatch):
     They are usually right for a past date, but a company that renamed or was
     reclassified since would read wrong, and every agent is told to anchor to
     this identity, so the run has to know which date it describes."""
-    from tradingagents.agents.utils.agent_utils import build_instrument_context
+    from tradingagents.agents.context import build_instrument_context
 
     identity = {"company_name": "Example Corp", "sector": "Technology",
                 "industry": "Software", "exchange": "NMS"}
@@ -110,7 +110,7 @@ def test_a_historical_run_is_told_the_identity_is_current(monkeypatch):
 
 @pytest.mark.unit
 def test_a_current_run_is_not_cluttered_with_a_vintage_note(monkeypatch):
-    from tradingagents.agents.utils.agent_utils import build_instrument_context
+    from tradingagents.agents.context import build_instrument_context
     from tradingagents.dataflows.date_window import get_current_date
 
     today = build_instrument_context("EXMP", "stock", {"company_name": "Example Corp"},
@@ -285,7 +285,7 @@ def _dates_after(text: str, cutoff: str) -> list[str]:
 def test_an_unavailable_notice_names_no_date_after_the_run():
     """A notice explaining why data is missing named where the vendor's coverage
     starts or today's date, both after a historical run's date."""
-    from tradingagents.agents.utils.agent_utils import build_instrument_context
+    from tradingagents.agents.context import build_instrument_context
     from tradingagents.dataflows.date_window import (
         coverage_gap,
         get_current_date,

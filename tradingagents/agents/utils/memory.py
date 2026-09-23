@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.agents.rating import parse_rating
 
 
 class TradingMemoryLog:

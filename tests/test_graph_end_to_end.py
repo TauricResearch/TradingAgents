@@ -17,9 +17,8 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.runnables import RunnableLambda
 from pydantic import Field
 
-from tradingagents.agents import schemas
+from tradingagents.agents import context, schemas
 from tradingagents.agents.analysts import sentiment_analyst
-from tradingagents.agents.utils import agent_utils
 from tradingagents.dataflows import router
 from tradingagents.dataflows.vendors.yahoo import market as yahoo_market, snapshot
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -108,7 +107,7 @@ def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(sentiment_analyst, "fetch_stocktwits_messages", lambda *a, **k: "no posts")
     monkeypatch.setattr(sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "no posts")
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
-    agent_utils.resolve_instrument_identity.cache_clear()
+    context.resolve_instrument_identity.cache_clear()
     return called
 
 

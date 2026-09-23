@@ -196,7 +196,7 @@ class TestTradingMemoryLogCore:
     def test_an_unreadable_decision_is_tagged_for_review(self, tmp_path):
         """Not a Hold: a fabricated rating is quoted back to the next run as a
         call that was never made, and counted in the backtest figures."""
-        from tradingagents.agents.utils.rating import RATING_REVIEW
+        from tradingagents.agents.rating import RATING_REVIEW
 
         log = make_log(tmp_path)
         log.store_decision("MSFT", "2026-01-12", DECISION_NO_RATING)

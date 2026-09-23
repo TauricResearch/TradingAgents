@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from tradingagents.agents.utils.agent_utils import get_portfolio_context_from_state
+from tradingagents.agents.context import get_portfolio_context_from_state
 from tradingagents.portfolio import PortfolioContext, load_portfolio
 
 HOLDING = {

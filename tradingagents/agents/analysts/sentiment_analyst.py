@@ -21,17 +21,14 @@ from datetime import datetime, timedelta
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
 from tradingagents.agents.schemas import SentimentReport, render_sentiment_report
-from tradingagents.agents.utils.agent_utils import (
-    get_instrument_context_from_state,
-    get_language_instruction,
-    get_news,
-)
-from tradingagents.agents.utils.structured import (
+from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.agents.tools import get_news
 from tradingagents.dataflows.vendors.reddit import fetch_reddit_posts
 from tradingagents.dataflows.vendors.stocktwits import fetch_stocktwits_messages
 

@@ -7,7 +7,7 @@ hit the right instrument instead of failing/mismatching.
 """
 import pandas as pd
 
-import tradingagents.agents.utils.agent_utils as au
+import tradingagents.agents.context as au
 import tradingagents.dataflows.vendors.yahoo.market as yahoo_market
 import tradingagents.dataflows.vendors.yahoo.news as ynews
 from tradingagents.graph.trading_graph import TradingAgentsGraph

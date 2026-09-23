@@ -21,8 +21,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from tradingagents.agents.rating import RATING_REVIEW
 from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.agents.utils.rating import RATING_REVIEW
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.graph.trading_graph import TradingAgentsGraph

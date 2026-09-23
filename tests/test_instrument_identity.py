@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.context import (
     build_instrument_context,
     create_msg_delete,
     get_instrument_context_from_state,

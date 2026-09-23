@@ -8,12 +8,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from tradingagents.agents.utils.agent_utils import (
-    build_instrument_context,
-    resolve_instrument_identity,
-)
+from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
+from tradingagents.agents.rating import parse_rating
 from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.agents.utils.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
@@ -370,7 +367,7 @@ class TradingAgentsGraph:
         Returns ``(final_state, signal)`` where ``signal`` is one of the 5-tier
         ratings (Buy / Overweight / Hold / Underweight / Sell) or ``"REVIEW"``
         when the decision had no parseable rating (#1170); guard with
-        ``tradingagents.agents.utils.rating.is_review`` before mapping it to the
+        ``tradingagents.agents.rating.is_review`` before mapping it to the
         PortfolioRating enum.
         """
         trade_date = _validate_trade_date(trade_date)

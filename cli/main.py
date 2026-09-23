@@ -42,7 +42,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
-from tradingagents.agents.utils.rating import is_review
+from tradingagents.agents.rating import is_review
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
