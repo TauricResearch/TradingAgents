@@ -30,7 +30,7 @@ def test_create_run_state_settles_pending_and_carries_context(tmp_path, monkeypa
     graph = _bare_graph(tmp_path)
     graph.propagator = Propagator()
     settled = []
-    monkeypatch.setattr(graph, "_resolve_pending_entries", settled.append, raising=False)
+    monkeypatch.setattr(graph, "settle_pending", settled.append, raising=False)
     monkeypatch.setattr(graph, "resolve_instrument_context", lambda t, a="stock", d=None: f"id:{t}", raising=False)
     monkeypatch.setattr(graph, "_memory_as_of", lambda d: d, raising=False)
     graph.memory_log.store_decision("NVDA", "2026-01-05", "Rating: Buy\nold call")

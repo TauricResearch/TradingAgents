@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,12 +13,12 @@ from tradingagents.agents.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
-from tradingagents.dataflows.vendors.yahoo.market import get_closes
 from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import build_llm_kwargs, create_llm_client
 from tradingagents.reporting import write_report_tree
 
+from . import settlement
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
@@ -120,126 +120,6 @@ class TradingAgentsGraph:
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
         self._resuming = False
-
-    def _resolve_benchmark(self, ticker: str) -> str:
-        """Pick the benchmark ticker for alpha calculation against ``ticker``.
-
-        ``config["benchmark_ticker"]`` overrides everything when set; otherwise
-        the suffix map matches the ticker's exchange suffix (e.g. ``.T`` for
-        Tokyo). US-listed tickers without a dotted suffix fall through to the
-        empty-suffix entry (SPY by default). Unrecognised suffixes (including
-        US tickers with dots like ``BRK.B``) also fall back to the empty-suffix
-        entry, which is the right default because the alpha calculation works
-        in USD.
-        """
-        from tradingagents.dataflows.symbols import normalize_symbol
-
-        explicit = self.config.get("benchmark_ticker")
-        if explicit:
-            # Same alias mapping as the analyzed ticker; an unmapped alias finds
-            # no prices, and the decision would stay pending for good.
-            return normalize_symbol(explicit)
-        benchmark_map = self.config.get("benchmark_map", {})
-        ticker_upper = normalize_symbol(ticker)
-        for suffix, benchmark in benchmark_map.items():
-            if suffix and ticker_upper.endswith(suffix.upper()):
-                return benchmark
-        return benchmark_map.get("", "SPY")
-
-    def _fetch_returns(
-        self, ticker: str, trade_date: str, holding_days: int = 5,
-        benchmark: str = "SPY",
-    ) -> tuple[float | None, float | None, int | None, str | None]:
-        """Fetch raw and alpha return for ticker over holding_days from trade_date.
-
-        ``benchmark`` is the index used as the alpha baseline (resolved by the
-        caller via ``_resolve_benchmark``). Returns ``(raw_return, alpha_return,
-        holding_days, resolution_date)`` — where ``resolution_date`` is the date
-        of the last price bar used, i.e. when the outcome became known (#1251) —
-        or ``(None, None, None, None)`` when the outcome cannot be settled yet:
-        the full holding window has not traded (#1169), or the symbol is delisted
-        or unreachable.
-        """
-        try:
-            start = datetime.strptime(trade_date, "%Y-%m-%d")
-            # holding_days counts trading days, so ask for the calendar span they
-            # occupy (about 7 for every 5) plus a week for holidays.
-            end = start + timedelta(days=round(holding_days * 7 / 5) + 7)
-            end_str = end.strftime("%Y-%m-%d")
-
-            # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984).
-            stock = get_closes(ticker, trade_date, end_str)
-            bench = get_closes(benchmark, trade_date, end_str)
-
-            # Require the full holding window in both series. A rerun before it
-            # has traded leaves the entry pending to retry next run, rather than
-            # settling on a premature partial return (#1169).
-            if len(stock) <= holding_days or len(bench) <= holding_days:
-                return None, None, None, None
-
-            raw = float((stock.iloc[holding_days] - stock.iloc[0]) / stock.iloc[0])
-            bench_ret = float((bench.iloc[holding_days] - bench.iloc[0]) / bench.iloc[0])
-            alpha = raw - bench_ret
-            # The date of the last price bar used is when this outcome became
-            # known — the point-in-time cutoff for injecting the lesson (#1251).
-            resolution_date = stock.index[holding_days].strftime("%Y-%m-%d")
-            return raw, alpha, holding_days, resolution_date
-        except Exception as e:
-            logger.warning(
-                "Could not resolve outcome for %s on %s vs %s (will retry next run): %s",
-                ticker, trade_date, benchmark, e,
-            )
-            return None, None, None, None
-
-    def _resolve_pending_entries(self, ticker: str) -> None:
-        """Resolve pending log entries for ticker at the start of a new run.
-
-        Fetches returns for each same-ticker pending entry, generates reflections,
-        then writes all updates in a single atomic batch write to avoid redundant I/O.
-        Skips entries whose price data is not yet available (too recent or delisted).
-
-        Trade-off: only same-ticker entries are resolved per run.  Entries for
-        other tickers accumulate until that ticker is run again.
-        """
-        pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
-        if not pending:
-            return
-
-        benchmark = self._resolve_benchmark(ticker)
-        updates = []
-        for entry in pending:
-            raw, alpha, days, resolution_date = self._fetch_returns(
-                ticker, entry["date"], self.config.get("holding_period_days", 5),
-                benchmark=benchmark,
-            )
-            if raw is None:
-                continue  # price not available yet — try again next run
-            try:
-                reflection = self.reflector.reflect_on_final_decision(
-                    final_decision=entry.get("decision", ""),
-                    raw_return=raw,
-                    alpha_return=alpha,
-                    benchmark_name=benchmark,
-                    holding_days=days,
-                )
-            except Exception as exc:
-                # Reflection calls a provider, and this runs on the way into a
-                # new run: a transient failure leaves the entry pending for the
-                # next one rather than stopping the analysis that was asked for.
-                logger.warning("Reflection failed for %s on %s: %s", ticker, entry["date"], exc)
-                continue
-            updates.append({
-                "ticker": ticker,
-                "trade_date": entry["date"],
-                "raw_return": raw,
-                "alpha_return": alpha,
-                "holding_days": days,
-                "reflection": reflection,
-                "resolution_date": resolution_date,
-            })
-
-        if updates:
-            self.memory_log.batch_update_with_outcomes(updates)
 
     def resolve_instrument_context(self, ticker: str, asset_type: str = "stock",
                                    curr_date: str | None = None) -> str:
@@ -392,7 +272,7 @@ class TradingAgentsGraph:
         resolved instrument identity for every agent (#814). An entry point that
         assembled the state itself would skip the decision log.
         """
-        self._resolve_pending_entries(company_name)
+        self.settle_pending(company_name)
         return self.propagator.create_initial_state(
             company_name,
             trade_date,
@@ -413,7 +293,7 @@ class TradingAgentsGraph:
         this to settle it now.
         """
         with run_config(self.config):
-            self._resolve_pending_entries(company_name)
+            settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
 
     def record_decision(self, company_name, trade_date, final_state):
         """Log a finished run's decision for reflection on the next same-ticker run."""

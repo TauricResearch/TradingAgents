@@ -140,15 +140,18 @@ def test_concurrent_runs_each_read_their_own_config():
 
 
 @pytest.mark.unit
-def test_settling_reads_the_graphs_own_config():
+def test_settling_reads_the_graphs_own_config(monkeypatch):
     from tradingagents.dataflows.router import get_vendor
 
     config = copy.deepcopy(default_config.DEFAULT_CONFIG)
     config["tool_vendors"] = {"get_stock_data": "alpha_vantage"}
     graph = _graph(config)
+    graph.memory_log = graph.reflector = None      # the settlement below is a stand-in
     seen = []
-    graph._resolve_pending_entries = lambda ticker: seen.append(
-        get_vendor("core_stock_apis", "get_stock_data"))
+    from tradingagents.graph import settlement
+
+    monkeypatch.setattr(settlement, "settle_pending",
+                        lambda *a: seen.append(get_vendor("core_stock_apis", "get_stock_data")))
 
     graph.settle_pending("AAPL")
 
