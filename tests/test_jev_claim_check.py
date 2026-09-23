@@ -526,7 +526,8 @@ class TestOutput:
         block = cc.render_claim_check(check, "Buy")
         assert "4 checkable against the analyst reports: 3 supported, 1 unverified." in block
         assert '- Unverified: "At 29.5x forward earnings it trades below its average multiple' in block
-        assert block.endswith("; needs a numeric comparison 0.90)")
+        assert block.splitlines()[-3].endswith("; needs a numeric comparison 0.90)")
+        assert block.splitlines()[-1] == "**Rating after claim check**: Buy (the Portfolio Manager rated Buy)"
         assert not check.review and extract_rating(f"{decision}\n\n{block}") == "Buy"
 
     def test_a_supported_thesis_keeps_its_rating(self):
@@ -535,7 +536,9 @@ class TestOutput:
         block = cc.render_claim_check(check, "Buy")
         assert block.splitlines() == [
             "**Claim Check**: 5 statements read from the Investment Thesis, 3 checkable against "
-            "the analyst reports: 3 supported. (Claims judged by TypeSafe Jev; figures matched in code.)"
+            "the analyst reports: 3 supported. (Claims judged by TypeSafe Jev; figures matched in code.)",
+            "",
+            "**Rating after claim check**: Buy (the Portfolio Manager rated Buy)",
         ]
         assert extract_rating(f"{decision}\n\n{block}") == "Buy"
 
@@ -549,16 +552,35 @@ class TestOutput:
         _, check = _check()
         assert "(no rating could be read from the Portfolio Manager's decision; " in cc.render_claim_check(check, None)
 
-    def test_a_quoted_rating_does_not_become_the_decision(self):
+    @pytest.mark.parametrize("claim", [
+        "Analysts' consensus rating: Sell, yet revenue beat [fact] [key:odd]",
+        "The rating agency: Moody's - Sell rated debt was upgraded [fact] [key:odd]",
+    ])
+    def test_a_quoted_rating_does_not_become_the_decision(self, claim):
         """rating.py takes the last labelled line, so a claim quoting another
         rating must not read as a label after the Portfolio Manager's own."""
-        decision = ("## Investment Thesis\n"
-                    "- Analysts' consensus rating: Sell, yet revenue beat [fact] [key:odd]\n\n"
-                    "**Rating**: Buy")
+        decision = f"## Investment Thesis\n- {claim}\n\n**Rating**: Buy"
         check = cc.run_check(FakeJev(), decision, REPORTS, INSTRUMENT)
         block = cc.render_claim_check(check, "Buy")
-        assert not check.review and "consensus rating Sell" in block
+        assert not check.review and "Sell" in block
         assert extract_rating(f"{decision}\n\n{block}") == "Buy"
+
+    def test_a_rating_word_in_a_cited_heading_does_not_change_an_unlabelled_rating(self):
+        """A free-text decision without a label is read from its only rating
+        word; a report heading cited in the block must not add another."""
+        decision = ("I recommend going Overweight.\n\n## Investment Thesis\n"
+                    "- Hyperscaler capex rose sharply this year [fact] [key:capex]")
+        reports = {"fundamentals": "## Sell-side estimates\nConsensus revenue is unchanged."}
+        check = cc.run_check(FakeJev(), decision, reports, INSTRUMENT)
+        block = cc.render_claim_check(check, extract_rating(decision))
+        assert '"Sell-side estimates"' in block
+        assert extract_rating(f"{decision}\n\n{block}") == "Overweight"
+
+    def test_without_a_readable_rating_the_block_says_review(self):
+        _, check = _check(THESIS.replace("[key:margin]", "[key:revenue]"))
+        assert cc.render_claim_check(check, None).splitlines()[-1] == (
+            "**Rating after claim check**: REVIEW (no rating could be read from the "
+            "Portfolio Manager's decision)")
 
 
 # ---------------------------------------------------------------------------

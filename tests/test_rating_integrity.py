@@ -71,6 +71,11 @@ def test_a_review_label_before_the_final_rating_does_not_override_it():
 
 
 @pytest.mark.unit
+def test_prose_about_a_review_is_not_the_review_label():
+    assert extract_rating("**Rating**: Buy\n\nNext rating - review after earnings.") == "Buy"
+
+
+@pytest.mark.unit
 def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
     """A free-text answer that echoes the rating scale was read as the first
     tier listed in it."""

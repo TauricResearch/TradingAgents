@@ -730,16 +730,11 @@ def review_decision(
 # Output
 # ---------------------------------------------------------------------------
 
-# A quoted "rating: X" must not read as the decision's rating label (rating.py
-# takes the last labelled line), so its separator is dropped in quotes.
-_LABEL_IN_QUOTE = re.compile(r"(\brating\b[^:\-\u2010-\u2015]*)[:\-\u2010-\u2015]+", re.I)
-
-
 def _quote(text: str, limit: int = _QUOTE_CHARS) -> str:
     text = re.sub(r"\s+", " ", text).strip().replace('"', "'")
     if len(text) > limit:
         text = text[: limit - 1].rstrip() + "…"
-    return _LABEL_IN_QUOTE.sub(r"\1", text)
+    return text
 
 
 def _n(count: int, noun: str) -> str:
@@ -784,11 +779,16 @@ def render_claim_check(check: ClaimCheck, pm_rating: str | None) -> str:
     for r, fig in unmatched:
         lines.append(f'- Figure in no report: {fig} in "{_quote(r.claim)}"')
 
+    # Always the last labelled rating (rating.py takes the last one), so neither a
+    # quoted claim nor a report heading above it can be read as the decision's rating.
+    called = f"the Portfolio Manager rated {pm_rating}" if pm_rating else \
+        "no rating could be read from the Portfolio Manager's decision"
     if check.review:
-        called = f"the Portfolio Manager rated {pm_rating}" if pm_rating else \
-            "no rating could be read from the Portfolio Manager's decision"
-        lines.append("")
-        lines.append(f"**Rating after claim check**: REVIEW ({called}; {'; '.join(check.reasons)})")
+        rating, why = "REVIEW", f"{called}; {'; '.join(check.reasons)}"
+    else:
+        rating, why = pm_rating or "REVIEW", called
+    lines.append("")
+    lines.append(f"**Rating after claim check**: {rating} ({why})")
     return "\n".join(lines)
 
 

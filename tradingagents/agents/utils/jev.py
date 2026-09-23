@@ -62,6 +62,9 @@ def ask_each(client: Any, states: Sequence[Any], questions: Mapping[str, Any]) -
     """
     if not states:
         return []
-    workers = min(MAX_CONCURRENT_REQUESTS, len(states))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    pool = ThreadPoolExecutor(max_workers=min(MAX_CONCURRENT_REQUESTS, len(states)))
+    try:
         return list(pool.map(lambda state: client.system_one(state=state, questions=questions), states))
+    finally:
+        # After a failure, requests not yet started are dropped rather than run.
+        pool.shutdown(wait=True, cancel_futures=True)

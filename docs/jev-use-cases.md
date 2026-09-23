@@ -355,8 +355,12 @@ This is a recorded run of the live check below, after the numeric-comparison
 fix. `extract_rating` reads a
 last labelled `REVIEW` as no rating, so the signal, the memory log tag, the
 backtest (as unscored), the CLI and the web UI all show `REVIEW`. The
-Portfolio Manager's own rating stays in the text. A quoted claim has any
-`rating:` separator removed, so it can never read as a later rating label.
+Portfolio Manager's own rating stays in the text. When the check does not send
+the decision to review, the last line restates the Portfolio Manager's rating
+(`**Rating after claim check**: Buy (the Portfolio Manager rated Buy)`), or
+`REVIEW` when none could be read. The block therefore always ends with the
+rating label, and no quoted claim or cited report heading above it can be read
+as the rating.
 
 **Degrades:** with no `TYPESAFE_API_KEY`, `jev_enabled: False`, no `jev` extra,
 `jev_claim_check: False` (`TRADINGAGENTS_JEV_CLAIM_CHECK=false`), or no analyst

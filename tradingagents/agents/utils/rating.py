@@ -13,7 +13,8 @@ caller turns that into ``REVIEW`` rather than a tradeable position: a decision
 nobody can read is not a Hold, and a Hold recorded in its place is quoted back to
 the next run as a call that was never made (#1170).
 
-It also returns ``None`` when the last labelled rating is ``REVIEW`` itself. The
+It also returns ``None`` when the last labelled rating is ``REVIEW`` itself, written
+in capitals as the sentinel is (prose such as "rating - review" is not). The
 claim check (``claim_check.py``) appends ``**Rating after claim check**: REVIEW``
 when the analyst reports contradict the Portfolio Manager's thesis, and the
 signal, the memory log, the backtest, the CLI and the web UI all read that
@@ -78,7 +79,7 @@ def extract_rating(text: str) -> str | None:
         word = m.group(1).lower()
         if word in _RATING_SET:
             labelled = word.capitalize()
-        elif word == RATING_REVIEW.lower():
+        elif m.group(1) == RATING_REVIEW:  # the sentinel as written, not prose "review"
             labelled = RATING_REVIEW
     if labelled == RATING_REVIEW:
         return None
