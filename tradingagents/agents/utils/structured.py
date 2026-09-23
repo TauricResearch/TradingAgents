@@ -19,6 +19,7 @@ all three agents log the same warnings when fallback fires.
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -80,10 +81,72 @@ def invoke_structured_or_freetext(
                 raise ValueError("structured output returned no parsed result")
             return render(result)
         except Exception as exc:
+            # ``structured_fallback`` marks the record so a counter can tally
+            # fallbacks by agent without matching on the message text, which is
+            # prose and free to change. See ``FallbackCounter``.
             logger.warning(
                 "%s: structured-output invocation failed (%s); retrying once as free text",
                 agent_name, exc,
+                extra={"structured_fallback": agent_name},
             )
 
     response = plain_llm.invoke(prompt)
     return response.content
+
+
+class FallbackCounter(logging.Handler):
+    """Tally structured-output fallbacks by agent, for reporting after a run.
+
+    Every fallback is already logged; what was missing is a total. A run that
+    silently dropped three agents to free text looks exactly like one that kept
+    the schema throughout, so a caller had no way to know how much of the output
+    was validated short of reading stderr.
+
+    Counting a tagged ``LogRecord`` rather than a return value keeps the agent
+    path untouched: nothing in the call chain has to thread a collector through
+    four call sites, and a caller that does not attach one pays nothing.
+
+    Attach around a run and read :meth:`summary` afterwards::
+
+        counter = FallbackCounter()
+        logging.getLogger("tradingagents").addHandler(counter)
+        try:
+            graph.propagate(ticker, date)
+        finally:
+            logging.getLogger("tradingagents").removeHandler(counter)
+
+    A handler is process-wide, so two runs sharing a process and a handler share
+    its tally; give concurrent runs one counter each.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._lock_counts = threading.Lock()
+        self.counts: dict[str, int] = {}
+
+    def emit(self, record: logging.LogRecord) -> None:
+        agent = getattr(record, "structured_fallback", None)
+        if agent is None:
+            return
+        with self._lock_counts:
+            self.counts[agent] = self.counts.get(agent, 0) + 1
+
+    @property
+    def total(self) -> int:
+        with self._lock_counts:
+            return sum(self.counts.values())
+
+    def summary(self) -> str:
+        """One line for a run summary, or an empty string when nothing fell back."""
+        with self._lock_counts:
+            if not self.counts:
+                return ""
+            parts = ", ".join(
+                f"{agent} x{n}" for agent, n in
+                sorted(self.counts.items(), key=lambda kv: (-kv[1], kv[0]))
+            )
+            total = sum(self.counts.values())
+        return (
+            f"Structured-output fallbacks: {total} "
+            f"({parts}) - those agents produced unvalidated free text."
+        )

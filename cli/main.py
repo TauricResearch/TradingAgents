@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import sys
 import time
@@ -22,6 +23,7 @@ from rich.text import Text
 from cli.announcements import display_announcements, fetch_announcements
 from cli.prefs import load_last_run, sanitize, save_last_run
 from cli.stats_handler import StatsCallbackHandler
+from tradingagents.agents.utils.structured import FallbackCounter
 from cli.utils import (
     ask_anthropic_effort,
     ask_gemini_thinking_config,
@@ -1175,6 +1177,12 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         if checkpoint_tid is not None:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_tid
 
+        # Count structured-output fallbacks so the summary can say how many
+        # agents produced unvalidated free text. Attached next to the finally
+        # that removes it: a handler left behind would tally a later run too.
+        fallback_counter = FallbackCounter()
+        logging.getLogger("tradingagents").addHandler(fallback_counter)
+
         # Stream the analysis. On resume, feed None so LangGraph continues the
         # interrupted run instead of re-appending the initial state (#1249); the
         # try/finally tears the checkpointer down even if the stream raises.
@@ -1298,6 +1306,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         finally:
             # Always restore the plain uncheckpointed graph, even on failure.
             graph.end_checkpoint()
+            logging.getLogger("tradingagents").removeHandler(fallback_counter)
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
@@ -1327,6 +1336,14 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
             "decision text below and judge it yourself.[/yellow]\n"
         )
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
+
+    # Schema enforcement is not guaranteed on every provider: a model that
+    # answers in prose instead of calling the schema tool leaves the agent on
+    # the free-text path. That is logged per occurrence but was invisible once
+    # the run finished, so report the total here.
+    fallback_summary = fallback_counter.summary()
+    if fallback_summary:
+        console.print(f"[yellow]{fallback_summary}[/yellow]")
 
     # Prompt to save report
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
