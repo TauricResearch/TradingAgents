@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+import cli.run as cli_run
 from tradingagents.agents.rating import RATING_REVIEW, extract_rating, parse_rating
 
 INVERTED = ("The aggressive analyst pushed hard for a Buy on the AI backlog, but the "
@@ -145,23 +146,23 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
     fake = _Graph()
     fake.graph = fake
     fake.propagator = fake
-    monkeypatch.setattr(m, "TradingAgentsGraph", lambda *a, **k: fake)
-    monkeypatch.setattr(m, "create_layout", lambda: None)
-    monkeypatch.setattr(m, "update_display", lambda *a, **k: None)
-    monkeypatch.setattr(m, "Live", type("L", (), {"__init__": lambda s, *a, **k: None,
+    monkeypatch.setattr(cli_run, "TradingAgentsGraph", lambda *a, **k: fake)
+    monkeypatch.setattr(cli_run, "create_layout", lambda: None)
+    monkeypatch.setattr(cli_run, "update_display", lambda *a, **k: None)
+    monkeypatch.setattr(cli_run, "Live", type("L", (), {"__init__": lambda s, *a, **k: None,
                                                   "__enter__": lambda s: s,
                                                   "__exit__": lambda s, *a: False}))
     monkeypatch.setattr(m.console, "print", lambda *a, **k: printed.append(" ".join(str(x) for x in a)))
-    monkeypatch.setattr(m, "display_complete_report", lambda *a, **k: None)
+    monkeypatch.setattr(cli_run, "display_complete_report", lambda *a, **k: None)
     monkeypatch.setattr(m.typer, "prompt", lambda *a, **k: "N")
-    monkeypatch.setattr(m, "get_user_selections", lambda: {
+    monkeypatch.setattr(cli_run, "get_user_selections", lambda: {
         "ticker": "NVDA", "analysis_date": "2026-01-10",
         "analysts": [AnalystType.MARKET], "asset_type": "stock",
     })
-    monkeypatch.setattr(m, "_build_run_config", lambda s, c: {
+    monkeypatch.setattr(cli_run, "_build_run_config", lambda s, c: {
         "data_cache_dir": str(tmp_path / "c"), "results_dir": str(tmp_path / "r")})
 
-    m.run_analysis()
+    cli_run.run_analysis()
 
     assert any("review" in line.lower() for line in printed), printed[-5:]
 

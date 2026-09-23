@@ -5,6 +5,7 @@ stock), #982 (BTC-USDT accepted but unpriceable on Yahoo).
 """
 import pytest
 
+import cli.run as cli_run
 from cli.models import AssetType
 from cli.prompts import detect_asset_type, is_valid_ticker_input, normalize_ticker_symbol
 from tradingagents.dataflows.symbols import normalize_symbol
@@ -66,10 +67,9 @@ def test_cli_normalize_delegates_to_data_layer():
 def test_the_run_directory_cannot_escape_the_results_directory(tmp_path, monkeypatch):
     """Every other path that interpolates a ticker validates it first; the CLI's
     own results tree did not, so a ticker of '..' wrote a level up."""
-    import cli.main as m
 
     with pytest.raises(ValueError):
-        m._run_directory({"results_dir": str(tmp_path)}, "..", "2026-09-01")
+        cli_run._run_directory({"results_dir": str(tmp_path)}, "..", "2026-09-01")
 
-    ok = m._run_directory({"results_dir": str(tmp_path)}, "NVDA", "2026-09-01")
+    ok = cli_run._run_directory({"results_dir": str(tmp_path)}, "NVDA", "2026-09-01")
     assert str(ok).startswith(str(tmp_path))

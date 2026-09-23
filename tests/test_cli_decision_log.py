@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+import cli.run as cli_run
 from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -145,20 +146,20 @@ def _run_cli(monkeypatch, tmp_path, fake):
     from cli.models import AnalystType
 
     buffer = _FakeBuffer()
-    monkeypatch.setattr(m, "TradingAgentsGraph", lambda *a, **k: fake)
-    monkeypatch.setattr(m, "message_buffer", buffer)
-    monkeypatch.setattr(m, "create_layout", lambda: None)
-    monkeypatch.setattr(m, "update_display", lambda *a, **k: None)
-    monkeypatch.setattr(m, "Live", _NullLive)
-    monkeypatch.setattr(m, "get_user_selections", lambda: {
+    monkeypatch.setattr(cli_run, "TradingAgentsGraph", lambda *a, **k: fake)
+    monkeypatch.setattr(cli_run, "message_buffer", buffer)
+    monkeypatch.setattr(cli_run, "create_layout", lambda: None)
+    monkeypatch.setattr(cli_run, "update_display", lambda *a, **k: None)
+    monkeypatch.setattr(cli_run, "Live", _NullLive)
+    monkeypatch.setattr(cli_run, "get_user_selections", lambda: {
         "ticker": "NVDA", "analysis_date": "2026-01-10",
         "analysts": [AnalystType.MARKET], "asset_type": "stock",
     })
-    monkeypatch.setattr(m, "_build_run_config", lambda selections, checkpoint: {
+    monkeypatch.setattr(cli_run, "_build_run_config", lambda selections, checkpoint: {
         "data_cache_dir": str(tmp_path / "cache"), "results_dir": str(tmp_path / "results"),
     })
     monkeypatch.setattr(m.typer, "prompt", lambda *a, **k: "N")
-    m.run_analysis()
+    cli_run.run_analysis()
     return buffer
 
 

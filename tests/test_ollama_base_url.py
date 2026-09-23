@@ -23,16 +23,17 @@ def _resync_reloaded_modules():
     """Restore module state after this file's importlib.reload() calls.
 
     Several tests below reload ``cli.prompts`` to re-evaluate OLLAMA_BASE_URL.
-    That leaves ``cli.main``'s star-imported names (e.g. get_ticker) bound to
-    the pre-reload module objects, which breaks identity checks in unrelated
-    tests that happen to run afterward. Re-sync once on teardown so the reload
-    doesn't leak across test modules.
+    That leaves the modules importing from it (cli.selections, then cli.run and
+    cli.main) bound to the pre-reload functions, which breaks identity checks in
+    unrelated tests that run afterward. Re-sync them in import order on teardown.
     """
     yield
     import cli.main
     import cli.prompts
-    importlib.reload(cli.prompts)
-    importlib.reload(cli.main)
+    import cli.run
+    import cli.selections
+    for module in (cli.prompts, cli.selections, cli.run, cli.main):
+        importlib.reload(module)
 
 
 # ---- openai_client side: registry-driven base_url resolution --------------
