@@ -18,10 +18,22 @@ NOW = pd.Timestamp("2026-07-18 12:00")
 STALE = su.OHLCV_CACHE_TTL_SECONDS + 60
 
 
+def _epoch(ts: pd.Timestamp) -> float:
+    """Epoch seconds for a naive Timestamp, interpreted as local time.
+
+    pandas.Timestamp.timestamp() treats a naive Timestamp as UTC, unlike
+    stdlib datetime.timestamp() which treats it as local time -- and the
+    production code reads file mtimes with pd.Timestamp.fromtimestamp(...),
+    which is local-time like the stdlib. Routing through datetime.timestamp()
+    here keeps the write and the read on the same (local) convention.
+    """
+    return ts.to_pydatetime().timestamp()
+
+
 def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026-07-17"):
     f = tmp_path / name
     pd.DataFrame({"Date": [last_date], "Close": [100.0]}).to_csv(f, index=False)
-    written = NOW.timestamp() - age_seconds
+    written = _epoch(NOW) - age_seconds
     os.utime(f, (written, written))
     return f
 
@@ -99,7 +111,7 @@ def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
         monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda now=now: now))
         su.load_ohlcv("AAPL", "2026-07-17")
         written = list(tmp_path.glob("AAPL-*.csv"))
-        os.utime(written[0], (now.timestamp(), now.timestamp()))
+        os.utime(written[0], (_epoch(now), _epoch(now)))
 
     assert len(downloads) == 3, "each new day refetches"
     assert [p.name for p in tmp_path.iterdir()] == ["AAPL-YFin-data.csv"]

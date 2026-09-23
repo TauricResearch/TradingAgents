@@ -86,6 +86,18 @@ def test_fill_price_gaps_drops_nan_close_rows():
 
 # --- load_ohlcv end-to-end (with a mocked cache read) -----------------------
 
+def _epoch(ts: pd.Timestamp) -> float:
+    """Epoch seconds for a naive Timestamp, interpreted as local time.
+
+    pandas.Timestamp.timestamp() treats a naive Timestamp as UTC, unlike
+    stdlib datetime.timestamp() which treats it as local time — and the
+    production code reads file mtimes with pd.Timestamp.fromtimestamp(...),
+    which is local-time like the stdlib. Routing through datetime.timestamp()
+    here keeps the write and the read on the same (local) convention.
+    """
+    return ts.to_pydatetime().timestamp()
+
+
 def _run_load(monkeypatch, tmp_path, frame, curr_date):
     """Drive load_ohlcv against a pre-seeded cache frame (no network)."""
     monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
@@ -93,7 +105,7 @@ def _run_load(monkeypatch, tmp_path, frame, curr_date):
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache_file = tmp_path / "AAPL-YFin-data.csv"
     cache_file.write_text(frame.to_csv(index=False))
-    os.utime(cache_file, (today.timestamp(), today.timestamp()))
+    os.utime(cache_file, (_epoch(today), _epoch(today)))
 
     def _fail_download(*a, **k):
         raise AssertionError("should use the seeded cache, not download")
@@ -189,7 +201,7 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
     cache = tmp_path / "AAPL-YFin-data.csv"
     cache.write_text(frame.to_csv(index=False))
-    os.utime(cache, (today.timestamp(), today.timestamp()))
+    os.utime(cache, (_epoch(today), _epoch(today)))
     monkeypatch.setattr(su.yf, "download", lambda *a, **k: (_ for _ in ()).throw(
         AssertionError("should read the seeded cache")))
 
