@@ -1174,6 +1174,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
         if checkpoint_tid is not None:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_tid
+            _announce_checkpoint_state(graph, selections["ticker"], selections["analysis_date"])
 
         # Stream the analysis. On resume, feed None so LangGraph continues the
         # interrupted run instead of re-appending the initial state (#1249); the
