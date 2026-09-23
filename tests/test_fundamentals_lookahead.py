@@ -123,7 +123,7 @@ class TestNoUsableFieldsStillRaises:
     def test_stub_payload_raises_no_market_data(self):
         # yfinance returns {"trailingPegRatio": None} for unknown symbols; on a
         # live run that must stay a hard "no data", not a bare header.
-        from tradingagents.dataflows.symbol_utils import NoMarketDataError
+        from tradingagents.dataflows.errors import NoMarketDataError
 
         with pytest.raises(NoMarketDataError):
             _yf(_TODAY, info={"trailingPegRatio": None})

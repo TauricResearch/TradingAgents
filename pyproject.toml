@@ -78,5 +78,5 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 # Keep multiple aliased names from one module in a single combined import block
-# (e.g. the vendor re-exports in interface.py) instead of one statement per name.
+# (e.g. the vendor imports in router.py) instead of one statement per name.
 combine-as-imports = true

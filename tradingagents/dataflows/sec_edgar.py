@@ -27,8 +27,8 @@ from pathlib import Path
 
 import requests
 
-from .config import get_config
-from .errors import NoMarketDataError, VendorRateLimitError
+from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
 
 logger = logging.getLogger(__name__)
 

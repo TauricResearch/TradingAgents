@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from .utils import get_current_date
+from tradingagents.dataflows.date_window import get_current_date
 
 logger = logging.getLogger(__name__)
 

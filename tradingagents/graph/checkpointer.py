@@ -13,7 +13,7 @@ from pathlib import Path
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.symbols import safe_ticker_component
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:

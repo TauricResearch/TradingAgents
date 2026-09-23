@@ -1,7 +1,7 @@
 import json
 
-from .alpha_vantage_common import _make_api_request
-from .date_window import withhold_live_profile
+from tradingagents.dataflows.alpha_vantage_common import _make_api_request
+from tradingagents.dataflows.date_window import withhold_live_profile
 
 
 def _filter_reports_by_date(result, curr_date: str):

@@ -4,7 +4,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.date_window import as_of_window
-from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.router import route_to_vendor
 
 
 @tool

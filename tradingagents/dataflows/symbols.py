@@ -1,4 +1,4 @@
-"""Symbol normalization and market-data error types for vendor calls.
+"""Symbol normalization for vendor calls, and ticker values safe to use in a path.
 
 Yahoo Finance (the default vendor) uses specific ticker conventions that
 differ from the broker / TradingView / MT5 style symbols users often type:
@@ -24,10 +24,6 @@ from __future__ import annotations
 
 import logging
 import re
-
-# NoMarketDataError lives in the vendor-error taxonomy (errors.py); re-exported
-# here for the many call sites that import it alongside normalize_symbol.
-from .errors import NoMarketDataError as NoMarketDataError
 
 logger = logging.getLogger(__name__)
 
@@ -147,3 +143,38 @@ def normalize_symbol(raw: str) -> str:
         logger.info("Resolved symbol %r to Yahoo symbol %r", raw, canonical)
     return canonical
 
+
+# Tickers can contain letters, digits, dot, dash, underscore, caret
+# (index symbols like ^GSPC), equals (futures like GC=F), and plus
+# (forex/CFD symbols like XAUUSD+). None of these enable directory
+# traversal, so the value never escapes a containing directory when
+# interpolated into a path. Anything else is rejected.
+_TICKER_PATH_RE = re.compile(r"^[A-Za-z0-9._\-\^=+]+$")
+
+
+def safe_ticker_component(value: str, *, max_len: int = 32) -> str:
+    """Validate ``value`` is safe to interpolate into a filesystem path.
+
+    Tickers come from user CLI input or from LLM tool calls, both of which
+    can be influenced by attacker-controlled content (e.g. prompt injection
+    embedded in fetched news). Without validation, a value like
+    ``"../../../etc/foo"`` flows into ``os.path.join`` / ``Path /`` and
+    escapes the configured cache, checkpoint, or results directory.
+
+    Returns ``value`` unchanged when it matches the allowed pattern; raises
+    ``ValueError`` otherwise.
+    """
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"ticker must be a non-empty string, got {value!r}")
+    if len(value) > max_len:
+        raise ValueError(f"ticker exceeds {max_len} chars: {value!r}")
+    if not _TICKER_PATH_RE.fullmatch(value):
+        raise ValueError(
+            f"ticker contains characters not allowed in a filesystem path: {value!r}"
+        )
+    # The regex above allows '.', so values like '.', '..', '...' would pass,
+    # and as a path component they traverse the parent directory. Reject any
+    # value that's only dots.
+    if set(value) == {"."}:
+        raise ValueError(f"ticker cannot consist solely of dots: {value!r}")
+    return value

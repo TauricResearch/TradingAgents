@@ -22,6 +22,7 @@ from tradingagents.agents.utils.news_data_tools import (
 )
 from tradingagents.agents.utils.prediction_markets_tools import get_prediction_markets
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
+from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.y_finance import get_company_profile
 
 # Public surface: the data tools are imported here so agents and the graph
@@ -47,8 +48,6 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-
-from tradingagents.dataflows.utils import get_current_date  # noqa: E402
 
 
 def get_language_instruction() -> str:

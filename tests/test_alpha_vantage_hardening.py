@@ -13,7 +13,7 @@ import pytest
 import tradingagents.dataflows.alpha_vantage_common as av
 import tradingagents.dataflows.alpha_vantage_fundamentals as avf
 import tradingagents.dataflows.alpha_vantage_stock as avs
-import tradingagents.dataflows.utils as utils
+import tradingagents.dataflows.net as net
 
 
 class _FakeResponse:
@@ -37,7 +37,7 @@ def _patched_get(body, capture=None):
 @pytest.mark.unit
 def test_request_passes_timeout(monkeypatch):
     captured = {}
-    monkeypatch.setattr(utils.requests, "get", _patched_get("Date,Close\n2025-01-02,1.0", captured))
+    monkeypatch.setattr(net.requests, "get", _patched_get("Date,Close\n2025-01-02,1.0", captured))
     av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
     assert captured.get("timeout") == av.REQUEST_TIMEOUT  # #990
 
@@ -45,7 +45,7 @@ def test_request_passes_timeout(monkeypatch):
 @pytest.mark.unit
 def test_rate_limit_detected(monkeypatch):
     body = '{"Information": "Our standard API rate limit is 25 requests per day. ... your API key ..."}'
-    monkeypatch.setattr(utils.requests, "get", _patched_get(body))
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
     with pytest.raises(av.AlphaVantageRateLimitError):
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
 
@@ -56,11 +56,11 @@ def test_invalid_key_not_mislabeled_as_rate_limit(monkeypatch):
     # (transient) rate limit, but surface as a real configuration error (#991).
     body = ('{"Information": "the parameter apikey is invalid or missing. '
             'Please claim your free API key on (https://www.alphavantage.co/support/#api-key)."}')
-    monkeypatch.setattr(utils.requests, "get", _patched_get(body))
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
     with pytest.raises(av.AlphaVantageNotConfiguredError):
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
     with pytest.raises(av.AlphaVantageRateLimitError):  # sanity: rate-limit path still distinct
-        monkeypatch.setattr(utils.requests, "get", _patched_get('{"Note": "API call frequency is 5 calls per minute."}'))
+        monkeypatch.setattr(net.requests, "get", _patched_get('{"Note": "API call frequency is 5 calls per minute."}'))
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
 
 
@@ -147,7 +147,7 @@ def test_request_error_message_carries_no_key(monkeypatch):
     def boom(*a, **k):
         raise requests.Timeout(f"Read timed out. url: https://www.alphavantage.co/query?apikey={key}")
 
-    monkeypatch.setattr(utils.requests, "get", boom)
+    monkeypatch.setattr(net.requests, "get", boom)
     with pytest.raises(requests.Timeout) as caught:
         av._make_api_request("OVERVIEW", {"symbol": "IBM"})
     assert key not in str(caught.value)

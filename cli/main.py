@@ -44,7 +44,7 @@ from cli.utils import (
 )
 from tradingagents.agents.utils.rating import is_review
 from tradingagents.backtest import iter_grid, run_backtest, summarize
-from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,

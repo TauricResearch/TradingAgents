@@ -106,7 +106,7 @@ def test_a_historical_run_is_told_the_identity_is_current(monkeypatch):
 @pytest.mark.unit
 def test_a_current_run_is_not_cluttered_with_a_vintage_note(monkeypatch):
     from tradingagents.agents.utils.agent_utils import build_instrument_context
-    from tradingagents.dataflows.utils import get_current_date
+    from tradingagents.dataflows.date_window import get_current_date
 
     today = build_instrument_context("EXMP", "stock", {"company_name": "Example Corp"},
                                      curr_date=get_current_date())
@@ -214,15 +214,15 @@ def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
 def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
     """A throttled or unreachable chain used to raise RuntimeError('No available
     vendor'), which ends the run, and never said the vendor was the problem."""
-    from tradingagents.dataflows import interface
+    from tradingagents.dataflows import router
     from tradingagents.dataflows.errors import VendorRateLimitError
 
     def _down(*a, **k):
         raise VendorRateLimitError("Yahoo Finance is unreachable")
 
-    monkeypatch.setitem(interface.VENDOR_METHODS["get_balance_sheet"], "yfinance", _down)
+    monkeypatch.setitem(router.VENDOR_METHODS["get_balance_sheet"], "yfinance", _down)
 
-    out = interface.route_to_vendor("get_balance_sheet", "AAPL", "annual", "2026-09-01")
+    out = router.route_to_vendor("get_balance_sheet", "AAPL", "annual", "2026-09-01")
 
     assert "unavailable" in out.lower() and "unreachable" in out.lower()
     assert "delisted" not in out.lower()  # not a claim about the symbol
@@ -283,8 +283,11 @@ def test_an_unavailable_notice_names_no_date_after_the_run():
     """A notice explaining why data is missing named where the vendor's coverage
     starts or today's date, both after a historical run's date."""
     from tradingagents.agents.utils.agent_utils import build_instrument_context
-    from tradingagents.dataflows.date_window import coverage_gap, withhold_live_profile
-    from tradingagents.dataflows.utils import get_current_date
+    from tradingagents.dataflows.date_window import (
+        coverage_gap,
+        get_current_date,
+        withhold_live_profile,
+    )
 
     today = get_current_date()
     notices = [

@@ -12,7 +12,7 @@ import requests
 
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
-from tradingagents.dataflows import fred, interface
+from tradingagents.dataflows import fred, router
 from tradingagents.dataflows.config import set_config
 
 # A small, stable set of observations to format against.
@@ -203,15 +203,15 @@ class FredRoutingTests(unittest.TestCase):
 
     def test_macro_category_routes_to_fred(self):
         self.assertEqual(
-            interface.get_category_for_method("get_macro_indicators"), "macro_data"
+            router.get_category_for_method("get_macro_indicators"), "macro_data"
         )
         set_config({"data_vendors": {"macro_data": "fred"}})
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_macro_indicators": {"fred": lambda *a, **k: "MACRO_OK"}},
             clear=False,
         ):
-            out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+            out = router.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
         self.assertEqual(out, "MACRO_OK")
 
     def test_not_configured_degrades_gracefully(self):
@@ -224,11 +224,11 @@ class FredRoutingTests(unittest.TestCase):
             raise fred.FredNotConfiguredError("FRED_API_KEY not set")
 
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_macro_indicators": {"fred": _unconfigured}},
             clear=False,
         ):
-            out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+            out = router.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
         self.assertIn("DATA_UNAVAILABLE", out)
 
 
@@ -246,7 +246,7 @@ class TestKeyKeptOutOfErrors:
 
     def _raises(self, side_effect):
         with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
-             mock.patch("tradingagents.dataflows.utils.requests.get", side_effect=side_effect), \
+             mock.patch("tradingagents.dataflows.net.requests.get", side_effect=side_effect), \
              pytest.raises(requests.RequestException) as caught:
             fred._request("series", {"series_id": "DGS10"})
         return caught.value
@@ -258,7 +258,7 @@ class TestKeyKeptOutOfErrors:
             response=response,
         )
         with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
-             mock.patch("tradingagents.dataflows.utils.requests.get", return_value=response), \
+             mock.patch("tradingagents.dataflows.net.requests.get", return_value=response), \
              pytest.raises(requests.HTTPError) as caught:
             fred._request("series", {"series_id": "DGS10"})
         exc = caught.value
@@ -280,7 +280,7 @@ def test_error_without_the_key_in_its_message_still_drops_the_request():
     import requests as rq
     req = rq.Request("GET", f"https://api.stlouisfed.org/fred/series?api_key={_KEY}").prepare()
     with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
-         mock.patch("tradingagents.dataflows.utils.requests.get", side_effect=rq.Timeout("Read timed out.", request=req)), \
+         mock.patch("tradingagents.dataflows.net.requests.get", side_effect=rq.Timeout("Read timed out.", request=req)), \
          pytest.raises(rq.Timeout) as caught:
         fred._request("series", {"series_id": "DGS10"})
     assert caught.value.request is None

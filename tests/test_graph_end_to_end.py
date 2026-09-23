@@ -20,7 +20,7 @@ from pydantic import Field
 from tradingagents.agents import schemas
 from tradingagents.agents.analysts import sentiment_analyst
 from tradingagents.agents.utils import agent_utils
-from tradingagents.dataflows import interface, market_data_validator, y_finance
+from tradingagents.dataflows import market_data_validator, router, y_finance
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph import trading_graph
 
@@ -94,7 +94,7 @@ class _Client:
 def offline(monkeypatch, tmp_path):
     """Every vendor answers offline; returns the set of router methods called."""
     called: set[str] = set()
-    for method, vendors in interface.VENDOR_METHODS.items():
+    for method, vendors in router.VENDOR_METHODS.items():
         for vendor in vendors:
             monkeypatch.setitem(vendors, vendor,
                                 lambda *a, _m=method, **k: called.add(_m) or f"{_m} data")

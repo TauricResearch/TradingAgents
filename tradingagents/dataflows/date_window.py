@@ -11,9 +11,7 @@ in a backtest we can't prove it isn't future.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
-from .utils import get_current_date
+from datetime import date, datetime, timedelta, timezone
 
 
 def to_utc(dt: datetime) -> datetime:
@@ -30,6 +28,11 @@ def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> 
     if pub_dt is not None:
         return to_utc(start_dt) <= to_utc(pub_dt) < end + timedelta(days=1)
     return end >= datetime.now(timezone.utc) - timedelta(days=1)
+
+
+def get_current_date() -> str:
+    """Today's date, YYYY-MM-DD."""
+    return date.today().strftime("%Y-%m-%d")
 
 
 def coverage_gap(

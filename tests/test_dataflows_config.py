@@ -73,7 +73,7 @@ def _graph(config):
 
 
 def _vendors_seen_by_a_run(graph, ticker="AAPL"):
-    from tradingagents.dataflows.interface import get_vendor
+    from tradingagents.dataflows.router import get_vendor
 
     seen = []
 
@@ -121,7 +121,7 @@ def test_concurrent_runs_each_read_their_own_config():
         config = copy.deepcopy(default_config.DEFAULT_CONFIG)
         config["tool_vendors"] = {"get_balance_sheet": vendor}
         graph = _graph(config)
-        from tradingagents.dataflows.interface import get_vendor
+        from tradingagents.dataflows.router import get_vendor
 
         def _run(*a, **k):
             barrier.wait(timeout=5)                     # both runs are in flight
@@ -141,7 +141,7 @@ def test_concurrent_runs_each_read_their_own_config():
 
 @pytest.mark.unit
 def test_settling_reads_the_graphs_own_config():
-    from tradingagents.dataflows.interface import get_vendor
+    from tradingagents.dataflows.router import get_vendor
 
     config = copy.deepcopy(default_config.DEFAULT_CONFIG)
     config["tool_vendors"] = {"get_stock_data": "alpha_vantage"}
@@ -164,7 +164,7 @@ def test_tools_inside_a_langgraph_run_see_the_run_config():
     from langgraph.prebuilt import ToolNode
 
     from tradingagents.dataflows.config import run_config
-    from tradingagents.dataflows.interface import get_vendor
+    from tradingagents.dataflows.router import get_vendor
 
     @tool
     def probe() -> str:

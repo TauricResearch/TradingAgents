@@ -71,7 +71,7 @@ def normalize_ticker_symbol(ticker: str) -> str:
     plain upper-case if the data layer is unavailable.
     """
     try:
-        from tradingagents.dataflows.symbol_utils import normalize_symbol
+        from tradingagents.dataflows.symbols import normalize_symbol
 
         return normalize_symbol(ticker)
     except Exception:

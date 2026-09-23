@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 
 import pytz
 
-from .errors import VendorNotConfiguredError
-from .utils import get_scrubbed
+from tradingagents.dataflows.errors import VendorNotConfiguredError
+from tradingagents.dataflows.net import get_scrubbed
 
 logger = logging.getLogger(__name__)
 

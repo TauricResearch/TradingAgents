@@ -15,7 +15,8 @@ from tradingagents.agents.utils.agent_utils import (
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.agents.utils.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
-from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
+from tradingagents.dataflows.date_window import get_current_date
+from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.dataflows.y_finance import get_closes
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
@@ -207,7 +208,7 @@ class TradingAgentsGraph:
         entry, which is the right default because the alpha calculation works
         in USD.
         """
-        from tradingagents.dataflows.symbol_utils import normalize_symbol
+        from tradingagents.dataflows.symbols import normalize_symbol
 
         explicit = self.config.get("benchmark_ticker")
         if explicit:

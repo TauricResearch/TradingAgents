@@ -29,8 +29,8 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from .date_window import coverage_gap, in_window
-from .symbol_utils import crypto_base
+from tradingagents.dataflows.date_window import coverage_gap, in_window
+from tradingagents.dataflows.symbols import crypto_base
 
 logger = logging.getLogger(__name__)
 

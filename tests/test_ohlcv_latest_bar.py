@@ -19,7 +19,7 @@ import pandas as pd
 import pytest
 
 from tradingagents.dataflows import stockstats_utils as su
-from tradingagents.dataflows.symbol_utils import NoMarketDataError
+from tradingagents.dataflows.errors import NoMarketDataError
 
 
 def _stamp(path, ts):

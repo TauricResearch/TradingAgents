@@ -5,8 +5,8 @@ from io import StringIO
 
 import pandas as pd
 
-from .errors import VendorNotConfiguredError, VendorRateLimitError
-from .utils import get_scrubbed
+from tradingagents.dataflows.errors import VendorNotConfiguredError, VendorRateLimitError
+from tradingagents.dataflows.net import get_scrubbed
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 

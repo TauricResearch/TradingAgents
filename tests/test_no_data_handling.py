@@ -14,9 +14,9 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from tradingagents.dataflows import interface, stockstats_utils
+from tradingagents.dataflows import router, stockstats_utils
 from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.symbol_utils import NoMarketDataError
+from tradingagents.dataflows.errors import NoMarketDataError
 
 
 @pytest.mark.unit
@@ -54,9 +54,9 @@ class TestRouteToVendorSentinel(unittest.TestCase):
 
         patched = {"yfinance": raises_no_data, "alpha_vantage": raises_no_data}
         with mock.patch.dict(
-            interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
+            router.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
         ):
-            result = interface.route_to_vendor(
+            result = router.route_to_vendor(
                 "get_stock_data", "XAUUSD+", "2026-01-01", "2026-01-10"
             )
         self.assertIn("NO_DATA_AVAILABLE", result)
@@ -76,9 +76,9 @@ class TestRouteToVendorSentinel(unittest.TestCase):
 
         patched = {"yfinance": raises_no_data, "alpha_vantage": raises_unavailable}
         with mock.patch.dict(
-            interface.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
+            router.VENDOR_METHODS, {"get_stock_data": patched}, clear=False
         ):
-            result = interface.route_to_vendor(
+            result = router.route_to_vendor(
                 "get_stock_data", "FAKE", "2026-01-01", "2026-01-10"
             )
         self.assertIn("NO_DATA_AVAILABLE", result)
