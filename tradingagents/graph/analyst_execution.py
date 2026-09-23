@@ -2,14 +2,21 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from time import monotonic
 
+from tradingagents.agents.analysts import fundamentals_analyst, market_analyst, news_analyst
+
 
 @dataclass(frozen=True)
 class AnalystNodeSpec:
     key: str
     agent_node: str
     clear_node: str
-    tool_node: str
     report_key: str
+    tools: tuple = ()
+
+    @property
+    def tool_node(self) -> str | None:
+        """The node that runs this analyst's tool calls; None when it has no tools."""
+        return f"tools_{self.key}" if self.tools else None
 
 
 @dataclass(frozen=True)
@@ -22,33 +29,30 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         key="market",
         agent_node="Market Analyst",
         clear_node="Msg Clear Market",
-        tool_node="tools_market",
         report_key="market_report",
+        tools=market_analyst.TOOLS,
     ),
     "social": AnalystNodeSpec(
-        # Wire key stays "social" for saved-config back-compat; the
-        # user-facing label is "Sentiment Analyst" to match the rename
-        # that landed in v0.2.5 (sentiment_analyst now ingests news +
-        # StockTwits + Reddit, not just social media).
+        # Saved configs select this analyst as "social". It fetches its
+        # sources before calling the model, so it has no tools.
         key="social",
         agent_node="Sentiment Analyst",
         clear_node="Msg Clear Sentiment",
-        tool_node="tools_social",
         report_key="sentiment_report",
     ),
     "news": AnalystNodeSpec(
         key="news",
         agent_node="News Analyst",
         clear_node="Msg Clear News",
-        tool_node="tools_news",
         report_key="news_report",
+        tools=news_analyst.TOOLS,
     ),
     "fundamentals": AnalystNodeSpec(
         key="fundamentals",
         agent_node="Fundamentals Analyst",
         clear_node="Msg Clear Fundamentals",
-        tool_node="tools_fundamentals",
         report_key="fundamentals_report",
+        tools=fundamentals_analyst.TOOLS,
     ),
 }
 

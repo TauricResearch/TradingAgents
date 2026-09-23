@@ -8,23 +8,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from langgraph.prebuilt import ToolNode
-
-# Import the abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
-    get_balance_sheet,
-    get_cashflow,
-    get_fundamentals,
-    get_global_news,
-    get_income_statement,
-    get_indicators,
-    get_insider_transactions,
-    get_macro_indicators,
-    get_news,
-    get_prediction_markets,
-    get_stock_data,
-    get_verified_market_snapshot,
     resolve_instrument_identity,
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
@@ -144,9 +129,6 @@ class TradingAgentsGraph:
 
         self.memory_log = TradingMemoryLog(self.config)
 
-        # Create tool nodes
-        self.tool_nodes = self._create_tool_nodes()
-
         # Initialize components
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config["max_debate_rounds"],
@@ -155,7 +137,6 @@ class TradingAgentsGraph:
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
-            self.tool_nodes,
             self.conditional_logic,
         )
 
@@ -217,47 +198,6 @@ class TradingAgentsGraph:
             kwargs[key] = _coerce_max_tokens(max_tokens)
 
         return kwargs
-
-    def _create_tool_nodes(self) -> dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
-        return {
-            "market": ToolNode(
-                [
-                    # Core stock data tools
-                    get_stock_data,
-                    # Technical indicators
-                    get_indicators,
-                    # Deterministic verification snapshot (bound to the analyst
-                    # LLM and required by its prompt; must be executable here or
-                    # the call fails and the model reports it "unavailable").
-                    get_verified_market_snapshot,
-                ]
-            ),
-            "social": ToolNode(
-                [
-                    # News tools for social media analysis
-                    get_news,
-                ]
-            ),
-            "news": ToolNode(
-                [
-                    get_news,
-                    get_global_news,
-                    get_macro_indicators,
-                    get_prediction_markets,
-                ]
-            ),
-            "fundamentals": ToolNode(
-                [
-                    # Fundamental analysis tools
-                    get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
-                    get_insider_transactions,
-                ]
-            ),
-        }
 
     def _resolve_benchmark(self, ticker: str) -> str:
         """Pick the benchmark ticker for alpha calculation against ``ticker``.

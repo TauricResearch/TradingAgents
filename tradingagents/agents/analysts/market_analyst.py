@@ -8,18 +8,19 @@ from tradingagents.agents.utils.agent_utils import (
     get_verified_market_snapshot,
 )
 
+# The tools this analyst is offered; its tool node is built from the same tuple.
+TOOLS = (
+    get_stock_data,
+    get_indicators,
+    get_verified_market_snapshot,
+)
+
 
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
-
-        tools = [
-            get_stock_data,
-            get_indicators,
-            get_verified_market_snapshot,
-        ]
 
         system_message = (
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
@@ -73,11 +74,11 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
+        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in TOOLS]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(tools)
+        chain = prompt | llm.bind_tools(TOOLS)
 
         result = chain.invoke(state["messages"])
 

@@ -42,6 +42,13 @@ RISK_ANALYSIS_PATH_MAP = {
 }
 
 
+def _tools_or_clear(spec):
+    """Route an analyst's turn: run its tool calls, or finish its report."""
+    def route(state) -> str:
+        return spec.tool_node if state["messages"][-1].tool_calls else spec.clear_node
+    return route
+
+
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
@@ -49,13 +56,11 @@ class GraphSetup:
         self,
         quick_thinking_llm: Any,
         deep_thinking_llm: Any,
-        tool_nodes: dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
-        self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
 
     def setup_graph(
@@ -98,7 +103,8 @@ class GraphSetup:
         for spec in plan.specs:
             workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
             workflow.add_node(spec.clear_node, create_msg_delete())
-            workflow.add_node(spec.tool_node, self.tool_nodes[spec.key])
+            if spec.tools:
+                workflow.add_node(spec.tool_node, ToolNode(list(spec.tools)))
 
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
@@ -116,23 +122,17 @@ class GraphSetup:
 
         # Connect analysts in sequence
         for i, spec in enumerate(plan.specs):
-            current_analyst = spec.agent_node
-            current_tools = spec.tool_node
-            current_clear = spec.clear_node
-
-            # Add conditional edges for current analyst
-            workflow.add_conditional_edges(
-                current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{spec.key}"),
-                [current_tools, current_clear],
-            )
-            workflow.add_edge(current_tools, current_analyst)
-
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(plan.specs) - 1:
-                workflow.add_edge(current_clear, plan.specs[i + 1].agent_node)
+            if spec.tools:
+                workflow.add_conditional_edges(
+                    spec.agent_node, _tools_or_clear(spec), [spec.tool_node, spec.clear_node]
+                )
+                workflow.add_edge(spec.tool_node, spec.agent_node)
             else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+                workflow.add_edge(spec.agent_node, spec.clear_node)
+
+            # The last analyst hands over to the research debate.
+            following = plan.specs[i + 1].agent_node if i < len(plan.specs) - 1 else "Bull Researcher"
+            workflow.add_edge(spec.clear_node, following)
 
         # Both research-debate edges share the complete DEBATE_PATH_MAP (#1088).
         for debate_node in ("Bull Researcher", "Bear Researcher"):
