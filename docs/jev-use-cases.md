@@ -336,17 +336,19 @@ kept short, because past decisions come back into later prompts through
 `memory.get_past_context`:
 
 ```
-**Claim Check**: 10 statements read from the Investment Thesis, 7 checkable against the analyst reports: 5 supported, 1 contradicted, 1 not found. 2 figures in no report. (Claims judged by TypeSafe Jev; figures matched in code.)
-- Contradicted: "Gross margin expanded to 76% on pricing power, showing the Blackwell ramp is already paying off." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 0.93)
-- Not found: "Microsoft signed a multi-year supply agreement for Blackwell Ultra systems last week." (closest: news report, "Company news / Industry / Macro"; supports 0.12)
+**Claim Check**: 10 statements read from the Investment Thesis, 7 checkable against the analyst reports: 3 supported, 3 contradicted, 1 not found. 2 figures in no report. (Claims judged by TypeSafe Jev; figures matched in code.)
+- Contradicted: "Gross margin expanded to 76% on pricing power, showing the Blackwell ramp is already paying off." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 1.00)
+- Contradicted: "Free cash flow reached $19.2 billion in the quarter, funding the enlarged buyback." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 0.99)
+- Contradicted: "At 29.5x forward earnings the stock trades below its five-year average multiple." (fundamentals report, "Latest quarter (Q2 FY2027, reported 2026-08-27) / Margins /…"; contradicts 0.95)
+- Not found: "Microsoft signed a multi-year supply agreement for Blackwell Ultra systems last week." (closest: news report, "Company news / Industry / Macro"; supports 0.01)
 - Figure in no report: 76% in "Gross margin expanded to 76% on pricing power, showing the Blackwell ramp is already paying off."
 - Figure in no report: $19.2 billion in "Free cash flow reached $19.2 billion in the quarter, funding the enlarged buyback."
 
-**Rating after claim check**: REVIEW (the Portfolio Manager rated Buy; 1 claim contradicted by the analyst reports)
+**Rating after claim check**: REVIEW (the Portfolio Manager rated Buy; 3 claims contradicted by the analyst reports)
 ```
 
-This is the format, rendered by the code for the live-check script's decision
-with hand-set verdicts, not a recorded run. `extract_rating` reads a
+This is the first run of the live check below, as recorded. The P/E line is a
+false positive (the report gives 29.5x against a 36x average). `extract_rating` reads a
 last labelled `REVIEW` as no rating, so the signal, the memory log tag, the
 backtest (as unscored), the CLI and the web UI all show `REVIEW`. The
 Portfolio Manager's own rating stays in the text. A quoted claim has any
@@ -359,26 +361,39 @@ after the SDK's retries, a warning is logged and the decision is kept unchecked,
 never partly checked.
 
 **Load:** about one request per claim plus one per checkable claim and routed
-section. That is roughly 10 + 70 requests for a full four-report run, or 8–10 s
-at `MAX_CONCURRENT_REQUESTS = 8`. This is an estimate: it has not been measured
-live yet.
+section. The live-check script's short reports split into 5 sections, and each
+checkable claim routed to one of them: 10 + 8 requests in 1.8–2.4 s. A full
+four-report run has longer reports and more sections. The estimate for that is
+roughly 10 + 70 requests, or 8–10 s at `MAX_CONCURRENT_REQUESTS = 8`, and it has
+not been measured yet.
 
-**Live check:** not yet run. The session that built fit 4 had no
-`TYPESAFE_API_KEY`, and its network policy blocked `api.typesafe.ai`.
+**Live check (2026-09-23, `jev-1.13.0`, 3 runs):**
 [`scripts/jev_claim_check_live.py`](../scripts/jev_claim_check_live.py) holds
 hand-written NVDA reports and a Buy decision with three planted failures: a
 contradicted fact (gross margin "expanded to 76%" when the report says it fell
 to 71.2%), an invented fact (a Microsoft supply deal), and an invented figure
-(free cash flow of $19.2 billion when the report says $13.5 billion). Run it and
-record the results here. Offline, with every section answering "says nothing",
-the figure check flagged exactly the two planted figures (76% and
-$19.2 billion) among the 7 claims a stub marked checkable.
+(free cash flow of $19.2 billion when the report says $13.5 billion). All three
+were caught on every run. The margin claim was contradicted (≥ 0.99), and so was
+the free cash flow claim (≥ 0.99). The figure check also listed 76% and
+$19.2 billion. The Microsoft deal was not found (supports ≤ 0.02). Each run sent
+the decision to `REVIEW`. The two sourced facts (data-center revenue; moving
+averages and MACD) and the Fed cut were supported every time. The three remarks
+(who won the debate, the lesson, the plan) scored checkable ≤ 0.08, and the
+routing put every checkable claim on the right report.
+
+One false positive: "At 29.5x forward earnings the stock trades below its
+five-year average multiple" is true by the report (29.5x against 36x). Jev
+judged it contradicted on two runs (0.95, 0.85) and supported on one (0.61).
+Claims that need a comparison between two numbers are the unstable case. Alone,
+this claim would have sent a correct decision to `REVIEW`.
 
 **To tune next:** every threshold is in `ClaimCheckPolicy` and is a cookbook
 starting point (the cookbook auto-accepts at 0.8). A decision sent to `REVIEW`
 is left out of the backtest figures, so tuning needs the Portfolio Manager's
 own rating from the text of those decisions, compared with the outcomes of the
-ones that passed. Also worth watching live: sentences that open with a pronoun
+ones that passed. The comparison false positive above is the first thing to
+address: options are a higher contradict bar, or asking Jev a second question
+before a contradiction counts. Also worth watching live: sentences that open with a pronoun
 ("It grew 22%") reach Jev without their subject, and the checkable filter
 decides how many of the Portfolio Manager's remarks about the debate are
 checked at all.
