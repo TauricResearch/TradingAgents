@@ -153,3 +153,16 @@ def test_an_interrupted_run_resumes_from_its_checkpoint(tmp_path, monkeypatch, o
     _graph(tmp_path / "fresh", monkeypatch, full_run).propagate("NVDA", TRADE_DATE)
     # The resumed run makes only the calls the interrupted one had not completed.
     assert resumed_calls == len(full_run.calls) - (model.fail_at - 1)
+
+
+@pytest.mark.unit
+def test_a_graph_reused_across_runs_keeps_no_run_state(tmp_path, monkeypatch, offline):
+    """A backtest reuses one graph over its whole grid; holding every run's full
+    state would grow without bound."""
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel())
+    for trade_date in ("2026-01-08", TRADE_DATE):
+        graph.propagate("NVDA", trade_date)
+
+    held = [v for v in vars(graph).values() if isinstance(v, dict) and TRADE_DATE in v]
+    assert held == []
+    assert len(list(tmp_path.glob("results/NVDA/TradingAgentsStrategy_logs/*.json"))) == 2

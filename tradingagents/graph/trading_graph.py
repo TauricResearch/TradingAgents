@@ -167,8 +167,6 @@ class TradingAgentsGraph:
 
         # State tracking
         self.curr_state = None
-        self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
 
         # Graph-shape-affecting run choices, kept for the checkpoint signature.
         self.selected_analysts = tuple(selected_analysts)
@@ -440,7 +438,6 @@ class TradingAgentsGraph:
         PortfolioRating enum.
         """
         trade_date = _validate_trade_date(trade_date)
-        self.ticker = company_name
 
         with run_config(self.config), \
                 self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
@@ -617,8 +614,8 @@ class TradingAgentsGraph:
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
     def _log_state(self, trade_date, final_state):
-        """Log the final state to a JSON file."""
-        self.log_states_dict[str(trade_date)] = {
+        """Write a run's final state to JSON under the run's own ticker."""
+        entry = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
             "market_report": final_state["market_report"],
@@ -648,16 +645,15 @@ class TradingAgentsGraph:
             "final_trade_decision": final_state["final_trade_decision"],
         }
 
-        # Save to file. Reject ticker values that would escape the
-        # results directory when joined as a path component.
-        safe_ticker = safe_ticker_component(self.ticker)
+        # A ticker that would escape the results directory is rejected.
+        safe_ticker = safe_ticker_component(final_state["company_of_interest"])
         directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
         directory.mkdir(parents=True, exist_ok=True)
 
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
             # Reports can be in any language and this file is read by a person.
-            json.dump(self.log_states_dict[str(trade_date)], f, indent=4, ensure_ascii=False)
+            json.dump(entry, f, indent=4, ensure_ascii=False)
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
