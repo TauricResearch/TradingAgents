@@ -1,7 +1,6 @@
 """Shared pytest fixtures that prevent CI hangs when API keys are absent."""
 
 import os
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -75,14 +74,3 @@ def _isolate_config():
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
     yield
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
-
-
-@pytest.fixture()
-def mock_llm_client():
-    client = MagicMock()
-    client.get_llm.return_value = MagicMock()
-    with patch(
-        "tradingagents.llm_clients.factory.create_llm_client",
-        return_value=client,
-    ):
-        yield client
