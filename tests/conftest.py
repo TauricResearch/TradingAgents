@@ -6,6 +6,27 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+def _blank_settings_overlay():
+    """Blank every TRADINGAGENTS_* setting before the package is imported.
+
+    The package loads .env on import and folds these variables into
+    DEFAULT_CONFIG, so a contributor's own settings would become the defaults
+    the suite asserts on. A blank value is still present, so load_dotenv leaves
+    it alone, and the overlay reads it as unset. Tests of the overlay set their own.
+    """
+    from dotenv import dotenv_values, find_dotenv
+
+    names = set(os.environ)
+    for filename in (".env", ".env.enterprise"):
+        names |= set(dotenv_values(find_dotenv(filename, usecwd=True)))
+    for name in names:
+        if name.startswith("TRADINGAGENTS_"):
+            os.environ[name] = ""
+
+
+_blank_settings_overlay()
+
+
 def pytest_configure(config):
     for marker in ("unit", "integration", "smoke"):
         config.addinivalue_line("markers", f"{marker}: {marker}-level tests")
