@@ -629,6 +629,14 @@ class TestDeferredReflection:
         # .SH is the exchange's own suffix; Yahoo spells Shanghai .SS (#1260)
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "600519.SH") == "000001.SS"
 
+    def test_resolve_benchmark_brazil(self):
+        """B3 tickers were measured against SPY."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"benchmark_ticker": None,
+                             "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "PETR4.SA") == "^BVSP"
+
     def test_resolve_benchmark_us_ticker_defaults_to_spy(self):
         """US tickers (no dotted suffix) take the empty-suffix entry."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
