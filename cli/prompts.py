@@ -3,17 +3,15 @@ from pathlib import Path
 
 import questionary
 from dotenv import find_dotenv, set_key
-from rich.console import Console
 
+from cli.display import console
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
-console = Console()
-
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
-ANALYST_ORDER = [
+ANALYST_CHOICES = [
     ("Market Analyst", AnalystType.MARKET),
     ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
@@ -110,14 +108,14 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK, default=None) -> li
     ``default`` pre-checks the previous run's analysts; the prompt still shows.
     """
     available_analysts = filter_analysts_for_asset_type(
-        [value for _, value in ANALYST_ORDER],
+        [value for _, value in ANALYST_CHOICES],
         asset_type,
     )
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
         choices=[
             questionary.Choice(display, value=value, checked=value.value in (default or []))
-            for display, value in ANALYST_ORDER
+            for display, value in ANALYST_CHOICES
             if value in available_analysts
         ],
         instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",

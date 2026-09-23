@@ -7,10 +7,16 @@ person to read afterwards. Both got that wrong in ways that hide real content.
 from __future__ import annotations
 
 import json
+import unittest
 
 import pytest
 
-from cli.main import extract_content_string
+from cli.display import (
+    AnalystWallTimeTracker,
+    extract_content_string,
+    sync_analyst_tracker_from_chunk,
+)
+from tradingagents.graph.analyst_execution import build_analyst_execution_plan
 
 
 @pytest.mark.unit
@@ -80,3 +86,49 @@ def test_the_live_display_does_not_scroll_the_terminal():
     import cli.main as m
 
     assert "screen=True" in inspect.getsource(m.run_analysis)
+
+
+class AnalystWallTimeTrackerTests(unittest.TestCase):
+    def test_records_wall_time_when_analyst_completes(self):
+        plan = build_analyst_execution_plan(["market", "news"])
+        tracker = AnalystWallTimeTracker(plan)
+
+        tracker.mark_started("market", started_at=10.0)
+        tracker.mark_completed("market", completed_at=13.5)
+
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.50s")
+
+    def test_formats_summary_in_plan_order(self):
+        plan = build_analyst_execution_plan(["news", "market"])
+        tracker = AnalystWallTimeTracker(plan)
+
+        tracker.mark_started("market", started_at=20.0)
+        tracker.mark_completed("market", completed_at=22.25)
+        tracker.mark_started("news", started_at=10.0)
+        tracker.mark_completed("news", completed_at=14.0)
+
+        self.assertEqual(
+            tracker.format_summary(),
+            "Analyst wall time: News 4.00s | Market 2.25s",
+        )
+
+    def test_syncs_wall_time_from_sequential_chunks(self):
+        plan = build_analyst_execution_plan(["market", "news"])
+        tracker = AnalystWallTimeTracker(plan)
+
+        sync_analyst_tracker_from_chunk(tracker, {}, now=10.0)
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: pending")
+
+        sync_analyst_tracker_from_chunk(
+            tracker,
+            {"market_report": "done"},
+            now=13.0,
+        )
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.00s")
+
+        sync_analyst_tracker_from_chunk(
+            tracker,
+            {"market_report": "done", "news_report": "done"},
+            now=18.0,
+        )
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.00s | News 5.00s")

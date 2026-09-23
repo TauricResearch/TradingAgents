@@ -182,7 +182,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
     # apply whether the user runs ollama-serve on localhost or against a
     # remote host. The actual resolved endpoint is surfaced separately by
-    # cli.utils.confirm_ollama_endpoint() right after provider selection.
+    # cli.prompts.confirm_ollama_endpoint() right after provider selection.
     # "Custom model ID" lets users pick any model they have pulled via
     # `ollama pull` beyond the three suggested defaults.
     "ollama": {

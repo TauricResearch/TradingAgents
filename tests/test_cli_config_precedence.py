@@ -75,7 +75,7 @@ def test_glm_resolves_to_the_endpoint_its_key_belongs_to():
     same platform: glm is Z.AI international (ZHIPU_API_KEY) and glm-cn is
     BigModel China. A mismatch sends the key to the other platform and every
     call fails auth."""
-    from cli.utils import resolve_backend_url
+    from cli.prompts import resolve_backend_url
     from tradingagents.llm_clients.api_key_env import get_api_key_env
     from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
 

@@ -134,10 +134,10 @@ def test_selections_are_remembered_after_a_run(monkeypatch):
 def test_a_custom_language_is_remembered_without_breaking_the_next_run():
     """A free-text answer is not one of the menu's choices, and questionary
     rejects a default it cannot find, so offering it back would crash startup."""
-    from cli.utils import ask_output_language
+    from cli.prompts import ask_output_language
 
     save_last_run({"output_language": "Turkish"})
-    with mock.patch("cli.utils.questionary.select") as select:
+    with mock.patch("cli.prompts.questionary.select") as select:
         select.return_value.ask.return_value = "English"
         ask_output_language(load_last_run()["output_language"])
     assert select.call_args.kwargs["default"] is None

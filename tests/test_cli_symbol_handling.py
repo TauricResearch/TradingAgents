@@ -6,7 +6,7 @@ stock), #982 (BTC-USDT accepted but unpriceable on Yahoo).
 import pytest
 
 from cli.models import AssetType
-from cli.utils import detect_asset_type, is_valid_ticker_input, normalize_ticker_symbol
+from cli.prompts import detect_asset_type, is_valid_ticker_input, normalize_ticker_symbol
 from tradingagents.dataflows.symbols import normalize_symbol
 
 
