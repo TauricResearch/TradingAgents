@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 
 import pytest
 
@@ -98,6 +99,21 @@ def test_empty_env_value_is_passthrough(monkeypatch):
     )
     assert dc.DEFAULT_CONFIG["llm_provider"] == "openai"
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
+
+
+def test_empty_path_value_keeps_the_default_path(monkeypatch):
+    """.env.example lists the path variables blank; uncommenting one made the
+    path empty, and the graph failed creating its directories."""
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_RESULTS_DIR="",
+        TRADINGAGENTS_CACHE_DIR="",
+        TRADINGAGENTS_MEMORY_LOG_PATH="",
+    )
+    home = dc._TRADINGAGENTS_HOME
+    assert dc.DEFAULT_CONFIG["results_dir"] == os.path.join(home, "logs")
+    assert dc.DEFAULT_CONFIG["data_cache_dir"] == os.path.join(home, "cache")
+    assert dc.DEFAULT_CONFIG["memory_log_path"] == os.path.join(home, "memory", "trading_memory.md")
 
 
 def test_invalid_int_raises(monkeypatch):
