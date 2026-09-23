@@ -30,6 +30,7 @@ def _stamp(path, ts):
 
 # --- date normalization -----------------------------------------------------
 
+
 @pytest.mark.unit
 def test_normalize_dates_strips_tz_and_normalizes_to_midnight():
     aware = pd.Series(pd.to_datetime(

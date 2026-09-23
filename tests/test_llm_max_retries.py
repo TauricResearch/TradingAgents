@@ -15,6 +15,7 @@ from tradingagents.llm_clients.factory import _coerce_max_retries, build_llm_kwa
 
 # --- coercion / validation -------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.parametrize("value,expected", [(0, 0), (2, 2), (10, 10), ("6", 6)])
 def test_coerce_accepts_non_negative_ints_and_numeric_strings(value, expected):

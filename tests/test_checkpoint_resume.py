@@ -103,7 +103,6 @@ class TestCheckpointResume(unittest.TestCase):
 
         self.assertEqual(result["count"], 11)
 
-
     def test_different_date_starts_fresh(self):
         """A different date must NOT resume from an existing checkpoint."""
         global _should_crash

@@ -34,6 +34,7 @@ def get_api_key() -> str:
         )
     return api_key
 
+
 def format_datetime_for_api(date_input, end_of_day: bool = False) -> str:
     """Convert various date formats to the YYYYMMDDTHHMM Alpha Vantage expects.
 
@@ -60,9 +61,11 @@ def format_datetime_for_api(date_input, end_of_day: bool = False) -> str:
     else:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
+
 class AlphaVantageRateLimitError(VendorRateLimitError):
     """Raised when the Alpha Vantage API rate limit is exceeded."""
     pass
+
 
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
@@ -117,7 +120,6 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
             raise AlphaVantageNotConfiguredError(f"Alpha Vantage API key invalid or missing: {notice}")
 
     return response_text
-
 
 
 def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> str:

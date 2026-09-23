@@ -106,7 +106,6 @@ def test_global_news_empty_after_filter_is_informative(monkeypatch):
     assert "unavailable" in out and "not an absence" in out
 
 
-
 def _ticker_with(articles, monkeypatch):
     class FakeTicker:
         def __init__(self, *a, **k):
@@ -160,7 +159,6 @@ def test_coverage_gap_boundaries(dates, expect_gap):
     assert (out is not None) is expect_gap
     if expect_gap:
         assert "unavailable for 2026-05-01..2026-05-08" in out and "not an absence" in out
-
 
 
 @pytest.mark.unit

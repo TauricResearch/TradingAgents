@@ -69,6 +69,7 @@ def get_YFin_data_online(
 
     return header + csv_string
 
+
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
@@ -267,7 +268,6 @@ def get_stockstats_indicator(
         ) from e
 
     return str(indicator_value)
-
 
 
 def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:

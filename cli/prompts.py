@@ -309,6 +309,7 @@ def select_deep_thinking_agent(provider, default=None) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep", default)
 
+
 def _llm_provider_table() -> list[tuple[str, str, str | None]]:
     """(display_name, provider_key, base_url) for every supported provider.
 

@@ -17,6 +17,7 @@ from tradingagents.llm_clients.factory import _coerce_max_tokens, build_llm_kwar
 
 # --- coercion / validation -------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.parametrize("value,expected", [(1, 1), (8192, 8192), ("4096", 4096)])
 def test_coerce_accepts_positive_ints_and_numeric_strings(value, expected):

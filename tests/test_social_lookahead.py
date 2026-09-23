@@ -172,13 +172,11 @@ def test_reddit_live_empty_feed_is_a_real_absence(monkeypatch):
     assert "unavailable" not in out
 
 
-
 @pytest.mark.unit
 def test_stocktwits_empty_stream_for_a_past_window_is_unavailable(monkeypatch):
     monkeypatch.setattr(stocktwits, "urlopen", lambda *a, **k: _JsonResp({"messages": []}))
     out = stocktwits.fetch_stocktwits_messages("AAPL", start_date="2026-05-01", end_date="2026-05-08")
     assert "unavailable" in out and "not an absence" in out
-
 
 
 @pytest.mark.unit

@@ -251,7 +251,6 @@ def test_posts_from_an_unrequested_or_unnamed_subreddit_are_not_dropped():
     assert "NO LABEL" in out
 
 
-
 @pytest.mark.unit
 def test_each_subreddit_keeps_its_own_quota():
     busy = [{"title": f"A{i}", "created_utc": None, "selftext": "", "subreddit": "a"} for i in range(9)]

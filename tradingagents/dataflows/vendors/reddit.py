@@ -64,6 +64,7 @@ def _coverage_dates(posts) -> list:
         dates.append(datetime.now(timezone.utc) - _SEARCH_LOOKBACK)
     return dates
 
+
 _RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
 # A descriptive, identified User-Agent (per Reddit's API etiquette). Reddit
 # blocks generic/anonymous tokens like bare "Mozilla/5.0" or "curl/…" but

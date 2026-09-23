@@ -182,7 +182,6 @@ def test_existing_key_file_is_tightened_before_writing(monkeypatch, prompts, tmp
     assert "OTHER=1" in env.read_text()
 
 
-
 @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
 def test_read_only_key_file_is_still_updated(monkeypatch, prompts, tmp_path):
     env = tmp_path / ".env"
