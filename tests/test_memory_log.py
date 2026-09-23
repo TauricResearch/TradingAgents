@@ -617,6 +617,50 @@ class TestDeferredReflection:
         mock_graph.config = {"benchmark_ticker": "SPX500", "benchmark_map": {"": "SPY"}}
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "NVDA") == "^GSPC"
 
+    def test_resolve_benchmark_covers_major_non_us_markets(self):
+        """Every suffix in the shipped map routes to its own market's index.
+
+        Uses the real DEFAULT_CONFIG map: the point of the test is which rows
+        exist, not that lookup works on a hand-written one. A market missing
+        here silently scores its alpha against SPY, which reads as a normal
+        number while comparing a foreign listing to the S&P 500.
+        """
+        from tradingagents.default_config import DEFAULT_CONFIG
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {
+            "benchmark_ticker": None,
+            "benchmark_map": DEFAULT_CONFIG["benchmark_map"],
+        }
+        expected = {
+            "2330.TW": "^TWII",       # Taiwan
+            "005930.KS": "^KS11",     # Korea
+            "D05.SI": "^STI",         # Singapore
+            "SIE.DE": "^GDAXI",       # Germany
+            "MC.PA": "^FCHI",         # France
+            "ASML.AS": "^AEX",        # Netherlands
+            "NESN.SW": "^SSMI",       # Switzerland
+            "ENI.MI": "FTSEMIB.MI",   # Italy
+        }
+        for ticker, index in expected.items():
+            assert TradingAgentsGraph._resolve_benchmark(mock_graph, ticker) == index
+
+    def test_taiwan_suffix_does_not_collide_with_tokyo(self):
+        """``2330.TW`` must not match the ``.T`` row.
+
+        Suffix matching is ``endswith`` over dict order, so a longer suffix that
+        starts with a shorter one is the failure mode to guard: were this ever
+        rewritten as a substring test, or ``.T`` moved ahead of ``.TW`` under a
+        looser match, every Taiwan ticker would quietly score against the Nikkei.
+        """
+        from tradingagents.default_config import DEFAULT_CONFIG
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {
+            "benchmark_ticker": None,
+            "benchmark_map": DEFAULT_CONFIG["benchmark_map"],
+        }
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "2330.TW") == "^TWII"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "7203.T") == "^N225"
+
     def test_resolve_benchmark_china_a_shares(self):
         """A-share tickers route to their exchange composite (uses the real
         default benchmark_map, since A-share support relies on it)."""
