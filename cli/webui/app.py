@@ -377,8 +377,9 @@ def _decision(job, snap):
         left, right = st.columns([3, 1], vertical_alignment="center")
         left.markdown(f"#### Portfolio manager's call: :{color}[**{rating}**]")
         if rating not in RATING_COLOR:
-            left.caption("No rating could be read from the final decision, so it is logged "
-                         "for review. Read the decision below and judge it yourself.")
+            left.caption("No tradeable rating: none could be read from the final decision, "
+                         "or the claim check sent it to review. It is logged for review; "
+                         "read the decision below and judge it yourself.")
         path = snap["report_path"]
         if path and Path(path).exists():
             right.download_button("Report", Path(path).read_text(encoding="utf-8"),
@@ -624,7 +625,9 @@ def _backtest_results():
     m = st.columns(3)
     m[0].metric("Settled cells", summary.resolved)
     m[1].metric("Pending", summary.pending, help="Holding window not over yet; re-run to settle.")
-    m[2].metric("Unscored", summary.unscored, help="No rating could be read from the decision.")
+    m[2].metric("Unscored", summary.unscored,
+                help="No tradeable rating: none could be read, or the claim check sent "
+                     "the decision to review.")
 
     if summary.by_rating:
         order = {r: i for i, r in enumerate(RATING_COLOR)}

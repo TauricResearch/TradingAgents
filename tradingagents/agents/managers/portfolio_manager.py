@@ -6,6 +6,11 @@ back to markdown for storage in ``final_trade_decision`` so memory log,
 CLI display, and saved reports continue to consume the same shape they do
 today.  When a provider does not expose structured output, the agent falls
 back gracefully to free-text generation.
+
+With TypeSafe Jev available, the claims in the Investment Thesis are then
+checked against the analyst reports, which the Portfolio Manager never reads
+itself, and the result is appended to the decision (``claim_check.py``). A
+contradicted or largely unsupported thesis sends the decision to REVIEW.
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_portfolio_context_from_state,
 )
+from tradingagents.agents.utils.claim_check import check_claims
 from tradingagents.agents.utils.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
@@ -85,6 +91,8 @@ Write these sections, in this order, starting with the rating on its own line:
             render_pm_decision,
             "Portfolio Manager",
         )
+        # Before the state is built, so judge_decision and final_trade_decision agree.
+        final_trade_decision = check_claims(final_trade_decision, state)
 
         new_risk_debate_state = {
             "judge_decision": final_trade_decision,

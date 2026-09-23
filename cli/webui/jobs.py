@@ -187,8 +187,9 @@ class AnalysisJob:
                 self.buffer.add_message("System", tracker.format_summary())
                 if is_review(rating):
                     self.buffer.add_message(
-                        "System", "No rating could be read from the final decision; "
-                        "it is logged for review rather than as a position.")
+                        "System", "The final decision has no tradeable rating (none could "
+                        "be read, or the claim check sent it to review); it is logged for "
+                        "review rather than as a position.")
                 self.final_state = final_state
                 self.rating = rating
                 self.report_path = report_path

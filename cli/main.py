@@ -1330,13 +1330,14 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
-    # A decision nobody can read is not a position. Say so here rather than
-    # leaving the run to look like a normal result.
+    # A decision nobody can read, or one the claim check sent to review, is not
+    # a position. Say so here rather than leaving the run to look like a normal result.
     if is_review(graph.process_signal(final_state.get("final_trade_decision", ""))):
         console.print(
-            "[yellow]No rating could be read from the final decision, so this run "
-            "is recorded for review rather than as a position. Re-run, or read the "
-            "decision text below and judge it yourself.[/yellow]\n"
+            "[yellow]The final decision has no tradeable rating (none could be read, "
+            "or the claim check sent it to review), so this run is recorded for review "
+            "rather than as a position. Re-run, or read the decision text below and "
+            "judge it yourself.[/yellow]\n"
         )
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
