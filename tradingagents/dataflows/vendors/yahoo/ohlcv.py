@@ -249,6 +249,15 @@ def load_ohlcv(symbol: str, curr_date: str, fill_gaps: bool = True) -> pd.DataFr
             auto_adjust=True,
         ))
         downloaded = _ensure_date_column(downloaded.reset_index())
+        # Transient throttle or session drops can return an empty frame; retry via history().
+        if downloaded.empty or "Close" not in downloaded.columns:
+            try:
+                alt = yf.Ticker(canonical).history(start=start_str, end=end_str, auto_adjust=True)
+                if not alt.empty and "Close" in alt.columns:
+                    downloaded = _ensure_date_column(alt.reset_index())
+            except Exception as exc:
+                logger.debug("Ticker history fallback for %s failed: %s", canonical, exc)
+
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
             raise_for_empty(symbol, canonical, "price rows")
