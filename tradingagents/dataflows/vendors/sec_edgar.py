@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import time
-from datetime import date, datetime
+from datetime import date, datetime, tzinfo
 from importlib import metadata
 from pathlib import Path
 
@@ -293,7 +293,7 @@ def get_valuation(ticker: str, curr_date: str | None = None) -> str:
     The price must be the price that traded: the OHLCV layer serves
     split-adjusted closes, and multiplying an adjusted close by a filed share
     count is off by the ratio of every split between them (NVDA on 2024-05-15
-    would read $236B instead of about $2.3T). So the close is fetched
+    would read about $290B instead of about $2.9T). So the close is fetched
     unadjusted and the share count is scaled by the splits that happened
     between the cover date and the price date instead.
     """
@@ -322,6 +322,8 @@ def get_valuation(ticker: str, curr_date: str | None = None) -> str:
             ("EarningsPerShareDiluted",),
             curr_date,
             _SPANS["annual"],
+            _ANNUAL_FORMS,  # a 10-Q can report a twelve-month diluted EPS; only
+            # an annual report's figure is a fiscal year
         )
     )
     eps_basis = "annual"
@@ -332,10 +334,22 @@ def get_valuation(ticker: str, curr_date: str | None = None) -> str:
                 ("EarningsPerShareDiluted",),
                 curr_date,
                 _SPANS["quarterly"],
+                ("10-Q",),
             )
         )
         eps_basis = "quarterly"
     price, price_date = _last_as_traded_close(ticker, curr_date)
+    stale_price = (
+        price is not None
+        and price_date is not None
+        and (date.fromisoformat(curr_date) - date.fromisoformat(price_date)).days
+        > _VALUATION_STALE_DAYS
+    )
+    if stale_price:
+        # A close far in the past — a delisted name, or one whose only history
+        # in the window is old — prices nothing: it is withheld with its date
+        # rather than multiplied into a fabricated market cap.
+        price = None
 
     # The cover page count is measured on its cover date; splits after it (and
     # before the price date) are undone onto the count, so count x price is the
@@ -355,13 +369,20 @@ def get_valuation(ticker: str, curr_date: str | None = None) -> str:
         > _VALUATION_STALE_DAYS
     )
 
-    rows: list[tuple[str, str, str]] = [
-        (
+    if stale_price:
+        close_row = (
+            "Close",
+            "unavailable",
+            f"last settled close {price_date} is over {_VALUATION_STALE_DAYS} days old",
+        )
+    else:
+        close_row = (
             "Close",
             f"{price:.2f} USD" if price is not None else "unavailable",
             price_date or "no settled close on or before the analysis date",
-        ),
-    ]
+        )
+
+    rows: list[tuple[str, str, str]] = [close_row]
 
     if shares is not None and not stale_shares:
         provenance = f"measured {shares[0]}, filed {shares[1]}" + (
@@ -532,13 +553,30 @@ def _newest_period(as_of_result: tuple[dict, str]) -> tuple[str, float] | None:
     return end, values[end]
 
 
+def _day_end(day: str, tz: tzinfo | None) -> pd.Timestamp:
+    """The last instant of ``day``, tz-aware iff the index it will be
+    compared against is.
+
+    yfinance serves exchange-local, tz-aware indexes while analysis dates
+    arrive as naive ``YYYY-MM-DD`` strings; comparing the two directly raises.
+    Day-level bounds also carry the semantics the snapshot needs: a close
+    stamped during the analysis day settles that day, and a split executed on
+    the cover date is already inside that day's count.
+    """
+    end = pd.Timestamp(day) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    return end.tz_localize(tz) if tz is not None else end
+
+
 def _last_as_traded_close(ticker: str, curr_date: str) -> tuple[float | None, str | None]:
     """The last close at or before ``curr_date`` as it traded, with its date.
 
     This is deliberately not the OHLCV layer: that serves split-adjusted
     closes, and the filed share count below is not adjusted, so their product
     is off by every split ratio between the two dates. The unadjusted close —
-    the price that actually traded — needs no reconciliation.
+    the price that actually traded — needs no reconciliation. Yahoo's own
+    Close, even with ``auto_adjust=False``, still divides out every split
+    that has happened since the session (including ones after the analysis
+    date), so those splits are multiplied back onto it before it is returned.
     """
     canonical = normalize_symbol(ticker)
     try:
@@ -553,21 +591,31 @@ def _last_as_traded_close(ticker: str, curr_date: str) -> tuple[float | None, st
         return None, None
     if history is None or history.empty or "Close" not in history:
         return None, None
-    cutoff = pd.Timestamp(curr_date)
+    cutoff = _day_end(curr_date, history.index.tz)
     history = history[history.index <= cutoff]
     if history.empty:
         return None, None
     row = history.iloc[-1]
-    return float(row["Close"]), str(row.name.date())
+    price = float(row["Close"])
+    day = str(row.name.date())
+    # Undo Yahoo's retroactive split adjustment: a split executed on the
+    # price day itself already traded post-split, so only strictly later
+    # events are multiplied back in.
+    factor = _split_factor(ticker, day, datetime.now().strftime("%Y-%m-%d"))
+    if factor:
+        price *= factor
+    return price, day
 
 
 def _split_factor(ticker: str, cover_date: str, price_date: str) -> float | None:
     """The cumulative split factor between ``cover_date`` (exclusive) and
     ``price_date`` (inclusive).
 
-    Yahoo's split rows carry the ratio of each event ("2:1"). A split on the
-    cover date itself belongs to the count already — the count was measured
-    with that split in place — so only strictly later events rescale it.
+    Yahoo's split rows carry each event's ratio. A split on the cover date
+    itself belongs to the count already — the count was measured with that
+    split in place — so only strictly later events rescale it. Only the
+    day-end of ``cover_date`` is excluded, in whatever timezone the split
+    index carries.
     """
     canonical = normalize_symbol(ticker)
     try:
@@ -577,9 +625,9 @@ def _split_factor(ticker: str, cover_date: str, price_date: str) -> float | None
         return None
     if splits is None or splits.empty:
         return None
-    lo = pd.Timestamp(cover_date)
-    hi = pd.Timestamp(price_date)
-    window = splits[(splits.index > lo) & (splits.index <= hi)]
+    after = _day_end(cover_date, splits.index.tz)
+    through = _day_end(price_date, splits.index.tz)
+    window = splits[(splits.index > after) & (splits.index <= through)]
     if window.empty:
         return None
     factor = 1.0

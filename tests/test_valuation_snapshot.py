@@ -23,10 +23,14 @@ def _facts(dei_shares, us_gaap=None):
 
 
 def _close_series(closes):
-    """Close series indexed by trading day; [(date, price), ...]."""
+    """Close series shaped like yfinance serves it: exchange-local, tz-aware.
+
+    The stub must mirror the real transport — a naive index would never
+    exercise the tz-aware comparison the production path runs.
+    """
     return pd.Series(
         [price for _, price in closes],
-        index=pd.DatetimeIndex([when for when, _ in closes], name="Date"),
+        index=pd.DatetimeIndex([when for when, _ in closes], name="Date", tz="America/New_York"),
     )
 
 
@@ -75,22 +79,28 @@ class TestSplitAdjustment:
         # ~$3.26T cap that stood, not 131.88 x 2.47B = ~$326B.
         stub_env["dei_shares"] = [("2024-05-17", "2024-05-22", 2_470_000_000)]
         stub_env["closes"] = [("2024-06-13", 131.88)]
-        stub_env["splits"] = pd.Series([10.0], index=pd.DatetimeIndex(["2024-06-07"]))
+        stub_env["splits"] = pd.Series(
+            [10.0], index=pd.DatetimeIndex(["2024-06-07"], tz="America/New_York")
+        )
         out = sec_edgar.get_valuation("NVDA", "2024-06-14")
         assert "24,700,000,000" in out
         assert "3257" in out  # 131.88 * 24.7 = 3257.4 -> $3.26T
 
     def test_prepair_analysis_date_not_off_by_split_ratio(self, stub_env):
         # The #1377 rejection case, pinned. Analysis date 2024-05-15 is before
-        # the split: the as-traded close is 1177.10 (what actually traded),
-        # the cover count 2,462M is pre-split, and the June split is outside
-        # the window. Cap = 1177.10 x 2.462B = ~$2.90T. The bug priced the
-        # split-adjusted close (117.71) against the filed count and read
+        # the split. Yahoo's Close divides out even splits that happened after
+        # the analysis date (117.71 = 1177.10 / 10), so the price must be
+        # re-inflated by the splits after the price day before it is priced
+        # against the pre-split cover count: 1177.10 x 2.462B = ~$2.90T.
+        # The rejected PR priced 117.71 against the filed count and read
         # ~$290B — off by the 10:1 ratio.
         stub_env["dei_shares"] = [("2024-04-26", "2024-04-26", 2_462_000_000)]
-        stub_env["closes"] = [("2024-05-15", 1177.10)]
-        stub_env["splits"] = pd.Series([10.0], index=pd.DatetimeIndex(["2024-06-07"]))
+        stub_env["closes"] = [("2024-05-15", 117.71)]  # Yahoo-shaped: retro-adjusted
+        stub_env["splits"] = pd.Series(
+            [10.0], index=pd.DatetimeIndex(["2024-06-07"], tz="America/New_York")
+        )
         out = sec_edgar.get_valuation("NVDA", "2024-05-15")
+        assert "1177.10 USD" in out
         assert "2,462,000,000" in out
         assert "2898" in out  # 1177.10 * 2.462 = 2898.1 -> $2.90T
         assert "289.8" not in out  # the split-ratio-off cap must not appear
@@ -98,7 +108,9 @@ class TestSplitAdjustment:
     def test_no_split_between_dates_leaves_count_untouched(self, stub_env):
         stub_env["dei_shares"] = [("2024-04-26", "2024-04-26", 1_000_000_000)]
         stub_env["closes"] = [("2024-05-15", 100.0)]
-        stub_env["splits"] = pd.Series([2.0], index=pd.DatetimeIndex(["2024-01-10"]))
+        stub_env["splits"] = pd.Series(
+            [2.0], index=pd.DatetimeIndex(["2024-01-10"], tz="America/New_York")
+        )
         out = sec_edgar.get_valuation("NVDA", "2024-05-15")
         # Split before the cover date is already inside the count.
         assert "1,000,000,000" in out
@@ -107,7 +119,9 @@ class TestSplitAdjustment:
     def test_split_on_cover_date_is_already_in_count(self, stub_env):
         stub_env["dei_shares"] = [("2024-06-07", "2024-06-10", 24_620_000_000)]
         stub_env["closes"] = [("2024-06-10", 121.79)]
-        stub_env["splits"] = pd.Series([10.0], index=pd.DatetimeIndex(["2024-06-07"]))
+        stub_env["splits"] = pd.Series(
+            [10.0], index=pd.DatetimeIndex(["2024-06-07"], tz="America/New_York")
+        )
         out = sec_edgar.get_valuation("NVDA", "2024-06-10")
         # The split is on the cover date itself: the count was measured with
         # it in place, so no further scaling applies.
@@ -128,13 +142,15 @@ class TestStaleGuards:
         assert "1,000,000,000" not in out
 
     def test_stale_price_withheld(self, stub_env):
-        # Analysis 2024-05-15 but the only close on record is later: there is
-        # no settled price at or before the analysis date, so nothing prices.
+        # Analysis 2024-05-15 but the last settled close is 400+ days older
+        # (a delisted name, say): the close is withheld with its date, not
+        # multiplied into a fabricated market cap.
         stub_env["dei_shares"] = [("2024-04-26", "2024-04-26", 1_000_000_000)]
-        stub_env["closes"] = [("2024-06-15", 100.0)]
+        stub_env["closes"] = [("2023-05-15", 100.0)]
         stub_env["splits"] = None
         out = sec_edgar.get_valuation("NVDA", "2024-05-15")
-        assert "no settled close on or before the analysis date" in out
+        assert "last settled close 2023-05-15 is over 200 days old" in out
+        assert "100.00B USD" not in out
 
     def test_fresh_inputs_flow_through(self, stub_env):
         stub_env["dei_shares"] = [("2024-04-26", "2024-04-16", 1_000_000_000)]
