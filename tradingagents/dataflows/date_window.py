@@ -127,7 +127,11 @@ def withhold_live_profile(as_of_date: str | None, label: str) -> str | None:
         f"rather than {as_of_date} (companies rename and get reclassified). "
         f"Serving them would put post-decision information into a {as_of_date} "
         f"analysis. Statements filed by {as_of_date} are served as filed where "
-        f"the filing date is known (SEC EDGAR, for US filers)."
+        f"the filing date is known (SEC EDGAR, for US filers). "
+        f"Point-in-time fundamentals for {as_of_date} are available "
+        f"from the balance sheet, income statement, and cash flow tools, and "
+        f"point-in-time valuation (market cap, P/E, P/B) from the "
+        f"`get_valuation` tool."
     )
 
 

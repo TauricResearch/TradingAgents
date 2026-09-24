@@ -28,9 +28,9 @@ _ENV_OVERRIDES = {
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
-    "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
+    "TRADINGAGENTS_GOOGLE_THINKING_LEVEL": "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
-    "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_ANTHROPIC_EFFORT": "anthropic_effort",
 }
 
 
@@ -159,14 +159,20 @@ def build_default_config() -> dict:
             "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
             "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
             # Statements come from SEC EDGAR as filed (US filers), then Yahoo; the
-        # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
-        "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
+            # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
+            "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
             "news_data": "yfinance",             # Options: alpha_vantage, yfinance
             "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
         },
         # Tool-level configuration (takes precedence over category-level)
         "tool_vendors": {
+            # Point-in-time valuation is SEC-only: it is derived from filed cover
+            # page share counts and statements (#1374), so no other vendor can
+            # serve it. Pinning it here keeps a fundamentals category configured
+            # for a live vendor from breaking the tool the withhold guard points
+            # at (#1300).
+            "get_valuation": "sec_edgar",
             # Example: "get_stock_data": "alpha_vantage",  # Override category default
         },
         # Benchmark for alpha calculation in the reflection layer.
@@ -199,7 +205,7 @@ def build_default_config() -> dict:
             ".AX":  "^AXJO",       # Australia (ASX 200)
             ".SS":  "000001.SS",   # Shanghai (SSE Composite)
             ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
-            ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
+            ".SA": "^BVSP",       # B3 Brazil (Ibovespa)
             "":     "SPY",         # default for US-listed tickers (no suffix)
         },
 
