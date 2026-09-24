@@ -98,8 +98,10 @@ class FredFormattingTests(unittest.TestCase):
         self.assertIn("Units: %", out)
         self.assertIn("Frequency: Monthly (SA)", out)
         self.assertIn("**Latest:** 4.4 (2025-09-01)", out)
-        # change over the window: 4.4 - 4.1 = +0.30
-        self.assertIn("+0.30", out)
+        # The change names the observations it spans, not the lookback window,
+        # so a 3-month move on a monthly series cannot read as year on year.
+        self.assertIn("**Change from 2025-06-01 to 2025-09-01:** +0.30 (+7.32%), from 4.1", out)
+        self.assertNotIn("Change over window", out)
         self.assertIn("| 2025-06-01 | 4.1 |", out)
 
     def test_missing_value_is_skipped(self):
@@ -133,8 +135,8 @@ class FredFormattingTests(unittest.TestCase):
         with mock.patch.object(fred, "_request", side_effect=_request_stub(obs=obs)):
             out = fred.get_macro_data("unemployment", "2025-12-31", 365)
         self.assertIn(f"most recent {fred.MAX_ROWS}", out)
-        # change-over-window must reference the true first (0) and last value
-        self.assertIn("from 0 ", out)
+        # the change must reference the true first (0) and last value
+        self.assertIn("+49.00, from 0\n", out)
         body_rows = [ln for ln in out.splitlines() if ln.startswith("| 2025")]
         self.assertEqual(len(body_rows), fred.MAX_ROWS)
 

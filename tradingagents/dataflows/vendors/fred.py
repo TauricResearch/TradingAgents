@@ -254,8 +254,8 @@ def get_macro_data(
         pct = f" ({delta / base * 100:+.2f}%)" if base != 0 else ""
         summary = (
             f"\n**Latest:** {last_val} ({last_date}) | "
-            f"**Change over window:** {delta:+.2f}{pct} "
-            f"from {first_val} ({first_date})\n"
+            f"**Change from {first_date} to {last_date}:** {delta:+.2f}{pct}, "
+            f"from {first_val}\n"
         )
     except ValueError:
         summary = f"\n**Latest:** {last_val} ({last_date})\n"
