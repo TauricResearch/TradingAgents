@@ -61,7 +61,10 @@ def _bare_graph(tmp_path):
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
     graph = object.__new__(TradingAgentsGraph)
-    graph.config = {"results_dir": str(tmp_path)}
+    graph.config = {"results_dir": str(tmp_path), "llm_provider": "openai", "deep_think_llm": "d",
+                    "quick_think_llm": "q", "max_debate_rounds": 1, "max_risk_discuss_rounds": 1,
+                    "output_language": "English", "data_vendors": {}, "tool_vendors": {}}
+    graph.selected_analysts = ("market",)
     return graph
 
 
@@ -87,6 +90,7 @@ def test_the_state_log_names_each_field_as_the_state_does(tmp_path):
     assert logged["investment_plan"] == "计划"
     assert "trader_investment_decision" not in logged
     assert "judge_decision" not in json.dumps(logged)
+    assert logged["run_settings"]["deep_think_llm"] == "d"
 
 
 @pytest.mark.unit

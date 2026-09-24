@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, set_config
@@ -241,6 +242,26 @@ class TradingAgentsGraph:
                 self._run_signature(asset_type, portfolio),
             )
 
+    def run_settings(self) -> dict:
+        """What produces this graph's runs, for the saved report and state log.
+
+        An allowlist: endpoints (a backend_url can carry credentials), keys and
+        local paths are never recorded.
+        """
+        cfg = self.config
+        return {
+            "version": tradingagents.__version__,
+            "llm_provider": cfg.get("llm_provider"),
+            "deep_think_llm": cfg.get("deep_think_llm"),
+            "quick_think_llm": cfg.get("quick_think_llm"),
+            "analysts": list(self.selected_analysts),
+            "max_debate_rounds": cfg.get("max_debate_rounds"),
+            "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
+            "output_language": cfg.get("output_language"),
+            "data_vendors": dict(cfg.get("data_vendors") or {}),
+            "tool_vendors": dict(cfg.get("tool_vendors") or {}),
+        }
+
     def save_reports(self, final_state, ticker, save_path=None) -> Path:
         """Write the markdown report tree for a completed run, like the CLI does.
 
@@ -254,7 +275,7 @@ class TradingAgentsGraph:
                 / "reports"
                 / f"{safe_ticker_component(ticker)}_{stamp}"
             )
-        return write_report_tree(final_state, ticker, save_path)
+        return write_report_tree(final_state, ticker, save_path, settings=self.run_settings())
 
     def create_run_state(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Build a run's initial state; propagate() and the CLI both start here.
@@ -370,6 +391,7 @@ class TradingAgentsGraph:
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
             "final_rating": run_rating(final_state),
+            "run_settings": self.run_settings(),
         }
 
         # A ticker that would escape the results directory is rejected.

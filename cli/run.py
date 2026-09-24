@@ -381,7 +381,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = write_report_tree(final_state, selections["ticker"], save_path)
+            report_file = write_report_tree(final_state, selections["ticker"], save_path,
+                                            settings=graph.run_settings())
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:

@@ -10,8 +10,31 @@ from datetime import datetime
 from pathlib import Path
 
 
-def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
-    """Save a completed run's reports to ``save_path``; return the complete-report path."""
+def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
+    """The report's title and what produced it: analysis date, version, models, analysts, vendors."""
+    lines = [f"# Trading Analysis Report: {ticker}", ""]
+    if final_state.get("trade_date"):
+        lines.append(f"- Analysis date: {final_state['trade_date']}")
+    lines.append(f"- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if settings:
+        s = settings.get
+        lines.append(f"- TradingAgents {s('version', '?')}: {s('llm_provider', '?')}, "
+                     f"deep {s('deep_think_llm', '?')}, quick {s('quick_think_llm', '?')}")
+        lines.append(f"- Analysts: {', '.join(s('analysts') or [])}; "
+                     f"research debate rounds {s('max_debate_rounds', '?')}, "
+                     f"risk debate rounds {s('max_risk_discuss_rounds', '?')}")
+        vendors = {**(s("data_vendors") or {}), **(s("tool_vendors") or {})}
+        if vendors:
+            lines.append("- Data vendors: " + ", ".join(f"{k} {v}" for k, v in vendors.items()))
+    return "\n".join(lines) + "\n\n"
+
+
+def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict | None = None) -> Path:
+    """Save a completed run's reports to ``save_path``; return the complete-report path.
+
+    ``settings`` (``TradingAgentsGraph.run_settings()``) adds what produced the run
+    to the report's header.
+    """
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
@@ -96,6 +119,7 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
         sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{final_state['final_trade_decision']}")
 
     # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
+    (save_path / "complete_report.md").write_text(
+        _header(ticker, final_state, settings) + "\n\n".join(sections), encoding="utf-8"
+    )
     return save_path / "complete_report.md"
