@@ -17,7 +17,9 @@ supports it and free text otherwise, so the band, score and confidence header
 reads the same across providers.
 """
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
+from typing import NamedTuple
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -39,13 +41,46 @@ def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
 
 
-def create_sentiment_analyst(llm):
+class SentimentSources(NamedTuple):
+    """The three text blocks the sentiment prompt is built from."""
+
+    news: str
+    stocktwits: str
+    reddit: str
+
+
+# (ticker, start_date, end_date) -> the blocks for that window.
+SourceFetcher = Callable[[str, str, str], SentimentSources]
+
+
+def fetch_sentiment_sources(ticker: str, start_date: str, end_date: str) -> SentimentSources:
+    """Fetch news, StockTwits and Reddit live, trimmed to the analysis window.
+
+    Each fetcher degrades gracefully and returns a string (no exceptions
+    surface from here), so the LLM always sees something: real data or a
+    clear placeholder.
+    """
+    # Pass the analysis window so a historical run trims social posts to it
+    # instead of leaking today's chatter into a backtest (#1220).
+    screen = jev_screen(ticker)
+    return SentimentSources(
+        news=get_news.func(ticker, start_date, end_date),
+        stocktwits=fetch_stocktwits_messages(
+            ticker, limit=30, start_date=start_date, end_date=end_date, screen=screen
+        ),
+        reddit=fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date, screen=screen),
+    )
+
+
+def create_sentiment_analyst(llm, sources: SourceFetcher = fetch_sentiment_sources):
     """Create a sentiment analyst node for the trading graph.
 
-    Pre-fetches news + StockTwits + Reddit data, injects them into the
-    prompt as structured blocks, and produces a deterministic sentiment
-    report via structured output (with a free-text fallback for providers
-    that do not support it).
+    Gets news + StockTwits + Reddit blocks from ``sources`` (fetched live by
+    default), injects them into the prompt, and produces a deterministic
+    sentiment report via structured output (with a free-text fallback for
+    providers that do not support it). A caller that gathers its data ahead
+    of the run -- a recorded corpus, a replayed backtest -- passes its own
+    ``sources`` and the node reads that instead of the network.
     """
     structured_llm = bind_structured(llm, SentimentReport, "Sentiment Analyst")
 
@@ -55,25 +90,14 @@ def create_sentiment_analyst(llm):
         start_date = _seven_days_back(end_date)
         instrument_context = get_instrument_context_from_state(state)
 
-        # Pre-fetch all three sources. Each fetcher degrades gracefully and
-        # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
-        news_block = get_news.func(ticker, start_date, end_date)
-        # Pass the analysis window so a historical run trims social posts to it
-        # instead of leaking today's chatter into a backtest (#1220).
-        screen = jev_screen(ticker)
-        stocktwits_block = fetch_stocktwits_messages(
-            ticker, limit=30, start_date=start_date, end_date=end_date, screen=screen
-        )
-        reddit_block = fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date, screen=screen)
-
+        blocks = sources(ticker, start_date, end_date)
         system_message = _build_system_message(
             ticker=ticker,
             start_date=start_date,
             end_date=end_date,
-            news_block=news_block,
-            stocktwits_block=stocktwits_block,
-            reddit_block=reddit_block,
+            news_block=blocks.news,
+            stocktwits_block=blocks.stocktwits,
+            reddit_block=blocks.reddit,
         )
 
         prompt = ChatPromptTemplate.from_messages(

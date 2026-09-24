@@ -460,6 +460,39 @@ class TestSentimentAnalystAgent:
         assert "(Score: 4.0/10)" in sr
         assert "Mixed signals across sources." in sr
 
+    def test_caller_supplied_sources_replace_the_live_fetch(self, monkeypatch):
+        """A caller that gathered its data before the run passes `sources`;
+        the node reads those blocks and never touches the network."""
+        from tradingagents.agents.analysts import sentiment_analyst as sentiment
+
+        def live(*args, **kwargs):
+            raise AssertionError("fetched live despite caller-supplied sources")
+
+        monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", live)
+        monkeypatch.setattr(sentiment, "fetch_reddit_posts", live)
+        asked = []
+
+        def recorded(ticker, start_date, end_date):
+            asked.append((ticker, start_date, end_date))
+            return sentiment.SentimentSources(
+                news="RECORDED NEWS", stocktwits="RECORDED ST", reddit="RECORDED RD"
+            )
+
+        captured = {}
+        create_sentiment_analyst(_structured_sentiment_llm(captured), sources=recorded)(
+            _make_sentiment_state()
+        )
+        prompt = "\n".join(str(m) for m in captured["prompt"])
+        assert all(block in prompt for block in ("RECORDED NEWS", "RECORDED ST", "RECORDED RD"))
+        [(ticker, start, end)] = asked
+        assert ticker == "NVDA" and start < end
+
+    def test_default_sources_fetch_live(self):
+        from tradingagents.agents.analysts import sentiment_analyst as sentiment
+
+        blocks = sentiment.fetch_sentiment_sources("NVDA", "2024-05-03", "2024-05-10")
+        assert blocks == sentiment.SentimentSources(news="news", stocktwits="st", reddit="rd")
+
     def test_sentiment_report_also_in_messages(self):
         captured = {}
         analyst = create_sentiment_analyst(_structured_sentiment_llm(captured))
