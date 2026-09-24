@@ -7,11 +7,10 @@ import pytest
 
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
-from tradingagents.graph import settlement
 from tradingagents.graph.propagation import Propagator
-from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.memory import TradingMemoryLog
+from tradingagents.memory import TradingMemoryLog, settlement
+from tradingagents.memory.reflection import Reflector
 
 _SEP = TradingMemoryLog._SEPARATOR
 
@@ -1004,7 +1003,7 @@ def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
 def test_the_reflection_states_the_window_it_judges():
     """Judging a months-long thesis on a week's alpha, without saying so, turns
     a scope mismatch into a lesson that the call was wrong."""
-    from tradingagents.graph.reflection import Reflector
+    from tradingagents.memory.reflection import Reflector
 
     prompt = Reflector(None)._system_prompt(holding_days=5)
     assert "5" in prompt and "trading day" in prompt

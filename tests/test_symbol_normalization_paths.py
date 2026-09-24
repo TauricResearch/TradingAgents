@@ -10,7 +10,7 @@ import pandas as pd
 import tradingagents.agents.context as au
 import tradingagents.dataflows.vendors.yahoo.market as yahoo_market
 import tradingagents.dataflows.vendors.yahoo.news as ynews
-from tradingagents.graph import settlement
+from tradingagents.memory import settlement
 
 
 def test_identity_lookup_normalizes_symbol(monkeypatch):

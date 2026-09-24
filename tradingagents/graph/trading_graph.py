@@ -13,14 +13,13 @@ from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import build_llm_kwargs, create_llm_client
-from tradingagents.memory import TradingMemoryLog
+from tradingagents.memory import TradingMemoryLog, settlement
+from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
 
-from . import settlement
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
-from .reflection import Reflector
 from .setup import GraphSetup
 
 logger = logging.getLogger(__name__)

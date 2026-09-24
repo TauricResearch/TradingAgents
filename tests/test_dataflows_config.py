@@ -148,7 +148,7 @@ def test_settling_reads_the_graphs_own_config(monkeypatch):
     graph = _graph(config)
     graph.memory_log = graph.reflector = None      # the settlement below is a stand-in
     seen = []
-    from tradingagents.graph import settlement
+    from tradingagents.memory import settlement
 
     monkeypatch.setattr(settlement, "settle_pending",
                         lambda *a: seen.append(get_vendor("core_stock_apis", "get_stock_data")))
