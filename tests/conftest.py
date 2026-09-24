@@ -45,6 +45,12 @@ def _no_network(request, monkeypatch):
     monkeypatch.setattr(socket.socket, "connect_ex", refuse)
 
 
+@pytest.fixture(autouse=True)
+def _own_cli_prefs(tmp_path, monkeypatch):
+    """The CLI keeps the last run's selections in the user's home; tests keep theirs apart."""
+    monkeypatch.setattr("cli.prefs._PREFS_PATH", tmp_path / "cli_prefs.json")
+
+
 _API_KEY_ENV_VARS = (
     "OPENAI_API_KEY",
     "GOOGLE_API_KEY",

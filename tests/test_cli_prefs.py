@@ -27,12 +27,6 @@ SAVED = {
 }
 
 
-@pytest.fixture(autouse=True)
-def _home(tmp_path, monkeypatch):
-    monkeypatch.setattr("cli.prefs._PREFS_PATH", tmp_path / "cli_prefs.json")
-    return tmp_path
-
-
 @pytest.mark.unit
 def test_round_trip():
     save_last_run(SAVED)
@@ -45,18 +39,18 @@ def test_missing_file_is_not_an_error():
 
 
 @pytest.mark.unit
-def test_a_corrupt_file_degrades_to_no_memory(_home):
-    (_home / "cli_prefs.json").write_text("{not json")
+def test_a_corrupt_file_degrades_to_no_memory(tmp_path):
+    (tmp_path / "cli_prefs.json").write_text("{not json")
     assert load_last_run() == {}
 
 
 @pytest.mark.unit
-def test_a_half_written_file_cannot_be_observed(_home):
+def test_a_half_written_file_cannot_be_observed(tmp_path):
     """Two runs finishing together must never leave a torn file behind."""
     save_last_run(SAVED)
     save_last_run({**SAVED, "research_depth": 5})
     assert load_last_run()["research_depth"] == 5
-    assert list((_home).glob("*.tmp*")) == []
+    assert list(tmp_path.glob("*.tmp*")) == []
 
 
 # --- validation against the current choices ---------------------------------
