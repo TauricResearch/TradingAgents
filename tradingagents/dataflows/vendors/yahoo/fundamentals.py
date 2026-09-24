@@ -184,6 +184,8 @@ def get_insider_transactions(
 
         return f"# Insider Transactions data for {canonical}\n" + _TRANSACTION_DATE_VINTAGE + data.to_csv()
 
+    except VendorError:
+        raise
     except Exception as e:
         raise NoMarketDataError(ticker, canonical, f"insider transactions unavailable: {e}") from e
 
