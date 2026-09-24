@@ -18,6 +18,7 @@ dependencies = [
     "pandas>=2.3.0",
     "python-dotenv>=1.0.0",
     "pytz>=2025.2",
+    "python-dotenv>=1.1.0",
     "questionary>=2.1.0",
     "requests>=2.32.4",
     "rich>=14.0.0",
