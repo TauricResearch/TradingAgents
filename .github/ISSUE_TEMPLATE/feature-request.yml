@@ -1,0 +1,25 @@
+name: Feature request
+description: A capability TradingAgents lacks, or a change to how it works.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Any OpenAI-compatible endpoint already works through the `openai_compatible` provider, and OpenRouter serves many hosted models, so a new LLM provider is often not needed.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and where TradingAgents falls short today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
