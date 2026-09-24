@@ -6,7 +6,29 @@ header, so the rating is read deterministically; no second model call is made.
 
 import pytest
 
-from tradingagents.agents.rating import RATING_REVIEW, RATINGS_5_TIER, extract_rating, parse_rating
+from tradingagents.agents.rating import (
+    RATING_REVIEW,
+    RATINGS_5_TIER,
+    extract_confidence,
+    extract_rating,
+    parse_rating,
+)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("text", "confidence"), [
+    ("**Rating**: Buy\n\n**Confidence**: 72%", 72),
+    ("Rating: Sell\nConfidence: 55", 55),
+    ("Rating: Hold\n- **Confidence** - 61 %", 61),
+    ("Confidence：80%", 80),  # fullwidth colon, as for the rating
+    ("**Confidence**: 40%\n...\n**Confidence**: 58%", 58),  # the last one stated wins
+    ("**Confidence**: not provided", None),
+    ("**Confidence**: 140%", None),
+    ("I have low confidence in the bull case.", None),  # prose, not the label
+    ("", None),
+])
+def test_extract_confidence(text, confidence):
+    assert extract_confidence(text) == confidence
 
 # ---------------------------------------------------------------------------
 # Heuristic parser

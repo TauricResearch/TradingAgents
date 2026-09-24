@@ -572,6 +572,39 @@ def test_a_field_the_model_did_not_give_says_so():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(("given", "stored"), [
+    (72, 72), ("72%", 72), (" 64 % ", 64), (72.4, 72), (0.72, 72), (0, 0), (100, 100),
+    (None, None), ("high", None), (140, None), (-5, None), (True, None), (float("nan"), None),
+])
+def test_pm_confidence_is_normalised_or_dropped(given, stored):
+    """A malformed confidence must not fail the decision and lose the rating with it."""
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+
+    decision = PortfolioDecision(rating=PortfolioRating.SELL, executive_summary="s",
+                                 investment_thesis="t", confidence=given)
+    assert decision.confidence == stored
+    assert decision.rating is PortfolioRating.SELL
+
+
+@pytest.mark.unit
+def test_pm_confidence_is_rendered_and_read_back():
+    from tradingagents.agents.rating import extract_confidence, extract_rating
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating, render_pm_decision
+
+    rendered = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.UNDERWEIGHT, confidence=64, executive_summary="s",
+        investment_thesis="t"))
+    assert "**Confidence**: 64%" in rendered
+    assert extract_confidence(rendered) == 64
+    assert extract_rating(rendered) == "Underweight"  # the new line does not disturb it
+
+    silent = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.HOLD, executive_summary="s", investment_thesis="t"))
+    assert "**Confidence**: not provided" in silent
+    assert extract_confidence(silent) is None  # absent, not 0%
+
+
+@pytest.mark.unit
 def test_the_trader_names_the_levels_it_did_not_give():
     from tradingagents.agents.schemas import TraderAction, TraderProposal, render_trader_proposal
 

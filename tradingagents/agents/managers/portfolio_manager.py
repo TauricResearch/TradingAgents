@@ -73,6 +73,7 @@ Ground every conclusion in specific evidence from the analysts. The risk debate 
 Write these sections, in this order, starting with the rating on its own line:
 
 - **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
+- **Confidence**: how likely the rating is to prove right, 0-100% (50 is a coin flip; above 80 only for strong, nearly one-sided evidence)
 - **Executive Summary**: the call and how to act on it
 - **Investment Thesis**: the evidence that decided it, and what would change it
 
