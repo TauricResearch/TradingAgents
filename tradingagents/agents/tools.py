@@ -61,7 +61,9 @@ def get_indicators(
     results = []
     for ind in indicators:
         try:
-            results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
+            results.append(
+                route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days)
+            )
         except ValueError as e:
             results.append(str(e))
     return "\n\n".join(results)
@@ -165,6 +167,28 @@ def get_income_statement(
 
 
 @tool
+def get_valuation(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Point-in-time valuation snapshot: market cap, P/E, P/B as of the analysis date.
+    Built from SEC EDGAR filings (cover page shares outstanding, filed diluted EPS
+    and stockholders equity) and the last as-traded close, so every figure carries
+    the date it was public. Use it for valuation metrics on a past analysis date,
+    where vendor fundamentals are withheld as present-day only.
+    Args:
+        ticker (str): Ticker symbol of the company
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+    Returns:
+        str: A valuation table with per-metric as-of dates and reasons for
+        anything unavailable.
+    """
+    return route_to_vendor("get_valuation", ticker, as_of(curr_date, trade_date))
+
+
+@tool
 def get_news(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -188,8 +212,12 @@ def get_news(
 @tool
 def get_global_news(
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    look_back_days: Annotated[int | None, "Days to look back; omit to use the configured default"] = None,
-    limit: Annotated[int | None, "Max articles to return; omit to use the configured default"] = None,
+    look_back_days: Annotated[
+        int | None, "Days to look back; omit to use the configured default"
+    ] = None,
+    limit: Annotated[
+        int | None, "Max articles to return; omit to use the configured default"
+    ] = None,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
@@ -254,7 +282,9 @@ def get_macro_indicators(
     Returns:
         str: A formatted markdown report of the macro series
     """
-    return route_to_vendor("get_macro_indicators", indicator, as_of(curr_date, trade_date), look_back_days)
+    return route_to_vendor(
+        "get_macro_indicators", indicator, as_of(curr_date, trade_date), look_back_days
+    )
 
 
 @tool
