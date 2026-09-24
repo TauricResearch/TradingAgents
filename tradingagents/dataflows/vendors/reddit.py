@@ -82,6 +82,7 @@ DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 # subreddits fits well inside one page, which keeps a high-volume subreddit from
 # crowding the others out of a combined search.
 _FEED_PAGE = 100
+_SCREEN_CHARS = 1000   # of a post's title and body sent for screening
 
 
 _SEARCH_LOOKBACK = timedelta(days=7)  # matches t=week below
@@ -238,6 +239,7 @@ def fetch_reddit_posts(
     timeout: float = 10.0,
     start_date: str | None = None,
     end_date: str | None = None,
+    screen=None,
 ) -> str:
     """Fetch recent Reddit posts mentioning ``ticker`` across finance
     subreddits and return them as a formatted plaintext block.
@@ -250,6 +252,10 @@ def fetch_reddit_posts(
     When ``start_date``/``end_date`` (yyyy-mm-dd) are given, posts are trimmed to
     that window so a historical run does not leak current discussion into a
     backtest (#1220).
+
+    ``screen``, when given, takes each post's title and body and returns a keep
+    flag per post and a note line that heads the block. It runs before the
+    per-subreddit cut, so the posts it keeps fill the slots.
     """
     # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
     # ("BTC") so the query actually matches discussion instead of near-nothing.
@@ -270,22 +276,34 @@ def fetch_reddit_posts(
         period = f"within {start_date}..{end_date}" if window else "in the past 7 days"
         return gap or f"<no Reddit posts found mentioning {ticker.upper()} across {label} {period}>"
 
+    def sub_of(p):
+        return p.get("subreddit") or (subreddits[0] if len(subreddits) == 1 else "unknown")
+
+    note, screened_out = "", set()
+    if screen:
+        keep, note = screen([f"{p.get('title') or ''}\n{p.get('selftext') or ''}"[:_SCREEN_CHARS]
+                             for p in posts])
+        screened_out = {sub_of(p).lower() for p, kept in zip(posts, keep, strict=True) if not kept}
+        posts = [p for p, kept in zip(posts, keep, strict=True) if kept]
+
     # Group by the subreddit each entry names, in the requested order. Nothing
     # is dropped: an unlabelled post from a one-subreddit request belongs to it,
     # and any other name gets its own block.
     by_sub = {s.lower(): (s, []) for s in subreddits}
     for p in posts:
-        name = p.get("subreddit") or (subreddits[0] if len(subreddits) == 1 else "unknown")
-        by_sub.setdefault(name.lower(), (name, []))[1].append(p)
+        by_sub.setdefault(sub_of(p).lower(), (sub_of(p), []))[1].append(p)
 
     page_full = len(fetched) >= _FEED_PAGE
     blocks = []
     for sub, sub_posts in by_sub.values():
         if not sub_posts:
-            blocks.append(
-                f"r/{sub}: <not among the newest {_FEED_PAGE} matches across {label}>"
-                if page_full else f"r/{sub}: <no posts found mentioning {ticker.upper()}>"
-            )
+            if sub.lower() in screened_out:
+                blocks.append(f"r/{sub}: <no posts about {ticker.upper()} after screening>")
+            else:
+                blocks.append(
+                    f"r/{sub}: <not among the newest {_FEED_PAGE} matches across {label}>"
+                    if page_full else f"r/{sub}: <no posts found mentioning {ticker.upper()}>"
+                )
             continue
         sub_posts = sub_posts[:limit_per_sub]  # the feed is newest-first
         lines = [f"r/{sub} — {len(sub_posts)} recent posts mentioning {ticker.upper()}:"]
@@ -301,4 +319,4 @@ def fetch_reddit_posts(
                 + (f"\n    body excerpt: {selftext}" if selftext else "")
             )
         blocks.append("\n".join(lines))
-    return "\n\n".join(blocks)
+    return "\n\n".join(([note] if note else []) + blocks)

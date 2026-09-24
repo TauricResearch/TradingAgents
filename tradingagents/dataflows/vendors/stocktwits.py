@@ -71,6 +71,7 @@ def fetch_stocktwits_messages(
     timeout: float = 10.0,
     start_date: str | None = None,
     end_date: str | None = None,
+    screen=None,
 ) -> str:
     """Fetch recent StockTwits messages for ``ticker`` and return them as a
     formatted plaintext block ready for prompt injection.
@@ -79,6 +80,9 @@ def fetch_stocktwits_messages(
     to that window, so a historical run never sees today's chatter (#1220). The
     public stream only serves recent messages, so a window it cannot reach is
     reported as unavailable rather than as silence.
+
+    ``screen``, when given, takes the message bodies and returns a keep flag per
+    message and a note line that heads the block.
 
     Returns a placeholder string when the endpoint is unreachable, the
     symbol has no messages, or the response shape is unexpected — the
@@ -108,6 +112,14 @@ def fetch_stocktwits_messages(
                 f"{start_date}..{end_date}>"
             )
         return f"<no StockTwits messages found for ${ticker.upper()}>"
+
+    note = ""
+    if screen:
+        keep, note = screen([m.get("body") or "" for m in messages])
+        screened = len(messages)
+        messages = [m for m, kept in zip(messages, keep, strict=True) if kept]
+        if not messages:
+            return f"{note}\n\n<none of the {screened} StockTwits messages is about ${ticker.upper()}>"
 
     lines = []
     bullish = bearish = unlabeled = 0
@@ -141,4 +153,4 @@ def fetch_stocktwits_messages(
         f"Unlabeled: {unlabeled} · "
         f"Total: {total} most-recent messages"
     )
-    return summary + "\n\n" + "\n".join(lines)
+    return (f"{note}\n\n" if note else "") + summary + "\n\n" + "\n".join(lines)

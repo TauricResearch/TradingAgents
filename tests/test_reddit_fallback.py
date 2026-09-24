@@ -271,3 +271,43 @@ def test_empty_subreddit_on_a_full_page_is_not_called_empty():
         out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
     assert "r/b: <no posts found" not in out
     assert f"newest {reddit._FEED_PAGE}" in out
+
+
+def _screen_out(*dropped):
+    """A screen that drops posts whose text starts with one of ``dropped``."""
+    def screen(texts):
+        return [not t.startswith(dropped) for t in texts], "Screened: note"
+    return screen
+
+
+@pytest.mark.unit
+def test_screened_out_posts_free_their_subreddit_slots():
+    posts = [{"title": t, "created_utc": None, "selftext": "", "subreddit": "a"}
+             for t in ("SPAM1", "SPAM2", "A1", "A2")]
+    with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
+        out = reddit.fetch_reddit_posts("NVDA", subreddits=("a",), limit_per_sub=2,
+                                        screen=_screen_out("SPAM"))
+    assert out.startswith("Screened: note")
+    assert "A1" in out and "A2" in out and "SPAM" not in out
+
+
+@pytest.mark.unit
+def test_a_subreddit_emptied_by_screening_is_not_called_empty():
+    posts = [{"title": "SPAM", "created_utc": None, "selftext": "", "subreddit": "b"},
+             {"title": "A1", "created_utc": None, "selftext": "", "subreddit": "a"}]
+    with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
+        out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"), screen=_screen_out("SPAM"))
+    assert "r/b: <no posts about NVDA after screening>" in out
+
+
+@pytest.mark.unit
+def test_an_unavailable_screen_keeps_every_post_and_says_so():
+    posts = [{"title": "A1", "created_utc": None, "selftext": "", "subreddit": "a"}]
+
+    def unavailable(texts):
+        return [True] * len(texts), "<Jev screening unavailable (HTTP 529); posts are unscreened>"
+
+    with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
+        screened = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"), screen=unavailable)
+        plain = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
+    assert screened == "<Jev screening unavailable (HTTP 529); posts are unscreened>\n\n" + plain
