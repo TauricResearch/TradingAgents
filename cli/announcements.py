@@ -1,4 +1,5 @@
 import getpass
+import sys
 
 import requests
 from rich.console import Console
@@ -46,7 +47,7 @@ def display_announcements(console: Console, data: dict) -> None:
     )
     console.print(panel)
 
-    if require_attention:
+    if require_attention and sys.stdin.isatty():
         getpass.getpass("Press Enter to continue...")
     else:
         console.print()

@@ -47,8 +47,23 @@ def analyze(
         help="JSON file with current holdings and cash, so the trader, risk and "
         "portfolio agents size against your actual position.",
     ),
+    ticker: str = typer.Option(None, "--ticker", help="Ticker to analyze, e.g. NVDA or 0700.HK; skips the prompt"),
+    date: str = typer.Option(None, "--date", help="Analysis date, YYYY-MM-DD; skips the prompt"),
+    analysts: str = typer.Option(
+        None, "--analysts", help="Comma-separated analysts, e.g. market,news; skips the prompt"
+    ),
+    save: bool | None = typer.Option(
+        None, "--save/--no-save", help="Save the report under results_dir without asking"
+    ),
+    show: bool | None = typer.Option(
+        None, "--show/--no-show", help="Show the full report at the end without asking"
+    ),
 ):
-    """Run an analysis. This is what a bare `tradingagents` does."""
+    """Run an analysis. This is what a bare `tradingagents` does.
+
+    Flags answer their questions; with provider, models, depth and language also
+    set through TRADINGAGENTS_* variables, the run asks nothing.
+    """
     if ctx.invoked_subcommand is not None:
         return
     if clear_checkpoints:
@@ -64,7 +79,8 @@ def analyze(
             raise typer.Exit(code=1) from None
 
     try:
-        run_analysis(checkpoint=checkpoint, portfolio=portfolio_context)
+        flags = {"ticker": ticker, "date": date, "analysts": analysts, "save": save, "show": show}
+        run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags)
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit

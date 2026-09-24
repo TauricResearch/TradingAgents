@@ -151,7 +151,7 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
     monkeypatch.setattr(m.console, "print", lambda *a, **k: printed.append(" ".join(str(x) for x in a)))
     monkeypatch.setattr(cli_run, "display_complete_report", lambda *a, **k: None)
     monkeypatch.setattr(m.typer, "prompt", lambda *a, **k: "N")
-    monkeypatch.setattr(cli_run, "get_user_selections", lambda: {
+    monkeypatch.setattr(cli_run, "get_user_selections", lambda flags=None: {
         "ticker": "NVDA", "analysis_date": "2026-01-10",
         "analysts": [AnalystType.MARKET], "asset_type": "stock",
     })

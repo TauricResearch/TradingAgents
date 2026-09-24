@@ -147,7 +147,7 @@ def _run_cli(monkeypatch, tmp_path, fake):
     monkeypatch.setattr(cli_run, "create_layout", lambda: None)
     monkeypatch.setattr(cli_run, "update_display", lambda *a, **k: None)
     monkeypatch.setattr(cli_run, "Live", _NullLive)
-    monkeypatch.setattr(cli_run, "get_user_selections", lambda: {
+    monkeypatch.setattr(cli_run, "get_user_selections", lambda flags=None: {
         "ticker": "NVDA", "analysis_date": "2026-01-10",
         "analysts": [AnalystType.MARKET], "asset_type": "stock",
     })

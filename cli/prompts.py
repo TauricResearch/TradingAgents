@@ -1,7 +1,10 @@
+import datetime
 import os
+import sys
 from pathlib import Path
 
 import questionary
+import typer
 from dotenv import find_dotenv, set_key
 
 from cli.display import console
@@ -58,6 +61,41 @@ def get_ticker() -> str:
         exit(1)
 
     return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
+
+
+def parse_ticker(value: str) -> str:
+    """A ticker given on the command line, canonical; empty or malformed is refused."""
+    if not value.strip() or not is_valid_ticker_input(value):
+        raise ValueError(f"not a ticker symbol: {value!r} (e.g. {TICKER_INPUT_EXAMPLES})")
+    return normalize_ticker_symbol(value)
+
+
+def parse_analysis_date(value: str) -> str:
+    """An analysis date as YYYY-MM-DD, today or earlier."""
+    try:
+        day = datetime.datetime.strptime(value.strip(), "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError(f"not a date: {value!r}; use YYYY-MM-DD") from None
+    if day > datetime.date.today():
+        raise ValueError(f"{value} is in the future")
+    return day.isoformat()
+
+
+def parse_analysts(value: str, asset_type: AssetType) -> list[AnalystType]:
+    """Comma-separated analyst names, in the canonical order, checked against the asset."""
+    # "sentiment" is the name users see; the analyst's key is "social".
+    names = [{"sentiment": "social"}.get(n, n) for n in (n.strip().lower() for n in value.split(",")) if n]
+    if not names:
+        raise ValueError("name at least one analyst")
+    known = {a.value: a for a in AnalystType}
+    unknown = [n for n in names if n not in known]
+    if unknown:
+        raise ValueError(f"unknown analyst {', '.join(unknown)}; choose from {', '.join(known)}")
+    available = filter_analysts_for_asset_type(list(known.values()), asset_type)
+    unavailable = [n for n in names if known[n] not in available]
+    if unavailable:
+        raise ValueError(f"{', '.join(unavailable)} is not available for {asset_type.value}")
+    return [a for a in available if a.value in names]
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
@@ -610,6 +648,10 @@ def ensure_api_key(provider: str) -> str | None:
     existing = os.environ.get(env_var)
     if existing:
         return existing
+
+    if not sys.stdin.isatty():
+        console.print(f"[red]{env_var} is not set; there is no terminal to ask for it.[/red]")
+        raise typer.Exit(code=1)
 
     console.print(
         f"\n[yellow]{env_var} is not set in your environment.[/yellow]"

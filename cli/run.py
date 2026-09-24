@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import sys
 import time
 from functools import wraps
 from pathlib import Path
@@ -21,7 +22,7 @@ from cli.display import (
     update_display,
     update_research_team_status,
 )
-from cli.selections import get_user_selections
+from cli.selections import get_user_selections, unattended_gaps
 from cli.stats_handler import StatsCallbackHandler
 from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.dataflows.symbols import safe_ticker_component
@@ -93,9 +94,19 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None, portfolio=None):
-    # First get all user selections
-    selections = get_user_selections()
+def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
+    flags = flags or {}
+    # With no terminal nothing can answer a prompt: name every question still
+    # open before any model is called, rather than stopping at the first one.
+    if not (sys.stdin and sys.stdin.isatty()):
+        gaps = unattended_gaps(flags)
+        if gaps:
+            console.print("[red]No terminal to answer the setup questions. Set:[/red]")
+            for gap in gaps:
+                console.print(f"  {gap}")
+            raise typer.Exit(code=1)
+
+    selections = get_user_selections(flags)
 
     config = _build_run_config(selections, checkpoint)
 
@@ -366,29 +377,35 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    # Prompt to save report
-    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
-    if save_choice in ("Y", "YES", ""):
+    _offer_reports(final_state, graph, config, selections["ticker"],
+                   save=flags.get("save"), show=flags.get("show"))
+
+
+def _offer_reports(final_state, graph, config, ticker, save=None, show=None):
+    """Save the report tree and show it; ``save``/``show`` answer the questions when given."""
+    asked = save is None
+    if asked:
+        save = typer.prompt("Save report?", default="Y").strip().upper() in ("Y", "YES", "")
+    if save:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         # Under results_dir, not the working directory: in Docker the working
         # directory is inside the container and the report goes with it, while
         # results_dir is the mounted volume the rest of the run already writes to.
-        default_path = (Path(config["results_dir"]) / "reports"
-                        / f"{safe_ticker_component(selections['ticker'])}_{timestamp}")
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
-        save_path = Path(save_path_str)
+        save_path = (Path(config["results_dir"]) / "reports"
+                     / f"{safe_ticker_component(ticker)}_{timestamp}")
+        if asked:   # someone at the prompt may pick another folder
+            save_path = Path(typer.prompt(
+                "Save path (press Enter for default)", default=str(save_path)
+            ).strip())
         try:
-            report_file = write_report_tree(final_state, selections["ticker"], save_path,
+            report_file = write_report_tree(final_state, ticker, save_path,
                                             settings=graph.run_settings())
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
-    # Prompt to display full report
-    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
-    if display_choice in ("Y", "YES", ""):
+    if show is None:
+        show = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper() in ("Y", "YES", "")
+    if show:
         display_complete_report(final_state)
