@@ -76,10 +76,6 @@ class _FakeGraph:
         self.calls.append(("create_run_state", ticker, trade_date))
         return {"messages": [], "company_of_interest": ticker}
 
-    def process_signal(self, text):
-        from tradingagents.agents.rating import parse_rating
-        return parse_rating(text)
-
     def record_decision(self, ticker, trade_date, final_state):
         self.calls.append(("record_decision", ticker, trade_date, final_state.get("final_trade_decision")))
 
@@ -101,7 +97,7 @@ class _FakeGraph:
 
     def stream(self, graph_input, **kwargs):
         yield {"messages": [], "market_report": "M"}
-        yield {"messages": [], "final_trade_decision": "Rating: Buy\n\nBuy NVDA."}
+        yield {"messages": [], "final_trade_decision": "Rating: Buy\n\nBuy NVDA.", "final_rating": "Buy"}
 
 
 class _NullLive:

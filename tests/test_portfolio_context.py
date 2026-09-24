@@ -174,9 +174,8 @@ def test_completed_run_clears_the_checkpoint_it_wrote(tmp_path, monkeypatch):
     graph.debug = False
     graph._resuming = False
     graph.propagator.get_graph_args = lambda callbacks=None: {}
-    graph.process_signal = lambda d: "Hold"
     graph._log_state = lambda *a, **k: None
-    graph.graph = type("G", (), {"invoke": lambda self, i, **k: {"final_trade_decision": "Rating: Hold\n\nx"}})()
+    graph.graph = type("G", (), {"invoke": lambda self, i, **k: {"final_trade_decision": "Rating: Hold\n\nx", "final_rating": "Hold"}})()
     book = PortfolioContext.model_validate(HOLDING)
 
     written = graph._run_signature("stock", book)  # what begin_checkpoint keys on

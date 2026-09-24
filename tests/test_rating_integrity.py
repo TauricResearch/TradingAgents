@@ -121,10 +121,6 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
         def record_decision(self, *a, **k):
             pass
 
-        def process_signal(self, text):
-            from tradingagents.agents.rating import parse_rating
-            return parse_rating(text)
-
         def get_graph_args(self, callbacks=None):
             return {}
 
@@ -141,7 +137,7 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
             pass
 
         def stream(self, *a, **k):
-            yield {"messages": [], "final_trade_decision": REFUSAL}
+            yield {"messages": [], "final_trade_decision": REFUSAL, "final_rating": RATING_REVIEW}
 
     fake = _Graph()
     fake.graph = fake
@@ -210,3 +206,15 @@ def test_a_decision_prompt_states_the_shape_of_its_answer(module, factory, must_
     assert "## Output" in prompt, "no output-format section in the prompt"
     section = prompt.split("## Output", 1)[1]
     assert f"**{must_name}**" in section, section[:300]
+
+
+@pytest.mark.unit
+def test_a_state_without_the_typed_rating_reads_it_from_the_decision():
+    """A run finished by an older version and resumed from its checkpoint has
+    no final_rating; every reader falls back the same way instead of one
+    raising and another reporting REVIEW."""
+    from tradingagents.agents.rating import run_rating
+
+    assert run_rating({"final_rating": "Hold", "final_trade_decision": "**Rating**: Buy"}) == "Hold"
+    assert run_rating({"final_trade_decision": "**Rating**: Sell\n\nExit."}) == "Sell"
+    assert run_rating({}) == RATING_REVIEW

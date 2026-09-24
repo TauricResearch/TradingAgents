@@ -898,6 +898,7 @@ class TestLegacyRemoval:
 
         fake_state = {
             "final_trade_decision": "Rating: Buy\nBuy NVDA.",
+            "final_rating": "Buy",
             "company_of_interest": "NVDA",
             "trade_date": "2026-01-10",
             "market_report": "",
@@ -924,7 +925,6 @@ class TestLegacyRemoval:
         mock_graph.graph.invoke.return_value = fake_state
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
-        mock_graph.process_signal.return_value = "Buy"
         # Bind the real _run_graph so propagate's call to self._run_graph executes
         # the actual write path instead of the auto-MagicMock.
         mock_graph._run_graph = functools.partial(

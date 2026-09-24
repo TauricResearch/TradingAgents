@@ -23,7 +23,7 @@ from cli.display import (
 )
 from cli.selections import get_user_selections
 from cli.stats_handler import StatsCallbackHandler
-from tradingagents.agents.rating import is_review
+from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
@@ -358,7 +358,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
 
     # A decision nobody can read is not a position. Say so here rather than
     # leaving the run to look like a normal result.
-    if is_review(graph.process_signal(final_state.get("final_trade_decision", ""))):
+    if is_review(run_rating(final_state)):
         console.print(
             "[yellow]No rating could be read from the final decision, so this run "
             "is recorded for review rather than as a position. Re-run, or read the "

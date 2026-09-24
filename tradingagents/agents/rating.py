@@ -2,8 +2,7 @@
 
 The same five-tier scale (Buy, Overweight, Hold, Underweight, Sell) is used by:
 - The Research Manager (investment plan recommendation)
-- The Portfolio Manager (final position decision)
-- The signal processor (rating extracted for downstream consumers)
+- The Portfolio Manager (final position decision; its free-text fallback is read here)
 - The memory log (rating tag stored alongside each decision entry)
 
 Centralising it here avoids drift between those call sites.
@@ -86,6 +85,15 @@ def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
     """
     rating = extract_rating(text)
     return rating if rating is not None else default
+
+
+def run_rating(final_state: dict) -> str:
+    """A finished run's rating: the Portfolio Manager's own, else read from its decision.
+
+    The fallback serves a state without ``final_rating``, such as a run an older
+    version completed and a checkpoint hands back unchanged.
+    """
+    return final_state.get("final_rating") or parse_rating(final_state.get("final_trade_decision", ""))
 
 
 def is_review(signal: str) -> bool:

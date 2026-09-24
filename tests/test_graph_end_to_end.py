@@ -34,8 +34,10 @@ STRUCTURED = {
     schemas.ResearchPlan: schemas.ResearchPlan(
         recommendation=schemas.PortfolioRating.OVERWEIGHT, rationale="r", strategic_actions="a"),
     schemas.TraderProposal: schemas.TraderProposal(action=schemas.TraderAction.BUY, reasoning="r"),
+    # The thesis quotes another party's rating; the decision is still the PM's own.
     schemas.PortfolioDecision: schemas.PortfolioDecision(
-        rating=schemas.PortfolioRating.OVERWEIGHT, executive_summary="s", investment_thesis="t"),
+        rating=schemas.PortfolioRating.OVERWEIGHT, executive_summary="s",
+        investment_thesis="Street consensus rating: Buy (28 of 35 analysts)."),
     schemas.SentimentReport: schemas.SentimentReport(
         overall_band=schemas.SentimentBand.NEUTRAL, overall_score=5.0, confidence="low", narrative="n"),
 }
@@ -126,7 +128,7 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
 
     state, signal = graph.propagate("NVDA", TRADE_DATE)
 
-    assert signal == "Overweight"
+    assert signal == state["final_rating"] == "Overweight"
     for key in ("market_report", "sentiment_report", "news_report", "fundamentals_report",
                 "investment_plan", "trader_investment_plan", "final_trade_decision"):
         assert state[key].strip(), key

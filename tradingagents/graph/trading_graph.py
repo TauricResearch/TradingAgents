@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
-from tradingagents.agents.rating import parse_rating
+from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
@@ -295,7 +295,8 @@ class TradingAgentsGraph:
             logger.warning("No final decision for %s on %s; nothing logged", company_name, trade_date)
             return
         self.memory_log.store_decision(
-            ticker=company_name, trade_date=trade_date, final_trade_decision=decision
+            ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+            rating=run_rating(final_state),
         )
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
@@ -341,7 +342,7 @@ class TradingAgentsGraph:
         # Clear checkpoint on successful completion to avoid stale state.
         self.clear_checkpoint_on_success(company_name, trade_date, asset_type, portfolio)
 
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        return final_state, run_rating(final_state)
 
     def _log_state(self, trade_date, final_state):
         """Write a run's final state to JSON under the run's own ticker."""
@@ -373,6 +374,7 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "final_rating": run_rating(final_state),
         }
 
         # A ticker that would escape the results directory is rejected.
@@ -384,7 +386,3 @@ class TradingAgentsGraph:
         with open(log_path, "w", encoding="utf-8") as f:
             # Reports can be in any language and this file is read by a person.
             json.dump(entry, f, indent=4, ensure_ascii=False)
-
-    def process_signal(self, full_signal):
-        """The decision's 5-tier rating, or REVIEW when it has none."""
-        return parse_rating(full_signal)
