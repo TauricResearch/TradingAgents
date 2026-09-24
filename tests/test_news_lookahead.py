@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-import tradingagents.dataflows.yfinance_news as ynews
+import tradingagents.dataflows.vendors.yahoo.news as ynews
 from tradingagents.dataflows.date_window import in_window
 
 
@@ -106,7 +106,6 @@ def test_global_news_empty_after_filter_is_informative(monkeypatch):
     assert "unavailable" in out and "not an absence" in out
 
 
-
 def _ticker_with(articles, monkeypatch):
     class FakeTicker:
         def __init__(self, *a, **k):
@@ -128,7 +127,7 @@ def test_ticker_news_window_before_feed_coverage_is_unavailable(monkeypatch):
     out = ynews.get_news_yfinance("AAPL", "2026-08-07", "2026-08-14")
     assert "RECENT" not in out
     assert "unavailable" in out and "not an absence" in out
-    assert "2026-09-10" in out  # says how far back the feed actually reaches
+    assert "2026-09-10" not in out  # an article after the window
 
 
 @pytest.mark.unit
@@ -160,7 +159,6 @@ def test_coverage_gap_boundaries(dates, expect_gap):
     assert (out is not None) is expect_gap
     if expect_gap:
         assert "unavailable for 2026-05-01..2026-05-08" in out and "not an absence" in out
-
 
 
 @pytest.mark.unit

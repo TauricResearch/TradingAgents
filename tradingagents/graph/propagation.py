@@ -1,11 +1,6 @@
-# TradingAgents/graph/propagation.py
-
 from typing import Any
 
-from tradingagents.agents.utils.agent_states import (
-    InvestDebateState,
-    RiskDebateState,
-)
+from tradingagents.agents.state import InvestDebateState, RiskDebateState
 
 
 class Propagator:

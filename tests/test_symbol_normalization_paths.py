@@ -7,10 +7,10 @@ hit the right instrument instead of failing/mismatching.
 """
 import pandas as pd
 
-import tradingagents.agents.utils.agent_utils as au
-import tradingagents.dataflows.yfinance_news as ynews
-import tradingagents.graph.trading_graph as tg
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+import tradingagents.agents.context as au
+import tradingagents.dataflows.vendors.yahoo.market as yahoo_market
+import tradingagents.dataflows.vendors.yahoo.news as ynews
+from tradingagents.graph import settlement
 
 
 def test_identity_lookup_normalizes_symbol(monkeypatch):
@@ -24,7 +24,7 @@ def test_identity_lookup_normalizes_symbol(monkeypatch):
         def info(self):
             return {"longName": "Gold Futures", "quoteType": "FUTURE"}
 
-    monkeypatch.setattr(au.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_market.yf, "Ticker", FakeTicker)
     au.resolve_instrument_identity.cache_clear()
 
     identity = au.resolve_instrument_identity("XAUUSD")
@@ -45,11 +45,10 @@ def test_fetch_returns_normalizes_symbol(monkeypatch):
             idx = pd.date_range(start="2025-01-02", periods=len(prices), freq="D")
             return pd.DataFrame({"Close": prices}, index=idx)
 
-    monkeypatch.setattr(tg.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_market.yf, "Ticker", FakeTicker)
 
-    # _fetch_returns does not use ``self``; call unbound to avoid building the graph.
-    raw, alpha, days, resolved = TradingAgentsGraph._fetch_returns(
-        None, "XAUUSD", "2025-01-02", holding_days=5, benchmark="SPY"
+    raw, alpha, days, resolved = settlement.fetch_returns(
+        "XAUUSD", "2025-01-02", holding_days=5, benchmark="SPY"
     )
 
     assert queried[0] == "GC=F"  # stock symbol normalized (#984)

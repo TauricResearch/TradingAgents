@@ -96,16 +96,16 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
-            ("GPT-5.6 Luna - Fast, cost-efficient frontier", "gpt-5.6-luna"),
+            ("GPT-6 Luna - Fast, high-volume and cost-efficient", "gpt-6-luna"),
+            ("GPT-5.6 Luna - Previous-gen fast tier", "gpt-5.6-luna"),
             ("GPT-5.6 Terra - Balances intelligence and cost", "gpt-5.6-terra"),
-            ("GPT-5.4 Mini - Fast, strong coding and tool use", "gpt-5.4-mini"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("GPT-6 Astra - Latest frontier reasoning", "gpt-6-astra"),
-            ("GPT-5.6 - Frontier reasoning (Sol)", "gpt-5.6"),
-            ("GPT-5.6 Terra - Balances intelligence and cost", "gpt-5.6-terra"),
-            ("GPT-5.5 - Previous-gen frontier, 1M context", "gpt-5.5"),
+            ("GPT-6 Sol - Complex reasoning and analysis", "gpt-6-sol"),
+            ("GPT-6 Astra - Hardest multi-step reasoning", "gpt-6-astra"),
+            ("GPT-5.6 - Previous-gen reasoning (Sol)", "gpt-5.6"),
+            ("GPT-5.5 - Earlier frontier, 1M context", "gpt-5.5"),
             ("Custom model ID", "custom"),
         ],
     },
@@ -116,7 +116,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("Claude Opus 5 - Frontier agentic and enterprise work", "claude-opus-5"),
+            ("Claude Opus 5.5 - Frontier agentic and enterprise work", "claude-opus-5-5"),
             ("Claude Fable 5.1 - Most capable, demanding long-horizon reasoning", "claude-fable-5-1"),
             ("Claude Sonnet 5 - Near-frontier intelligence at Sonnet cost", "claude-sonnet-5"),
             ("Custom model ID", "custom"),
@@ -182,7 +182,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
     # apply whether the user runs ollama-serve on localhost or against a
     # remote host. The actual resolved endpoint is surfaced separately by
-    # cli.utils.confirm_ollama_endpoint() right after provider selection.
+    # cli.prompts.confirm_ollama_endpoint() right after provider selection.
     # "Custom model ID" lets users pick any model they have pulled via
     # `ollama pull` beyond the three suggested defaults.
     "ollama": {
@@ -233,12 +233,12 @@ def get_model_options(provider: str, mode: str) -> list[ModelOption]:
 # menu, and the explicit ID of a model listed under a shorter name. Known to
 # validation so a config naming one runs without an unknown-model warning.
 LEGACY_MODELS: dict[str, list[str]] = {
-    "openai": ["gpt-5.4", "gpt-5.6-sol"],
+    "openai": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol"],
     "xai": ["grok-4.20-0309-reasoning", "grok-4.20-0309-non-reasoning",
             "grok-4.20-multi-agent-0309"],
     "deepseek": ["deepseek-v4-flash"],
     "qwen": ["qwen3.7-max", "qwen3.7-plus", "qwen3.6-max", "qwen3.6-plus"],
-    "anthropic": ["claude-fable-5", "claude-opus-4-8", "claude-opus-4-7"],
+    "anthropic": ["claude-opus-5", "claude-fable-5", "claude-opus-4-8", "claude-opus-4-7"],
 }
 
 

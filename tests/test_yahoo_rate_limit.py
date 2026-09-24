@@ -11,17 +11,18 @@ import yfinance as yf
 from yfinance.data import YfData
 from yfinance.exceptions import YFRateLimitError
 
-from tradingagents.agents.utils.core_stock_tools import get_stock_data
-from tradingagents.agents.utils.market_data_validation_tools import get_verified_market_snapshot
-from tradingagents.agents.utils.news_data_tools import (
+from tradingagents.agents.tools import (
     get_global_news,
+    get_indicators,
     get_insider_transactions,
     get_news,
+    get_stock_data,
+    get_verified_market_snapshot,
 )
-from tradingagents.agents.utils.technical_indicators_tools import get_indicators
-from tradingagents.dataflows import interface, stockstats_utils
+from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+from tradingagents.dataflows.vendors.yahoo import fundamentals, ohlcv
 
 DAY = "2026-09-18"
 
@@ -33,8 +34,9 @@ def _rate_limited(*args, **kwargs):
 @pytest.fixture
 def yahoo(monkeypatch, tmp_path):
     set_config({"data_cache_dir": str(tmp_path)})
-    monkeypatch.setattr(stockstats_utils.time, "sleep", lambda seconds: None)
-    monkeypatch.setattr(stockstats_utils, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(ohlcv.time, "sleep", lambda seconds: None)
+    for module in (ohlcv, fundamentals):
+        monkeypatch.setattr(module, "vendor_reachable", lambda url: True)
     return monkeypatch
 
 
@@ -75,7 +77,7 @@ def test_the_indicator_path_retries_a_rate_limit(yahoo):
 
     yahoo.setattr(yf.Ticker, "history", history)
 
-    assert stockstats_utils.load_ohlcv("AAPL", DAY)["Close"].tolist() == [1.0]
+    assert ohlcv.load_ohlcv("AAPL", DAY)["Close"].tolist() == [1.0]
 
 
 @pytest.mark.unit
@@ -83,7 +85,7 @@ def test_yfinance_raises_the_rate_limit_from_history(yahoo):
     yahoo.setattr(YfData, "_make_request", _rate_limited)
 
     with pytest.raises(VendorRateLimitError, match="rate limited"):
-        stockstats_utils.load_ohlcv("AAPL", DAY)
+        ohlcv.load_ohlcv("AAPL", DAY)
 
 
 @pytest.mark.unit
@@ -104,7 +106,7 @@ def test_fundamentals_ask_a_new_ticker_after_a_rate_limit(yahoo):
 
     yahoo.setattr(yf, "Ticker", Ticker)
 
-    out = interface.route_to_vendor("get_fundamentals", "AAPL", None)
+    out = router.route_to_vendor("get_fundamentals", "AAPL", None)
 
     assert out.startswith("DATA_UNAVAILABLE"), out
 
@@ -119,10 +121,10 @@ def test_another_price_fetch_error_still_tells_an_outage_from_an_unknown_symbol(
 
     yahoo.setattr(yf.Ticker, "history", refused)
 
-    yahoo.setattr(stockstats_utils, "vendor_reachable", lambda url: False)
+    yahoo.setattr(ohlcv, "vendor_reachable", lambda url: False)
     with pytest.raises(VendorRateLimitError, match="unreachable"):
-        stockstats_utils.load_ohlcv("AAPL", DAY)
+        ohlcv.load_ohlcv("AAPL", DAY)
 
-    yahoo.setattr(stockstats_utils, "vendor_reachable", lambda url: True)
+    yahoo.setattr(ohlcv, "vendor_reachable", lambda url: True)
     with pytest.raises(NoMarketDataError):
-        stockstats_utils.load_ohlcv("AAPL", DAY)
+        ohlcv.load_ohlcv("AAPL", DAY)
