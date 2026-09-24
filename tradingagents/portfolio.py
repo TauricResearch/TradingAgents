@@ -17,6 +17,9 @@ import hashlib
 import json
 from pathlib import Path
 
+from datetime import date
+from typing import Literal
+
 from pydantic import BaseModel, Field, ValidationError
 
 
@@ -26,13 +29,39 @@ class Position(BaseModel):
     average_price: float | None = Field(default=None, description="Average entry price per unit")
 
 
+class OptionPosition(BaseModel):
+    underlying: str = Field(description="Underlying symbol, e.g. SPY")
+    option_type: Literal["call", "put"]
+    strike: float
+    expiry: date = Field(description="Expiration date, YYYY-MM-DD")
+    quantity: float = Field(description="Signed contracts held; negative is written")
+    average_price: float | None = Field(default=None, description="Average premium paid per share")
+    multiplier: float = Field(default=100, description="Shares per contract")
+    mark: float | None = Field(default=None, description="Broker's price per share on mark_date")
+    mark_date: date | None = Field(default=None, description="Date the mark was taken")
+
+    def label(self) -> str:
+        return (f"{self.underlying.upper()} {self.expiry.isoformat()} "
+                f"{self.strike:g} {self.option_type[0].upper()}")
+
+
 class PortfolioContext(BaseModel):
     cash: float | None = Field(default=None, description="Free cash available")
     currency: str | None = Field(default=None, description="Currency label for cash and prices")
     positions: list[Position] = Field(default_factory=list)
+    options: list[OptionPosition] = Field(default_factory=list)
 
     def position_in(self, ticker: str) -> Position | None:
         return next((p for p in self.positions if p.ticker.upper() == ticker.strip().upper()), None)
+
+    def options_on(self, ticker: str) -> list[OptionPosition]:
+        return [o for o in self.options if o.underlying.upper() == ticker.strip().upper()]
+
+    def underlyings(self) -> list[str]:
+        """Every instrument the book is exposed to, shares first, in book order."""
+        names = [p.ticker.strip().upper() for p in self.positions]
+        names += [o.underlying.strip().upper() for o in self.options]
+        return list(dict.fromkeys(names))
 
     def render(self, ticker: str) -> str:
         """The portfolio block for the decision agents, led by the analyzed instrument."""
@@ -45,9 +74,16 @@ class PortfolioContext(BaseModel):
             lines = [f"- Current position in {symbol}: {held.quantity:,.4g} units{price}"]
         if self.cash is not None:
             lines.append(f"- Cash available: {self.cash:,.2f}{' ' + self.currency if self.currency else ''}")
+        for o in self.options_on(symbol):
+            paid = f", paid {o.average_price:,.2f}" if o.average_price is not None else ""
+            lines.append(f"- Option on {symbol}: {o.quantity:,.4g} x {o.label()}"
+                         f" ({o.multiplier:g} shares each{paid})")
         others = [p for p in self.positions if p is not held]
         if others:
             lines.append("- Other positions: " + ", ".join(f"{p.ticker.upper()} {p.quantity:,.4g}" for p in others))
+        other_options = [o for o in self.options if o.underlying.upper() != symbol]
+        if other_options:
+            lines.append("- Other options: " + ", ".join(f"{o.quantity:,.4g} x {o.label()}" for o in other_options))
         return "Portfolio at the analysis date:\n" + "\n".join(lines)
 
     def fingerprint(self) -> str:

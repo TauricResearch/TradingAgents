@@ -126,5 +126,47 @@ def backtest(
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
 
 
+@app.command()
+def review(
+    portfolio: str = typer.Argument(..., help="JSON file with holdings and cash"),
+    date: str = typer.Option(None, "--date", help="Review date, YYYY-MM-DD; omit for today"),
+    analysts: str = typer.Option(
+        None, "--analysts", help="Comma-separated analysts to run per holding; omit for all four"
+    ),
+    metrics_only: bool = typer.Option(
+        False, "--metrics-only",
+        help="Skip the per-holding pipeline runs: metrics and one reviewer call only",
+    ),
+    lookback: int = typer.Option(252, "--lookback", help="Trading days of history for the risk metrics"),
+    run_id: str = typer.Option(None, "--run-id", help="Name of the output folder"),
+):
+    """Review the whole portfolio: risk metrics, per-holding decisions, and a book-level plan."""
+    from tradingagents.dataflows.date_window import get_current_date
+    from tradingagents.portfolio_review import review_portfolio
+
+    try:
+        book = load_portfolio(portfolio)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+    kwargs = {"analyze_holdings": not metrics_only, "lookback_days": lookback, "run_id": run_id}
+    if analysts:
+        kwargs["selected_analysts"] = [a.strip().lower() for a in analysts.split(",") if a.strip()]
+    if not metrics_only:
+        console.print(f"Running the full pipeline on {len(book.positions)} holding(s); "
+                      "this makes many LLM calls per holding.")
+    try:
+        result = review_portfolio(book, date or get_current_date(), DEFAULT_CONFIG, **kwargs)
+    except Exception as exc:  # a bad date, empty book or missing key is a setup error
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+    from rich.markdown import Markdown
+
+    console.print(Markdown(result.render()))
+    console.print(f"\nReview saved to {result.report_path}")
+
+
 if __name__ == "__main__":
     app()

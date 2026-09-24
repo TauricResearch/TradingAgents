@@ -377,3 +377,75 @@ def render_sentiment_report(report: SentimentReport) -> str:
         "",
         report.narrative,
     ])
+
+
+# ---------------------------------------------------------------------------
+# Portfolio Reviewer
+# ---------------------------------------------------------------------------
+
+
+class PositionAction(str, Enum):
+    """What to do with one holding, judged against the whole book."""
+
+    ADD = "Add"
+    HOLD = "Hold"
+    TRIM = "Trim"
+    EXIT = "Exit"
+
+
+class PositionRecommendation(BaseModel):
+    ticker: str = Field(
+        description="The holding's ticker, or an option's contract label, exactly as it appears in the book.",
+    )
+    action: PositionAction = Field(
+        description=(
+            "Add, Hold, Trim or Exit, for this holding in the context of the whole "
+            "portfolio. It may differ from the single-ticker rating when concentration, "
+            "correlation or risk budget argue for it; say why in the rationale."
+        ),
+    )
+    rationale: str = Field(
+        description="One or two sentences citing the rating and the portfolio metrics that decided it.",
+    )
+
+
+class PortfolioAssessment(BaseModel):
+    """The portfolio-level review: the whole book, not one ticker."""
+
+    overall_assessment: str = Field(
+        description=(
+            "Two to four paragraphs on the book as a whole: how it is positioned, "
+            "how much risk it carries relative to the benchmark, and whether the "
+            "per-ticker views pull in a consistent direction."
+        ),
+    )
+    key_risks: list[str] = Field(
+        description=(
+            "The main portfolio-level risks, most important first: concentration, "
+            "correlated clusters, sector tilts, volatility, drawdown, idle or short cash. "
+            "Each item names the numbers behind it."
+        ),
+    )
+    position_actions: list[PositionRecommendation] = Field(
+        description="One recommendation per share holding and per option contract in the book.",
+    )
+    rebalancing_plan: str = Field(
+        description=(
+            "A concrete plan for the book: which weights move, in what direction and "
+            "roughly how far, and what the result does to concentration and risk. "
+            "State plainly when no change is warranted."
+        ),
+    )
+
+
+def render_portfolio_assessment(assessment: PortfolioAssessment) -> str:
+    """Render a PortfolioAssessment to markdown for the saved review."""
+    parts = ["### Overall Assessment", "", assessment.overall_assessment, "", "### Key Risks", ""]
+    parts.extend(f"- {risk}" for risk in assessment.key_risks)
+    parts.extend(["", "### Position Actions", "", "| Ticker | Action | Rationale |", "|---|---|---|"])
+    parts.extend(
+        f"| {p.ticker} | {p.action.value} | {p.rationale.replace('|', '/')} |"
+        for p in assessment.position_actions
+    )
+    parts.extend(["", "### Rebalancing Plan", "", assessment.rebalancing_plan])
+    return "\n".join(parts)
