@@ -221,22 +221,12 @@ def test_a_period_reported_under_two_tags_takes_the_preferred_one_not_both():
 
 
 @pytest.mark.unit
-def test_the_default_identification_tracks_the_installed_version(monkeypatch):
-    """A release should identify itself, not a version frozen in the source."""
+def test_the_default_identification_names_the_package_version(monkeypatch):
+    """SEC asks automated clients to identify themselves; a release names its own version."""
+    import tradingagents
+
     monkeypatch.delenv("SEC_EDGAR_USER_AGENT", raising=False)
-    monkeypatch.setattr(sec_edgar.metadata, "version", lambda name: "9.9.9")
-    assert sec_edgar._user_agent() == "TradingAgents/9.9.9 (contact@example.com)"
-
-
-@pytest.mark.unit
-def test_an_uninstalled_checkout_still_identifies_itself(monkeypatch):
-    monkeypatch.delenv("SEC_EDGAR_USER_AGENT", raising=False)
-
-    def _missing(name):
-        raise sec_edgar.metadata.PackageNotFoundError(name)
-
-    monkeypatch.setattr(sec_edgar.metadata, "version", _missing)
-    assert "@" in sec_edgar._user_agent()
+    assert sec_edgar._user_agent() == f"TradingAgents/{tradingagents.__version__} (contact@example.com)"
 
 
 @pytest.mark.unit

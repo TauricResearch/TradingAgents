@@ -22,11 +22,11 @@ import logging
 import os
 import time
 from datetime import date, datetime
-from importlib import metadata
 from pathlib import Path
 
 import requests
 
+from tradingagents import __version__
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
 
@@ -93,15 +93,9 @@ def _user_agent() -> str:
     so SEC can reach you about your traffic rather than the project.
     """
     configured = os.getenv("SEC_EDGAR_USER_AGENT", "").strip()
-    return configured or f"TradingAgents/{_version()} (contact@example.com)"
+    return configured or f"TradingAgents/{__version__} (contact@example.com)"
 
 
-def _version() -> str:
-    """The installed package version, so a release identifies itself correctly."""
-    try:
-        return metadata.version("tradingagents")
-    except metadata.PackageNotFoundError:
-        return "dev"
 
 
 def _fetch_json(url: str) -> dict:

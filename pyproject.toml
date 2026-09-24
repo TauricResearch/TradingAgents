@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tradingagents"
-version = "0.5.2.dev0"
+dynamic = ["version"]
 description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,6 +41,9 @@ bedrock = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+
+[tool.setuptools.dynamic]
+version = {attr = "tradingagents.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]

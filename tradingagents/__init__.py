@@ -1,3 +1,7 @@
+"""TradingAgents: multi-agent LLM financial trading framework."""
+
+__version__ = "0.5.2.dev0"
+
 from dotenv import find_dotenv, load_dotenv
 
 # Load .env at package import so DEFAULT_CONFIG's env-var overlay and every LLM
