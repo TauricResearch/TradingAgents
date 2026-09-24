@@ -199,6 +199,41 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
 
+### Run commands
+
+Run these from the repository folder with the virtual environment active, so `.env` is found and the command runs this checkout's code.
+
+| What | Command |
+|---|---|
+| Analyze one ticker (interactive) | `tradingagents` |
+| Analyze with your holdings as context | `tradingagents --portfolio my_book.json` |
+| Resume a crashed run | `tradingagents --checkpoint` |
+| Reset saved checkpoints | `tradingagents --clear-checkpoints` |
+| Backtest a ticker and date grid | `tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7` |
+| Review a whole portfolio, metrics and one LLM call | `tradingagents review my_book.json --metrics-only` |
+| Review a whole portfolio, full analysis per holding | `tradingagents review my_book.json` |
+| Review the book as it stood on a past date | `tradingagents review my_book.json --date 2026-06-30 --metrics-only` |
+| Help for any command | `tradingagents --help`, `tradingagents review --help` |
+| Run the tests | `pytest -q` |
+| Lint | `ruff check .` |
+
+Activate the environment first:
+
+```bash
+source .venv/bin/activate        # macOS / Linux
+.venv\Scripts\Activate.ps1       # Windows PowerShell
+```
+
+If a command behaves like an older version (for example, a new portfolio field is ignored), the environment holds a non-editable copy of the package. Reinstall it editable with `pip install -e .`, or `uv pip install -e .` for an environment made with uv.
+
+The provider defaults to OpenAI. To use another, set it in `.env`, for example:
+
+```bash
+TRADINGAGENTS_LLM_PROVIDER=google
+TRADINGAGENTS_DEEP_THINK_LLM=gemini-3.8-flash
+TRADINGAGENTS_QUICK_THINK_LLM=gemini-3.8-flash
+```
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
@@ -300,6 +335,8 @@ The CLI takes the same content as a JSON file: `tradingagents --portfolio my_boo
 
 An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
 
+The book can also list options (see [Reviewing a portfolio](#reviewing-a-portfolio) for the format). The agents analyzing a ticker then see the options you hold on it.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.
@@ -347,6 +384,76 @@ tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 ```
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. Your own decision log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
+
+## Reviewing a portfolio
+
+A normal run analyzes one ticker. `tradingagents review` looks at the whole book: how the positions sit together, and what to do with each one given the others.
+
+```bash
+tradingagents review my_book.json --metrics-only    # metrics and one reviewer call
+tradingagents review my_book.json                   # also the full pipeline per underlying
+```
+
+It works in three steps:
+
+1. **Metrics.** Every holding is priced as of the review date, and the review computes total value and cash, gross and net exposure, concentration (largest exposure, HHI, effective number of positions), sector weights, pairs correlated at 0.8 or more, annualized volatility, beta to the benchmark, 1-day 95% historical VaR, max drawdown and unrealized P&L. The trailing window is 252 trading days by default (`--lookback`).
+2. **Per-holding analysis** (skipped with `--metrics-only`). Each underlying goes through the full pipeline with your book as its context, and its decision is logged like any other run.
+3. **Portfolio Reviewer.** An agent reads the metrics and the per-holding ratings and returns an overall assessment, the key risks, Add / Hold / Trim / Exit for each share holding and option contract, and a rebalancing plan.
+
+The review prints to the terminal and is saved to `~/.tradingagents/logs/portfolio_review/<run-id>/portfolio_review.md`, next to each holding's full report. `--metrics-only` still needs an LLM key, for the reviewer call.
+
+| Option | Meaning |
+|---|---|
+| `--metrics-only` | Skip the per-holding pipeline runs |
+| `--date YYYY-MM-DD` | Review date; omit for today |
+| `--analysts market,news` | Analysts to run per holding; omit for all four |
+| `--lookback 126` | Trading days of history for the risk metrics |
+| `--run-id NAME` | Name of the output folder |
+
+### Portfolio file
+
+```json
+{
+  "cash": 10000,
+  "currency": "USD",
+  "positions": [
+    {"ticker": "VTI", "quantity": 751, "average_price": 369.42}
+  ],
+  "options": [
+    {
+      "underlying": "SPY",
+      "option_type": "call",
+      "strike": 750,
+      "expiry": "2027-12-17",
+      "quantity": 15,
+      "average_price": 9.87,
+      "multiplier": 100,
+      "mark": 92.125,
+      "mark_date": "2026-09-24"
+    }
+  ]
+}
+```
+
+- `positions`: `quantity` is signed units (negative is short); `average_price` is optional and enables unrealized P&L.
+- `options`: `quantity` is signed contracts (negative is written); `average_price` is the premium paid per share; `multiplier` defaults to 100.
+- `mark` and `mark_date` are optional: the broker's price per share and the day it was taken. A brokerage positions export has both.
+
+### How options are counted
+
+Each contract is looked through to its underlying at delta: 15 calls with delta 0.8 on SPY at 700 count as 15 × 100 × 0.8 × 700 = $840,000 of SPY exposure. Concentration, sector weights, volatility, beta, VaR and drawdown are all measured on this exposure per underlying, across shares and options together. The report adds an options table (price, delta, exposure, days to expiry, time decay) and an exposure-by-underlying table.
+
+- When `mark_date` is the review date, the contract is valued at its mark, and its delta is taken at the volatility the mark implies.
+- Otherwise it is modeled with Black-Scholes at the underlying's realized volatility, and the report says so. A mark from another day is never used as a price.
+- The risk-free rate is 4% by default (`config["risk_free_rate"]`).
+
+### Limits
+
+- Figures are historical, with today's exposures held fixed over the window. They describe the book; they are not forecasts.
+- Delta is a first-order view. A sharp move changes delta, so an option book loses or gains more than these figures show. Early exercise and dividends are not modeled.
+- A holding that cannot be priced is listed under "Not priced" and left out of every figure, never dropped silently.
+- Prices are in each listing's own currency. A book spanning markets is flagged, not converted.
+- Keep your real holdings file outside the repository.
 
 ## Reproducibility
 

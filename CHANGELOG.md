@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed first in their release.
 
+## [Unreleased]
+
+### Added
+
+- **Portfolio review.** `tradingagents review book.json` evaluates the whole book: total value, exposure, concentration, sector weights, correlated pairs, volatility, beta, 1-day VaR, drawdown and unrealized P&L as of the review date. It then runs the full pipeline on each underlying and has a new Portfolio Reviewer agent recommend Add / Hold / Trim / Exit per holding, with a rebalancing plan. `--metrics-only` skips the per-holding runs. Programmatic entry point: `tradingagents.portfolio_review.review_portfolio`.
+- **Options in the portfolio file.** An `options` list (underlying, type, strike, expiry, contracts, multiplier, optional broker mark). Each contract counts toward its underlying at delta. A mark dated the review day is used for value and implied volatility; otherwise the contract is modeled with Black-Scholes at realized volatility (`tradingagents.option_pricing`). The decision agents see options held on the ticker they analyze.
+- `AGENTS.md`: commands, layout, invariants and conventions for coding agents working in the repository.
+- README: a run-commands reference and a portfolio review section.
+
 ## [0.5.1] — 2026-09-24
 
 A package layout organised by what each module holds, social posts screened by
