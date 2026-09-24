@@ -1,12 +1,13 @@
-"""Shared look-ahead-safe date-window filtering for dated content.
+"""Point-in-time rules shared by every dated path: data is served as of the run's date.
 
-News, StockTwits, and Reddit all pull recent items that must be trimmed to the
-analysis window so a historical/backtest run never sees content published after
-its as-of date. Centralizing the rule keeps every source consistent (#1126,
-#1220): every timestamp is normalized to UTC, the upper bound is exclusive at
-midnight after ``end`` (so an item stamped exactly then can't leak), and an
-undated item is kept only when the window reaches the present (a live run), since
-in a backtest we can't prove it isn't future.
+- ``as_of`` / ``as_of_window`` clamp a date or window the model asks for to the
+  trade date, so no tool reaches a vendor with a later one.
+- ``in_window`` trims dated items (news, StockTwits, Reddit) to the analysis
+  window: timestamps normalized to UTC, the upper bound exclusive at midnight
+  after ``end``, and an undated item kept only when the window reaches the
+  present, since a backtest cannot prove it is not from the future (#1126, #1220).
+- ``coverage_gap`` reports a window a feed cannot reach as unavailable, not empty.
+- ``withhold_live_profile`` withholds present-day snapshots from historical runs.
 """
 
 from __future__ import annotations
