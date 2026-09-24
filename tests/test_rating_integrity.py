@@ -218,3 +218,29 @@ def test_a_state_without_the_typed_rating_reads_it_from_the_decision():
     assert run_rating({"final_rating": "Hold", "final_trade_decision": "**Rating**: Buy"}) == "Hold"
     assert run_rating({"final_trade_decision": "**Rating**: Sell\n\nExit."}) == "Sell"
     assert run_rating({}) == RATING_REVIEW
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("quoted", [
+    "Street consensus rating: Buy (28 of 35 analysts).",
+    "Moody's affirmed the credit rating: Buy-side demand for the bonds stayed firm.",
+    "Operating margin: Sell-side estimates sit below guidance.",
+])
+def test_a_rating_the_text_quotes_does_not_replace_the_decision(quoted):
+    """A free-text decision opens with its own rating line; a rating it quotes
+    as evidence, or a word merely ending in 'rating', is not the call."""
+    text = f"**Rating**: Hold\n\n**Investment Thesis**: {quoted} We wait for margins."
+    assert extract_rating(text) == "Hold"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("quoted", [
+    "- Rating: Buy (Goldman Sachs, 12m target 180)",
+    "| Rating: Buy | Morgan Stanley |",
+    "> Rating: Buy, per the sell-side note",
+    "Street consensus rating: Buy",
+    "Consensus rating: Buy (28 of 35 analysts)",
+])
+def test_a_quoted_rating_in_a_list_table_or_quote_is_not_the_decision(quoted):
+    text = f"Our rating: Hold\n\nWhat others say:\n{quoted}\n\nWe wait for margins."
+    assert extract_rating(text) == "Hold"

@@ -32,9 +32,19 @@ RATING_REVIEW = "REVIEW"
 _RATING_SET = {r.lower() for r in RATINGS_5_TIER}
 
 # Matches "Rating: X" / "rating - X" / "Rating — **X**" — tolerates markdown
-# bold wrappers and any dash or colon a model writes as the separator.
-_RATING_LABEL_RE = re.compile(r"rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
+# bold wrappers and any dash or colon a model writes as the separator. "rating"
+# must start a word, so "Operating margin: Sell-side" is not a label.
+_RATING_LABEL_RE = re.compile(r"(?<![a-z])rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
                               re.IGNORECASE)
+
+# The same label opening its own line ("**Rating**: X", "## Final Rating - X",
+# "Our rating: X"): the shape the Portfolio Manager is asked to write its
+# decision in. Only emphasis and heading marks may precede it, so a list item,
+# table row or blockquote quoting someone else's rating is not one.
+_RATING_LINE_RE = re.compile(
+    r"[\s*_#]*(?:\w+\s+)?rating[^\w:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
+    re.IGNORECASE,
+)
 
 # A line presenting the scale rather than a decision ("Rating Scale: Buy, ...").
 _RATING_SCALE_RE = re.compile(r"rating\s*(scale|options|legend)", re.IGNORECASE)
@@ -50,25 +60,31 @@ def extract_rating(text: str) -> str | None:
 
     Two-pass strategy on the NFKC-normalized text (so fullwidth punctuation like
     ``Rating：Overweight`` is matched the same as ASCII):
-    1. An explicit "Rating: X" label (tolerant of markdown bold).
-    2. The first standalone 5-tier rating word found anywhere.
+    1. An explicit "Rating: X" label (tolerant of markdown bold): the first one
+       opening its own line, else the last one anywhere.
+    2. A single 5-tier rating word, when the text names only one.
     """
     if not text:
         return None
     norm = unicodedata.normalize("NFKC", text)
 
-    # The labelled rating, taking the last one written: a decision states its
-    # rating after discussing the alternatives. Lines presenting the scale
-    # itself are a legend the model echoed, not a call.
-    labelled = None
+    # A decision is asked to open with its rating on its own line, so the first
+    # such line is the call; later ones may quote someone else's ("Consensus
+    # rating: Buy"). Without one, the last label anywhere wins: prose states its
+    # rating after discussing the alternatives. Lines presenting the scale itself
+    # are a legend the model echoed, not a call.
+    on_own_line = anywhere = None
     for line in norm.splitlines():
         if _RATING_SCALE_RE.search(line):
             continue
+        m = _RATING_LINE_RE.match(line)
+        if on_own_line is None and m and m.group(1).lower() in _RATING_SET:
+            on_own_line = m.group(1).capitalize()
         m = _RATING_LABEL_RE.search(line)
         if m and m.group(1).lower() in _RATING_SET:
-            labelled = m.group(1).capitalize()
-    if labelled:
-        return labelled
+            anywhere = m.group(1).capitalize()
+    if on_own_line or anywhere:
+        return on_own_line or anywhere
 
     # No label. A single rating word in the text is the call; several are an
     # argument, and picking one of them reports a direction nobody decided --
