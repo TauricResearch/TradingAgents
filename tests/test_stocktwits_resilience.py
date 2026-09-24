@@ -114,3 +114,10 @@ class TestStockTwitsScreening:
         with patch.object(stocktwits, "urlopen", return_value=_stream("SPAM")):
             out = stocktwits.fetch_stocktwits_messages("NVDA", screen=_drop_spam)
         assert "none of the 1 StockTwits messages is about $NVDA" in out
+
+
+@pytest.mark.unit
+def test_html_entities_in_message_bodies_are_decoded():
+    with patch.object(stocktwits, "urlopen", return_value=_stream("S&amp;P wasn&#39;t up")):
+        out = stocktwits.fetch_stocktwits_messages("NVDA")
+    assert "S&P wasn't up" in out

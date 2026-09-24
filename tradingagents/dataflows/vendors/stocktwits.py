@@ -15,6 +15,7 @@ network call succeeded.
 from __future__ import annotations
 
 import contextlib
+import html
 import http.client
 import json
 import logging
@@ -52,6 +53,11 @@ def _within_window(messages, start_date, end_date):
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
     return [m for m in messages if in_window(_created_at(m), start_dt, end_dt)]
+
+
+def _body(message) -> str:
+    """The message text; the API serves it HTML-escaped (``&amp;``, ``&#39;``)."""
+    return html.unescape(message.get("body") or "")
 
 
 def _stocktwits_symbol(ticker: str) -> str:
@@ -115,7 +121,7 @@ def fetch_stocktwits_messages(
 
     note = ""
     if screen:
-        keep, note = screen([m.get("body") or "" for m in messages])
+        keep, note = screen([_body(m) for m in messages])
         screened = len(messages)
         messages = [m for m, kept in zip(messages, keep, strict=True) if kept]
         if not messages:
@@ -129,7 +135,7 @@ def fetch_stocktwits_messages(
         entities = m.get("entities") or {}
         sentiment_obj = entities.get("sentiment") or {}
         sentiment = sentiment_obj.get("basic") if isinstance(sentiment_obj, dict) else None
-        body = (m.get("body") or "").replace("\n", " ").strip()
+        body = _body(m).replace("\n", " ").strip()
         if len(body) > 280:
             body = body[:280] + "…"
 
