@@ -2,7 +2,7 @@
 
 One run yields one decision, so it cannot say whether the system decides well.
 This runs the same machinery over many (ticker, date) cells and reads the
-aggregate. The decision log is the results table: every run already records its
+aggregate. The memory log is the results table: every run already records its
 rating and later settles it with realized and alpha return against the
 instrument's regional benchmark, so there is nothing to record separately.
 
@@ -134,7 +134,7 @@ def run_backtest(
     selected_analysts=("market", "social", "news", "fundamentals"),
     run_id: str | None = None,
 ) -> BacktestResult:
-    """Analyze every ticker on every date, into a decision log of this run's own.
+    """Analyze every ticker on every date, into a memory log of this run's own.
 
     The live log stays untouched: a sweep would otherwise flood the context that
     real runs read back. Cells already in this run's log are skipped, so an
@@ -176,13 +176,13 @@ def run_backtest(
 
 
 def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
-    """Score the settled decisions of a backtest, or of a decision log at a path, by rating."""
+    """Score the settled decisions of a backtest, or of a memory log at a path, by rating."""
     if isinstance(source, BacktestResult):
         path = source.log_path      # a run whose cells all failed wrote no log: nothing to score
     elif Path(source).is_file():
         path = Path(source)
     else:
-        raise FileNotFoundError(f"no decision log at {source}")
+        raise FileNotFoundError(f"no memory log at {source}")
     entries = TradingMemoryLog({"memory_log_path": str(path)}).load_entries()
     # A decision with no readable rating has no direction, so it can neither
     # count for nor against the system; it is reported as unscored instead.

@@ -1,4 +1,4 @@
-"""Backtesting: many single-shot decisions, scored by the decision log.
+"""Backtesting: many single-shot decisions, scored by the memory log.
 
 A run already records its rating and later settles it with realized and alpha
 return against the regional benchmark. A backtest is that machinery over a grid
@@ -76,7 +76,7 @@ def _config(tmp_path):
 
 
 @pytest.mark.unit
-def test_the_live_decision_log_is_never_written(tmp_path):
+def test_the_live_memory_log_is_never_written(tmp_path):
     config = _config(tmp_path)
     result = run_backtest(["NVDA"], ["2026-01-05", "2026-01-12"], config)
 

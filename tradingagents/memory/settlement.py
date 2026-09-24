@@ -1,5 +1,5 @@
 """Settling past decisions: once a decision's holding window has traded, score
-it against its benchmark and record a reflection on it in the decision log."""
+it against its benchmark and record a reflection on it in the memory log."""
 
 import logging
 from datetime import datetime, timedelta

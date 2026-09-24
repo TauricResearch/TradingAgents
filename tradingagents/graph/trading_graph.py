@@ -262,7 +262,7 @@ class TradingAgentsGraph:
         Settles this ticker's pending decisions first, then injects the lessons
         known by the trade date for the Portfolio Manager (#1251) and the
         resolved instrument identity for every agent (#814). An entry point that
-        assembled the state itself would skip the decision log.
+        assembled the state itself would skip the memory log.
         """
         self.settle_pending(company_name)
         return self.propagator.create_initial_state(

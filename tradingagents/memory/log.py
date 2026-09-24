@@ -1,4 +1,4 @@
-"""Append-only markdown decision log for TradingAgents."""
+"""The memory log: an append-only markdown record of each decision and, once settled, its outcome."""
 
 import re
 from pathlib import Path
@@ -25,7 +25,7 @@ class TradingMemoryLog:
         # Optional cap on resolved entries. None disables rotation.
         self._max_entries = cfg.get("memory_log_max_entries")
 
-    # --- Write path (Phase A) ---
+    # --- Write: a run records its decision ---
 
     def store_decision(
         self,
@@ -56,7 +56,7 @@ class TradingMemoryLog:
         with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(entry)
 
-    # --- Read path (Phase A) ---
+    # --- Read ---
 
     def load_entries(self) -> list[dict]:
         """Parse all entries from log. Returns list of dicts."""
@@ -72,7 +72,7 @@ class TradingMemoryLog:
         return entries
 
     def get_pending_entries(self) -> list[dict]:
-        """Return entries with outcome:pending (for Phase B)."""
+        """Return entries with outcome:pending, for settlement."""
         return [e for e in self.load_entries() if e.get("pending")]
 
     def get_past_context(
@@ -114,7 +114,7 @@ class TradingMemoryLog:
             parts.extend(self._format_reflection_only(e) for e in cross)
         return "\n\n".join(parts)
 
-    # --- Update path (Phase B) ---
+    # --- Settle: record a decision's outcome and reflection ---
 
     def update_with_outcome(
         self,

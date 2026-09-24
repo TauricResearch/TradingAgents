@@ -1,4 +1,4 @@
-"""The CLI must use the decision log the same way propagate() does.
+"""The CLI must use the memory log the same way propagate() does.
 
 The CLI streams the graph itself instead of calling propagate(), so memory steps
 that lived only in propagate() never ran on the primary entry point: pending
@@ -160,7 +160,7 @@ def _run_cli(monkeypatch, tmp_path, fake):
 
 
 @pytest.mark.unit
-def test_cli_run_uses_the_decision_log_like_propagate(tmp_path, monkeypatch):
+def test_cli_run_uses_the_memory_log_like_propagate(tmp_path, monkeypatch):
     fake = _FakeGraph()
     _run_cli(monkeypatch, tmp_path, fake)
 

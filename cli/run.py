@@ -199,7 +199,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # The same initial state propagate() builds: settled decision log, past
+        # The same initial state propagate() builds: settled memory log, past
         # context and resolved instrument identity.
         init_agent_state = graph.create_run_state(
             selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
