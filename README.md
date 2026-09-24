@@ -144,6 +144,8 @@ docker compose run --rm tradingagents
 
 After updating the repository, rebuild the image with `docker compose build`.
 
+Results, reports, the memory log and the cache live in the `tradingagents_data` volume. To keep them in a folder on the host instead, create the folder and point `TRADINGAGENTS_DATA_DIR` at it, in `.env` or the shell: `mkdir -p data && TRADINGAGENTS_DATA_DIR=./data docker compose run --rm tradingagents`.
+
 For local models with Ollama:
 ```bash
 docker compose --profile ollama run --rm tradingagents-ollama

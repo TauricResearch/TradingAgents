@@ -4,7 +4,7 @@ services:
     env_file:
       - .env
     volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
     tty: true
     stdin_open: true
 
@@ -23,7 +23,7 @@ services:
       - TRADINGAGENTS_LLM_PROVIDER=ollama
       - OLLAMA_BASE_URL=http://ollama:11434/v1
     volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
     depends_on:
       - ollama
     tty: true
