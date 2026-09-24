@@ -64,7 +64,7 @@ def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
 
 @pytest.mark.unit
 def test_the_memory_log_records_review_rather_than_a_tradeable_hold(tmp_path):
-    from tradingagents.decision_log import TradingMemoryLog
+    from tradingagents.memory import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     log.store_decision("NVDA", "2026-01-05", REFUSAL)
@@ -76,7 +76,7 @@ def test_the_memory_log_records_review_rather_than_a_tradeable_hold(tmp_path):
 @pytest.mark.unit
 def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
     from tradingagents.agents.rating import parse_rating
-    from tradingagents.decision_log import TradingMemoryLog
+    from tradingagents.memory import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     for text in (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate."):
@@ -91,7 +91,7 @@ def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
 def test_an_unscored_decision_is_left_out_of_the_backtest_figures(tmp_path):
     """REVIEW has no direction, so it cannot count for or against the system."""
     from tradingagents.backtest import summarize
-    from tradingagents.decision_log import TradingMemoryLog
+    from tradingagents.memory import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     log.store_decision("NVDA", "2026-01-05", "**Rating**: Buy\n\nx")

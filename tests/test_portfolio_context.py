@@ -76,9 +76,9 @@ def test_load_reads_a_valid_file(tmp_path):
 # --- threading through the graph --------------------------------------------
 
 def _bare_graph(tmp_path):
-    from tradingagents.decision_log import TradingMemoryLog
     from tradingagents.graph.propagation import Propagator
     from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from tradingagents.memory import TradingMemoryLog
 
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md"), "max_debate_rounds": 1,

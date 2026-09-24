@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.decision_log import TradingMemoryLog
+from tradingagents.memory import TradingMemoryLog
 
 
 def _log(tmp_path):

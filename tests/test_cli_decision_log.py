@@ -12,8 +12,8 @@ from __future__ import annotations
 import pytest
 
 import cli.run as cli_run
-from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.memory import TradingMemoryLog
 
 
 def _bare_graph(tmp_path):
