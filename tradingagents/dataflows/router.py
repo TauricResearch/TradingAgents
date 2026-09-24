@@ -86,14 +86,6 @@ TOOLS_CATEGORIES = {
     }
 }
 
-VENDOR_LIST = [
-    "yfinance",
-    "sec_edgar",
-    "fred",
-    "polymarket",
-    "alpha_vantage",
-]
-
 # Optional enrichment categories. These add macro/event context to the news
 # analyst but are not core to a decision, so a vendor failure here degrades to a
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
