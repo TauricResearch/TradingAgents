@@ -16,10 +16,9 @@ def resolve_benchmark(ticker: str, config: dict) -> str:
     ``config["benchmark_ticker"]`` overrides everything when set; otherwise
     the suffix map matches the ticker's exchange suffix (e.g. ``.T`` for
     Tokyo). US-listed tickers without a dotted suffix fall through to the
-    empty-suffix entry (SPY by default). Unrecognised suffixes (including
-    US tickers with dots like ``BRK.B``) also fall back to the empty-suffix
-    entry, which is the right default because the alpha calculation works
-    in USD.
+    empty-suffix entry (SPY by default). Unrecognised suffixes, including
+    US tickers with dots like ``BRK.B``, also take the empty-suffix entry.
+    Returns are compared as percentages, each in its own currency.
     """
 
     explicit = config.get("benchmark_ticker")

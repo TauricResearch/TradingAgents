@@ -628,6 +628,16 @@ class TestDeferredReflection:
                              "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
         assert settlement.resolve_benchmark("PETR4.SA", config) == "^BVSP"
 
+    @pytest.mark.parametrize(("ticker", "index"), [
+        ("2330.TW", "^TWII"), ("6488.TWO", "^TWII"), ("005930.KS", "^KS11"), ("247540.KQ", "^KQ11"), ("D05.SI", "^STI"), ("SAP.DE", "^GDAXI"),
+        ("MC.PA", "^FCHI"), ("ASML.AS", "^AEX"), ("NESN.SW", "^SSMI"), ("ENI.MI", "FTSEMIB.MI"),
+    ])
+    def test_resolve_benchmark_regional_indexes(self, ticker, index):
+        """Taiwan, Korea, Singapore and the main European exchanges were measured against SPY."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        config = {"benchmark_ticker": None, "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
+        assert settlement.resolve_benchmark(ticker, config) == index
+
     def test_resolve_benchmark_us_ticker_defaults_to_spy(self):
         """US tickers (no dotted suffix) take the empty-suffix entry."""
         config = {
