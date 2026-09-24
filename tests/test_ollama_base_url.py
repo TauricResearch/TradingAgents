@@ -22,17 +22,18 @@ def _console_out(capsys) -> str:
 def _resync_reloaded_modules():
     """Restore module state after this file's importlib.reload() calls.
 
-    Several tests below reload ``cli.utils`` to re-evaluate OLLAMA_BASE_URL.
-    That leaves ``cli.main``'s star-imported names (e.g. get_ticker) bound to
-    the pre-reload module objects, which breaks identity checks in unrelated
-    tests that happen to run afterward. Re-sync once on teardown so the reload
-    doesn't leak across test modules.
+    Several tests below reload ``cli.prompts`` to re-evaluate OLLAMA_BASE_URL.
+    That leaves the modules importing from it (cli.selections, then cli.run and
+    cli.main) bound to the pre-reload functions, which breaks identity checks in
+    unrelated tests that run afterward. Re-sync them in import order on teardown.
     """
     yield
     import cli.main
-    import cli.utils
-    importlib.reload(cli.utils)
-    importlib.reload(cli.main)
+    import cli.prompts
+    import cli.run
+    import cli.selections
+    for module in (cli.prompts, cli.selections, cli.run, cli.main):
+        importlib.reload(module)
 
 
 # ---- openai_client side: registry-driven base_url resolution --------------
@@ -98,14 +99,14 @@ def test_explicit_base_url_overrides_env(monkeypatch):
     assert "env-set" not in str(llm.openai_api_base)
 
 
-# ---- cli.utils side: select_llm_provider dropdown -------------------------
+# ---- cli.prompts side: select_llm_provider dropdown -------------------------
 
 
 def test_cli_dropdown_uses_env(monkeypatch):
     """The Ollama entry in the CLI dropdown must reflect OLLAMA_BASE_URL."""
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://cli-remote:11434/v1")
-    import cli.utils as cli_utils
-    importlib.reload(cli_utils)
+    from cli import prompts
+    importlib.reload(prompts)
     # Reach inside the function via the same env-read it does at call time
     ollama_url = (
         __import__("os").environ.get("OLLAMA_BASE_URL")
@@ -116,8 +117,8 @@ def test_cli_dropdown_uses_env(monkeypatch):
 
 def test_cli_dropdown_default_when_unset(monkeypatch):
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
-    import cli.utils as cli_utils
-    importlib.reload(cli_utils)
+    from cli import prompts
+    importlib.reload(prompts)
     ollama_url = (
         __import__("os").environ.get("OLLAMA_BASE_URL")
         or "http://localhost:11434/v1"
@@ -130,9 +131,9 @@ def test_cli_dropdown_default_when_unset(monkeypatch):
 
 def test_confirm_endpoint_shows_default(monkeypatch, capsys):
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
-    import cli.utils as cli_utils
-    importlib.reload(cli_utils)
-    cli_utils.confirm_ollama_endpoint("http://localhost:11434/v1")
+    from cli import prompts
+    importlib.reload(prompts)
+    prompts.confirm_ollama_endpoint("http://localhost:11434/v1")
     out = _console_out(capsys)
     assert "http://localhost:11434/v1" in out
     assert "OLLAMA_BASE_URL" not in out  # not from env
@@ -141,9 +142,9 @@ def test_confirm_endpoint_shows_default(monkeypatch, capsys):
 
 def test_confirm_endpoint_marks_env_origin(monkeypatch, capsys):
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://remote-host:11434/v1")
-    import cli.utils as cli_utils
-    importlib.reload(cli_utils)
-    cli_utils.confirm_ollama_endpoint("http://remote-host:11434/v1")
+    from cli import prompts
+    importlib.reload(prompts)
+    prompts.confirm_ollama_endpoint("http://remote-host:11434/v1")
     out = _console_out(capsys)
     assert "http://remote-host:11434/v1" in out
     assert "OLLAMA_BASE_URL" in out
@@ -152,9 +153,9 @@ def test_confirm_endpoint_marks_env_origin(monkeypatch, capsys):
 def test_confirm_endpoint_warns_on_missing_scheme(monkeypatch, capsys):
     """If user sets OLLAMA_BASE_URL=0.0.0.128, advise on the expected shape."""
     monkeypatch.setenv("OLLAMA_BASE_URL", "0.0.0.128")
-    import cli.utils as cli_utils
-    importlib.reload(cli_utils)
-    cli_utils.confirm_ollama_endpoint("0.0.0.128")
+    from cli import prompts
+    importlib.reload(prompts)
+    prompts.confirm_ollama_endpoint("0.0.0.128")
     out = _console_out(capsys)
     assert "missing a scheme" in out
     assert "http://<host>:11434/v1" in out
@@ -163,9 +164,9 @@ def test_confirm_endpoint_warns_on_missing_scheme(monkeypatch, capsys):
 def test_confirm_endpoint_warns_on_non_default_port_remote(monkeypatch, capsys):
     """A remote host with no :11434 gets a soft hint about port mismatch."""
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://remote-host/v1")
-    import cli.utils as cli_utils
-    importlib.reload(cli_utils)
-    cli_utils.confirm_ollama_endpoint("http://remote-host/v1")
+    from cli import prompts
+    importlib.reload(prompts)
+    prompts.confirm_ollama_endpoint("http://remote-host/v1")
     out = _console_out(capsys)
     assert "port 11434" in out
 
@@ -173,9 +174,9 @@ def test_confirm_endpoint_warns_on_non_default_port_remote(monkeypatch, capsys):
 def test_confirm_endpoint_quiet_on_local_no_port(monkeypatch, capsys):
     """Local host without port shouldn't trigger the remote-port hint."""
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost/v1")
-    import cli.utils as cli_utils
-    importlib.reload(cli_utils)
-    cli_utils.confirm_ollama_endpoint("http://localhost/v1")
+    from cli import prompts
+    importlib.reload(prompts)
+    prompts.confirm_ollama_endpoint("http://localhost/v1")
     out = _console_out(capsys)
     assert "Note" not in out  # localhost is fine without explicit port
 

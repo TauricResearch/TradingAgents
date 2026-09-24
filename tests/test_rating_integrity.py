@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.agents.utils.rating import RATING_REVIEW, extract_rating, parse_rating
+import cli.run as cli_run
+from tradingagents.agents.rating import RATING_REVIEW, extract_rating, parse_rating
 
 INVERTED = ("The aggressive analyst pushed hard for a Buy on the AI backlog, but the "
             "conservative case on margin compression carried the debate. "
@@ -63,7 +64,7 @@ def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
 
 @pytest.mark.unit
 def test_the_memory_log_records_review_rather_than_a_tradeable_hold(tmp_path):
-    from tradingagents.agents.utils.memory import TradingMemoryLog
+    from tradingagents.decision_log import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     log.store_decision("NVDA", "2026-01-05", REFUSAL)
@@ -74,14 +75,14 @@ def test_the_memory_log_records_review_rather_than_a_tradeable_hold(tmp_path):
 
 @pytest.mark.unit
 def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
-    from tradingagents.agents.utils.memory import TradingMemoryLog
-    from tradingagents.graph.signal_processing import SignalProcessor
+    from tradingagents.agents.rating import parse_rating
+    from tradingagents.decision_log import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     for text in (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate."):
         log.store_decision("NVDA", f"2026-01-0{len(log.load_entries()) + 1}", text)
 
-    signals = [SignalProcessor.process_signal(None, text)
+    signals = [parse_rating(text)
                for text in (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate.")]
     assert [e["rating"] for e in log.load_entries()] == signals
 
@@ -89,8 +90,8 @@ def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
 @pytest.mark.unit
 def test_an_unscored_decision_is_left_out_of_the_backtest_figures(tmp_path):
     """REVIEW has no direction, so it cannot count for or against the system."""
-    from tradingagents.agents.utils.memory import TradingMemoryLog
     from tradingagents.backtest import summarize
+    from tradingagents.decision_log import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     log.store_decision("NVDA", "2026-01-05", "**Rating**: Buy\n\nx")
@@ -98,7 +99,7 @@ def test_an_unscored_decision_is_left_out_of_the_backtest_figures(tmp_path):
     log.store_decision("AAPL", "2026-01-05", REFUSAL)
     log.update_with_outcome("AAPL", "2026-01-05", 0.1, 0.04, 5, "note", "2026-02-01")
 
-    summary = summarize(log)
+    summary = summarize(tmp_path / "m.md")
     assert set(summary.by_rating) == {"Buy"}
 
 
@@ -121,8 +122,8 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
             pass
 
         def process_signal(self, text):
-            from tradingagents.graph.signal_processing import SignalProcessor
-            return SignalProcessor.process_signal(None, text)
+            from tradingagents.agents.rating import parse_rating
+            return parse_rating(text)
 
         def get_graph_args(self, callbacks=None):
             return {}
@@ -145,23 +146,23 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
     fake = _Graph()
     fake.graph = fake
     fake.propagator = fake
-    monkeypatch.setattr(m, "TradingAgentsGraph", lambda *a, **k: fake)
-    monkeypatch.setattr(m, "create_layout", lambda: None)
-    monkeypatch.setattr(m, "update_display", lambda *a, **k: None)
-    monkeypatch.setattr(m, "Live", type("L", (), {"__init__": lambda s, *a, **k: None,
+    monkeypatch.setattr(cli_run, "TradingAgentsGraph", lambda *a, **k: fake)
+    monkeypatch.setattr(cli_run, "create_layout", lambda: None)
+    monkeypatch.setattr(cli_run, "update_display", lambda *a, **k: None)
+    monkeypatch.setattr(cli_run, "Live", type("L", (), {"__init__": lambda s, *a, **k: None,
                                                   "__enter__": lambda s: s,
                                                   "__exit__": lambda s, *a: False}))
     monkeypatch.setattr(m.console, "print", lambda *a, **k: printed.append(" ".join(str(x) for x in a)))
-    monkeypatch.setattr(m, "display_complete_report", lambda *a, **k: None)
+    monkeypatch.setattr(cli_run, "display_complete_report", lambda *a, **k: None)
     monkeypatch.setattr(m.typer, "prompt", lambda *a, **k: "N")
-    monkeypatch.setattr(m, "get_user_selections", lambda: {
+    monkeypatch.setattr(cli_run, "get_user_selections", lambda: {
         "ticker": "NVDA", "analysis_date": "2026-01-10",
         "analysts": [AnalystType.MARKET], "asset_type": "stock",
     })
-    monkeypatch.setattr(m, "_build_run_config", lambda s, c: {
+    monkeypatch.setattr(cli_run, "_build_run_config", lambda s, c: {
         "data_cache_dir": str(tmp_path / "c"), "results_dir": str(tmp_path / "r")})
 
-    m.run_analysis()
+    cli_run.run_analysis()
 
     assert any("review" in line.lower() for line in printed), printed[-5:]
 

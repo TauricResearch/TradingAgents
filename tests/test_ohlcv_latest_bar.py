@@ -18,17 +18,25 @@ import os
 import pandas as pd
 import pytest
 
-from tradingagents.dataflows import stockstats_utils as su
-from tradingagents.dataflows.symbol_utils import NoMarketDataError
+from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.vendors.yahoo import ohlcv
+
+
+def _stamp(path, ts):
+    """Set ``path``'s mtime to the wall-clock ``ts``, read back in local time as
+    the cache does. A naive ``pd.Timestamp.timestamp()`` would be taken as UTC."""
+    t = ts.to_pydatetime().timestamp()
+    os.utime(path, (t, t))
 
 # --- date normalization -----------------------------------------------------
+
 
 @pytest.mark.unit
 def test_normalize_dates_strips_tz_and_normalizes_to_midnight():
     aware = pd.Series(pd.to_datetime(
         ["2026-05-08 09:30:00-04:00", "2026-05-09 16:00:00-04:00"]
     ))
-    out = su._normalize_dates(aware)
+    out = ohlcv._normalize_dates(aware)
     assert out.dt.tz is None
     assert list(out) == [pd.Timestamp("2026-05-08"), pd.Timestamp("2026-05-09")]
 
@@ -36,7 +44,7 @@ def test_normalize_dates_strips_tz_and_normalizes_to_midnight():
 @pytest.mark.unit
 def test_normalize_dates_leaves_naive_dates_at_midnight():
     naive = pd.Series(pd.to_datetime(["2026-05-08 14:30:00", "2026-05-09 00:00:00"]))
-    out = su._normalize_dates(naive)
+    out = ohlcv._normalize_dates(naive)
     assert out.dt.tz is None
     assert list(out) == [pd.Timestamp("2026-05-08"), pd.Timestamp("2026-05-09")]
 
@@ -50,7 +58,7 @@ def test_normalize_dates_handles_mixed_dst_offsets():
         "2026-06-08 00:00:00-04:00",  # EDT
         "not-a-date",                 # -> NaT
     ])
-    out = su._normalize_dates(mixed)
+    out = ohlcv._normalize_dates(mixed)
     assert out.iloc[0] == pd.Timestamp("2026-01-08")
     assert out.iloc[1] == pd.Timestamp("2026-06-08")
     assert pd.isna(out.iloc[2])
@@ -61,7 +69,7 @@ def test_normalize_dates_keeps_positive_offset_local_date():
     # A Tokyo bar at local midnight (+09:00) must stay on its own calendar day,
     # not shift to the previous UTC day (which utc=True parsing would cause).
     jst = pd.Series(["2026-05-08 00:00:00+09:00"])
-    assert su._normalize_dates(jst).iloc[0] == pd.Timestamp("2026-05-08")
+    assert ohlcv._normalize_dates(jst).iloc[0] == pd.Timestamp("2026-05-08")
 
 
 # --- fill vs guard responsibilities ----------------------------------------
@@ -70,7 +78,7 @@ def test_normalize_dates_keeps_positive_offset_local_date():
 def test_clean_dataframe_keeps_nan_close_for_the_caller_to_inspect():
     # _clean_dataframe normalizes but no longer drops the NaN close itself.
     df = pd.DataFrame({"Date": ["2026-05-08", "2026-05-09"], "Close": [100.0, float("nan")]})
-    cleaned = su._clean_dataframe(df)
+    cleaned = ohlcv._clean_dataframe(df)
     assert len(cleaned) == 2
     assert pd.isna(cleaned["Close"].iloc[-1])
 
@@ -79,7 +87,7 @@ def test_clean_dataframe_keeps_nan_close_for_the_caller_to_inspect():
 def test_fill_price_gaps_drops_nan_close_rows():
     df = pd.DataFrame({"Date": pd.to_datetime(["2026-05-07", "2026-05-08"]),
                        "Close": [float("nan"), 100.0]})
-    filled = su._fill_price_gaps(df)
+    filled = ohlcv._fill_price_gaps(df)
     assert len(filled) == 1
     assert filled["Close"].iloc[0] == 100.0
 
@@ -88,17 +96,17 @@ def test_fill_price_gaps_drops_nan_close_rows():
 
 def _run_load(monkeypatch, tmp_path, frame, curr_date):
     """Drive load_ohlcv against a pre-seeded cache frame (no network)."""
-    monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     today = pd.Timestamp(curr_date)
-    monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: today))
     cache_file = tmp_path / "AAPL-YFin-data.csv"
     cache_file.write_text(frame.to_csv(index=False))
-    os.utime(cache_file, (today.timestamp(), today.timestamp()))
+    _stamp(cache_file, today)
 
     def _fail_download(*a, **k):
         raise AssertionError("should use the seeded cache, not download")
-    monkeypatch.setattr(su.yf, "download", _fail_download)
-    return su.load_ohlcv("AAPL", curr_date)
+    monkeypatch.setattr(ohlcv.yf, "download", _fail_download)
+    return ohlcv.load_ohlcv("AAPL", curr_date)
 
 
 @pytest.mark.unit
@@ -174,7 +182,7 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     """Gap filling exists so indicators compute on a continuous series. The
     verification snapshot is the one place a number must be what the vendor
     reported, or the module built to stop invented prices supplies them."""
-    from tradingagents.dataflows import market_data_validator as mdv, stockstats_utils as su
+    from tradingagents.dataflows.vendors.yahoo import ohlcv, snapshot
 
     frame = pd.DataFrame({
         "Date": ["2026-05-06", "2026-05-07", "2026-05-08"],
@@ -185,15 +193,15 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
         "Volume": [1000000, 1000000, ""],
     })
     today = pd.Timestamp("2026-05-08 12:00")
-    monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
-    monkeypatch.setattr(su.pd.Timestamp, "today", staticmethod(lambda: today))
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: today))
     cache = tmp_path / "AAPL-YFin-data.csv"
     cache.write_text(frame.to_csv(index=False))
-    os.utime(cache, (today.timestamp(), today.timestamp()))
-    monkeypatch.setattr(su.yf, "download", lambda *a, **k: (_ for _ in ()).throw(
+    _stamp(cache, today)
+    monkeypatch.setattr(ohlcv.yf, "download", lambda *a, **k: (_ for _ in ()).throw(
         AssertionError("should read the seeded cache")))
 
-    out = mdv.build_verified_market_snapshot("AAPL", "2026-05-08", 3)
+    out = snapshot.build_verified_market_snapshot("AAPL", "2026-05-08", 3)
 
     row = out.split("Latest verified OHLCV row")[1].split("###")[0]
     assert "104.50" not in row and "105.50" not in row  # the previous session's numbers
