@@ -100,7 +100,7 @@ def build_instrument_context(
     ticker: str,
     asset_type: str = "stock",
     identity: Mapping[str, str] | None = None,
-    curr_date: str | None = None,
+    trade_date: str | None = None,
 ) -> str:
     """Describe the exact instrument so agents preserve identity and ticker.
 
@@ -144,10 +144,10 @@ def build_instrument_context(
             "result explicitly disproves this resolved identity."
         )
         today = get_current_date()
-        if curr_date and str(curr_date) < today:
+        if trade_date and str(trade_date) < today:
             context += (
                 f" This identity is how the vendor describes the instrument today, "
-                f"not necessarily on {curr_date}: a name or classification changed "
+                f"not necessarily on {trade_date}: a name or classification changed "
                 f"since then would read as the current one."
             )
 

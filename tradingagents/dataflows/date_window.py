@@ -95,7 +95,7 @@ def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, 
     return f"{_parse(end) - span:%Y-%m-%d}", end
 
 
-def withhold_live_profile(curr_date: str | None, label: str) -> str | None:
+def withhold_live_profile(as_of_date: str | None, label: str) -> str | None:
     """Notice to serve instead of a live-only company profile, or None to serve it.
 
     Vendor "company overview" endpoints (yfinance ``Ticker.info``, Alpha Vantage
@@ -105,20 +105,20 @@ def withhold_live_profile(curr_date: str | None, label: str) -> str | None:
     Every fundamentals vendor withholds on this rule, so switching between them
     cannot reintroduce the leak.
     """
-    if not curr_date:
+    if not as_of_date:
         return None
     today = get_current_date()
-    if curr_date >= today:
+    if as_of_date >= today:
         return None
     return (
         f"# Company Fundamentals for {label}\n"
-        f"# Point-in-time as of: {curr_date}\n\n"
+        f"# Point-in-time as of: {as_of_date}\n\n"
         f"Profile fundamentals are withheld for this date. This vendor serves "
         f"only present-day values with no historical vintage: market "
         f"cap, valuation multiples, the 52-week range and TTM income move with "
         f"today's quote, and even the name, sector and industry reflect today "
-        f"rather than {curr_date} (companies rename and get reclassified). "
-        f"Serving them would put post-decision information into a {curr_date} "
-        f"analysis. Point-in-time fundamentals for {curr_date} are available "
+        f"rather than {as_of_date} (companies rename and get reclassified). "
+        f"Serving them would put post-decision information into a {as_of_date} "
+        f"analysis. Point-in-time fundamentals for {as_of_date} are available "
         f"from the balance sheet, income statement, and cash flow tools."
     )

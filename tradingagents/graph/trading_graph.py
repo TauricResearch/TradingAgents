@@ -114,7 +114,7 @@ class TradingAgentsGraph:
         self._resuming = False
 
     def resolve_instrument_context(self, ticker: str, asset_type: str = "stock",
-                                   curr_date: str | None = None) -> str:
+                                   trade_date: str | None = None) -> str:
         """Resolve ticker identity once and return the full instrument context.
 
         Deterministic yfinance lookup (cached, fail-open) injected into a
@@ -124,7 +124,7 @@ class TradingAgentsGraph:
         graph regardless of entry point.
         """
         identity = resolve_instrument_identity(ticker)
-        return build_instrument_context(ticker, asset_type, identity, curr_date)
+        return build_instrument_context(ticker, asset_type, identity, trade_date)
 
     def _memory_as_of(self, trade_date) -> str | None:
         """Point-in-time cutoff for past-context lessons (#1251).

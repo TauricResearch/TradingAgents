@@ -126,7 +126,7 @@ def _fred_today() -> str:
     """FRED's current calendar date (US Central) as ``yyyy-mm-dd``.
 
     The vintage pin is clamped to this: FRED rejects a ``realtime_start`` after
-    its own today with a 400, and ``curr_date`` on a live run comes from the
+    its own today with a 400, and ``as_of_date`` on a live run comes from the
     caller's local clock, which can already be tomorrow in Chicago.
     """
     return datetime.now(FRED_TZ).strftime("%Y-%m-%d")
@@ -155,7 +155,7 @@ def _request(path: str, params: dict) -> dict:
 
 def get_macro_data(
     indicator: str,
-    curr_date: str,
+    as_of_date: str,
     look_back_days: int | None = None,
 ) -> str:
     """Fetch a FRED macroeconomic series as a formatted markdown report.
@@ -163,9 +163,9 @@ def get_macro_data(
     Args:
         indicator: A friendly alias (e.g. "cpi", "unemployment", "10y_treasury")
             or a raw FRED series ID (e.g. "CPIAUCSL", "DGS10").
-        curr_date: The as-of date (yyyy-mm-dd). It bounds the observation window
+        as_of_date: The as-of date (yyyy-mm-dd). It bounds the observation window
             AND pins the data vintage: FRED is queried with the realtime bounds
-            set to ``curr_date`` (clamped to FRED's own today) so a historical
+            set to ``as_of_date`` (clamped to FRED's own today) so a historical
             run sees the values that were actually published by that date, not
             later revisions. Without this, revision-prone series (CPI, GDP, ...)
             would leak future information into a backtest (#1275).
@@ -178,18 +178,18 @@ def get_macro_data(
     if look_back_days is None:
         look_back_days = DEFAULT_LOOKBACK_DAYS
 
-    end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
 
     # Pin the data vintage. FRED defaults both realtime bounds to today, serving
     # the LATEST revision of every observation; a single-day realtime interval
     # asks for the values known as of the pin instead, on both the metadata and
     # observations requests (#1275). Clamp to FRED's today: on a live run
-    # curr_date is the caller's local date, which can be a day ahead of Chicago,
+    # as_of_date is the caller's local date, which can be a day ahead of Chicago,
     # and a realtime date in FRED's future 400s -> the routing layer would then
-    # drop macro data silently. A past curr_date is unaffected, so historical
+    # drop macro data silently. A past as_of_date is unaffected, so historical
     # point-in-time behaviour is preserved.
-    pit = min(curr_date, _fred_today())
+    pit = min(as_of_date, _fred_today())
     realtime = {"realtime_start": pit, "realtime_end": pit}
 
     # Invalid LLM-supplied indicator: return guidance rather than raising, so a
@@ -217,7 +217,7 @@ def get_macro_data(
         {
             "series_id": series_id,
             "observation_start": start_date,
-            "observation_end": curr_date,
+            "observation_end": as_of_date,
             "sort_order": "asc",
             **realtime,
         },
@@ -235,7 +235,7 @@ def get_macro_data(
         f"- Units: {units}\n"
         f"- Frequency: {frequency}"
         f"{f' ({seasonal})' if seasonal else ''}\n"
-        f"- Window: {start_date} to {curr_date}\n"
+        f"- Window: {start_date} to {as_of_date}\n"
     )
 
     if not points:

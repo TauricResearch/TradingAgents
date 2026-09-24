@@ -5,7 +5,7 @@ statement at the fiscal period end. That is two claims a run should not make: a
 period that has ended is not public until the company files, weeks later, and a
 figure that was later restated is not what investors saw at the time.
 
-EDGAR reports every fact with the date it was filed, so a run dated ``curr_date``
+EDGAR reports every fact with the date it was filed, so a run dated ``as_of_date``
 serves exactly what was on file by then, restatements included at the vintage
 that was current: Apple's 2008 total assets read 39.6B until the 2010 amendment
 restated them to 36.2B.
@@ -144,7 +144,7 @@ def cik_for(ticker: str) -> str | None:
     return None
 
 
-def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, int],
+def _as_of(facts: dict, tags: tuple[str, ...], as_of_date: str, span: tuple[int, int],
            forms: tuple[str, ...] = ()) -> tuple[dict, str]:
     """({period end: value}, unit) for the first tag the filer reports, as known then.
 
@@ -164,7 +164,7 @@ def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, 
             latest: dict[str, dict] = {}
             covered: set[str] = set()   # period ends a filing of ``forms`` reports
             for fact in unit_values:
-                if fact["filed"] > curr_date or fact["end"] in values:
+                if fact["filed"] > as_of_date or fact["end"] in values:
                     continue
                 # A duration fact (revenue, cash flow) must cover the span asked
                 # for. An instant fact (a balance) has no span and serves both.
@@ -184,8 +184,8 @@ def _as_of(facts: dict, tags: tuple[str, ...], curr_date: str, span: tuple[int, 
     return dict(sorted(values.items())), chosen_unit
 
 
-def _statement(kind: str, ticker: str, freq: str, curr_date: str, title: str) -> str:
-    curr_date = curr_date or datetime.now().strftime("%Y-%m-%d")
+def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -> str:
+    as_of_date = as_of_date or datetime.now().strftime("%Y-%m-%d")
     cik = cik_for(ticker)
     if cik is None:
         raise NoMarketDataError(ticker, ticker, "not a US SEC filer")
@@ -198,14 +198,14 @@ def _statement(kind: str, ticker: str, freq: str, curr_date: str, title: str) ->
     quarterly = freq.lower() == "quarterly"
     span = _SPANS["quarterly" if quarterly else "annual"]
     forms = () if quarterly else _ANNUAL_FORMS
-    lines = {label: _as_of(us_gaap, tags, curr_date, span, forms) for label, tags in _STATEMENTS[kind]}
+    lines = {label: _as_of(us_gaap, tags, as_of_date, span, forms) for label, tags in _STATEMENTS[kind]}
     periods = sorted({end for values, _ in lines.values() for end in values})
     if not periods:
-        raise NoMarketDataError(ticker, ticker, f"no {freq} {title.lower()} filed by {curr_date}")
+        raise NoMarketDataError(ticker, ticker, f"no {freq} {title.lower()} filed by {as_of_date}")
 
     header = (
         f"# {title} for {ticker.upper()} ({freq}), USD in millions unless the row says otherwise\n"
-        f"# SEC EDGAR facts filed on or before {curr_date}, at the values filed then\n\n"
+        f"# SEC EDGAR facts filed on or before {as_of_date}, at the values filed then\n\n"
     )
     rows = [",".join([""] + periods)]
     for label, (values, unit) in lines.items():
@@ -223,21 +223,21 @@ def _statement(kind: str, ticker: str, freq: str, curr_date: str, title: str) ->
     return header + "\n".join(rows) + "\n"
 
 
-def get_balance_sheet(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
-    """Balance sheet as filed on or before ``curr_date``."""
-    return _statement("balance_sheet", ticker, freq, curr_date, "Balance Sheet")
+def get_balance_sheet(ticker: str, freq: str = "quarterly", as_of_date: str | None = None) -> str:
+    """Balance sheet as filed on or before ``as_of_date``."""
+    return _statement("balance_sheet", ticker, freq, as_of_date, "Balance Sheet")
 
 
-def get_income_statement(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
-    """Income statement as filed on or before ``curr_date``.
+def get_income_statement(ticker: str, freq: str = "quarterly", as_of_date: str | None = None) -> str:
+    """Income statement as filed on or before ``as_of_date``.
 
     A fourth quarter is never derived: filers report it only inside the annual
     figure, and subtracting three separately filed quarters would invent a number
     with no filing date behind it.
     """
-    return _statement("income_statement", ticker, freq, curr_date, "Income Statement")
+    return _statement("income_statement", ticker, freq, as_of_date, "Income Statement")
 
 
-def get_cashflow(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
-    """Cash flow statement as filed on or before ``curr_date``."""
-    return _statement("cashflow", ticker, freq, curr_date, "Cash Flow Statement")
+def get_cashflow(ticker: str, freq: str = "quarterly", as_of_date: str | None = None) -> str:
+    """Cash flow statement as filed on or before ``as_of_date``."""
+    return _statement("cashflow", ticker, freq, as_of_date, "Cash Flow Statement")

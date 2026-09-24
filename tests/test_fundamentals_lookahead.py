@@ -10,7 +10,7 @@ FRED (#1275), social (#1220) and memory (#1251) leaks.
 
 Both vendors withhold on one shared rule (``date_window.withhold_live_profile``)
 so switching ``fundamental_data`` between them cannot reintroduce the leak. The
-statement tools stay point-in-time by filtering on ``curr_date``, and a live run
+statement tools stay point-in-time by filtering on ``as_of_date``, and a live run
 is unchanged. All API access is mocked.
 """
 from __future__ import annotations
@@ -45,19 +45,19 @@ _LEAKY = ("3500000000000", "34.2", "260.1", "391000000000",
           "Apple Inc.", "Technology", "Consumer Electronics")
 
 
-def _yf(curr_date, info=_INFO, today=_TODAY):
+def _yf(as_of_date, info=_INFO, today=_TODAY):
     with mock.patch.object(date_window, "get_current_date", return_value=today), \
          mock.patch.object(yahoo_fundamentals, "yf_retry", lambda fn: info), \
          mock.patch.object(yahoo_market.yf, "Ticker"):
-        return yahoo_fundamentals.get_fundamentals("AAPL", curr_date)
+        return yahoo_fundamentals.get_fundamentals("AAPL", as_of_date)
 
 
-def _av(curr_date, today=_TODAY):
+def _av(as_of_date, today=_TODAY):
     """Alpha Vantage path; the API call is mocked so a leak would be visible."""
     with mock.patch.object(date_window, "get_current_date", return_value=today), \
          mock.patch.object(av, "_make_api_request",
                            return_value="MarketCapitalization: 3500000000000") as req:
-        return av.get_fundamentals("AAPL", curr_date), req
+        return av.get_fundamentals("AAPL", as_of_date), req
 
 
 @pytest.mark.unit

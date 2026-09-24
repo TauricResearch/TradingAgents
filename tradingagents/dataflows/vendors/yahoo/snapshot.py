@@ -25,8 +25,8 @@ DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
 )
 
 
-def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
-    """OHLCV on or before curr_date, date-sorted. Raises if nothing usable.
+def _verified_rows(symbol: str, as_of_date: str) -> pd.DataFrame:
+    """OHLCV on or before as_of_date, date-sorted. Raises if nothing usable.
 
     ``load_ohlcv`` already normalizes the Date column and filters out
     look-ahead rows, but we re-apply the cutoff defensively — this is a
@@ -34,16 +34,16 @@ def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
     """
     # As reported: this snapshot is quoted by the agents as exact prices, so a
     # gap-filled cell would put the previous session's number under this date.
-    data = load_ohlcv(symbol, curr_date, fill_gaps=False)
+    data = load_ohlcv(symbol, as_of_date, fill_gaps=False)
     if data is None or data.empty:
         raise ValueError(f"No OHLCV data available for {symbol}.")
 
     df = data.copy()
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df = df.dropna(subset=["Date"])
-    df = df[df["Date"] <= pd.to_datetime(curr_date)].sort_values("Date")
+    df = df[df["Date"] <= pd.to_datetime(as_of_date)].sort_values("Date")
     if df.empty:
-        raise ValueError(f"No OHLCV rows on or before {curr_date} for {symbol}.")
+        raise ValueError(f"No OHLCV rows on or before {as_of_date} for {symbol}.")
     return df
 
 
@@ -63,7 +63,7 @@ def _fmt(value) -> str:
 
 def build_verified_market_snapshot(
     symbol: str,
-    curr_date: str,
+    as_of_date: str,
     look_back_days: int = 30,
     indicators: Iterable[str] | None = None,
 ) -> str:
@@ -71,7 +71,7 @@ def build_verified_market_snapshot(
     # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/
     # Volume); stockstats `wrap()` lowercases columns and adds indicator
     # columns, so read raw prices from `df` and indicators from `stock_df`.
-    df = _verified_rows(symbol, curr_date)
+    df = _verified_rows(symbol, as_of_date)
     stock_df = wrap(df.copy())
 
     selected = tuple(indicators or DEFAULT_SNAPSHOT_INDICATORS)
@@ -91,7 +91,7 @@ def build_verified_market_snapshot(
     lines = [
         f"## Verified market data snapshot for {symbol.upper()}",
         "",
-        f"- Requested analysis date: {curr_date}",
+        f"- Requested analysis date: {as_of_date}",
         f"- Latest trading row used: {latest_date}",
         "- Rows after the requested analysis date are excluded before verification.",
         "",

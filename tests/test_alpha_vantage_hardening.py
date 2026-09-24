@@ -82,7 +82,7 @@ def test_fundamentals_look_ahead_filter_runs_on_json_string(monkeypatch):
     # #1115: the payload arrives as a JSON *string*; the old dict-only guard let
     # future-dated fiscal periods leak into historical runs.
     monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: _FUNDAMENTALS_JSON)
-    out = avf.get_balance_sheet("AAPL", curr_date="2024-01-01")
+    out = avf.get_balance_sheet("AAPL", as_of_date="2024-01-01")
     assert isinstance(out, str)  # callers still receive a str
     parsed = json.loads(out)
     assert [r["fiscalDateEnding"] for r in parsed["annualReports"]] == ["2023-12-31"]
@@ -98,7 +98,7 @@ def test_fundamentals_no_curr_date_passes_through(monkeypatch):
 @pytest.mark.unit
 def test_fundamentals_non_json_body_unchanged(monkeypatch):
     monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: "not-json")
-    assert avf.get_cashflow("AAPL", curr_date="2024-01-01") == "not-json"
+    assert avf.get_cashflow("AAPL", as_of_date="2024-01-01") == "not-json"
 
 
 # ---------------------------------------------------------------------------

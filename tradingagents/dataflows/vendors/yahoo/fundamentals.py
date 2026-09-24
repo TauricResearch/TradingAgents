@@ -16,19 +16,19 @@ from tradingagents.dataflows.vendors.yahoo.ohlcv import (
 
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
-    curr_date: Annotated[str, "analysis date in YYYY-MM-DD format"] = None
+    as_of_date: Annotated[str, "analysis date in YYYY-MM-DD format"] = None
 ):
     """Get company fundamentals overview from yfinance.
 
     ``Ticker.info`` is a present-day snapshot with no historical vintage, so a
-    past ``curr_date`` withholds it through the shared point-in-time guard
+    past ``as_of_date`` withholds it through the shared point-in-time guard
     (``date_window.withhold_live_profile``, #1300).
     """
     canonical = normalize_symbol(ticker)
 
     # Guard before the request: the response would only be discarded, and the
     # answer does not depend on it.
-    withheld = withhold_live_profile(curr_date, canonical)
+    withheld = withhold_live_profile(as_of_date, canonical)
     if withheld:
         return withheld
 
@@ -99,14 +99,14 @@ _PERIOD_END_VINTAGE = (
 )
 
 
-def _statement(ticker, freq, curr_date, title, quarterly_attr, annual_attr) -> str:
-    """One financial statement as CSV, cut at ``curr_date`` by period end."""
+def _statement(ticker, freq, as_of_date, title, quarterly_attr, annual_attr) -> str:
+    """One financial statement as CSV, cut at ``as_of_date`` by period end."""
     canonical = normalize_symbol(ticker)
     what = title.lower()
     try:
         ticker_obj = yf.Ticker(canonical)
         attr = quarterly_attr if freq.lower() == "quarterly" else annual_attr
-        data = filter_financials_by_date(yf_retry(lambda: getattr(ticker_obj, attr)), curr_date)
+        data = filter_financials_by_date(yf_retry(lambda: getattr(ticker_obj, attr)), as_of_date)
         if data.empty:
             raise_for_empty(ticker, canonical, f"{what} data")
         return f"# {title} data for {canonical} ({freq})\n" + _PERIOD_END_VINTAGE + data.to_csv()
@@ -119,28 +119,28 @@ def _statement(ticker, freq, curr_date, title, quarterly_attr, annual_attr) -> s
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
+    as_of_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get balance sheet data from yfinance."""
-    return _statement(ticker, freq, curr_date, "Balance Sheet", "quarterly_balance_sheet", "balance_sheet")
+    return _statement(ticker, freq, as_of_date, "Balance Sheet", "quarterly_balance_sheet", "balance_sheet")
 
 
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
+    as_of_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get cash flow data from yfinance."""
-    return _statement(ticker, freq, curr_date, "Cash Flow", "quarterly_cashflow", "cashflow")
+    return _statement(ticker, freq, as_of_date, "Cash Flow", "quarterly_cashflow", "cashflow")
 
 
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
+    as_of_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get income statement data from yfinance."""
-    return _statement(ticker, freq, curr_date, "Income Statement", "quarterly_income_stmt", "income_stmt")
+    return _statement(ticker, freq, as_of_date, "Income Statement", "quarterly_income_stmt", "income_stmt")
 
 
 # Rows are dated by the transaction, which is when the insider traded, not when
@@ -156,7 +156,7 @@ _TRANSACTION_DATE_VINTAGE = (
 
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"],
-    curr_date: Annotated[str | None, "only transactions on or before this date, yyyy-mm-dd"] = None,
+    as_of_date: Annotated[str | None, "only transactions on or before this date, yyyy-mm-dd"] = None,
 ):
     """Get insider transactions data from yfinance."""
     canonical = normalize_symbol(ticker)
@@ -171,12 +171,12 @@ def get_insider_transactions(
                 raise VendorRateLimitError("Yahoo Finance is unreachable; insider filings were not retrieved")
             return f"No insider transactions reported for symbol '{canonical}'"
 
-        if curr_date:
+        if as_of_date:
             traded = data["Start Date"]
-            kept = data[traded <= pd.Timestamp(curr_date)]
+            kept = data[traded <= pd.Timestamp(as_of_date)]
             if kept.empty:
                 return (
-                    f"<insider transactions unavailable for {canonical} as of {curr_date}: "
+                    f"<insider transactions unavailable for {canonical} as of {as_of_date}: "
                     "Yahoo serves recent transactions only>"
                 )
             data = kept
@@ -198,15 +198,15 @@ def get_company_profile(ticker: str) -> dict:
         raise NoMarketDataError(ticker, canonical, f"profile unavailable: {e}") from e
 
 
-def filter_financials_by_date(data: pd.DataFrame, curr_date: str) -> pd.DataFrame:
-    """Drop financial statement columns (fiscal period timestamps) after curr_date.
+def filter_financials_by_date(data: pd.DataFrame, as_of_date: str) -> pd.DataFrame:
+    """Drop financial statement columns (fiscal period timestamps) after as_of_date.
 
     yfinance financial statements use fiscal period end dates as columns.
-    Columns after curr_date represent future data and are removed to
+    Columns after as_of_date represent future data and are removed to
     prevent look-ahead bias.
     """
-    if not curr_date or data.empty:
+    if not as_of_date or data.empty:
         return data
-    cutoff = pd.Timestamp(curr_date)
+    cutoff = pd.Timestamp(as_of_date)
     mask = pd.to_datetime(data.columns, errors="coerce") <= cutoff
     return data.loc[:, mask]

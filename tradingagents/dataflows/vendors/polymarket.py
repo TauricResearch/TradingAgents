@@ -67,7 +67,7 @@ def _is_forward_looking(market: dict, now: datetime) -> bool:
     )
 
 
-def get_prediction_markets(topic: str, limit: int | None = None, curr_date: str | None = None) -> str:
+def get_prediction_markets(topic: str, limit: int | None = None, as_of_date: str | None = None) -> str:
     """Return live prediction-market probabilities for an event topic.
 
     Args:
@@ -75,7 +75,7 @@ def get_prediction_markets(topic: str, limit: int | None = None, curr_date: str 
             "US election", or a sector/company event.
         limit: Max markets to return (ranked by traded volume); ``None`` uses
             DEFAULT_LIMIT.
-        curr_date: The analysis date. Polymarket serves only live odds, so a
+        as_of_date: The analysis date. Polymarket serves only live odds, so a
             date before today withholds them.
 
     Returns:
@@ -83,11 +83,11 @@ def get_prediction_markets(topic: str, limit: int | None = None, curr_date: str 
         each with its implied probability, traded volume, resolution date, and
         recent (1-week) move.
     """
-    if curr_date and curr_date < get_current_date():
+    if as_of_date and as_of_date < get_current_date():
         return (
-            f"Prediction-market odds are withheld for {curr_date}. Polymarket serves "
+            f"Prediction-market odds are withheld for {as_of_date}. Polymarket serves "
             f"only live odds on open markets, with no historical vintage, so serving "
-            f"them would put post-decision information into a {curr_date} analysis."
+            f"them would put post-decision information into a {as_of_date} analysis."
         )
     if limit is None:
         limit = DEFAULT_LIMIT

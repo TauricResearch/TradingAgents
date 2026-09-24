@@ -70,14 +70,14 @@ def test_alpha_vantage_insider_filings_after_the_date_are_dropped():
 @pytest.mark.unit
 def test_polymarket_withholds_live_odds_from_a_historical_run():
     with mock.patch.object(polymarket, "_request", side_effect=AssertionError("must not fetch")):
-        out = polymarket.get_prediction_markets("Fed rate cut", curr_date="2025-06-01")
+        out = polymarket.get_prediction_markets("Fed rate cut", as_of_date="2025-06-01")
     assert "withheld" in out
 
 
 @pytest.mark.unit
 def test_polymarket_serves_a_current_run():
     with mock.patch.object(polymarket, "_request", return_value={"events": []}) as req:
-        polymarket.get_prediction_markets("Fed rate cut", curr_date=polymarket.get_current_date())
+        polymarket.get_prediction_markets("Fed rate cut", as_of_date=polymarket.get_current_date())
     req.assert_called_once()
 
 
@@ -103,7 +103,7 @@ def test_a_historical_run_is_told_the_identity_is_current(monkeypatch):
     identity = {"company_name": "Example Corp", "sector": "Technology",
                 "industry": "Software", "exchange": "NMS"}
 
-    historical = build_instrument_context("EXMP", "stock", identity, curr_date="2024-03-14")
+    historical = build_instrument_context("EXMP", "stock", identity, trade_date="2024-03-14")
     assert "Example Corp" in historical
     assert "2024-03-14" in historical and "today" in historical.lower()
 
@@ -114,7 +114,7 @@ def test_a_current_run_is_not_cluttered_with_a_vintage_note(monkeypatch):
     from tradingagents.dataflows.date_window import get_current_date
 
     today = build_instrument_context("EXMP", "stock", {"company_name": "Example Corp"},
-                                     curr_date=get_current_date())
+                                     trade_date=get_current_date())
     assert "Example Corp" in today
     assert "resolved today" not in today.lower()
 
@@ -297,7 +297,7 @@ def test_an_unavailable_notice_names_no_date_after_the_run():
         coverage_gap([pd.Timestamp(today, tz="UTC")], "2025-01-01", "2025-01-07", "Feed", "news"),
         withhold_live_profile("2025-01-07", "AAPL"),
         _yf_insider(_insider_frame(today), "2025-01-07"),
-        build_instrument_context("EXMP", "stock", {"company_name": "Example"}, curr_date="2025-01-07"),
+        build_instrument_context("EXMP", "stock", {"company_name": "Example"}, trade_date="2025-01-07"),
     ]
     for notice in notices:
         assert _dates_after(notice, "2025-01-07") == [], notice

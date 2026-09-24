@@ -121,7 +121,7 @@ def get_news_yfinance(
 
 
 def get_global_news_yfinance(
-    curr_date: str,
+    as_of_date: str,
     look_back_days: int | None = None,
     limit: int | None = None,
 ) -> str:
@@ -129,7 +129,7 @@ def get_global_news_yfinance(
     Retrieve global/macro economic news using yfinance Search.
 
     Args:
-        curr_date: Current date in yyyy-mm-dd format
+        as_of_date: Current date in yyyy-mm-dd format
         look_back_days: Number of days to look back. ``None`` falls back to
             ``global_news_lookback_days`` from the active config.
         limit: Maximum number of articles to return. ``None`` falls back to
@@ -145,7 +145,7 @@ def get_global_news_yfinance(
         limit = config["global_news_article_limit"]
     search_queries = config["global_news_queries"]
 
-    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    curr_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
     start_dt = curr_dt - relativedelta(days=look_back_days)
     start_date = start_dt.strftime("%Y-%m-%d")
 
@@ -189,10 +189,10 @@ def get_global_news_yfinance(
         if not news_str:
             # Results merge several fuzzy searches, so their timestamps prove no
             # continuous coverage; judge the window against the present only.
-            gap = coverage_gap((), start_date, curr_date, "Yahoo Finance global news", "market news")
-            return gap or f"No global news found between {start_date} and {curr_date}"
+            gap = coverage_gap((), start_date, as_of_date, "Yahoo Finance global news", "market news")
+            return gap or f"No global news found between {start_date} and {as_of_date}"
 
-        return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
+        return f"## Global Market News, from {start_date} to {as_of_date}:\n\n{news_str}"
 
     except VendorError:
         raise

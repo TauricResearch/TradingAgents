@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def get_indicator(
     symbol: str,
     indicator: str,
-    curr_date: str,
+    as_of_date: str,
     look_back_days: int,
     interval: str = "daily",
     time_period: int = 14,
@@ -21,7 +21,7 @@ def get_indicator(
     Args:
         symbol: ticker symbol of the company
         indicator: technical indicator to get the analysis and report of
-        curr_date: The current trading date you are trading on, YYYY-mm-dd
+        as_of_date: The current trading date you are trading on, YYYY-mm-dd
         look_back_days: how many days to look back
         interval: Time interval (daily, weekly, monthly)
         time_period: Number of data points for calculation
@@ -72,8 +72,8 @@ def get_indicator(
             f"Alpha Vantage does not serve {indicator}; it serves {list(supported_indicators)}"
         )
 
-    curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = curr_date_dt - relativedelta(days=look_back_days)
+    as_of_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
+    before = as_of_dt - relativedelta(days=look_back_days)
 
     # Get the full data for the period instead of making individual calls
     _, required_series_type = supported_indicators[indicator]
@@ -184,7 +184,7 @@ def get_indicator(
                     date_str = values[date_col_idx].strip()
                     date_dt = datetime.strptime(date_str, "%Y-%m-%d")
 
-                    if before <= date_dt <= curr_date_dt:
+                    if before <= date_dt <= as_of_dt:
                         value = values[value_col_idx].strip()
                         result_data.append((date_dt, value))
                 except (ValueError, IndexError):
@@ -201,7 +201,7 @@ def get_indicator(
             ind_string = "No data available for the specified date range.\n"
 
         result_str = (
-            f"## {indicator.upper()} values from {before.strftime('%Y-%m-%d')} to {curr_date}:\n\n"
+            f"## {indicator.upper()} values from {before.strftime('%Y-%m-%d')} to {as_of_date}:\n\n"
             + ind_string
             + "\n\n"
             + indicator_descriptions.get(indicator, "No description available.")

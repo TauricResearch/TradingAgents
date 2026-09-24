@@ -141,7 +141,7 @@ class FredFormattingTests(unittest.TestCase):
         self.assertEqual(len(body_rows), fred.MAX_ROWS)
 
     def test_window_is_lookahead_safe(self):
-        # observation_end must equal curr_date so a past date never pulls future data.
+        # observation_end must equal as_of_date so a past date never pulls future data.
         captured = {}
 
         def _capture(path, params):
@@ -156,9 +156,9 @@ class FredFormattingTests(unittest.TestCase):
 
     def test_requests_pin_the_data_vintage(self):
         # #1275: both the metadata and observations requests must pin the vintage
-        # to curr_date (clamped to FRED's today), or FRED serves the latest
+        # to as_of_date (clamped to FRED's today), or FRED serves the latest
         # revision and revision-prone series leak future information. A past
-        # curr_date sits below FRED's today, so it pins through unchanged.
+        # as_of_date sits below FRED's today, so it pins through unchanged.
         captured = {}
 
         def _capture(path, params):
@@ -174,11 +174,11 @@ class FredFormattingTests(unittest.TestCase):
             self.assertEqual(captured[path]["realtime_end"], "2025-09-30", path)
 
     def test_future_curr_date_clamps_vintage_to_fred_today(self):
-        # #1275 regression: on a live run curr_date is the caller's LOCAL date,
+        # #1275 regression: on a live run as_of_date is the caller's LOCAL date,
         # which can be a day ahead of FRED's US-Central clock. Pinning the vintage
         # to that future date 400s, and the routing layer then drops macro data
         # silently. The pin must clamp to FRED's today; the observation window
-        # (future bars can't exist yet) stays at curr_date.
+        # (future bars can't exist yet) stays at as_of_date.
         captured = {}
 
         def _capture(path, params):
@@ -192,7 +192,7 @@ class FredFormattingTests(unittest.TestCase):
         for path in ("series", "series/observations"):
             self.assertEqual(captured[path]["realtime_start"], "2026-08-31", path)
             self.assertEqual(captured[path]["realtime_end"], "2026-08-31", path)
-        # the observation window still tracks curr_date, not the clamped vintage
+        # the observation window still tracks as_of_date, not the clamped vintage
         self.assertEqual(captured["series/observations"]["observation_end"], "2026-09-01")
 
 

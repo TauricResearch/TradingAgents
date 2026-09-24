@@ -73,7 +73,7 @@ def get_YFin_data_online(
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
-    curr_date: Annotated[
+    as_of_date: Annotated[
         str, "The current trading date you are trading on, YYYY-mm-dd"
     ],
     look_back_days: Annotated[int, "how many days to look back"],
@@ -157,16 +157,16 @@ def get_stock_stats_indicators_window(
             f"Indicator {indicator} is not supported. Please choose from: {list(best_ind_params.keys())}"
         )
 
-    end_date = curr_date
-    curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = curr_date_dt - relativedelta(days=look_back_days)
+    end_date = as_of_date
+    as_of_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
+    before = as_of_dt - relativedelta(days=look_back_days)
 
     # Optimized: Get stock data once and calculate indicators for all dates
     try:
-        indicator_data = _get_stock_stats_bulk(symbol, indicator, curr_date)
+        indicator_data = _get_stock_stats_bulk(symbol, indicator, as_of_date)
 
         # Generate the date range we need
-        current_dt = curr_date_dt
+        current_dt = as_of_dt
         date_values = []
 
         while current_dt >= before:
@@ -191,13 +191,13 @@ def get_stock_stats_indicators_window(
         logger.warning("Bulk stockstats fetch failed, falling back per-day: %s", e)
         # Fallback to original implementation if bulk method fails
         ind_string = ""
-        curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-        while curr_date_dt >= before:
+        as_of_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
+        while as_of_dt >= before:
             indicator_value = get_stockstats_indicator(
-                symbol, indicator, curr_date_dt.strftime("%Y-%m-%d")
+                symbol, indicator, as_of_dt.strftime("%Y-%m-%d")
             )
-            ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
-            curr_date_dt = curr_date_dt - relativedelta(days=1)
+            ind_string += f"{as_of_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            as_of_dt = as_of_dt - relativedelta(days=1)
 
     result_str = (
         f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
@@ -212,7 +212,7 @@ def get_stock_stats_indicators_window(
 def _get_stock_stats_bulk(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to calculate"],
-    curr_date: Annotated[str, "current date for reference"]
+    as_of_date: Annotated[str, "current date for reference"]
 ) -> dict:
     """
     Optimized bulk calculation of stock stats indicators.
@@ -221,7 +221,7 @@ def _get_stock_stats_bulk(
     """
     from stockstats import wrap
 
-    data = load_ohlcv(symbol, curr_date)
+    data = load_ohlcv(symbol, as_of_date)
     df = wrap(data)
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
 
@@ -243,19 +243,19 @@ def _get_stock_stats_bulk(
 def get_stockstats_indicator(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
-    curr_date: Annotated[
+    as_of_date: Annotated[
         str, "The current trading date you are trading on, YYYY-mm-dd"
     ],
 ) -> str:
 
-    curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-    curr_date = curr_date_dt.strftime("%Y-%m-%d")
+    as_of_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
+    as_of_date = as_of_dt.strftime("%Y-%m-%d")
 
     try:
         indicator_value = get_stock_stats(
             symbol,
             indicator,
-            curr_date,
+            as_of_date,
         )
     except VendorError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
@@ -264,7 +264,7 @@ def get_stockstats_indicator(
         # reads as no value that day rather than a read that failed. Raise so the
         # router can try the next vendor or report the series unavailable.
         raise NoMarketDataError(
-            symbol, symbol, f"{indicator} could not be read for {curr_date}: {e}"
+            symbol, symbol, f"{indicator} could not be read for {as_of_date}: {e}"
         ) from e
 
     return str(indicator_value)
@@ -285,17 +285,17 @@ def get_stock_stats(
     indicator: Annotated[
         str, "quantitative indicators based off of the stock data for the company"
     ],
-    curr_date: Annotated[
+    as_of_date: Annotated[
         str, "curr date for retrieving stock price data, YYYY-mm-dd"
     ],
 ):
-    data = load_ohlcv(symbol, curr_date)
+    data = load_ohlcv(symbol, as_of_date)
     df = wrap(data)
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-    curr_date_str = pd.to_datetime(curr_date).strftime("%Y-%m-%d")
+    as_of_str = pd.to_datetime(as_of_date).strftime("%Y-%m-%d")
 
     df[indicator]  # trigger stockstats to calculate the indicator
-    matching_rows = df[df["Date"].str.startswith(curr_date_str)]
+    matching_rows = df[df["Date"].str.startswith(as_of_str)]
 
     if not matching_rows.empty:
         indicator_value = matching_rows[indicator].values[0]
