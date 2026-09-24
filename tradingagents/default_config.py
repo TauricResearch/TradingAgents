@@ -14,6 +14,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_LLM_BACKEND_URL":      "backend_url",
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
+    "TRADINGAGENTS_JEV_DEBATE_GATE":      "jev_debate_gate",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
@@ -113,6 +114,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "output_language": "English",
     # Debate and discussion settings
     "max_debate_rounds": 1,
+    # Optional: let Jev end a converged bull/bear debate early
+    # (needs TYPESAFE_API_KEY; degrades to fixed rounds otherwise).
+    "jev_debate_gate": False,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     # News / data fetching parameters

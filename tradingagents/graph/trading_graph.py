@@ -90,9 +90,15 @@ class TradingAgentsGraph:
 
         self.memory_log = TradingMemoryLog(self.config)
 
+        debate_gate = None
+        if self.config.get("jev_debate_gate"):
+            from tradingagents.agents.debate_gate import jev_debate_gate
+
+            debate_gate = jev_debate_gate()  # None without a TypeSafe key
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config["max_debate_rounds"],
             max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
+            debate_gate=debate_gate,
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
