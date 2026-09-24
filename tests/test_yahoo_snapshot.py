@@ -72,3 +72,56 @@ class TestTool:
             {"symbol": "COF", "curr_date": "2026-05-20"}
         )
         assert "Verified market data snapshot for COF" in out
+
+    def test_tool_handles_no_market_data_error(self, monkeypatch):
+        from tradingagents.agents.tools import get_verified_market_snapshot
+        from tradingagents.dataflows.errors import NoMarketDataError
+
+        def _raise(*args, **kwargs):
+            raise NoMarketDataError("COF", "COF", "no price rows")
+
+        monkeypatch.setattr(validator, "load_ohlcv", _raise)
+        out = get_verified_market_snapshot.invoke(
+            {"symbol": "COF", "curr_date": "2026-05-20"}
+        )
+        assert "NO_DATA_AVAILABLE" in out
+        assert "COF" in out
+
+    def test_tool_handles_vendor_rate_limit_error(self, monkeypatch):
+        from tradingagents.agents.tools import get_verified_market_snapshot
+        from tradingagents.dataflows.errors import VendorRateLimitError
+
+        def _raise(*args, **kwargs):
+            raise VendorRateLimitError("Throttled by Yahoo")
+
+        monkeypatch.setattr(validator, "load_ohlcv", _raise)
+        out = get_verified_market_snapshot.invoke(
+            {"symbol": "COF", "curr_date": "2026-05-20"}
+        )
+        assert "DATA_UNAVAILABLE" in out
+        assert "rate-limited" in out
+
+    def test_tool_handles_value_error(self, monkeypatch):
+        from tradingagents.agents.tools import get_verified_market_snapshot
+
+        def _raise(*args, **kwargs):
+            raise ValueError("No rows available")
+
+        monkeypatch.setattr(validator, "load_ohlcv", _raise)
+        out = get_verified_market_snapshot.invoke(
+            {"symbol": "COF", "curr_date": "2026-05-20"}
+        )
+        assert "NO_DATA_AVAILABLE" in out
+
+    def test_tool_handles_generic_exception(self, monkeypatch):
+        from tradingagents.agents.tools import get_verified_market_snapshot
+
+        def _raise(*args, **kwargs):
+            raise RuntimeError("Unexpected failure")
+
+        monkeypatch.setattr(validator, "load_ohlcv", _raise)
+        out = get_verified_market_snapshot.invoke(
+            {"symbol": "COF", "curr_date": "2026-05-20"}
+        )
+        assert "DATA_UNAVAILABLE" in out
+

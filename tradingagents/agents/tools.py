@@ -4,14 +4,21 @@ Each dated tool takes the run's ``trade_date`` from graph state (``InjectedState
 and never serves data past it, whatever date the model asks for.
 """
 
+import logging
 from typing import Annotated
 
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.date_window import as_of, as_of_window
+from tradingagents.dataflows.errors import (
+    NoMarketDataError,
+    VendorRateLimitError,
+)
 from tradingagents.dataflows.router import route_to_vendor
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -83,7 +90,40 @@ def get_verified_market_snapshot(
     price levels, Bollinger bands, RSI, MACD, moving averages, support /
     resistance, or historical comparisons, and treat it as the source of truth.
     """
-    return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
+    target_date = as_of(curr_date, trade_date)
+    try:
+        return build_verified_market_snapshot(symbol, target_date, look_back_days)
+    except NoMarketDataError as exc:
+        sym = exc.symbol
+        canonical = exc.canonical
+        resolved = "" if canonical == sym else f" (resolved to '{canonical}')"
+        reason = f" ({exc.detail})" if exc.detail else ""
+        return (
+            f"NO_DATA_AVAILABLE: Verified market data snapshot could not be generated for "
+            f"'{sym}'{resolved} as of {target_date}{reason}. The symbol may be invalid, "
+            f"delisted, not covered, or the vendor returned stale data. "
+            f"Do not estimate or fabricate values — report that verified market data is "
+            f"unavailable for this symbol."
+        )
+    except VendorRateLimitError as exc:
+        return (
+            f"DATA_UNAVAILABLE: Verified market data snapshot could not be generated "
+            f"for '{symbol}' because the market data vendor is rate-limited or "
+            f"unreachable ({exc}). Report that market data is currently unavailable "
+            f"and do not fabricate values."
+        )
+    except ValueError as exc:
+        return (
+            f"NO_DATA_AVAILABLE: Verified market data snapshot could not be generated "
+            f"for '{symbol}' as of {target_date}: {exc}. Report that data is unavailable "
+            f"and do not estimate values."
+        )
+    except Exception as exc:
+        logger.warning("Failed to build verified market snapshot for %s: %s", symbol, exc)
+        return (
+            f"DATA_UNAVAILABLE: Verified market data snapshot failed for '{symbol}': {exc}. "
+            f"Proceed without it; do not fabricate values."
+        )
 
 
 @tool
