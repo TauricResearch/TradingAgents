@@ -136,8 +136,8 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
         def end_checkpoint(self):
             pass
 
-        def stream(self, *a, **k):
-            yield {"messages": [], "final_trade_decision": REFUSAL, "final_rating": RATING_REVIEW}
+        def stream_run(self, *a, **k):
+            yield [], {"messages": [], "final_trade_decision": REFUSAL, "final_rating": RATING_REVIEW}
 
     fake = _Graph()
     fake.graph = fake

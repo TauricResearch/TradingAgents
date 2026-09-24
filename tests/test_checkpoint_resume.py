@@ -210,6 +210,10 @@ class TestCheckpointSignature(unittest.TestCase):
         # Stable for identical inputs.
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
         self.assertEqual(base, g._run_signature("stock"))
+        # A checkpoint saved by the sequential layout is not resumed on the
+        # parallel one: its pending node no longer exists, and the join would
+        # never fire.
+        self.assertIn("analysts=parallel", base)
 
 
 if __name__ == "__main__":

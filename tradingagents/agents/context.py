@@ -6,8 +6,6 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-from langchain_core.messages import HumanMessage, RemoveMessage
-
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
 
@@ -206,33 +204,3 @@ def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
         "holdings or cash, so do not assume a flat book; give direction and "
         "sizing guidance in terms the caller can apply to their own position."
     )
-
-
-def create_msg_delete():
-    def delete_messages(state):
-        """Clear messages and add a context-anchored placeholder.
-
-        The placeholder must not be a bare ``"Continue"``: some
-        OpenAI-compatible providers interpret that literally as the user task
-        and produce output about the word "continue" instead of analysing the
-        instrument (#888). Anchoring it to the resolved instrument context and
-        date keeps the next analyst on-task even if the provider treats the
-        placeholder as a standalone request.
-        """
-        messages = state["messages"]
-        removal_operations = [RemoveMessage(id=m.id) for m in messages]
-
-        instrument_context = get_instrument_context_from_state(state)
-        trade_date = state.get("trade_date", "the requested date")
-        placeholder = HumanMessage(
-            content=(
-                f"Proceed with your assigned analysis for this workflow. "
-                f"{instrument_context} The analysis date is {trade_date}."
-            )
-        )
-        return {"messages": removal_operations + [placeholder]}
-
-    return delete_messages
-
-
-

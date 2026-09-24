@@ -463,22 +463,17 @@ ANALYST_REPORT_MAP = {
 
 
 def update_analyst_statuses(message_buffer, chunk, wall_time_tracker=None):
-    """Update analyst statuses based on accumulated report state.
+    """Update analyst statuses from the reports filed so far.
 
-    Logic:
-    - Store new report content from the current chunk if present
-    - Check accumulated report_sections (not just current chunk) for status
-    - Analysts with reports = completed
-    - First analyst without report = in_progress
-    - Remaining analysts without reports = pending
-    - When all analysts done, set Bull Researcher to in_progress
+    The analysts run together: each is in progress until its own report lands.
+    When every selected analyst has filed, the research debate is in progress.
     """
     selected = message_buffer.selected_analysts
-    found_active = False
 
     if wall_time_tracker is not None:
         sync_analyst_tracker_from_chunk(wall_time_tracker, chunk)
 
+    all_filed = True
     for analyst_key in ANALYST_ORDER:
         if analyst_key not in selected:
             continue
@@ -490,20 +485,15 @@ def update_analyst_statuses(message_buffer, chunk, wall_time_tracker=None):
         if chunk.get(report_key):
             message_buffer.update_report_section(report_key, chunk[report_key])
 
-        # Determine status from accumulated sections, not just current chunk
-        has_report = bool(message_buffer.report_sections.get(report_key))
-
-        if has_report:
+        # Status comes from accumulated sections, not just the current chunk.
+        if message_buffer.report_sections.get(report_key):
             message_buffer.update_agent_status(agent_name, "completed")
-        elif not found_active:
-            message_buffer.update_agent_status(agent_name, "in_progress")
-            found_active = True
         else:
-            message_buffer.update_agent_status(agent_name, "pending")
+            message_buffer.update_agent_status(agent_name, "in_progress")
+            all_filed = False
 
-    # When all analysts complete, transition research team to in_progress
     if (
-        not found_active
+        all_filed
         and selected
         and message_buffer.agent_status.get("Bull Researcher") == "pending"
     ):
@@ -624,17 +614,9 @@ def sync_analyst_tracker_from_chunk(
     chunk: dict[str, str],
     now: float | None = None,
 ) -> None:
+    """The analysts start together; each stops its clock when its report lands."""
     current_time = monotonic() if now is None else now
-    active_found = False
-
     for spec in tracker.plan.specs:
-        has_report = bool(chunk.get(spec.report_key))
-
-        if has_report:
-            tracker.mark_started(spec.key, started_at=current_time)
+        tracker.mark_started(spec.key, started_at=current_time)
+        if chunk.get(spec.report_key):
             tracker.mark_completed(spec.key, completed_at=current_time)
-            continue
-
-        if not active_found:
-            tracker.mark_started(spec.key, started_at=current_time)
-            active_found = True

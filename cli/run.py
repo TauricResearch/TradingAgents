@@ -200,9 +200,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        first_analyst = analyst_execution_plan.specs[0].agent_node
-        message_buffer.update_agent_status(first_analyst, "in_progress")
-        analyst_wall_time_tracker.mark_started(selected_analyst_keys[0])
+        # The analysts start together.
+        for spec in analyst_execution_plan.specs:
+            message_buffer.update_agent_status(spec.agent_node, "in_progress")
+            analyst_wall_time_tracker.mark_started(spec.key)
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         spinner_text = (
@@ -234,8 +235,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         # try/finally tears the checkpointer down even if the stream raises.
         trace = []
         try:
-            for chunk in graph.graph.stream(graph.checkpoint_input(init_agent_state), **args):
-                for message in chunk.get("messages", []):
+            for messages, chunk in graph.stream_run(graph.checkpoint_input(init_agent_state), **args):
+                for message in messages:
                     msg_id = getattr(message, "id", None)
                     if msg_id is not None:
                         if msg_id in message_buffer._processed_message_ids:
@@ -252,6 +253,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
                                 message_buffer.add_tool_call(tool_call["name"], tool_call["args"])
                             else:
                                 message_buffer.add_tool_call(tool_call.name, tool_call.args)
+
+                if chunk is None:   # a step inside an analyst's graph: messages only
+                    update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                    continue
 
                 update_analyst_statuses(
                     message_buffer,

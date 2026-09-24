@@ -81,6 +81,8 @@ Our framework decomposes complex trading tasks into specialized roles.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
 
+The selected analysts work at the same time, each on its own tools, and the research debate starts once all of their reports are in.
+
 <p align="center">
   <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>

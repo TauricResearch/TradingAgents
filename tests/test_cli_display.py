@@ -129,23 +129,28 @@ class AnalystWallTimeTrackerTests(unittest.TestCase):
             "Analyst wall time: News 4.00s | Market 2.25s",
         )
 
-    def test_syncs_wall_time_from_sequential_chunks(self):
+    def test_analysts_run_together_and_finish_on_their_own_reports(self):
         plan = build_analyst_execution_plan(["market", "news"])
         tracker = AnalystWallTimeTracker(plan)
 
         sync_analyst_tracker_from_chunk(tracker, {}, now=10.0)
         self.assertEqual(tracker.format_summary(), "Analyst wall time: pending")
 
-        sync_analyst_tracker_from_chunk(
-            tracker,
-            {"market_report": "done"},
-            now=13.0,
-        )
-        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.00s")
+        sync_analyst_tracker_from_chunk(tracker, {"news_report": "done"}, now=13.0)
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: News 3.00s")
 
-        sync_analyst_tracker_from_chunk(
-            tracker,
-            {"market_report": "done", "news_report": "done"},
-            now=18.0,
-        )
-        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 3.00s | News 5.00s")
+        sync_analyst_tracker_from_chunk(tracker, {"news_report": "done", "market_report": "done"}, now=18.0)
+        self.assertEqual(tracker.format_summary(), "Analyst wall time: Market 8.00s | News 3.00s")
+
+
+@pytest.mark.unit
+def test_every_selected_analyst_is_in_progress_until_its_report_lands():
+    from cli.display import MessageBuffer, update_analyst_statuses
+
+    buffer = MessageBuffer()
+    buffer.init_for_analysis(["market", "news", "fundamentals"])
+    update_analyst_statuses(buffer, {"news_report": "done"})
+
+    assert buffer.agent_status["Market Analyst"] == "in_progress"
+    assert buffer.agent_status["Fundamentals Analyst"] == "in_progress"
+    assert buffer.agent_status["News Analyst"] == "completed"

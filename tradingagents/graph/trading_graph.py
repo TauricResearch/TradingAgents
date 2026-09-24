@@ -152,6 +152,9 @@ class TradingAgentsGraph:
             f"asset={asset_type}",
             # None, an empty book and a changed book are three different runs.
             f"portfolio={portfolio.fingerprint() if portfolio is not None else 'none'}",
+            # The layout itself: a checkpoint saved when analysts ran one after
+            # another has pending nodes this graph no longer has.
+            "analysts=parallel",
         ])
 
     def propagate(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
@@ -333,24 +336,16 @@ class TradingAgentsGraph:
         # None resumes an existing checkpoint; init_agent_state starts fresh (#1249).
         graph_input = self.checkpoint_input(init_agent_state)
         if self.debug:
-            trace = []
-            last_printed = None
-            for chunk in self.graph.stream(graph_input, **args):
-                if chunk["messages"]:
-                    msg = chunk["messages"][-1]
-                    # Nodes after the trader don't append to messages, so the
-                    # same trailing message repeats across chunks. Print it only
-                    # when it changes (#1027); the trace/state merge is unchanged.
-                    signature = (type(msg).__name__, getattr(msg, "content", None))
-                    if signature != last_printed:
+            # A state repeats the messages before it, so each prints once (#1027).
+            final_state, printed = {}, set()
+            for messages, state in self.stream_run(graph_input, **args):
+                for msg in messages:
+                    key = getattr(msg, "id", None) or (type(msg).__name__, getattr(msg, "content", None))
+                    if key not in printed:
+                        printed.add(key)
                         msg.pretty_print()
-                        last_printed = signature
-                    trace.append(chunk)
-            # Streamed chunks are per-node deltas. Merge them so the returned
-            # state matches what graph.invoke() yields in the non-debug path.
-            final_state = {}
-            for chunk in trace:
-                final_state.update(chunk)
+                if state is not None:
+                    final_state.update(state)
         else:
             final_state = self.graph.invoke(graph_input, **args)
 
@@ -363,6 +358,28 @@ class TradingAgentsGraph:
         self.clear_checkpoint_on_success(company_name, trade_date, asset_type, portfolio)
 
         return final_state, run_rating(final_state)
+
+    def stream_run(self, graph_input, **args):
+        """Stream a run as ``(messages, state)`` pairs.
+
+        ``messages`` are the agents' messages, the analysts' included. ``state``
+        is the run's state after a top-level step; for a step inside an analyst's
+        graph it is that analyst's report once filed, else None.
+
+        Each analyst works in a graph of its own, and the run's state takes the
+        analysts' reports only when the slowest has finished, so their messages
+        and reports come from their own finished steps ("tasks") as they happen.
+        """
+        args = {**args, "stream_mode": ["values", "tasks"]}
+        for namespace, mode, chunk in self.graph.stream(graph_input, subgraphs=True, **args):
+            if namespace:
+                result = chunk.get("result") if mode == "tasks" else None
+                if isinstance(result, dict):
+                    report = {k: v for k, v in result.items() if k != "messages" and v}
+                    if result.get("messages") or report:
+                        yield result.get("messages", []), report or None
+            elif mode == "values":
+                yield chunk.get("messages", []), chunk
 
     def _log_state(self, trade_date, final_state):
         """Write a run's final state to JSON under the run's own ticker."""

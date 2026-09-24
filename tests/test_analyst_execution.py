@@ -11,8 +11,8 @@ class AnalystExecutionPlanTests(unittest.TestCase):
 
         self.assertEqual([spec.key for spec in plan.specs], ["news", "market"])
         self.assertEqual(plan.specs[0].agent_node, "News Analyst")
-        self.assertEqual(plan.specs[0].tool_node, "tools_news")
-        self.assertEqual(plan.specs[0].clear_node, "Msg Clear News")
+        self.assertEqual(plan.specs[0].report_key, "news_report")
+        self.assertFalse(hasattr(plan.specs[0], "clear_node"))
 
     def test_rejects_unknown_analyst_keys(self):
         with self.assertRaises(ValueError):

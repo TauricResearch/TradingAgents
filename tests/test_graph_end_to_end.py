@@ -52,6 +52,7 @@ class ScriptedModel(BaseChatModel):
     structured: bool = False
     tools: tuple = ()
     calls: list = Field(default_factory=list)   # shared across bound copies
+    threads: set = Field(default_factory=set)   # threads that served a tool-bound call
     fail_at: int | None = None                  # raise on this call, once
 
     @property
@@ -73,6 +74,11 @@ class ScriptedModel(BaseChatModel):
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:
         self._count()
+        if self.tools:
+            import threading
+            import time
+            self.threads.add(threading.current_thread().name)
+            time.sleep(0.05)   # long enough for concurrent analysts to overlap
         if self.tools and not isinstance(messages[-1], ToolMessage):
             calls = [{"name": t.name, "id": f"call_{i}",
                       "args": {k: v for k, v in ARGS.items()
@@ -113,12 +119,12 @@ def offline(monkeypatch, tmp_path):
     return called
 
 
-def _graph(tmp_path, monkeypatch, model, **config):
+def _graph(tmp_path, monkeypatch, model, debug=False, **config):
     cfg = copy.deepcopy(DEFAULT_CONFIG)
     cfg.update(results_dir=str(tmp_path / "results"), data_cache_dir=str(tmp_path / "cache"),
                memory_log_path=str(tmp_path / "log.md"), **config)
     monkeypatch.setattr(trading_graph, "create_llm_client", lambda **k: _Client(model))
-    return trading_graph.TradingAgentsGraph(config=cfg)
+    return trading_graph.TradingAgentsGraph(config=cfg, debug=debug)
 
 
 @pytest.mark.unit
@@ -169,3 +175,41 @@ def test_a_graph_reused_across_runs_keeps_no_run_state(tmp_path, monkeypatch, of
     held = [v for v in vars(graph).values() if isinstance(v, dict) and TRADE_DATE in v]
     assert held == []
     assert len(list(tmp_path.glob("results/NVDA/TradingAgentsStrategy_logs/*.json"))) == 2
+
+
+@pytest.mark.unit
+def test_the_analysts_run_at_the_same_time(tmp_path, monkeypatch, offline):
+    model = ScriptedModel()
+    graph = _graph(tmp_path, monkeypatch, model)
+
+    assert not [n for n in graph.graph.get_graph().nodes if n.startswith("Msg Clear")]
+    graph.propagate("NVDA", TRADE_DATE)
+
+    assert len(model.threads) > 1
+
+
+@pytest.mark.unit
+def test_a_debug_run_prints_the_analysts_work_and_reaches_the_same_decision(tmp_path, monkeypatch, offline, capsys):
+    """Debug mode streams the analysts' own graphs, so their tool calls still print."""
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(), debug=True)
+
+    state, signal = graph.propagate("NVDA", TRADE_DATE)
+
+    assert signal == "Overweight"
+    assert state["market_report"].strip() and state["fundamentals_report"].strip()
+    printed = capsys.readouterr().out
+    assert "get_stock_data" in printed and "get_balance_sheet" in printed
+
+
+@pytest.mark.unit
+def test_each_report_streams_as_soon_as_its_analyst_files_it(tmp_path, monkeypatch, offline):
+    """The main state takes the analysts' reports only when the slowest one is
+    done; the CLI shows each report, and stops each clock, as it lands."""
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel())
+    reports = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
+
+    first = next(state for _, state in graph.stream_run(graph.create_run_state("NVDA", TRADE_DATE),
+                                                        **graph.propagator.get_graph_args())
+                 if state and any(state.get(k) for k in reports))
+
+    assert sum(bool(first.get(k)) for k in reports) == 1

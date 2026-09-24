@@ -8,14 +8,8 @@ from tradingagents.agents.analysts import fundamentals_analyst, market_analyst, 
 class AnalystNodeSpec:
     key: str
     agent_node: str
-    clear_node: str
     report_key: str
     tools: tuple = ()
-
-    @property
-    def tool_node(self) -> str | None:
-        """The node that runs this analyst's tool calls; None when it has no tools."""
-        return f"tools_{self.key}" if self.tools else None
 
 
 @dataclass(frozen=True)
@@ -27,7 +21,6 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
     "market": AnalystNodeSpec(
         key="market",
         agent_node="Market Analyst",
-        clear_node="Msg Clear Market",
         report_key="market_report",
         tools=market_analyst.TOOLS,
     ),
@@ -36,20 +29,17 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         # sources before calling the model, so it has no tools.
         key="social",
         agent_node="Sentiment Analyst",
-        clear_node="Msg Clear Sentiment",
         report_key="sentiment_report",
     ),
     "news": AnalystNodeSpec(
         key="news",
         agent_node="News Analyst",
-        clear_node="Msg Clear News",
         report_key="news_report",
         tools=news_analyst.TOOLS,
     ),
     "fundamentals": AnalystNodeSpec(
         key="fundamentals",
         agent_node="Fundamentals Analyst",
-        clear_node="Msg Clear Fundamentals",
         report_key="fundamentals_report",
         tools=fundamentals_analyst.TOOLS,
     ),

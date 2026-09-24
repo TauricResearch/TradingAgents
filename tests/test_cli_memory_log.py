@@ -95,9 +95,9 @@ class _FakeGraph:
     def end_checkpoint(self):
         pass
 
-    def stream(self, graph_input, **kwargs):
-        yield {"messages": [], "market_report": "M"}
-        yield {"messages": [], "final_trade_decision": "Rating: Buy\n\nBuy NVDA.", "final_rating": "Buy"}
+    def stream_run(self, graph_input, **kwargs):
+        yield [], {"messages": [], "market_report": "M"}
+        yield [], {"messages": [], "final_trade_decision": "Rating: Buy\n\nBuy NVDA.", "final_rating": "Buy"}
 
 
 class _NullLive:

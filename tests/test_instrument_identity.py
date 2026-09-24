@@ -5,11 +5,9 @@ import unittest
 from unittest.mock import patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
 from tradingagents.agents.context import (
     build_instrument_context,
-    create_msg_delete,
     get_instrument_context_from_state,
     resolve_instrument_identity,
 )
@@ -116,54 +114,6 @@ class GetInstrumentContextFromStateTests(unittest.TestCase):
             {"company_of_interest": "BTC-USD", "asset_type": "crypto"}
         )
         self.assertIn("crypto asset", context)
-
-
-@pytest.mark.unit
-class ContextAnchoredPlaceholderTests(unittest.TestCase):
-    """#888 — the message-clear placeholder must not be a bare 'Continue'."""
-
-    def _run(self, state_extra):
-        state = {
-            "messages": [
-                HumanMessage(content="old", id="h1"),
-                AIMessage(content="reply", id="a1"),
-            ],
-            **state_extra,
-        }
-        return create_msg_delete()(state)
-
-    def test_placeholder_is_not_bare_continue(self):
-        result = self._run(
-            {"company_of_interest": "EC", "asset_type": "stock", "trade_date": "2026-05-28"}
-        )
-        placeholder = result["messages"][-1]
-        self.assertIsInstance(placeholder, HumanMessage)
-        self.assertNotEqual(placeholder.content.strip(), "Continue")
-
-    def test_placeholder_carries_resolved_identity(self):
-        result = self._run(
-            {
-                "company_of_interest": "EC",
-                "instrument_context": "The instrument to analyze is `EC`. Resolved identity: Company: Ecopetrol.",
-                "trade_date": "2026-05-28",
-            }
-        )
-        content = result["messages"][-1].content
-        self.assertIn("Ecopetrol", content)
-        self.assertIn("2026-05-28", content)
-
-    def test_old_messages_are_removed(self):
-        result = self._run({"company_of_interest": "EC", "trade_date": "2026-05-28"})
-        removals = [m for m in result["messages"] if isinstance(m, RemoveMessage)]
-        humans = [m for m in result["messages"] if isinstance(m, HumanMessage)]
-        self.assertEqual(len(removals), 2)
-        self.assertEqual(len(humans), 1)
-
-    def test_safe_defaults_when_state_minimal(self):
-        result = create_msg_delete()({"messages": [], "company_of_interest": "EC"})
-        placeholder = result["messages"][-1]
-        self.assertNotEqual(placeholder.content.strip(), "Continue")
-        self.assertIn("EC", placeholder.content)
 
 
 if __name__ == "__main__":
