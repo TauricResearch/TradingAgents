@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and showcases
+    url: https://github.com/TauricResearch/TradingAgents/discussions
+    about: Usage questions, ideas, and projects built on TradingAgents
+  - name: Security vulnerability
+    url: https://github.com/TauricResearch/TradingAgents/security/advisories/new
+    about: Report privately; please do not open a public issue
