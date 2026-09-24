@@ -76,6 +76,14 @@ def analyze(
             err=True,
         )
         raise typer.Exit(code=1) from None
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Analysis interrupted by user.[/yellow]")
+        raise typer.Exit(code=0) from None
+    except Exception as exc:
+        console.print(f"\n[bold red]Analysis failed:[/bold red] {exc}")
+        if checkpoint:
+            console.print("[dim]You can resume this analysis using --checkpoint.[/dim]")
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -124,6 +132,13 @@ def backtest(
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
     for ticker, reason in result.settlement_failures:
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
+
+
+@app.command()
+def doctor():
+    """Run diagnostics to verify environment, API keys, cache, and vendor connectivity."""
+    from cli.doctor import run_doctor
+    run_doctor()
 
 
 if __name__ == "__main__":
