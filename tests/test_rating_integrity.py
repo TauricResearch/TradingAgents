@@ -194,11 +194,11 @@ def test_a_decision_prompt_states_the_shape_of_its_answer(module, factory, must_
         "news_report": "N", "fundamentals_report": "F", "investment_plan": "P",
         "trader_investment_plan": "T", "past_context": "", "portfolio_context": "",
         "investment_debate_state": {"bull_history": "b", "bear_history": "r", "history": "h",
-                                    "current_response": "", "judge_decision": "", "count": 2},
+                                    "current_response": "", "count": 2},
         "risk_debate_state": {"history": "h", "latest_speaker": "", "count": 3,
                               "aggressive_history": "", "conservative_history": "", "neutral_history": "",
                               "current_aggressive_response": "", "current_conservative_response": "",
-                              "current_neutral_response": "", "judge_decision": ""},
+                              "current_neutral_response": ""},
     }
     getattr(mod, factory)(_LLM())(state)
 

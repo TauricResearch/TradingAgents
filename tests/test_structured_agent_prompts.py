@@ -72,7 +72,7 @@ def test_research_manager_prompt_states_constraint():
         "company_of_interest": "NVDA",
         "investment_debate_state": {
             "history": "h", "bull_history": "b", "bear_history": "r",
-            "current_response": "", "judge_decision": "", "count": 1,
+            "current_response": "", "count": 1,
         },
     })
     assert NO_EXTERNAL_TOOLS in _prompt_text(captured["prompt"])

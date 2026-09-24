@@ -74,11 +74,11 @@ def test_a_report_that_was_never_produced_says_so(module, factory):
         "market_report": "RSI 61, price 178.", "sentiment_report": "", "news_report": "",
         "fundamentals_report": "", "investment_plan": "P", "trader_investment_plan": "T",
         "investment_debate_state": {"bull_history": "", "bear_history": "", "history": "",
-                                    "current_response": "", "judge_decision": "", "count": 0},
+                                    "current_response": "", "count": 0},
         "risk_debate_state": {"history": "", "latest_speaker": "", "count": 0,
                               "aggressive_history": "", "conservative_history": "", "neutral_history": "",
                               "current_aggressive_response": "", "current_conservative_response": "",
-                              "current_neutral_response": "", "judge_decision": ""},
+                              "current_neutral_response": ""},
     }
     getattr(mod, factory)(_LLM())(state)
 

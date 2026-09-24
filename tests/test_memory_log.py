@@ -74,7 +74,6 @@ def _make_pm_state(past_context=""):
             "aggressive_history": "",
             "conservative_history": "",
             "neutral_history": "",
-            "judge_decision": "",
             "current_aggressive_response": "",
             "current_conservative_response": "",
             "current_neutral_response": "",
@@ -906,13 +905,13 @@ class TestLegacyRemoval:
             "fundamentals_report": "",
             "investment_debate_state": {
                 "bull_history": "", "bear_history": "", "history": "",
-                "current_response": "", "judge_decision": "",
+                "current_response": "",
             },
             "investment_plan": "",
             "trader_investment_plan": "",
             "risk_debate_state": {
                 "aggressive_history": "", "conservative_history": "",
-                "neutral_history": "", "history": "", "judge_decision": "",
+                "neutral_history": "", "history": "",
                 "current_aggressive_response": "", "current_conservative_response": "",
                 "current_neutral_response": "", "count": 1, "latest_speaker": "",
             },

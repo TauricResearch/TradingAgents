@@ -48,9 +48,9 @@ def _state(ticker, final="评级: 买入"):
         "fundamentals_report": "基本面", "investment_plan": "计划",
         "trader_investment_plan": "交易计划", "final_trade_decision": final, "final_rating": "REVIEW",
         "investment_debate_state": {"bull_history": "", "bear_history": "", "history": "",
-                                    "current_response": "", "judge_decision": "", "count": 0},
+                                    "current_response": "", "count": 0},
         "risk_debate_state": {"aggressive_history": "", "conservative_history": "",
-                              "neutral_history": "", "history": "", "judge_decision": "",
+                              "neutral_history": "", "history": "",
                               "latest_speaker": "", "current_aggressive_response": "",
                               "current_conservative_response": "", "current_neutral_response": "",
                               "count": 0},
@@ -74,6 +74,19 @@ def test_the_state_log_keeps_non_ascii_readable(tmp_path):
     assert "买入" in written
     assert "\\u" not in written
     assert json.loads(written)  # still valid JSON
+
+
+@pytest.mark.unit
+def test_the_state_log_names_each_field_as_the_state_does(tmp_path):
+    """One name per field: the Trader's plan under its state key, and no second
+    copy of the managers' decisions under the debate states."""
+    _bare_graph(tmp_path)._log_state("2026-09-01", _state("NVDA"))
+
+    logged = json.loads(next(tmp_path.rglob("full_states_log*.json")).read_text(encoding="utf-8"))
+    assert logged["trader_investment_plan"] == "交易计划"
+    assert logged["investment_plan"] == "计划"
+    assert "trader_investment_decision" not in logged
+    assert "judge_decision" not in json.dumps(logged)
 
 
 @pytest.mark.unit

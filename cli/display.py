@@ -404,8 +404,8 @@ def display_complete_report(final_state):
             research.append(("Bull Researcher", debate["bull_history"]))
         if debate.get("bear_history"):
             research.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
-            research.append(("Research Manager", debate["judge_decision"]))
+        if final_state.get("investment_plan"):
+            research.append(("Research Manager", final_state["investment_plan"]))
         if research:
             console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
             for title, content in research:
@@ -431,10 +431,10 @@ def display_complete_report(final_state):
             for title, content in risk_reports:
                 console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
-        # V. Portfolio Manager Decision
-        if risk.get("judge_decision"):
-            console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
-            console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
+    # V. Portfolio Manager Decision
+    if final_state.get("final_trade_decision"):
+        console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
+        console.print(Panel(Markdown(final_state["final_trade_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):

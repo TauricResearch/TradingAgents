@@ -139,11 +139,11 @@ def test_decision_agents_see_the_portfolio(module, factory, monkeypatch):
         "news_report": "N", "fundamentals_report": "F", "investment_plan": "P",
         "trader_investment_plan": "T", "past_context": "",
         "portfolio_context": "PORTFOLIO_BLOCK_MARKER",
-        "investment_debate_state": {"history": "", "judge_decision": "", "count": 0},
+        "investment_debate_state": {"history": "", "count": 0},
         "risk_debate_state": {"history": "", "latest_speaker": "", "count": 0,
                               "aggressive_history": "", "conservative_history": "", "neutral_history": "",
                               "current_aggressive_response": "", "current_conservative_response": "",
-                              "current_neutral_response": "", "judge_decision": ""},
+                              "current_neutral_response": ""},
     }
     node = getattr(mod, factory)(_LLM())
     node(state)

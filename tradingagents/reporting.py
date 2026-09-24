@@ -52,10 +52,10 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             research_dir.mkdir(exist_ok=True)
             (research_dir / "bear.md").write_text(debate["bear_history"], encoding="utf-8")
             research_parts.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
+        if final_state.get("investment_plan"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "manager.md").write_text(debate["judge_decision"], encoding="utf-8")
-            research_parts.append(("Research Manager", debate["judge_decision"]))
+            (research_dir / "manager.md").write_text(final_state["investment_plan"], encoding="utf-8")
+            research_parts.append(("Research Manager", final_state["investment_plan"]))
         if research_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
             sections.append(f"## II. Research Team Decision\n\n{content}")
@@ -88,12 +88,12 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
             sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
 
-        # 5. Portfolio Manager
-        if risk.get("judge_decision"):
-            portfolio_dir = save_path / "5_portfolio"
-            portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+    # 5. Portfolio Manager
+    if final_state.get("final_trade_decision"):
+        portfolio_dir = save_path / "5_portfolio"
+        portfolio_dir.mkdir(exist_ok=True)
+        (portfolio_dir / "decision.md").write_text(final_state["final_trade_decision"], encoding="utf-8")
+        sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{final_state['final_trade_decision']}")
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"

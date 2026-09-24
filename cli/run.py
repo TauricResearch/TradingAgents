@@ -253,7 +253,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
                     debate_state = chunk["investment_debate_state"]
                     bull_hist = debate_state.get("bull_history", "").strip()
                     bear_hist = debate_state.get("bear_history", "").strip()
-                    judge = debate_state.get("judge_decision", "").strip()
+                    judge = (chunk.get("investment_plan") or "").strip()
 
                     # Only update status when there's actual content
                     if bull_hist or bear_hist:
@@ -288,7 +288,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
                     agg_hist = risk_state.get("aggressive_history", "").strip()
                     con_hist = risk_state.get("conservative_history", "").strip()
                     neu_hist = risk_state.get("neutral_history", "").strip()
-                    judge = risk_state.get("judge_decision", "").strip()
+                    judge = (chunk.get("final_trade_decision") or "").strip()
 
                     if agg_hist:
                         if message_buffer.agent_status.get("Aggressive Analyst") != "completed":

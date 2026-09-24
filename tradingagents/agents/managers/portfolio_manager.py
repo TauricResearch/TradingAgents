@@ -86,7 +86,6 @@ Write these sections, in this order, starting with the rating on its own line:
             final_rating = parse_rating(final_trade_decision)
 
         new_risk_debate_state = {
-            "judge_decision": final_trade_decision,
             "history": risk_debate_state["history"],
             "aggressive_history": risk_debate_state["aggressive_history"],
             "conservative_history": risk_debate_state["conservative_history"],

@@ -14,7 +14,6 @@ class InvestDebateState(TypedDict):
     ]
     history: Annotated[str, "Conversation history"]
     current_response: Annotated[str, "Latest response"]
-    judge_decision: Annotated[str, "Final judge decision"]
     count: Annotated[int, "Length of the current conversation"]
 
 
@@ -40,7 +39,6 @@ class RiskDebateState(TypedDict):
     current_neutral_response: Annotated[
         str, "Latest response by the neutral analyst"
     ]
-    judge_decision: Annotated[str, "Judge's decision"]
     count: Annotated[int, "Length of the current conversation"]
 
 

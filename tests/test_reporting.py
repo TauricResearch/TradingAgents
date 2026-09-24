@@ -13,9 +13,11 @@ def _state():
     return {
         "market_report": "MKT",
         "news_report": "NEWS",
-        "investment_debate_state": {"judge_decision": "RM PLAN"},
+        "investment_debate_state": {"bull_history": "BULL"},
+        "investment_plan": "RM PLAN",
         "trader_investment_plan": "TRADE",
-        "risk_debate_state": {"judge_decision": "PM DECISION"},
+        "risk_debate_state": {"neutral_history": "NEUTRAL"},
+        "final_trade_decision": "PM DECISION",
     }
 
 
