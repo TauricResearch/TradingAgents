@@ -98,7 +98,9 @@ class GraphSetup:
             workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
             workflow.add_node(spec.clear_node, create_msg_delete())
             if spec.tools:
-                workflow.add_node(spec.tool_node, ToolNode(list(spec.tools)))
+                workflow.add_node(
+                    spec.tool_node, ToolNode(list(spec.tools), handle_tool_errors=True)
+                )
 
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
