@@ -181,6 +181,15 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 
+def vendor_unavailable(method: str, error: VendorRateLimitError) -> str:
+    """What a call returns when every vendor was throttled or unreachable."""
+    return (
+        f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
+        f"({error}). This says nothing about the instrument; report the "
+        f"data as unavailable and do not estimate or fabricate values."
+    )
+
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
@@ -273,11 +282,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     # Every vendor was throttled or unreachable: that is a fact about the
     # vendors, not about the instrument, and it must not end the run.
     if last_unavailable is not None:
-        return (
-            f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
-            f"({last_unavailable}). This says nothing about the instrument; report the "
-            f"data as unavailable and do not estimate or fabricate values."
-        )
+        return vendor_unavailable(method, last_unavailable)
 
     if first_error is not None:
         if category in OPTIONAL_CATEGORIES:

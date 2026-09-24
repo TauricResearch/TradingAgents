@@ -33,19 +33,19 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
         os.rmdir(self._tmp)
 
     def test_empty_download_raises_and_does_not_cache(self):
-        empty = pd.DataFrame()
+        empty = mock.Mock(history=mock.Mock(return_value=pd.DataFrame()))
         # Yahoo answers, so an empty download means the symbol has no data.
         reachable = mock.patch.object(ohlcv, "vendor_reachable", return_value=True)
         reachable.start()
         self.addCleanup(reachable.stop)
-        with mock.patch.object(ohlcv.yf, "download", return_value=empty), \
+        with mock.patch.object(ohlcv.yf, "Ticker", return_value=empty), \
                 self.assertRaises(NoMarketDataError):
             ohlcv.load_ohlcv("FAKE", "2026-01-01")
         # Nothing should have been written to the cache.
         self.assertEqual(os.listdir(self._tmp), [])
 
         # A second call must re-attempt the fetch (no poisoned cache served).
-        with mock.patch.object(ohlcv.yf, "download", return_value=empty) as dl2:
+        with mock.patch.object(ohlcv.yf, "Ticker", return_value=empty) as dl2:
             with self.assertRaises(NoMarketDataError):
                 ohlcv.load_ohlcv("FAKE", "2026-01-01")
             self.assertTrue(dl2.called)

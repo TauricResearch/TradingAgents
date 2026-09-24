@@ -43,18 +43,24 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
 
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
     retry them internally. This wrapper adds retry logic specifically
-    for rate limits. Other exceptions propagate immediately.
+    for rate limits. Other exceptions propagate immediately. A rate limit
+    that outlasts the retries is raised as VendorRateLimitError, so the
+    router reports a throttled vendor rather than a symbol with no data.
+    ``func`` should build its own Ticker: a Ticker keeps a failed ``info``
+    fetch as done, so asking the same one again reads an empty profile.
     """
     for attempt in range(max_retries + 1):
         try:
             return func()
-        except YFRateLimitError:
+        except YFRateLimitError as exc:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
                 logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(delay)
             else:
-                raise
+                raise VendorRateLimitError(
+                    f"Yahoo Finance rate limited after {max_retries} retries: {exc}"
+                ) from exc
 
 
 def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
@@ -240,14 +246,22 @@ def load_ohlcv(symbol: str, curr_date: str, fill_gaps: bool = True) -> pd.DataFr
             data = cached
 
     if data is None:
-        downloaded = yf_retry(lambda: yf.download(
-            canonical,
-            start=start_str,
-            end=end_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        ))
+        # yf.download catches every error, a rate limit included, and returns
+        # an empty frame. Ticker.history raises the rate limit, so it is retried.
+        try:
+            downloaded = yf_retry(lambda: yf.Ticker(canonical).history(
+                start=start_str,
+                end=end_str,
+                auto_adjust=True,
+                actions=False,
+            ))
+        except VendorRateLimitError:
+            raise
+        except Exception as exc:
+            # Any other failure is an outage or an unknown symbol, which
+            # raise_for_empty tells apart by whether Yahoo answers at all.
+            logger.warning("Yahoo Finance price request for %s failed: %s", canonical, exc)
+            raise_for_empty(symbol, canonical, "price rows")
         downloaded = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:

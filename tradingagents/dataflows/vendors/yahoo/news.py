@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.date_window import coverage_gap, in_window
-from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.errors import NoMarketDataError, VendorError
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.ohlcv import yf_retry
 
@@ -114,6 +114,8 @@ def get_news_yfinance(
 
         return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{news_str}"
 
+    except VendorError:
+        raise
     except Exception as e:
         raise NoMarketDataError(ticker, ticker, f"news unavailable: {e}") from e
 
@@ -192,5 +194,7 @@ def get_global_news_yfinance(
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
+    except VendorError:
+        raise
     except Exception as e:
         raise NoMarketDataError("global news", "global news", f"unavailable: {e}") from e

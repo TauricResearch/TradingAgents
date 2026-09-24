@@ -33,8 +33,7 @@ def get_fundamentals(
         return withheld
 
     try:
-        ticker_obj = yf.Ticker(canonical)
-        info = yf_retry(lambda: ticker_obj.info)
+        info = yf_retry(lambda: yf.Ticker(canonical).info)
 
         if not info:
             raise_for_empty(ticker, canonical, "fundamentals")

@@ -8,6 +8,7 @@ day (#1330).
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -35,7 +36,7 @@ def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026
 def _load(tmp_path, monkeypatch, curr_date, download):
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: NOW))
-    monkeypatch.setattr(ohlcv.yf, "download", download)
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(history=download))
     return ohlcv.load_ohlcv("AAPL", curr_date)
 
 
@@ -98,7 +99,8 @@ def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     frame = pd.DataFrame({"Date": pd.to_datetime(["2026-07-16", "2026-07-17"]), "Close": [1.0, 2.0]})
     downloads = []
-    monkeypatch.setattr(ohlcv.yf, "download", lambda *a, **k: downloads.append(1) or frame.set_index("Date"))
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(
+        history=lambda *a, **k: downloads.append(1) or frame.set_index("Date")))
 
     for day in ("2026-07-18 10:00", "2026-07-19 10:00", "2026-07-20 10:00"):
         now = pd.Timestamp(day)
