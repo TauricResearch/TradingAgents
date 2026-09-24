@@ -105,7 +105,7 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     the latest in-range bar (#1201)."""
     data = _ensure_date_column(data)
     data["Date"] = _normalize_dates(data["Date"])
-    data = data.dropna(subset=["Date"])
+    data = data.dropna(subset=["Date"]).copy()
 
     price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
     data[price_cols] = data[price_cols].apply(pd.to_numeric, errors="coerce")

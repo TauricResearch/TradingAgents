@@ -6,6 +6,8 @@ instead of `Date`, which would otherwise silently drop every indicator.
 
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 import pytest
 
@@ -68,3 +70,12 @@ class TestCleanDataframeAcrossVersions:
         df["close_5_sma"]  # triggers calculation
         assert "close_5_sma" in df.columns
         assert df["close_5_sma"].notna().any()
+
+
+@pytest.mark.unit
+def test_cleaning_a_frame_with_undated_rows_writes_to_its_own_copy():
+    raw = pd.DataFrame({"Date": ["2026-01-08", None, "2026-01-09"], "Close": ["1", "2", "x"]})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        cleaned = ohlcv._clean_dataframe(raw)
+    assert cleaned["Close"].tolist()[0] == 1.0
