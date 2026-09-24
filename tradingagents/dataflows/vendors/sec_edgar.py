@@ -29,6 +29,7 @@ import requests
 from tradingagents import __version__
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+from tradingagents.dataflows.files import replace_file
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +123,7 @@ def _cached_json(url: str, name: str) -> dict:
             pass  # a truncated file is a miss, not a failure
     data = _fetch_json(url)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_suffix(".tmp")
-    temp.write_text(json.dumps(data), encoding="utf-8")
-    os.replace(temp, path)
+    replace_file(path, lambda temp: Path(temp).write_text(json.dumps(data), encoding="utf-8"))
     return data
 
 
