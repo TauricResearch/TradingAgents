@@ -68,7 +68,7 @@ def test_any_model_accepted_no_forced_key():
 @pytest.mark.unit
 def test_env_backend_url_precedence():
     # #978: explicit env URL wins over the menu/default regardless of provider source.
-    from cli.utils import resolve_backend_url
+    from cli.prompts import resolve_backend_url
     assert resolve_backend_url("openai", "https://api.openai.com/v1", env_url="http://proxy/v1") == "http://proxy/v1"
     assert resolve_backend_url("openai", "https://api.openai.com/v1", env_url=None) == "https://api.openai.com/v1"
     assert resolve_backend_url("deepseek", None, None) == "https://api.deepseek.com"

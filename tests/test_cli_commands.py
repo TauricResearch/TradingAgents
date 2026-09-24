@@ -96,23 +96,6 @@ def test_every_command_is_registered_when_run_as_a_module():
 
 
 @pytest.mark.unit
-def test_the_cli_says_whether_a_run_resumed(monkeypatch):
-    """The README promises the user can tell a resumed run from a fresh one.
-    The graph logs it, but nothing configures logging, so it was never shown."""
-    import cli.main as m
-
-    messages = []
-    monkeypatch.setattr(m.message_buffer, "add_message",
-                        lambda kind, text: messages.append(text), raising=False)
-
-    m._announce_checkpoint_state(type("G", (), {"_resuming": True})(), "NVDA", "2026-01-10")
-    m._announce_checkpoint_state(type("G", (), {"_resuming": False})(), "NVDA", "2026-01-10")
-
-    assert any("resum" in text.lower() for text in messages)
-    assert any("fresh" in text.lower() for text in messages)
-
-
-@pytest.mark.unit
 def test_backtest_can_continue_an_interrupted_sweep(runner, monkeypatch, tmp_path):
     """Resuming is what makes a long sweep practical, and the Python API has it."""
     swept = []

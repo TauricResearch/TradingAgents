@@ -11,9 +11,7 @@ in a backtest we can't prove it isn't future.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
-from .utils import get_current_date
+from datetime import date, datetime, timedelta, timezone
 
 
 def to_utc(dt: datetime) -> datetime:
@@ -30,6 +28,11 @@ def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> 
     if pub_dt is not None:
         return to_utc(start_dt) <= to_utc(pub_dt) < end + timedelta(days=1)
     return end >= datetime.now(timezone.utc) - timedelta(days=1)
+
+
+def get_current_date() -> str:
+    """Today's date, YYYY-MM-DD."""
+    return date.today().strftime("%Y-%m-%d")
 
 
 def coverage_gap(
@@ -53,7 +56,7 @@ def coverage_gap(
     if datetime.strptime(end_date, "%Y-%m-%d").date() > now.date():
         reason = "the window extends past today"
     elif oldest.date() > datetime.strptime(start_date, "%Y-%m-%d").date():
-        reason = f"it only serves recent items (coverage starts {oldest:%Y-%m-%d})"
+        reason = "it only serves recent items"
     else:
         return None
     return f"<{source} unavailable for {start_date}..{end_date}: {reason}, so this is not an absence of {subject}>"
@@ -111,7 +114,7 @@ def withhold_live_profile(curr_date: str | None, label: str) -> str | None:
         f"# Company Fundamentals for {label}\n"
         f"# Point-in-time as of: {curr_date}\n\n"
         f"Profile fundamentals are withheld for this date. This vendor serves "
-        f"only present-day values ({today}) with no historical vintage: market "
+        f"only present-day values with no historical vintage: market "
         f"cap, valuation multiples, the 52-week range and TTM income move with "
         f"today's quote, and even the name, sector and industry reflect today "
         f"rather than {curr_date} (companies rename and get reclassified). "
