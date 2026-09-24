@@ -23,7 +23,6 @@ import math
 import os
 import time
 from datetime import date, datetime, tzinfo
-from importlib import metadata
 from pathlib import Path
 
 import pandas as pd
@@ -654,8 +653,3 @@ def _split_factor(ticker: str, cover_date: str, price_date: str) -> float | None
     for ratio in window:
         factor *= float(ratio)
     return factor
-
-
-def get_cashflow(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
-    """Cash flow statement as filed on or before ``curr_date``."""
-    return _statement("cashflow", ticker, freq, curr_date, "Cash Flow Statement")
