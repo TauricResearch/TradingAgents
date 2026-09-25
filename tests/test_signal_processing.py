@@ -24,6 +24,8 @@ from tradingagents.agents.rating import (
     ("**Confidence**: 40%\n...\n**Confidence**: 58%", 58),  # the last one stated wins
     ("**Confidence**: not provided", None),
     ("**Confidence**: 140%", None),
+    ("**Confidence**: 0.62", 62),  # a fraction, despite the 0-100 instruction
+    ("**Confidence**: 0.6%", 1),
     ("I have low confidence in the bull case.", None),  # prose, not the label
     ("", None),
 ])

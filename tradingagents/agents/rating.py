@@ -90,7 +90,7 @@ def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
 
 # "Confidence: 72%" / "**Confidence**: 72 %" / "confidence - 72" on its own line.
 _CONFIDENCE_LABEL_RE = re.compile(
-    r"^[\s*_#-]*confidence\b[\s*_]*[:\-‐-―][\s*_]*(\d{1,3}(?:\.\d+)?)\s*%?",
+    r"^[\s*_#-]*confidence\b[\s*_]*[:\-‐-―][\s*_]*(\d{1,3}(?:\.\d+)?)\s*(%?)",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -108,6 +108,10 @@ def extract_confidence(text: str) -> int | None:
     found = None
     for m in _CONFIDENCE_LABEL_RE.finditer(norm):
         value = float(m.group(1))
+        # "Confidence: 0.62" is a fraction, as in _coerce_percent; read as a
+        # percentage it rounded to 1% or 0%. "0.6%" says what it means.
+        if 0 < value < 1 and not m.group(2):
+            value *= 100
         found = round(value) if 0 <= value <= 100 else None
     return found
 
