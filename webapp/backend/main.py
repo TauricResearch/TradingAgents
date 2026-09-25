@@ -1,7 +1,7 @@
 """FastAPI SaaS wrapper around the TradingAgents multi-agent research pipeline.
 
 Monetization model: freemium API-key access. Every signup gets a free tier
-with a monthly cap on analysis runs (``FREE_TIER_MONTHLY_LIMIT`` in
+with a monthly cap on analysis runs (``free_tier_monthly_limit()`` in
 database.py); a Stripe subscription lifts the cap. See webapp/README.md for
 the full plan and setup instructions.
 
@@ -76,7 +76,7 @@ def me(user=Depends(current_user)):
         "email": user["email"],
         "plan": user["plan"],
         "jobs_this_month": database.jobs_this_month(user["id"]),
-        "free_tier_limit": database.FREE_TIER_MONTHLY_LIMIT,
+        "free_tier_limit": database.free_tier_monthly_limit(),
     }
 
 
@@ -127,7 +127,7 @@ def billing_cancel():
 
 @app.post("/api/analyze")
 def analyze(body: AnalyzeRequest, user=Depends(current_user)):
-    if user["plan"] == "free" and database.jobs_this_month(user["id"]) >= database.FREE_TIER_MONTHLY_LIMIT:
+    if user["plan"] == "free" and database.jobs_this_month(user["id"]) >= database.free_tier_monthly_limit():
         raise HTTPException(
             status_code=402,
             detail="Free tier monthly limit reached. Upgrade via /api/billing/checkout.",

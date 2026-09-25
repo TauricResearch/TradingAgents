@@ -44,6 +44,14 @@ dev = [
 bedrock = [
     "langchain-aws>=1.5.0",
 ]
+# Optional SaaS web layer (webapp/): pip install "tradingagents[webapp]".
+webapp = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic[email]>=2.7",
+    "stripe>=10.0",
+    "httpx>=0.27",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
@@ -81,6 +89,9 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]   # intentional re-exports
+# FastAPI's dependency-injection idiom is `= Depends(...)` in the signature;
+# bugbear's "no function calls in defaults" check doesn't know that's safe.
+"webapp/backend/main.py" = ["B008"]
 
 [tool.ruff.lint.isort]
 # Keep multiple aliased names from one module in a single combined import block

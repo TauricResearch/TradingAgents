@@ -7,24 +7,34 @@ service meant to scale past a single small deployment out of the box.
 
 from __future__ import annotations
 
+import os
 import secrets
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(
-    __import__("os").environ.get(
-        "TRADINGAGENTS_WEBAPP_DB",
-        str(Path.home() / ".tradingagents" / "webapp.sqlite3"),
-    )
-)
 
-# Free-tier monthly quota; overridable so an operator can tune it without a
-# code change. Paid plans bypass this check entirely (see billing.py).
-FREE_TIER_MONTHLY_LIMIT = int(
-    __import__("os").environ.get("TRADINGAGENTS_FREE_TIER_LIMIT", "5")
-)
+def db_path() -> Path:
+    """Resolve the sqlite file path from the environment on every call.
+
+    Read lazily (rather than cached at import time) so tests can point each
+    run at an isolated file via ``monkeypatch.setenv`` without needing to
+    reimport this module.
+    """
+    return Path(
+        os.environ.get(
+            "TRADINGAGENTS_WEBAPP_DB",
+            str(Path.home() / ".tradingagents" / "webapp.sqlite3"),
+        )
+    )
+
+
+def free_tier_monthly_limit() -> int:
+    """Free-tier monthly quota; overridable so an operator can tune it
+    without a code change. Paid plans bypass this check entirely (see
+    billing.py). Read lazily for the same reason as ``db_path``."""
+    return int(os.environ.get("TRADINGAGENTS_FREE_TIER_LIMIT", "5"))
 
 
 def _now() -> str:
@@ -33,8 +43,9 @@ def _now() -> str:
 
 @contextmanager
 def get_conn():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    path = db_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     try:
