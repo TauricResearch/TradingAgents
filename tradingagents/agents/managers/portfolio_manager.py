@@ -13,6 +13,7 @@ from __future__ import annotations
 from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
+    get_prompt_extra,
     get_portfolio_context_from_state,
 )
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
@@ -77,7 +78,7 @@ Write these sections, in this order, starting with the rating on its own line:
 - **Executive Summary**: the call and how to act on it
 - **Investment Thesis**: the evidence that decided it, and what would change it
 
-{NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
+{NO_EXTERNAL_TOOLS}{get_language_instruction()}{get_prompt_extra("portfolio_manager")}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,

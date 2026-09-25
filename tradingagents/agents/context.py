@@ -30,6 +30,28 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+# The keys ``config["prompt_extra"]`` accepts, one per agent that has a prompt.
+PROMPT_EXTRA_AGENTS = (
+    "market_analyst", "sentiment_analyst", "news_analyst", "fundamentals_analyst",
+    "bull_researcher", "bear_researcher", "research_manager", "trader",
+    "aggressive_debator", "conservative_debator", "neutral_debator", "portfolio_manager",
+)
+
+
+def get_prompt_extra(agent: str) -> str:
+    """Return the caller's extra instructions for ``agent``, from ``config["prompt_extra"]``.
+
+    Appended after the stock prompt, never replacing it: the stock prompts carry
+    the tool-use and output-format instructions the graph parses. Empty when
+    unset, so no extra tokens are used.
+    """
+    from tradingagents.dataflows.config import get_config
+    extra = (get_config().get("prompt_extra") or {}).get(agent)
+    if not isinstance(extra, str) or not extra.strip():
+        return ""
+    return f"\n\n{extra.strip()}"
+
+
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
     """Opponent's latest argument, or an explicit opening marker when empty.
 
