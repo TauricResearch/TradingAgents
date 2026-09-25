@@ -2,90 +2,440 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>TradingAgents — AI Stock Research</title>
+<title>TradingAgents — Multi-Agent Equity Research</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Run multi-agent LLM research on a ticker and get a stamped decision — for research, not financial advice." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; line-height: 1.5; }
-  h1 { font-size: 1.4rem; }
-  section { margin-bottom: 32px; padding: 16px; border: 1px solid #8884; border-radius: 8px; }
-  input, button, select { font-size: 1rem; padding: 8px; margin: 4px 0; }
-  input[type=text], input[type=email] { width: 100%; box-sizing: border-box; }
-  button { cursor: pointer; }
-  pre { white-space: pre-wrap; background: #8881; padding: 12px; border-radius: 6px; }
-  .muted { opacity: .7; font-size: .9rem; }
-  .warn { color: #b45309; font-size: .85rem; }
+  :root {
+    color-scheme: light dark;
+    --ink: #14213D;
+    --ink-soft: #4B5768;
+    --paper: #EDF1EC;
+    --paper-raised: #FFFFFF;
+    --rule: #C7CFC5;
+    --buy: #2F6F4E;
+    --sell: #9C3D3D;
+    --hold: #C98A2B;
+    --focus: #14213D;
+    --font-head: "Space Grotesk", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #EDEBE3;
+      --ink-soft: #A9B3A7;
+      --paper: #171B1F;
+      --paper-raised: #1F262B;
+      --rule: #333C36;
+      --buy: #55A87C;
+      --sell: #D98177;
+      --hold: #E0A84C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #EDEBE3;
+    --ink-soft: #A9B3A7;
+    --paper: #171B1F;
+    --paper-raised: #1F262B;
+    --rule: #333C36;
+    --buy: #55A87C;
+    --sell: #D98177;
+    --hold: #E0A84C;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-head);
+    line-height: 1.5;
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px);
+    background-size: 100% 2.25rem;
+    background-attachment: local;
+  }
+
+  a { color: inherit; }
+
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--paper);
+  }
+  header.masthead .brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+  }
+  header.masthead .tagline {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 0 3rem;
+  }
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; }
+  }
+
+  .ledger { display: flex; flex-direction: column; }
+
+  .step {
+    padding: 1.75rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .step:first-child { padding-top: 0; }
+
+  .step-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin: 0 0 0.85rem;
+  }
+  .step-num {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+  }
+  .step-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .step-help {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin: -0.4rem 0 0.9rem;
+  }
+
+  label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: lowercase;
+    color: var(--ink-soft);
+    margin-bottom: 0.3rem;
+  }
+
+  input[type=text], input[type=email] {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    padding: 0.65rem 0.75rem;
+    background: var(--paper-raised);
+    border: 1.5px solid var(--rule);
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  input[type=text]:focus-visible, input[type=email]:focus-visible,
+  button:focus-visible, a:focus-visible {
+    outline: 2.5px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .field { margin-bottom: 0.85rem; }
+  .field-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .field-row .field { flex: 1 1 180px; }
+
+  button {
+    font-family: var(--font-head);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.65rem 1.1rem;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1.5px solid var(--ink);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform 120ms ease;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button.ghost {
+    background: transparent;
+    color: var(--ink);
+  }
+  button + button { margin-inline-start: 0.6rem; }
+
+  .note {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin: 0.6rem 0 0;
+  }
+  .note[role="status"]:empty { display: none; }
+
+  code.key {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.5rem 0.65rem;
+    margin-top: 0.5rem;
+    word-break: break-all;
+  }
+
+  dl.account-grid {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0.75rem 0 0;
+  }
+  dl.account-grid dt { color: var(--ink-soft); }
+  dl.account-grid dd { margin: 0; }
+
+  /* --- the stamp: the one hero element --- */
+  .stamp-wrap {
+    min-height: 5.5rem;
+    display: flex;
+    align-items: center;
+    margin-top: 1.25rem;
+  }
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 1.9rem;
+    letter-spacing: 0.03em;
+    padding: 0.4rem 1.3rem;
+    border: 3px solid currentColor;
+    border-radius: 6px;
+    transform: rotate(-3deg);
+    animation: stamp-in 320ms cubic-bezier(.2,1.4,.4,1) both;
+  }
+  .stamp.buy { color: var(--buy); }
+  .stamp.sell { color: var(--sell); }
+  .stamp.hold { color: var(--hold); }
+  @keyframes stamp-in {
+    from { opacity: 0; transform: rotate(-9deg) scale(0.8); }
+    to   { opacity: 1; transform: rotate(-3deg) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stamp { animation: none; }
+    button { transition: none; }
+  }
+
+  .report {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1rem;
+    margin-top: 1rem;
+    max-height: 20rem;
+    overflow-y: auto;
+  }
+
+  /* --- the tape: secondary column, recedes visually --- */
+  .tape {
+    border-left: 2px solid var(--ink);
+    padding-left: 1.25rem;
+  }
+  @media (max-width: 800px) {
+    .tape { border-left: none; border-top: 2px solid var(--ink); padding-left: 0; padding-top: 1.5rem; margin-top: 0.5rem; }
+  }
+  .tape-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.75rem;
+  }
+  .tape-head h2 {
+    font-size: 0.95rem;
+    margin: 0;
+  }
+  .tape button.ghost {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+  ul.tape-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+  ul.tape-list li {
+    display: grid;
+    grid-template-columns: 3.5rem 1fr auto;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed var(--rule);
+    color: var(--ink-soft);
+  }
+  ul.tape-list li .ticker { color: var(--ink); font-weight: 600; }
+  ul.tape-list li .decision.buy { color: var(--buy); }
+  ul.tape-list li .decision.sell { color: var(--sell); }
+  ul.tape-list li .decision.hold { color: var(--hold); }
+  ul.tape-list li .tag { font-size: 0.7rem; }
+  .tape-empty {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    padding: 0.5rem 0;
+  }
+
+  footer {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+  }
 </style>
 </head>
 <body>
-  <h1>TradingAgents — AI Multi-Agent Stock Research</h1>
-  <p class="muted">
-    Research reports generated by a team of LLM analyst/researcher/risk agents.
-    Not financial advice; for research purposes only.
-  </p>
+  <header class="masthead">
+    <span class="brand">TradingAgents</span>
+    <span class="tagline">multi-agent equity research — not financial advice</span>
+  </header>
 
-  <section id="signup-section">
-    <h2>1. Get an API key</h2>
-    <input id="email" type="email" placeholder="you@example.com" />
-    <button onclick="signup()">Sign up (free tier)</button>
-    <p id="signup-result" class="muted"></p>
-  </section>
+  <main>
+    <section class="ledger">
 
-  <section id="account-section">
-    <h2>Account</h2>
-    <input id="api-key" type="text" placeholder="Paste your API key" />
-    <button onclick="loadAccount()">Load account</button>
-    <button onclick="upgrade()">Upgrade to Pro</button>
-    <pre id="account-info"></pre>
-  </section>
+      <div class="step" id="signup-section">
+        <div class="step-head">
+          <span class="step-num">01</span>
+          <h2 class="step-title">Get your key</h2>
+        </div>
+        <p class="step-help">Free tier, no card. Save the key — it's shown once.</p>
+        <div class="field">
+          <label for="email">email</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <button onclick="signup()">Get key</button>
+        <p id="signup-result" class="note" role="status" aria-live="polite"></p>
+      </div>
 
-  <section id="analyze-section">
-    <h2>2. Run an analysis</h2>
-    <input id="ticker" type="text" placeholder="e.g. NVDA" />
-    <input id="trade-date" type="text" placeholder="YYYY-MM-DD (optional, defaults to today)" />
-    <button onclick="runAnalysis()">Analyze</button>
-    <p id="analyze-status" class="muted"></p>
-    <pre id="analyze-result"></pre>
-  </section>
+      <div class="step" id="account-section">
+        <div class="step-head">
+          <span class="step-num">02</span>
+          <h2 class="step-title">Your account</h2>
+        </div>
+        <div class="field">
+          <label for="api-key">api key</label>
+          <input id="api-key" type="text" placeholder="ta_..." autocomplete="off" />
+        </div>
+        <button onclick="loadAccount()">Load account</button>
+        <button class="ghost" onclick="upgrade()">Upgrade to Pro</button>
+        <dl class="account-grid" id="account-info" aria-live="polite"></dl>
+      </div>
 
-  <section id="history-section">
-    <h2>History</h2>
-    <button onclick="loadHistory()">Refresh</button>
-    <table id="history-table" style="width:100%; border-collapse: collapse;">
-      <thead>
-        <tr class="muted">
-          <th style="text-align:left;">Ticker</th>
-          <th style="text-align:left;">Date</th>
-          <th style="text-align:left;">Status</th>
-          <th style="text-align:left;">Decision</th>
-          <th style="text-align:left;">Ran</th>
-        </tr>
-      </thead>
-      <tbody id="history-body"></tbody>
-    </table>
-  </section>
+      <div class="step" id="analyze-section">
+        <div class="step-head">
+          <span class="step-num">03</span>
+          <h2 class="step-title">Run analysis</h2>
+        </div>
+        <p class="step-help">Analyst, researcher, trader and risk agents debate the ticker and stamp a call.</p>
+        <div class="field-row">
+          <div class="field">
+            <label for="ticker">ticker</label>
+            <input id="ticker" type="text" placeholder="NVDA" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="trade-date">date (optional)</label>
+            <input id="trade-date" type="text" placeholder="YYYY-MM-DD" autocomplete="off" />
+          </div>
+        </div>
+        <button onclick="runAnalysis()">Analyze</button>
+        <p id="analyze-status" class="note" role="status" aria-live="polite"></p>
+        <div class="stamp-wrap" id="stamp-wrap" aria-live="polite"></div>
+        <div id="analyze-result" class="report" hidden></div>
+      </div>
+
+    </section>
+
+    <aside class="tape">
+      <div class="tape-head">
+        <h2>Tape</h2>
+        <button class="ghost" onclick="loadHistory()">Refresh</button>
+      </div>
+      <ul class="tape-list" id="history-body"></ul>
+      <p class="tape-empty" id="history-empty">No runs yet — analyze a ticker to start your tape.</p>
+    </aside>
+  </main>
+
+  <footer>
+    Research output only. TradingAgents places no trades and gives no investment advice.
+  </footer>
 
   <script>
     function apiKey() { return document.getElementById('api-key').value.trim(); }
 
+    function decisionClass(decision) {
+      const d = (decision || '').toLowerCase();
+      if (d.includes('buy')) return 'buy';
+      if (d.includes('sell')) return 'sell';
+      return 'hold';
+    }
+
     async function signup() {
       const email = document.getElementById('email').value.trim();
+      const out = document.getElementById('signup-result');
+      out.textContent = 'Requesting...';
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
-      const out = document.getElementById('signup-result');
-      if (!res.ok) { out.textContent = 'Error: ' + (data.detail || res.status); return; }
-      out.textContent = 'API key: ' + data.api_key + ' (save this, it will not be shown again)';
+      if (!res.ok) { out.textContent = 'Could not sign up: ' + (data.detail || res.status); return; }
+      out.innerHTML = '';
+      out.append('Key issued — save it now, it will not be shown again:');
+      const code = document.createElement('code');
+      code.className = 'key';
+      code.textContent = data.api_key;
+      out.appendChild(code);
       document.getElementById('api-key').value = data.api_key;
+      loadAccount();
     }
 
     async function loadAccount() {
       const res = await fetch('/api/me', { headers: { 'X-API-Key': apiKey() } });
+      const dl = document.getElementById('account-info');
+      dl.innerHTML = '';
+      if (!res.ok) return;
       const data = await res.json();
-      document.getElementById('account-info').textContent = JSON.stringify(data, null, 2);
+      const rows = [
+        ['plan', data.plan],
+        ['runs this month', String(data.jobs_this_month)],
+        ['free-tier limit', String(data.free_tier_limit)],
+      ];
+      for (const [term, desc] of rows) {
+        const dt = document.createElement('dt'); dt.textContent = term;
+        const dd = document.createElement('dd'); dd.textContent = desc;
+        dl.appendChild(dt); dl.appendChild(dd);
+      }
       loadHistory();
     }
 
@@ -95,7 +445,7 @@
         headers: { 'X-API-Key': apiKey() },
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.detail || 'Billing not available'); return; }
+      if (!res.ok) { alert(data.detail || 'Billing is not set up on this deployment yet.'); return; }
       window.location.href = data.checkout_url;
     }
 
@@ -103,7 +453,10 @@
       const ticker = document.getElementById('ticker').value.trim();
       const trade_date = document.getElementById('trade-date').value.trim() || null;
       const status = document.getElementById('analyze-status');
+      const stampWrap = document.getElementById('stamp-wrap');
       const result = document.getElementById('analyze-result');
+      stampWrap.innerHTML = '';
+      result.hidden = true;
       result.textContent = '';
       status.textContent = 'Submitting...';
 
@@ -113,48 +466,76 @@
         body: JSON.stringify({ ticker, trade_date }),
       });
       const data = await res.json();
-      if (!res.ok) { status.textContent = 'Error: ' + (data.detail || res.status); return; }
+      if (!res.ok) { status.textContent = 'Could not start: ' + (data.detail || res.status); return; }
 
-      if (data.cached) {
-        status.textContent = 'Done (served from cache — instant, no quota used).';
-      } else {
-        status.textContent = 'Running (this can take a few minutes)...';
-      }
-      poll(data.job_id, status, result);
+      status.textContent = data.cached
+        ? 'Resolved from the tape — instant, no quota used.'
+        : 'Agents are debating this one — can take a few minutes.';
+      poll(data.job_id, status, stampWrap, result);
     }
 
-    async function poll(jobId, status, result) {
+    async function poll(jobId, status, stampWrap, result) {
       const res = await fetch('/api/jobs/' + jobId, { headers: { 'X-API-Key': apiKey() } });
       const job = await res.json();
       if (job.status === 'queued' || job.status === 'running') {
         status.textContent = 'Status: ' + job.status + '...';
-        setTimeout(() => poll(jobId, status, result), 5000);
+        setTimeout(() => poll(jobId, status, stampWrap, result), 5000);
         return;
       }
       if (job.status === 'failed') {
-        status.textContent = 'Failed: ' + job.error;
+        status.textContent = 'Run failed: ' + job.error;
         return;
       }
-      status.textContent = job.cached ? 'Done (from cache).' : 'Done.';
-      result.textContent = 'Decision: ' + job.decision + '\n\n' + (job.report || '');
+      status.textContent = job.cached ? 'Stamped (from the tape).' : 'Stamped.';
+      const stamp = document.createElement('span');
+      stamp.className = 'stamp ' + decisionClass(job.decision);
+      stamp.textContent = job.decision || 'HOLD';
+      stampWrap.innerHTML = '';
+      stampWrap.appendChild(stamp);
+      if (job.report) {
+        result.hidden = false;
+        result.textContent = job.report;
+      }
       loadHistory();
     }
 
     async function loadHistory() {
       const res = await fetch('/api/jobs', { headers: { 'X-API-Key': apiKey() } });
-      if (!res.ok) return;
+      const list = document.getElementById('history-body');
+      const empty = document.getElementById('history-empty');
+      list.innerHTML = '';
+      if (!res.ok) { empty.hidden = false; return; }
       const jobs = await res.json();
-      const body = document.getElementById('history-body');
-      body.innerHTML = '';
+      if (jobs.length === 0) { empty.hidden = false; return; }
+      empty.hidden = true;
       for (const job of jobs) {
-        const tr = document.createElement('tr');
-        const cells = [job.ticker, job.trade_date, job.status, job.decision || '', job.cached ? 'cached' : 'live'];
-        for (const value of cells) {
-          const td = document.createElement('td');
-          td.textContent = value;
-          tr.appendChild(td);
+        const li = document.createElement('li');
+
+        const ticker = document.createElement('span');
+        ticker.className = 'ticker';
+        ticker.textContent = job.ticker;
+
+        const date = document.createElement('span');
+        date.textContent = job.trade_date;
+
+        const right = document.createElement('span');
+        if (job.status === 'done') {
+          const decision = document.createElement('span');
+          decision.className = 'decision ' + decisionClass(job.decision);
+          decision.textContent = job.decision || '';
+          right.appendChild(decision);
+          const tag = document.createElement('span');
+          tag.className = 'tag';
+          tag.textContent = job.cached ? ' · cached' : ' · live';
+          right.appendChild(tag);
+        } else {
+          right.textContent = job.status;
         }
-        body.appendChild(tr);
+
+        li.appendChild(ticker);
+        li.appendChild(date);
+        li.appendChild(right);
+        list.appendChild(li);
       }
     }
   </script>
