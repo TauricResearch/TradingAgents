@@ -1,0 +1,67 @@
+# One Yahoo Finance ticker per line; anything after # is ignored.
+
+PANW      # Palo Alto Networks
+NVO       # Novo Nordisk
+BWET      # Breakwave Tanker Shipping ETF: an ETF, so no company fundamentals
+MRVL      # Marvell Technology
+INTC      # Intel
+MP        # MP Materials
+GEV       # GE Vernova
+NET       # Cloudflare
+DELL      # Dell Technologies
+2454.TW   # MediaTek: priced in TWD, benchmarked against SPY; not tradable on Alpaca
+OKTA      # Okta
+CRWD      # CrowdStrike
+ANF       # Abercrombie & Fitch
+NFLX      # Netflix
+LITE      # Lumentum
+CRM       # Salesforce
+SKHY      # SK hynix ADR: listed 2026-07-10, short history
+MRNA      # Moderna
+AMAT      # Applied Materials
+CIFR      # Cipher Digital (formerly Cipher Mining)
+NOK       # Nokia
+RKLB      # Rocket Lab
+QCOM      # Qualcomm
+QNT       # Quantinuum: listed 2026-06-04, short history
+SPCX      # SpaceX: listed 2026-06-12, short history
+SNOW      # Snowflake
+NEE       # NextEra Energy
+CBRS      # Cerebras: listed 2026-05-14, short history
+NOW       # ServiceNow
+PM        # Philip Morris International
+BE        # Bloom Energy
+SCCO      # Southern Copper
+AAPL      # Apple
+META      # Meta Platforms
+AMZN      # Amazon
+GOOGL     # Alphabet
+TSM       # TSMC
+MSFT      # Microsoft
+NVDA      # NVIDIA
+AMD       # Advanced Micro Devices
+ASML      # ASML
+SMCI      # Super Micro Computer
+ARM       # Arm Holdings
+IBM       # IBM
+ORCL      # Oracle
+MU        # Micron
+SNDK      # Sandisk
+CRWV      # CoreWeave
+NBIS      # Nebius
+PLTR      # Palantir
+HOOD      # Robinhood
+COIN      # Coinbase
+JPM       # JPMorgan Chase common stock (JPM-PM is a preferred share)
+DASH      # DoorDash
+TSLA      # Tesla
+RIVN      # Rivian
+BYDDY     # BYD ADR, trades OTC
+RDDT      # Reddit
+CVX       # Chevron
+OKLO      # Oklo
+CEG       # Constellation Energy
+QBTS      # D-Wave Quantum
+RGTI      # Rigetti Computing
+IONQ      # IonQ
+QUBT      # Quantum Computing
