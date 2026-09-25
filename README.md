@@ -252,8 +252,11 @@ from tradingagents.default_config import DEFAULT_CONFIG
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2026-09-01")
+state, decision = ta.propagate("NVDA", "2026-09-01")
 print(decision)
+
+# the same report tree the CLI saves, under results_dir/reports
+ta.save_reports(state, "NVDA")
 ```
 
 You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
