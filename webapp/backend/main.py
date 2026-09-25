@@ -12,6 +12,7 @@ project-wide disclaimer in the main README.
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -127,14 +128,24 @@ def billing_cancel():
 
 @app.post("/api/analyze")
 def analyze(body: AnalyzeRequest, user=Depends(current_user)):
+    ticker = body.ticker.upper()
+    trade_date = body.trade_date or date.today().isoformat()
+
+    # Cache hit: someone already paid for this exact (ticker, trade_date)
+    # recently. Reuse it — no quota spent, no LLM cost, instant result.
+    cached_source = database.find_recent_completed_job(ticker, trade_date)
+    if cached_source is not None:
+        job_id = uuid.uuid4().hex
+        database.create_cached_job(job_id, user["id"], cached_source)
+        return {"job_id": job_id, "status": "done", "cached": True}
+
     if user["plan"] == "free" and database.jobs_this_month(user["id"]) >= database.free_tier_monthly_limit():
         raise HTTPException(
             status_code=402,
             detail="Free tier monthly limit reached. Upgrade via /api/billing/checkout.",
         )
-    trade_date = body.trade_date or date.today().isoformat()
-    job_id = jobs.submit_job(user["id"], body.ticker.upper(), trade_date)
-    return {"job_id": job_id, "status": "queued"}
+    job_id = jobs.submit_job(user["id"], ticker, trade_date)
+    return {"job_id": job_id, "status": "queued", "cached": False}
 
 
 @app.get("/api/jobs/{job_id}")

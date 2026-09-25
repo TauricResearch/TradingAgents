@@ -158,6 +158,64 @@ def test_analyze_submits_job_and_tracks_status(client):
     assert res.json()["status"] == "queued"
 
 
+def test_analyze_serves_cached_result_across_users(client):
+    """A second user requesting the same (ticker, trade_date) gets the first
+    user's completed result instantly, without spending LLM cost or quota."""
+    from webapp.backend import database, jobs
+
+    first_key = _signup(client, "first@example.com")
+    first_user = database.get_user_by_api_key(first_key)
+    database.create_job("done-job", first_user["id"], "NVDA", "2024-05-10")
+    database.update_job(
+        "done-job", status="done", decision="BUY", report="strong report",
+        finished_at="2024-05-10T00:00:00+00:00",
+    )
+
+    second_key = _signup(client, "second@example.com")
+    with patch.object(jobs, "_EXECUTOR") as mock_executor:
+        res = client.post(
+            "/api/analyze",
+            headers={"X-API-Key": second_key},
+            json={"ticker": "NVDA", "trade_date": "2024-05-10"},
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["cached"] is True
+        assert body["status"] == "done"
+        assert not mock_executor.submit.called
+
+    job = client.get(f"/api/jobs/{body['job_id']}", headers={"X-API-Key": second_key}).json()
+    assert job["decision"] == "BUY"
+    assert job["report"] == "strong report"
+    assert job["cached"] == 1
+
+    # the cache hit must not count against the second user's monthly quota
+    me = client.get("/api/me", headers={"X-API-Key": second_key}).json()
+    assert me["jobs_this_month"] == 0
+
+
+def test_analyze_cache_disabled_when_ttl_zero(client, monkeypatch):
+    from webapp.backend import database, jobs
+
+    monkeypatch.setenv("TRADINGAGENTS_CACHE_TTL_HOURS", "0")
+
+    first_key = _signup(client, "third@example.com")
+    first_user = database.get_user_by_api_key(first_key)
+    database.create_job("done-job-2", first_user["id"], "NVDA", "2024-05-10")
+    database.update_job("done-job-2", status="done", decision="BUY", report="r")
+
+    second_key = _signup(client, "fourth@example.com")
+    with patch.object(jobs, "_EXECUTOR") as mock_executor:
+        res = client.post(
+            "/api/analyze",
+            headers={"X-API-Key": second_key},
+            json={"ticker": "NVDA", "trade_date": "2024-05-10"},
+        )
+        assert res.status_code == 200
+        assert res.json()["cached"] is False
+        assert mock_executor.submit.called
+
+
 def test_run_job_records_success(tmp_path, monkeypatch):
     monkeypatch.setenv("TRADINGAGENTS_WEBAPP_DB", str(tmp_path / "webapp.sqlite3"))
     from webapp.backend import database, jobs

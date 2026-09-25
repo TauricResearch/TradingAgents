@@ -48,6 +48,23 @@
     <pre id="analyze-result"></pre>
   </section>
 
+  <section id="history-section">
+    <h2>History</h2>
+    <button onclick="loadHistory()">Refresh</button>
+    <table id="history-table" style="width:100%; border-collapse: collapse;">
+      <thead>
+        <tr class="muted">
+          <th style="text-align:left;">Ticker</th>
+          <th style="text-align:left;">Date</th>
+          <th style="text-align:left;">Status</th>
+          <th style="text-align:left;">Decision</th>
+          <th style="text-align:left;">Ran</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+  </section>
+
   <script>
     function apiKey() { return document.getElementById('api-key').value.trim(); }
 
@@ -69,6 +86,7 @@
       const res = await fetch('/api/me', { headers: { 'X-API-Key': apiKey() } });
       const data = await res.json();
       document.getElementById('account-info').textContent = JSON.stringify(data, null, 2);
+      loadHistory();
     }
 
     async function upgrade() {
@@ -97,7 +115,11 @@
       const data = await res.json();
       if (!res.ok) { status.textContent = 'Error: ' + (data.detail || res.status); return; }
 
-      status.textContent = 'Running (this can take a few minutes)...';
+      if (data.cached) {
+        status.textContent = 'Done (served from cache — instant, no quota used).';
+      } else {
+        status.textContent = 'Running (this can take a few minutes)...';
+      }
       poll(data.job_id, status, result);
     }
 
@@ -113,8 +135,27 @@
         status.textContent = 'Failed: ' + job.error;
         return;
       }
-      status.textContent = 'Done.';
+      status.textContent = job.cached ? 'Done (from cache).' : 'Done.';
       result.textContent = 'Decision: ' + job.decision + '\n\n' + (job.report || '');
+      loadHistory();
+    }
+
+    async function loadHistory() {
+      const res = await fetch('/api/jobs', { headers: { 'X-API-Key': apiKey() } });
+      if (!res.ok) return;
+      const jobs = await res.json();
+      const body = document.getElementById('history-body');
+      body.innerHTML = '';
+      for (const job of jobs) {
+        const tr = document.createElement('tr');
+        const cells = [job.ticker, job.trade_date, job.status, job.decision || '', job.cached ? 'cached' : 'live'];
+        for (const value of cells) {
+          const td = document.createElement('td');
+          td.textContent = value;
+          tr.appendChild(td);
+        }
+        body.appendChild(tr);
+      }
     }
   </script>
 </body>

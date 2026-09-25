@@ -22,6 +22,16 @@ jurisdictions.
   pay-per-report credit pack for occasional users, or a higher-priced tier
   that runs the deeper/more expensive model config (`deep_think_llm`).
 
+## Cost control: cross-user result cache
+
+A completed `(ticker, trade_date)` analysis is reused across *all* users for
+`TRADINGAGENTS_CACHE_TTL_HOURS` (default 24, see `.env.example`) instead of
+re-running the LLM pipeline. A historical trade_date's result is effectively
+static, so if ten users ask for the same hot ticker today, only the first
+run costs LLM tokens — the rest get an instant result and don't spend their
+monthly quota. `POST /api/analyze` reports `"cached": true/false`, and the
+frontend history table shows which runs were served from cache.
+
 ## Running it locally
 
 ```bash

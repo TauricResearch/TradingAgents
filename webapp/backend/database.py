@@ -11,7 +11,7 @@ import os
 import secrets
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -35,6 +35,16 @@ def free_tier_monthly_limit() -> int:
     without a code change. Paid plans bypass this check entirely (see
     billing.py). Read lazily for the same reason as ``db_path``."""
     return int(os.environ.get("TRADINGAGENTS_FREE_TIER_LIMIT", "5"))
+
+
+def cache_ttl_hours() -> float:
+    """How long a completed (ticker, trade_date) result is reused across
+    *all* users instead of re-running the LLM pipeline. The result for a
+    given historical trade_date is effectively static, so this mainly bounds
+    how long a stale/incorrect run stays cached rather than modeling data
+    freshness. 0 disables the cache. Read lazily for the same reason as
+    ``db_path``."""
+    return float(os.environ.get("TRADINGAGENTS_CACHE_TTL_HOURS", "24"))
 
 
 def _now() -> str:
@@ -78,11 +88,13 @@ def init_db() -> None:
                 decision TEXT,
                 report TEXT,
                 error TEXT,
+                cached INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 finished_at TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_jobs_user ON jobs(user_id);
+            CREATE INDEX IF NOT EXISTS idx_jobs_ticker_date ON jobs(ticker, trade_date, status);
             """
         )
 
@@ -124,10 +136,14 @@ def set_user_plan(user_id: int, plan: str, stripe_customer_id: str | None = None
 
 
 def jobs_this_month(user_id: int) -> int:
+    """Count of this user's runs this month that count against their quota.
+    Cache hits (``cached = 1``) are excluded: they cost nothing to serve, so
+    they shouldn't count against a free-tier user's limit."""
     month_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND created_at LIKE ?",
+            "SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND created_at LIKE ? "
+            "AND cached = 0",
             (user_id, f"{month_prefix}%"),
         ).fetchone()
         return row["n"]
@@ -139,6 +155,44 @@ def create_job(job_id: str, user_id: int, ticker: str, trade_date: str) -> None:
             "INSERT INTO jobs (id, user_id, ticker, trade_date, status, created_at) "
             "VALUES (?, ?, ?, ?, 'queued', ?)",
             (job_id, user_id, ticker, trade_date, _now()),
+        )
+
+
+def find_recent_completed_job(ticker: str, trade_date: str) -> sqlite3.Row | None:
+    """Most recent successful run for this (ticker, trade_date) across any
+    user, within ``cache_ttl_hours()``. Used to skip a redundant, costly LLM
+    pipeline run when someone already paid for this exact result recently."""
+    ttl = cache_ttl_hours()
+    if ttl <= 0:
+        return None
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=ttl)).isoformat()
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM jobs WHERE ticker = ? AND trade_date = ? AND status = 'done' "
+            "AND created_at >= ? ORDER BY created_at DESC LIMIT 1",
+            (ticker, trade_date, cutoff),
+        ).fetchone()
+
+
+def create_cached_job(job_id: str, user_id: int, source_job: sqlite3.Row) -> None:
+    """Record a cache hit as a completed job for ``user_id`` without running
+    the pipeline again, so it shows up in their history and counts as done
+    immediately — but doesn't consume any compute."""
+    now = _now()
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO jobs (id, user_id, ticker, trade_date, status, decision, report, "
+            "cached, created_at, finished_at) VALUES (?, ?, ?, ?, 'done', ?, ?, 1, ?, ?)",
+            (
+                job_id,
+                user_id,
+                source_job["ticker"],
+                source_job["trade_date"],
+                source_job["decision"],
+                source_job["report"],
+                now,
+                now,
+            ),
         )
 
 
@@ -163,7 +217,7 @@ def get_job(job_id: str, user_id: int) -> sqlite3.Row | None:
 def list_jobs(user_id: int, limit: int = 20) -> list[sqlite3.Row]:
     with get_conn() as conn:
         return conn.execute(
-            "SELECT id, ticker, trade_date, status, decision, created_at, finished_at "
+            "SELECT id, ticker, trade_date, status, decision, cached, created_at, finished_at "
             "FROM jobs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
