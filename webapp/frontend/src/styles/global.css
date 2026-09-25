@@ -737,17 +737,21 @@ ul.tape-list li .decision[data-decision="hold"] {
 }
 
 .theme-toggle {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
   background: transparent;
   border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.7rem;
+  border-radius: 50%;
   cursor: pointer;
-  color: var(--ink);
+  color: var(--ink-soft);
+  transition: background var(--motion-pop), color var(--motion-pop);
 }
 .theme-toggle:hover {
   background: var(--paper-sunken);
+  color: var(--ink);
 }
 
 .app-footer {
@@ -757,4 +761,108 @@ ul.tape-list li .decision[data-decision="hold"] {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--ink-faint);
+}
+
+/* --- live price chart (free) --- */
+
+.price-chart {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--rule);
+}
+
+.price-chart__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+.price-chart__ticker {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.price-chart__ranges {
+  display: flex;
+  gap: 2px;
+  background: var(--paper-sunken);
+  border-radius: var(--radius-full);
+  padding: 2px;
+}
+.price-chart__range {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: transparent;
+  border: none;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.price-chart__range--active {
+  background: var(--paper-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.price-chart__body {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.price-chart__svg {
+  flex: 1 1 auto;
+  height: 56px;
+  min-width: 0;
+}
+.price-chart__area {
+  fill: color-mix(in srgb, var(--buy) 14%, transparent);
+  stroke: none;
+}
+.price-chart__svg[data-tone="sell"] .price-chart__area {
+  fill: color-mix(in srgb, var(--sell) 14%, transparent);
+}
+.price-chart__svg[data-tone="hold"] .price-chart__area {
+  fill: color-mix(in srgb, var(--hold) 14%, transparent);
+}
+.price-chart__line {
+  fill: none;
+  stroke: var(--buy);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+.price-chart__svg[data-tone="sell"] .price-chart__line {
+  stroke: var(--sell);
+}
+.price-chart__svg[data-tone="hold"] .price-chart__line {
+  stroke: var(--hold);
+}
+
+.price-chart__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+.price-chart__last {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.price-chart__change {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+.price-chart__change[data-tone="buy"] {
+  color: var(--buy);
+}
+.price-chart__change[data-tone="sell"] {
+  color: var(--sell);
+}
+.price-chart__change[data-tone="hold"] {
+  color: var(--hold);
 }

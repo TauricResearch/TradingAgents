@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../context/AppContext";
+import { PriceChart } from "./PriceChart";
 
 export function AnalyzeForm({ onSubmitted, initialTicker = "" }) {
   const { api } = useApp();
@@ -74,6 +75,7 @@ export function AnalyzeForm({ onSubmitted, initialTicker = "" }) {
       <p className="status-line" role="status" aria-live="polite" data-tone={status === "error" ? "error" : undefined}>
         {message}
       </p>
+      <PriceChart ticker={ticker.trim().toUpperCase()} />
     </section>
   );
 }

@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 
-from . import billing, database, jobs
+from . import billing, charts, database, jobs
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +195,24 @@ def job_history(
 ):
     rows = database.list_jobs(user["id"], limit=limit, offset=offset, ticker=ticker, status=status)
     return [dict(row) for row in rows]
+
+
+# --- chart endpoint --------------------------------------------------------
+# Free: a closing-price line straight from yfinance, no LLM cost and no
+# quota impact — it's a live preview, not an analysis run.
+
+
+@app.get("/api/chart/{ticker}")
+def chart(
+    ticker: str,
+    range: str = Query("3mo", pattern="^(5d|1mo|3mo|6mo|1y|5y)$"),
+    user=Depends(current_user),
+):
+    try:
+        points = charts.get_price_series(ticker, range)
+    except charts.ChartUnavailable as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"ticker": ticker.upper(), "range": range, "points": points}
 
 
 # --- watchlist endpoints --------------------------------------------------

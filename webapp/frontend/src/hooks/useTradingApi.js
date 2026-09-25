@@ -120,6 +120,12 @@ export function useTradingApi() {
     [apiKey]
   );
 
+  const fetchChart = useCallback(
+    (ticker, range = "3mo") =>
+      request(`/api/chart/${encodeURIComponent(ticker)}?range=${encodeURIComponent(range)}`, { apiKey }),
+    [apiKey]
+  );
+
   const fetchWatchlist = useCallback(() => request("/api/watchlist", { apiKey }), [apiKey]);
 
   const addWatchlistTicker = useCallback(
@@ -150,6 +156,7 @@ export function useTradingApi() {
       checkout,
       updateProfile,
       regenerateKey,
+      fetchChart,
       fetchWatchlist,
       addWatchlistTicker,
       removeWatchlistTicker,
@@ -167,6 +174,7 @@ export function useTradingApi() {
       checkout,
       updateProfile,
       regenerateKey,
+      fetchChart,
       fetchWatchlist,
       addWatchlistTicker,
       removeWatchlistTicker,

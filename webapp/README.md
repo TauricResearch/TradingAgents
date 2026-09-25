@@ -47,6 +47,14 @@ product:
   "Upgrade to Pro" action, and self-service API key rotation
   (`POST /api/me/regenerate-key` — the old key stops working immediately,
   for "I think this leaked" moments), plus a device sign-out.
+- **Live price chart** (`GET /api/chart/{ticker}?range=`) — a free closing-
+  price line for whatever ticker is typed into the Analyze form, debounced
+  and fetched straight from yfinance. It costs no LLM tokens and no quota
+  (unlike `/api/analyze`, which runs the full agent pipeline): this is a
+  quick "does this even look interesting" glance before spending a run,
+  not a substitute for the analysis itself. The product's actual output
+  stays a BUY/SELL/HOLD call with the agents' full reasoning — the chart
+  is context around that decision, not a second product.
 
 ## Frontend architecture (`webapp/frontend/`)
 
@@ -70,10 +78,14 @@ static bundle that FastAPI serves directly:
   key), `DashboardPage` (analyze + the decision print), `HistoryPage`,
   `WatchlistPage`, `ProfilePage`.
 - `src/components/` — `Navbar` + `Logo` (an SVG mark, not a raster asset),
-  `SignupPanel`, `SignInPanel`, `AnalyzeForm`, `DecisionStamp` (the hero: a
-  resolved decision renders as a market "print" — ticket id + UTC
-  timestamp, not a generic result card), `ReportView`, `HistoryTape`,
-  `ThemeToggle`.
+  `Avatar` + `ProfileMenu` (initials-on-a-color avatar; click opens a
+  dropdown with account info, Profile/Watchlist links, sign out),
+  `SignupPanel`, `SignInPanel`, `AnalyzeForm`, `PriceChart` (a free,
+  debounced closing-price line for whatever ticker is typed — no LLM cost),
+  `DecisionStamp` (the hero: a resolved decision renders as a market
+  "print" — ticket id + UTC timestamp, not a generic result card),
+  `ReportView`, `HistoryTape`, `QuotaBar`, `ThemeToggle` (icon-only,
+  sun/moon).
 - `src/styles/tokens.css` — the whole design system (colors, type scale,
   spacing, motion) as CSS custom properties, with a light/dark pair driven
   by both `prefers-color-scheme` and an explicit `ThemeToggle` override.
@@ -126,6 +138,7 @@ UI and logs a reminder to run `npm run build`.
 | `POST /api/analyze` | API key | Queue an analysis run `{ticker, trade_date?}` → `{job_id}` |
 | `GET /api/jobs/{id}` | API key | Poll job status/result |
 | `GET /api/jobs` | API key | Job history, filterable by `?ticker=&status=&limit=&offset=` |
+| `GET /api/chart/{ticker}` | API key | Free closing-price series, `?range=5d\|1mo\|3mo\|6mo\|1y\|5y` |
 | `GET /api/watchlist` | API key | List saved tickers |
 | `POST /api/watchlist` | API key | Add `{ticker}` |
 | `DELETE /api/watchlist/{ticker}` | API key | Remove a ticker |

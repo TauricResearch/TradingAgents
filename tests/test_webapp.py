@@ -143,6 +143,61 @@ def test_job_history_filters_by_ticker_and_status(client):
     assert [j["id"] for j in res.json()] == ["j-tsla"]
 
 
+def test_chart_returns_price_series(client):
+    import pandas as pd
+
+    from webapp.backend import charts
+
+    key = _signup(client)
+
+    class FakeTicker:
+        def __init__(self, symbol):
+            pass
+
+        def history(self, period):
+            idx = pd.to_datetime(["2024-05-08", "2024-05-09", "2024-05-10"])
+            return pd.DataFrame({"Close": [100.0, 101.5, 99.25]}, index=idx)
+
+    with patch.object(charts.yf, "Ticker", FakeTicker):
+        res = client.get("/api/chart/nvda", headers={"X-API-Key": key}, params={"range": "1mo"})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ticker"] == "NVDA"
+    assert body["range"] == "1mo"
+    assert body["points"] == [
+        {"date": "2024-05-08", "close": 100.0},
+        {"date": "2024-05-09", "close": 101.5},
+        {"date": "2024-05-10", "close": 99.25},
+    ]
+
+
+def test_chart_rejects_invalid_range(client):
+    key = _signup(client)
+    res = client.get("/api/chart/NVDA", headers={"X-API-Key": key}, params={"range": "not-a-range"})
+    assert res.status_code == 422
+
+
+def test_chart_502_when_ticker_has_no_data(client):
+    from webapp.backend import charts
+
+    key = _signup(client)
+
+    class EmptyTicker:
+        def __init__(self, symbol):
+            pass
+
+        def history(self, period):
+            import pandas as pd
+
+            return pd.DataFrame()
+
+    with patch.object(charts.yf, "Ticker", EmptyTicker):
+        res = client.get("/api/chart/ZZZZ", headers={"X-API-Key": key})
+
+    assert res.status_code == 502
+
+
 def test_missing_api_key_rejected(client):
     res = client.get("/api/me")
     assert res.status_code == 422  # missing required header
