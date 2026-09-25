@@ -83,9 +83,35 @@ export function LandingPage() {
             </button>
           </div>
           <p className="hero__disclaimer">Research output only. Not financial advice.</p>
+          <div className="hero__trust">
+            <span className="hero__trust-item">
+              <CheckDotIcon /> Free tier, no card
+            </span>
+            <span className="hero__trust-item">
+              <CheckDotIcon /> 4-agent debate per call
+            </span>
+            <span className="hero__trust-item">
+              <CheckDotIcon /> Key rotation, self-service
+            </span>
+          </div>
         </div>
 
         <div className="hero__visual" aria-hidden="true">
+          <div className="hero__grid-texture" />
+
+          <div className="hero__chip hero__chip--agents">
+            <div className="hero__chip-avatars">
+              <span style={{ background: "var(--brand)" }}>A</span>
+              <span style={{ background: "var(--buy)" }}>R</span>
+              <span style={{ background: "var(--hold)" }}>T</span>
+              <span style={{ background: "var(--sell)" }}>K</span>
+            </div>
+            <div>
+              <strong>4 agents</strong>
+              <span>debating NVDA…</span>
+            </div>
+          </div>
+
           <div className="hero__mockup">
             <div className="hero__mockup-bar">
               <span />
@@ -95,6 +121,16 @@ export function LandingPage() {
             <div className="hero__mockup-body">
               <div className="hero__mockup-chart">
                 <svg viewBox="0 0 100 32" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="heroChartFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--buy)" stopOpacity="0.28" />
+                      <stop offset="100%" stopColor="var(--buy)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M0,26 L6,24 L12,25 L18,20 L24,21 L30,16 L36,18 L42,13 L48,15 L54,10 L60,12 L66,7 L72,9 L78,5 L84,7 L90,3 L100,4 L100,32 L0,32 Z"
+                    fill="url(#heroChartFill)"
+                  />
                   <path
                     d="M0,26 L6,24 L12,25 L18,20 L24,21 L30,16 L36,18 L42,13 L48,15 L54,10 L60,12 L66,7 L72,9 L78,5 L84,7 L90,3 L100,4"
                     fill="none"
@@ -109,6 +145,12 @@ export function LandingPage() {
               </div>
             </div>
           </div>
+
+          <div className="hero__chip hero__chip--watchlist">
+            <BookmarkIcon small />
+            <span>Added to watchlist</span>
+          </div>
+
           <div className="hero__blob hero__blob--one" />
           <div className="hero__blob hero__blob--two" />
         </div>
@@ -157,10 +199,13 @@ export function LandingPage() {
   );
 }
 
+// Duotone: a soft currentColor fill for the main shape plus a full-strength
+// stroke for the defining line, so icons have depth without needing a
+// second hardcoded color (they still inherit --brand/--buy/etc via CSS).
 function PrintIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="feature-card__icon">
-      <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="3" y="3" width="18" height="18" rx="4" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.7" />
       <path d="M8 12.5l2.3 2.3L16 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -168,7 +213,8 @@ function PrintIcon() {
 function ChartIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="feature-card__icon">
-      <path d="M4 18l4.5-5 3.5 3 6-8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 18l4.5-5 3.5 3 6-8 4 4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 18l4.5-5 3.5 3 6-8 4 4V21H4Z" fill="currentColor" fillOpacity="0.12" stroke="none" />
       <path d="M4 21h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
@@ -176,21 +222,22 @@ function ChartIcon() {
 function BoltIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="feature-card__icon">
-      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
     </svg>
   );
 }
-function BookmarkIcon() {
+function BookmarkIcon({ small }) {
+  const size = small ? 16 : 26;
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="feature-card__icon">
-      <path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4-7 4V4.5a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={small ? undefined : "feature-card__icon"}>
+      <path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4-7 4V4.5a1 1 0 0 1 1-1Z" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
     </svg>
   );
 }
 function ClockIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="feature-card__icon">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="9" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.7" />
       <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -198,8 +245,16 @@ function ClockIcon() {
 function KeyIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="feature-card__icon">
-      <circle cx="8" cy="15" r="4" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="8" cy="15" r="4" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.7" />
       <path d="M11 12l9-9M17 6l2.5 2.5M14 9l2 2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function CheckDotIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="8" fill="var(--buy)" fillOpacity="0.16" />
+      <path d="M5 8.3l2 2 4-4.3" stroke="var(--buy)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

@@ -1114,7 +1114,20 @@ button.btn--lg {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--ink-faint);
-  margin: 0;
+  margin: 0 0 var(--space-3);
+}
+
+.hero__trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+.hero__trust-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
 }
 
 .hero__visual {
@@ -1122,7 +1135,85 @@ button.btn--lg {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 320px;
+  min-height: 380px;
+}
+
+.hero__grid-texture {
+  position: absolute;
+  inset: -10%;
+  background-image: radial-gradient(var(--rule) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 60% 60% at center, black 40%, transparent 80%);
+  opacity: 0.7;
+  z-index: 0;
+}
+@media (max-width: 900px) {
+  .hero__grid-texture {
+    display: none;
+  }
+}
+
+.hero__chip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-xs);
+}
+
+.hero__chip--agents {
+  top: -6%;
+  right: 2%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  animation: mockup-in 800ms 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    mockup-float 7s 1.2s ease-in-out infinite;
+}
+.hero__chip--agents strong {
+  display: block;
+  font-size: var(--text-sm);
+}
+.hero__chip--agents span {
+  color: var(--ink-soft);
+}
+.hero__chip-avatars {
+  display: flex;
+}
+.hero__chip-avatars span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border: 2px solid var(--paper-raised);
+  margin-inline-start: -6px;
+}
+.hero__chip-avatars span:first-child {
+  margin-inline-start: 0;
+}
+
+.hero__chip--watchlist {
+  bottom: 4%;
+  left: -4%;
+  color: var(--buy);
+  animation: mockup-in 800ms 450ms cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    mockup-float 8s 0.6s ease-in-out infinite reverse;
+}
+@media (max-width: 480px) {
+  .hero__chip {
+    display: none;
+  }
 }
 
 .hero__blob {
