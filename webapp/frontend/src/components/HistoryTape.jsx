@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useImperativeHandle, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { decisionKind } from "../utils/decision";
 import { useApp } from "../context/AppContext";
 
+const AUTO_REFRESH_MS = 12000;
+
 /**
- * `refreshRef` lets a parent trigger a reload after a new print resolves,
- * without HistoryTape polling on its own timer — the tape only needs to
- * move when something actually happened.
+ * `refreshRef` lets a parent force an immediate reload (e.g. right after a
+ * new print resolves) on top of the tape's own live polling below.
  *
  * `showFilters` turns on the ticker/status filter row (the full History
  * page); the compact "recent prints" list on the Dashboard omits it.
@@ -17,10 +18,13 @@ export function HistoryTape({ refreshRef, limit = 20, showFilters = false, title
   const [message, setMessage] = useState("");
   const [tickerFilter, setTickerFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
     if (!api.apiKey) return;
-    setStatus("loading");
+    // Only show a "loading" state for the first fetch — background polls
+    // refresh the list silently so it reads as live, not as flickering.
+    if (!loadedOnce.current) setStatus("loading");
     try {
       const data = await api.fetchJobs({
         limit,
@@ -30,6 +34,7 @@ export function HistoryTape({ refreshRef, limit = 20, showFilters = false, title
       setJobs(data);
       setStatus("idle");
       setMessage("");
+      loadedOnce.current = true;
     } catch (err) {
       setStatus("error");
       setMessage(err.message);
@@ -39,16 +44,20 @@ export function HistoryTape({ refreshRef, limit = 20, showFilters = false, title
   useImperativeHandle(refreshRef, () => ({ reload: load }), [load]);
 
   useEffect(() => {
+    loadedOnce.current = false;
     load();
+    const interval = setInterval(load, AUTO_REFRESH_MS);
+    return () => clearInterval(interval);
   }, [load]);
 
   return (
     <section aria-labelledby="tape-heading">
       <div className="tape-heading">
-        <h2 id="tape-heading">{title}</h2>
-        <button type="button" className="btn btn--ghost" onClick={load} disabled={status === "loading"}>
-          Refresh
-        </button>
+        <h2 id="tape-heading">
+          {title}
+          <span className="live-dot" aria-hidden="true" />
+          <span className="visually-hidden">Live, updates automatically</span>
+        </h2>
       </div>
 
       {showFilters && (

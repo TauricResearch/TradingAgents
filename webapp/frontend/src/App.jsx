@@ -1,15 +1,21 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppProvider, useApp } from "./context/AppContext";
 import { Navbar } from "./components/Navbar";
-import { WelcomePage } from "./pages/WelcomePage";
+import { AuthModal } from "./components/AuthModal";
+import { LandingPage } from "./pages/LandingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
 import { ProfilePage } from "./pages/ProfilePage";
 
+function HomeRoute() {
+  const { api } = useApp();
+  return api.apiKey ? <DashboardPage /> : <LandingPage />;
+}
+
 function RequireKey({ children }) {
   const { api } = useApp();
-  return api.apiKey ? children : <WelcomePage />;
+  return api.apiKey ? children : <Navigate to="/" replace />;
 }
 
 function Shell() {
@@ -17,14 +23,7 @@ function Shell() {
     <>
       <Navbar />
       <Routes>
-        <Route
-          path="/"
-          element={
-            <RequireKey>
-              <DashboardPage />
-            </RequireKey>
-          }
-        />
+        <Route path="/" element={<HomeRoute />} />
         <Route
           path="/history"
           element={
@@ -54,6 +53,7 @@ function Shell() {
       <footer className="app-footer">
         Research output only. TradingAgents places no trades and gives no investment advice.
       </footer>
+      <AuthModal />
     </>
   );
 }

@@ -74,21 +74,30 @@ static bundle that FastAPI serves directly:
   job is `queued`/`running`, with proper cleanup (a cancelled flag + cleared
   timeout) on unmount or when the job id changes, so a stale poll can never
   set state after the component has moved on.
-- `src/pages/` — `WelcomePage` (signed-out: sign up or paste an existing
-  key), `DashboardPage` (analyze + the decision print), `HistoryPage`,
+- `src/pages/` — `LandingPage` (signed-out marketing page: hero, "how it
+  works", feature grid, CTA band, all with scroll-reveal animation),
+  `DashboardPage` (analyze + the decision print), `HistoryPage`,
   `WatchlistPage`, `ProfilePage`.
 - `src/components/` — `Navbar` + `Logo` (an SVG mark, not a raster asset),
-  `Avatar` + `ProfileMenu` (initials-on-a-color avatar; click opens a
-  dropdown with account info, Profile/Watchlist links, sign out),
-  `SignupPanel`, `SignInPanel`, `AnalyzeForm`, `PriceChart` (a free,
+  `AuthModal` (sign up / sign in as a dialog, opened from the navbar's
+  "Sign in"/"Get started" buttons or the landing page's CTAs — closes and
+  routes to the Dashboard itself once a key is set, watching
+  `api.apiKey`), `Avatar` + `ProfileMenu` (initials-on-a-color avatar;
+  click opens a dropdown with account info, Profile/Watchlist links, sign
+  out), `SignupPanel`, `SignInPanel`, `AnalyzeForm`, `PriceChart` (a free,
   debounced closing-price line for whatever ticker is typed — no LLM cost),
   `DecisionStamp` (the hero: a resolved decision renders as a market
   "print" — ticket id + UTC timestamp, not a generic result card),
-  `ReportView`, `HistoryTape`, `QuotaBar`, `ThemeToggle` (icon-only,
-  sun/moon).
+  `ReportView`, `HistoryTape` (polls live every 12s — no manual refresh
+  button), `QuotaBar`, `ThemeToggle` (icon-only, sun/moon), `Reveal` (a
+  thin `IntersectionObserver` wrapper used for the landing page's
+  scroll-in sections).
 - `src/styles/tokens.css` — the whole design system (colors, type scale,
-  spacing, motion) as CSS custom properties, with a light/dark pair driven
-  by both `prefers-color-scheme` and an explicit `ThemeToggle` override.
+  spacing, motion, elevation) as CSS custom properties, with a light/dark
+  pair driven by both `prefers-color-scheme` and an explicit `ThemeToggle`
+  override. Every animation (hero blobs, the mockup float, scroll-reveal,
+  the modal, the live-tape pulse) is neutralized under
+  `prefers-reduced-motion: reduce`.
 
 Because this is a client-side-routed single-page app, the backend can't
 just serve static files at "/" (`GET /history` would 404 on a hard refresh
