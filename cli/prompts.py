@@ -90,7 +90,8 @@ def parse_analysts(value: str, asset_type: AssetType) -> list[AnalystType]:
     known = {a.value: a for a in AnalystType}
     unknown = [n for n in names if n not in known]
     if unknown:
-        raise ValueError(f"unknown analyst {', '.join(unknown)}; choose from {', '.join(known)}")
+        choices = ", ".join("sentiment" if name == "social" else name for name in known)
+        raise ValueError(f"unknown analyst {', '.join(unknown)}; choose from {choices}")
     available = filter_analysts_for_asset_type(list(known.values()), asset_type)
     unavailable = [n for n in names if known[n] not in available]
     if unavailable:

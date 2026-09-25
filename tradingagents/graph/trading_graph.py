@@ -312,10 +312,13 @@ class TradingAgentsGraph:
             settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
 
     def record_decision(self, company_name, trade_date, final_state):
-        """Log a finished run's decision for reflection on the next same-ticker run."""
+        """Record a finished run: its state log, and its decision in the memory log
+        for reflection on the next same-ticker run. propagate() and the CLI both end here."""
+        self._log_state(trade_date, final_state)
         decision = final_state.get("final_trade_decision")
         if not decision:
-            logger.warning("No final decision for %s on %s; nothing logged", company_name, trade_date)
+            logger.warning("No final decision for %s on %s; nothing added to the memory log",
+                           company_name, trade_date)
             return
         self.memory_log.store_decision(
             ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
@@ -348,9 +351,6 @@ class TradingAgentsGraph:
                     final_state.update(state)
         else:
             final_state = self.graph.invoke(graph_input, **args)
-
-        # Log state to disk.
-        self._log_state(trade_date, final_state)
 
         self.record_decision(company_name, trade_date, final_state)
 

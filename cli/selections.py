@@ -46,6 +46,12 @@ def get_user_selections(flags=None):
     return selections
 
 
+def depth_from_env() -> bool:
+    """Both round counts come from the environment, so the depth question is skipped."""
+    return bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")
+                and os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"))
+
+
 def unattended_gaps(flags) -> list[str]:
     """The flags and environment variables a run with no terminal still needs."""
     env = os.environ.get
@@ -53,7 +59,7 @@ def unattended_gaps(flags) -> list[str]:
     gaps += [f"--{name} or --no-{name}" for name in ("save", "show") if flags.get(name) is None]
     if not env("TRADINGAGENTS_OUTPUT_LANGUAGE"):
         gaps.append("TRADINGAGENTS_OUTPUT_LANGUAGE")
-    if not (env("TRADINGAGENTS_MAX_DEBATE_ROUNDS") and env("TRADINGAGENTS_MAX_RISK_ROUNDS")):
+    if not depth_from_env():
         gaps.append("TRADINGAGENTS_MAX_DEBATE_ROUNDS and TRADINGAGENTS_MAX_RISK_ROUNDS")
     if not env("TRADINGAGENTS_LLM_PROVIDER"):
         gaps.append("TRADINGAGENTS_LLM_PROVIDER")
@@ -190,10 +196,7 @@ def _prompt_selections(prefs, flags):
     # Research depth maps to the debate + risk round counts; when both are
     # supplied through TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS we keep
     # the run non-interactive and honor the env values (#977).
-    depth_from_env = bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")) and bool(
-        os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS")
-    )
-    if depth_from_env:
+    if depth_from_env():
         selected_research_depth = DEFAULT_CONFIG["max_debate_rounds"]
         console.print(
             f"[green]✓ Research depth from environment:[/green] "

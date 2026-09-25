@@ -38,7 +38,7 @@ class TestFlagValues:
 
     def test_analysts_are_named_and_checked_against_the_asset(self):
         assert prompts.parse_analysts(" Market, news ", AssetType.STOCK) == [AnalystType.MARKET, AnalystType.NEWS]
-        with pytest.raises(ValueError, match="market, social, news, fundamentals"):
+        with pytest.raises(ValueError, match="market, sentiment, news, fundamentals"):
             prompts.parse_analysts("market,macro", AssetType.STOCK)
         with pytest.raises(ValueError, match="crypto"):
             prompts.parse_analysts("fundamentals", AssetType.CRYPTO)
@@ -160,3 +160,24 @@ def test_a_closed_stdin_counts_as_no_terminal(monkeypatch, capsys):
     with pytest.raises(typer.Exit):
         run.run_analysis(flags={})
     assert "--ticker" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_rounds_from_the_environment_do_not_claim_a_depth_was_chosen(monkeypatch, capsys):
+    """With both round counts set, the depth question never appeared."""
+    monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "1")
+    monkeypatch.setenv("TRADINGAGENTS_MAX_RISK_ROUNDS", "1")
+    selections = {"research_depth": 3, "quick_think_llm": "q", "deep_think_llm": "d", "backend_url": None,
+                  "llm_provider": "openai", "google_thinking_level": None, "openai_reasoning_effort": None,
+                  "anthropic_effort": None, "output_language": "English"}
+
+    run._build_run_config(selections, None)
+
+    assert "the research depth you chose" not in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_an_unknown_analyst_error_names_the_analysts_as_users_know_them():
+    with pytest.raises(ValueError) as caught:
+        prompts.parse_analysts("macro", AssetType.STOCK)
+    assert "sentiment" in str(caught.value) and "social" not in str(caught.value)

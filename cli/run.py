@@ -22,7 +22,7 @@ from cli.display import (
     update_display,
     update_research_team_status,
 )
-from cli.selections import get_user_selections, unattended_gaps
+from cli.selections import depth_from_env, get_user_selections, unattended_gaps
 from cli.stats_handler import StatsCallbackHandler
 from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.dataflows.symbols import safe_ticker_component
@@ -67,17 +67,19 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     # Research depth sets both round counts, but an explicit env override
     # (TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
     # interactive selection — leave the env-applied value in place (#977).
-    for env_var, key in (("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "max_debate_rounds"),
-                         ("TRADINGAGENTS_MAX_RISK_ROUNDS", "max_risk_discuss_rounds")):
-        if os.environ.get(env_var):
-            # The depth prompt still appeared (it is skipped only when both are
+    rounds = (("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "max_debate_rounds"),
+              ("TRADINGAGENTS_MAX_RISK_ROUNDS", "max_risk_discuss_rounds"))
+    depth_was_asked = not depth_from_env()
+    for env_var, key in rounds:
+        if not os.environ.get(env_var):
+            config[key] = selections["research_depth"]
+        elif depth_was_asked:
+            # The depth question appeared (it is skipped only when both are
             # set), so say which half of the answer the environment overrode.
             console.print(
                 f"[green]✓ {key} from environment:[/green] {config[key]} "
                 f"(set by {env_var}, so the research depth you chose does not apply to it)"
             )
-        else:
-            config[key] = selections["research_depth"]
     config["quick_think_llm"] = selections["quick_think_llm"]
     config["deep_think_llm"] = selections["deep_think_llm"]
     config["backend_url"] = selections["backend_url"]

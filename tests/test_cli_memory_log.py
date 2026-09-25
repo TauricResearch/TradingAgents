@@ -21,6 +21,7 @@ def _bare_graph(tmp_path):
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"memory_log_path": str(tmp_path / "trading_memory.md")}
     graph.memory_log = TradingMemoryLog(graph.config)
+    graph._log_state = lambda *a: None   # these tests are about the memory log
     return graph
 
 
@@ -187,3 +188,26 @@ def test_a_run_without_checkpointing_says_nothing_about_resuming(tmp_path, monke
     buffer = _run_cli(monkeypatch, tmp_path, _FakeGraph())
 
     assert not any("resum" in text.lower() or "fresh" in text.lower() for _, _, text in buffer.messages)
+
+
+@pytest.mark.unit
+def test_recording_a_run_writes_its_state_log(tmp_path):
+    """The CLI records a run through record_decision, so the state log is written there."""
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path), "llm_provider": "openai", "deep_think_llm": "d",
+                    "quick_think_llm": "q", "max_debate_rounds": 1, "max_risk_discuss_rounds": 1,
+                    "output_language": "English", "data_vendors": {}, "tool_vendors": {}}
+    graph.selected_analysts = ("market",)
+    graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
+    state = {"company_of_interest": "NVDA", "trade_date": "2026-09-23", "market_report": "M",
+             "sentiment_report": "", "news_report": "", "fundamentals_report": "",
+             "investment_debate_state": {"bull_history": "", "bear_history": "", "history": "",
+                                         "current_response": ""},
+             "trader_investment_plan": "T", "investment_plan": "P",
+             "risk_debate_state": {"aggressive_history": "", "conservative_history": "",
+                                   "neutral_history": "", "history": ""},
+             "final_trade_decision": "**Rating**: Hold", "final_rating": "Hold"}
+
+    graph.record_decision("NVDA", "2026-09-23", state)
+
+    assert list(tmp_path.glob("NVDA/TradingAgentsStrategy_logs/full_states_log_2026-09-23.json"))
