@@ -188,6 +188,31 @@ def jobs_this_month(user_id: int) -> int:
         return row["n"]
 
 
+def user_stats(user_id: int) -> dict:
+    """Lifetime counters for the Dashboard's stat cards — real aggregates
+    over this user's own job history, not derived/estimated numbers."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT "
+            "  COUNT(*) AS total, "
+            "  SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done, "
+            "  SUM(CASE WHEN cached = 1 THEN 1 ELSE 0 END) AS cached, "
+            "  COUNT(DISTINCT ticker) AS distinct_tickers "
+            "FROM jobs WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        watchlist_count = conn.execute(
+            "SELECT COUNT(*) AS n FROM watchlist WHERE user_id = ?", (user_id,)
+        ).fetchone()["n"]
+    return {
+        "total_jobs": row["total"] or 0,
+        "done_jobs": row["done"] or 0,
+        "cached_jobs": row["cached"] or 0,
+        "distinct_tickers": row["distinct_tickers"] or 0,
+        "watchlist_count": watchlist_count,
+    }
+
+
 def create_job(job_id: str, user_id: int, ticker: str, trade_date: str) -> None:
     with get_conn() as conn:
         conn.execute(

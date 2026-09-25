@@ -5,11 +5,15 @@ import { ThemeToggle } from "./ThemeToggle";
 import { ProfileMenu } from "./ProfileMenu";
 import { useApp } from "../context/AppContext";
 
+// Ordered by how often a signed-in visitor actually reaches for each tab:
+// the home base, then the two "live" utility tabs (tickers you're tracking,
+// the rates board), then History last since it's a log/archive, not
+// something checked on every visit.
 const APP_LINKS = [
   { to: "/", label: "Dashboard", end: true },
-  { to: "/history", label: "History" },
   { to: "/watchlist", label: "Watchlist" },
   { to: "/rates", label: "Rates" },
+  { to: "/history", label: "History" },
 ];
 
 const MARKETING_LINKS = [

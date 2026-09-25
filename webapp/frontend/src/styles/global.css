@@ -1655,3 +1655,127 @@ button.btn--lg {
   font-size: var(--text-sm);
   margin: 0;
 }
+
+/* --- dashboard: stats row + market glance --- */
+
+.dashboard-span {
+  grid-column: 1 / -1;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+@media (max-width: 720px) {
+  .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-2) var(--space-3);
+}
+.stat-card__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+  color: var(--ink-soft);
+}
+.stat-card__value {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.stat-card__value[data-tone="buy"] {
+  color: var(--buy);
+}
+.stat-card__hint {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.market-glance__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.market-glance__row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.market-glance__row:last-child {
+  border-bottom: none;
+}
+.market-glance__ticker-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.market-glance__ticker-btn .ticker {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+}
+.market-glance__spark {
+  width: 100%;
+  height: 28px;
+}
+.market-glance__spark path {
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  stroke: var(--ink-soft);
+}
+.market-glance__spark[data-tone="buy"] path {
+  stroke: var(--buy);
+}
+.market-glance__spark[data-tone="sell"] path {
+  stroke: var(--sell);
+}
+.market-glance__spark[data-tone="hold"] path {
+  stroke: var(--hold);
+}
+.market-glance__price {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.market-glance__change {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+.market-glance__change[data-tone="buy"] {
+  color: var(--buy);
+}
+.market-glance__change[data-tone="sell"] {
+  color: var(--sell);
+}
+.market-glance__change[data-tone="hold"] {
+  color: var(--hold);
+}
+.market-glance__loading {
+  grid-column: 2 / -1;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-faint);
+}

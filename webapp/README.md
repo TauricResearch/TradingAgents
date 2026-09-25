@@ -38,6 +38,15 @@ frontend's "recent prints" list shows which runs were served from cache.
 Beyond the core "analyze a ticker" loop, the app is a small multi-page
 product:
 
+- **Dashboard stats + Market glance** — `GET /api/me` also returns
+  lifetime aggregates (`total_jobs`, `done_jobs`, `cached_jobs`,
+  `distinct_tickers`, `watchlist_count`, via `database.user_stats()`),
+  rendered as four stat cards at the top of the Dashboard (runs this
+  month, total prints, % served from cache, watchlist size — all real
+  numbers, nothing estimated). Below the analyze/print columns, a
+  **Market glance** card shows a live 5-day sparkline, last price and %
+  change for up to 4 watchlist tickers (free — chart data, not an
+  analysis run), each clickable straight into Analyze.
 - **Watchlist** (`GET/POST /api/watchlist`, `DELETE /api/watchlist/{ticker}`)
   — save tickers you check often; "Analyze" on a row jumps to the Dashboard
   with that ticker prefilled.
@@ -102,7 +111,8 @@ static bundle that FastAPI serves directly:
   `DecisionStamp` (the hero: a resolved decision renders as a market
   "print" — ticket id + UTC timestamp, not a generic result card),
   `ReportView`, `HistoryTape` (polls live every 12s — no manual refresh
-  button), `QuotaBar`, `ThemeToggle` (icon-only, sun/moon), `Reveal` (a
+  button), `MarketGlance` (live watchlist sparklines on the Dashboard),
+  `StatCard`, `QuotaBar`, `ThemeToggle` (icon-only, sun/moon), `Reveal` (a
   thin `IntersectionObserver` wrapper used for the landing page's
   scroll-in sections).
 - `src/styles/tokens.css` — the whole design system (colors, type scale,
@@ -154,7 +164,7 @@ UI and logs a reminder to run `npm run build`.
 | Endpoint | Auth | Purpose |
 |---|---|---|
 | `POST /api/signup` | none | Register an email, get back an API key |
-| `GET /api/me` | API key | Plan, usage, display name, currency, member-since |
+| `GET /api/me` | API key | Plan, usage, display name, currency, member-since, lifetime stats |
 | `PATCH /api/me` | API key | Set `{display_name?, currency?}` — partial update, only provided fields change |
 | `POST /api/me/regenerate-key` | API key | Rotate the API key (old one stops working immediately) |
 | `POST /api/analyze` | API key | Queue an analysis run `{ticker, trade_date?}` → `{job_id}` |

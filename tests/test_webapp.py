@@ -204,6 +204,41 @@ def test_me_defaults_to_usd(client):
     assert res.json()["currency"] == "USD"
 
 
+def test_me_includes_lifetime_stats(client):
+    from webapp.backend import database
+
+    key = _signup(client)
+    user = database.get_user_by_api_key(key)
+
+    database.create_job("j1", user["id"], "NVDA", "2024-01-01")
+    database.update_job("j1", status="done", decision="BUY", finished_at="x")
+    database.create_job("j2", user["id"], "NVDA", "2024-01-02")
+    database.update_job("j2", status="done", decision="BUY", cached=1, finished_at="x")
+    database.create_job("j3", user["id"], "TSLA", "2024-01-01")
+    database.update_job("j3", status="failed", error="boom", finished_at="x")
+    database.add_watchlist_ticker(user["id"], "AAPL")
+    database.add_watchlist_ticker(user["id"], "MSFT")
+
+    res = client.get("/api/me", headers={"X-API-Key": key})
+    body = res.json()
+    assert body["total_jobs"] == 3
+    assert body["done_jobs"] == 2
+    assert body["cached_jobs"] == 1
+    assert body["distinct_tickers"] == 2
+    assert body["watchlist_count"] == 2
+
+
+def test_me_stats_zero_for_new_user(client):
+    key = _signup(client)
+    res = client.get("/api/me", headers={"X-API-Key": key})
+    body = res.json()
+    assert body["total_jobs"] == 0
+    assert body["done_jobs"] == 0
+    assert body["cached_jobs"] == 0
+    assert body["distinct_tickers"] == 0
+    assert body["watchlist_count"] == 0
+
+
 def test_update_profile_sets_currency(client):
     key = _signup(client)
     res = client.patch("/api/me", headers={"X-API-Key": key}, json={"currency": "eur"})

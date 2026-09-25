@@ -94,6 +94,7 @@ def me(user=Depends(current_user)):
         "member_since": user["created_at"],
         "jobs_this_month": database.jobs_this_month(user["id"]),
         "free_tier_limit": database.free_tier_monthly_limit(),
+        **database.user_stats(user["id"]),
     }
 
 
