@@ -273,10 +273,7 @@ def get_stockstats_indicator(
 def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     """Daily closes from ``start_date`` up to, not including, ``end_date``."""
     canonical = normalize_symbol(symbol)
-    try:
-        history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date))
-    except Exception as e:
-        raise NoMarketDataError(symbol, canonical, f"prices unavailable: {e}") from e
+    history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date))
     return history["Close"] if "Close" in history else pd.Series(dtype=float)
 
 

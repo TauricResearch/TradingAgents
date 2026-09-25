@@ -125,10 +125,13 @@ class TestLiveRunUnchanged:
 
 @pytest.mark.unit
 class TestNoUsableFieldsStillRaises:
-    def test_stub_payload_raises_no_market_data(self):
+    def test_stub_payload_raises_no_market_data(self, monkeypatch):
         # yfinance returns {"trailingPegRatio": None} for unknown symbols; on a
         # live run that must stay a hard "no data", not a bare header.
         from tradingagents.dataflows.errors import NoMarketDataError
+        from tradingagents.dataflows.vendors.yahoo import ohlcv
+
+        monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
 
         with pytest.raises(NoMarketDataError):
             _yf(_TODAY, info={"trailingPegRatio": None})

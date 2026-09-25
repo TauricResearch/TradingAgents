@@ -4,7 +4,7 @@ import pandas as pd
 import yfinance as yf
 
 from tradingagents.dataflows.date_window import withhold_live_profile
-from tradingagents.dataflows.errors import NoMarketDataError, VendorError, VendorRateLimitError
+from tradingagents.dataflows.errors import VendorRateLimitError
 from tradingagents.dataflows.net import vendor_reachable
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.ohlcv import (
@@ -32,60 +32,51 @@ def get_fundamentals(
     if withheld:
         return withheld
 
-    try:
-        info = yf_retry(lambda: yf.Ticker(canonical).info)
+    info = yf_retry(lambda: yf.Ticker(canonical).info)
+    if not info:
+        raise_for_empty(ticker, canonical, "fundamentals")
 
-        if not info:
-            raise_for_empty(ticker, canonical, "fundamentals")
+    fields = [
+        ("Name", info.get("longName")),
+        ("Sector", info.get("sector")),
+        ("Industry", info.get("industry")),
+        ("Market Cap", info.get("marketCap")),
+        ("PE Ratio (TTM)", info.get("trailingPE")),
+        ("Forward PE", info.get("forwardPE")),
+        ("PEG Ratio", info.get("pegRatio")),
+        ("Price to Book", info.get("priceToBook")),
+        ("EPS (TTM)", info.get("trailingEps")),
+        ("Forward EPS", info.get("forwardEps")),
+        ("Dividend Yield", info.get("dividendYield")),
+        ("Beta", info.get("beta")),
+        ("52 Week High", info.get("fiftyTwoWeekHigh")),
+        ("52 Week Low", info.get("fiftyTwoWeekLow")),
+        ("50 Day Average", info.get("fiftyDayAverage")),
+        ("200 Day Average", info.get("twoHundredDayAverage")),
+        ("Revenue (TTM)", info.get("totalRevenue")),
+        ("Gross Profit", info.get("grossProfits")),
+        ("EBITDA", info.get("ebitda")),
+        ("Net Income", info.get("netIncomeToCommon")),
+        ("Profit Margin", info.get("profitMargins")),
+        ("Operating Margin", info.get("operatingMargins")),
+        ("Return on Equity", info.get("returnOnEquity")),
+        ("Return on Assets", info.get("returnOnAssets")),
+        ("Debt to Equity", info.get("debtToEquity")),
+        ("Current Ratio", info.get("currentRatio")),
+        ("Book Value", info.get("bookValue")),
+        ("Free Cash Flow", info.get("freeCashflow")),
+    ]
 
-        fields = [
-            ("Name", info.get("longName")),
-            ("Sector", info.get("sector")),
-            ("Industry", info.get("industry")),
-            ("Market Cap", info.get("marketCap")),
-            ("PE Ratio (TTM)", info.get("trailingPE")),
-            ("Forward PE", info.get("forwardPE")),
-            ("PEG Ratio", info.get("pegRatio")),
-            ("Price to Book", info.get("priceToBook")),
-            ("EPS (TTM)", info.get("trailingEps")),
-            ("Forward EPS", info.get("forwardEps")),
-            ("Dividend Yield", info.get("dividendYield")),
-            ("Beta", info.get("beta")),
-            ("52 Week High", info.get("fiftyTwoWeekHigh")),
-            ("52 Week Low", info.get("fiftyTwoWeekLow")),
-            ("50 Day Average", info.get("fiftyDayAverage")),
-            ("200 Day Average", info.get("twoHundredDayAverage")),
-            ("Revenue (TTM)", info.get("totalRevenue")),
-            ("Gross Profit", info.get("grossProfits")),
-            ("EBITDA", info.get("ebitda")),
-            ("Net Income", info.get("netIncomeToCommon")),
-            ("Profit Margin", info.get("profitMargins")),
-            ("Operating Margin", info.get("operatingMargins")),
-            ("Return on Equity", info.get("returnOnEquity")),
-            ("Return on Assets", info.get("returnOnAssets")),
-            ("Debt to Equity", info.get("debtToEquity")),
-            ("Current Ratio", info.get("currentRatio")),
-            ("Book Value", info.get("bookValue")),
-            ("Free Cash Flow", info.get("freeCashflow")),
-        ]
+    lines = [f"{label}: {v}" for label, v in fields if v is not None]
 
-        lines = [f"{label}: {v}" for label, v in fields if v is not None]
+    # yfinance returns a stub dict (e.g. {"trailingPegRatio": None}) for
+    # unknown symbols, so `info` is truthy but every field is empty. Treat
+    # "no usable fields" as no data rather than emitting a bare header the
+    # agent might fabricate around.
+    if not lines:
+        raise_for_empty(ticker, canonical, "fundamental fields")
 
-        # yfinance returns a stub dict (e.g. {"trailingPegRatio": None}) for
-        # unknown symbols, so `info` is truthy but every field is empty. Treat
-        # "no usable fields" as no data rather than emitting a bare header the
-        # agent might fabricate around.
-        if not lines:
-            raise NoMarketDataError(ticker, canonical, "no fundamental fields returned")
-
-        header = f"# Company Fundamentals for {canonical}\n\n"
-
-        return header + "\n".join(lines)
-
-    except VendorError:
-        raise
-    except Exception as e:
-        raise NoMarketDataError(ticker, canonical, f"fundamentals unavailable: {e}") from e
+    return f"# Company Fundamentals for {canonical}\n\n" + "\n".join(lines)
 
 
 # This vendor dates a statement by the period it covers, not by the day it was
@@ -103,17 +94,11 @@ def _statement(ticker, freq, as_of_date, title, quarterly_attr, annual_attr) -> 
     """One financial statement as CSV, cut at ``as_of_date`` by period end."""
     canonical = normalize_symbol(ticker)
     what = title.lower()
-    try:
-        ticker_obj = yf.Ticker(canonical)
-        attr = quarterly_attr if freq.lower() == "quarterly" else annual_attr
-        data = filter_financials_by_date(yf_retry(lambda: getattr(ticker_obj, attr)), as_of_date)
-        if data.empty:
-            raise_for_empty(ticker, canonical, f"{what} data")
-        return f"# {title} data for {canonical} ({freq})\n" + _PERIOD_END_VINTAGE + data.to_csv()
-    except VendorError:
-        raise
-    except Exception as e:
-        raise NoMarketDataError(ticker, canonical, f"{what} unavailable: {e}") from e
+    attr = quarterly_attr if freq.lower() == "quarterly" else annual_attr
+    data = filter_financials_by_date(yf_retry(lambda: getattr(yf.Ticker(canonical), attr)), as_of_date)
+    if data.empty:
+        raise_for_empty(ticker, canonical, f"{what} data")
+    return f"# {title} data for {canonical} ({freq})\n" + _PERIOD_END_VINTAGE + data.to_csv()
 
 
 def get_balance_sheet(
@@ -160,42 +145,31 @@ def get_insider_transactions(
 ):
     """Get insider transactions data from yfinance."""
     canonical = normalize_symbol(ticker)
-    try:
-        ticker_obj = yf.Ticker(canonical)
-        data = yf_retry(lambda: ticker_obj.insider_transactions)
+    data = yf_retry(lambda: yf.Ticker(canonical).insider_transactions)
 
-        # Empty is normal here (many valid symbols have no insider filings),
-        # so report it plainly rather than treating the symbol as invalid.
-        if data is None or data.empty:
-            if not vendor_reachable(YAHOO_HOST):
-                raise VendorRateLimitError("Yahoo Finance is unreachable; insider filings were not retrieved")
-            return f"No insider transactions reported for symbol '{canonical}'"
+    # Empty is normal here (many valid symbols have no insider filings),
+    # so report it plainly rather than treating the symbol as invalid.
+    if data is None or data.empty:
+        if not vendor_reachable(YAHOO_HOST):
+            raise VendorRateLimitError("Yahoo Finance is unreachable; insider filings were not retrieved")
+        return f"No insider transactions reported for symbol '{canonical}'"
 
-        if as_of_date:
-            traded = data["Start Date"]
-            kept = data[traded <= pd.Timestamp(as_of_date)]
-            if kept.empty:
-                return (
-                    f"<insider transactions unavailable for {canonical} as of {as_of_date}: "
-                    "Yahoo serves recent transactions only>"
-                )
-            data = kept
+    if as_of_date:
+        traded = data["Start Date"]
+        kept = data[traded <= pd.Timestamp(as_of_date)]
+        if kept.empty:
+            return (
+                f"<insider transactions unavailable for {canonical} as of {as_of_date}: "
+                "Yahoo serves recent transactions only>"
+            )
+        data = kept
 
-        return f"# Insider Transactions data for {canonical}\n" + _TRANSACTION_DATE_VINTAGE + data.to_csv()
-
-    except VendorError:
-        raise
-    except Exception as e:
-        raise NoMarketDataError(ticker, canonical, f"insider transactions unavailable: {e}") from e
+    return f"# Insider Transactions data for {canonical}\n" + _TRANSACTION_DATE_VINTAGE + data.to_csv()
 
 
 def get_company_profile(ticker: str) -> dict:
     """Yahoo's current profile for ``ticker``: name, sector, industry and the like."""
-    canonical = normalize_symbol(ticker)
-    try:
-        return yf_retry(lambda: yf.Ticker(canonical).info) or {}
-    except Exception as e:
-        raise NoMarketDataError(ticker, canonical, f"profile unavailable: {e}") from e
+    return yf_retry(lambda: yf.Ticker(normalize_symbol(ticker)).info) or {}
 
 
 def filter_financials_by_date(data: pd.DataFrame, as_of_date: str) -> pd.DataFrame:

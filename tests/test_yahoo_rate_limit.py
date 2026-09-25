@@ -21,7 +21,7 @@ from tradingagents.agents.tools import (
 )
 from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+from tradingagents.dataflows.errors import VendorRateLimitError
 from tradingagents.dataflows.vendors.yahoo import fundamentals, ohlcv
 
 DAY = "2026-09-18"
@@ -112,19 +112,67 @@ def test_fundamentals_ask_a_new_ticker_after_a_rate_limit(yahoo):
 
 
 @pytest.mark.unit
-def test_another_price_fetch_error_still_tells_an_outage_from_an_unknown_symbol(yahoo):
-    """``Ticker.history`` lets some errors through that ``yf.download`` turned
-    into an empty frame. Whether Yahoo answers still decides which one it is."""
+def test_a_price_request_that_raises_is_unavailable_whether_or_not_yahoo_answers(yahoo):
+    """An unknown symbol comes back from ``Ticker.history`` as an empty frame, so
+    a request that raised failed in transit, and says nothing about the symbol."""
 
     def refused(self, **kwargs):
         raise ConnectionError("curl: (7) Failed to connect to query2.finance.yahoo.com")
 
     yahoo.setattr(yf.Ticker, "history", refused)
+    for reachable in (False, True):
+        yahoo.setattr(ohlcv, "vendor_reachable", lambda url, _r=reachable: _r)
+        with pytest.raises(VendorRateLimitError, match="request failed"):
+            ohlcv.load_ohlcv("AAPL", DAY)
 
-    yahoo.setattr(ohlcv, "vendor_reachable", lambda url: False)
-    with pytest.raises(VendorRateLimitError, match="unreachable"):
-        ohlcv.load_ohlcv("AAPL", DAY)
 
-    yahoo.setattr(ohlcv, "vendor_reachable", lambda url: True)
-    with pytest.raises(NoMarketDataError):
-        ohlcv.load_ohlcv("AAPL", DAY)
+@pytest.mark.unit
+def test_a_price_request_that_fails_is_unavailable_even_when_yahoo_answers(monkeypatch, tmp_path):
+    """A timeout says nothing about the symbol; a reachable host does not make it one."""
+    def timed_out(**kwargs):
+        raise TimeoutError("read timed out")
+
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda s: type("T", (), {"history": lambda self, **k: timed_out(**k)})())
+    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+
+    with pytest.raises(VendorRateLimitError):
+        ohlcv.load_ohlcv("NVDA", "2026-09-23")
+
+
+class _Unreachable:
+    """A Ticker whose every request fails in transit."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __getattr__(self, name):
+        raise TimeoutError("read timed out")
+
+
+def _yahoo_calls():
+    from tradingagents.dataflows.date_window import get_current_date
+    from tradingagents.dataflows.vendors.yahoo import market, news
+
+    today = get_current_date()
+    return [
+        pytest.param(lambda: fundamentals.get_fundamentals("AAPL", today), id="fundamentals"),
+        pytest.param(lambda: fundamentals.get_balance_sheet("AAPL", "quarterly", today), id="statement"),
+        pytest.param(lambda: fundamentals.get_insider_transactions("AAPL", today), id="insider"),
+        pytest.param(lambda: fundamentals.get_company_profile("AAPL"), id="profile"),
+        pytest.param(lambda: news.get_news_yfinance("AAPL", "2026-09-10", DAY), id="news"),
+        pytest.param(lambda: news.get_global_news_yfinance(DAY, 7, 5), id="global_news"),
+        pytest.param(lambda: market.get_YFin_data_online("AAPL", "2026-09-10", DAY), id="stock_data"),
+        pytest.param(lambda: market.get_closes("AAPL", "2026-09-10", DAY), id="closes"),
+    ]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("call", _yahoo_calls())
+def test_a_yahoo_request_that_fails_is_unavailable_not_absent(yahoo, call):
+    """An unknown symbol comes back empty, so a request that raised failed in transit."""
+    yahoo.setattr(yf, "Ticker", _Unreachable)
+    yahoo.setattr(yf, "Search", _Unreachable)
+
+    with pytest.raises(VendorRateLimitError):
+        call()
