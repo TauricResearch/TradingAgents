@@ -17,6 +17,7 @@ cell rather than a position carried forward.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -133,12 +134,14 @@ def run_backtest(
     portfolio=None,
     selected_analysts=("market", "social", "news", "fundamentals"),
     run_id: str | None = None,
+    progress: Callable[[int, int, str, str], None] | None = None,
 ) -> BacktestResult:
     """Analyze every ticker on every date, into a memory log of this run's own.
 
     The live log stays untouched: a sweep would otherwise flood the context that
     real runs read back. Cells already in this run's log are skipped, so an
-    interrupted sweep resumes by being run again.
+    interrupted sweep resumes by being run again. ``progress(done, total,
+    ticker, date)`` is called before each cell that runs.
     """
     # run_id becomes a path segment, so it is validated like a ticker: an
     # absolute or dotted value would otherwise place the run outside results_dir.
@@ -152,17 +155,18 @@ def run_backtest(
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
     done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}
 
-    for ticker in tickers:
-        for date in dates:
-            if (ticker, date) in done:
-                result.skipped += 1
-                continue
-            try:
-                graph.propagate(ticker, date, asset_type, portfolio=portfolio)
-                result.cells_run += 1
-            except Exception as exc:  # one unreachable vendor must not end the sweep
-                logger.warning("Backtest cell %s %s failed: %s", ticker, date, exc)
-                result.failures.append((ticker, date, str(exc)))
+    cells = [(ticker, date) for ticker in tickers for date in dates]
+    todo = [cell for cell in cells if cell not in done]
+    result.skipped = len(cells) - len(todo)
+    for index, (ticker, date) in enumerate(todo, 1):
+        if progress:
+            progress(index, len(todo), ticker, date)
+        try:
+            graph.propagate(ticker, date, asset_type, portfolio=portfolio)
+            result.cells_run += 1
+        except Exception as exc:  # one unreachable vendor must not end the sweep
+            logger.warning("Backtest cell %s %s failed: %s", ticker, date, exc)
+            result.failures.append((ticker, date, str(exc)))
 
     # Settlement runs at the start of the next run for a ticker, so each ticker's
     # last cell would stay pending without this pass.

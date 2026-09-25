@@ -274,3 +274,25 @@ def test_a_result_whose_cells_all_failed_summarizes_as_empty(tmp_path):
     result = BacktestResult(run_id="r", log_path=tmp_path / "never-written.md")
 
     assert summarize(result).resolved == 0
+
+
+@pytest.mark.unit
+def test_progress_is_reported_before_each_cell(tmp_path):
+    seen = []
+
+    run_backtest(["NVDA", "AAPL"], ["2026-01-05", "2026-01-12"], _config(tmp_path),
+                 progress=lambda done, total, ticker, date: seen.append((done, total, ticker, date)))
+
+    assert seen == [(1, 4, "NVDA", "2026-01-05"), (2, 4, "NVDA", "2026-01-12"),
+                    (3, 4, "AAPL", "2026-01-05"), (4, 4, "AAPL", "2026-01-12")]
+
+
+@pytest.mark.unit
+def test_a_resumed_sweep_reports_only_the_cells_it_runs(tmp_path):
+    first = run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path))
+    seen = []
+
+    run_backtest(["NVDA"], ["2026-01-05", "2026-01-12"], _config(tmp_path), run_id=first.run_id,
+                 progress=lambda done, total, ticker, date: seen.append((done, total, date)))
+
+    assert seen == [(1, 1, "2026-01-12")]

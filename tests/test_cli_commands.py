@@ -135,3 +135,19 @@ def test_backtest_reports_a_setup_failure_in_one_line(runner, monkeypatch):
     assert result.exit_code == 1
     assert "API key" in result.output
     assert "Traceback" not in result.output
+
+
+@pytest.mark.unit
+def test_backtest_shows_each_cell_and_how_to_continue(runner, monkeypatch, tmp_path):
+    def sweep(tickers, dates, config, progress=None, **kw):
+        for i, date in enumerate(dates, 1):
+            progress(i, len(dates), tickers[0], date)
+        return _Result(tmp_path)
+
+    monkeypatch.setattr(m, "run_backtest", sweep)
+    monkeypatch.setattr(m, "summarize", lambda log: _Summary())
+
+    result = runner.invoke(m.app, ["backtest", "NVDA", "--start", "2026-06-01", "--end", "2026-06-08"])
+
+    assert "[1/2] NVDA 2026-06-01" in result.output and "[2/2] NVDA 2026-06-08" in result.output
+    assert f"--run-id {_Result(tmp_path).run_id}" in result.output

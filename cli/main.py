@@ -125,7 +125,10 @@ def backtest(
         console.print("[red]No ticker to analyze; pass them comma-separated, e.g. NVDA,AAPL[/red]")
         raise typer.Exit(code=1)
 
-    kwargs = {"asset_type": asset_type, "portfolio": book, "run_id": run_id}
+    def show_progress(done, total, ticker, date):
+        console.print(f"[dim][{done}/{total}] {ticker} {date}[/dim]")
+
+    kwargs = {"asset_type": asset_type, "portfolio": book, "run_id": run_id, "progress": show_progress}
     if analysts:
         kwargs["selected_analysts"] = [a.strip().lower() for a in analysts.split(",") if a.strip()]
 
@@ -136,6 +139,7 @@ def backtest(
         raise typer.Exit(code=1) from None
     console.print(summarize(result).render())
     console.print(f"\nRan {result.cells_run} cells, skipped {result.skipped}. Log: {result.log_path}")
+    console.print(f"Continue or settle this sweep: --run-id {result.run_id}")
     for ticker, date, reason in result.failures:
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
     for ticker, reason in result.settlement_failures:
