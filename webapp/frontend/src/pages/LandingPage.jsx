@@ -57,6 +57,62 @@ const FEATURES = [
   },
 ];
 
+const PLANS = [
+  {
+    name: "Free",
+    price: "$0",
+    period: "/month",
+    tagline: "For trying the desk out.",
+    features: [
+      "5 analyses a month",
+      "Full 4-agent debate + report",
+      "Free live price chart",
+      "Free exchange-rate board",
+      "Watchlist & filterable history",
+    ],
+    cta: "Get started free",
+    tab: "signup",
+  },
+  {
+    name: "Pro",
+    price: "Unlimited",
+    period: "analyses",
+    tagline: "For a desk you use daily.",
+    features: [
+      "Everything in Free",
+      "No monthly analysis cap",
+      "Same free chart & rates tools",
+      "Priority on new features",
+    ],
+    cta: "Upgrade to Pro",
+    tab: "signup",
+    highlighted: true,
+  },
+];
+
+const FAQS = [
+  {
+    q: "Is this financial advice?",
+    a: "No. TradingAgents is a research tool — it never places trades and nothing it prints is investment advice.",
+  },
+  {
+    q: "How does the free tier actually work?",
+    a: "5 analyses per month, no card required. If someone already ran the same ticker and date recently, you get that result instantly and it doesn't count against your quota at all.",
+  },
+  {
+    q: "What happens if my API key leaks?",
+    a: "Rotate it yourself anytime from Profile. The old key stops working immediately — no support ticket needed.",
+  },
+  {
+    q: "What powers the live chart and exchange rates?",
+    a: "Free market data, fetched live and separate from the paid analysis pipeline — so checking a chart or a rate never costs you a run.",
+  },
+  {
+    q: "Can I see prices in my own currency?",
+    a: "Yes — set a preferred currency in Profile. It's used for converted prices across the platform, including the exchange-rate board.",
+  },
+];
+
 export function LandingPage() {
   const { openAuthModal } = useApp();
 
@@ -183,6 +239,60 @@ export function LandingPage() {
               <feature.icon />
               <h3 className="feature-card__title">{feature.title}</h3>
               <p className="feature-card__body">{feature.body}</p>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section id="pricing" className="section">
+        <Reveal as="div" className="section__head">
+          <p className="section__eyebrow">pricing</p>
+          <h2 className="section__title">Start free. Upgrade when you outgrow it.</h2>
+        </Reveal>
+        <div className="pricing-grid">
+          {PLANS.map((plan, i) => (
+            <Reveal
+              as="div"
+              key={plan.name}
+              delay={i * 90}
+              className={"pricing-card" + (plan.highlighted ? " pricing-card--highlighted" : "")}
+            >
+              {plan.highlighted && <span className="pricing-card__badge">most popular</span>}
+              <h3 className="pricing-card__name">{plan.name}</h3>
+              <p className="pricing-card__tagline">{plan.tagline}</p>
+              <p className="pricing-card__price">
+                {plan.price}
+                <span>{plan.period}</span>
+              </p>
+              <ul className="pricing-card__features">
+                {plan.features.map((f) => (
+                  <li key={f}>
+                    <CheckDotIcon /> {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className={"btn" + (plan.highlighted ? " btn--primary" : "")}
+                onClick={() => openAuthModal(plan.tab)}
+              >
+                {plan.cta}
+              </button>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section id="faq" className="section section--sunken">
+        <Reveal as="div" className="section__head">
+          <p className="section__eyebrow">faq</p>
+          <h2 className="section__title">Questions worth answering upfront</h2>
+        </Reveal>
+        <div className="faq-list">
+          {FAQS.map((item, i) => (
+            <Reveal as="div" key={item.q} delay={i * 60} className="faq-item">
+              <h3 className="faq-item__q">{item.q}</h3>
+              <p className="faq-item__a">{item.a}</p>
             </Reveal>
           ))}
         </div>

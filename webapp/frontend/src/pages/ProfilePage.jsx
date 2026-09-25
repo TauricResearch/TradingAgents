@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { Avatar } from "../components/Avatar";
 import { QuotaBar } from "../components/QuotaBar";
+import { SUPPORTED_CURRENCIES } from "../utils/currency";
 
 function formatMemberSince(iso) {
   if (!iso) return "";
@@ -17,8 +18,20 @@ export function ProfilePage() {
   const [name, setName] = useState(account?.display_name || "");
   const [nameStatus, setNameStatus] = useState("idle");
   const [nameMessage, setNameMessage] = useState("");
+  const [currency, setCurrency] = useState(account?.currency || "USD");
+  const [currencyStatus, setCurrencyStatus] = useState("idle");
+  const [currencyMessage, setCurrencyMessage] = useState("");
   const [keyStatus, setKeyStatus] = useState("idle");
   const [keyMessage, setKeyMessage] = useState("");
+
+  // The account loads asynchronously (a fetch after mount), so the initial
+  // useState defaults above are usually empty on first render — sync once
+  // it arrives, but never clobber what the visitor is actively typing.
+  useEffect(() => {
+    if (!account) return;
+    setName((current) => (current ? current : account.display_name || ""));
+    setCurrency(account.currency || "USD");
+  }, [account]);
   const [revealedKey, setRevealedKey] = useState("");
   const [checkoutStatus, setCheckoutStatus] = useState("idle");
 
@@ -27,13 +40,29 @@ export function ProfilePage() {
     setNameStatus("loading");
     setNameMessage("Saving…");
     try {
-      await api.updateProfile(name);
+      await api.updateProfile({ displayName: name });
       await loadAccount();
       setNameStatus("idle");
       setNameMessage("Saved.");
     } catch (err) {
       setNameStatus("error");
       setNameMessage(err.message);
+    }
+  }
+
+  async function handleCurrencyChange(event) {
+    const next = event.target.value;
+    setCurrency(next);
+    setCurrencyStatus("loading");
+    setCurrencyMessage("Saving…");
+    try {
+      await api.updateProfile({ currency: next });
+      await loadAccount();
+      setCurrencyStatus("idle");
+      setCurrencyMessage("Saved — used for converted prices across the platform.");
+    } catch (err) {
+      setCurrencyStatus("error");
+      setCurrencyMessage(err.message);
     }
   }
 
@@ -138,6 +167,27 @@ export function ProfilePage() {
           </form>
           <p className="status-line" role="status" aria-live="polite" data-tone={nameStatus === "error" ? "error" : undefined}>
             {nameMessage}
+          </p>
+        </section>
+
+        <section className="card">
+          <h2 className="card__title">currency</h2>
+          <p className="card__hint">Used to show converted prices across the platform (charts, rates).</p>
+          <select
+            id="currency-select"
+            value={currency}
+            onChange={handleCurrencyChange}
+            aria-label="Preferred currency"
+            disabled={currencyStatus === "loading"}
+          >
+            {SUPPORTED_CURRENCIES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+          <p className="status-line" role="status" aria-live="polite" data-tone={currencyStatus === "error" ? "error" : undefined}>
+            {currencyMessage}
           </p>
         </section>
 

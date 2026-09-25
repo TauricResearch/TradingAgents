@@ -9,11 +9,14 @@ const APP_LINKS = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/history", label: "History" },
   { to: "/watchlist", label: "Watchlist" },
+  { to: "/rates", label: "Rates" },
 ];
 
 const MARKETING_LINKS = [
   { to: "#how-it-works", label: "How it works" },
   { to: "#features", label: "Features" },
+  { to: "#pricing", label: "Pricing" },
+  { to: "#faq", label: "FAQ" },
 ];
 
 export function Navbar() {

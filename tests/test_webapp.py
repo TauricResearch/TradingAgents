@@ -198,6 +198,91 @@ def test_chart_502_when_ticker_has_no_data(client):
     assert res.status_code == 502
 
 
+def test_me_defaults_to_usd(client):
+    key = _signup(client)
+    res = client.get("/api/me", headers={"X-API-Key": key})
+    assert res.json()["currency"] == "USD"
+
+
+def test_update_profile_sets_currency(client):
+    key = _signup(client)
+    res = client.patch("/api/me", headers={"X-API-Key": key}, json={"currency": "eur"})
+    assert res.status_code == 200
+    assert res.json()["currency"] == "EUR"
+
+    res = client.get("/api/me", headers={"X-API-Key": key})
+    assert res.json()["currency"] == "EUR"
+
+
+def test_update_profile_rejects_unsupported_currency(client):
+    key = _signup(client)
+    res = client.patch("/api/me", headers={"X-API-Key": key}, json={"currency": "XYZ"})
+    assert res.status_code == 422
+
+
+def test_update_profile_currency_does_not_clobber_display_name(client):
+    """A PATCH that only sends `currency` must not wipe an existing
+    display_name (regression: the handler used to unconditionally rewrite
+    display_name on every PATCH, defaulting it to null)."""
+    key = _signup(client)
+    client.patch("/api/me", headers={"X-API-Key": key}, json={"display_name": "Ada"})
+    res = client.patch("/api/me", headers={"X-API-Key": key}, json={"currency": "GBP"})
+    assert res.status_code == 200
+    assert res.json()["display_name"] == "Ada"
+    assert res.json()["currency"] == "GBP"
+
+
+def test_rates_board_for_base_currency(client):
+    import pandas as pd
+
+    from webapp.backend import rates
+
+    key = _signup(client)
+
+    class FakeTicker:
+        def __init__(self, symbol):
+            self.symbol = symbol
+
+        def history(self, period):
+            # Deterministic "rate" derived from the ticker symbol so each
+            # currency pair gets a distinct, checkable value.
+            value = 1.0 + (sum(ord(c) for c in self.symbol) % 10) / 10
+            return pd.DataFrame({"Close": [value]}, index=pd.to_datetime(["2024-05-10"]))
+
+    with patch.object(rates.yf, "Ticker", FakeTicker):
+        res = client.get("/api/rates", headers={"X-API-Key": key}, params={"base": "usd"})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["base"] == "USD"
+    assert body["rates"]["USD"] == 1.0
+    assert set(body["rates"]) == set(rates.SUPPORTED_CURRENCIES)
+
+
+def test_rates_rejects_unsupported_base(client):
+    key = _signup(client)
+    res = client.get("/api/rates", headers={"X-API-Key": key}, params={"base": "XYZ"})
+    assert res.status_code == 422
+
+
+def test_rates_502_when_unavailable(client):
+    from webapp.backend import rates
+
+    key = _signup(client)
+
+    class BrokenTicker:
+        def __init__(self, symbol):
+            pass
+
+        def history(self, period):
+            raise RuntimeError("network down")
+
+    with patch.object(rates.yf, "Ticker", BrokenTicker):
+        res = client.get("/api/rates", headers={"X-API-Key": key}, params={"base": "USD"})
+
+    assert res.status_code == 502
+
+
 def test_missing_api_key_rejected(client):
     res = client.get("/api/me")
     assert res.status_code == 422  # missing required header

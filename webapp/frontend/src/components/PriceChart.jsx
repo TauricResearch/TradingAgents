@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../context/AppContext";
+import { formatMoney } from "../utils/currency";
 
 const RANGES = ["1mo", "3mo", "6mo", "1y"];
 const DEBOUNCE_MS = 450;
@@ -10,11 +11,35 @@ const DEBOUNCE_MS = 450;
  * so any consumer can just pass whatever the user is typing.
  */
 export function PriceChart({ ticker }) {
-  const { api } = useApp();
+  const { api, account } = useApp();
   const [range, setRange] = useState("3mo");
   const [points, setPoints] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | loading | error | empty
   const [message, setMessage] = useState("");
+  const [fxRate, setFxRate] = useState(null);
+
+  // Prices are USD-denominated (yfinance). Convert to the profile's
+  // preferred currency (set on the Profile page) — one fetch per currency,
+  // not per ticker/range change.
+  const currency = account?.currency || "USD";
+  useEffect(() => {
+    if (currency === "USD") {
+      setFxRate(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api
+      .fetchRates("USD")
+      .then((data) => {
+        if (!cancelled) setFxRate(data.rates[currency] ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setFxRate(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, currency]);
 
   useEffect(() => {
     if (!ticker) {
@@ -72,12 +97,14 @@ export function PriceChart({ ticker }) {
         {status === "empty" && `No price data for ${ticker}.`}
       </p>
 
-      {points && points.length > 0 && <PriceChartSvg points={points} />}
+      {points && points.length > 0 && (
+        <PriceChartSvg points={points} currency={currency} fxRate={fxRate} />
+      )}
     </div>
   );
 }
 
-function PriceChartSvg({ points }) {
+function PriceChartSvg({ points, currency, fxRate }) {
   const width = 100;
   const height = 36;
   const closes = points.map((p) => p.close);
@@ -109,7 +136,10 @@ function PriceChartSvg({ points }) {
         <path d={linePath} className="price-chart__line" />
       </svg>
       <div className="price-chart__stats">
-        <span className="price-chart__last">{last.toFixed(2)}</span>
+        <span className="price-chart__last">{formatMoney(last, "USD")}</span>
+        {fxRate && (
+          <span className="price-chart__converted">≈ {formatMoney(last * fxRate, currency)}</span>
+        )}
         <span className="price-chart__change" data-tone={tone}>
           {changePct >= 0 ? "+" : ""}
           {changePct.toFixed(2)}%

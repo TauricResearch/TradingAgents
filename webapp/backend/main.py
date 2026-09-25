@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 
-from . import billing, charts, database, jobs
+from . import billing, charts, database, jobs, rates
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ class AnalyzeRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = None
+    currency: str | None = None
 
 
 class WatchlistRequest(BaseModel):
@@ -88,6 +89,7 @@ def me(user=Depends(current_user)):
     return {
         "email": user["email"],
         "display_name": user["display_name"],
+        "currency": user["currency"],
         "plan": user["plan"],
         "member_since": user["created_at"],
         "jobs_this_month": database.jobs_this_month(user["id"]),
@@ -97,10 +99,20 @@ def me(user=Depends(current_user)):
 
 @app.patch("/api/me")
 def update_profile(body: UpdateProfileRequest, user=Depends(current_user)):
-    name = (body.display_name or "").strip() or None
-    if name and len(name) > 80:
-        raise HTTPException(status_code=422, detail="display_name is too long (max 80 chars)")
-    database.update_display_name(user["id"], name)
+    provided = body.model_fields_set
+    if "display_name" in provided:
+        name = (body.display_name or "").strip() or None
+        if name and len(name) > 80:
+            raise HTTPException(status_code=422, detail="display_name is too long (max 80 chars)")
+        database.update_display_name(user["id"], name)
+    if "currency" in provided:
+        currency = (body.currency or "").strip().upper()
+        if currency not in rates.SUPPORTED_CURRENCIES:
+            raise HTTPException(
+                status_code=422,
+                detail=f"currency must be one of {rates.SUPPORTED_CURRENCIES}",
+            )
+        database.update_currency(user["id"], currency)
     return me(user=database.get_user_by_api_key(user["api_key"]))
 
 
@@ -213,6 +225,27 @@ def chart(
     except charts.ChartUnavailable as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {"ticker": ticker.upper(), "range": range, "points": points}
+
+
+# --- exchange rates endpoint ------------------------------------------------
+# Free, like /api/chart: a live board, not an LLM call, no quota impact.
+
+
+@app.get("/api/rates")
+def exchange_rates(
+    base: str = Query("USD", pattern="^[A-Za-z]{3}$"),
+    user=Depends(current_user),
+):
+    base = base.upper()
+    if base not in rates.SUPPORTED_CURRENCIES:
+        raise HTTPException(
+            status_code=422, detail=f"base must be one of {rates.SUPPORTED_CURRENCIES}"
+        )
+    try:
+        board = rates.get_exchange_rates(base)
+    except rates.RatesUnavailable as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"base": base, "rates": board}
 
 
 # --- watchlist endpoints --------------------------------------------------

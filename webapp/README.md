@@ -55,6 +55,18 @@ product:
   not a substitute for the analysis itself. The product's actual output
   stays a BUY/SELL/HOLD call with the agents' full reasoning — the chart
   is context around that decision, not a second product.
+- **Preferred currency** (`PATCH /api/me {currency}`) — set on Profile,
+  used across the platform to show a converted price alongside the live
+  chart's USD figure (e.g. "$157.40 ≈ €144.81"), and as the default base
+  on the Rates page below.
+- **Exchange rates** (`GET /api/rates?base=`) — a free, live Xe-style
+  board for a curated set of currencies (USD, EUR, GBP, JPY, AUD, CAD,
+  CHF, CNY, INR, AED, SAR, EGP), fetched from yfinance FX tickers. Same
+  free/no-quota reasoning as the price chart.
+- **Landing page** (signed-out `/`) — a full marketing page: hero, "how
+  it works", a feature grid, **Pricing** (Free vs. Pro, both reflecting
+  real values — the actual `free_tier_monthly_limit()` and Stripe-backed
+  upgrade, no invented numbers) and **FAQ** sections, and a closing CTA.
 
 ## Frontend architecture (`webapp/frontend/`)
 
@@ -75,9 +87,10 @@ static bundle that FastAPI serves directly:
   timeout) on unmount or when the job id changes, so a stale poll can never
   set state after the component has moved on.
 - `src/pages/` — `LandingPage` (signed-out marketing page: hero, "how it
-  works", feature grid, CTA band, all with scroll-reveal animation),
-  `DashboardPage` (analyze + the decision print), `HistoryPage`,
-  `WatchlistPage`, `ProfilePage`.
+  works", feature grid, pricing, FAQ, CTA band, all with scroll-reveal
+  animation), `DashboardPage` (analyze + the decision print), `HistoryPage`,
+  `WatchlistPage`, `ProfilePage` (display name, currency, key rotation),
+  `ExchangeRatesPage` (the live rates board).
 - `src/components/` — `Navbar` + `Logo` (an SVG mark, not a raster asset),
   `AuthModal` (sign up / sign in as a dialog, opened from the navbar's
   "Sign in"/"Get started" buttons or the landing page's CTAs — closes and
@@ -141,13 +154,14 @@ UI and logs a reminder to run `npm run build`.
 | Endpoint | Auth | Purpose |
 |---|---|---|
 | `POST /api/signup` | none | Register an email, get back an API key |
-| `GET /api/me` | API key | Plan, usage, display name, member-since |
-| `PATCH /api/me` | API key | Set `{display_name}` |
+| `GET /api/me` | API key | Plan, usage, display name, currency, member-since |
+| `PATCH /api/me` | API key | Set `{display_name?, currency?}` — partial update, only provided fields change |
 | `POST /api/me/regenerate-key` | API key | Rotate the API key (old one stops working immediately) |
 | `POST /api/analyze` | API key | Queue an analysis run `{ticker, trade_date?}` → `{job_id}` |
 | `GET /api/jobs/{id}` | API key | Poll job status/result |
 | `GET /api/jobs` | API key | Job history, filterable by `?ticker=&status=&limit=&offset=` |
 | `GET /api/chart/{ticker}` | API key | Free closing-price series, `?range=5d\|1mo\|3mo\|6mo\|1y\|5y` |
+| `GET /api/rates` | API key | Free live exchange-rate board, `?base=USD` (see `rates.SUPPORTED_CURRENCIES`) |
 | `GET /api/watchlist` | API key | List saved tickers |
 | `POST /api/watchlist` | API key | Add `{ticker}` |
 | `DELETE /api/watchlist/{ticker}` | API key | Remove a ticker |

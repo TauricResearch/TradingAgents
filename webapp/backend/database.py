@@ -74,6 +74,7 @@ def init_db() -> None:
                 email TEXT UNIQUE NOT NULL,
                 api_key TEXT UNIQUE NOT NULL,
                 display_name TEXT,
+                currency TEXT NOT NULL DEFAULT 'USD',
                 plan TEXT NOT NULL DEFAULT 'free',
                 stripe_customer_id TEXT,
                 stripe_subscription_id TEXT,
@@ -152,6 +153,14 @@ def update_display_name(user_id: int, display_name: str | None) -> None:
         conn.execute(
             "UPDATE users SET display_name = ? WHERE id = ?",
             (display_name or None, user_id),
+        )
+
+
+def update_currency(user_id: int, currency: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET currency = ? WHERE id = ?",
+            (currency.upper(), user_id),
         )
 
 

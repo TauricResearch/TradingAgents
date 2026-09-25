@@ -425,10 +425,25 @@ select {
   color: var(--ink);
 }
 
+#currency-select {
+  width: auto;
+  min-width: 140px;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  padding: 0.6rem 0.7rem;
+  background: var(--paper-sunken);
+  border: 1.5px solid var(--rule);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
 /* --- forms & buttons --- */
 
 .field {
   margin-bottom: var(--space-2);
+}
+.field--narrow {
+  max-width: 200px;
 }
 
 .field label {
@@ -999,6 +1014,11 @@ ul.tape-list li .decision[data-decision="hold"] {
   font-weight: 600;
   font-size: var(--text-sm);
 }
+.price-chart__converted {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
 .price-chart__change {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -1496,4 +1516,142 @@ button.btn--lg {
 .cta-band__sub {
   color: var(--ink-soft);
   margin: 0 0 var(--space-3);
+}
+
+/* --- exchange rates table --- */
+
+.rates-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  margin-top: var(--space-3);
+}
+.rates-table th {
+  text-align: left;
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+.rates-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-soft);
+}
+.rates-table tr:last-child td {
+  border-bottom: none;
+}
+.rates-table td.ticker {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* --- landing page: pricing --- */
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  max-width: 760px;
+  margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pricing-card {
+  position: relative;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+.pricing-card--highlighted {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-md);
+}
+.pricing-card__badge {
+  position: absolute;
+  top: -12px;
+  left: var(--space-3);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+.pricing-card__name {
+  font-size: var(--text-lg);
+  margin: 0 0 0.2rem;
+}
+.pricing-card__tagline {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-3);
+}
+.pricing-card__price {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-3);
+}
+.pricing-card__price span {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-soft);
+  margin-inline-start: 0.3rem;
+}
+.pricing-card__features {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  flex: 1;
+}
+.pricing-card__features li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  padding: 0.35rem 0;
+}
+.pricing-card .btn {
+  width: 100%;
+  text-align: center;
+}
+
+/* --- landing page: FAQ --- */
+
+.faq-list {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.faq-item {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+.faq-item__q {
+  font-size: var(--text-base);
+  margin: 0 0 0.4rem;
+}
+.faq-item__a {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  margin: 0;
 }

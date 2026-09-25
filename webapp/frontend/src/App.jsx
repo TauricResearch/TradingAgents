@@ -7,6 +7,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { ExchangeRatesPage } from "./pages/ExchangeRatesPage";
 
 function HomeRoute() {
   const { api } = useApp();
@@ -45,6 +46,14 @@ function Shell() {
           element={
             <RequireKey>
               <ProfilePage />
+            </RequireKey>
+          }
+        />
+        <Route
+          path="/rates"
+          element={
+            <RequireKey>
+              <ExchangeRatesPage />
             </RequireKey>
           }
         />
