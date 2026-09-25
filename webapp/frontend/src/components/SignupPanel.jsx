@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useApp } from "../context/AppContext";
 
-export function SignupPanel({ api, onKeyIssued }) {
+export function SignupPanel() {
+  const { api } = useApp();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
   const [message, setMessage] = useState("");
@@ -15,7 +17,7 @@ export function SignupPanel({ api, onKeyIssued }) {
       setIssuedKey(data.api_key);
       setStatus("done");
       setMessage("Key issued — save it now, it will not be shown again.");
-      onKeyIssued(data.api_key);
+      api.setApiKey(data.api_key);
     } catch (err) {
       setStatus("error");
       setMessage(err.message);

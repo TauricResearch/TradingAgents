@@ -1,22 +1,32 @@
-import { useCallback, useEffect, useImperativeHandle } from "react";
-import { useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { decisionKind } from "../utils/decision";
+import { useApp } from "../context/AppContext";
 
 /**
- * `refreshRef` lets a parent (App) trigger a reload after a new print
- * resolves, without HistoryTape polling on its own timer — the tape only
- * needs to move when something actually happened.
+ * `refreshRef` lets a parent trigger a reload after a new print resolves,
+ * without HistoryTape polling on its own timer — the tape only needs to
+ * move when something actually happened.
+ *
+ * `showFilters` turns on the ticker/status filter row (the full History
+ * page); the compact "recent prints" list on the Dashboard omits it.
  */
-export function HistoryTape({ api, refreshRef }) {
+export function HistoryTape({ refreshRef, limit = 20, showFilters = false, title = "recent prints" }) {
+  const { api } = useApp();
   const [jobs, setJobs] = useState([]);
   const [status, setStatus] = useState("idle"); // idle | loading | error
   const [message, setMessage] = useState("");
+  const [tickerFilter, setTickerFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const load = useCallback(async () => {
     if (!api.apiKey) return;
     setStatus("loading");
     try {
-      const data = await api.fetchJobs();
+      const data = await api.fetchJobs({
+        limit,
+        ticker: tickerFilter.trim() || undefined,
+        status: statusFilter || undefined,
+      });
       setJobs(data);
       setStatus("idle");
       setMessage("");
@@ -24,7 +34,7 @@ export function HistoryTape({ api, refreshRef }) {
       setStatus("error");
       setMessage(err.message);
     }
-  }, [api]);
+  }, [api, limit, tickerFilter, statusFilter]);
 
   useImperativeHandle(refreshRef, () => ({ reload: load }), [load]);
 
@@ -35,11 +45,41 @@ export function HistoryTape({ api, refreshRef }) {
   return (
     <section aria-labelledby="tape-heading">
       <div className="tape-heading">
-        <h2 id="tape-heading">recent prints</h2>
+        <h2 id="tape-heading">{title}</h2>
         <button type="button" className="btn btn--ghost" onClick={load} disabled={status === "loading"}>
           Refresh
         </button>
       </div>
+
+      {showFilters && (
+        <div className="field-row tape-filters">
+          <div className="field">
+            <label htmlFor="filter-ticker">ticker</label>
+            <input
+              id="filter-ticker"
+              type="text"
+              placeholder="all"
+              value={tickerFilter}
+              onChange={(e) => setTickerFilter(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="filter-status">status</label>
+            <select
+              id="filter-status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">all</option>
+              <option value="done">done</option>
+              <option value="failed">failed</option>
+              <option value="running">running</option>
+              <option value="queued">queued</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       {status === "error" && (
         <p className="status-line" data-tone="error" role="alert">
           {message}

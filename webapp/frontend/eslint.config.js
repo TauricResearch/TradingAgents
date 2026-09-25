@@ -18,6 +18,7 @@ export default [
         setTimeout: "readonly",
         clearTimeout: "readonly",
         console: "readonly",
+        URLSearchParams: "readonly",
       },
     },
     plugins: { react, "react-hooks": reactHooks },

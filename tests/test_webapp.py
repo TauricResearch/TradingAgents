@@ -71,6 +71,78 @@ def test_me_reports_plan_and_usage(client):
     assert body["free_tier_limit"] == 5
 
 
+def test_update_profile_sets_display_name(client):
+    key = _signup(client)
+    res = client.patch("/api/me", headers={"X-API-Key": key}, json={"display_name": "  Ada  "})
+    assert res.status_code == 200
+    assert res.json()["display_name"] == "Ada"
+
+    res = client.get("/api/me", headers={"X-API-Key": key})
+    assert res.json()["display_name"] == "Ada"
+
+
+def test_update_profile_clears_display_name_on_blank(client):
+    key = _signup(client)
+    client.patch("/api/me", headers={"X-API-Key": key}, json={"display_name": "Ada"})
+    res = client.patch("/api/me", headers={"X-API-Key": key}, json={"display_name": "  "})
+    assert res.status_code == 200
+    assert res.json()["display_name"] is None
+
+
+def test_update_profile_rejects_overly_long_name(client):
+    key = _signup(client)
+    res = client.patch("/api/me", headers={"X-API-Key": key}, json={"display_name": "x" * 81})
+    assert res.status_code == 422
+
+
+def test_regenerate_key_rotates_and_invalidates_old_key(client):
+    old_key = _signup(client)
+    res = client.post("/api/me/regenerate-key", headers={"X-API-Key": old_key})
+    assert res.status_code == 200
+    new_key = res.json()["api_key"]
+    assert new_key != old_key
+
+    assert client.get("/api/me", headers={"X-API-Key": old_key}).status_code == 401
+    assert client.get("/api/me", headers={"X-API-Key": new_key}).status_code == 200
+
+
+def test_watchlist_add_list_remove(client):
+    key = _signup(client)
+    headers = {"X-API-Key": key}
+
+    res = client.post("/api/watchlist", headers=headers, json={"ticker": "nvda"})
+    assert res.status_code == 200
+    assert [row["ticker"] for row in res.json()] == ["NVDA"]
+
+    res = client.post("/api/watchlist", headers=headers, json={"ticker": "nvda"})
+    assert [row["ticker"] for row in res.json()] == ["NVDA"]  # idempotent, no dup
+
+    client.post("/api/watchlist", headers=headers, json={"ticker": "TSLA"})
+    res = client.get("/api/watchlist", headers=headers)
+    assert sorted(row["ticker"] for row in res.json()) == ["NVDA", "TSLA"]
+
+    res = client.delete("/api/watchlist/nvda", headers=headers)
+    assert res.status_code == 200
+    assert [row["ticker"] for row in res.json()] == ["TSLA"]
+
+
+def test_job_history_filters_by_ticker_and_status(client):
+    from webapp.backend import database
+
+    key = _signup(client)
+    user = database.get_user_by_api_key(key)
+    database.create_job("j-nvda", user["id"], "NVDA", "2024-01-01")
+    database.update_job("j-nvda", status="done", decision="BUY", finished_at="x")
+    database.create_job("j-tsla", user["id"], "TSLA", "2024-01-01")
+    database.update_job("j-tsla", status="failed", error="boom", finished_at="x")
+
+    res = client.get("/api/jobs", headers={"X-API-Key": key}, params={"ticker": "nvda"})
+    assert [j["id"] for j in res.json()] == ["j-nvda"]
+
+    res = client.get("/api/jobs", headers={"X-API-Key": key}, params={"status": "failed"})
+    assert [j["id"] for j in res.json()] == ["j-tsla"]
+
+
 def test_missing_api_key_rejected(client):
     res = client.get("/api/me")
     assert res.status_code == 422  # missing required header
@@ -105,13 +177,34 @@ def test_billing_webhook_503_when_unconfigured(client):
     assert res.status_code == 503
 
 
-def test_frontend_is_served(client):
+def _require_built_frontend():
     dist = Path(__file__).resolve().parents[1] / "webapp" / "frontend" / "dist"
     if not dist.is_dir():
         pytest.skip("webapp/frontend/dist not built — run `npm run build` in webapp/frontend")
+
+
+def test_frontend_is_served(client):
+    _require_built_frontend()
     res = client.get("/")
     assert res.status_code == 200
     assert "TradingAgents" in res.text
+
+
+def test_frontend_spa_routes_serve_index_html(client):
+    """A hard refresh or shared link to a client-side route (e.g. /history)
+    must serve index.html so react-router can take over, not 404."""
+    _require_built_frontend()
+    for path in ("/history", "/watchlist", "/profile", "/some/deep/unknown/path"):
+        res = client.get(path)
+        assert res.status_code == 200, path
+        assert "TradingAgents" in res.text, path
+
+
+def test_unmatched_api_path_still_404s_not_index_html(client):
+    _require_built_frontend()
+    res = client.get("/api/this-route-does-not-exist")
+    assert res.status_code == 404
+    assert "TradingAgents" not in res.text
 
 
 def test_analyze_enforces_free_tier_quota(client):

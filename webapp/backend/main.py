@@ -17,9 +17,9 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 
@@ -64,6 +64,14 @@ class AnalyzeRequest(BaseModel):
     trade_date: str | None = None  # defaults to today; YYYY-MM-DD
 
 
+class UpdateProfileRequest(BaseModel):
+    display_name: str | None = None
+
+
+class WatchlistRequest(BaseModel):
+    ticker: str
+
+
 # --- account endpoints ----------------------------------------------------
 
 
@@ -79,10 +87,27 @@ def signup(body: SignupRequest):
 def me(user=Depends(current_user)):
     return {
         "email": user["email"],
+        "display_name": user["display_name"],
         "plan": user["plan"],
+        "member_since": user["created_at"],
         "jobs_this_month": database.jobs_this_month(user["id"]),
         "free_tier_limit": database.free_tier_monthly_limit(),
     }
+
+
+@app.patch("/api/me")
+def update_profile(body: UpdateProfileRequest, user=Depends(current_user)):
+    name = (body.display_name or "").strip() or None
+    if name and len(name) > 80:
+        raise HTTPException(status_code=422, detail="display_name is too long (max 80 chars)")
+    database.update_display_name(user["id"], name)
+    return me(user=database.get_user_by_api_key(user["api_key"]))
+
+
+@app.post("/api/me/regenerate-key")
+def regenerate_key(user=Depends(current_user)):
+    new_key = database.regenerate_api_key(user["id"])
+    return {"api_key": new_key}
 
 
 # --- billing endpoints ------------------------------------------------
@@ -161,19 +186,68 @@ def job_status(job_id: str, user=Depends(current_user)):
 
 
 @app.get("/api/jobs")
-def job_history(user=Depends(current_user)):
-    return [dict(row) for row in database.list_jobs(user["id"])]
+def job_history(
+    ticker: str | None = None,
+    status: str | None = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    user=Depends(current_user),
+):
+    rows = database.list_jobs(user["id"], limit=limit, offset=offset, ticker=ticker, status=status)
+    return [dict(row) for row in rows]
+
+
+# --- watchlist endpoints --------------------------------------------------
+
+
+@app.get("/api/watchlist")
+def get_watchlist(user=Depends(current_user)):
+    return [dict(row) for row in database.list_watchlist(user["id"])]
+
+
+@app.post("/api/watchlist")
+def add_to_watchlist(body: WatchlistRequest, user=Depends(current_user)):
+    ticker = body.ticker.strip().upper()
+    if not ticker:
+        raise HTTPException(status_code=422, detail="ticker is required")
+    database.add_watchlist_ticker(user["id"], ticker)
+    return [dict(row) for row in database.list_watchlist(user["id"])]
+
+
+@app.delete("/api/watchlist/{ticker}")
+def remove_from_watchlist(ticker: str, user=Depends(current_user)):
+    database.remove_watchlist_ticker(user["id"], ticker)
+    return [dict(row) for row in database.list_watchlist(user["id"])]
 
 
 # --- static frontend -----------------------------------------------------
-# The React app (webapp/frontend/) builds to dist/, which this mounts as
-# the site root. Mounting is skipped (not a hard failure) when dist/ hasn't
-# been built yet, so the API is still importable/testable on its own — e.g.
-# in CI jobs or local backend work that don't need the built UI.
+# The React app (webapp/frontend/) builds to dist/. Mounting is skipped
+# (not a hard failure, just a log warning) when dist/ hasn't been built
+# yet, so the API is still importable/testable on its own — e.g. in CI jobs
+# or local backend work that don't need the built UI.
+#
+# This is a client-side-routed SPA (react-router), so a plain
+# StaticFiles(html=True) mount at "/" isn't enough: it only falls back to
+# index.html for a missing *file*, not for a route like /history that only
+# exists in the client-side router. A hard refresh or a shared link to
+# /history would 404. Instead: static assets (JS/CSS, hashed filenames) are
+# mounted at /assets, and a catch-all route serves index.html for every
+# other non-API GET request, letting the router handle the path client-side.
 
 _FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+_FRONTEND_INDEX = _FRONTEND_DIST / "index.html"
+
 if _FRONTEND_DIST.is_dir():
-    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
+    app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="frontend-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = _FRONTEND_DIST / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_FRONTEND_INDEX)
 else:
     logger.warning(
         "%s not found — run `npm run build` in webapp/frontend to serve the UI. "

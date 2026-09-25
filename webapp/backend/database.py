@@ -73,10 +73,18 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT UNIQUE NOT NULL,
                 api_key TEXT UNIQUE NOT NULL,
+                display_name TEXT,
                 plan TEXT NOT NULL DEFAULT 'free',
                 stripe_customer_id TEXT,
                 stripe_subscription_id TEXT,
                 created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS watchlist (
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                ticker TEXT NOT NULL,
+                added_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, ticker)
             );
 
             CREATE TABLE IF NOT EXISTS jobs (
@@ -99,8 +107,12 @@ def init_db() -> None:
         )
 
 
+def _new_api_key() -> str:
+    return "ta_" + secrets.token_urlsafe(32)
+
+
 def create_user(email: str) -> sqlite3.Row:
-    api_key = "ta_" + secrets.token_urlsafe(32)
+    api_key = _new_api_key()
     with get_conn() as conn:
         conn.execute(
             "INSERT INTO users (email, api_key, plan, created_at) VALUES (?, ?, 'free', ?)",
@@ -133,6 +145,24 @@ def set_user_plan(user_id: int, plan: str, stripe_customer_id: str | None = None
             "stripe_subscription_id = COALESCE(?, stripe_subscription_id) WHERE id = ?",
             (plan, stripe_customer_id, stripe_subscription_id, user_id),
         )
+
+
+def update_display_name(user_id: int, display_name: str | None) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET display_name = ? WHERE id = ?",
+            (display_name or None, user_id),
+        )
+
+
+def regenerate_api_key(user_id: int) -> str:
+    """Rotate a user's API key. The old key stops working immediately —
+    intentional: this is the "I think my key leaked" escape hatch, so a
+    grace period would defeat the point."""
+    new_key = _new_api_key()
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET api_key = ? WHERE id = ?", (new_key, user_id))
+    return new_key
 
 
 def jobs_this_month(user_id: int) -> int:
@@ -214,10 +244,49 @@ def get_job(job_id: str, user_id: int) -> sqlite3.Row | None:
         ).fetchone()
 
 
-def list_jobs(user_id: int, limit: int = 20) -> list[sqlite3.Row]:
+def list_jobs(
+    user_id: int,
+    limit: int = 20,
+    offset: int = 0,
+    ticker: str | None = None,
+    status: str | None = None,
+) -> list[sqlite3.Row]:
+    query = (
+        "SELECT id, ticker, trade_date, status, decision, cached, created_at, finished_at "
+        "FROM jobs WHERE user_id = ?"
+    )
+    params: list = [user_id]
+    if ticker:
+        query += " AND ticker = ?"
+        params.append(ticker.upper())
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params += [limit, offset]
+    with get_conn() as conn:
+        return conn.execute(query, params).fetchall()
+
+
+def add_watchlist_ticker(user_id: int, ticker: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO watchlist (user_id, ticker, added_at) VALUES (?, ?, ?)",
+            (user_id, ticker.upper(), _now()),
+        )
+
+
+def remove_watchlist_ticker(user_id: int, ticker: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM watchlist WHERE user_id = ? AND ticker = ?",
+            (user_id, ticker.upper()),
+        )
+
+
+def list_watchlist(user_id: int) -> list[sqlite3.Row]:
     with get_conn() as conn:
         return conn.execute(
-            "SELECT id, ticker, trade_date, status, decision, cached, created_at, finished_at "
-            "FROM jobs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-            (user_id, limit),
+            "SELECT ticker, added_at FROM watchlist WHERE user_id = ? ORDER BY added_at DESC",
+            (user_id,),
         ).fetchall()

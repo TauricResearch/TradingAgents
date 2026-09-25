@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useApp } from "../context/AppContext";
 
-export function AnalyzeForm({ api, onSubmitted }) {
-  const [ticker, setTicker] = useState("");
+export function AnalyzeForm({ onSubmitted, initialTicker = "" }) {
+  const { api } = useApp();
+  const [ticker, setTicker] = useState(initialTicker);
   const [tradeDate, setTradeDate] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | error
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (initialTicker) setTicker(initialTicker);
+  }, [initialTicker]);
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (!api.apiKey) {
       setStatus("error");
-      setMessage("Load your account first — an API key is required.");
+      setMessage("Get a key first — see the Profile page.");
       return;
     }
     setStatus("loading");

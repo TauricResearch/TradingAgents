@@ -92,10 +92,43 @@ export function useTradingApi() {
 
   const fetchJob = useCallback((jobId) => request(`/api/jobs/${jobId}`, { apiKey }), [apiKey]);
 
-  const fetchJobs = useCallback(() => request("/api/jobs", { apiKey }), [apiKey]);
+  const fetchJobs = useCallback(
+    (params = {}) => {
+      const search = new URLSearchParams();
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== "") search.set(key, value);
+      }
+      const qs = search.toString();
+      return request(`/api/jobs${qs ? `?${qs}` : ""}`, { apiKey });
+    },
+    [apiKey]
+  );
 
   const checkout = useCallback(
     () => request("/api/billing/checkout", { method: "POST", apiKey }),
+    [apiKey]
+  );
+
+  const updateProfile = useCallback(
+    (displayName) =>
+      request("/api/me", { method: "PATCH", apiKey, body: { display_name: displayName } }),
+    [apiKey]
+  );
+
+  const regenerateKey = useCallback(
+    () => request("/api/me/regenerate-key", { method: "POST", apiKey }),
+    [apiKey]
+  );
+
+  const fetchWatchlist = useCallback(() => request("/api/watchlist", { apiKey }), [apiKey]);
+
+  const addWatchlistTicker = useCallback(
+    (ticker) => request("/api/watchlist", { method: "POST", apiKey, body: { ticker } }),
+    [apiKey]
+  );
+
+  const removeWatchlistTicker = useCallback(
+    (ticker) => request(`/api/watchlist/${encodeURIComponent(ticker)}`, { method: "DELETE", apiKey }),
     [apiKey]
   );
 
@@ -115,7 +148,28 @@ export function useTradingApi() {
       fetchJob,
       fetchJobs,
       checkout,
+      updateProfile,
+      regenerateKey,
+      fetchWatchlist,
+      addWatchlistTicker,
+      removeWatchlistTicker,
     }),
-    [apiKey, setApiKey, remember, setRemember, signup, fetchMe, analyze, fetchJob, fetchJobs, checkout]
+    [
+      apiKey,
+      setApiKey,
+      remember,
+      setRemember,
+      signup,
+      fetchMe,
+      analyze,
+      fetchJob,
+      fetchJobs,
+      checkout,
+      updateProfile,
+      regenerateKey,
+      fetchWatchlist,
+      addWatchlistTicker,
+      removeWatchlistTicker,
+    ]
   );
 }
