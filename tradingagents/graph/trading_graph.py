@@ -9,7 +9,7 @@ from typing import Any
 import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.rating import run_rating
-from tradingagents.dataflows.config import run_config, set_config
+from tradingagents.dataflows.config import run_config, run_config_context, set_config
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -371,15 +371,24 @@ class TradingAgentsGraph:
         and reports come from their own finished steps ("tasks") as they happen.
         """
         args = {**args, "stream_mode": ["values", "tasks"]}
-        for namespace, mode, chunk in self.graph.stream(graph_input, subgraphs=True, **args):
-            if namespace:
-                result = chunk.get("result") if mode == "tasks" else None
-                if isinstance(result, dict):
-                    report = {k: v for k, v in result.items() if k != "messages" and v}
-                    if result.get("messages") or report:
-                        yield result.get("messages", []), report or None
-            elif mode == "values":
-                yield chunk.get("messages", []), chunk
+        # The graph's own config serves every tool call, as in propagate(), even
+        # when the process-wide config has changed since. Each step runs in the
+        # run's context, so the caller keeps its own between steps.
+        context = run_config_context(self.config)
+        stream = context.run(self.graph.stream, graph_input, subgraphs=True, **args)
+        try:
+            while (step := context.run(next, stream, None)) is not None:
+                namespace, mode, chunk = step
+                if namespace:
+                    result = chunk.get("result") if mode == "tasks" else None
+                    if isinstance(result, dict):
+                        report = {k: v for k, v in result.items() if k != "messages" and v}
+                        if result.get("messages") or report:
+                            yield result.get("messages", []), report or None
+                elif mode == "values":
+                    yield chunk.get("messages", []), chunk
+        finally:
+            context.run(stream.close)
 
     def _log_state(self, trade_date, final_state):
         """Write a run's final state to JSON under the run's own ticker."""

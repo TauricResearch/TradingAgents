@@ -213,3 +213,22 @@ def test_each_report_streams_as_soon_as_its_analyst_files_it(tmp_path, monkeypat
                  if state and any(state.get(k) for k in reports))
 
     assert sum(bool(first.get(k)) for k in reports) == 1
+
+
+@pytest.mark.unit
+def test_a_streamed_run_reads_its_own_graph_config(tmp_path, monkeypatch, offline):
+    """The CLI streams the run; a process-wide config set elsewhere must not reach
+    its tools, and the graph's config must not reach the caller between steps."""
+    from tradingagents.dataflows.config import get_config, set_config
+
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(), output_language="French")
+    set_config({"output_language": "German"})
+    seen = []
+    monkeypatch.setitem(router.VENDOR_METHODS["get_stock_data"], "yfinance",
+                        lambda *a, **k: seen.append(get_config()["output_language"]) or "prices")
+
+    between = [get_config()["output_language"]
+               for _ in graph.stream_run(graph.create_run_state("NVDA", TRADE_DATE), **graph.propagator.get_graph_args())]
+
+    assert seen and set(seen) == {"French"}
+    assert set(between) == {"German"}
