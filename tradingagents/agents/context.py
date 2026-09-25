@@ -116,7 +116,7 @@ def build_instrument_context(
     instrument_label = "asset" if is_crypto else "instrument"
     context = (
         f"The {instrument_label} to analyze is `{ticker}`. "
-        "Use this exact ticker in every tool call, report, and recommendation, "
+        "The tools serve this instrument; refer to it by this exact ticker in every report and recommendation, "
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
     )
 
