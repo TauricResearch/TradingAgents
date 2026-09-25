@@ -77,8 +77,29 @@ Then open http://127.0.0.1:8000.
 
 ## Deploying
 
-Any standard ASGI host works (Fly.io, Render, a small VPS behind Caddy/
-Nginx, etc.). Point it at a persistent volume for the SQLite file and the
-`tradingagents` cache/results directories (`TRADINGAGENTS_*_DIR` env vars,
-see the top-level `.env.example`), and set real LLM + Stripe keys as
-secrets rather than in `.env`.
+### Docker
+
+```bash
+# from the repo root
+cp webapp/.env.example webapp/.env   # fill in LLM provider key + Stripe keys
+cp .env.example .env                 # only needed if `tradingagents` (the CLI service) is used too
+docker compose --profile webapp up --build webapp
+```
+
+This builds `webapp/Dockerfile` (a second image alongside the existing
+top-level `Dockerfile` for the CLI — same base, but runs `uvicorn` instead
+of the `tradingagents` CLI entrypoint) and serves the API + frontend on
+`http://localhost:8000`. It shares the `tradingagents_data` volume with the
+CLI service, so the webapp's SQLite file and the `tradingagents` cache/
+results/memory directories persist across restarts.
+
+Any standard container host works from there (Fly.io, Render, a small VPS
+behind Caddy/Nginx, etc.) — point `docker build -f webapp/Dockerfile .` at
+it and set real LLM + Stripe keys as platform secrets rather than a
+committed `.env`.
+
+### Without Docker
+
+See "Running it locally" above; the same `uvicorn webapp.backend.main:app`
+command works in production behind a process manager (systemd, supervisor)
+and a reverse proxy for TLS.
