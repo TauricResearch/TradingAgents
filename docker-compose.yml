@@ -8,6 +8,19 @@ services:
     tty: true
     stdin_open: true
 
+  webapp:
+    build:
+      context: .
+      dockerfile: webapp/Dockerfile
+    env_file:
+      - webapp/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    profiles:
+      - webapp
+
   ollama:
     image: ollama/ollama:latest
     volumes:
