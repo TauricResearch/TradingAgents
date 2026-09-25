@@ -7,6 +7,7 @@ skipped automatically when it isn't installed.
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -105,6 +106,9 @@ def test_billing_webhook_503_when_unconfigured(client):
 
 
 def test_frontend_is_served(client):
+    dist = Path(__file__).resolve().parents[1] / "webapp" / "frontend" / "dist"
+    if not dist.is_dir():
+        pytest.skip("webapp/frontend/dist not built — run `npm run build` in webapp/frontend")
     res = client.get("/")
     assert res.status_code == 200
     assert "TradingAgents" in res.text

@@ -1,8 +1,9 @@
 # TradingAgents Web — SaaS layer
 
-A minimal FastAPI service and static frontend that turns the `tradingagents`
-research pipeline into a product: signup, an API key, a free monthly quota,
-and a Stripe-powered paid tier for unlimited runs.
+A FastAPI service (`backend/`) plus a React (Vite) frontend (`frontend/`)
+that turns the `tradingagents` research pipeline into a product: signup, an
+API key, a free monthly quota, and a Stripe-powered paid tier for unlimited
+runs.
 
 It only ever *generates research reports and a suggested decision label*. It
 never places trades and is not financial advice (see the top-level README's
@@ -30,24 +31,59 @@ re-running the LLM pipeline. A historical trade_date's result is effectively
 static, so if ten users ask for the same hot ticker today, only the first
 run costs LLM tokens — the rest get an instant result and don't spend their
 monthly quota. `POST /api/analyze` reports `"cached": true/false`, and the
-frontend history table shows which runs were served from cache.
+frontend's "recent prints" list shows which runs were served from cache.
 
-## Running it locally
+## Frontend architecture (`webapp/frontend/`)
+
+A Vite + React app (functional components, hooks only — no class
+components), built as a fully static bundle that FastAPI serves directly:
+
+- `src/hooks/useTradingApi.js` — the single point of contact with the API.
+  Owns the API key (with an opt-in "remember on this device" persisted to
+  `localStorage`) and exposes one memoized async function per endpoint.
+  Components keep their own loading/error state around these calls.
+- `src/hooks/useJobPolling.js` — polls `GET /api/jobs/{id}` every 4s while a
+  job is `queued`/`running`, with proper cleanup (a cancelled flag + cleared
+  timeout) on unmount or when the job id changes, so a stale poll can never
+  set state after the component has moved on.
+- `src/components/` — `SignupPanel`, `AccountPanel`, `AnalyzeForm`,
+  `DecisionStamp` (the hero: a resolved decision renders as a market
+  "print" — ticket id + UTC timestamp, not a generic result card),
+  `ReportView`, `HistoryTape`, `ThemeToggle`.
+- `src/styles/tokens.css` — the whole design system (colors, type scale,
+  spacing, motion) as CSS custom properties, with a light/dark pair driven
+  by both `prefers-color-scheme` and an explicit `ThemeToggle` override.
+
+### Running it locally
+
+Two processes: the FastAPI backend, and (for active frontend development)
+the Vite dev server, which proxies `/api` to it.
 
 ```bash
-cd webapp
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # fill in your LLM provider key + (optionally) Stripe keys
-export $(grep -v '^#' .env | xargs)   # or use direnv/dotenv
+# terminal 1 — backend, from the repo root
+cp webapp/.env.example webapp/.env   # fill in your LLM provider key
+export $(grep -v '^#' webapp/.env | xargs)
+pip install -e ".[webapp]"
+uvicorn webapp.backend.main:app --reload --port 8000
 
-# from the repo root, so `tradingagents` resolves and StaticFiles finds webapp/frontend
-cd ..
-pip install -e .
-uvicorn webapp.backend.main:app --reload
+# terminal 2 — frontend, hot-reloading dev server
+cd webapp/frontend
+npm install
+npm run dev
 ```
 
-Then open http://127.0.0.1:8000.
+Open http://127.0.0.1:5173 (Vite) during development — API calls are
+proxied to the backend on :8000. For a production-shaped run, instead build
+the frontend and let FastAPI serve it directly on one origin:
+
+```bash
+cd webapp/frontend && npm install && npm run build   # writes webapp/frontend/dist/
+cd ../.. && uvicorn webapp.backend.main:app           # from the repo root
+```
+
+Then open http://127.0.0.1:8000. If `dist/` hasn't been built yet, the
+backend still starts and the API still works — it just skips mounting the
+UI and logs a reminder to run `npm run build`.
 
 ## API summary
 
@@ -74,6 +110,11 @@ Then open http://127.0.0.1:8000.
   (e.g. Celery/RQ) once concurrent usage outgrows a handful of users.
 - **Rate limiting is monthly-count only**, not per-minute abuse protection —
   add that (e.g. via a reverse proxy) before opening signups publicly.
+- **No JS unit tests yet** (Vitest + React Testing Library would be the
+  natural fit). The frontend is currently verified via ESLint, a production
+  build in CI, and manual/Playwright checks against the real backend; the
+  backend's own behavior (quota, caching, billing) is covered by
+  `tests/test_webapp.py`.
 
 ## Deploying
 
@@ -87,8 +128,10 @@ docker compose --profile webapp up --build webapp
 ```
 
 This builds `webapp/Dockerfile` (a second image alongside the existing
-top-level `Dockerfile` for the CLI — same base, but runs `uvicorn` instead
-of the `tradingagents` CLI entrypoint) and serves the API + frontend on
+top-level `Dockerfile` for the CLI). It's a three-stage build: a Node stage
+runs `npm ci && npm run build` for the React app, a Python stage installs
+the backend, and the final image copies both — `uvicorn` (not the
+`tradingagents` CLI entrypoint) serves the API and the built `dist/` on
 `http://localhost:8000`. It shares the `tradingagents_data` volume with the
 CLI service, so the webapp's SQLite file and the `tradingagents` cache/
 results/memory directories persist across restarts.

@@ -12,8 +12,10 @@ project-wide disclaimer in the main README.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +24,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 
 from . import billing, database, jobs
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TradingAgents API", version="0.1.0")
 
@@ -162,5 +166,17 @@ def job_history(user=Depends(current_user)):
 
 
 # --- static frontend -----------------------------------------------------
+# The React app (webapp/frontend/) builds to dist/, which this mounts as
+# the site root. Mounting is skipped (not a hard failure) when dist/ hasn't
+# been built yet, so the API is still importable/testable on its own — e.g.
+# in CI jobs or local backend work that don't need the built UI.
 
-app.mount("/", StaticFiles(directory="webapp/frontend", html=True), name="frontend")
+_FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if _FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
+else:
+    logger.warning(
+        "%s not found — run `npm run build` in webapp/frontend to serve the UI. "
+        "API endpoints work without it.",
+        _FRONTEND_DIST,
+    )
