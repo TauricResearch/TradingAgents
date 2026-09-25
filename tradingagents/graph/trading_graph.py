@@ -14,10 +14,12 @@ logger = logging.getLogger(__name__)
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.google_key_rotator import parse_google_api_keys
 
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.agents.utils.crypto_memory import CryptoTrainingMemory
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.agents.utils.agent_states import (
     AgentState,
@@ -53,7 +55,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=None,
         debug=False,
         config: Dict[str, Any] = None,
         callbacks: Optional[List] = None,
@@ -69,6 +71,10 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        if selected_analysts is None:
+            selected_analysts = self.config.get(
+                "selected_analysts", ["market", "social", "news", "fundamentals"]
+            )
 
         # Update the interface's config
         set_config(self.config)
@@ -78,29 +84,34 @@ class TradingAgentsGraph:
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
         # Initialize LLMs with provider-specific thinking configuration
-        llm_kwargs = self._get_provider_kwargs()
+        deep_llm_kwargs = self._get_provider_kwargs(role="deep")
+        quick_llm_kwargs = self._get_provider_kwargs(role="quick")
 
         # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
+            deep_llm_kwargs["callbacks"] = self.callbacks
+            quick_llm_kwargs["callbacks"] = self.callbacks
 
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **deep_llm_kwargs,
         )
         quick_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["quick_think_llm"],
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **quick_llm_kwargs,
         )
 
         self.deep_thinking_llm = deep_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
         
-        self.memory_log = TradingMemoryLog(self.config)
+        if self.config.get("memory_backend") == "crypto_two_tier":
+            self.memory_log = CryptoTrainingMemory(self.config)
+        else:
+            self.memory_log = TradingMemoryLog(self.config)
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -131,7 +142,7 @@ class TradingAgentsGraph:
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
-    def _get_provider_kwargs(self) -> Dict[str, Any]:
+    def _get_provider_kwargs(self, role: str = "default") -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
@@ -140,6 +151,14 @@ class TradingAgentsGraph:
             thinking_level = self.config.get("google_thinking_level")
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
+            google_api_keys = parse_google_api_keys(self.config.get("google_api_keys"))
+            if google_api_keys:
+                kwargs["api_keys"] = google_api_keys
+                kwargs["rotation_state_path"] = self.config.get(
+                    "google_key_rotation_state_path",
+                    os.path.join(self.config["data_cache_dir"], "google_key_rotation.json"),
+                )
+                kwargs["role"] = role
 
         elif provider == "openai":
             reasoning_effort = self.config.get("openai_reasoning_effort")
@@ -269,6 +288,9 @@ class TradingAgentsGraph:
         Trade-off: only same-ticker entries are resolved per run.  Entries for
         other tickers accumulate until that ticker is run again.
         """
+        if self.config.get("memory_backend") == "crypto_two_tier":
+            return
+
         pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
         if not pending:
             return
@@ -369,12 +391,20 @@ class TradingAgentsGraph:
         # Log state to disk.
         self._log_state(trade_date, final_state)
 
-        # Store decision for deferred reflection on the next same-ticker run.
-        self.memory_log.store_decision(
-            ticker=company_name,
-            trade_date=trade_date,
-            final_trade_decision=final_state["final_trade_decision"],
-        )
+        # Store memory. Crypto train mode stores raw run data only; reviewed
+        # lessons are appended explicitly to keep a strict raw/lesson design.
+        if hasattr(self.memory_log, "store_run"):
+            self.memory_log.store_run(
+                ticker=company_name,
+                trade_date=trade_date,
+                final_state=final_state,
+            )
+        else:
+            self.memory_log.store_decision(
+                ticker=company_name,
+                trade_date=trade_date,
+                final_trade_decision=final_state["final_trade_decision"],
+            )
 
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):
@@ -418,7 +448,10 @@ class TradingAgentsGraph:
 
         # Save to file. Reject ticker values that would escape the
         # results directory when joined as a path component.
-        safe_ticker = safe_ticker_component(self.ticker)
+        ticker_for_path = self.ticker
+        if self.config.get("market_type") == "crypto":
+            ticker_for_path = ticker_for_path.replace("/", "_").replace(":", "_")
+        safe_ticker = safe_ticker_component(ticker_for_path)
         directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
         directory.mkdir(parents=True, exist_ok=True)
 

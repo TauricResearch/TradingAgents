@@ -673,6 +673,7 @@ class TestDeferredReflection:
         log = make_log(tmp_path)
         log.store_decision("AAPL", "2026-01-10", DECISION_BUY)
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {}
         mock_graph.memory_log = log
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
         TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
@@ -686,6 +687,7 @@ class TestDeferredReflection:
         mock_reflector = MagicMock()
         mock_reflector.reflect_on_final_decision.return_value = "Momentum confirmed."
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {}
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
@@ -707,6 +709,7 @@ class TestDeferredReflection:
         mock_reflector = MagicMock()
         mock_reflector.reflect_on_final_decision.return_value = "ok"
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {}
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
         mock_graph._resolve_benchmark = MagicMock(return_value="SPY")

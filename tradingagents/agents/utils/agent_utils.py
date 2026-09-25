@@ -36,6 +36,14 @@ def get_language_instruction() -> str:
 
 def build_instrument_context(ticker: str) -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
+    from tradingagents.dataflows.config import get_config
+
+    if get_config().get("market_type") == "crypto" or "/" in ticker:
+        return (
+            f"The instrument to analyze is the crypto pair `{ticker}` on Binance. "
+            "Use this exact slash-delimited symbol in every tool call, report, and recommendation. "
+            "Assume a 24/7 crypto market, USDT quote currency, high volatility, and no stock-style fundamentals."
+        )
     return (
         f"The instrument to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "

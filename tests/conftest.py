@@ -31,8 +31,28 @@ def _dummy_api_keys(monkeypatch):
         monkeypatch.setenv(env_var, os.environ.get(env_var, "placeholder"))
 
 
+@pytest.fixture(autouse=True)
+def _reset_global_config():
+    """Reset the global dataflows config after every test to prevent cross-test pollution."""
+    yield
+    try:
+        from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.dataflows.config import set_config
+        set_config(DEFAULT_CONFIG.copy())
+    except Exception:
+        pass
+
+
 @pytest.fixture()
 def mock_llm_client():
+    client = MagicMock()
+    client.get_llm.return_value = MagicMock()
+    with patch(
+        "tradingagents.llm_clients.factory.create_llm_client",
+        return_value=client,
+    ):
+        yield client
+
     client = MagicMock()
     client.get_llm.return_value = MagicMock()
     with patch(

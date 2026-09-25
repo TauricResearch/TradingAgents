@@ -26,6 +26,12 @@ from .alpha_vantage_common import AlphaVantageRateLimitError
 from .reddit_sentiment import get_reddit_sentiment as get_reddit_sentiment_impl
 from .fear_greed import get_fear_greed as get_fear_greed_impl
 from .fred_macro import get_macro_data as get_fred_macro_data
+from .crypto_data import (
+    get_crypto_ohlcv,
+    get_crypto_indicator,
+)
+from .crypto_news import get_crypto_news, get_global_crypto_news
+from .crypto_sentiment import get_crypto_fear_greed, get_crypto_reddit_sentiment
 
 # Configuration and routing logic
 from .config import get_config
@@ -80,6 +86,8 @@ VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
     "fred",
+    "binance",
+    "crypto",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -88,11 +96,13 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "binance": get_crypto_ohlcv,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "binance": get_crypto_indicator,
     },
     # fundamental_data
     "get_fundamentals": {
@@ -115,10 +125,12 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "crypto": get_crypto_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "crypto": get_global_crypto_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
@@ -127,9 +139,11 @@ VENDOR_METHODS = {
     # sentiment_data
     "get_reddit_sentiment": {
         "default": get_reddit_sentiment_impl,
+        "crypto": get_crypto_reddit_sentiment,
     },
     "get_market_fear_greed": {
         "default": get_fear_greed_impl,
+        "crypto": get_crypto_fear_greed,
     },
     # macro_data
     "get_macro_data": {

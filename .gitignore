@@ -149,6 +149,7 @@ activemq-data/
 
 # Environments
 .env
+.env.*
 .envrc
 .venv
 env/
@@ -156,6 +157,22 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Secrets & Credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account.json
+*-credentials.json
+secrets.json
+*apikey*
+*api-key*
+*api_key*
+
+# VS Code MCP config (có thể chứa tokens)
+.vscode/mcp.json
 
 # Spyder project settings
 .spyderproject

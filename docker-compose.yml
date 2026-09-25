@@ -3,10 +3,31 @@ services:
     build: .
     env_file:
       - .env
+    environment:
+      - TRADINGAGENTS_STORAGE_BACKEND=sqlite
+      - TRADINGAGENTS_SQLITE_PATH=/home/appuser/.tradingagents/tradingagents.db
+      - TRADINGAGENTS_USER_ID=admin
+      - TRADINGAGENTS_ACTOR_USER_ID=admin
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
     tty: true
     stdin_open: true
+
+  crypto-dashboard:
+    build: .
+    entrypoint: ["python"]
+    command: ["scripts/crypto_dashboard.py", "--host", "0.0.0.0", "--port", "8765", "--no-open"]
+    env_file:
+      - .env
+    environment:
+      - TRADINGAGENTS_STORAGE_BACKEND=sqlite
+      - TRADINGAGENTS_SQLITE_PATH=/home/appuser/.tradingagents/tradingagents.db
+      - TRADINGAGENTS_USER_ID=admin
+      - TRADINGAGENTS_ACTOR_USER_ID=admin
+    ports:
+      - "8765:8765"
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
 
   ollama:
     image: ollama/ollama:latest
@@ -21,6 +42,10 @@ services:
       - .env
     environment:
       - LLM_PROVIDER=ollama
+      - TRADINGAGENTS_STORAGE_BACKEND=sqlite
+      - TRADINGAGENTS_SQLITE_PATH=/home/appuser/.tradingagents/tradingagents.db
+      - TRADINGAGENTS_USER_ID=admin
+      - TRADINGAGENTS_ACTOR_USER_ID=admin
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
     depends_on:

@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": get_default_cache_dir(),
     "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md")),
+    "market_type": "stock",
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
@@ -101,9 +102,96 @@ DEFAULT_CONFIG = {
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
         "sentiment_data": "default",        # Reddit, Fear&Greed, Discord UW (no vendor alt)
+        "macro_data": "fred",               # Options: fred
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+}
+
+
+CRYPTO_TRAIN_CONFIG = {
+    **DEFAULT_CONFIG,
+    # Train mode: crypto-only, low-cost Gemini Flash, no third/global memory tier.
+    "market_type": "crypto",
+    "train_mode": True,
+    "llm_provider": "google",
+    "deep_think_llm": "gemini-2.5-flash",
+    "quick_think_llm": "gemini-2.5-flash-lite",
+    "google_thinking_level": "minimal",
+    "google_api_keys": os.getenv("GOOGLE_API_KEYS", ""),
+    "google_key_rotation_state_path": os.getenv(
+        "TRADINGAGENTS_GOOGLE_ROTATION_STATE",
+        os.path.join(_TRADINGAGENTS_HOME, "crypto_memory", "google_key_rotation.json"),
+    ),
+    "output_language": "Vietnamese",
+    "selected_analysts": ["market", "news", "social"],
+    "max_debate_rounds": 1,
+    "max_risk_discuss_rounds": 1,
+    "benchmark_ticker": "BTC/USDT",
+    # Two-tier memory only: raw + lesson.
+    "memory_backend": "crypto_two_tier",
+    "crypto_memory_dir": os.getenv(
+        "TRADINGAGENTS_CRYPTO_MEMORY_DIR",
+        os.path.join(_TRADINGAGENTS_HOME, "crypto_memory"),
+    ),
+    "crypto_lesson_context_limit": 8,
+    "crypto_training_memory_tiers": ["lesson"],
+    # Binance / ccxt public data.
+    "crypto_exchange": "binance",
+    "crypto_market_type": "spot",
+    "crypto_timeframe": "15m",
+    "crypto_ohlcv_limit": 240,
+    "crypto_report_rows": 80,
+    "crypto_indicator_rows": 40,
+    "crypto_watchlist": ["BTC/USDT", "ETH/USDT"],
+    "train_trigger_minutes": 15,
+    # Scanner defaults: conservative crypto filters optimized for paper-trade safety.
+    "scanner_timeframe": "1h",           # Use 1h candles for RSI (more meaningful for swing entries)
+    "scanner_enable_rsi_reversal": True,
+    "scanner_enable_breakout": False,
+    "scanner_enable_ema_crossover": False,
+    "scanner_enable_rsi_momentum": False,
+    "scanner_enable_trend_pullback": False,
+    "scanner_enable_liquidity_sweep": True,
+    "scanner_enable_range_bounce": True,
+    "scanner_enable_bb_reversion": True,
+    "scanner_enable_orderflow": False,
+    "scanner_enable_regime_flip": False,
+    "scanner_enable_ensemble": True,
+    "scanner_ensemble_min_votes": 3,
+    "scanner_ensemble_base_bonus": 0.05,
+    "scanner_ensemble_max_bonus": 0.12,
+    "scanner_liquidity_sweep_lookback": 20,
+    "scanner_range_lookback": 20,
+    "scanner_range_bounce_max_pos": 0.35,
+    "scanner_range_min_width_atr": 1.6,
+    "scanner_range_min_volume_spike": 0.20,
+    "scanner_sideway_min_rsi": 28,
+    "scanner_sideway_max_rsi": 65,
+    "scanner_orderflow_lookback": 8,
+    "scanner_regime_flip_lookback": 8,
+    "scanner_reversal_buy_regimes": ["trend_up", "trend_down", "sideway"],
+    "scanner_reversal_sell_regimes": [],
+    # Timeframes to scan in parallel.  The scanner checks every timeframe and
+    # keeps the best signal per symbol.  More timeframes = more signals, but
+    # also more API calls.  Set to a single-element list to restore the old
+    # single-timeframe behaviour.
+    "scanner_timeframes": ["15m", "30m", "1h"],
+    "scanner_rsi_oversold": 35,   # calibrated for stockstats Wilder RSI on 1h timeframe
+    "scanner_max_reversal_rsi": 35,
+    "scanner_max_breakout_rsi": 68,
+    "scanner_min_momentum_volume_spike": 0.50,
+    "scanner_min_strength": 0.65,
+    "scanner_min_reward_risk": 1.20,
+    "scanner_rsi_extreme": 25,
+    "data_vendors": {
+        "core_stock_apis": "binance",
+        "technical_indicators": "binance",
+        "fundamental_data": "yfinance",
+        "news_data": "crypto",
+        "sentiment_data": "crypto",
+    },
+    "tool_vendors": {},
 }

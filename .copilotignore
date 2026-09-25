@@ -1,0 +1,46 @@
+# Copilot sẽ KHÔNG đọc các file này
+
+# Environment variables và secrets
+.env
+.env.*
+*.env
+
+# Private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Config có secrets
+mcp.json
+config.json
+secrets.json
+
+# Credentials
+credentials.json
+service-account.json
+*-credentials.json
+
+# API keys
+*apikey*
+*api-key*
+*api_key*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs có thể chứa sensitive data
+logs/
+*.log
+
+# Build artifacts
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+
+# Git internals
+.git/
