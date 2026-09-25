@@ -42,7 +42,7 @@ export function SignupPanel() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
-        <button type="submit" className="btn" disabled={status === "loading"}>
+        <button type="submit" className="btn btn--primary" disabled={status === "loading"}>
           {status === "loading" ? "Requesting…" : "Get key"}
         </button>
       </form>

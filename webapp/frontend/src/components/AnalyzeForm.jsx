@@ -67,7 +67,7 @@ export function AnalyzeForm({ onSubmitted, initialTicker = "" }) {
             />
           </div>
         </div>
-        <button type="submit" className="btn" disabled={status === "loading"}>
+        <button type="submit" className="btn btn--primary" disabled={status === "loading"}>
           {status === "loading" ? "Submitting…" : "Analyze"}
         </button>
       </form>

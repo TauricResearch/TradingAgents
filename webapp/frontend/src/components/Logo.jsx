@@ -1,8 +1,9 @@
 /**
- * The brand mark, drawn to match "The Print" concept used for the decision
- * stamp: a rotated stamp border around a monogram, rendered in currentColor
- * so it inherits ink/paper from the theme instead of carrying its own
- * hard-coded colors.
+ * The brand mark: a filled badge (works as a favicon/app icon too) with an
+ * ascending-bars glyph — three market bars of rising height, the same
+ * abstraction the decision print is built on top of (agents read the tape,
+ * print a call). Solid brand fill + a white glyph reads as a real product
+ * icon, not a line-art sketch.
  */
 export function Logo({ size = 28 }) {
   return (
@@ -15,23 +16,10 @@ export function Logo({ size = 28 }) {
       role="img"
       aria-label="TradingAgents"
     >
-      <rect
-        x="2.5"
-        y="4.5"
-        width="24"
-        height="24"
-        rx="3"
-        transform="rotate(-6 14.5 16.5)"
-        stroke="currentColor"
-        strokeWidth="2.25"
-      />
-      <path
-        d="M10 13.5h11M15.5 13.5v9"
-        transform="rotate(-6 14.5 16.5)"
-        stroke="currentColor"
-        strokeWidth="2.25"
-        strokeLinecap="round"
-      />
+      <rect width="32" height="32" rx="9" fill="var(--brand)" />
+      <rect x="7" y="17" width="4.5" height="9" rx="1.4" fill="var(--on-brand)" />
+      <rect x="13.75" y="11" width="4.5" height="15" rx="1.4" fill="var(--on-brand)" />
+      <rect x="20.5" y="6" width="4.5" height="20" rx="1.4" fill="var(--on-brand)" />
     </svg>
   );
 }

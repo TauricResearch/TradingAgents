@@ -70,7 +70,7 @@ export function WatchlistPage() {
                 onChange={(e) => setInput(e.target.value)}
               />
             </div>
-            <button type="submit" className="btn">
+            <button type="submit" className="btn btn--primary">
               Add
             </button>
           </form>
@@ -79,29 +79,31 @@ export function WatchlistPage() {
           </p>
         </section>
 
-        {tickers.length === 0 && status !== "loading" ? (
-          <p className="tape-empty">No tickers yet — add one above to build your watchlist.</p>
-        ) : (
-          <ul className="watchlist-list">
-            {tickers.map((row) => (
-              <li key={row.ticker} className="watchlist-list__row">
-                <span className="ticker">{row.ticker}</span>
-                <div>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => navigate("/", { state: { ticker: row.ticker } })}
-                  >
-                    Analyze
-                  </button>
-                  <button type="button" className="btn btn--ghost" onClick={() => handleRemove(row.ticker)}>
-                    Remove
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <section className="card">
+          {tickers.length === 0 && status !== "loading" ? (
+            <p className="tape-empty">No tickers yet — add one above to build your watchlist.</p>
+          ) : (
+            <ul className="watchlist-list">
+              {tickers.map((row) => (
+                <li key={row.ticker} className="watchlist-list__row">
+                  <span className="ticker">{row.ticker}</span>
+                  <div>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => navigate("/", { state: { ticker: row.ticker } })}
+                    >
+                      Analyze
+                    </button>
+                    <button type="button" className="btn btn--ghost" onClick={() => handleRemove(row.ticker)}>
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </main>
   );

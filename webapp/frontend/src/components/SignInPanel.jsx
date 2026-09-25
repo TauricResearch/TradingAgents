@@ -33,7 +33,7 @@ export function SignInPanel() {
           <input type="checkbox" checked={api.remember} onChange={(e) => api.setRemember(e.target.checked)} />
           remember this key on this device
         </label>
-        <button type="submit" className="btn btn--ghost" disabled={!value.trim()}>
+        <button type="submit" className="btn" disabled={!value.trim()}>
           Continue
         </button>
       </form>

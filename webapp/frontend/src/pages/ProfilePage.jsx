@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import { Avatar } from "../components/Avatar";
+import { QuotaBar } from "../components/QuotaBar";
 
 function formatMemberSince(iso) {
   if (!iso) return "";
@@ -82,49 +84,55 @@ export function ProfilePage() {
 
   return (
     <main className="app-main app-main--single">
-      <div>
-        <section className="desk-section" aria-labelledby="profile-heading">
-          <h2 className="panel-heading" id="profile-heading">
-            profile
-          </h2>
-          {account && (
-            <dl className="account-grid">
-              <dt>email</dt>
-              <dd>{account.email}</dd>
-              <dt>plan</dt>
-              <dd>{account.plan}</dd>
-              <dt>member since</dt>
-              <dd>{formatMemberSince(account.member_since)}</dd>
-              <dt>runs this month</dt>
-              <dd>{account.jobs_this_month}</dd>
-              <dt>free-tier limit</dt>
-              <dd>{account.free_tier_limit}</dd>
-            </dl>
-          )}
-          {accountStatus === "error" && (
-            <p className="status-line" data-tone="error" role="alert">
-              {accountMessage}
-            </p>
-          )}
+      <div className="profile-page">
+        <section className="card profile-header">
+          <Avatar name={account?.display_name} email={account?.email} size={64} />
+          <div className="profile-header__info">
+            <h1 className="profile-header__name">{account?.display_name || "Unnamed trader"}</h1>
+            <p className="profile-header__email">{account?.email}</p>
+            <div className="profile-header__meta">
+              <span className="badge" data-tone={account?.plan === "pro" ? "brand" : undefined}>
+                {account?.plan}
+              </span>
+              <span className="profile-header__since">
+                member since {formatMemberSince(account?.member_since)}
+              </span>
+            </div>
+          </div>
         </section>
 
-        <section className="desk-section" aria-labelledby="display-name-heading">
-          <h2 className="panel-heading" id="display-name-heading">
-            display name
-          </h2>
-          <form onSubmit={handleSaveName}>
-            <div className="field">
-              <label htmlFor="display-name-input">shown on reports you export (optional)</label>
-              <input
-                id="display-name-input"
-                type="text"
-                maxLength={80}
-                placeholder="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn" disabled={nameStatus === "loading"}>
+        {account && (
+          <section className="card">
+            <h2 className="card__title">usage</h2>
+            <QuotaBar used={account.jobs_this_month} limit={account.free_tier_limit} />
+            {account.plan === "free" && (
+              <button type="button" className="btn btn--primary" onClick={handleUpgrade} disabled={checkoutStatus === "loading"}>
+                {checkoutStatus === "loading" ? "Opening…" : "Upgrade to Pro for unlimited runs"}
+              </button>
+            )}
+          </section>
+        )}
+
+        {accountStatus === "error" && (
+          <p className="status-line" data-tone="error" role="alert">
+            {accountMessage}
+          </p>
+        )}
+
+        <section className="card">
+          <h2 className="card__title">display name</h2>
+          <p className="card__hint">Shown in the navbar and on reports you export.</p>
+          <form onSubmit={handleSaveName} className="profile-form">
+            <input
+              id="display-name-input"
+              type="text"
+              maxLength={80}
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-label="Display name"
+            />
+            <button type="submit" className="btn btn--primary" disabled={nameStatus === "loading"}>
               {nameStatus === "loading" ? "Saving…" : "Save changes"}
             </button>
           </form>
@@ -133,20 +141,9 @@ export function ProfilePage() {
           </p>
         </section>
 
-        <section className="desk-section" aria-labelledby="plan-heading">
-          <h2 className="panel-heading" id="plan-heading">
-            plan
-          </h2>
-          <button type="button" className="btn" onClick={handleUpgrade} disabled={checkoutStatus === "loading"}>
-            {checkoutStatus === "loading" ? "Opening…" : "Upgrade to Pro"}
-          </button>
-        </section>
-
-        <section className="desk-section" aria-labelledby="key-heading">
-          <h2 className="panel-heading" id="key-heading">
-            api key
-          </h2>
-          <p className="step-help">Rotate your key if you think it leaked. The old key stops working immediately.</p>
+        <section className="card">
+          <h2 className="card__title">api key</h2>
+          <p className="card__hint">Rotate your key if you think it leaked. The old key stops working immediately.</p>
           <button type="button" className="btn btn--ghost" onClick={handleRegenerateKey} disabled={keyStatus === "loading"}>
             {keyStatus === "loading" ? "Rotating…" : "Regenerate key"}
           </button>
@@ -156,10 +153,8 @@ export function ProfilePage() {
           {revealedKey && <code className="key-display">{revealedKey}</code>}
         </section>
 
-        <section className="desk-section" aria-labelledby="signout-heading">
-          <h2 className="panel-heading" id="signout-heading">
-            session
-          </h2>
+        <section className="card">
+          <h2 className="card__title">session</h2>
           <button type="button" className="btn btn--ghost" onClick={handleSignOut}>
             Sign out of this device
           </button>
