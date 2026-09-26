@@ -24,6 +24,8 @@ from tradingagents.agents.context import resolve_instrument_identity
 logger = logging.getLogger(__name__)
 
 _URL = "https://api.typesafe.ai/v1/systemone"
+# Optional (state, questions) judge returning the same answers as System One.
+post_screen_judge = None
 _DEFAULT_MODEL = "jev-latest"
 _RETRY_STATUSES = (429, 529)    # rate limited, overloaded: back off and retry
 _TRANSIENT = (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError)
@@ -71,6 +73,10 @@ def system_one(state, questions: dict) -> dict[str, dict]:
     backoff, honouring ``Retry-After``; any other failure raises
     ``TypeSafeError`` at once.
     """
+    if post_screen_judge is not None:
+        return post_screen_judge(state, questions)
+
+    url = os.environ.get("TYPESAFE_BASE_URL") or _URL
     body = {
         "state": state,
         "model": os.environ.get("TYPESAFE_DEFAULT_MODEL") or _DEFAULT_MODEL,
@@ -83,7 +89,7 @@ def system_one(state, questions: dict) -> dict[str, dict]:
             time.sleep(retry_after if retry_after is not None else backoff * random.uniform(0.8, 1.2))
             backoff *= 2
         try:
-            response = requests.post(_URL, json=body, headers=headers, timeout=_TIMEOUT)
+            response = requests.post(url, json=body, headers=headers, timeout=_TIMEOUT)
         except requests.RequestException as exc:
             failure, retry_after = type(exc).__name__, None
             if isinstance(exc, _TRANSIENT):
@@ -124,12 +130,12 @@ def _stance(answer: dict) -> str:
 
 
 def jev_screen(ticker: str):
-    """A post screen for the social fetchers, or None without a TypeSafe key.
+    """A post screen for the social fetchers, or None without a key or judge.
 
     The screen takes the post texts and returns one keep flag per post and a
     note line for the top of the source's block.
     """
-    if not os.environ.get("TYPESAFE_API_KEY"):
+    if post_screen_judge is None and not os.environ.get("TYPESAFE_API_KEY"):
         return None
     name = resolve_instrument_identity(ticker).get("company_name")
     instrument = f"{name} ({ticker})" if name else ticker
