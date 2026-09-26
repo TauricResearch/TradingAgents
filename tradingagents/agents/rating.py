@@ -88,6 +88,34 @@ def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
     return rating if rating is not None else default
 
 
+# "Confidence: 72%" / "**Confidence**: 72 %" / "confidence - 72" on its own line.
+_CONFIDENCE_LABEL_RE = re.compile(
+    r"^[\s*_#-]*confidence\b[\s*_]*[:\-‐-―][\s*_]*(\d{1,3}(?:\.\d+)?)\s*(%?)",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def extract_confidence(text: str) -> int | None:
+    """The Portfolio Manager's stated confidence (0-100), or ``None`` if it gave none.
+
+    Read from the labelled line both the structured and the free-text paths
+    write. The last one wins, as for the rating. "not provided" and values
+    outside 0-100 are ``None``: an absent confidence is not a 0% one.
+    """
+    if not text:
+        return None
+    norm = unicodedata.normalize("NFKC", text)
+    found = None
+    for m in _CONFIDENCE_LABEL_RE.finditer(norm):
+        value = float(m.group(1))
+        # "Confidence: 0.62" is a fraction, as in _coerce_percent; read as a
+        # percentage it rounded to 1% or 0%. "0.6%" says what it means.
+        if 0 < value < 1 and not m.group(2):
+            value *= 100
+        found = round(value) if 0 <= value <= 100 else None
+    return found
+
+
 def is_review(signal: str) -> bool:
     """Whether a signal is the non-tradeable REVIEW sentinel (#1170)."""
     return signal == RATING_REVIEW

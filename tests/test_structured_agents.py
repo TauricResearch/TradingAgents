@@ -460,6 +460,39 @@ class TestSentimentAnalystAgent:
         assert "(Score: 4.0/10)" in sr
         assert "Mixed signals across sources." in sr
 
+    def test_caller_supplied_sources_replace_the_live_fetch(self, monkeypatch):
+        """A caller that gathered its data before the run passes `sources`;
+        the node reads those blocks and never touches the network."""
+        from tradingagents.agents.analysts import sentiment_analyst as sentiment
+
+        def live(*args, **kwargs):
+            raise AssertionError("fetched live despite caller-supplied sources")
+
+        monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", live)
+        monkeypatch.setattr(sentiment, "fetch_reddit_posts", live)
+        asked = []
+
+        def recorded(ticker, start_date, end_date):
+            asked.append((ticker, start_date, end_date))
+            return sentiment.SentimentSources(
+                news="RECORDED NEWS", stocktwits="RECORDED ST", reddit="RECORDED RD"
+            )
+
+        captured = {}
+        create_sentiment_analyst(_structured_sentiment_llm(captured), sources=recorded)(
+            _make_sentiment_state()
+        )
+        prompt = "\n".join(str(m) for m in captured["prompt"])
+        assert all(block in prompt for block in ("RECORDED NEWS", "RECORDED ST", "RECORDED RD"))
+        [(ticker, start, end)] = asked
+        assert ticker == "NVDA" and start < end
+
+    def test_default_sources_fetch_live(self):
+        from tradingagents.agents.analysts import sentiment_analyst as sentiment
+
+        blocks = sentiment.fetch_sentiment_sources("NVDA", "2024-05-03", "2024-05-10")
+        assert blocks == sentiment.SentimentSources(news="news", stocktwits="st", reddit="rd")
+
     def test_sentiment_report_also_in_messages(self):
         captured = {}
         analyst = create_sentiment_analyst(_structured_sentiment_llm(captured))
@@ -536,6 +569,61 @@ def test_a_field_the_model_did_not_give_says_so():
     rendered = render_pm_decision(PortfolioDecision(
         rating=PortfolioRating.HOLD, executive_summary="s", investment_thesis="t"))
     assert "Price Target" in rendered and "not provided" in rendered.lower()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("given", "stored"), [
+    (72, 72), ("72%", 72), (" 64 % ", 64), (72.4, 72), (0.72, 72), (0, 0), (100, 100),
+    (None, None), ("high", None), (140, None), (-5, None), (True, None), (float("nan"), None),
+])
+def test_pm_confidence_is_normalised_or_dropped(given, stored):
+    """A malformed confidence must not fail the decision and lose the rating with it."""
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+
+    decision = PortfolioDecision(rating=PortfolioRating.SELL, executive_summary="s",
+                                 investment_thesis="t", confidence=given)
+    assert decision.confidence == stored
+    assert decision.rating is PortfolioRating.SELL
+
+
+@pytest.mark.unit
+def test_pm_confidence_is_rendered_and_read_back():
+    from tradingagents.agents.rating import extract_confidence, extract_rating
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating, render_pm_decision
+
+    rendered = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.UNDERWEIGHT, confidence=64, executive_summary="s",
+        investment_thesis="t"))
+    assert "**Confidence**: 64%" in rendered
+    assert extract_confidence(rendered) == 64
+    assert extract_rating(rendered) == "Underweight"  # the new line does not disturb it
+
+    silent = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.HOLD, executive_summary="s", investment_thesis="t"))
+    assert "**Confidence**: not provided" in silent
+    assert extract_confidence(silent) is None  # absent, not 0%
+
+
+@pytest.mark.unit
+def test_pm_reasons_and_invalidation_render_as_bullet_sections():
+    from tradingagents.agents.rating import extract_rating
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating, render_pm_decision
+
+    decision = PortfolioDecision(
+        rating=PortfolioRating.OVERWEIGHT, executive_summary="s", investment_thesis="t",
+        key_reasons=["Revenue beat guidance", "Margins held", "Buybacks continue"],
+        # A model answering a list field with one string of bullet lines.
+        invalidation="- A close below 180\n- Guidance cut at the next earnings\n",
+    )
+    assert decision.invalidation == ["A close below 180", "Guidance cut at the next earnings"]
+    rendered = render_pm_decision(decision)
+    assert "**Key Reasons**:\n- Revenue beat guidance\n- Margins held\n- Buybacks continue" in rendered
+    assert "**What Would Prove It Wrong**:\n- A close below 180" in rendered
+    assert extract_rating(rendered) == "Overweight"
+    # Absent, the sections are left out rather than printed empty.
+    bare = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.HOLD, executive_summary="s", investment_thesis="t"))
+    assert "Key Reasons" not in bare
 
 
 @pytest.mark.unit

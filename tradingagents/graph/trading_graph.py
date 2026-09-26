@@ -1,11 +1,15 @@
 import json
 import logging
 import os
+from collections.abc import Mapping
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from langgraph.prebuilt import ToolNode
+
+from tradingagents.agents.analysts.sentiment_analyst import SourceFetcher, fetch_sentiment_sources
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
@@ -49,6 +53,8 @@ class TradingAgentsGraph:
         debug=False,
         config: dict[str, Any] = None,
         callbacks: list | None = None,
+        sentiment_sources: SourceFetcher = fetch_sentiment_sources,
+        tool_nodes: Mapping[str, ToolNode] | None = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -57,6 +63,12 @@ class TradingAgentsGraph:
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
+            sentiment_sources: Where the Sentiment Analyst's news, StockTwits and
+                Reddit blocks come from. Fetched live by default; pass a
+                function to serve them from data gathered before the run.
+            tool_nodes: Per analyst key ("market", "news", "fundamentals"), the
+                node that runs its tool calls instead of the live vendors. Its
+                tools must carry the names and arguments of the analyst's TOOLS.
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
@@ -98,6 +110,8 @@ class TradingAgentsGraph:
             self.quick_thinking_llm,
             self.deep_thinking_llm,
             self.conditional_logic,
+            sentiment_sources=sentiment_sources,
+            tool_nodes=tool_nodes,
         )
 
         self.propagator = Propagator(

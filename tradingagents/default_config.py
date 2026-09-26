@@ -111,6 +111,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
+    # Extra instructions appended to one agent's prompt, keyed by agent name
+    # (see agents.context.PROMPT_EXTRA_AGENTS), e.g. {"trader": "..."}.
+    "prompt_extra": {},
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

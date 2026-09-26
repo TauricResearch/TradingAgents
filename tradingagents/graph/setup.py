@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -17,6 +18,10 @@ from tradingagents.agents import (
     create_research_manager,
     create_sentiment_analyst,
     create_trader,
+)
+from tradingagents.agents.analysts.sentiment_analyst import (
+    SourceFetcher,
+    fetch_sentiment_sources,
 )
 from tradingagents.agents.state import AgentState
 
@@ -55,8 +60,12 @@ class GraphSetup:
         quick_thinking_llm: Any,
         deep_thinking_llm: Any,
         conditional_logic: ConditionalLogic,
+        sentiment_sources: SourceFetcher = fetch_sentiment_sources,
+        tool_nodes: Mapping[str, ToolNode] | None = None,
     ):
         """Initialize with required components."""
+        self.sentiment_sources = sentiment_sources
+        self.tool_nodes = tool_nodes or {}
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.conditional_logic = conditional_logic
@@ -77,7 +86,9 @@ class GraphSetup:
 
         analyst_factories = {
             "market": lambda: create_market_analyst(self.quick_thinking_llm),
-            "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
+            "social": lambda: create_sentiment_analyst(
+                self.quick_thinking_llm, sources=self.sentiment_sources
+            ),
             "news": lambda: create_news_analyst(self.quick_thinking_llm),
             "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
         }
@@ -98,7 +109,8 @@ class GraphSetup:
             workflow.add_node(spec.agent_node, analyst_factories[spec.key]())
             workflow.add_node(spec.clear_node, create_msg_delete())
             if spec.tools:
-                workflow.add_node(spec.tool_node, ToolNode(list(spec.tools)))
+                node = self.tool_nodes.get(spec.key) or ToolNode(list(spec.tools))
+                workflow.add_node(spec.tool_node, node)
 
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)

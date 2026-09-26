@@ -13,6 +13,7 @@ from __future__ import annotations
 from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
+    get_prompt_extra,
     get_portfolio_context_from_state,
 )
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
@@ -73,10 +74,13 @@ Ground every conclusion in specific evidence from the analysts. The risk debate 
 Write these sections, in this order, starting with the rating on its own line:
 
 - **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
+- **Confidence**: how likely the rating is to prove right, 0-100% (50 is a coin flip; above 80 only for strong, nearly one-sided evidence)
 - **Executive Summary**: the call and how to act on it
 - **Investment Thesis**: the evidence that decided it, and what would change it
+- **Key Reasons**: three bullet lines, the reasons that decided the rating, most important first
+- **What Would Prove It Wrong**: two or three bullet lines, specific observable conditions (a price level, a data release, an event)
 
-{NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
+{NO_EXTERNAL_TOOLS}{get_language_instruction()}{get_prompt_extra("portfolio_manager")}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,
