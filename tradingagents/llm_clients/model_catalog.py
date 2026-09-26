@@ -219,6 +219,17 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
+    "meta": {
+        "quick": [
+            ("Muse Spark 1.3 Contributor - Fast", "muse-spark-1.3-contributor"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Muse Spark 1.3 - Flagship", "muse-spark-1.3"),
+            ("Muse Spark 1.3 Contributor - Fast alternative", "muse-spark-1.3-contributor"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
 }
