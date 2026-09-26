@@ -61,14 +61,11 @@ class TestTemperatureEnvOverlay:
 
 @pytest.mark.unit
 class TestProviderKwargsTemperature:
-    """_get_provider_kwargs float-coerces and forwards temperature, or omits it."""
+    """build_llm_kwargs float-coerces and forwards temperature, or omits it."""
 
     def _kwargs_for(self, temperature):
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
-        # Call the method without constructing the full graph.
-        graph = TradingAgentsGraph.__new__(TradingAgentsGraph)
-        graph.config = {"llm_provider": "openai", "temperature": temperature}
-        return TradingAgentsGraph._get_provider_kwargs(graph)
+        from tradingagents.llm_clients import build_llm_kwargs
+        return build_llm_kwargs({"llm_provider": "openai", "temperature": temperature})
 
     def test_float_string_coerced(self):
         assert self._kwargs_for("0.3")["temperature"] == 0.3

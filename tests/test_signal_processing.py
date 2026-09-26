@@ -1,17 +1,12 @@
-"""Tests for the shared rating heuristic and the SignalProcessor adapter.
+"""The rating heuristic that reads the decision's 5-tier rating.
 
-The Portfolio Manager produces a typed PortfolioDecision via structured
-output and renders it to markdown that always contains a ``**Rating**: X``
-header.  The deterministic heuristic in ``tradingagents.agents.utils.rating``
-is therefore sufficient to extract the rating downstream — no second LLM
-call is needed — and SignalProcessor is now a thin adapter that delegates
-to it.
+The Portfolio Manager's rendered decision always carries a ``**Rating**: X``
+header, so the rating is read deterministically; no second model call is made.
 """
 
 import pytest
 
-from tradingagents.agents.utils.rating import RATINGS_5_TIER, parse_rating
-from tradingagents.graph.signal_processing import SignalProcessor
+from tradingagents.agents.rating import RATING_REVIEW, RATINGS_5_TIER, extract_rating, parse_rating
 
 # ---------------------------------------------------------------------------
 # Heuristic parser
@@ -50,8 +45,9 @@ class TestParseRating:
         )
         assert parse_rating(text) == "Sell"
 
-    def test_no_rating_returns_default(self):
-        assert parse_rating("No clear directional signal at this time.") == "Hold"
+    def test_no_rating_is_flagged_for_review_not_defaulted(self):
+        # A decision nobody can read is not a Hold; recording one invents a call.
+        assert parse_rating("No clear directional signal at this time.") == RATING_REVIEW
 
     def test_no_rating_custom_default(self):
         assert parse_rating("Plain prose.", default="Underweight") == "Underweight"
@@ -60,30 +56,39 @@ class TestParseRating:
         for r in RATINGS_5_TIER:
             assert parse_rating(f"Rating: {r}") == r
 
-
-# ---------------------------------------------------------------------------
-# SignalProcessor: thin adapter over the heuristic
-# ---------------------------------------------------------------------------
+    def test_fullwidth_colon_is_parsed_not_reviewed(self):
+        # `Rating：Overweight` (fullwidth colon) is read, not sent to review (#1170).
+        assert parse_rating("Rating：Overweight\n理由はこちら。") == "Overweight"
 
 
 @pytest.mark.unit
-class TestSignalProcessor:
-    def test_returns_rating_from_pm_markdown(self):
-        sp = SignalProcessor()
-        md = "**Rating**: Overweight\n\n**Executive Summary**: Build gradually."
-        assert sp.process_signal(md) == "Overweight"
+class TestExtractRating:
+    def test_returns_none_when_absent(self):
+        assert extract_rating("No directional call here.") is None
+        assert extract_rating("") is None
 
-    def test_makes_no_llm_calls(self):
-        """SignalProcessor must not invoke the LLM it was constructed with —
-        the rating is parseable from the rendered PM markdown directly."""
-        from unittest.mock import MagicMock
+    def test_whole_word_only(self):
+        # substrings inside larger words must not match
+        assert extract_rating("The buyer was holding shares.") is None
 
-        llm = MagicMock()
-        sp = SignalProcessor(llm)
-        sp.process_signal("Rating: Buy\nDetails.")
-        llm.invoke.assert_not_called()
-        llm.with_structured_output.assert_not_called()
+    def test_parse_rating_defaults_to_review(self):
+        # The memory log tags an unreadable decision REVIEW, never a tradeable rating.
+        assert parse_rating("No rating here.") == RATING_REVIEW
+        assert parse_rating("No rating here.", default="Underweight") == "Underweight"
 
-    def test_default_when_no_rating_present(self):
-        sp = SignalProcessor()
-        assert sp.process_signal("Plain prose without a recommendation.") == "Hold"
+
+@pytest.mark.unit
+class TestGraphSignalContract:
+    """The graph-facing signal (TradingAgentsGraph.process_signal) honors the
+    documented "5-tier or REVIEW" contract, not just the parser in isolation."""
+
+    def _bare_graph(self):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        g = object.__new__(TradingAgentsGraph)
+        return g
+
+    def test_graph_surfaces_review(self):
+        assert self._bare_graph().process_signal("no rating in here") == RATING_REVIEW
+
+    def test_graph_returns_rating(self):
+        assert self._bare_graph().process_signal("**Rating**: Sell") == "Sell"

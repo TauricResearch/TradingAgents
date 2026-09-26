@@ -1,14 +1,48 @@
 """Shared pytest fixtures that prevent CI hangs when API keys are absent."""
 
 import os
-from unittest.mock import MagicMock, patch
+import socket
 
 import pytest
+
+
+def _blank_settings_overlay():
+    """Blank every TRADINGAGENTS_* setting before the package is imported.
+
+    The package loads .env on import and folds these variables into
+    DEFAULT_CONFIG, so a contributor's own settings would become the defaults
+    the suite asserts on. A blank value is still present, so load_dotenv leaves
+    it alone, and the overlay reads it as unset. Tests of the overlay set their own.
+    """
+    from dotenv import dotenv_values, find_dotenv
+
+    names = set(os.environ)
+    for filename in (".env", ".env.enterprise"):
+        names |= set(dotenv_values(find_dotenv(filename, usecwd=True)))
+    for name in names:
+        if name.startswith("TRADINGAGENTS_"):
+            os.environ[name] = ""
+
+
+_blank_settings_overlay()
 
 
 def pytest_configure(config):
     for marker in ("unit", "integration", "smoke"):
         config.addinivalue_line("markers", f"{marker}: {marker}-level tests")
+
+
+@pytest.fixture(autouse=True)
+def _no_network(request, monkeypatch):
+    """Tests do not reach the network; one that must is marked integration."""
+    if request.node.get_closest_marker("integration"):
+        return
+
+    def refuse(self, address):
+        raise OSError(f"test tried to reach the network: {address}")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket.socket, "connect_ex", refuse)
 
 
 _API_KEY_ENV_VARS = (
@@ -54,14 +88,3 @@ def _isolate_config():
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
     yield
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
-
-
-@pytest.fixture()
-def mock_llm_client():
-    client = MagicMock()
-    client.get_llm.return_value = MagicMock()
-    with patch(
-        "tradingagents.llm_clients.factory.create_llm_client",
-        return_value=client,
-    ):
-        yield client

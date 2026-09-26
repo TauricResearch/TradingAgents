@@ -3,22 +3,19 @@
 from __future__ import annotations
 
 import os
+import stat
 from unittest.mock import patch
 
 import pytest
 
-from tradingagents.llm_clients.api_key_env import (
-    PROVIDER_API_KEY_ENV,
-    get_api_key_env,
-    is_anthropic_setup_token,
-)
+from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV, get_api_key_env
 
 # ---- Mapping coverage -----------------------------------------------------
 
 
 def test_every_select_llm_provider_choice_has_an_entry():
     """select_llm_provider() must not present a provider the mapping doesn't know about."""
-    # Mirrors the dropdown order in cli/utils.select_llm_provider so the two
+    # Mirrors the dropdown order in cli/prompts.select_llm_provider so the two
     # stay in lockstep. Region-specific keys (qwen-cn / minimax-cn / glm-cn)
     # are reached via the secondary region prompt, so they must also be present.
     expected = {
@@ -66,62 +63,48 @@ def test_case_insensitive_lookup():
     assert get_api_key_env("QWEN-CN") == "DASHSCOPE_CN_API_KEY"
 
 
-def test_anthropic_setup_token_is_detected():
-    assert is_anthropic_setup_token("sk-ant-oat01-test")
-
-
-def test_anthropic_console_api_key_is_allowed():
-    assert not is_anthropic_setup_token("sk-ant-api03-test")
-
-
 # ---- ensure_api_key behavior ---------------------------------------------
 
 
 @pytest.fixture
-def cli_utils(monkeypatch):
-    """Import cli.utils with a fresh environment so module-level state is consistent."""
+def prompts(monkeypatch):
+    """Import cli.prompts with a fresh environment so module-level state is consistent."""
     import importlib
 
-    import cli.utils as cli_utils_module
-    return importlib.reload(cli_utils_module)
+    import cli.prompts as prompts_module
+    return importlib.reload(prompts_module)
 
 
-def test_ensure_api_key_returns_existing(monkeypatch, cli_utils):
+def test_ensure_api_key_returns_existing(monkeypatch, prompts):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-already-set")
-    result = cli_utils.ensure_api_key("openai")
+    result = prompts.ensure_api_key("openai")
     assert result == "sk-already-set"
 
 
-def test_ensure_api_key_returns_existing_anthropic_setup_token(monkeypatch, cli_utils):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-oat01-test")
-    result = cli_utils.ensure_api_key("anthropic")
-    assert result == "sk-ant-oat01-test"
-
-
-def test_ensure_api_key_no_op_for_ollama(monkeypatch, cli_utils):
+def test_ensure_api_key_no_op_for_ollama(monkeypatch, prompts):
     # Even with no env var set, ollama should not prompt and should return None.
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with patch.object(cli_utils, "questionary") as mock_q:
-        result = cli_utils.ensure_api_key("ollama")
+    with patch.object(prompts, "questionary") as mock_q:
+        result = prompts.ensure_api_key("ollama")
     assert result is None
     mock_q.password.assert_not_called()
 
 
-def test_ensure_api_key_unknown_provider_no_prompt(monkeypatch, cli_utils):
-    with patch.object(cli_utils, "questionary") as mock_q:
-        result = cli_utils.ensure_api_key("totally-fake-provider")
+def test_ensure_api_key_unknown_provider_no_prompt(monkeypatch, prompts):
+    with patch.object(prompts, "questionary") as mock_q:
+        result = prompts.ensure_api_key("totally-fake-provider")
     assert result is None
     mock_q.password.assert_not_called()
 
 
-def test_ensure_api_key_prompts_and_writes_to_env(monkeypatch, tmp_path, cli_utils):
+def test_ensure_api_key_prompts_and_writes_to_env(monkeypatch, tmp_path, prompts):
     """When key is missing, user-pasted value must be written to .env AND os.environ."""
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
 
     fake_prompt = type("P", (), {"ask": staticmethod(lambda: "sk-deepseek-test")})()
-    with patch.object(cli_utils.questionary, "password", return_value=fake_prompt):
-        result = cli_utils.ensure_api_key("deepseek")
+    with patch.object(prompts.questionary, "password", return_value=fake_prompt):
+        result = prompts.ensure_api_key("deepseek")
 
     assert result == "sk-deepseek-test"
     assert os.environ["DEEPSEEK_API_KEY"] == "sk-deepseek-test"
@@ -131,14 +114,14 @@ def test_ensure_api_key_prompts_and_writes_to_env(monkeypatch, tmp_path, cli_uti
     assert "sk-deepseek-test" in env_file.read_text()
 
 
-def test_ensure_api_key_user_cancels_returns_none(monkeypatch, tmp_path, cli_utils):
+def test_ensure_api_key_user_cancels_returns_none(monkeypatch, tmp_path, prompts):
     """Empty prompt response (user cancelled) must not write to .env."""
     monkeypatch.delenv("XAI_API_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
 
     fake_prompt = type("P", (), {"ask": staticmethod(lambda: None)})()
-    with patch.object(cli_utils.questionary, "password", return_value=fake_prompt):
-        result = cli_utils.ensure_api_key("xai")
+    with patch.object(prompts.questionary, "password", return_value=fake_prompt):
+        result = prompts.ensure_api_key("xai")
 
     assert result is None
     assert "XAI_API_KEY" not in os.environ
@@ -149,7 +132,7 @@ def test_ensure_api_key_user_cancels_returns_none(monkeypatch, tmp_path, cli_uti
         assert "XAI_API_KEY" not in env_file.read_text()
 
 
-def test_ensure_api_key_updates_existing_env_file(monkeypatch, tmp_path, cli_utils):
+def test_ensure_api_key_updates_existing_env_file(monkeypatch, tmp_path, prompts):
     """An existing .env with other keys must be preserved on writeback."""
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
@@ -157,10 +140,53 @@ def test_ensure_api_key_updates_existing_env_file(monkeypatch, tmp_path, cli_uti
     env_file.write_text("OPENAI_API_KEY=sk-existing\nOTHER=value\n")
 
     fake_prompt = type("P", (), {"ask": staticmethod(lambda: "sk-openrouter-new")})()
-    with patch.object(cli_utils.questionary, "password", return_value=fake_prompt):
-        cli_utils.ensure_api_key("openrouter")
+    with patch.object(prompts.questionary, "password", return_value=fake_prompt):
+        prompts.ensure_api_key("openrouter")
 
     content = env_file.read_text()
     assert "OPENAI_API_KEY" in content and "sk-existing" in content
     assert "OTHER=value" in content
     assert "OPENROUTER_API_KEY" in content and "sk-openrouter-new" in content
+
+
+def _prompt_key(prompts, monkeypatch, tmp_path, key="sk-typed-in"):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(prompts, "find_dotenv", lambda **k: "")
+    with patch.object(prompts, "questionary") as mock_q:
+        mock_q.password.return_value.ask.return_value = key
+        prompts.ensure_api_key("openai")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_saved_key_file_is_owner_only(monkeypatch, prompts, tmp_path):
+    # The prompt writes a real credential; the file must not be readable by
+    # other local users whatever the umask is.
+    old = os.umask(0o002)
+    try:
+        _prompt_key(prompts, monkeypatch, tmp_path)
+    finally:
+        os.umask(old)
+    env = tmp_path / ".env"
+    assert "sk-typed-in" in env.read_text()
+    assert stat.S_IMODE(env.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_existing_key_file_is_tightened_before_writing(monkeypatch, prompts, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("OTHER=1\n")
+    os.chmod(env, 0o664)
+    _prompt_key(prompts, monkeypatch, tmp_path)
+    assert stat.S_IMODE(env.stat().st_mode) == 0o600
+    assert "OTHER=1" in env.read_text()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_read_only_key_file_is_still_updated(monkeypatch, prompts, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("OTHER=1\n")
+    os.chmod(env, 0o400)
+    _prompt_key(prompts, monkeypatch, tmp_path)
+    assert "sk-typed-in" in env.read_text()
+    assert stat.S_IMODE(env.stat().st_mode) == 0o600

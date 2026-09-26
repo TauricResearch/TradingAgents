@@ -18,15 +18,15 @@ _CUSTOM_ONLY: dict[str, list[ModelOption]] = {
 # All GLM 4.7+ entries support thinking mode via thinking={"type":"enabled"}.
 _GLM_MODELS: dict[str, list[ModelOption]] = {
     "quick": [
+        ("GLM-5.3-Flash - Fast, cost-efficient, 1M ctx", "glm-5.3-flash"),
         ("GLM-5-Turbo - Fast, switchable thinking modes", "glm-5-turbo"),
-        ("GLM-4.7 - Previous-gen flagship", "glm-4.7"),
         ("GLM-4.5-Air - Lightweight, cost-efficient", "glm-4.5-air"),
         ("Custom model ID", "custom"),
     ],
     "deep": [
-        ("GLM-5.2 - Latest flagship, 1M ctx", "glm-5.2"),
+        ("GLM-5.3 - Latest flagship, 1M ctx", "glm-5.3"),
+        ("GLM-5.2 - 744B, 1M ctx", "glm-5.2"),
         ("GLM-5.1 - 745B, 200K ctx", "glm-5.1"),
-        ("GLM-5 - Flagship, 204K ctx", "glm-5"),
         ("GLM-4.7 - Previous-gen flagship", "glm-4.7"),
         ("Custom model ID", "custom"),
     ],
@@ -45,14 +45,12 @@ _GLM_MODELS: dict[str, list[ModelOption]] = {
 # "Custom model ID".
 _QWEN_MODELS: dict[str, list[ModelOption]] = {
     "quick": [
-        ("Qwen 3.7 Plus - Latest, balanced speed/cost", "qwen3.7-plus"),
-        ("Qwen 3.6 Plus - Previous-gen balanced", "qwen3.6-plus"),
+        ("Qwen 3.8 Flash - Latest fast model, 1M ctx", "qwen3.8-flash"),
         ("Custom model ID", "custom"),
     ],
     "deep": [
-        ("Qwen 3.7 Max - Latest flagship, most intelligent, 1M ctx", "qwen3.7-max"),
-        ("Qwen 3.6 Max - Previous-gen flagship", "qwen3.6-max"),
-        ("Qwen 3.7 Plus - Balanced alternative", "qwen3.7-plus"),
+        ("Qwen 3.8 Max - Latest flagship", "qwen3.8-max"),
+        ("Qwen 3.8 Flash - Fast alternative, 1M ctx", "qwen3.8-flash"),
         ("Custom model ID", "custom"),
     ],
 }
@@ -61,6 +59,23 @@ _QWEN_MODELS: dict[str, list[ModelOption]] = {
 # Shared model list for MiniMax's global and CN endpoints (same IDs).
 # Full official lineup per platform.minimax.io/docs/api-reference/text-openai-api.
 # M3 carries a 1M-token context window; the M2.x line is 204,800 tokens.
+# Kimi (Moonshot). Source: platform.kimi.ai/docs/models. "Custom model ID" stays
+# available for models newer than this list. The k2.7-code variants are omitted:
+# they are coding specialists, not analysis models.
+_KIMI_MODELS: dict[str, list[ModelOption]] = {
+    "quick": [
+        ("Kimi K2.6 - 256K ctx, thinking modes, agent tasks", "kimi-k2.6"),
+        ("Kimi K3 - Flagship, 1M ctx", "kimi-k3"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("Kimi K3 - Flagship, 1M ctx, native visual understanding", "kimi-k3"),
+        ("Kimi K2.6 - 256K ctx, thinking modes, agent tasks", "kimi-k2.6"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
     "quick": [
         ("MiniMax-M3 - Latest, 1M ctx, native multimodal", "MiniMax-M3"),
@@ -81,15 +96,17 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
-            ("GPT-5.4 Mini - Fast, strong coding and tool use", "gpt-5.4-mini"),
-            ("GPT-5.4 Nano - Cheapest, high-volume tasks", "gpt-5.4-nano"),
-            ("GPT-5.5 - Latest frontier, 1M context", "gpt-5.5"),
+            ("GPT-6 Luna - Fast, high-volume and cost-efficient", "gpt-6-luna"),
+            ("GPT-5.6 Luna - Previous-gen fast tier", "gpt-5.6-luna"),
+            ("GPT-5.6 Terra - Balances intelligence and cost", "gpt-5.6-terra"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("GPT-5.5 - Latest frontier, 1M context", "gpt-5.5"),
-            ("GPT-5.4 - Previous-gen frontier, 1M context, cost-effective", "gpt-5.4"),
-            ("GPT-5.2 - Strong reasoning, cost-effective", "gpt-5.2"),
-            ("GPT-5.5 Pro - Most capable, expensive ($30/$180 per 1M tokens)", "gpt-5.5-pro"),
+            ("GPT-6 Sol - Complex reasoning and analysis", "gpt-6-sol"),
+            ("GPT-6 Astra - Hardest multi-step reasoning", "gpt-6-astra"),
+            ("GPT-5.6 - Previous-gen reasoning (Sol)", "gpt-5.6"),
+            ("GPT-5.5 - Earlier frontier, 1M context", "gpt-5.5"),
+            ("Custom model ID", "custom"),
         ],
     },
     "anthropic": {
@@ -99,33 +116,37 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("Claude Fable 5 - Most capable, long-running agents", "claude-fable-5"),
-            ("Claude Opus 4.8 - Frontier agentic coding and reasoning", "claude-opus-4-8"),
+            ("Claude Opus 5.5 - Frontier agentic and enterprise work", "claude-opus-5-5"),
+            ("Claude Fable 5.1 - Most capable, demanding long-horizon reasoning", "claude-fable-5-1"),
             ("Claude Sonnet 5 - Near-frontier intelligence at Sonnet cost", "claude-sonnet-5"),
-            ("Claude Opus 4.7 - Previous frontier, long-running agents", "claude-opus-4-7"),
             ("Custom model ID", "custom"),
         ],
     },
     "google": {
         "quick": [
-            ("Gemini 3.7 Flash - Latest, frontier agentic + coding (GA)", "gemini-3.7-flash"),
+            ("Gemini 3.8 Flash - Most capable Flash", "gemini-3.8-flash"),
+            ("Gemini 3.5 Flash Lite - Fast and cost-efficient", "gemini-3.5-flash-lite"),
             ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
+            ("Gemini 3.8 Flash - Most capable Flash, 1M context", "gemini-3.8-flash"),
             ("Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)", "gemini-3.1-pro-preview"),
-            ("Gemini 3.7 Flash - Latest GA, strong agentic + coding", "gemini-3.7-flash"),
+            ("Gemini 3.5 Flash - Previous Flash, strong agentic + coding", "gemini-3.5-flash"),
+            ("Custom model ID", "custom"),
         ],
     },
     "xai": {
         "quick": [
-            ("Grok 4.3 - Latest flagship, fast with built-in reasoning", "grok-4.3"),
-            ("Grok 4.20 (Non-Reasoning) - Speed-optimized", "grok-4.20-0309-non-reasoning"),
+            ("Grok 4.6 - Latest flagship, fastest, 500K ctx", "grok-4.6"),
             ("Grok Build 0.1 - Coding-specialized, 256K ctx", "grok-build-0.1"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("Grok 4.3 - Latest flagship, built-in reasoning, 1M ctx", "grok-4.3"),
-            ("Grok 4.20 (Reasoning) - Previous-gen reasoning", "grok-4.20-0309-reasoning"),
-            ("Grok 4.20 Multi-Agent - Multi-agent reasoning", "grok-4.20-multi-agent-0309"),
+            ("Grok 4.6 - Latest flagship, 500K ctx", "grok-4.6"),
+            ("Grok 4.5 - Previous flagship, coding and agentic", "grok-4.5"),
+            ("Grok 4.3 - Older generation, 1M ctx", "grok-4.3"),
+            ("Custom model ID", "custom"),
         ],
     },
     # DeepSeek: the deepseek-chat / deepseek-reasoner aliases are deprecated
@@ -134,12 +155,12 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # handles the reasoning_content round-trip).
     "deepseek": {
         "quick": [
-            ("DeepSeek V4 Flash - Latest fast model, thinking + non-thinking", "deepseek-v4-flash"),
+            ("DeepSeek Flash - V4.1 Flash, fast, 1M ctx", "deepseek-flash"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("DeepSeek V4 Pro - Latest flagship", "deepseek-v4-pro"),
-            ("DeepSeek V4 Flash - Fast, supports thinking", "deepseek-v4-flash"),
+            ("DeepSeek V4 Pro - Flagship", "deepseek-v4-pro"),
+            ("DeepSeek Flash - V4.1 Flash, fast, 1M ctx", "deepseek-flash"),
             ("Custom model ID", "custom"),
         ],
     },
@@ -153,6 +174,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "glm-cn": _GLM_MODELS,
     # MiniMax: same model IDs across global (.io) and China (.com) regions,
     # so the two provider keys share one model list.
+    "kimi": _KIMI_MODELS,
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
@@ -160,7 +182,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
     # apply whether the user runs ollama-serve on localhost or against a
     # remote host. The actual resolved endpoint is surfaced separately by
-    # cli.utils.confirm_ollama_endpoint() right after provider selection.
+    # cli.prompts.confirm_ollama_endpoint() right after provider selection.
     # "Custom model ID" lets users pick any model they have pulled via
     # `ollama pull` beyond the three suggested defaults.
     "ollama": {
@@ -184,8 +206,17 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # changing) models — offer "Custom model ID" rather than a list that goes
     # stale. The endpoint + key are wired by the provider; the user picks the
     # model their account has access to.
-    "mistral": _CUSTOM_ONLY,
-    "kimi": _CUSTOM_ONLY,
+    "mistral": {
+        "quick": [
+            ("Mistral Small 4 - Fast, 262K ctx", "mistral-small-2603"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Mistral Medium 3.5 - 262K ctx", "mistral-medium-2604"),
+            ("Mistral Small 4 - Fast, 262K ctx", "mistral-small-2603"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
@@ -198,8 +229,21 @@ def get_model_options(provider: str, mode: str) -> list[ModelOption]:
     return MODEL_OPTIONS[provider.lower()][mode]
 
 
+# Served by the provider but not offered in the picker: models retired from the
+# menu, and the explicit ID of a model listed under a shorter name. Known to
+# validation so a config naming one runs without an unknown-model warning.
+LEGACY_MODELS: dict[str, list[str]] = {
+    "openai": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol"],
+    "xai": ["grok-4.20-0309-reasoning", "grok-4.20-0309-non-reasoning",
+            "grok-4.20-multi-agent-0309"],
+    "deepseek": ["deepseek-v4-flash"],
+    "qwen": ["qwen3.7-max", "qwen3.7-plus", "qwen3.6-max", "qwen3.6-plus"],
+    "anthropic": ["claude-opus-5", "claude-fable-5", "claude-opus-4-8", "claude-opus-4-7"],
+}
+
+
 def get_known_models() -> dict[str, list[str]]:
-    """Build known model names from the shared CLI catalog."""
+    """Build known model names from the shared CLI catalog plus legacy IDs."""
     return {
         provider: sorted(
             {
@@ -207,6 +251,7 @@ def get_known_models() -> dict[str, list[str]]:
                 for options in mode_options.values()
                 for _, value in options
             }
+            | set(LEGACY_MODELS.get(provider, []))
         )
         for provider, mode_options in MODEL_OPTIONS.items()
     }

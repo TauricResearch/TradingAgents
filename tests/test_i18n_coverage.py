@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.agents.context import get_language_instruction
 
 _AGENTS_DIR = Path(__file__).resolve().parents[1] / "tradingagents" / "agents"
 

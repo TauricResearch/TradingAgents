@@ -18,9 +18,10 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
-    "TRADINGAGENTS_LLM_TIMEOUT":          "llm_timeout",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
-    "TRADINGAGENTS_LLM_RPM":              "llm_requests_per_minute",
+    "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_LLM_RPM":             "llm_requests_per_minute",
+    "TRADINGAGENTS_LLM_TIMEOUT":         "llm_timeout",
     "TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT": "sentiment_include_reddit",
     "TRADINGAGENTS_EXECUTION_MODE":       "execution_mode",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
@@ -73,24 +74,18 @@ def _apply_env_overrides(config: dict) -> dict:
 
 
 DEFAULT_CONFIG = _apply_env_overrides({
-    "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
-    "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
-    "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
-    # Where the post-run "Save report?" prompt writes by default. Lives
-    # under TRADINGAGENTS_HOME so it is persisted by the docker-compose
-    # volume mount (same as logs/cache) and is platform-agnostic — the
-    # previous default of cwd/reports left files in /home/appuser/app
-    # inside the container (not mounted) and polluted cwd on the host.
-    "reports_dir": os.getenv("TRADINGAGENTS_REPORTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "reports")),
-    "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md")),
+    "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR") or os.path.join(_TRADINGAGENTS_HOME, "logs"),
+    "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR") or os.path.join(_TRADINGAGENTS_HOME, "cache"),
+    "reports_dir": os.getenv("TRADINGAGENTS_REPORTS_DIR") or os.path.join(_TRADINGAGENTS_HOME, "reports"),
+    "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md"),
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
     # LLM settings
     "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.5",
-    "quick_think_llm": "gpt-5.4-mini",
+    "deep_think_llm": "gpt-6-sol",
+    "quick_think_llm": "gpt-6-luna",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a
@@ -99,29 +94,25 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "backend_url": None,
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
-    "openai_reasoning_effort": "max",    # "medium", "high", "low"
-    "anthropic_effort": "max",           # "high", "medium", "low"
+    "openai_reasoning_effort": "max",
+    "anthropic_effort": "max",
     # Sampling temperature, forwarded to every provider when set. None leaves
     # each provider at its own default. Lower values reduce run-to-run
     # variation on models that honor it; reasoning models largely ignore it
     # and no setting makes LLM output bit-identical across runs (see README).
     "temperature": None,
-    # Per-request timeout (seconds) forwarded to every provider's underlying
-    # SDK. Tuned for long-running reasoning models on flaky links: a single
-    # ``APIConnectionError`` from a TLS / proxy blip during a depth>=5 run
-    # should retry instead of killing the whole graph. Override with
-    # TRADINGAGENTS_LLM_TIMEOUT.
-    "llm_timeout": 600.0,
     # SDK retry budget forwarded to every provider chat client. None leaves each
     # provider/SDK at its own default (usually 2). Raise it to ride out bursty
     # 429 throttling on rate-limited deployments instead of aborting a run (#1091).
     "llm_max_retries": None,
-    # Proactive request pacing: cap on LLM requests per minute for this
-    # process (deep + quick combined). None disables pacing. The limiter is
-    # in-memory and per-process, so parallel batch runs must divide the
-    # provider quota themselves: TRADINGAGENTS_LLM_RPM = quota / concurrency.
-    # The reactive 429 retry in llm_clients/retry.py remains the backstop.
+    # Cap on output tokens forwarded to every provider chat client. None leaves
+    # each provider at its own default. Set it to bound a model that emits
+    # unbounded reasoning/output and hangs or trips a gateway idle timeout
+    # (e.g. some deepseek-v4-flash deployments, #1204).
+    "max_tokens": None,
     "llm_requests_per_minute": None,
+    "llm_timeout": 600.0,
+    "sentiment_include_reddit": True,
     "execution_mode": "sync",
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
@@ -148,10 +139,6 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
     ],
-    # Reddit's public endpoints are heavily rate-limited and may reject batch
-    # runs. Keep the source enabled by default, but allow bulk workflows to
-    # disable it with TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT=0.
-    "sentiment_include_reddit": True,
     # Data vendor configuration
     # Category-level configuration (default for all tools in category).
     # The configured value is the exact vendor chain — requests are NOT silently
@@ -169,19 +156,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
-    # Per-indicator parameter overrides, keyed by canonical indicator name
-    # (see dataflows/indicator_registry.py for names and their defaults).
-    # The agent-facing name never changes — overriding rsi to window 7 still
-    # reads "rsi" in prompts and reports, just computed on 7 periods.
-    "indicator_params": {
-        # Example: "rsi": {"window": 7}, "boll_ub": {"window": 30},
-    },
+    "indicator_params": {},
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all
     # tickers; leave it None to use ``benchmark_map`` for auto-detection
     # based on the ticker's exchange suffix. SPY remains the US default
     # so the reflection label keeps reading "Alpha vs SPY" for US tickers
     # while non-US tickers get their regional index automatically.
+    # Trading days after the analysis date over which a decision's outcome is
+    # measured, for reflection and for the backtest figures.
+    "holding_period_days": 5,
     "benchmark_ticker": None,
     "benchmark_map": {
         ".NS":  "^NSEI",       # NSE India (Nifty 50)
@@ -193,6 +177,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".AX":  "^AXJO",       # Australia (ASX 200)
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
+        ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
 })

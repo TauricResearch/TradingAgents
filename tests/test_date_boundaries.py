@@ -7,9 +7,9 @@ row omitted).
 import pandas as pd
 import pytest
 
-import tradingagents.dataflows.stockstats_utils as su
-import tradingagents.dataflows.y_finance as yfin
+import tradingagents.dataflows.vendors.yahoo.market as yfin
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.vendors.yahoo import ohlcv
 
 
 @pytest.mark.unit
@@ -53,9 +53,9 @@ def test_load_ohlcv_requests_inclusive_end(monkeypatch, tmp_path):
             index=idx,
         )
 
-    monkeypatch.setattr(su.yf, "download", fake_download)
+    monkeypatch.setattr(ohlcv.yf, "download", fake_download)
     today = pd.Timestamp.today().strftime("%Y-%m-%d")
-    su.load_ohlcv("AAPL", today)
+    ohlcv.load_ohlcv("AAPL", today)
 
     expected_end = (pd.Timestamp.today() + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     assert captured["end"] == expected_end  # tomorrow -> today's row included (#986)

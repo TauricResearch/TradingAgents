@@ -11,9 +11,10 @@ import importlib
 import pytest
 
 import tradingagents.default_config as default_config_module
-from tradingagents.graph.trading_graph import TradingAgentsGraph, _coerce_max_retries
+from tradingagents.llm_clients.factory import _coerce_max_retries, build_llm_kwargs
 
 # --- coercion / validation -------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.parametrize("value,expected", [(0, 0), (2, 2), (10, 10), ("6", 6)])
@@ -44,36 +45,31 @@ def test_coerce_rejects_non_integers(bad):
 
 # --- forwarding into provider kwargs --------------------------------------
 
-def _bare_graph(config):
-    g = object.__new__(TradingAgentsGraph)
-    g.config = config
-    return g
-
 
 @pytest.mark.unit
 def test_not_forwarded_when_unset():
-    kwargs = _bare_graph({"llm_provider": "openai", "llm_max_retries": None})._get_provider_kwargs()
+    kwargs = build_llm_kwargs({"llm_provider": "openai", "llm_max_retries": None})
     assert "max_retries" not in kwargs
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("provider", ["openai", "anthropic", "google"])
 def test_forwarded_across_providers(provider):
-    kwargs = _bare_graph({"llm_provider": provider, "llm_max_retries": 6})._get_provider_kwargs()
+    kwargs = build_llm_kwargs({"llm_provider": provider, "llm_max_retries": 6})
     assert kwargs["max_retries"] == 6
 
 
 @pytest.mark.unit
 def test_forwarded_env_string_is_coerced():
     # env vars arrive as strings; the consumer coerces (like temperature)
-    kwargs = _bare_graph({"llm_provider": "openai", "llm_max_retries": "4"})._get_provider_kwargs()
+    kwargs = build_llm_kwargs({"llm_provider": "openai", "llm_max_retries": "4"})
     assert kwargs["max_retries"] == 4
 
 
 @pytest.mark.unit
 def test_invalid_config_value_fails_loudly():
     with pytest.raises(ValueError):
-        _bare_graph({"llm_provider": "openai", "llm_max_retries": -1})._get_provider_kwargs()
+        build_llm_kwargs({"llm_provider": "openai", "llm_max_retries": -1})
 
 
 # --- env overlay -----------------------------------------------------------

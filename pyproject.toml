@@ -4,34 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tradingagents"
-version = "0.3.1"
+version = "0.5.1"
 description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "langchain-core>=0.3.81",
-    "backtrader>=1.9.78.123",
     "langchain-anthropic>=0.3.15",
-    "langchain-experimental>=0.3.4",
     "langchain-google-genai>=4.0.0",
     "langchain-openai>=0.3.23",
     "langgraph>=0.4.8",
     "langgraph-checkpoint-sqlite>=2.0.0",
     "pandas>=2.3.0",
-    "parsel>=1.10.0",
     "python-dotenv>=1.0.0",
     "pytz>=2025.2",
     "questionary>=2.1.0",
-    "redis>=6.2.0",
     "requests>=2.32.4",
     "rich>=14.0.0",
     "typer>=0.21.0",
-    "setuptools>=80.9.0",
-    # Pinned exactly: 0.6.6+ stopped emitting the windowed "supertrend_<window>"
-    # column stockstats_utils.supertrend_by_timeframe depends on (only the bare
-    # "supertrend" + "_ub"/"_lb" band columns remain past that release).
     "stockstats==0.6.5",
-    "tqdm>=4.67.1",
     "truststore>=0.10.0",
     "typing-extensions>=4.14.0",
     "yfinance>=1.4.1",
@@ -39,7 +30,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "beautifulsoup4>=4.12",
     "ruff>=0.15",
     "pytest>=8.0",
     "pytest-subtests>=0.13",
@@ -48,12 +38,6 @@ dev = [
 # stays lean: pip install "tradingagents[bedrock]".
 bedrock = [
     "langchain-aws>=1.5.0",
-]
-docs = [
-    "beautifulsoup4>=4.12",
-    "mkdocs>=1.6",
-    "mkdocs-material>=9.5",
-    "pymdown-extensions>=10.0",
 ]
 
 [project.scripts]
@@ -80,7 +64,7 @@ filterwarnings = [
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-extend-exclude = ["results", "worklog"]
+extend-exclude = ["results"]
 
 [tool.ruff.lint]
 # Standard "good defaults" rule set (pyflakes + pycodestyle + isort + bugbear +
@@ -95,5 +79,5 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 # Keep multiple aliased names from one module in a single combined import block
-# (e.g. the vendor re-exports in interface.py) instead of one statement per name.
+# (e.g. the vendor imports in router.py) instead of one statement per name.
 combine-as-imports = true

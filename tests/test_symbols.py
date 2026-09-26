@@ -4,12 +4,8 @@ import unittest
 
 import pytest
 
-from tradingagents.dataflows.symbol_utils import (
-    NoMarketDataError,
-    crypto_base,
-    is_yahoo_safe,
-    normalize_symbol,
-)
+from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.symbols import crypto_base, normalize_symbol
 
 
 @pytest.mark.unit
@@ -52,6 +48,27 @@ class TestNormalizeSymbol(unittest.TestCase):
     def test_empty_input_passthrough(self):
         self.assertEqual(normalize_symbol(""), "")
 
+    def test_hk_five_digit_code_repadded_to_four(self):
+        # HKEX lists up to 5-digit codes; Yahoo only accepts 4 (#957).
+        self.assertEqual(normalize_symbol("09992.HK"), "9992.HK")
+        self.assertEqual(normalize_symbol("00700.HK"), "0700.HK")
+        self.assertEqual(normalize_symbol("00001.HK"), "0001.HK")
+
+    def test_hk_four_digit_code_unchanged(self):
+        self.assertEqual(normalize_symbol("0700.HK"), "0700.HK")
+        self.assertEqual(normalize_symbol("9992.HK"), "9992.HK")
+        self.assertEqual(normalize_symbol("80737.HK"), "80737.HK")
+
+    def test_hk_short_code_padded_to_four(self):
+        self.assertEqual(normalize_symbol("700.HK"), "0700.HK")
+
+    def test_hk_code_case_insensitive_suffix(self):
+        self.assertEqual(normalize_symbol("09992.hk"), "9992.HK")
+
+    def test_shanghai_sh_suffix_maps_to_yahoo_ss(self):
+        self.assertEqual(normalize_symbol("600519.sh"), "600519.SS")
+        self.assertEqual(normalize_symbol("600519.SS"), "600519.SS")
+
 
 @pytest.mark.unit
 class TestNoMarketDataError(unittest.TestCase):
@@ -65,17 +82,6 @@ class TestNoMarketDataError(unittest.TestCase):
     def test_canonical_defaults_to_symbol(self):
         err = NoMarketDataError("FOOBAR")
         self.assertEqual(err.canonical, "FOOBAR")
-
-
-@pytest.mark.unit
-class TestIsYahooSafe(unittest.TestCase):
-    def test_accepts_structural_chars(self):
-        for sym in ("AAPL", "GC=F", "^GSPC", "BRK.B", "BTC-USD"):
-            self.assertTrue(is_yahoo_safe(sym))
-
-    def test_rejects_slash_and_space(self):
-        for sym in ("a/b", "AA PL", ""):
-            self.assertFalse(is_yahoo_safe(sym))
 
 
 @pytest.mark.unit

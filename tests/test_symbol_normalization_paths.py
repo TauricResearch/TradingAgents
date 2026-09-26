@@ -7,10 +7,10 @@ hit the right instrument instead of failing/mismatching.
 """
 import pandas as pd
 
-import tradingagents.agents.utils.agent_utils as au
-import tradingagents.dataflows.yfinance_news as ynews
-import tradingagents.graph.trading_graph as tg
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+import tradingagents.agents.context as au
+import tradingagents.dataflows.vendors.yahoo.market as yahoo_market
+import tradingagents.dataflows.vendors.yahoo.news as ynews
+from tradingagents.graph import settlement
 
 
 def test_identity_lookup_normalizes_symbol(monkeypatch):
@@ -24,7 +24,7 @@ def test_identity_lookup_normalizes_symbol(monkeypatch):
         def info(self):
             return {"longName": "Gold Futures", "quoteType": "FUTURE"}
 
-    monkeypatch.setattr(au.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_market.yf, "Ticker", FakeTicker)
     au.resolve_instrument_identity.cache_clear()
 
     identity = au.resolve_instrument_identity("XAUUSD")
@@ -41,29 +41,33 @@ def test_fetch_returns_normalizes_symbol(monkeypatch):
             queried.append(symbol)
 
         def history(self, *args, **kwargs):
-            return pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0]})
+            prices = [100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0]
+            idx = pd.date_range(start="2025-01-02", periods=len(prices), freq="D")
+            return pd.DataFrame({"Close": prices}, index=idx)
 
-    monkeypatch.setattr(tg.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_market.yf, "Ticker", FakeTicker)
 
-    # _fetch_returns does not use ``self``; call unbound to avoid building the graph.
-    raw, alpha, days = TradingAgentsGraph._fetch_returns(
-        None, "XAUUSD", "2025-01-02", holding_days=5, benchmark="SPY"
+    raw, alpha, days, resolved = settlement.fetch_returns(
+        "XAUUSD", "2025-01-02", holding_days=5, benchmark="SPY"
     )
 
     assert queried[0] == "GC=F"  # stock symbol normalized (#984)
     assert queried[1] == "SPY"   # benchmark left as the canonical symbol
     assert raw is not None and days is not None
+    assert resolved == "2025-01-07"  # resolution date recorded (#1251)
 
 
 def test_news_lookup_normalizes_symbol(monkeypatch):
     seen = {}
 
-    class FakeSearch:
-        def __init__(self, query, **kwargs):
-            seen["query"] = query
-            self.news = []
+    class FakeTicker:
+        def __init__(self, symbol):
+            seen["query"] = symbol
 
-    monkeypatch.setattr(ynews.yf, "Search", FakeSearch)
+        def get_news(self, **kwargs):
+            return []
+
+    monkeypatch.setattr(ynews.yf, "Ticker", FakeTicker)
     monkeypatch.setattr(ynews, "yf_retry", lambda fn: fn())
 
     out = ynews.get_news_yfinance("XAUUSD", "2025-01-01", "2025-01-10")

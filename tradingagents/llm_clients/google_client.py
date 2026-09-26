@@ -1,10 +1,23 @@
+import re
 from typing import Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .base_client import BaseLLMClient, normalize_content
-from .retry import call_with_rate_limit_retry
 from .validators import validate_model
+
+_GEMINI_VERSION = re.compile(r"^gemini-(\d+)\.(\d+)")
+
+
+def _accepts_minimal_thinking(model: str) -> bool:
+    """Whether ``thinking_level="minimal"`` is accepted: numbered Flash models
+    before 3.8. Pro, 3.8+ and version-less aliases (which move between
+    generations) are treated as rejecting it."""
+    model_lc = model.lower()
+    match = _GEMINI_VERSION.match(model_lc)
+    return bool(match) and "pro" not in model_lc and (
+        (int(match.group(1)), int(match.group(2))) < (3, 8)
+    )
 
 
 class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
@@ -15,23 +28,7 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        parent_invoke = super().invoke
-        return normalize_content(
-            call_with_rate_limit_retry(
-                lambda: parent_invoke(input, config, **kwargs),
-                description=self.model,
-            )
-        )
-
-
-# Model families that reject thinking_level="minimal" (matched on the model id).
-_NO_MINIMAL_THINKING = ("pro", "3.7-flash")
-
-
-def _supports_minimal_thinking(model: str) -> bool:
-    """True when the model accepts thinking_level="minimal"."""
-    lowered = model.lower()
-    return not any(marker in lowered for marker in _NO_MINIMAL_THINKING)
+        return normalize_content(super().invoke(input, config, **kwargs))
 
 
 class GoogleClient(BaseLLMClient):
@@ -48,7 +45,8 @@ class GoogleClient(BaseLLMClient):
         if self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
-        for key in ("timeout", "max_retries", "temperature", "callbacks", "http_client", "http_async_client", "rate_limiter"):
+        for key in ("timeout", "max_retries", "temperature", "max_output_tokens",
+                    "callbacks", "http_client", "http_async_client", "rate_limiter"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
@@ -58,14 +56,12 @@ class GoogleClient(BaseLLMClient):
             llm_kwargs["google_api_key"] = google_api_key
 
         # Gemini 3.x takes the string ``thinking_level`` (the integer
-        # ``thinking_budget`` was for the now-retired 2.5 line). Not every
-        # model accepts every level: Pro and 3.7 Flash reject "minimal" with a
-        # 400 INVALID_ARGUMENT ("Thinking level MINIMAL is not supported for
-        # this model"), while 3.1 Flash / Flash-Lite accept it. Map an
-        # unsupported "minimal" to the nearest level the model does accept.
+        # ``thinking_budget`` was for the now-retired 2.5 line). Pro, Gemini
+        # 3.8+ and the -latest aliases reject "minimal" with a 400; "low" is
+        # accepted everywhere, so it is the fallback.
         thinking_level = self.kwargs.get("thinking_level")
         if thinking_level:
-            if thinking_level == "minimal" and not _supports_minimal_thinking(self.model):
+            if thinking_level == "minimal" and not _accepts_minimal_thinking(self.model):
                 thinking_level = "low"
             llm_kwargs["thinking_level"] = thinking_level
 

@@ -10,7 +10,6 @@ from tradingagents.graph.checkpointer import (
     checkpoint_step,
     clear_checkpoint,
     get_checkpointer,
-    has_checkpoint,
     thread_id,
 )
 
@@ -63,7 +62,7 @@ class TestCheckpointResume(unittest.TestCase):
                 graph.invoke({"count": 0}, config=cfg)
 
         # Checkpoint should exist at step 1 (analyst completed)
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
         step = checkpoint_step(self.tmpdir, self.ticker, self.date)
         self.assertEqual(step, 1)
 
@@ -90,11 +89,11 @@ class TestCheckpointResume(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 graph.invoke({"count": 0}, config=cfg)
 
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
         # Clear it
         clear_checkpoint(self.tmpdir, self.ticker, self.date)
-        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
         # Fresh run succeeds from scratch
         _should_crash = False
@@ -103,7 +102,6 @@ class TestCheckpointResume(unittest.TestCase):
             result = graph.invoke({"count": 0}, config=cfg)
 
         self.assertEqual(result["count"], 11)
-
 
     def test_different_date_starts_fresh(self):
         """A different date must NOT resume from an existing checkpoint."""
@@ -119,10 +117,10 @@ class TestCheckpointResume(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid1}})
 
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
         # date2 should have no checkpoint
-        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, date2))
+        self.assertIsNone(checkpoint_step(self.tmpdir, self.ticker, date2))
 
         # Run with date2 — should start fresh and succeed
         _should_crash = False
@@ -137,7 +135,7 @@ class TestCheckpointResume(unittest.TestCase):
         self.assertEqual(result["count"], 11)
 
         # Original date checkpoint still exists (untouched)
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
 
 class TestCheckpointSignature(unittest.TestCase):
@@ -178,9 +176,9 @@ class TestCheckpointSignature(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid1}})
 
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig1))
         # A different graph shape has no checkpoint to resume from.
-        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, self.date, sig2))
+        self.assertIsNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig2))
 
         _should_crash = False
         tid2 = thread_id(self.ticker, self.date, sig2)
@@ -190,7 +188,7 @@ class TestCheckpointSignature(unittest.TestCase):
             result = graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid2}})
         self.assertEqual(result["count"], 11)
         # sig1's checkpoint remains untouched.
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig1))
 
     def test_run_signature_captures_graph_shape(self):
         from tradingagents.graph.trading_graph import TradingAgentsGraph
