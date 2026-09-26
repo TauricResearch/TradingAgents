@@ -32,6 +32,10 @@ _MAX_WAIT = 30.0
 _TIMEOUT = 15.0
 _WORKERS = 16                   # well inside the documented 1,200 requests per minute
 
+# Optional ``(state, questions) -> answers`` judge that replaces the System One
+# request, e.g. to route screening through a self-hosted model.
+post_screen_judge = None
+
 # A post is dropped only on a clear "not about it"; the uncertain middle stays.
 _OFF_TOPIC_BELOW = 0.3
 # A stance counts only when Jev is not genuinely uncertain about it.
@@ -71,19 +75,24 @@ def system_one(state, questions: dict) -> dict[str, dict]:
     backoff, honouring ``Retry-After``; any other failure raises
     ``TypeSafeError`` at once.
     """
+    if post_screen_judge is not None:
+        return post_screen_judge(state, questions)
+
+    url = os.environ.get("TYPESAFE_BASE_URL") or _URL
     body = {
         "state": state,
         "model": os.environ.get("TYPESAFE_DEFAULT_MODEL") or _DEFAULT_MODEL,
         "questions": questions,
     }
-    headers = {"Authorization": f"Bearer {os.environ.get('TYPESAFE_API_KEY', '')}"}
+    key = os.environ.get("TYPESAFE_API_KEY")
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
     backoff, retry_after = 1.0, None
     for attempt in range(_ATTEMPTS):
         if attempt:
             time.sleep(retry_after if retry_after is not None else backoff * random.uniform(0.8, 1.2))
             backoff *= 2
         try:
-            response = requests.post(_URL, json=body, headers=headers, timeout=_TIMEOUT)
+            response = requests.post(url, json=body, headers=headers, timeout=_TIMEOUT)
         except requests.RequestException as exc:
             failure, retry_after = type(exc).__name__, None
             if isinstance(exc, _TRANSIENT):
@@ -124,12 +133,13 @@ def _stance(answer: dict) -> str:
 
 
 def jev_screen(ticker: str):
-    """A post screen for the social fetchers, or None without a TypeSafe key.
+    """A post screen for the social fetchers, or None without a key, endpoint or judge.
 
     The screen takes the post texts and returns one keep flag per post and a
     note line for the top of the source's block.
     """
-    if not os.environ.get("TYPESAFE_API_KEY"):
+    if (post_screen_judge is None and not os.environ.get("TYPESAFE_API_KEY")
+            and not os.environ.get("TYPESAFE_BASE_URL")):
         return None
     name = resolve_instrument_identity(ticker).get("company_name")
     instrument = f"{name} ({ticker})" if name else ticker

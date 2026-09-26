@@ -67,6 +67,28 @@ def test_sends_the_documented_request_and_returns_the_answers(post):
 
 
 @pytest.mark.unit
+def test_the_base_url_follows_the_environment(post, monkeypatch):
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080/v1/systemone")
+    post.queue.append(_ok())
+
+    typesafe.system_one("s", QUESTIONS)
+
+    assert post[0][0] == "http://localhost:8080/v1/systemone"
+
+
+@pytest.mark.unit
+def test_a_self_hosted_endpoint_screens_without_a_key(jev, post, monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080/v1/systemone")
+    jev["NVDA to 200"] = _post_answers(0.9)
+
+    typesafe.jev_screen("NVDA")(["NVDA to 200"])
+
+    assert post[0][0] == "http://localhost:8080/v1/systemone"
+    assert "Authorization" not in post[0][1]["headers"]
+
+
+@pytest.mark.unit
 def test_the_model_follows_the_sdk_environment(post, monkeypatch):
     monkeypatch.setenv("TYPESAFE_DEFAULT_MODEL", "jev-1.13.0")
     post.queue.append(_ok())
@@ -175,6 +197,30 @@ def jev(post, monkeypatch):
 def test_no_key_no_screen(monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     assert typesafe.jev_screen("NVDA") is None
+
+
+@pytest.mark.unit
+def test_an_injected_judge_screens_without_http(post, monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    calls = []
+
+    def judge(state, questions):
+        calls.append((state, questions))
+        return {
+            "about": {"type": "noul", "noul": 0.9},
+            "stance": {"type": "choice", "choice": "bullish", "confidence": 0.9},
+        }
+
+    monkeypatch.setattr(typesafe, "post_screen_judge", judge)
+    monkeypatch.setattr(typesafe, "resolve_instrument_identity",
+                        lambda t: {"company_name": "NVIDIA Corporation"})
+
+    result = typesafe.jev_screen("NVDA")(["NVDA to 200"])
+
+    assert result[0] == [True]
+    assert calls == [({"instrument": "NVIDIA Corporation (NVDA)", "post": "NVDA to 200"},
+                      typesafe.QUESTIONS)]
+    assert post == []
 
 
 @pytest.mark.unit
