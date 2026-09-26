@@ -115,6 +115,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Tool-calling turns one analyst may take; past that it is stopped without a
+    # report, so a model that never stops calling tools cannot end the run.
+    "max_tool_rounds": 20,
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.

@@ -98,6 +98,7 @@ class TradingAgentsGraph:
             self.quick_thinking_llm,
             self.deep_thinking_llm,
             self.conditional_logic,
+            max_tool_rounds=self.config.get("max_tool_rounds", 20),
         )
 
         self.propagator = Propagator(
@@ -149,6 +150,7 @@ class TradingAgentsGraph:
             "analysts=" + ",".join(self.selected_analysts),
             f"debate={self.config['max_debate_rounds']}",
             f"risk={self.config['max_risk_discuss_rounds']}",
+            f"tools={self.config.get('max_tool_rounds', 20)}",
             f"asset={asset_type}",
             # None, an empty book and a changed book are three different runs.
             f"portfolio={portfolio.fingerprint() if portfolio is not None else 'none'}",
@@ -260,6 +262,7 @@ class TradingAgentsGraph:
             "analysts": list(self.selected_analysts),
             "max_debate_rounds": cfg.get("max_debate_rounds"),
             "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
+            "max_tool_rounds": cfg.get("max_tool_rounds", 20),
             "output_language": cfg.get("output_language"),
             "data_vendors": dict(cfg.get("data_vendors") or {}),
             "tool_vendors": dict(cfg.get("tool_vendors") or {}),

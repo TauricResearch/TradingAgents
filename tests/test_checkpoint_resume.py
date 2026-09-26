@@ -207,6 +207,8 @@ class TestCheckpointSignature(unittest.TestCase):
         self.assertNotEqual(base, g._run_signature("stock"))      # debate depth
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 5}
         self.assertNotEqual(base, g._run_signature("stock"))      # risk depth
+        g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1, "max_tool_rounds": 5}
+        self.assertNotEqual(base, g._run_signature("stock"))      # tool-round cap
         # Stable for identical inputs.
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
         self.assertEqual(base, g._run_signature("stock"))

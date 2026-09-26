@@ -1,3 +1,4 @@
+import logging
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -22,6 +23,8 @@ from tradingagents.agents.state import AgentState
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
 
+logger = logging.getLogger(__name__)
+
 # Every target a shared conditional router can return. Each edge driven by the
 # router maps all of them, so a fall-through return (e.g. under prompt/i18n/
 # refactor drift in the speaker labels) can never hit a missing path_map entry
@@ -39,12 +42,26 @@ RISK_ANALYSIS_PATH_MAP = {
 }
 
 
-def _tools_or_done(state) -> str:
-    """Route an analyst's turn: run its tool calls, or finish with its report."""
-    return "tools" if state["messages"][-1].tool_calls else END
+def _tools_or_done(spec, max_tool_rounds):
+    """Route an analyst's turn: run its tool calls, or finish with its report.
+
+    A model that keeps requesting tools is stopped, without its calls being run,
+    once it has made more than max_tool_rounds tool-calling turns, so its loop no
+    longer runs until the recursion limit ends the whole run.
+    """
+    def route(state) -> str:
+        messages = state["messages"]
+        if not messages[-1].tool_calls:
+            return END
+        if sum(1 for m in messages if getattr(m, "tool_calls", None)) > max_tool_rounds:
+            logger.warning("%s stopped after %d tool rounds without a report",
+                           spec.agent_node, max_tool_rounds)
+            return END
+        return "tools"
+    return route
 
 
-def _analyst_graph(spec, agent):
+def _analyst_graph(spec, agent, max_tool_rounds):
     """One analyst as a graph of its own: the model and its tools, on a private message history.
 
     It returns only its report, so analysts running side by side never write the
@@ -56,7 +73,7 @@ def _analyst_graph(spec, agent):
     graph.add_edge(START, "agent")
     if spec.tools:
         graph.add_node("tools", ToolNode(list(spec.tools)))
-        graph.add_conditional_edges("agent", _tools_or_done, ["tools", END])
+        graph.add_conditional_edges("agent", _tools_or_done(spec, max_tool_rounds), ["tools", END])
         graph.add_edge("tools", "agent")
     else:
         graph.add_edge("agent", END)
@@ -71,11 +88,13 @@ class GraphSetup:
         quick_thinking_llm: Any,
         deep_thinking_llm: Any,
         conditional_logic: ConditionalLogic,
+        max_tool_rounds: int = 20,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.conditional_logic = conditional_logic
+        self.max_tool_rounds = max_tool_rounds
 
     def setup_graph(
         self, selected_analysts=("market", "social", "news", "fundamentals")
@@ -111,7 +130,10 @@ class GraphSetup:
         workflow = StateGraph(AgentState)
 
         for spec in plan.specs:
-            workflow.add_node(spec.agent_node, _analyst_graph(spec, analyst_factories[spec.key]()))
+            workflow.add_node(
+                spec.agent_node,
+                _analyst_graph(spec, analyst_factories[spec.key](), self.max_tool_rounds),
+            )
 
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)

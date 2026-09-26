@@ -213,3 +213,29 @@ def test_each_report_streams_as_soon_as_its_analyst_files_it(tmp_path, monkeypat
                  if state and any(state.get(k) for k in reports))
 
     assert sum(bool(first.get(k)) for k in reports) == 1
+
+
+class AlwaysToolsModel(ScriptedModel):
+    """Requests its first bound tool on every turn, never finishing a report."""
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:
+        if not self.tools:
+            return super()._generate(messages, stop, run_manager, **kwargs)
+        self._count()
+        tool = self.tools[0]
+        props = tool.tool_call_schema.model_json_schema()["properties"]
+        call = {"name": tool.name, "id": f"call_{len(self.calls)}",
+                "args": {k: v for k, v in ARGS.items() if k in props}}
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content="", tool_calls=[call]))])
+
+
+@pytest.mark.unit
+def test_a_looping_analyst_is_stopped_instead_of_ending_the_run(tmp_path, monkeypatch, offline):
+    # The regression: an analyst whose model never stops requesting tools ran
+    # until the recursion limit, raising GraphRecursionError with no decision.
+    state, signal = _graph(tmp_path, monkeypatch, AlwaysToolsModel()).propagate("NVDA", TRADE_DATE)
+
+    assert signal == "Overweight"
+    for key in ("market_report", "news_report", "fundamentals_report"):
+        assert state[key] == "", key
+    assert state["sentiment_report"].strip()
