@@ -18,6 +18,15 @@ def test_timeout_is_forwarded_to_client_when_set():
 
 
 @pytest.mark.unit
+def test_timeout_reaches_google_client_constructor():
+    from tradingagents.llm_clients.google_client import GoogleClient
+
+    kwargs = build_llm_kwargs({"llm_provider": "google", "llm_timeout": "12.5"})
+    llm = GoogleClient("gemini-3.5-flash", api_key="test", **kwargs).get_llm()
+    assert llm.timeout == 12.5
+
+
+@pytest.mark.unit
 def test_timeout_is_not_forwarded_when_unset():
     client = create_llm_client(
         "openai", "gpt-6-luna", **build_llm_kwargs({"llm_provider": "openai", "llm_timeout": None})
@@ -26,7 +35,7 @@ def test_timeout_is_not_forwarded_when_unset():
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("provider", ["openai", "anthropic", "google", "bedrock"])
+@pytest.mark.parametrize("provider", ["openai", "anthropic", "google", "azure", "bedrock"])
 def test_timeout_builds_provider_timeout_kwarg(provider):
     assert build_llm_kwargs({"llm_provider": provider, "llm_timeout": "12.5"})["timeout"] == 12.5
 
