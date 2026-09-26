@@ -331,9 +331,12 @@ class SentimentReport(BaseModel):
     confidence: Literal["low", "medium", "high"] = Field(
         description=(
             "Confidence in the assessment based on data quality and sample size. "
-            "Use 'low' when one or more sources returned a placeholder or fewer "
-            "than 5 data points; 'medium' when data is present but sparse; "
-            "'high' when all three sources returned substantive data."
+            "Use 'low' when one or more applicable sources returned an "
+            "'unavailable'/failure placeholder or fewer than 5 data points; "
+            "'medium' when data is present but sparse; 'high' when every "
+            "applicable source returned substantive data. A '<not applicable>' "
+            "KLSE Screener block (ticker isn't Bursa-listed) is not a missing "
+            "source and should not lower confidence on its own."
         ),
     )
     narrative: str = Field(

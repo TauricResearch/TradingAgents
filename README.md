@@ -64,7 +64,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Analyst Team
 - Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
+- Sentiment Analyst: Aggregates news headlines, StockTwits, Reddit chatter, and (for Bursa Malaysia tickers) KLSE Screener comments into a single sentiment read to gauge short-term market mood.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
 
@@ -202,11 +202,11 @@ An interface will appear showing results as they load, letting you track the age
 > so upstream updates keep merging cleanly.
 
 Reddit and StockTwits — the sentiment analyst's default social sources — carry
-almost no discussion of Bursa-listed names, and Malaysia's usual retail
-sources (i3investor, klsescreener) sit behind client-side rendering or
-Cloudflare bot-protection that blocks a plain HTTP fetcher. Rather than build
-a fragile scraper, this fork adds what's realistically scrapeable and lets
-the existing graceful-degradation behavior handle the rest:
+almost no discussion of Bursa-listed names. Malaysia's other usual retail
+source, i3investor, sits behind Cloudflare bot-protection that blocks a plain
+HTTP fetcher; klsescreener.com does not (its comment thread is server-rendered
+plain HTML), so this fork adds a fetcher for it and lets the existing
+graceful-degradation behavior handle everything else:
 
 - **Regional alpha benchmark**: `.KL` tickers now resolve to the FBM KLCI
   (`^KLSE`) instead of falling back to SPY (`tradingagents/default_config.py`, `benchmark_map`).
@@ -252,10 +252,19 @@ the existing graceful-degradation behavior handle the rest:
   *weaker* ringgit, and keeps the US series available as the external backdrop
   (US rates drive foreign flows into Bursa) without letting them stand in for
   Malaysia's own conditions. Non-MY tickers keep the upstream US guidance.
-- **Sentiment**: intentionally unchanged. Reddit/StockTwits already degrade to
-  an honest "no data" placeholder rather than fabricating discussion, and the
-  sentiment analyst already flags low confidence when a source is silent —
-  the safer choice for KLSE names than a brittle, Cloudflare-fighting scraper.
+- **`klse_screener` sentiment source** (`tradingagents/dataflows/klse_screener.py`):
+  fetches the retail comment thread for a `.KL` ticker's own stock page on
+  klsescreener.com — a mix of English, Malay and Chinese chatter, and the
+  closest Bursa equivalent to a StockTwits cashtag stream for a market where
+  StockTwits itself is silent. Comments carry no user-labeled Bullish/Bearish
+  tag (the sentiment analyst reads tone from the text, same as Reddit), and
+  each is attributed with its like count and whether it's a top-level comment
+  or a reply. Wired into the sentiment analyst as a fourth pre-fetched source
+  alongside news/StockTwits/Reddit; for a non-`.KL` ticker it short-circuits to
+  a `<not applicable>` placeholder with no network call, so nothing changes
+  for non-Bursa runs. Degrades the same way as the other social sources: a
+  failed fetch reports `<unavailable>`, never "no comments found", so an
+  outage is never mistaken for genuine silence.
 
 ## TradingAgents Package
 

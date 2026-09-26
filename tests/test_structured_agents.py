@@ -437,12 +437,15 @@ class TestSentimentAnalystAgent:
         create_sentiment_analyst fetches news, StockTwits and Reddit itself, so
         without this these tests hit the live network. A real Reddit 429 then
         backs the fetcher off for a minute per subreddit, which is what turned
-        this file into a multi-minute hang.
+        this file into a multi-minute hang. KLSE Screener is a no-op for the
+        non-.KL ticker these tests use (NVDA), but it's stubbed too so the
+        test suite never depends on that short-circuit staying in place.
         """
         from tradingagents.agents.analysts import sentiment_analyst as sentiment
 
         monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
         monkeypatch.setattr(sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
+        monkeypatch.setattr(sentiment, "fetch_klse_screener_comments", lambda *a, **k: "ks")
         monkeypatch.setattr(sentiment.get_news, "func", lambda *a, **k: "news", raising=False)
 
     def test_structured_path_produces_rendered_markdown(self):

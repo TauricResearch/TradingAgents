@@ -5,13 +5,17 @@ the old version had a prompt that demanded social-media analysis but the
 only tool available was Yahoo Finance news — which led LLMs to fabricate
 Reddit/X/StockTwits content under prompt pressure (verified live).
 
-The redesigned agent pre-fetches three complementary data sources before
-the LLM is invoked and injects them into the prompt as structured blocks:
+The redesigned agent pre-fetches complementary data sources before the LLM
+is invoked and injects them into the prompt as structured blocks:
 
-  1. News headlines     — Yahoo Finance (institutional framing)
+  1. News headlines     — Yahoo Finance / Google News MY (institutional framing)
   2. StockTwits messages — retail-trader posts indexed by cashtag, with
                            user-labeled Bullish/Bearish sentiment tags
   3. Reddit posts        — r/wallstreetbets, r/stocks, r/investing
+  4. KLSE Screener       — Bursa Malaysia (.KL) only: retail comments on the
+                           stock's discussion thread, klsescreener.com's
+                           closest equivalent to a StockTwits cashtag stream
+                           for a market where StockTwits itself is silent
 
 The agent does not use tool-calling; the data is in the prompt from
 turn 0. Output uses the structured-output pattern (json_schema for
@@ -40,6 +44,7 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.klse_screener import fetch_klse_screener_comments
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 
@@ -74,6 +79,12 @@ def create_sentiment_analyst(llm):
             ticker, limit=30, start_date=start_date, end_date=end_date
         )
         reddit_block = fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date)
+        # A no-op for non-.KL tickers (returns a clear "<not applicable>"
+        # placeholder rather than fetching); real signal for Bursa names,
+        # where StockTwits and the Reddit subs above are near-silent.
+        klse_screener_block = fetch_klse_screener_comments(
+            ticker, start_date=start_date, end_date=end_date
+        )
 
         system_message = _build_system_message(
             ticker=ticker,
@@ -82,6 +93,7 @@ def create_sentiment_analyst(llm):
             news_block=news_block,
             stocktwits_block=stocktwits_block,
             reddit_block=reddit_block,
+            klse_screener_block=klse_screener_block,
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -135,13 +147,14 @@ def _build_system_message(
     news_block: str,
     stocktwits_block: str,
     reddit_block: str,
+    klse_screener_block: str,
 ) -> str:
     """Assemble the sentiment-analyst system message with structured data blocks."""
-    return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three complementary data sources that have already been collected for you.
+    return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on complementary data sources that have already been collected for you.
 
 ## Data sources (pre-fetched, in this prompt)
 
-### News headlines — Yahoo Finance, past 7 days
+### News headlines — Yahoo Finance / Google News MY, past 7 days
 Institutional framing. Fact-driven, slower-moving signal.
 
 <start_of_news>
@@ -162,21 +175,28 @@ Community discussion. Engagement signal via upvote score and comment count. Subr
 {reddit_block}
 <end_of_reddit>
 
+### KLSE Screener comments — Bursa Malaysia (.KL) tickers only
+Malaysian retail-trader discussion thread on klsescreener.com, this codebase's closest .KL equivalent to a StockTwits cashtag stream (StockTwits itself is US-centric and typically silent on Bursa names). Comments carry no user-labeled sentiment tag — read tone from the text itself, same as Reddit — and are often a mix of English, Malay and Chinese. A "<not applicable>" placeholder here means the ticker isn't Bursa-listed, not that sentiment is neutral.
+
+<start_of_klse_screener>
+{klse_screener_block}
+<end_of_klse_screener>
+
 ## How to analyze this data (best practices)
 
 1. **Read the StockTwits Bullish/Bearish ratio as a leading retail-sentiment signal.** A 70/30 bullish/bearish split is moderately bullish; ≥90/10 may indicate over-extension and contrarian risk; 50/50 is uncertainty. Sample size matters — base rates on the actual message count, not percentages alone.
 
-2. **Look for cross-source divergences.** If news framing is bearish but StockTwits is overwhelmingly bullish, that mismatch is itself a signal — it can mean retail is leaning into a thesis the news flow hasn't caught up to (or vice versa, that retail is chasing while institutions are cautious).
+2. **Look for cross-source divergences.** If news framing is bearish but StockTwits or KLSE Screener is overwhelmingly bullish, that mismatch is itself a signal — it can mean retail is leaning into a thesis the news flow hasn't caught up to (or vice versa, that retail is chasing while institutions are cautious).
 
-3. **Weight Reddit posts by engagement.** A 400-upvote / 200-comment thread reflects community attention; a 3-upvote post is noise. Read the body excerpts for context — the title alone often misleads.
+3. **Weight Reddit and KLSE Screener posts by engagement.** A 400-upvote / 200-comment Reddit thread reflects community attention; a 3-upvote post is noise. On KLSE Screener, weight by like count and by how many replies a comment drew — read the excerpts for context, since a short reply agreeing or disagreeing changes the read on the parent comment.
 
-4. **Distinguish opinion from event.** A news headline ("Nvidia announces $500M Corning deal") is an event; a StockTwits post ("buying NVDA, this is going to moon") is opinion. Both are inputs but should be weighted differently in your conclusions.
+4. **Distinguish opinion from event.** A news headline ("Nvidia announces $500M Corning deal") is an event; a StockTwits post or KLSE Screener comment ("buying this for the dividend") is opinion. Both are inputs but should be weighted differently in your conclusions.
 
-5. **Identify recurring narrative themes.** What topic keeps coming up across sources? That's the dominant narrative driving current sentiment.
+5. **Identify recurring narrative themes.** What topic keeps coming up across sources? That's the dominant narrative driving current sentiment. For a KLSE Screener thread this is often a specific price level, an ex-dividend date, or a rumor — treat a repeated number (e.g. several comments naming the same support price) as a real anchor even without a formal Bullish/Bearish tag.
 
-6. **Be honest about data limits.** If StockTwits returned only a handful of messages, or one or more sources returned an "<unavailable>" placeholder, the sentiment read is less robust — flag this explicitly in the `confidence` field and the narrative. If the sources are silent on a given subreddit, say so.
+6. **Be honest about data limits.** If StockTwits or Reddit returned only a handful of items, or a source returned an "<unavailable>" or "<not applicable>" placeholder, the sentiment read is less robust — flag this explicitly in the `confidence` field and the narrative. Do not read a "<not applicable>" KLSE Screener block (a non-.KL ticker) as data absence to fold into the confidence penalty; it is a scope statement, not a failed fetch.
 
-7. **Identify catalysts and risks** that emerge across sources — news of upcoming earnings, product launches, competitive threats, macro headlines, etc.
+7. **Identify catalysts and risks** that emerge across sources — news of upcoming earnings, product launches, competitive threats, macro headlines, etc. KLSE Screener comments frequently surface the ex-dividend date or a specific price target well before it appears in indexed news.
 
 8. **Past sentiment is not predictive.** Frame your conclusions as signal for the trader to weigh alongside fundamentals and technicals, not as a price call.
 
