@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed first in their release.
 
+## [Unreleased]
+
+### Added
+
+- Configurable `llm_timeout` / `TRADINGAGENTS_LLM_TIMEOUT`, forwarded to provider
+  clients to bound LLM requests.
+
 ## [0.5.1] — 2026-09-24
 
 A package layout organised by what each module holds, social posts screened by
