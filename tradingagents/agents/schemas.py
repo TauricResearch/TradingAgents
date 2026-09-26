@@ -268,6 +268,21 @@ class PortfolioDecision(BaseModel):
         default=None,
         description="Optional recommended holding period, e.g. '3-6 months'.",
     )
+    key_reasons: list[str] = Field(
+        default_factory=list,
+        description=(
+            "The three reasons that decided the rating, most important first: "
+            "one short sentence each, naming the evidence it rests on."
+        ),
+    )
+    invalidation: list[str] = Field(
+        default_factory=list,
+        description=(
+            "What would prove the rating wrong: two or three specific, "
+            "observable conditions (a price level, a data release, an event), "
+            "one short sentence each."
+        ),
+    )
 
     @field_validator("price_target", mode="before")
     @classmethod
@@ -278,6 +293,14 @@ class PortfolioDecision(BaseModel):
     @classmethod
     def _percent(cls, v):
         return _coerce_percent(v)
+
+    @field_validator("key_reasons", "invalidation", mode="before")
+    @classmethod
+    def _lines(cls, v):
+        # A model may answer a list field with one string of bullet lines.
+        if isinstance(v, str):
+            return [line.strip(" -*•\t") for line in v.splitlines() if line.strip(" -*•\t")]
+        return v or []
 
 
 def _coerce_percent(value) -> int | None:
@@ -326,6 +349,11 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     target = decision.price_target if decision.price_target is not None else "not provided"
     parts.extend(["", f"**Price Target**: {target}"])
     parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'not provided'}"])
+    # Bullet sections a reader and a parser both find by their headings.
+    for heading, items in (("Key Reasons", decision.key_reasons),
+                           ("What Would Prove It Wrong", decision.invalidation)):
+        if items:
+            parts.extend(["", f"**{heading}**:", *(f"- {item}" for item in items)])
     return "\n".join(parts)
 
 

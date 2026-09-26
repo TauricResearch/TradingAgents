@@ -605,6 +605,28 @@ def test_pm_confidence_is_rendered_and_read_back():
 
 
 @pytest.mark.unit
+def test_pm_reasons_and_invalidation_render_as_bullet_sections():
+    from tradingagents.agents.rating import extract_rating
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating, render_pm_decision
+
+    decision = PortfolioDecision(
+        rating=PortfolioRating.OVERWEIGHT, executive_summary="s", investment_thesis="t",
+        key_reasons=["Revenue beat guidance", "Margins held", "Buybacks continue"],
+        # A model answering a list field with one string of bullet lines.
+        invalidation="- A close below 180\n- Guidance cut at the next earnings\n",
+    )
+    assert decision.invalidation == ["A close below 180", "Guidance cut at the next earnings"]
+    rendered = render_pm_decision(decision)
+    assert "**Key Reasons**:\n- Revenue beat guidance\n- Margins held\n- Buybacks continue" in rendered
+    assert "**What Would Prove It Wrong**:\n- A close below 180" in rendered
+    assert extract_rating(rendered) == "Overweight"
+    # Absent, the sections are left out rather than printed empty.
+    bare = render_pm_decision(PortfolioDecision(
+        rating=PortfolioRating.HOLD, executive_summary="s", investment_thesis="t"))
+    assert "Key Reasons" not in bare
+
+
+@pytest.mark.unit
 def test_the_trader_names_the_levels_it_did_not_give():
     from tradingagents.agents.schemas import TraderAction, TraderProposal, render_trader_proposal
 

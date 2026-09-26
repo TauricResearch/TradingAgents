@@ -77,6 +77,8 @@ Write these sections, in this order, starting with the rating on its own line:
 - **Confidence**: how likely the rating is to prove right, 0-100% (50 is a coin flip; above 80 only for strong, nearly one-sided evidence)
 - **Executive Summary**: the call and how to act on it
 - **Investment Thesis**: the evidence that decided it, and what would change it
+- **Key Reasons**: three bullet lines, the reasons that decided the rating, most important first
+- **What Would Prove It Wrong**: two or three bullet lines, specific observable conditions (a price level, a data release, an event)
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}{get_prompt_extra("portfolio_manager")}"""
 
