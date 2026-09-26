@@ -1,3 +1,4 @@
+import math
 import os
 from typing import Any
 
@@ -66,6 +67,10 @@ class BedrockClient(BaseLLMClient):
         bearer_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
         if bearer_token:
             llm_kwargs["api_key"] = bearer_token
+        # langchain-aws merges timeout and max_retries into one botocore Config;
+        # its timeout field is an int, so round a fractional value up.
+        if self.kwargs.get("timeout") is not None:
+            llm_kwargs["timeout"] = math.ceil(self.kwargs["timeout"])
         for key in ("temperature", "max_tokens", "max_retries", "callbacks"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]

@@ -114,6 +114,11 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
     if temperature is not None and temperature != "":
         kwargs["temperature"] = float(temperature)
 
+    # Request timeout is cross-provider; env vars arrive as strings.
+    timeout = config.get("llm_timeout")
+    if timeout is not None and timeout != "":
+        kwargs["timeout"] = float(timeout)
+
     # SDK retry budget is cross-provider. Forward it only when explicitly set
     # so each provider keeps its own default (usually 2) otherwise (#1091).
     max_retries = config.get("llm_max_retries")
