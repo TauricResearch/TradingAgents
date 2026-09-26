@@ -11,6 +11,7 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from .bnm import get_macro_data as get_bnm_macro_data
 from .config import get_config
 from .errors import (
     NoMarketDataError,
@@ -84,6 +85,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "fred",
+    "bnm",
     "polymarket",
     "alpha_vantage",
     "google_news_my",
@@ -142,6 +144,7 @@ VENDOR_METHODS = {
     },
     # macro_data
     "get_macro_indicators": {
+        "bnm": get_bnm_macro_data,
         "fred": get_fred_macro_data,
     },
     # prediction_markets

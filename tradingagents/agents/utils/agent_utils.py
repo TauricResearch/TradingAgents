@@ -65,6 +65,40 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def get_macro_guidance(ticker: str) -> str:
+    """Return market-appropriate macro guidance for the news analyst's prompt.
+
+    The prompt used to hardcode US examples ('cpi', 'fed_funds_rate',
+    '10y_treasury') for every instrument, which on a Bursa run steered the
+    analyst into grounding Malaysian equities in Federal Reserve data — the
+    macro half of the report ended up being about the wrong economy. A KLSE
+    ticker instead gets Bank Negara's policy rate and the ringgit, which are
+    what actually move the index, with the US series still offered for the
+    global backdrop that genuinely does transmit to Bursa.
+
+    Keyed off the ``.KL`` suffix rather than a lookup, so it stays a pure
+    string operation with no network call in the prompt-building path.
+    """
+    if ticker.strip().upper().endswith(".KL"):
+        return (
+            "get_macro_indicators(indicator, curr_date, look_back_days) to ground macro "
+            "commentary in actual data. This is a Bursa Malaysia (KLSE) listing, so lead "
+            "with Malaysia's own series from Bank Negara: 'opr' (the Overnight Policy "
+            "Rate, Malaysia's policy rate — NOT the US fed funds rate) and 'usd_myr' (the "
+            "ringgit; a RISING USD/MYR means a WEAKER ringgit). 'malaysia_cpi' and "
+            "'malaysia_gdp' give domestic inflation and growth. US series ('fed_funds_rate', "
+            "'10y_treasury', 'cpi') remain available and are worth citing for the global "
+            "backdrop — US rates drive foreign flows into and out of Bursa — but treat them "
+            "as the external backdrop, not as Malaysia's own macro conditions, and never "
+            "substitute a US figure where a Malaysian one belongs"
+        )
+    return (
+        "get_macro_indicators(indicator, curr_date, look_back_days) to ground macro "
+        "commentary in actual data from FRED (e.g. 'cpi', 'core_pce', 'unemployment', "
+        "'fed_funds_rate', '10y_treasury', 'yield_curve')"
+    )
+
+
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
     """Opponent's latest argument, or an explicit opening marker when empty.
 

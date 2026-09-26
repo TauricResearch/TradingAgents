@@ -144,7 +144,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
         # yfinance for non-KLSE tickers (google_news_my resolves any ticker's
         # name via yfinance, so it degrades gracefully rather than failing).
         "news_data": "google_news_my,yfinance",  # Options: alpha_vantage, yfinance, google_news_my
-        "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
+        # Bursa fork default: BNM first for Malaysia's own policy rate and the
+        # ringgit (keyless), falling through to FRED for US/global series.
+        # BNM rejects an indicator it doesn't serve locally, with no network
+        # call, so the fallthrough costs nothing on a US request.
+        "macro_data": "bnm,fred",            # Options: bnm (keyless, MY), fred (needs FRED_API_KEY)
         "prediction_markets": "polymarket",  # Options: polymarket (keyless)
     },
     # Tool-level configuration (takes precedence over category-level)

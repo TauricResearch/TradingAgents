@@ -76,6 +76,26 @@ MACRO_SERIES = {
     "consumer_sentiment": "UMCSENT",
     "housing_starts": "HOUST",
     "retail_sales": "RSAFS",
+    # --- Malaysia (Bursa fork) ---
+    # FRED's curated aliases above are all US series. These add the Malaysian
+    # equivalents FRED carries, so a KLSE run can reach domestic inflation and
+    # growth rather than reasoning about Bursa through US CPI.
+    #
+    # Two caveats worth knowing before leaning on these. They are OECD/IMF
+    # relays rather than FRED originals, so they lag the national release by
+    # weeks to months and are occasionally discontinued upstream. And they are
+    # revision-prone, so unlike BNM's series they genuinely need the vintage
+    # pin this module applies. For the policy rate and the ringgit prefer the
+    # ``bnm`` vendor: those come straight from Bank Negara, same-day and
+    # revision-free. An ID that has been retired upstream returns this module's
+    # "series not found" message, which is a clear failure, not a silent one.
+    "malaysia_cpi": "MYSCPIALLMINMEI",
+    "my_cpi": "MYSCPIALLMINMEI",
+    "malaysia_10y": "IRLTLT01MYM156N",
+    "malaysia_bond_yield": "IRLTLT01MYM156N",
+    "malaysia_gdp": "NGDPRSAXDCMYQ",
+    "my_gdp": "NGDPRSAXDCMYQ",
+    "myr_usd_fred": "CCUSMA02MYM618N",
 }
 
 

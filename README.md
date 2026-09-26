@@ -223,6 +223,35 @@ the existing graceful-degradation behavior handle the rest:
   config = DEFAULT_CONFIG.copy()
   config["data_vendors"] = {**config["data_vendors"], "news_data": "yfinance"}
   ```
+- **`bnm` macro vendor** (`tradingagents/dataflows/bnm.py`): Malaysia's own
+  macro data from Bank Negara Malaysia's keyless public API — the **Overnight
+  Policy Rate** (`opr`) and the **Kuala Lumpur USD/MYR reference rate**
+  (`usd_myr`). FRED, the upstream macro vendor, is a US series library, so a
+  Bursa run asking for "the policy rate" previously got the *federal funds
+  rate* and reasoned about KLSE names through US monetary policy. This is the
+  **default `macro_data` vendor chain on this branch** (`"bnm,fred"`): BNM
+  answers Malaysian indicators, and anything it does not serve falls through to
+  FRED for the US/global backdrop. The fallthrough is free — BNM rejects a
+  non-Malaysian indicator from a local table, with no network call.
+
+  Two details worth knowing. Both BNM series are **revision-free** (an MPC
+  decision and a day's reference rate are published once, never restated), so
+  unlike FRED's revision-prone CPI/GDP they need no vintage pin — filtering to
+  the as-of date is point-in-time correct on its own. And the OPR is a **step
+  series**: BNM publishes decisions, not a daily level, so a window with no
+  decision means the rate was *unchanged*, which this vendor reports as such
+  (carrying the prevailing level forward) rather than as missing data.
+- **Malaysian FRED aliases** (`tradingagents/dataflows/fred.py`): `malaysia_cpi`,
+  `malaysia_gdp`, `malaysia_10y`, `malaysia_bond_yield`. These are OECD/IMF
+  relays rather than FRED originals, so they lag the national release and are
+  occasionally retired upstream — prefer `bnm` for the policy rate and the
+  ringgit, which come straight from Bank Negara.
+- **Market-aware macro prompting** (`get_macro_guidance` in
+  `tradingagents/agents/utils/agent_utils.py`): a `.KL` ticker steers the news
+  analyst to `opr`/`usd_myr` first, spells out that a rising USD/MYR is a
+  *weaker* ringgit, and keeps the US series available as the external backdrop
+  (US rates drive foreign flows into Bursa) without letting them stand in for
+  Malaysia's own conditions. Non-MY tickers keep the upstream US guidance.
 - **Sentiment**: intentionally unchanged. Reddit/StockTwits already degrade to
   an honest "no data" placeholder rather than fabricating discussion, and the
   sentiment analyst already flags low confidence when a source is silent —
