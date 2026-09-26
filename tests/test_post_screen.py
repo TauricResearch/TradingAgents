@@ -66,8 +66,6 @@ def test_sends_the_documented_request_and_returns_the_answers(post):
                               "model": "jev-latest", "questions": QUESTIONS}
 
 
-
-
 @pytest.mark.unit
 def test_the_base_url_follows_the_environment(post, monkeypatch):
     monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080/v1/systemone")
@@ -76,6 +74,19 @@ def test_the_base_url_follows_the_environment(post, monkeypatch):
     typesafe.system_one("s", QUESTIONS)
 
     assert post[0][0] == "http://localhost:8080/v1/systemone"
+
+
+@pytest.mark.unit
+def test_a_self_hosted_endpoint_screens_without_a_key(jev, post, monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080/v1/systemone")
+    jev["NVDA to 200"] = _post_answers(0.9)
+
+    typesafe.jev_screen("NVDA")(["NVDA to 200"])
+
+    assert post[0][0] == "http://localhost:8080/v1/systemone"
+    assert "Authorization" not in post[0][1]["headers"]
+
 
 @pytest.mark.unit
 def test_the_model_follows_the_sdk_environment(post, monkeypatch):
@@ -210,7 +221,6 @@ def test_an_injected_judge_screens_without_http(post, monkeypatch):
     assert calls == [({"instrument": "NVIDIA Corporation (NVDA)", "post": "NVDA to 200"},
                       typesafe.QUESTIONS)]
     assert post == []
-
 
 
 @pytest.mark.unit
