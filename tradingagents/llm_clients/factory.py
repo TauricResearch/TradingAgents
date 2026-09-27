@@ -34,6 +34,10 @@ def create_llm_client(
     # Native (non-OpenAI) APIs are matched first so their string check doesn't
     # import the OpenAI client. Everything else is OpenAI-compatible and routes
     # through the provider registry (single source of truth).
+    if provider_lower == "opencode-go":
+        from .opencode_go import OpenCodeGoClient
+        return OpenCodeGoClient(model, base_url, **kwargs)
+
     if provider_lower == "anthropic":
         from .anthropic_client import AnthropicClient
         return AnthropicClient(model, base_url, **kwargs)
@@ -98,6 +102,11 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         if provider in {"google", "bedrock"}:
             raise ValueError(f"llm_headers is not supported by the {provider} adapter")
         kwargs["default_headers"] = headers
+
+    if provider == "opencode-go":
+        kwargs["api"] = config.get("opencode_go_api") or "auto"
+        if config.get("openai_reasoning_effort"):
+            kwargs["reasoning_effort"] = config["openai_reasoning_effort"]
 
     if provider == "google":
         thinking_level = config.get("google_thinking_level")

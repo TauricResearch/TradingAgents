@@ -8,6 +8,7 @@ from cli.display import console
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.opencode_go import GO_BASE_URL
 
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
@@ -332,6 +333,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("GLM", "glm", "https://api.z.ai/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("OpenCode Go", "opencode-go", GO_BASE_URL),
         ("Mistral", "mistral", "https://api.mistral.ai/v1"),
         ("Kimi (Moonshot)", "kimi", "https://api.moonshot.ai/v1"),
         ("Groq", "groq", "https://api.groq.com/openai/v1"),

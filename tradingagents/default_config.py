@@ -13,6 +13,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
     "TRADINGAGENTS_LLM_BACKEND_URL":      "backend_url",
     "TRADINGAGENTS_LLM_HEADERS":          "llm_headers",
+    "TRADINGAGENTS_OPENCODE_GO_API":      "opencode_go_api",
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
@@ -91,6 +92,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Extra HTTP headers for OpenAI-compatible, Anthropic and Azure clients.
     # Accepts a dict[str, str] or a JSON object via TRADINGAGENTS_LLM_HEADERS.
     "llm_headers": None,
+    # Go routes each known model automatically; override for a new/custom model.
+    "opencode_go_api": "auto",
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
