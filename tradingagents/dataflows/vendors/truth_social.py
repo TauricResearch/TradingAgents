@@ -16,7 +16,7 @@ from datetime import datetime
 
 import requests
 
-from .date_window import coverage_gap, in_window
+from tradingagents.dataflows.date_window import coverage_gap, in_window
 
 _DEFAULT_API = "https://truthsocial.com/api/v1"
 _TRUMP_ACCOUNT_ID = "107780257626128497"

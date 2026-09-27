@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-from .date_window import coverage_gap, in_window
+from tradingagents.dataflows.date_window import coverage_gap, in_window
 
 _API = "https://api.x.com/2/tweets/search/recent"
 _RECENT_WINDOW = timedelta(days=7)

@@ -77,7 +77,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Analyst Team
 - Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
+- Sentiment Analyst: Aggregates news headlines, StockTwits, Reddit, X ticker conversation, and potentially market-moving posts from Donald Trump's official Truth Social account into a single sentiment read.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
 
@@ -174,6 +174,7 @@ export FRED_API_KEY=...            # FRED macro data (free, optional)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
 export NEWSDATA_API_KEY=...        # NewsData.io market news
+export X_BEARER_TOKEN=...           # X recent search (optional, pay-per-use)
 ```
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
@@ -190,6 +191,13 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
 ```
+
+X recent search covers the latest seven days and is capped at 30 returned posts
+per source call to control pay-per-use cost. Truth Social uses its official public
+account-status endpoint without bypassing access controls; when Truth Social's
+Cloudflare policy blocks the runtime, the report marks that source unavailable
+instead of treating it as neutral or silent. Both adapters are unit-tested; live
+validation requires X API access and network access permitted by Truth Social.
 
 NewsData.io, Alpha Vantage, and Yahoo Finance are configured by default. News
 tools query every listed vendor and return labeled provider blocks; other data
@@ -364,7 +372,7 @@ TradingAgents is LLM-driven, so two runs of the same ticker and date can differ.
 
 Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-6 family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
 
-Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
+Live data moves. News, StockTwits, Reddit, X, and Truth Social return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed; recent-only sources are date-filtered and explicitly withheld when they cannot observe the requested historical window.
 
 To reduce variation you can lower the sampling temperature. Set `temperature` in your config (or `TRADINGAGENTS_TEMPERATURE` in `.env`); lower values make models that honor it more repeatable. The current curated models are reasoning-first and largely ignore temperature, so for tighter reproducibility name a non-reasoning model in your config, or in `TRADINGAGENTS_DEEP_THINK_LLM` and `TRADINGAGENTS_QUICK_THINK_LLM`. Any model ID your provider serves is accepted, whether or not the picker lists it.
 

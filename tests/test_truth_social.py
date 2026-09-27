@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import requests
 
-from tradingagents.dataflows import truth_social
+from tradingagents.dataflows.vendors import truth_social
 
 
 class _Response:

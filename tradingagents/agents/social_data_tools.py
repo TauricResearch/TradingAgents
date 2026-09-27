@@ -4,8 +4,8 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.date_window import as_of_window
-from tradingagents.dataflows.truth_social import fetch_trump_truths
-from tradingagents.dataflows.x_social import fetch_x_posts
+from tradingagents.dataflows.vendors.truth_social import fetch_trump_truths
+from tradingagents.dataflows.vendors.x_social import fetch_x_posts
 
 
 @tool

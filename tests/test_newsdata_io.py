@@ -2,8 +2,9 @@ from datetime import datetime
 
 import pytest
 
-from tradingagents.dataflows import interface, newsdata_io
+from tradingagents.dataflows import router
 from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.vendors import newsdata_io
 
 
 def _article(title, published, *, article_id="id", sentiment=None):
@@ -20,8 +21,8 @@ def _article(title, published, *, article_id="id", sentiment=None):
 
 @pytest.mark.unit
 def test_newsdata_is_registered_for_news_tools():
-    assert interface.VENDOR_METHODS["get_news"]["newsdata"] is newsdata_io.get_news
-    assert interface.VENDOR_METHODS["get_global_news"]["newsdata"] is newsdata_io.get_global_news
+    assert router.VENDOR_METHODS["get_news"]["newsdata"] is newsdata_io.get_news
+    assert router.VENDOR_METHODS["get_global_news"]["newsdata"] is newsdata_io.get_global_news
 
 
 @pytest.mark.unit
