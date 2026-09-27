@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from cli.models import AnalystType  # noqa: E402
-from cli.utils import _llm_provider_table, provider_default_url  # noqa: E402
+from cli.prompts import _llm_provider_table, provider_default_url  # noqa: E402
 from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 from tradingagents.llm_clients.model_catalog import get_model_options  # noqa: E402
 

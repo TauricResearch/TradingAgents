@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import AgentActivityPanel, { nextHandoffJob } from './AgentActivityPanel.jsx'
+import { AGENT_DEFS, agentBySection } from './agents.js'
 
 const THEME_KEY = 'ta-theme'
 
@@ -72,9 +74,26 @@ export default function App() {
   const [runError, setRunError] = useState(null)
   const [atBottom, setAtBottom] = useState(true)
   const [checking, setChecking] = useState(false)
+  const [activity, setActivity] = useState([])
+  const [walks, setWalks] = useState([])
+  const [filterId, setFilterId] = useState(null)
 
   const chatRef = useRef(null)
   const wsRef = useRef(null)
+  const activityId = useRef(0)
+  const walkId = useRef(0)
+  const walkLane = useRef(0)
+  const seenSections = useRef(new Set())
+  const lastStatus = useRef('')
+
+  const pushActivity = useCallback((row) => {
+    const id = ++activityId.current
+    setActivity((prev) => [{ id, ts: Date.now(), ...row }, ...prev])
+  }, [])
+
+  const onWalkDone = useCallback((id) => {
+    setWalks((prev) => prev.filter((w) => w.id !== id))
+  }, [])
 
   /* ---------- theme ---------- */
 
@@ -294,6 +313,17 @@ export default function App() {
     setSections([])
     setRunError(null)
     setAtBottom(true)
+    setActivity([])
+    setWalks([])
+    setFilterId(null)
+    seenSections.current = new Set()
+    lastStatus.current = ''
+    pushActivity({
+      title: 'Team assembled',
+      agentId: null,
+      status: 'processing',
+      detail: `${finalSel.ticker} · ${finalSel.analysis_date}`,
+    })
     say(
       'assistant',
       `Starting analysis of **${finalSel.ticker}** as of **${finalSel.analysis_date}**. Reports appear below as each agent finishes.`,
@@ -307,9 +337,46 @@ export default function App() {
 
     ws.onmessage = (ev) => {
       const m = JSON.parse(ev.data)
-      if (m.type === 'status') setStatusMsg(m.message)
-      else if (m.type === 'section') {
+      if (m.type === 'status') {
+        setStatusMsg(m.message)
+        if (m.message && m.message !== lastStatus.current) {
+          lastStatus.current = m.message
+          pushActivity({
+            title: m.message,
+            agentId: null,
+            status: 'processing',
+          })
+        }
+      } else if (m.type === 'section') {
         setStatusMsg('')
+        const agent = agentBySection(m.key)
+        const first = !seenSections.current.has(m.key)
+        seenSections.current.add(m.key)
+        pushActivity({
+          title: first ? `${agent?.label || m.label} finished` : `${m.label} revised`,
+          agentId: agent?.id || null,
+          section: m.key,
+          status: 'done',
+          detail: typeof m.content === 'string' ? m.content.slice(0, 480) : '',
+        })
+        if (first) {
+          const job = nextHandoffJob(
+            m.key,
+            finalSel.analysts,
+            (walkLane.current++ % 3) * 18 - 18,
+          )
+          if (job) {
+            const hid = ++walkId.current
+            setWalks((prev) => [...prev, { ...job, id: hid }])
+            const dest = AGENT_DEFS.find((a) => a.id === job.to)
+            pushActivity({
+              title: `${agent?.short || 'Agent'} walking to ${dest?.short || 'next station'}`,
+              agentId: agent?.id || null,
+              section: m.key,
+              status: 'walking',
+            })
+          }
+        }
         setSections((prev) => {
           const i = prev.findIndex((s) => s.key === m.key)
           if (i === -1) return [...prev, { key: m.key, label: m.label, content: m.content }]
@@ -321,10 +388,17 @@ export default function App() {
         setRunError({ message: m.message, detail: m.detail })
         setStatusMsg('')
         setRunning(false)
+        pushActivity({ title: 'Run failed', status: 'idle', detail: m.message })
       } else if (m.type === 'done') {
         setStatusMsg('')
         setRunning(false)
         setStep('finished')
+        pushActivity({
+          title: 'Analysis complete',
+          agentId: 'portfolio',
+          section: 'final_trade_decision',
+          status: 'done',
+        })
         say('assistant', 'Analysis complete. The full decision is in the report above.')
       }
     }
@@ -349,6 +423,11 @@ export default function App() {
     setStep('ticker')
     setAnalystPick(opts.defaults.analysts)
     setAtBottom(true)
+    setActivity([])
+    setWalks([])
+    setFilterId(null)
+    seenSections.current = new Set()
+    lastStatus.current = ''
   }
 
   /* ---------- composer ---------- */
@@ -413,28 +492,17 @@ export default function App() {
           TradingAgents
         </div>
 
-        <div>
-          <div className="rail-title">Reports</div>
-          <div className="rail">
-            {opts.sections.map((s) => {
-              const done = doneKeys.has(s.key)
-              const active = running && !done && doneKeys.size >= 0
-              return (
-                <div
-                  key={s.key}
-                  className={`rail-item${done ? ' done' : ''}${
-                    !done && active && s.key === nextKey(opts.sections, doneKeys)
-                      ? ' active'
-                      : ''
-                  }`}
-                >
-                  <span className="rail-dot" />
-                  {s.label}
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <AgentActivityPanel
+          selectedAnalysts={sel.analysts || opts.defaults.analysts}
+          sections={sections}
+          running={running}
+          statusMsg={statusMsg}
+          activity={activity}
+          walks={walks}
+          onWalkDone={onWalkDone}
+          filterId={filterId}
+          onFilter={setFilterId}
+        />
 
         <div>
           <div className="progress">
@@ -688,8 +756,3 @@ export default function App() {
   )
 }
 
-/* First section not yet delivered — drives the active marker in the rail. */
-function nextKey(sections, doneKeys) {
-  const s = sections.find((x) => !doneKeys.has(x.key))
-  return s ? s.key : null
-}
