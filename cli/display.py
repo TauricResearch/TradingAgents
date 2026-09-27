@@ -11,7 +11,6 @@ from rich.layout import Layout
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.rule import Rule
-from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
@@ -60,15 +59,17 @@ class MessageBuffer:
         self.agent_status = {}
         self.report_sections = {}
         self.selected_analysts = []
+        self.run_context = {}
         self._processed_message_ids = set()
 
-    def init_for_analysis(self, selected_analysts):
+    def init_for_analysis(self, selected_analysts, context=None):
         """Initialize agent status and report sections based on selected analysts.
 
         Args:
             selected_analysts: List of analyst type strings (e.g., ["market", "news"])
         """
         self.selected_analysts = [a.lower() for a in selected_analysts]
+        self.run_context = context or {}
 
         self.agent_status = {}
 
@@ -162,10 +163,10 @@ def create_layout():
     layout.split_column(
         Layout(name="header", size=3),
         Layout(name="main"),
-        Layout(name="footer", size=3),
+        Layout(name="footer", size=4),
     )
     layout["main"].split_column(
-        Layout(name="upper", ratio=3), Layout(name="analysis", ratio=5)
+        Layout(name="upper", ratio=2), Layout(name="analysis", ratio=3)
     )
     layout["upper"].split_row(
         Layout(name="progress", ratio=2), Layout(name="messages", ratio=3)
@@ -181,33 +182,37 @@ def format_tokens(n):
 
 
 def update_display(layout, spinner_text=None, stats_handler=None, start_time=None):
-    # Header with welcome message
+    context = message_buffer.run_context
+    brand = Text.assemble(
+        ("TAURIC", "bold bright_cyan"),
+        ("  /  ", "dim"),
+        ("TRADINGAGENTS", "bold white"),
+    )
+    run_details = Text("● LIVE", style="bold bright_green")
+    for key in ("ticker", "analysis_date", "provider"):
+        value = context.get(key)
+        if value:
+            run_details.append("  /  ", style="dim")
+            run_details.append(
+                str(value).upper() if key == "provider" else str(value),
+                style="bold",
+            )
+
+    header = Table.grid(expand=True)
+    header.add_column(ratio=1)
+    header.add_column(justify="right", no_wrap=True)
+    header.add_row(brand, run_details)
     layout["header"].update(
         Panel(
-            "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
-            "[dim]© [Tauric Research](https://github.com/TauricResearch)[/dim]",
-            title="Welcome to TradingAgents",
-            border_style="green",
-            padding=(1, 2),
+            header,
+            box=box.HEAVY,
+            border_style="bright_blue",
+            padding=(0, 1),
             expand=True,
         )
     )
 
-    # Progress panel showing agent status
-    progress_table = Table(
-        show_header=True,
-        header_style="bold magenta",
-        show_footer=False,
-        box=box.SIMPLE_HEAD,  # Use simple header with horizontal lines
-        title=None,  # Remove the redundant Progress title
-        padding=(0, 2),  # Add horizontal padding
-        expand=True,  # Make table expand to fill available space
-    )
-    progress_table.add_column("Team", style="cyan", justify="center", width=20)
-    progress_table.add_column("Agent", style="green", justify="center", width=20)
-    progress_table.add_column("Status", style="yellow", justify="center", width=20)
-
-    # Group agents by team - filter to only include agents in agent_status
+    # Summarize each team so the workflow remains readable in a narrow terminal.
     all_teams = {
         "Analyst Team": [
             "Market Analyst",
@@ -227,60 +232,35 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         if active_agents:
             teams[team] = active_agents
 
+    progress_table = Table.grid(expand=True, padding=(0, 1))
+    progress_table.add_column(ratio=1)
+    progress_table.add_column(justify="right", no_wrap=True)
     for team, agents in teams.items():
-        first_agent = agents[0]
-        status = message_buffer.agent_status.get(first_agent, "pending")
-        if status == "in_progress":
-            spinner = Spinner(
-                "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-            )
-            status_cell = spinner
+        statuses = [message_buffer.agent_status.get(agent, "pending") for agent in agents]
+        completed = statuses.count("completed")
+        if "in_progress" in statuses:
+            status_cell = Text("● ACTIVE", style="bold bright_cyan")
+        elif completed == len(agents):
+            status_cell = Text("✓ DONE", style="bold green")
+        elif completed:
+            status_cell = Text(f"{completed}/{len(agents)} DONE", style="dim")
         else:
-            status_color = {
-                "pending": "yellow",
-                "completed": "green",
-                "error": "red",
-            }.get(status, "white")
-            status_cell = f"[{status_color}]{status}[/{status_color}]"
-        progress_table.add_row(team, first_agent, status_cell)
-
-        for agent in agents[1:]:
-            status = message_buffer.agent_status.get(agent, "pending")
-            if status == "in_progress":
-                spinner = Spinner(
-                    "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-                )
-                status_cell = spinner
-            else:
-                status_color = {
-                    "pending": "yellow",
-                    "completed": "green",
-                    "error": "red",
-                }.get(status, "white")
-                status_cell = f"[{status_color}]{status}[/{status_color}]"
-            progress_table.add_row("", agent, status_cell)
-
-        progress_table.add_row("─" * 20, "─" * 20, "─" * 20, style="dim")
+            status_cell = Text("○ QUEUED", style="dim")
+        progress_table.add_row(Text(team, style="bold white"), status_cell)
 
     layout["progress"].update(
-        Panel(progress_table, title="Progress", border_style="cyan", padding=(1, 2))
+        Panel(
+            progress_table,
+            title="[bold]WORKFLOW[/bold]",
+            box=box.ROUNDED,
+            border_style="bright_blue",
+            padding=(0, 1),
+        )
     )
 
-    # Messages panel showing recent messages and tool calls
-    messages_table = Table(
-        show_header=True,
-        header_style="bold magenta",
-        show_footer=False,
-        expand=True,  # Make table expand to fill available space
-        box=box.MINIMAL,  # Use minimal box style for a lighter look
-        show_lines=True,  # Keep horizontal lines
-        padding=(0, 1),  # Add some padding between columns
-    )
-    messages_table.add_column("Time", style="cyan", width=8, justify="center")
-    messages_table.add_column("Type", style="green", width=10, justify="center")
-    messages_table.add_column(
-        "Content", style="white", no_wrap=False, ratio=1
-    )  # Make content column expand
+    messages_table = Table.grid(expand=True, padding=(0, 1))
+    messages_table.add_column(style="dim cyan", width=8, no_wrap=True)
+    messages_table.add_column(style="white", ratio=1)
 
     # Combine tool calls and messages
     all_messages = []
@@ -298,20 +278,30 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Sort by timestamp descending (newest first)
     all_messages.sort(key=lambda x: x[0], reverse=True)
 
-    max_messages = 12
+    max_messages = 8
 
     recent_messages = all_messages[:max_messages]
 
     for timestamp, msg_type, content in recent_messages:
         wrapped_content = Text(content, overflow="fold")
-        messages_table.add_row(timestamp, msg_type, wrapped_content)
+        type_style = {
+            "System": "bold bright_blue",
+            "Tool": "bright_magenta",
+            "AI": "bright_cyan",
+            "Human": "bright_yellow",
+        }.get(msg_type, "dim")
+        messages_table.add_row(
+            timestamp,
+            Text.assemble((f"{msg_type.upper()}  ", type_style), wrapped_content),
+        )
 
     layout["messages"].update(
         Panel(
             messages_table,
-            title="Messages & Tools",
-            border_style="blue",
-            padding=(1, 2),
+            title="[bold]ACTIVITY[/bold]",
+            box=box.ROUNDED,
+            border_style="bright_magenta",
+            padding=(0, 1),
         )
     )
 
@@ -320,18 +310,20 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         layout["analysis"].update(
             Panel(
                 Markdown(message_buffer.current_report),
-                title="Current Report",
-                border_style="green",
-                padding=(1, 2),
+                title="[bold]LATEST REPORT[/bold]",
+                box=box.ROUNDED,
+                border_style="bright_green",
+                padding=(0, 1),
             )
         )
     else:
         layout["analysis"].update(
             Panel(
-                "[italic]Waiting for analysis report...[/italic]",
-                title="Current Report",
-                border_style="green",
-                padding=(1, 2),
+                "[dim]Waiting for the first report...[/dim]",
+                title="[bold]LATEST REPORT[/bold]",
+                box=box.ROUNDED,
+                border_style="bright_green",
+                padding=(0, 1),
             )
         )
 
@@ -346,34 +338,48 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     reports_completed = message_buffer.get_completed_reports_count()
     reports_total = len(message_buffer.report_sections)
 
-    stats_parts = [f"Agents: {agents_completed}/{agents_total}"]
+    stats_parts = [("AGENTS", f"{agents_completed:02d}/{agents_total:02d}")]
 
     # LLM and tool stats from callback handler
     if stats_handler:
         stats = stats_handler.get_stats()
-        stats_parts.append(f"LLM: {stats['llm_calls']}")
-        stats_parts.append(f"Tools: {stats['tool_calls']}")
+        stats_parts.append(("LLM", str(stats["llm_calls"])))
+        stats_parts.append(("TOOLS", str(stats["tool_calls"])))
 
         # Token display with graceful fallback
         if stats["tokens_in"] > 0 or stats["tokens_out"] > 0:
             tokens_str = f"Tokens: {format_tokens(stats['tokens_in'])}\u2191 {format_tokens(stats['tokens_out'])}\u2193"
         else:
             tokens_str = "Tokens: --"
-        stats_parts.append(tokens_str)
+        stats_parts.append(("TOKENS", tokens_str.removeprefix("Tokens: ")))
 
-    stats_parts.append(f"Reports: {reports_completed}/{reports_total}")
+    stats_parts.append(("REPORTS", f"{reports_completed}/{reports_total}"))
 
     # Elapsed time
     if start_time:
         elapsed = time.time() - start_time
         elapsed_str = f"\u23f1 {int(elapsed // 60):02d}:{int(elapsed % 60):02d}"
-        stats_parts.append(elapsed_str)
+        stats_parts.append(("ELAPSED", elapsed_str.removeprefix("⏱ ")))
 
-    stats_table = Table(show_header=False, box=None, padding=(0, 2), expand=True)
-    stats_table.add_column("Stats", justify="center")
-    stats_table.add_row(" | ".join(stats_parts))
+    stats_table = Table.grid(expand=True, padding=(0, 1))
+    for _ in range(3):
+        stats_table.add_column(ratio=1, justify="center", no_wrap=True)
+    for index in range(0, len(stats_parts), 3):
+        row = [
+            Text.assemble((f"{label}  ", "dim"), (value, "bold white"))
+            for label, value in stats_parts[index:index + 3]
+        ]
+        row.extend(Text("") for _ in range(3 - len(row)))
+        stats_table.add_row(*row)
 
-    layout["footer"].update(Panel(stats_table, border_style="grey50"))
+    layout["footer"].update(
+        Panel(
+            stats_table,
+            box=box.ROUNDED,
+            border_style="bright_black",
+            padding=(0, 1),
+        )
+    )
 
 
 def display_complete_report(final_state):
