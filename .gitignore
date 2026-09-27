@@ -225,3 +225,12 @@ reports/
 # Local tooling output
 graphify-out/
 .claude/
+
+# Secrets: every .env variant except the committed templates
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+secrets.json
+credentials.json
