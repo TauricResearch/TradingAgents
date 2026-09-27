@@ -157,6 +157,114 @@ class MessageBuffer:
 message_buffer = MessageBuffer()
 
 
+class AgentActivityVisualizer:
+    """Render fixed agent stations and animate one shared robot between them."""
+
+    AGENT_ORDER = [
+        "Market Analyst", "Sentiment Analyst", "News Analyst", "Fundamentals Analyst",
+        "Bull Researcher", "Bear Researcher", "Research Manager", "Trader",
+        "Aggressive Analyst", "Neutral Analyst", "Conservative Analyst", "Portfolio Manager",
+    ]
+
+    TEAM_BY_AGENT = {
+        "Market Analyst": "Analyst Team", "Sentiment Analyst": "Analyst Team",
+        "News Analyst": "Analyst Team", "Fundamentals Analyst": "Analyst Team",
+        "Bull Researcher": "Research Team", "Bear Researcher": "Research Team",
+        "Research Manager": "Research Team", "Trader": "Trading Team",
+        "Aggressive Analyst": "Risk Management", "Neutral Analyst": "Risk Management",
+        "Conservative Analyst": "Risk Management", "Portfolio Manager": "Portfolio Management",
+    }
+
+    STATUS_STYLE = {
+        "pending": ("dim", "○"), "in_progress": ("cyan", "●"),
+        "completed": ("green", "✓"), "error": ("red", "×"),
+    }
+
+    # Compact terminal mascot inspired by the supplied white robot reference.
+    ROBOT_FACE = "╭─╮\n│●●│\n╰┬╯"
+
+    def __init__(self):
+        self._last_active = None
+        self._transition_from = None
+        self._transition_to = None
+        self._transition_started = 0.0
+        self._transition_duration = 1.0
+
+    def _begin_transition(self, source, destination):
+        if source != destination:
+            self._transition_from = source
+            self._transition_to = destination
+            self._transition_started = monotonic()
+
+    def observe(self, statuses):
+        active = next(
+            (agent for agent in self.AGENT_ORDER if statuses.get(agent) == "in_progress"),
+            None,
+        )
+        if active != self._last_active:
+            if self._last_active is not None and active is not None:
+                self._begin_transition(self._last_active, active)
+            self._last_active = active
+
+    def render(self, statuses):
+        self.observe(statuses)
+        visible_agents = [a for a in self.AGENT_ORDER if a in statuses]
+
+        table = Table(show_header=False, box=None, expand=True, padding=(0, 0))
+        table.add_column("Station", width=3, justify="center")
+        table.add_column("Track", width=7, justify="center")
+        table.add_column("Agent", ratio=1)
+        table.add_column("State", width=12, justify="right")
+
+        from_index = visible_agents.index(self._transition_from) if self._transition_from in visible_agents else None
+        to_index = visible_agents.index(self._transition_to) if self._transition_to in visible_agents else None
+
+        moving = False
+        robot_index = None
+        if from_index is not None and to_index is not None:
+            progress = min(1.0, (monotonic() - self._transition_started) / self._transition_duration)
+            moving = progress < 1.0
+            robot_index = round(from_index + (to_index - from_index) * progress)
+            if not moving:
+                self._transition_from = None
+                self._transition_to = None
+
+        for index, agent in enumerate(visible_agents):
+            status = statuses.get(agent, "pending")
+            style, marker = self.STATUS_STYLE.get(status, ("white", "?"))
+            state_label = status.replace("_", " ").upper()
+
+            if moving and index == robot_index:
+                table.add_row(
+                    Text(marker, style=style),
+                    Text("◀", style="bold cyan"),
+                    Text(f"🤖  {agent}", style="bold cyan"),
+                    Text("SENDING", style="bold cyan"),
+                )
+            else:
+                table.add_row(
+                    Text(marker, style=style),
+                    Text("│", style="dim"),
+                    Text(agent, style="bold" if status == "in_progress" else "white"),
+                    Text(state_label, style=style),
+                )
+
+        if moving:
+            table.caption = (
+                f"[cyan]Shared robot traveling:[/cyan] "
+                f"{self._transition_from} [dim]→[/dim] {self._transition_to}"
+            )
+        elif self._last_active:
+            table.caption = f"[dim]Robot stationed at[/dim] [bold cyan]{self._last_active}[/bold cyan]"
+        else:
+            table.caption = "[dim]Waiting for the first AI agent to start...[/dim]"
+        return table
+
+
+activity_visualizer = AgentActivityVisualizer()
+
+
+
 def create_layout():
     layout = Layout()
     layout.split_column(
@@ -169,6 +277,10 @@ def create_layout():
     )
     layout["upper"].split_row(
         Layout(name="progress", ratio=2), Layout(name="messages", ratio=3)
+    )
+    layout["progress"].split_column(
+        Layout(name="activity", ratio=3),
+        Layout(name="status", ratio=4),
     )
     return layout
 
@@ -193,77 +305,43 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         )
     )
 
-    # Progress panel showing agent status
-    progress_table = Table(
+    # Shared-robot activity visualization.
+    activity_visualizer.observe(message_buffer.agent_status)
+    layout["activity"].update(
+        Panel(
+            activity_visualizer.render(message_buffer.agent_status),
+            title="AI Agent Activity",
+            border_style="cyan",
+            padding=(0, 1),
+        )
+    )
+
+    # Compact data-dense status table below the visualization.
+    status_table = Table(
         show_header=True,
         header_style="bold magenta",
-        show_footer=False,
-        box=box.SIMPLE_HEAD,  # Use simple header with horizontal lines
-        title=None,  # Remove the redundant Progress title
-        padding=(0, 2),  # Add horizontal padding
-        expand=True,  # Make table expand to fill available space
+        box=box.MINIMAL,
+        expand=True,
+        padding=(0, 1),
     )
-    progress_table.add_column("Team", style="cyan", justify="center", width=20)
-    progress_table.add_column("Agent", style="green", justify="center", width=20)
-    progress_table.add_column("Status", style="yellow", justify="center", width=20)
+    status_table.add_column("Agent", style="white", ratio=2)
+    status_table.add_column("Status", justify="center", width=13)
+    status_table.add_column("Team", style="dim", ratio=2)
 
-    # Group agents by team - filter to only include agents in agent_status
-    all_teams = {
-        "Analyst Team": [
-            "Market Analyst",
-            "Sentiment Analyst",
-            "News Analyst",
-            "Fundamentals Analyst",
-        ],
-        "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
-        "Trading Team": ["Trader"],
-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
-        "Portfolio Management": ["Portfolio Manager"],
-    }
+    for agent in [a for a in activity_visualizer.AGENT_ORDER if a in message_buffer.agent_status]:
+        status = message_buffer.agent_status.get(agent, "pending")
+        status_color = {
+            "pending": "yellow", "in_progress": "cyan",
+            "completed": "green", "error": "red",
+        }.get(status, "white")
+        status_table.add_row(
+            f"🤖 {agent}",
+            f"[{status_color}]{status.replace('_', ' ')}[/{status_color}]",
+            activity_visualizer.TEAM_BY_AGENT.get(agent, ""),
+        )
 
-    teams = {}
-    for team, agents in all_teams.items():
-        active_agents = [a for a in agents if a in message_buffer.agent_status]
-        if active_agents:
-            teams[team] = active_agents
-
-    for team, agents in teams.items():
-        first_agent = agents[0]
-        status = message_buffer.agent_status.get(first_agent, "pending")
-        if status == "in_progress":
-            spinner = Spinner(
-                "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-            )
-            status_cell = spinner
-        else:
-            status_color = {
-                "pending": "yellow",
-                "completed": "green",
-                "error": "red",
-            }.get(status, "white")
-            status_cell = f"[{status_color}]{status}[/{status_color}]"
-        progress_table.add_row(team, first_agent, status_cell)
-
-        for agent in agents[1:]:
-            status = message_buffer.agent_status.get(agent, "pending")
-            if status == "in_progress":
-                spinner = Spinner(
-                    "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-                )
-                status_cell = spinner
-            else:
-                status_color = {
-                    "pending": "yellow",
-                    "completed": "green",
-                    "error": "red",
-                }.get(status, "white")
-                status_cell = f"[{status_color}]{status}[/{status_color}]"
-            progress_table.add_row("", agent, status_cell)
-
-        progress_table.add_row("─" * 20, "─" * 20, "─" * 20, style="dim")
-
-    layout["progress"].update(
-        Panel(progress_table, title="Progress", border_style="cyan", padding=(1, 2))
+    layout["status"].update(
+        Panel(status_table, title="Agent Status", border_style="blue", padding=(0, 1))
     )
 
     # Messages panel showing recent messages and tool calls
