@@ -14,7 +14,6 @@ from rich.rule import Rule
 from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
-from rich.live import Live
 
 from tradingagents.graph.analyst_execution import (
     ANALYST_NODE_SPECS,
@@ -159,21 +158,36 @@ message_buffer = MessageBuffer()
 
 
 class AgentActivityVisualizer:
-    """Render fixed agent stations and animate one shared robot between them."""
+    """Show live agent stations and visibly move one shared robot between them."""
 
     AGENT_ORDER = [
-        "Market Analyst", "Sentiment Analyst", "News Analyst", "Fundamentals Analyst",
-        "Bull Researcher", "Bear Researcher", "Research Manager", "Trader",
-        "Aggressive Analyst", "Neutral Analyst", "Conservative Analyst", "Portfolio Manager",
+        "Market Analyst",
+        "Sentiment Analyst",
+        "News Analyst",
+        "Fundamentals Analyst",
+        "Bull Researcher",
+        "Bear Researcher",
+        "Research Manager",
+        "Trader",
+        "Aggressive Analyst",
+        "Neutral Analyst",
+        "Conservative Analyst",
+        "Portfolio Manager",
     ]
 
     TEAM_BY_AGENT = {
-        "Market Analyst": "Analyst Team", "Sentiment Analyst": "Analyst Team",
-        "News Analyst": "Analyst Team", "Fundamentals Analyst": "Analyst Team",
-        "Bull Researcher": "Research Team", "Bear Researcher": "Research Team",
-        "Research Manager": "Research Team", "Trader": "Trading Team",
-        "Aggressive Analyst": "Risk Management", "Neutral Analyst": "Risk Management",
-        "Conservative Analyst": "Risk Management", "Portfolio Manager": "Portfolio Management",
+        "Market Analyst": "Analyst Team",
+        "Sentiment Analyst": "Analyst Team",
+        "News Analyst": "Analyst Team",
+        "Fundamentals Analyst": "Analyst Team",
+        "Bull Researcher": "Research Team",
+        "Bear Researcher": "Research Team",
+        "Research Manager": "Research Team",
+        "Trader": "Trading Team",
+        "Aggressive Analyst": "Risk Management",
+        "Neutral Analyst": "Risk Management",
+        "Conservative Analyst": "Risk Management",
+        "Portfolio Manager": "Portfolio Management",
     }
 
     def __init__(self):
@@ -181,13 +195,14 @@ class AgentActivityVisualizer:
         self._source = None
         self._destination = None
         self._started = 0.0
-        self._duration = 1.2
+        self._duration = 1.4
 
     def observe(self, statuses):
         active = next(
             (agent for agent in self.AGENT_ORDER if statuses.get(agent) == "in_progress"),
             None,
         )
+
         if active != self._last_active:
             if self._last_active is not None and active is not None:
                 self._source = self._last_active
@@ -196,86 +211,146 @@ class AgentActivityVisualizer:
             self._last_active = active
 
     def _progress(self):
-        if self._source is None or self._destination is None:
+        if not self._source or not self._destination:
             return 1.0
         return min(1.0, (monotonic() - self._started) / self._duration)
 
     @staticmethod
-    def _robot_text():
-        # Terminal representation of the supplied mascot: white rounded shell,
-        # dark face, cyan-looking eyes while preserving portability in Rich.
-        return Text("╭────╮\n│ ●● │\n╰─┬──╯", style="bold white")
+    def _robot():
+        """Small terminal mascot matching the reference's rounded white robot."""
+        line = Text()
+        line.append("╭", style="bold white")
+        line.append("━━", style="bold white")
+        line.append("╮", style="bold white")
+        line.append(" ")
+        line.append("▣", style="bold cyan")
+        line.append("▣", style="bold cyan")
+        return line
 
-    def render(self, statuses):
-        self.observe(statuses)
-        visible = [a for a in self.AGENT_ORDER if a in statuses]
+    def _travel_panel(self, source, destination, progress):
+        width = 42
+        start_x = 2
+        end_x = width - 2
+        x = round(start_x + (end_x - start_x) * progress)
 
+        track = [" "] * width
+        for i in range(start_x, end_x + 1):
+            track[i] = "─"
+        track[start_x] = "●"
+        track[end_x] = "●"
+
+        frame = Text("".join(track), style="dim")
+        frame.stylize("bold cyan", x, min(width, x + 1))
+
+        robot_line = Text(" " * x)
+        robot_line.append("◖", style="bold white")
+        robot_line.append("●", style="bold cyan")
+        robot_line.append("●", style="bold cyan")
+        robot_line.append("◗", style="bold white")
+
+        labels = Text()
+        labels.append(f"{source}", style="bold white")
+        labels.append(" " * max(1, width - len(source) - len(destination)))
+        labels.append(f"{destination}", style="bold white")
+
+        body = Table.grid(padding=(0, 0))
+        body.add_row(robot_line)
+        body.add_row(frame)
+        body.add_row(labels)
+
+        return Panel(
+            body,
+            title="[bold cyan]Robot in transit[/bold cyan]",
+            subtitle=(
+                f"[cyan]{source}[/cyan]  →  [cyan]{destination}[/cyan]  "
+                "[dim]carrying workflow context[/dim]"
+            ),
+            border_style="cyan",
+            padding=(0, 1),
+        )
+
+    def _station_table(self, statuses, progress):
         table = Table(show_header=False, box=None, expand=True, padding=(0, 0))
-        table.add_column("Station", width=8, justify="center")
+        table.add_column("Station", width=3, justify="center")
         table.add_column("Agent", ratio=1)
-        table.add_column("Action", width=16, justify="center")
-        table.add_column("Status", width=13, justify="right")
+        table.add_column("Action", width=12, justify="center")
+        table.add_column("Status", width=12, justify="right")
 
-        source_index = visible.index(self._source) if self._source in visible else None
-        destination_index = visible.index(self._destination) if self._destination in visible else None
-        progress = self._progress()
-        moving = source_index is not None and destination_index is not None and progress < 1.0
-
-        robot_index = None
-        if moving:
-            robot_index = round(source_index + (destination_index - source_index) * progress)
-
-        for index, agent in enumerate(visible):
+        moving = self._source and self._destination and progress < 1.0
+        for agent in [a for a in self.AGENT_ORDER if a in statuses]:
             status = statuses.get(agent, "pending")
-            status_style = {
+            style = {
                 "pending": "dim",
                 "in_progress": "bold cyan",
                 "completed": "green",
                 "error": "red",
             }.get(status, "white")
 
-            if moving and index == robot_index:
-                station = self._robot_text()
-                action = "SENDING"
-                state = "● IN TRANSIT"
-            elif moving and index == destination_index:
-                station = Text("◉", style="bold cyan")
+            if moving and agent == self._destination:
                 action = "RECEIVING"
-                state = "●"
+                marker = "◉"
+            elif status == "in_progress":
+                action = "PROCESSING"
+                marker = "●"
+            elif status == "completed":
+                action = "COMPLETED"
+                marker = "✓"
+            elif status == "error":
+                action = "ERROR"
+                marker = "×"
             else:
-                station = Text(
-                    "●" if status == "in_progress" else ("✓" if status == "completed" else "○"),
-                    style=status_style,
-                )
-                action = (
-                    "PROCESSING" if status == "in_progress"
-                    else ("COMPLETED" if status == "completed" else "WAITING")
-                )
-                state = status.replace("_", " ").upper()
+                action = "WAITING"
+                marker = "○"
 
             table.add_row(
-                station,
+                Text(marker, style=style),
                 Text(agent, style="bold white" if status == "in_progress" else "white"),
-                Text(action, style=status_style if not moving else "bold cyan"),
-                Text(state, style=status_style),
+                Text(action, style="bold cyan" if moving and agent == self._destination else style),
+                Text(status.replace("_", " ").upper(), style=style),
             )
+        return table
+
+    def render(self, statuses):
+        self.observe(statuses)
+        progress = self._progress()
+        moving = self._source and self._destination and progress < 1.0
 
         if moving:
-            caption = (
-                f"[bold cyan]ROBOT IN TRANSIT[/bold cyan]  "
-                f"{self._source} [cyan]→[/cyan] {self._destination}  "
-                f"[dim]shared AI agent carries the workflow payload[/dim]"
-            )
+            activity = self._travel_panel(self._source, self._destination, progress)
         elif self._last_active:
-            caption = (
-                f"[dim]Robot stationed at[/dim] "
-                f"[bold cyan]{self._last_active}[/bold cyan]  "
-                f"[dim]processing live workflow[/dim]"
+            station = Text()
+            station.append("╭", style="bold white")
+            station.append("━━", style="bold white")
+            station.append("╮", style="bold white")
+            station.append("  ")
+            station.append("●", style="bold cyan")
+            station.append("●", style="bold cyan")
+            activity = Panel(
+                station,
+                title="[bold cyan]AI Agent Activity[/bold cyan]",
+                subtitle=(
+                    f"[dim]Shared robot stationed at[/dim] "
+                    f"[bold cyan]{self._last_active}[/bold cyan]"
+                ),
+                border_style="cyan",
             )
         else:
-            caption = "[dim]Waiting for the first AI agent to start...[/dim]"
+            activity = Panel(
+                "[dim]Waiting for the first AI agent to start...[/dim]",
+                title="[bold cyan]AI Agent Activity[/bold cyan]",
+                border_style="cyan",
+            )
 
-        return Panel(table, title="AI Agent Activity", subtitle=caption, border_style="cyan")
+        combined = Table.grid(expand=True)
+        combined.add_row(activity)
+        combined.add_row(self._station_table(statuses, progress))
+
+        # Clear the completed transition once its final frame has rendered.
+        if self._source and self._destination and progress >= 1.0:
+            self._source = None
+            self._destination = None
+
+        return combined
 
 
 activity_visualizer = AgentActivityVisualizer()
