@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from tradingagents.agents import tools
+from tradingagents.agents import social_data_tools, tools
 from tradingagents.dataflows.date_window import as_of, as_of_window
 
 TRADE_DATE = "2026-08-14"
@@ -59,6 +59,8 @@ DATED_TOOLS = [
     tools.get_indicators,
     tools.get_macro_indicators,
     tools.get_verified_market_snapshot,
+    social_data_tools.get_x_posts,
+    social_data_tools.get_trump_truths,
 ]
 
 
