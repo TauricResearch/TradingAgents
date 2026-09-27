@@ -7,7 +7,18 @@ and never serves data past it, whatever date the model asks for.
 from typing import Annotated
 
 from langchain_core.tools import tool
-from langgraph.prebuilt import InjectedState
+
+try:
+    from langgraph.prebuilt import InjectedState
+except ImportError:  # pragma: no cover - compatibility for older LangGraph installs
+    try:
+        from langgraph.prebuilt.tool_node import InjectedState
+    except ImportError:  # pragma: no cover - final fallback for tool-arg injection
+        from langchain_core.tools.base import InjectedToolArg
+
+        class InjectedState(InjectedToolArg):
+            def __init__(self, field: str | None = None):
+                self.field = field
 
 from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.router import route_to_vendor
