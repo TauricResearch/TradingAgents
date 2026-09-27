@@ -191,9 +191,11 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
-NewsData.io is available for ticker and global market news. Add
-`NEWSDATA_API_KEY` to `.env`. The adapter uses the Market endpoint's ticker
-query for company news and requests only one page per tool call to keep
+NewsData.io, Alpha Vantage, and Yahoo Finance are configured by default. News
+tools query every listed vendor and return labeled provider blocks; other data
+categories retain ordered fallback behavior. Add `NEWSDATA_API_KEY` to `.env`.
+The adapter uses the Market endpoint's ticker query for company news and requests
+only one page per tool call to keep
 API-credit use bounded. Free plans serve the latest 48 hours; every result is
 filtered against the analysis date window and partial coverage is labeled
 before it reaches an agent.

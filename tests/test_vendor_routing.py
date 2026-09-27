@@ -119,5 +119,62 @@ class VendorRoutingTests(unittest.TestCase):
             router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
 
 
+    def test_news_queries_every_configured_vendor(self):
+        set_config({"data_vendors": {"news_data": "one,two,three"}})
+        calls = []
+
+        def source(name):
+            def fetch(*args, **kwargs):
+                calls.append(name)
+                return f"{name.upper()} NEWS"
+            return fetch
+
+        with self._route_method(
+            "get_news",
+            {"one": source("one"), "two": source("two"), "three": source("three")},
+        ):
+            result = router.route_to_vendor(
+                "get_news", "AAPL", "2026-01-01", "2026-01-10"
+            )
+
+        self.assertEqual(calls, ["one", "two", "three"])
+        self.assertIn("All 3 successful configured provider(s) were queried", result)
+        for vendor in calls:
+            self.assertIn(f"## Provider: `{vendor}`", result)
+            self.assertIn(f"{vendor.upper()} NEWS", result)
+        self.assertLess(result.index("`one`"), result.index("`two`"))
+        self.assertLess(result.index("`two`"), result.index("`three`"))
+
+    def test_global_news_aggregates_partial_success_and_reports_failure(self):
+        from tradingagents.dataflows.errors import VendorRateLimitError
+
+        set_config({"data_vendors": {"news_data": "down,working"}})
+
+        def down(*args, **kwargs):
+            raise VendorRateLimitError("quota")
+
+        with self._route_method(
+            "get_global_news", {"down": down, "working": lambda *a, **k: "GLOBAL NEWS"}
+        ):
+            result = router.route_to_vendor("get_global_news", "2026-01-10", 7, 10)
+
+        self.assertIn("## Provider: `working`", result)
+        self.assertIn("GLOBAL NEWS", result)
+        self.assertIn("## Provider availability", result)
+        self.assertIn("`down`: temporarily unavailable", result)
+
+    def test_non_news_routes_still_stop_after_first_success(self):
+        set_config({"data_vendors": {"core_stock_apis": "one,two"}})
+        first = mock.Mock(return_value="FIRST")
+        second = mock.Mock(return_value="SECOND")
+        with self._route({"one": first, "two": second}):
+            result = router.route_to_vendor(
+                "get_stock_data", "AAPL", "2026-01-01", "2026-01-10"
+            )
+        self.assertEqual(result, "FIRST")
+        first.assert_called_once()
+        second.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

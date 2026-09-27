@@ -23,3 +23,4 @@ def test_news_prompt_matches_get_news_signature():
     src = inspect.getsource(na)
     assert "get_news(ticker, start_date, end_date)" in src
     assert "get_news(query" not in src
+    assert "inspect every block rather than stopping after the first provider" in src

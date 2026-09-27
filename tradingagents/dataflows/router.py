@@ -1,3 +1,4 @@
+import json
 import logging
 
 from tradingagents.dataflows.config import get_config
@@ -106,6 +107,11 @@ VENDOR_LIST = [
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
 OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
 
+# News is evidence aggregation, not interchangeable fallback: every explicitly
+# configured news provider is queried so later sources cannot be hidden by an
+# earlier success. Other tools keep ordered first-success fallback semantics.
+_AGGREGATED_NEWS_METHODS = frozenset({"get_news", "get_global_news"})
+
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
     # core_stock_apis
@@ -188,8 +194,38 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 
+def _format_aggregated_news(method: str, results: list[tuple[str, object]], statuses: list[str]) -> str:
+    """Label every successful provider response for downstream synthesis."""
+    lines = [
+        "# Aggregated news evidence",
+        "",
+        f"All {len(results)} successful configured provider(s) were queried for {method}.",
+        (
+            "Review every provider block. Providers may carry the same syndicated story, "
+            "so overlap is corroboration only when the underlying reporting is independent."
+        ),
+    ]
+    for vendor, value in results:
+        if isinstance(value, str):
+            body = value.strip()
+        else:
+            body = json.dumps(value, ensure_ascii=False, indent=2, default=str)
+        lines.extend(
+            [
+                "",
+                f"## Provider: `{vendor}`",
+                f'<start_of_provider_news name="{vendor}">',
+                body or "<provider returned an empty response>",
+                "<end_of_provider_news>",
+            ]
+        )
+    if statuses:
+        lines.extend(["", "## Provider availability", *statuses])
+    return "\n".join(lines)
+
+
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route data calls; aggregate news, ordered-fallback everything else."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
@@ -218,25 +254,33 @@ def route_to_vendor(method: str, *args, **kwargs):
     last_no_data: NoMarketDataError | None = None
     last_unavailable: VendorRateLimitError | None = None
     first_error: Exception | None = None
+    aggregated_results: list[tuple[str, object]] = []
+    provider_statuses: list[str] = []
     for vendor in vendor_chain:
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            return impl_func(*args, **kwargs)
+            result = impl_func(*args, **kwargs)
+            if method not in _AGGREGATED_NEWS_METHODS:
+                return result
+            aggregated_results.append((vendor, result))
         except VendorRateLimitError as e:
             logger.warning("Vendor %r unavailable for %s: %s; trying next vendor.", vendor, method, e)
             # Kept so an all-unavailable chain can say the vendor was the
             # problem, rather than reporting nothing about the symbol.
             last_unavailable = e
+            provider_statuses.append(f"- `{vendor}`: temporarily unavailable")
             continue
         except VendorNotConfiguredError as e:
             logger.warning("Vendor %r not configured for %s; trying next vendor.", vendor, method)
             if first_error is None:
                 first_error = e  # Surface it if no other vendor can serve the call.
+            provider_statuses.append(f"- `{vendor}`: not configured")
             continue
         except NoMarketDataError as e:
             last_no_data = e  # No data here; another configured vendor may have it
+            provider_statuses.append(f"- `{vendor}`: no usable data for this window")
             continue
         except Exception as e:
             # Don't let one vendor's failure crash the call when another can
@@ -245,7 +289,11 @@ def route_to_vendor(method: str, *args, **kwargs):
             logger.warning("Vendor %r failed for %s: %s", vendor, method, e)
             if first_error is None:
                 first_error = e
+            provider_statuses.append(f"- `{vendor}`: failed")
             continue
+
+    if aggregated_results:
+        return _format_aggregated_news(method, aggregated_results, provider_statuses)
 
     # If any vendor reported "no data", the symbol is genuinely unavailable.
     # Return one explicit, instructive sentinel rather than a vendor-specific
