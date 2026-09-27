@@ -77,6 +77,16 @@ def test_the_model_follows_the_sdk_environment(post, monkeypatch):
 
 
 @pytest.mark.unit
+def test_the_base_url_follows_the_environment(post, monkeypatch):
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "https://screening.example")
+    post.queue.append(_ok())
+
+    typesafe.system_one("s", QUESTIONS)
+
+    assert post[0][0] == "https://screening.example/v1/systemone"
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("transient", [
     _Response(429), _Response(529), requests.ConnectionError(), requests.Timeout(),
     requests.exceptions.ChunkedEncodingError(),
@@ -174,7 +184,20 @@ def jev(post, monkeypatch):
 @pytest.mark.unit
 def test_no_key_no_screen(monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.delenv("TYPESAFE_BASE_URL", raising=False)
     assert typesafe.jev_screen("NVDA") is None
+
+
+@pytest.mark.unit
+def test_a_custom_base_url_screens_without_a_key(jev, post, monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080/")
+    jev["NVDA to 200"] = _post_answers(0.9)
+
+    typesafe.jev_screen("NVDA")(["NVDA to 200"])
+
+    assert post[0][0] == "http://localhost:8080/v1/systemone"
+    assert "Authorization" not in post[0][1]["headers"]
 
 
 @pytest.mark.unit

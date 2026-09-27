@@ -1,4 +1,4 @@
-"""Social-post screening with TypeSafe's Jev, when ``TYPESAFE_API_KEY`` is set.
+"""Social-post screening with TypeSafe's Jev or a compatible endpoint.
 
 Jev answers typed questions with calibrated probabilities. Each StockTwits or
 Reddit post is asked two: is it about the instrument, and which way does it
@@ -6,9 +6,10 @@ lean on the instrument's stock. Code turns the answers into what the Sentiment
 Analyst reads: posts that are clearly about something else are dropped, and a
 stance count over the rest heads the source's block.
 
-Configured by TypeSafe's own SDK variables, ``TYPESAFE_API_KEY`` and
-``TYPESAFE_DEFAULT_MODEL``. Without a key nothing here runs; if any request fails, the source's posts are kept unscreened and the
-block says screening was unavailable.
+Configured by ``TYPESAFE_API_KEY``, ``TYPESAFE_DEFAULT_MODEL``, and the
+optional ``TYPESAFE_BASE_URL`` override. Without a key, screening runs only
+when a custom base URL is configured; if any request fails, the source's posts
+are kept unscreened and the block says screening was unavailable.
 """
 
 import logging
@@ -23,7 +24,8 @@ from tradingagents.agents.context import resolve_instrument_identity
 
 logger = logging.getLogger(__name__)
 
-_URL = "https://api.typesafe.ai/v1/systemone"
+_DEFAULT_BASE_URL = "https://api.typesafe.ai"
+_SYSTEM_ONE_PATH = "/v1/systemone"
 _DEFAULT_MODEL = "jev-latest"
 _RETRY_STATUSES = (429, 529)    # rate limited, overloaded: back off and retry
 _TRANSIENT = (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError)
@@ -76,14 +78,17 @@ def system_one(state, questions: dict) -> dict[str, dict]:
         "model": os.environ.get("TYPESAFE_DEFAULT_MODEL") or _DEFAULT_MODEL,
         "questions": questions,
     }
-    headers = {"Authorization": f"Bearer {os.environ.get('TYPESAFE_API_KEY', '')}"}
+    api_key = os.environ.get("TYPESAFE_API_KEY")
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    base_url = os.environ.get("TYPESAFE_BASE_URL") or _DEFAULT_BASE_URL
+    url = f"{base_url.rstrip('/')}{_SYSTEM_ONE_PATH}"
     backoff, retry_after = 1.0, None
     for attempt in range(_ATTEMPTS):
         if attempt:
             time.sleep(retry_after if retry_after is not None else backoff * random.uniform(0.8, 1.2))
             backoff *= 2
         try:
-            response = requests.post(_URL, json=body, headers=headers, timeout=_TIMEOUT)
+            response = requests.post(url, json=body, headers=headers, timeout=_TIMEOUT)
         except requests.RequestException as exc:
             failure, retry_after = type(exc).__name__, None
             if isinstance(exc, _TRANSIENT):
@@ -124,12 +129,12 @@ def _stance(answer: dict) -> str:
 
 
 def jev_screen(ticker: str):
-    """A post screen for the social fetchers, or None without a TypeSafe key.
+    """A post screen, or None when neither a key nor custom base URL is configured.
 
     The screen takes the post texts and returns one keep flag per post and a
     note line for the top of the source's block.
     """
-    if not os.environ.get("TYPESAFE_API_KEY"):
+    if not os.environ.get("TYPESAFE_API_KEY") and not os.environ.get("TYPESAFE_BASE_URL"):
         return None
     name = resolve_instrument_identity(ticker).get("company_name")
     instrument = f"{name} ({ticker})" if name else ticker
