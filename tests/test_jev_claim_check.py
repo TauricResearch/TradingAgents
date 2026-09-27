@@ -23,13 +23,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tradingagents.agents import claim_check as cc
+from tradingagents.agents.context import build_instrument_context
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
+from tradingagents.agents.rating import RATING_REVIEW, extract_rating, parse_rating
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating, render_pm_decision
-from tradingagents.agents.utils import claim_check as cc
-from tradingagents.agents.utils.agent_utils import build_instrument_context
-from tradingagents.agents.utils.rating import RATING_REVIEW, extract_rating
 from tradingagents.dataflows.config import set_config
-from tradingagents.graph.signal_processing import SignalProcessor
 
 # ---------------------------------------------------------------------------
 # A fake Jev client
@@ -499,7 +498,7 @@ class TestOutput:
         full = f"{decision}\n\n{block}"
         assert extract_rating(decision) == "Buy"
         assert extract_rating(full) is None
-        assert SignalProcessor().process_signal(full) == RATING_REVIEW
+        assert parse_rating(full) == RATING_REVIEW
 
     def test_invented_facts_and_figures_are_listed(self):
         thesis = THESIS + "\n".join([
@@ -672,7 +671,7 @@ class TestPortfolioManagerNode:
         assert final.startswith("**Rating**: Buy")
         assert "**Claim Check**: " in final
         assert final.rstrip().endswith("1 claim contradicted by the analyst reports)")
-        assert SignalProcessor().process_signal(final) == RATING_REVIEW
+        assert parse_rating(final) == RATING_REVIEW
         assert len(client.asked("checkable")) == 5 and client.closed
 
     def test_without_jev_the_node_returns_the_rendered_decision(self):
@@ -680,4 +679,4 @@ class TestPortfolioManagerNode:
         assert result["final_trade_decision"] == render_pm_decision(PortfolioDecision(
             rating=PortfolioRating.BUY, executive_summary="Accumulate.", investment_thesis=THESIS,
         ))
-        assert SignalProcessor().process_signal(result["final_trade_decision"]) == "Buy"
+        assert parse_rating(result["final_trade_decision"]) == "Buy"

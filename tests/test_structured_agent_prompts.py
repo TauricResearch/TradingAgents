@@ -18,8 +18,8 @@ import pytest
 import tradingagents.agents.analysts.sentiment_analyst as sentiment
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
+from tradingagents.agents.structured import NO_EXTERNAL_TOOLS
 from tradingagents.agents.trader.trader import create_trader
-from tradingagents.agents.utils.structured import NO_EXTERNAL_TOOLS
 
 
 def _capturing_llm(captured: dict, result):

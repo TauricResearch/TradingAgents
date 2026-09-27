@@ -25,11 +25,10 @@ from __future__ import annotations
 import time
 from collections import Counter
 
+from tradingagents.agents import claim_check as cc
+from tradingagents.agents.jev import jev_client
+from tradingagents.agents.rating import extract_rating, parse_rating
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating, render_pm_decision
-from tradingagents.agents.utils import claim_check as cc
-from tradingagents.agents.utils.jev import jev_client
-from tradingagents.agents.utils.rating import extract_rating
-from tradingagents.graph.signal_processing import SignalProcessor
 
 MARKET = """# NVDA Technical Analysis (week to 2026-09-22)
 
@@ -185,7 +184,7 @@ def main():
     block = cc.render_claim_check(check, extract_rating(DECISION))
     full = f"{DECISION}\n\n{block}"
     print("\n" + block)
-    print(f"\nrating before: {extract_rating(DECISION)}  signal after: {SignalProcessor().process_signal(full)}")
+    print(f"\nrating before: {extract_rating(DECISION)}  signal after: {parse_rating(full)}")
 
 
 if __name__ == "__main__":

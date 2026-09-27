@@ -32,13 +32,18 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
-- [2026-09] **TradingAgents v0.5.0** released with point-in-time integrity across every dated path, SEC EDGAR fundamentals served as filed, backtesting over a ticker and date grid, portfolio-aware runs, and current model lineups across every provider. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+
+<!-- news:start -->
+- [2026-09] **TradingAgents v0.5.1** released with a package layout organised by what each module holds (import paths moved), optional Jev screening of social posts, GPT-6 Sol and Luna as the default models, and fixes to run isolation and SEC EDGAR statements.
+- [2026-09] **TradingAgents v0.5.0** released with point-in-time integrity across every dated path, SEC EDGAR fundamentals served as filed, backtesting over a ticker and date grid, portfolio-aware runs, and current model lineups across every provider.
 - [2026-08] **TradingAgents v0.4.0** released with look-ahead / point-in-time fixes across FRED macro, social sentiment, and the decision-log memory; clearer decision signals; working CLI checkpoint resume; Trader price grounding; and the GPT-5.6 and GLM-5.3 models.
-- [2026-07] **TradingAgents v0.3.1** released with correctness and stability fixes: Alpha Vantage look-ahead filtering, graph-router crash-safety, graph-shape-aware checkpoint resume, working crypto sentiment sources, a configurable LLM retry budget, Bedrock API-key auth, and Claude Sonnet 5 / Fable 5 support.
+
+Full release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 <details>
-<summary>Earlier releases</summary>
+<summary>Earlier news</summary>
 
+- [2026-07] **TradingAgents v0.3.1** released with correctness and stability fixes: Alpha Vantage look-ahead filtering, graph-router crash-safety, graph-shape-aware checkpoint resume, working crypto sentiment sources, a configurable LLM retry budget, Bedrock API-key auth, and Claude Sonnet 5 / Fable 5 support.
 - [2026-06] **TradingAgents v0.3.0** released with a verified data-access contract, an expanded provider registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate.
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening.
 - [2026-04] **TradingAgents v0.2.4** released with structured-output agents (Research Manager, Trader, Portfolio Manager), LangGraph checkpoint resume, persistent decision log, DeepSeek/Qwen/GLM/Azure provider support, Docker, and a Windows UTF-8 encoding fix.
@@ -48,6 +53,7 @@
 - [2026-01] **Trading-R1** [Technical Report](https://arxiv.org/abs/2509.11420) released, with [Terminal](https://github.com/TauricResearch/Trading-R1) expected to land soon.
 
 </details>
+<!-- news:end -->
 
 <div align="center">
 
@@ -168,6 +174,7 @@ export GROQ_API_KEY=...            # Groq
 export NVIDIA_API_KEY=...          # NVIDIA NIM
 export FRED_API_KEY=...            # FRED macro data (free, optional)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
 ```
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
@@ -181,6 +188,8 @@ Shared and trial endpoints such as NVIDIA NIM sometimes return bursts of server 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
+
+With `TYPESAFE_API_KEY` set, the Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. Without the key, posts pass through unscreened. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -212,9 +221,9 @@ Ticker search asks Yahoo Finance and falls back to a built-in list of well-known
 
 ### TypeSafe Jev (optional)
 
-With `pip install ".[jev]"` and `TYPESAFE_API_KEY` set, the Sentiment Analyst first judges each news article and social post with [TypeSafe Jev](https://docs.typesafe.ai). It drops items about other companies, repeats, and posts carrying instructions aimed at an AI system, then computes the sentiment band, score and confidence from per-item stances; the LLM writes only the narrative. The bull/bear and risk debates end early once a full round adds no new argument (never before round 2 or past the configured rounds, so this applies from three rounds up), and the Research Manager gets Jev's read of whose case is better supported as a hint.
+With `pip install ".[jev]"` and `TYPESAFE_API_KEY` set, the Sentiment Analyst first judges each news article and social post with [TypeSafe Jev](https://docs.typesafe.ai). It drops items about other companies, repeats, and posts carrying instructions aimed at an AI system, then computes the sentiment band, score and confidence from per-item stances; the LLM writes only the narrative. This takes the place of the post screening above, so posts are not sent to Jev twice; with the key but without the extra, only the post screening runs. The bull/bear and risk debates end early once a full round adds no new argument (never before round 2 or past the configured rounds, so this applies from three rounds up), and the Research Manager gets Jev's read of whose case is better supported as a hint.
 
-At the end of the run, the Portfolio Manager's Investment Thesis is checked against the analyst reports, which the Portfolio Manager never reads itself. Jev judges which claims are checkable facts and whether each report section supports or contradicts them; figures are matched in code, and a claim that could only be settled by comparing numbers is marked unverified rather than judged. The result is appended to the decision, and a contradicted claim, or a thesis whose claims are mostly not found in the reports, turns the rating into `REVIEW` instead of a trade. Set `TRADINGAGENTS_JEV_CLAIM_CHECK=false` to turn off the claim check alone, or `TRADINGAGENTS_JEV_ENABLED=false` to keep the previous behaviour everywhere.
+At the end of the run, the Portfolio Manager's Investment Thesis is checked against the analyst reports, which the Portfolio Manager never reads itself. Jev judges which claims are checkable facts and whether each report section supports or contradicts them; figures are matched in code, and a claim that could only be settled by comparing numbers is marked unverified rather than judged. The result is appended to the decision, and a contradicted claim, or a thesis whose claims are mostly not found in the reports, turns the rating into `REVIEW` instead of a trade. Set `TRADINGAGENTS_JEV_CLAIM_CHECK=false` to turn off the claim check alone, or `TRADINGAGENTS_JEV_ENABLED=false` to turn off every Jev call, the post screening included.
 
 After a backtest, `tradingagents learn <run id>` tests whether Jev's judgments of the reports predict outcomes better than the rating alone; see [Learning from the reports](#learning-from-the-reports-jev). Details: [docs/jev-use-cases.md](docs/jev-use-cases.md).
 
@@ -271,8 +280,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
-config["deep_think_llm"] = "gpt-5.6"      # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5.6-luna" # Model for quick tasks
+config["deep_think_llm"] = "gpt-6-sol"    # Model for complex reasoning
+config["quick_think_llm"] = "gpt-6-luna"   # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
@@ -353,11 +362,10 @@ One run gives one decision, which cannot tell you whether the system decides wel
 
 ```python
 from tradingagents.backtest import iter_grid, run_backtest, summarize
-from tradingagents.agents.utils.memory import TradingMemoryLog
 
 dates = iter_grid("2026-06-01", "2026-08-01", every_n_days=7)
 result = run_backtest(["NVDA", "AAPL"], dates, config, selected_analysts=["market", "news"])
-print(summarize(TradingMemoryLog({"memory_log_path": str(result.log_path)})).render())
+print(summarize(result).render())
 ```
 
 From the CLI:
@@ -391,7 +399,7 @@ This needs at least 40 settled decisions over 6 analysis dates, and many more be
 
 TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
 
-Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-5.x family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
+Language model sampling is non-deterministic. Even at a fixed temperature, providers do not guarantee byte-identical output across calls, and reasoning models (the default GPT-6 family, and any thinking-mode model) vary the most because their internal reasoning is itself sampled.
 
 Live data moves. News, StockTwits, and Reddit return different content as time passes, so a run today sees different inputs than a run last week even for the same historical trade date. Pin the analysis date to hold the price and indicator window fixed, but the social and news sources still reflect "now".
 

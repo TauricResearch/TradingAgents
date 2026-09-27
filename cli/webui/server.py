@@ -23,16 +23,16 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from pydantic import ValidationError
 
-from cli.main import _build_run_config
 from cli.models import AssetType
 from cli.prefs import load_last_run, save_last_run
-from cli.utils import (
+from cli.prompts import (
     _llm_provider_table,
     detect_asset_type,
     is_valid_ticker_input,
     normalize_ticker_symbol,
     resolve_backend_url,
 )
+from cli.run import _build_run_config
 from cli.webui.jobs import (
     SECTION_TITLES,
     TEAMS,

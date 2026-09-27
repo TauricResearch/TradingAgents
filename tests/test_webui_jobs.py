@@ -6,7 +6,7 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from cli.webui import jobs
-from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.graph import trading_graph
 
 pytestmark = pytest.mark.unit

@@ -23,7 +23,7 @@ import sys
 import time
 from statistics import mean
 
-from tradingagents.agents.utils.jev import jev_client
+from tradingagents.agents.jev import jev_client
 from tradingagents.report_features import QUESTIONS, Decision, extract_features
 
 # ---------------------------------------------------------------------------

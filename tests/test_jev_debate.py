@@ -19,6 +19,7 @@ from unittest.mock import MagicMock
 import pytest
 from langgraph.graph import END, START, StateGraph
 
+from tradingagents.agents import debate_judgments as dj, jev
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.researchers.bear_researcher import create_bear_researcher
@@ -26,8 +27,7 @@ from tradingagents.agents.researchers.bull_researcher import create_bull_researc
 from tradingagents.agents.risk_mgmt.aggressive_debator import create_aggressive_debator
 from tradingagents.agents.risk_mgmt.conservative_debator import create_conservative_debator
 from tradingagents.agents.risk_mgmt.neutral_debator import create_neutral_debator
-from tradingagents.agents.utils import debate_judgments as dj, jev
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.state import AgentState
 from tradingagents.graph.conditional_logic import ConditionalLogic
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.setup import DEBATE_PATH_MAP, RISK_ANALYSIS_PATH_MAP

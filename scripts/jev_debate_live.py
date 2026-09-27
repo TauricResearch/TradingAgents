@@ -39,14 +39,14 @@ from unittest.mock import MagicMock
 
 from langgraph.graph import END, START, StateGraph
 
+from tradingagents.agents import debate_judgments as dj
+from tradingagents.agents.jev import jev_client
 from tradingagents.agents.researchers.bear_researcher import create_bear_researcher
 from tradingagents.agents.researchers.bull_researcher import create_bull_researcher
 from tradingagents.agents.risk_mgmt.aggressive_debator import create_aggressive_debator
 from tradingagents.agents.risk_mgmt.conservative_debator import create_conservative_debator
 from tradingagents.agents.risk_mgmt.neutral_debator import create_neutral_debator
-from tradingagents.agents.utils import debate_judgments as dj
-from tradingagents.agents.utils.agent_states import AgentState
-from tradingagents.agents.utils.jev import jev_client
+from tradingagents.agents.state import AgentState
 from tradingagents.graph.conditional_logic import ConditionalLogic
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.setup import DEBATE_PATH_MAP, RISK_ANALYSIS_PATH_MAP
@@ -187,7 +187,7 @@ def run_debate(debate, replies):
                  ("Conservative Analyst", create_conservative_debator),
                  ("Neutral Analyst", create_neutral_debator)]
         router, path_map, end, key = logic.should_continue_risk_analysis, RISK_ANALYSIS_PATH_MAP, "Portfolio Manager", "risk_debate_state"
-    for (name, factory), texts in zip(nodes, replies):
+    for (name, factory), texts in zip(nodes, replies, strict=True):
         graph.add_node(name, logic.judge_turns(factory(scripted_llm(texts)), debate))
         graph.add_conditional_edges(name, router, path_map)
     graph.add_node(end, lambda state: {})
@@ -225,7 +225,7 @@ def check_turns(runs):
     print(f"\n== 1. new_argument on labelled turns (threshold {THRESHOLD}, {runs} runs each) ==")
     results = repeat(dj.new_argument, [(OPENINGS, text) for _, _, text in TURN_CASES], runs)
     passed = 0
-    for (label, is_new, _), scores in zip(TURN_CASES, results):
+    for (label, is_new, _), scores in zip(TURN_CASES, results, strict=True):
         ok = all(s is not None and (s >= THRESHOLD) == is_new for s in scores)
         passed += ok
         print(f"  [{'PASS' if ok else 'FAIL'}] {'new   ' if is_new else 'repeat'} {label:38} "
@@ -254,7 +254,7 @@ def check_sides(runs):
     ]
     results = repeat(dj.stronger_side, args, runs)
     passed = 0
-    for (label, expected, _, _), answers in zip(SIDE_CASES, results):
+    for (label, expected, _, _), answers in zip(SIDE_CASES, results, strict=True):
         named = [named_side(a) for a in answers]
         ok = all(side == expected for side in named)
         passed += ok
@@ -282,7 +282,7 @@ def replay_log(path, runs):
         start = time.monotonic()
         again = repeat(dj.new_argument, jobs, 1)
         print(f"    {len(jobs)} requests in {time.monotonic() - start:.1f} s")
-        for i, (prior, latest), (score,) in zip(judged, jobs, again):
+        for i, (prior, latest), (score,) in zip(judged, jobs, again, strict=True):
             speaker = turns[i].split(":", 1)[0]
             sent = len(dj.latest_turns(prior, dj.MAX_STATE_CHARS - len(latest)))
             print(f"    turn {i + 1:2} {speaker:22} prior {len(prior):7,} chars"
@@ -322,7 +322,7 @@ def main():
     totals = [check_turns(args.runs), check_debates(args.runs), check_sides(args.runs)]
     if args.log:
         replay_log(args.log, args.runs)
-    passed, cases = map(sum, zip(*totals))
+    passed, cases = map(sum, zip(*totals, strict=True))
     print(f"\n{passed}/{cases} labelled cases passed")
 
 

@@ -21,7 +21,7 @@ import pytest
 from typer.testing import CliRunner
 
 from tradingagents import report_features as rf
-from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.outcome_model import NotEnoughData
 
 # ---------------------------------------------------------------------------

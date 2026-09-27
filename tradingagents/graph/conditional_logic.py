@@ -1,15 +1,13 @@
-# TradingAgents/graph/conditional_logic.py
-
 import logging
 
-from tradingagents.agents.utils.agent_states import AgentState
-from tradingagents.agents.utils.debate_judgments import (
+from tradingagents.agents.debate_judgments import (
     DEFAULT_POLICY,
     DebatePolicy,
     converged,
     new_argument,
     worth_judging,
 )
+from tradingagents.agents.state import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -72,44 +70,6 @@ class ConditionalLogic:
             debate.capitalize(), debate_state["count"] // speakers, self._max_rounds(debate),
         )
         return True
-
-    def should_continue_market(self, state: AgentState):
-        """Determine if market analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_market"
-        return "Msg Clear Market"
-
-    def should_continue_social(self, state: AgentState):
-        """Determine if sentiment-analyst tool round should continue.
-
-        Method name keeps the legacy ``social`` suffix to match the
-        ``AnalystType.SOCIAL = "social"`` wire value (saved-config
-        back-compat); the returned ``clear_node`` label uses the v0.2.5
-        rename so it matches the node registered by the execution plan.
-        """
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_social"
-        return "Msg Clear Sentiment"
-
-    def should_continue_news(self, state: AgentState):
-        """Determine if news analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_news"
-        return "Msg Clear News"
-
-    def should_continue_fundamentals(self, state: AgentState):
-        """Determine if fundamentals analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue.

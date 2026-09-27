@@ -1,6 +1,6 @@
 """Ticker lookup by symbol or company name for the browser UI's ticker fields.
 
-Asks Yahoo Finance's search endpoint (via yfinance) so "reliance industries"
+Asks Yahoo Finance's search endpoint (through the data layer) so "reliance industries"
 finds RELIANCE.NS and "tencent" finds 0700.HK. When Yahoo is unreachable or
 rate-limited, a small built-in list of well-known symbols keeps the box useful.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 import time
 
-from cli.utils import is_valid_ticker_input
+from cli.prompts import is_valid_ticker_input
 
 # Yahoo quote types worth analysing; mutual-fund share classes and options are noise here.
 KINDS = {"EQUITY": "Stock", "ETF": "ETF", "INDEX": "Index", "CRYPTOCURRENCY": "Crypto",
@@ -95,10 +95,9 @@ def search_local(query: str, limit: int = 8) -> list[dict]:
 
 
 def _search_yahoo(query: str, limit: int) -> list[dict]:
-    import yfinance as yf
+    from tradingagents.dataflows.vendors.yahoo.search import search_quotes
 
-    quotes = yf.Search(query, max_results=limit + 6, news_count=0, lists_count=0,
-                       timeout=5, raise_errors=True).quotes
+    quotes = search_quotes(query, max_results=limit + 6)
     out = []
     for q in quotes:
         symbol, kind = str(q.get("symbol") or ""), KINDS.get(str(q.get("quoteType") or ""))

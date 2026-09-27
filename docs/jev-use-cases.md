@@ -52,10 +52,10 @@ threshold drops the item; `about_company` below a threshold drops it;
 
 **Where:** prefetch step in
 [`sentiment_analyst.py`](../tradingagents/agents/analysts/sentiment_analyst.py);
-fetchers in [`yfinance_news.py`](../tradingagents/dataflows/yfinance_news.py),
-[`alpha_vantage_news.py`](../tradingagents/dataflows/alpha_vantage_news.py),
-[`reddit.py`](../tradingagents/dataflows/reddit.py),
-[`stocktwits.py`](../tradingagents/dataflows/stocktwits.py).
+fetchers in [`yfinance_news.py`](../tradingagents/dataflows/vendors/yahoo/news.py),
+[`alpha_vantage_news.py`](../tradingagents/dataflows/vendors/alpha_vantage/news.py),
+[`reddit.py`](../tradingagents/dataflows/vendors/reddit.py),
+[`stocktwits.py`](../tradingagents/dataflows/vendors/stocktwits.py).
 
 **Status:** built, together with fit 2. See [Fits 1 and 2 as built](#fits-1-and-2-as-built).
 
@@ -174,7 +174,7 @@ held-out error.
 
 **Where:** a new command, `tradingagents learn`, over a
 [`backtest.py`](../tradingagents/backtest.py) run. It reads the resolved entries
-of the run's [`memory.py`](../tradingagents/agents/utils/memory.py) log and the
+of the run's [`decision_log.py`](../tradingagents/decision_log.py) log and the
 full state each cell saved.
 
 **Prerequisite:** enough resolved backtest decisions to train and hold out
@@ -196,7 +196,7 @@ cross-ticker ones. Instead, score each resolved lesson for relevance to the
 current setup (Score) and inject the best ones. Keep the `as_of` point-in-time
 filter in code.
 
-**Where:** `get_past_context` in [`memory.py`](../tradingagents/agents/utils/memory.py).
+**Where:** `get_past_context` in [`decision_log.py`](../tradingagents/decision_log.py).
 **Jev sources:** [Re-Ranking](https://docs.typesafe.ai/cookbooks/rerank_typesafe.md),
 [Line-by-Line Search](https://docs.typesafe.ai/cookbooks/semantic_find.md).
 
@@ -208,8 +208,8 @@ Low confidence or "no rating stated" still yields `REVIEW`. A second check
 (Noul): does the stated rating agree with the Executive Summary? Structured
 output already covers most runs, so this is a rarely-used fallback.
 
-**Where:** [`rating.py`](../tradingagents/agents/utils/rating.py),
-[`signal_processing.py`](../tradingagents/graph/signal_processing.py).
+**Where:** [`rating.py`](../tradingagents/agents/rating.py),
+`process_signal` in [`trading_graph.py`](../tradingagents/graph/trading_graph.py).
 **Jev sources:** [Confidence-Gated Routing](https://docs.typesafe.ai/patterns/confidence-routing.md),
 [Self-Consistency: Choices](https://docs.typesafe.ai/cookbooks/consistency_choice_cookbook.md).
 
@@ -270,9 +270,9 @@ is unset or the `jev` extra is not installed.
 
 ## Fits 1 and 2 as built
 
-**Code:** [`sentiment_judgments.py`](../tradingagents/agents/utils/sentiment_judgments.py)
+**Code:** [`sentiment_judgments.py`](../tradingagents/agents/sentiment_judgments.py)
 (questions, `SentimentPolicy`, aggregate, prompt blocks),
-[`jev.py`](../tradingagents/agents/utils/jev.py) (client and concurrent requests),
+[`jev.py`](../tradingagents/agents/jev.py) (client and concurrent requests),
 [`feed.py`](../tradingagents/dataflows/feed.py) (the fetchers now return their
 items as well as the prompt block), and the branch in
 [`sentiment_analyst.py`](../tradingagents/agents/analysts/sentiment_analyst.py).
@@ -305,11 +305,11 @@ against alpha, then pin `jev_model` to the versioned id they were tuned on.
 
 ## Fit 4 as built
 
-**Code:** [`claim_check.py`](../tradingagents/agents/utils/claim_check.py)
+**Code:** [`claim_check.py`](../tradingagents/agents/claim_check.py)
 (claim and section splitting, questions, `ClaimCheckPolicy`, figures, output),
 one call at the end of
 [`portfolio_manager.py`](../tradingagents/agents/managers/portfolio_manager.py),
-and the `REVIEW` label in [`rating.py`](../tradingagents/agents/utils/rating.py).
+and the `REVIEW` label in [`rating.py`](../tradingagents/agents/rating.py).
 Tests: [`test_jev_claim_check.py`](../tests/test_jev_claim_check.py) and
 [`test_rating_integrity.py`](../tests/test_rating_integrity.py). There is no new
 graph node, so the CLI and web UI statuses and the checkpoint signature are
@@ -351,7 +351,7 @@ unchanged.
 **Output:** a block appended to the decision, so `judge_decision`,
 `final_trade_decision`, the saved report and the memory log all carry it. It is
 kept short, because past decisions come back into later prompts through
-`memory.get_past_context`:
+`TradingMemoryLog.get_past_context`:
 
 ```
 **Claim Check**: 10 statements read from the Investment Thesis, 7 checkable against the analyst reports: 3 supported, 2 contradicted, 1 unverified, 1 not found. 2 figures in no report. (Claims judged by TypeSafe Jev; figures matched in code.)
@@ -605,7 +605,7 @@ and different answers.
 
 ## Fit 3 as built
 
-**Code:** [`debate_judgments.py`](../tradingagents/agents/utils/debate_judgments.py)
+**Code:** [`debate_judgments.py`](../tradingagents/agents/debate_judgments.py)
 (questions, `DebatePolicy`, the convergence rule, the Research Manager's hint),
 `judge_turns` and the two debate routers in
 [`conditional_logic.py`](../tradingagents/graph/conditional_logic.py), the
@@ -640,7 +640,7 @@ Tests: [`test_jev_debate.py`](../tests/test_jev_debate.py).
 (measured 2026-09-24). Deep debates pass it. In a real Deep run the bull and
 bear histories came to 135K characters, `stronger_side` failed, and the Research
 Manager got no hint. Every debate state is now capped at `MAX_STATE_CHARS`
-(80,000, in [`jev.py`](../tradingagents/agents/utils/jev.py)). The oldest whole
+(80,000, in [`jev.py`](../tradingagents/agents/jev.py)). The oldest whole
 turns are dropped first, and an `[Earlier turns omitted for length.]` line
 replaces them. `new_argument` gets whatever room the latest turn leaves. A point
 last made in a dropped turn then reads as new, which keeps the debate going, the

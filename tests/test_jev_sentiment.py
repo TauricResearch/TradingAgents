@@ -18,15 +18,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tradingagents.agents import jev, sentiment_judgments as sj
 from tradingagents.agents.analysts import sentiment_analyst as sentiment
 from tradingagents.agents.schemas import (
     SentimentBand,
     SentimentNarrative,
     SentimentReport,
 )
-from tradingagents.agents.utils import jev, sentiment_judgments as sj
-from tradingagents.dataflows import alpha_vantage_news, reddit, stocktwits
 from tradingagents.dataflows.feed import Feed, FeedItem
+from tradingagents.dataflows.vendors import reddit, stocktwits
+from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
 
 # ---------------------------------------------------------------------------
 # A fake Jev client
@@ -194,7 +195,7 @@ class TestFeeds:
 
     def test_news_feed_follows_the_get_news_vendor_override(self):
         from tradingagents.dataflows.config import set_config
-        from tradingagents.dataflows.interface import get_vendor
+        from tradingagents.dataflows.router import get_vendor
         set_config({"tool_vendors": {"get_news": "alpha_vantage"}})
         assert get_vendor("news_data", "get_news_feed") == "alpha_vantage"
 
@@ -516,3 +517,31 @@ class TestAnalystNode:
         assert "legacy stocktwits block" in prompt and "legacy reddit block" in prompt
         assert "Computed sentiment header" not in prompt
         assert client.closed
+
+    def test_judged_items_are_not_screened_again(self, monkeypatch):
+        """Upstream's post screen asks Jev about each post too; with every item
+        judged here, it would pay for the same posts twice."""
+        monkeypatch.setattr(sentiment, "jev_client", lambda: FakeJev())
+        monkeypatch.setattr(sentiment, "jev_screen", MagicMock(side_effect=AssertionError("screened")))
+        llm = _llm({}, SentimentNarrative(narrative="n"))
+        assert sentiment.create_sentiment_analyst(llm)(_state())["sentiment_judgments"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("enabled, screened", [(True, True), (False, False)])
+def test_without_the_extra_a_key_screens_posts_unless_jev_is_disabled(monkeypatch, enabled, screened):
+    """The post screen needs only the key; jev_enabled False turns it off with the rest of Jev."""
+    from tradingagents.dataflows.config import set_config
+
+    set_config({"jev_enabled": enabled})
+    screen = object()
+    monkeypatch.setattr(sentiment, "jev_client", lambda: None)
+    monkeypatch.setattr(sentiment, "jev_screen", lambda ticker: screen)
+    monkeypatch.setattr(sentiment.get_news, "func", lambda *a: "news", raising=False)
+    seen = []
+    for name in ("fetch_stocktwits_messages", "fetch_reddit_posts"):
+        monkeypatch.setattr(sentiment, name, lambda *a, screen=None, **k: seen.append(screen) or "")
+    llm = _llm({}, SentimentReport(
+        overall_band=SentimentBand.MIXED, overall_score=5.0, confidence="low", narrative="n"))
+    sentiment.create_sentiment_analyst(llm)(_state())
+    assert seen == [screen if screened else None] * 2

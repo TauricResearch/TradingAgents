@@ -15,14 +15,14 @@ contradicted or largely unsupported thesis sends the decision to REVIEW.
 
 from __future__ import annotations
 
-from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.claim_check import check_claims
+from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
     get_portfolio_context_from_state,
 )
-from tradingagents.agents.utils.claim_check import check_claims
-from tradingagents.agents.utils.structured import (
+from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
+from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,

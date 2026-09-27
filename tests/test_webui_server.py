@@ -1,6 +1,7 @@
 """The browser UI's HTTP server, driven over real HTTP with a fake graph and no LLM."""
 
 import json
+import socket
 import threading
 import time
 import urllib.error
@@ -15,6 +16,8 @@ from cli.webui.jobs import JobRegistry
 from tradingagents.graph import trading_graph
 
 pytestmark = pytest.mark.unit
+
+_CONNECT = socket.socket.connect  # before conftest's _no_network replaces it
 
 DECISION = "**Rating**: Overweight\n\nAdd on weakness."
 JUDGMENTS = {
@@ -55,7 +58,7 @@ class FakeGraph:
         yield from CHUNKS
 
     def record_decision(self, ticker, date, state):
-        from tradingagents.agents.utils.memory import TradingMemoryLog
+        from tradingagents.decision_log import TradingMemoryLog
 
         TradingMemoryLog(self.config).store_decision(ticker, date, state["final_trade_decision"])
 
@@ -71,6 +74,15 @@ class FakeGraph:
 
 @pytest.fixture
 def base(tmp_path, monkeypatch):
+    # The server runs on loopback; every other address stays refused.
+    blocked = socket.socket.connect
+
+    def connect(sock, address):
+        if isinstance(address, tuple) and address[0] in ("127.0.0.1", "::1"):
+            return _CONNECT(sock, address)
+        return blocked(sock, address)
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
     monkeypatch.setattr(trading_graph, "TradingAgentsGraph", FakeGraph)
     # Other tests reload default_config, so the server and cli.main may hold different dicts.
     for config in {id(c): c for c in (server.DEFAULT_CONFIG, cli_main.DEFAULT_CONFIG)}.values():

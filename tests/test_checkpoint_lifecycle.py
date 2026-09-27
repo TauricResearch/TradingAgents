@@ -58,8 +58,6 @@ def _bare_graph(tmpdir, *, enabled=True):
     return g
 
 
-
-
 @pytest.mark.unit
 def test_disabled_is_a_noop():
     with tempfile.TemporaryDirectory() as tmp:

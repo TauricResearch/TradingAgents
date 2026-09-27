@@ -10,11 +10,7 @@ import pytest
 
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
-from tradingagents.dataflows import interface
-from tradingagents.dataflows.alpha_vantage_common import (
-    AlphaVantageNotConfiguredError,
-    AlphaVantageRateLimitError,
-)
+from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.errors import (
     NoMarketDataError,
@@ -22,7 +18,11 @@ from tradingagents.dataflows.errors import (
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
-from tradingagents.dataflows.fred import FredNotConfiguredError
+from tradingagents.dataflows.vendors.alpha_vantage.common import (
+    AlphaVantageNotConfiguredError,
+    AlphaVantageRateLimitError,
+)
+from tradingagents.dataflows.vendors.fred import FredNotConfiguredError
 
 
 @pytest.mark.unit
@@ -42,12 +42,6 @@ class HierarchyTests(unittest.TestCase):
         # ... and therefore still ValueErrors
         self.assertTrue(issubclass(FredNotConfiguredError, ValueError))
 
-    def test_symbol_utils_reexports_no_market_data_error(self):
-        from tradingagents.dataflows.symbol_utils import (
-            NoMarketDataError as ReExported,
-        )
-        self.assertIs(ReExported, NoMarketDataError)
-
 
 @pytest.mark.unit
 class RouterHandlesBaseTypesTests(unittest.TestCase):
@@ -65,11 +59,11 @@ class RouterHandlesBaseTypesTests(unittest.TestCase):
             raise AlphaVantageRateLimitError("slow down")
 
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_stock_data": {"alpha_vantage": _throttled, "yfinance": lambda *a, **k: "YF"}},
             clear=False,
         ):
-            out = interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+            out = router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
         self.assertEqual(out, "YF")
 
     def test_not_configured_falls_through_to_next_vendor(self):
@@ -79,11 +73,11 @@ class RouterHandlesBaseTypesTests(unittest.TestCase):
             raise AlphaVantageNotConfiguredError("no key")
 
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_stock_data": {"alpha_vantage": _unconfigured, "yfinance": lambda *a, **k: "YF"}},
             clear=False,
         ):
-            out = interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+            out = router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
         self.assertEqual(out, "YF")
 
     def test_sole_unconfigured_vendor_surfaces_the_error(self):
@@ -94,11 +88,11 @@ class RouterHandlesBaseTypesTests(unittest.TestCase):
             raise AlphaVantageNotConfiguredError("no key")
 
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_stock_data": {"alpha_vantage": _unconfigured}},
             clear=False,
         ), self.assertRaises(AlphaVantageNotConfiguredError):
-            interface.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+            router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
 
 
 if __name__ == "__main__":

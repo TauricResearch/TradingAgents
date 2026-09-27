@@ -19,17 +19,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from cli.main import ANALYST_ORDER, MessageBuffer, process_chunk
+from cli.display import ANALYST_ORDER, AnalystWallTimeTracker, MessageBuffer, process_chunk
 from cli.stats_handler import StatsCallbackHandler
-from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.agents.utils.rating import is_review, parse_rating
+from tradingagents.agents.rating import is_review, parse_rating
 from tradingagents.backtest import run_backtest, summarize
-from tradingagents.dataflows.utils import safe_ticker_component
-from tradingagents.graph.analyst_execution import (
-    AnalystWallTimeTracker,
-    build_analyst_execution_plan,
-    get_initial_analyst_node,
-)
+from tradingagents.dataflows.symbols import safe_ticker_component
+from tradingagents.decision_log import TradingMemoryLog
+from tradingagents.graph.analyst_execution import build_analyst_execution_plan
 from tradingagents.reporting import write_report_tree
 
 PENDING, RUNNING, DONE, FAILED, CANCELLED = "pending", "running", "done", "failed", "cancelled"
@@ -169,7 +165,7 @@ class AnalysisJob:
             plan = build_analyst_execution_plan(self.analysts)
             tracker = AnalystWallTimeTracker(plan)
             with self.lock:
-                self.buffer.update_agent_status(get_initial_analyst_node(plan), "in_progress")
+                self.buffer.update_agent_status(plan.specs[0].agent_node, "in_progress")
             tracker.mark_started(self.analysts[0])
 
             init_state = graph.create_run_state(

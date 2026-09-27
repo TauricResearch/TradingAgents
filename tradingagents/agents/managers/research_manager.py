@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
+from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.debate_judgments import render_side_hint, stronger_side
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
-from tradingagents.agents.utils.agent_utils import (
-    get_instrument_context_from_state,
-    get_language_instruction,
-)
-from tradingagents.agents.utils.debate_judgments import render_side_hint, stronger_side
-from tradingagents.agents.utils.structured import (
+from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,

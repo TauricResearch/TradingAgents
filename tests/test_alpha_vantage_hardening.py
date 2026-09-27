@@ -10,10 +10,10 @@ import json
 
 import pytest
 
-import tradingagents.dataflows.alpha_vantage_common as av
-import tradingagents.dataflows.alpha_vantage_fundamentals as avf
-import tradingagents.dataflows.alpha_vantage_stock as avs
-import tradingagents.dataflows.utils as utils
+import tradingagents.dataflows.net as net
+import tradingagents.dataflows.vendors.alpha_vantage.common as av
+import tradingagents.dataflows.vendors.alpha_vantage.fundamentals as avf
+import tradingagents.dataflows.vendors.alpha_vantage.stock as avs
 
 
 class _FakeResponse:
@@ -37,7 +37,7 @@ def _patched_get(body, capture=None):
 @pytest.mark.unit
 def test_request_passes_timeout(monkeypatch):
     captured = {}
-    monkeypatch.setattr(utils.requests, "get", _patched_get("Date,Close\n2025-01-02,1.0", captured))
+    monkeypatch.setattr(net.requests, "get", _patched_get("Date,Close\n2025-01-02,1.0", captured))
     av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
     assert captured.get("timeout") == av.REQUEST_TIMEOUT  # #990
 
@@ -45,7 +45,7 @@ def test_request_passes_timeout(monkeypatch):
 @pytest.mark.unit
 def test_rate_limit_detected(monkeypatch):
     body = '{"Information": "Our standard API rate limit is 25 requests per day. ... your API key ..."}'
-    monkeypatch.setattr(utils.requests, "get", _patched_get(body))
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
     with pytest.raises(av.AlphaVantageRateLimitError):
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
 
@@ -56,11 +56,11 @@ def test_invalid_key_not_mislabeled_as_rate_limit(monkeypatch):
     # (transient) rate limit, but surface as a real configuration error (#991).
     body = ('{"Information": "the parameter apikey is invalid or missing. '
             'Please claim your free API key on (https://www.alphavantage.co/support/#api-key)."}')
-    monkeypatch.setattr(utils.requests, "get", _patched_get(body))
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
     with pytest.raises(av.AlphaVantageNotConfiguredError):
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
     with pytest.raises(av.AlphaVantageRateLimitError):  # sanity: rate-limit path still distinct
-        monkeypatch.setattr(utils.requests, "get", _patched_get('{"Note": "API call frequency is 5 calls per minute."}'))
+        monkeypatch.setattr(net.requests, "get", _patched_get('{"Note": "API call frequency is 5 calls per minute."}'))
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
 
 
@@ -147,7 +147,7 @@ def test_request_error_message_carries_no_key(monkeypatch):
     def boom(*a, **k):
         raise requests.Timeout(f"Read timed out. url: https://www.alphavantage.co/query?apikey={key}")
 
-    monkeypatch.setattr(utils.requests, "get", boom)
+    monkeypatch.setattr(net.requests, "get", boom)
     with pytest.raises(requests.Timeout) as caught:
         av._make_api_request("OVERVIEW", {"symbol": "IBM"})
     assert key not in str(caught.value)
@@ -156,7 +156,7 @@ def test_request_error_message_carries_no_key(monkeypatch):
 @pytest.mark.unit
 def test_global_news_omitted_optionals_use_the_configured_defaults(monkeypatch):
     """The tool passes None for an omitted look_back_days or limit (#1326)."""
-    from tradingagents.dataflows import alpha_vantage_news
+    from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
 
     monkeypatch.setattr(alpha_vantage_news, "get_config",
                         lambda: {"global_news_lookback_days": 3, "global_news_article_limit": 9})
@@ -173,7 +173,7 @@ def test_the_news_window_includes_the_analysis_day(monkeypatch):
     """time_to was midnight at the start of the end date, so everything
     published during the analysis day, the most decision-relevant day, was
     excluded. The yfinance path includes it."""
-    from tradingagents.dataflows import alpha_vantage_news
+    from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
 
     seen = {}
     monkeypatch.setattr(alpha_vantage_news, "_make_api_request",
@@ -190,8 +190,8 @@ def test_the_news_window_includes_the_analysis_day(monkeypatch):
 def test_an_indicator_this_vendor_lacks_lets_the_next_one_serve_it(indicator):
     """Returning prose counts as success to the router, so the chain stops at a
     vendor that cannot compute the indicator while the next one can."""
-    from tradingagents.dataflows import alpha_vantage_indicator
     from tradingagents.dataflows.errors import VendorError
+    from tradingagents.dataflows.vendors.alpha_vantage import indicator as alpha_vantage_indicator
 
     with pytest.raises(VendorError):
         alpha_vantage_indicator.get_indicator("AAPL", indicator, "2026-05-08", 30)
@@ -201,7 +201,7 @@ def test_an_indicator_this_vendor_lacks_lets_the_next_one_serve_it(indicator):
 def test_ticker_news_asks_for_only_as_many_articles_as_configured(monkeypatch):
     """The endpoint returns 50 articles with per-article sentiment arrays by
     default, and the whole payload went into the prompt."""
-    from tradingagents.dataflows import alpha_vantage_news
+    from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
 
     monkeypatch.setattr(alpha_vantage_news, "get_config", lambda: {"news_article_limit": 8})
     seen = {}
