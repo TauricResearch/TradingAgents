@@ -1,0 +1,5 @@
+{
+  "ignorePatterns": ["dist/**", "node_modules/**"],
+  "env": { "browser": true, "es2024": true },
+  "rules": {}
+}
