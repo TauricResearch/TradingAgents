@@ -147,6 +147,8 @@ function provider(key = settings.provider) {
 function initSettings() {
   const d = OPTIONS.defaults;
   const saved = store.get(SETTINGS_KEY, {});
+  // Older saves stored checkpoint=false as the old default; honor only an explicit toggle.
+  if (!saved.checkpointSet) delete saved.checkpoint;
   settings = {
     provider: d.provider, quick: d.quick, deep: d.deep, depth: d.depth, language: d.language,
     effort: null, backendUrl: '', checkpoint: d.checkpoint, custom: { quick: false, deep: false },
@@ -308,6 +310,7 @@ function bindSide() {
       settings[mode] = value === 'custom' ? '' : value;
     } else if (key === 'language-pick') { settings.language = value === 'custom' ? '' : value; }
     else settings[key] = typeof value === 'string' ? value.trim() : value;
+    if (key === 'checkpoint') settings.checkpointSet = true;
     saveSettings();
     if (rerender && /provider|pick/.test(key)) {
       renderSide();
@@ -1417,7 +1420,7 @@ const DEMO_OPTIONS = {
     models: { quick: [['GPT-5.6 Luna', 'gpt-5.6-luna'], ['GPT-5.6', 'gpt-5.6']], deep: [['GPT-5.6', 'gpt-5.6'], ['GPT-5.6 Luna', 'gpt-5.6-luna']] },
     effort: null, apiKey: { env: 'OPENAI_API_KEY', set: true, note: '' } }],
   depths: { Shallow: 1, Medium: 3, Deep: 5 }, languages: ['English'],
-  defaults: { provider: 'openai', quick: 'gpt-5.6-luna', deep: 'gpt-5.6', depth: 'Medium', language: 'English', analysts: ['market', 'social', 'news', 'fundamentals'], checkpoint: false },
+  defaults: { provider: 'openai', quick: 'gpt-5.6-luna', deep: 'gpt-5.6', depth: 'Medium', language: 'English', analysts: ['market', 'social', 'news', 'fundamentals'], checkpoint: true },
   resultsDir: '~/.tradingagents/logs', today: '2026-09-23', portfolioHelp: '',
 };
 
