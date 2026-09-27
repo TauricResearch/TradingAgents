@@ -78,7 +78,8 @@ def system_one(state, questions: dict) -> dict[str, dict]:
     if post_screen_judge is not None:
         return post_screen_judge(state, questions)
 
-    url = os.environ.get("TYPESAFE_BASE_URL") or _URL
+    base = os.environ.get("TYPESAFE_BASE_URL")
+    url = base.rstrip("/") + "/v1/systemone" if base else _URL
     body = {
         "state": state,
         "model": os.environ.get("TYPESAFE_DEFAULT_MODEL") or _DEFAULT_MODEL,

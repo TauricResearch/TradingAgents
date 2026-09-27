@@ -68,7 +68,7 @@ def test_sends_the_documented_request_and_returns_the_answers(post):
 
 @pytest.mark.unit
 def test_the_base_url_follows_the_environment(post, monkeypatch):
-    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080/v1/systemone")
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080")
     post.queue.append(_ok())
 
     typesafe.system_one("s", QUESTIONS)
@@ -79,7 +79,7 @@ def test_the_base_url_follows_the_environment(post, monkeypatch):
 @pytest.mark.unit
 def test_a_self_hosted_endpoint_screens_without_a_key(jev, post, monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080/v1/systemone")
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "http://localhost:8080")
     jev["NVDA to 200"] = _post_answers(0.9)
 
     typesafe.jev_screen("NVDA")(["NVDA to 200"])
