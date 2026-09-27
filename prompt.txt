@@ -1,0 +1,50 @@
+Here's a well-structured prompt you can hand off to your coding assistant (or use as your own implementation spec) for the agent activity panel redesign:
+
+---
+
+**Feature: Animated Agent Activity Panel with Redesigned Data Table**
+
+**Context / Current State:**
+The left sidebar of the application currently shows "agent activity" as a plain, static, low-visual-interest table. It works functionally but doesn't communicate the multi-agent nature of the system or make the data easy to scan at a glance.
+
+**Goal:**
+Redesign this panel into a visually engaging, easy-to-understand component with two parts:
+
+1. **Agent Activity Visualization (top of panel)**
+   - Render each active agent as a small robot/bot icon (SVG or icon-based, lightweight — avoid heavy 3D assets).
+   - When one agent passes information to another, animate a small icon or "packet" (e.g., a dot, envelope, or data-blob) moving along a path from the source agent to the destination agent.
+   - Agents should be positioned in fixed "stations" (e.g., a vertical or horizontal track) so movement reads as "walking" or "traveling" between points rather than teleporting.
+   - Idle agents can have a subtle idle animation (blink, bob, or pulse) to indicate they're active/waiting.
+   - Use color or a status badge (idle / processing / sending / receiving) so users can tell agent state without reading text.
+
+2. **Redesigned Data Table (below the visualization)**
+   - Replace the current plain table with a cleaner, card-based or striped-row table with:
+     - Clear typography hierarchy (bold for agent name/ID, muted for timestamps/metadata)
+     - Status pills/badges instead of plain text status columns
+     - Subtle row hover states and dividers instead of harsh borders
+     - Icons per row matching the agent's bot icon from the visualization above, for visual continuity
+     - Collapsible/expandable rows if there's verbose data (e.g., payload details) to avoid clutter
+   - Keep it data-dense but not noisy — favor whitespace and grouping over decoration.
+
+**Technical Requirements:**
+- Stack: React/Next.js (matches existing frontend)
+- Use CSS animations, Framer Motion, or a lightweight SVG animation approach (avoid pulling in a heavy animation library if not already present)
+- Animations should be performant with multiple concurrent agents (avoid re-rendering the whole table on every animation tick — separate animation state from data state)
+- Component should be responsive and not break at narrower sidebar widths
+- Respect existing theme/dark-mode tokens if the app has them
+
+**Acceptance Criteria:**
+- [ ] Agents are visually represented as distinct bot icons in fixed positions
+- [ ] Data-passing between agents is shown as an animated transfer, not just a log entry
+- [ ] Table below is restyled with badges, spacing, and hierarchy — no more plain rows of text
+- [ ] Visual state (idle/active/transferring) is inferable at a glance without reading text
+- [ ] No layout jank or dropped frames when multiple agents are active simultaneously
+- [ ] Existing data/functionality (whatever the table currently displays) is preserved — this is a visual/UX upgrade, not a data model change
+
+**Nice-to-have (if time permits):**
+- Click an agent icon to highlight/filter its rows in the table below
+- Tooltip on hover showing the agent's last action
+
+---
+
+Want me to also mock up a quick visual (SVG/HTML) of what this panel could look like, so you have a reference while implementing?

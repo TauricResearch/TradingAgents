@@ -157,6 +157,205 @@ class MessageBuffer:
 message_buffer = MessageBuffer()
 
 
+class AgentActivityVisualizer:
+    """Show live agent stations and visibly move one shared robot between them."""
+
+    AGENT_ORDER = [
+        "Market Analyst",
+        "Sentiment Analyst",
+        "News Analyst",
+        "Fundamentals Analyst",
+        "Bull Researcher",
+        "Bear Researcher",
+        "Research Manager",
+        "Trader",
+        "Aggressive Analyst",
+        "Neutral Analyst",
+        "Conservative Analyst",
+        "Portfolio Manager",
+    ]
+
+    TEAM_BY_AGENT = {
+        "Market Analyst": "Analyst Team",
+        "Sentiment Analyst": "Analyst Team",
+        "News Analyst": "Analyst Team",
+        "Fundamentals Analyst": "Analyst Team",
+        "Bull Researcher": "Research Team",
+        "Bear Researcher": "Research Team",
+        "Research Manager": "Research Team",
+        "Trader": "Trading Team",
+        "Aggressive Analyst": "Risk Management",
+        "Neutral Analyst": "Risk Management",
+        "Conservative Analyst": "Risk Management",
+        "Portfolio Manager": "Portfolio Management",
+    }
+
+    def __init__(self):
+        self._last_active = None
+        self._source = None
+        self._destination = None
+        self._started = 0.0
+        self._duration = 1.4
+
+    def observe(self, statuses):
+        active = next(
+            (agent for agent in self.AGENT_ORDER if statuses.get(agent) == "in_progress"),
+            None,
+        )
+
+        if active != self._last_active:
+            if self._last_active is not None and active is not None:
+                self._source = self._last_active
+                self._destination = active
+                self._started = monotonic()
+            self._last_active = active
+
+    def _progress(self):
+        if not self._source or not self._destination:
+            return 1.0
+        return min(1.0, (monotonic() - self._started) / self._duration)
+
+    @staticmethod
+    def _robot():
+        """Small terminal mascot matching the reference's rounded white robot."""
+        line = Text()
+        line.append("╭", style="bold white")
+        line.append("━━", style="bold white")
+        line.append("╮", style="bold white")
+        line.append(" ")
+        line.append("▣", style="bold cyan")
+        line.append("▣", style="bold cyan")
+        return line
+
+    def _travel_panel(self, source, destination, progress):
+        width = 42
+        start_x = 2
+        end_x = width - 2
+        x = round(start_x + (end_x - start_x) * progress)
+
+        track = [" "] * width
+        for i in range(start_x, end_x + 1):
+            track[i] = "─"
+        track[start_x] = "●"
+        track[end_x] = "●"
+
+        frame = Text("".join(track), style="dim")
+        frame.stylize("bold cyan", x, min(width, x + 1))
+
+        robot_line = Text(" " * x)
+        robot_line.append("◖", style="bold white")
+        robot_line.append("●", style="bold cyan")
+        robot_line.append("●", style="bold cyan")
+        robot_line.append("◗", style="bold white")
+
+        labels = Text()
+        labels.append(f"{source}", style="bold white")
+        labels.append(" " * max(1, width - len(source) - len(destination)))
+        labels.append(f"{destination}", style="bold white")
+
+        body = Table.grid(padding=(0, 0))
+        body.add_row(robot_line)
+        body.add_row(frame)
+        body.add_row(labels)
+
+        return Panel(
+            body,
+            title="[bold cyan]Robot in transit[/bold cyan]",
+            subtitle=(
+                f"[cyan]{source}[/cyan]  →  [cyan]{destination}[/cyan]  "
+                "[dim]carrying workflow context[/dim]"
+            ),
+            border_style="cyan",
+            padding=(0, 1),
+        )
+
+    def _station_table(self, statuses, progress):
+        table = Table(show_header=False, box=None, expand=True, padding=(0, 0))
+        table.add_column("Station", width=3, justify="center")
+        table.add_column("Agent", ratio=1)
+        table.add_column("Action", width=12, justify="center")
+        table.add_column("Status", width=12, justify="right")
+
+        moving = self._source and self._destination and progress < 1.0
+        for agent in [a for a in self.AGENT_ORDER if a in statuses]:
+            status = statuses.get(agent, "pending")
+            style = {
+                "pending": "dim",
+                "in_progress": "bold cyan",
+                "completed": "green",
+                "error": "red",
+            }.get(status, "white")
+
+            if moving and agent == self._destination:
+                action = "RECEIVING"
+                marker = "◉"
+            elif status == "in_progress":
+                action = "PROCESSING"
+                marker = "●"
+            elif status == "completed":
+                action = "COMPLETED"
+                marker = "✓"
+            elif status == "error":
+                action = "ERROR"
+                marker = "×"
+            else:
+                action = "WAITING"
+                marker = "○"
+
+            table.add_row(
+                Text(marker, style=style),
+                Text(agent, style="bold white" if status == "in_progress" else "white"),
+                Text(action, style="bold cyan" if moving and agent == self._destination else style),
+                Text(status.replace("_", " ").upper(), style=style),
+            )
+        return table
+
+    def render(self, statuses):
+        self.observe(statuses)
+        progress = self._progress()
+        moving = self._source and self._destination and progress < 1.0
+
+        if moving:
+            activity = self._travel_panel(self._source, self._destination, progress)
+        elif self._last_active:
+            station = Text()
+            station.append("╭", style="bold white")
+            station.append("━━", style="bold white")
+            station.append("╮", style="bold white")
+            station.append("  ")
+            station.append("●", style="bold cyan")
+            station.append("●", style="bold cyan")
+            activity = Panel(
+                station,
+                title="[bold cyan]AI Agent Activity[/bold cyan]",
+                subtitle=(
+                    f"[dim]Shared robot stationed at[/dim] "
+                    f"[bold cyan]{self._last_active}[/bold cyan]"
+                ),
+                border_style="cyan",
+            )
+        else:
+            activity = Panel(
+                "[dim]Waiting for the first AI agent to start...[/dim]",
+                title="[bold cyan]AI Agent Activity[/bold cyan]",
+                border_style="cyan",
+            )
+
+        combined = Table.grid(expand=True)
+        combined.add_row(activity)
+        combined.add_row(self._station_table(statuses, progress))
+
+        # Clear the completed transition once its final frame has rendered.
+        if self._source and self._destination and progress >= 1.0:
+            self._source = None
+            self._destination = None
+
+        return combined
+
+
+activity_visualizer = AgentActivityVisualizer()
+
+
 def create_layout():
     layout = Layout()
     layout.split_column(
@@ -169,6 +368,10 @@ def create_layout():
     )
     layout["upper"].split_row(
         Layout(name="progress", ratio=2), Layout(name="messages", ratio=3)
+    )
+    layout["progress"].split_column(
+        Layout(name="activity", ratio=5),
+        Layout(name="status", ratio=3),
     )
     return layout
 
@@ -193,77 +396,37 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         )
     )
 
-    # Progress panel showing agent status
-    progress_table = Table(
+    # Shared-robot activity visualization.
+    # Rendering is transient; agent_status remains the source of truth.
+    activity_visualizer.observe(message_buffer.agent_status)
+    layout["activity"].update(activity_visualizer.render(message_buffer.agent_status))
+
+    # Compact data-dense status table below the visualization.
+    status_table = Table(
         show_header=True,
         header_style="bold magenta",
-        show_footer=False,
-        box=box.SIMPLE_HEAD,  # Use simple header with horizontal lines
-        title=None,  # Remove the redundant Progress title
-        padding=(0, 2),  # Add horizontal padding
-        expand=True,  # Make table expand to fill available space
+        box=box.MINIMAL,
+        expand=True,
+        padding=(0, 1),
     )
-    progress_table.add_column("Team", style="cyan", justify="center", width=20)
-    progress_table.add_column("Agent", style="green", justify="center", width=20)
-    progress_table.add_column("Status", style="yellow", justify="center", width=20)
+    status_table.add_column("Agent", style="white", ratio=2)
+    status_table.add_column("Status", justify="center", width=13)
+    status_table.add_column("Team", style="dim", ratio=2)
 
-    # Group agents by team - filter to only include agents in agent_status
-    all_teams = {
-        "Analyst Team": [
-            "Market Analyst",
-            "Sentiment Analyst",
-            "News Analyst",
-            "Fundamentals Analyst",
-        ],
-        "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
-        "Trading Team": ["Trader"],
-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
-        "Portfolio Management": ["Portfolio Manager"],
-    }
+    for agent in [a for a in activity_visualizer.AGENT_ORDER if a in message_buffer.agent_status]:
+        status = message_buffer.agent_status.get(agent, "pending")
+        status_color = {
+            "pending": "yellow", "in_progress": "cyan",
+            "completed": "green", "error": "red",
+        }.get(status, "white")
+        status_table.add_row(
+            f"🤖 {agent}",
+            f"[{status_color}]{status.replace('_', ' ')}[/{status_color}]",
+            activity_visualizer.TEAM_BY_AGENT.get(agent, ""),
+        )
 
-    teams = {}
-    for team, agents in all_teams.items():
-        active_agents = [a for a in agents if a in message_buffer.agent_status]
-        if active_agents:
-            teams[team] = active_agents
-
-    for team, agents in teams.items():
-        first_agent = agents[0]
-        status = message_buffer.agent_status.get(first_agent, "pending")
-        if status == "in_progress":
-            spinner = Spinner(
-                "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-            )
-            status_cell = spinner
-        else:
-            status_color = {
-                "pending": "yellow",
-                "completed": "green",
-                "error": "red",
-            }.get(status, "white")
-            status_cell = f"[{status_color}]{status}[/{status_color}]"
-        progress_table.add_row(team, first_agent, status_cell)
-
-        for agent in agents[1:]:
-            status = message_buffer.agent_status.get(agent, "pending")
-            if status == "in_progress":
-                spinner = Spinner(
-                    "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-                )
-                status_cell = spinner
-            else:
-                status_color = {
-                    "pending": "yellow",
-                    "completed": "green",
-                    "error": "red",
-                }.get(status, "white")
-                status_cell = f"[{status_color}]{status}[/{status_color}]"
-            progress_table.add_row("", agent, status_cell)
-
-        progress_table.add_row("─" * 20, "─" * 20, "─" * 20, style="dim")
-
-    layout["progress"].update(
-        Panel(progress_table, title="Progress", border_style="cyan", padding=(1, 2))
+    layout["status"].update(
+        Panel(status_table, title="Agent Status", border_style="blue", padding=(0, 1))
     )
 
     # Messages panel showing recent messages and tool calls
