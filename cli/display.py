@@ -14,6 +14,7 @@ from rich.rule import Rule
 from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
+from rich.live import Live
 
 from tradingagents.graph.analyst_execution import (
     ANALYST_NODE_SPECS,
@@ -175,26 +176,12 @@ class AgentActivityVisualizer:
         "Conservative Analyst": "Risk Management", "Portfolio Manager": "Portfolio Management",
     }
 
-    STATUS_STYLE = {
-        "pending": ("dim", "○"), "in_progress": ("cyan", "●"),
-        "completed": ("green", "✓"), "error": ("red", "×"),
-    }
-
-    # Compact terminal mascot inspired by the supplied white robot reference.
-    ROBOT_FACE = "╭─╮\n│●●│\n╰┬╯"
-
     def __init__(self):
         self._last_active = None
-        self._transition_from = None
-        self._transition_to = None
-        self._transition_started = 0.0
-        self._transition_duration = 1.0
-
-    def _begin_transition(self, source, destination):
-        if source != destination:
-            self._transition_from = source
-            self._transition_to = destination
-            self._transition_started = monotonic()
+        self._source = None
+        self._destination = None
+        self._started = 0.0
+        self._duration = 1.2
 
     def observe(self, statuses):
         active = next(
@@ -203,66 +190,95 @@ class AgentActivityVisualizer:
         )
         if active != self._last_active:
             if self._last_active is not None and active is not None:
-                self._begin_transition(self._last_active, active)
+                self._source = self._last_active
+                self._destination = active
+                self._started = monotonic()
             self._last_active = active
+
+    def _progress(self):
+        if self._source is None or self._destination is None:
+            return 1.0
+        return min(1.0, (monotonic() - self._started) / self._duration)
+
+    @staticmethod
+    def _robot_text():
+        # Terminal representation of the supplied mascot: white rounded shell,
+        # dark face, cyan-looking eyes while preserving portability in Rich.
+        return Text("╭────╮\n│ ●● │\n╰─┬──╯", style="bold white")
 
     def render(self, statuses):
         self.observe(statuses)
-        visible_agents = [a for a in self.AGENT_ORDER if a in statuses]
+        visible = [a for a in self.AGENT_ORDER if a in statuses]
 
         table = Table(show_header=False, box=None, expand=True, padding=(0, 0))
-        table.add_column("Station", width=3, justify="center")
-        table.add_column("Track", width=7, justify="center")
+        table.add_column("Station", width=8, justify="center")
         table.add_column("Agent", ratio=1)
-        table.add_column("State", width=12, justify="right")
+        table.add_column("Action", width=16, justify="center")
+        table.add_column("Status", width=13, justify="right")
 
-        from_index = visible_agents.index(self._transition_from) if self._transition_from in visible_agents else None
-        to_index = visible_agents.index(self._transition_to) if self._transition_to in visible_agents else None
+        source_index = visible.index(self._source) if self._source in visible else None
+        destination_index = visible.index(self._destination) if self._destination in visible else None
+        progress = self._progress()
+        moving = source_index is not None and destination_index is not None and progress < 1.0
 
-        moving = False
         robot_index = None
-        if from_index is not None and to_index is not None:
-            progress = min(1.0, (monotonic() - self._transition_started) / self._transition_duration)
-            moving = progress < 1.0
-            robot_index = round(from_index + (to_index - from_index) * progress)
-            if not moving:
-                self._transition_from = None
-                self._transition_to = None
+        if moving:
+            robot_index = round(source_index + (destination_index - source_index) * progress)
 
-        for index, agent in enumerate(visible_agents):
+        for index, agent in enumerate(visible):
             status = statuses.get(agent, "pending")
-            style, marker = self.STATUS_STYLE.get(status, ("white", "?"))
-            state_label = status.replace("_", " ").upper()
+            status_style = {
+                "pending": "dim",
+                "in_progress": "bold cyan",
+                "completed": "green",
+                "error": "red",
+            }.get(status, "white")
 
             if moving and index == robot_index:
-                table.add_row(
-                    Text(marker, style=style),
-                    Text("◀", style="bold cyan"),
-                    Text(f"🤖  {agent}", style="bold cyan"),
-                    Text("SENDING", style="bold cyan"),
-                )
+                station = self._robot_text()
+                action = "SENDING"
+                state = "● IN TRANSIT"
+            elif moving and index == destination_index:
+                station = Text("◉", style="bold cyan")
+                action = "RECEIVING"
+                state = "●"
             else:
-                table.add_row(
-                    Text(marker, style=style),
-                    Text("│", style="dim"),
-                    Text(agent, style="bold" if status == "in_progress" else "white"),
-                    Text(state_label, style=style),
+                station = Text(
+                    "●" if status == "in_progress" else ("✓" if status == "completed" else "○"),
+                    style=status_style,
                 )
+                action = (
+                    "PROCESSING" if status == "in_progress"
+                    else ("COMPLETED" if status == "completed" else "WAITING")
+                )
+                state = status.replace("_", " ").upper()
+
+            table.add_row(
+                station,
+                Text(agent, style="bold white" if status == "in_progress" else "white"),
+                Text(action, style=status_style if not moving else "bold cyan"),
+                Text(state, style=status_style),
+            )
 
         if moving:
-            table.caption = (
-                f"[cyan]Shared robot traveling:[/cyan] "
-                f"{self._transition_from} [dim]→[/dim] {self._transition_to}"
+            caption = (
+                f"[bold cyan]ROBOT IN TRANSIT[/bold cyan]  "
+                f"{self._source} [cyan]→[/cyan] {self._destination}  "
+                f"[dim]shared AI agent carries the workflow payload[/dim]"
             )
         elif self._last_active:
-            table.caption = f"[dim]Robot stationed at[/dim] [bold cyan]{self._last_active}[/bold cyan]"
+            caption = (
+                f"[dim]Robot stationed at[/dim] "
+                f"[bold cyan]{self._last_active}[/bold cyan]  "
+                f"[dim]processing live workflow[/dim]"
+            )
         else:
-            table.caption = "[dim]Waiting for the first AI agent to start...[/dim]"
-        return table
+            caption = "[dim]Waiting for the first AI agent to start...[/dim]"
+
+        return Panel(table, title="AI Agent Activity", subtitle=caption, border_style="cyan")
 
 
 activity_visualizer = AgentActivityVisualizer()
-
 
 
 def create_layout():
@@ -279,8 +295,8 @@ def create_layout():
         Layout(name="progress", ratio=2), Layout(name="messages", ratio=3)
     )
     layout["progress"].split_column(
-        Layout(name="activity", ratio=3),
-        Layout(name="status", ratio=4),
+        Layout(name="activity", ratio=5),
+        Layout(name="status", ratio=3),
     )
     return layout
 
@@ -306,15 +322,9 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     )
 
     # Shared-robot activity visualization.
+    # Rendering is transient; agent_status remains the source of truth.
     activity_visualizer.observe(message_buffer.agent_status)
-    layout["activity"].update(
-        Panel(
-            activity_visualizer.render(message_buffer.agent_status),
-            title="AI Agent Activity",
-            border_style="cyan",
-            padding=(0, 1),
-        )
-    )
+    layout["activity"].update(activity_visualizer.render(message_buffer.agent_status))
 
     # Compact data-dense status table below the visualization.
     status_table = Table(
