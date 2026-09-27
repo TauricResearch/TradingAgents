@@ -6,6 +6,14 @@ from tradingagents.dataflows.errors import (
     VendorNotConfiguredError,
     VendorRateLimitError,
 )
+from tradingagents.dataflows.vendors.akshare.market import (
+    build_akshare_verified_market_snapshot,
+    get_akshare_indicators_window,
+    get_akshare_stock_data,
+)
+from tradingagents.dataflows.vendors.yahoo.snapshot import (
+    build_verified_market_snapshot,
+)
 from tradingagents.dataflows.vendors.alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
@@ -46,7 +54,8 @@ TOOLS_CATEGORIES = {
     "core_stock_apis": {
         "description": "OHLCV stock price data",
         "tools": [
-            "get_stock_data"
+            "get_stock_data",
+            "get_verified_market_snapshot",
         ]
     },
     "technical_indicators": {
@@ -87,6 +96,7 @@ TOOLS_CATEGORIES = {
 }
 
 VENDOR_LIST = [
+    "akshare",
     "yfinance",
     "sec_edgar",
     "fred",
@@ -105,11 +115,17 @@ OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
 VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
+        "akshare": get_akshare_stock_data,
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
     },
     # technical_indicators
+    "get_verified_market_snapshot": {
+        "akshare": build_akshare_verified_market_snapshot,
+        "yfinance": build_verified_market_snapshot,
+    },
     "get_indicators": {
+        "akshare": get_akshare_indicators_window,
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
     },
