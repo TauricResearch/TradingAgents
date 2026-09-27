@@ -2,6 +2,7 @@
 from typing import Any
 
 from .base_client import BaseLLMClient
+from .headers import parse_llm_headers
 
 
 def create_llm_client(
@@ -91,6 +92,12 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
     """Keyword arguments for ``create_llm_client`` from a TradingAgents config."""
     kwargs = {}
     provider = config.get("llm_provider", "").lower()
+
+    headers = parse_llm_headers(config.get("llm_headers"))
+    if headers:
+        if provider in {"google", "bedrock"}:
+            raise ValueError(f"llm_headers is not supported by the {provider} adapter")
+        kwargs["default_headers"] = headers
 
     if provider == "google":
         thinking_level = config.get("google_thinking_level")
