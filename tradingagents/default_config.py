@@ -96,9 +96,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # variation on models that honor it; reasoning models largely ignore it
     # and no setting makes LLM output bit-identical across runs (see README).
     "temperature": None,
-    # SDK retry budget forwarded to every provider chat client. None leaves each
-    # provider/SDK at its own default (usually 2). Raise it to ride out bursty
-    # 429 throttling on rate-limited deployments instead of aborting a run (#1091).
+    # Extra retries inside the provider SDK, on top of the shared backoff in
+    # llm_clients.retry. None disables the SDK retry so every provider (OpenAI,
+    # Gemini, Anthropic, Azure, Bedrock, and OpenAI-compatible servers) waits
+    # on that one schedule. Set this only to add the SDK's own short retries
+    # inside each backoff attempt (#1091).
     "llm_max_retries": None,
     # Cap on output tokens forwarded to every provider chat client. None leaves
     # each provider at its own default. Set it to bound a model that emits

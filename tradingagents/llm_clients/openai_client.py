@@ -8,8 +8,9 @@ from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .api_key_env import get_api_key_env
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient
 from .capabilities import get_capabilities
+from .retry import invoke_with_retry, sdk_max_retries
 from .validators import validate_model
 
 
@@ -18,7 +19,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
 
     The Responses API returns content as a list of typed blocks
     (reasoning, text, etc.). ``invoke`` normalizes to string for
-    consistent downstream handling.
+    consistent downstream handling and retries a temporary provider outage.
 
     ``with_structured_output`` consults the per-model capability table
     (``capabilities.get_capabilities``) to pick the method and to decide
@@ -33,7 +34,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        return invoke_with_retry(super().invoke, input, config, kwargs)
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         caps = get_capabilities(self.model_name)
@@ -329,6 +330,7 @@ class OpenAIClient(BaseLLMClient):
             if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
                 continue
             llm_kwargs[key] = self.kwargs[key]
+        llm_kwargs["max_retries"] = sdk_max_retries(self.kwargs.get("max_retries"))
 
         # The subclass (provider quirks) comes from the registry spec.
         return chat_cls(**llm_kwargs)

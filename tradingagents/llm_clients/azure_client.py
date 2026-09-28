@@ -3,7 +3,8 @@ from typing import Any
 
 from langchain_openai import AzureChatOpenAI
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient
+from .retry import invoke_with_retry, sdk_max_retries
 
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "api_key", "reasoning_effort", "temperature",
@@ -12,10 +13,14 @@ _PASSTHROUGH_KWARGS = (
 
 
 class NormalizedAzureChatOpenAI(AzureChatOpenAI):
-    """AzureChatOpenAI with normalized content output."""
+    """AzureChatOpenAI with normalized content output.
+
+    ``invoke`` normalizes content to a string and retries a temporary
+    provider outage.
+    """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        return invoke_with_retry(super().invoke, input, config, kwargs)
 
 
 class AzureOpenAIClient(BaseLLMClient):
@@ -43,6 +48,7 @@ class AzureOpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+        llm_kwargs["max_retries"] = sdk_max_retries(self.kwargs.get("max_retries"))
 
         return NormalizedAzureChatOpenAI(**llm_kwargs)
 

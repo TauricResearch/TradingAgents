@@ -114,8 +114,9 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
     if temperature is not None and temperature != "":
         kwargs["temperature"] = float(temperature)
 
-    # SDK retry budget is cross-provider. Forward it only when explicitly set
-    # so each provider keeps its own default (usually 2) otherwise (#1091).
+    # Extra SDK retries on top of the shared backoff. Forwarded only when set;
+    # otherwise each chat client disables the SDK retry so one schedule applies
+    # to every provider (#1091).
     max_retries = config.get("llm_max_retries")
     if max_retries is not None and max_retries != "":
         kwargs["max_retries"] = _coerce_max_retries(max_retries)

@@ -3,7 +3,8 @@ from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient
+from .retry import invoke_with_retry, sdk_max_retries
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
@@ -43,11 +44,11 @@ class NormalizedChatAnthropic(ChatAnthropic):
 
     Claude models with extended thinking or tool use return content as a
     list of typed blocks. This normalizes to string for consistent
-    downstream handling.
+    downstream handling and retries a temporary provider outage.
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        return invoke_with_retry(super().invoke, input, config, kwargs)
 
 
 class AnthropicClient(BaseLLMClient):
@@ -70,6 +71,7 @@ class AnthropicClient(BaseLLMClient):
             if key == "effort" and not _supports_effort(self.model):
                 continue
             llm_kwargs[key] = self.kwargs[key]
+        llm_kwargs["max_retries"] = sdk_max_retries(self.kwargs.get("max_retries"))
 
         return NormalizedChatAnthropic(**llm_kwargs)
 
