@@ -7,7 +7,7 @@ import yfinance as yf
 from yfinance.exceptions import YFRateLimitError
 
 from tradingagents.dataflows.config import get_config
-from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.files import replace_file
 from tradingagents.dataflows.net import vendor_reachable
 from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
@@ -35,7 +35,7 @@ def raise_for_empty(symbol: str, canonical: str, what: str) -> None:
     without this a Yahoo outage reads as "this symbol has no {what}".
     """
     if not vendor_reachable(YAHOO_HOST):
-        raise VendorRateLimitError(f"Yahoo Finance is unreachable; no {what} was retrieved")
+        raise VendorUnavailableError(f"Yahoo Finance is unreachable; no {what} was retrieved")
     raise NoMarketDataError(symbol, canonical, f"no {what}")
 
 
@@ -45,7 +45,7 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
     retry them internally, so this wrapper retries them. A rate limit that
     outlasts the retries, or any other exception, is raised as
-    VendorRateLimitError: Yahoo answers an unknown symbol with an empty
+    VendorUnavailableError: Yahoo answers an unknown symbol with an empty
     result, so a request that raised failed in transit and says nothing about
     the symbol. ``func`` should build its own Ticker and make the request
     itself: a Ticker keeps a failed ``info`` fetch as done, so asking the same
@@ -60,11 +60,11 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
                 logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(delay)
             else:
-                raise VendorRateLimitError(
+                raise VendorUnavailableError(
                     f"Yahoo Finance rate limited after {max_retries} retries: {exc}"
                 ) from exc
         except Exception as exc:
-            raise VendorRateLimitError(f"Yahoo Finance request failed: {type(exc).__name__}") from exc
+            raise VendorUnavailableError(f"Yahoo Finance request failed: {type(exc).__name__}") from exc
 
 
 def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:

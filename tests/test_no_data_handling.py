@@ -95,11 +95,11 @@ if __name__ == "__main__":
 
 @pytest.mark.unit
 def test_an_unreachable_yahoo_is_not_reported_as_a_symbol_without_insider_data():
-    from tradingagents.dataflows.errors import VendorRateLimitError
+    from tradingagents.dataflows.errors import VendorUnavailableError
     from tradingagents.dataflows.vendors.yahoo import fundamentals
 
     ticker = type("T", (), {"insider_transactions": pd.DataFrame()})()
     with mock.patch.object(fundamentals.yf, "Ticker", return_value=ticker), \
          mock.patch.object(fundamentals, "vendor_reachable", return_value=False), \
-         pytest.raises(VendorRateLimitError):
+         pytest.raises(VendorUnavailableError):
         fundamentals.get_insider_transactions("AAPL", as_of_date="2026-09-21")

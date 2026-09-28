@@ -144,13 +144,13 @@ def test_a_throttle_lets_the_next_vendor_try(monkeypatch):
     """SEC throttles by refusing the request; the router then tries yfinance."""
     import requests
 
-    from tradingagents.dataflows.errors import VendorRateLimitError
+    from tradingagents.dataflows.errors import VendorUnavailableError
 
     def _throttled(*a, **k):
         raise requests.HTTPError(response=mock.Mock(status_code=429))
 
     monkeypatch.setattr(sec_edgar.requests, "get", _throttled)
-    with pytest.raises(VendorRateLimitError):
+    with pytest.raises(VendorUnavailableError):
         _REAL_FETCH("https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json")
 
 

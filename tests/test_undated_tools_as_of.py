@@ -196,14 +196,14 @@ def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
     company has no balance sheet, when the truth is we could not ask."""
     import pandas as pd
 
-    from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+    from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
     from tradingagents.dataflows.vendors.yahoo import ohlcv
 
     empty = mock.Mock(quarterly_balance_sheet=pd.DataFrame(), balance_sheet=pd.DataFrame())
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: empty)
 
     monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: False)
-    with pytest.raises(VendorRateLimitError, match="unreachable"):
+    with pytest.raises(VendorUnavailableError, match="unreachable"):
         yahoo_fundamentals.get_balance_sheet("AAPL", "annual", "2026-09-01")
 
     monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
@@ -216,10 +216,10 @@ def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
     """A throttled or unreachable chain used to raise RuntimeError('No available
     vendor'), which ends the run, and never said the vendor was the problem."""
     from tradingagents.dataflows import router
-    from tradingagents.dataflows.errors import VendorRateLimitError
+    from tradingagents.dataflows.errors import VendorUnavailableError
 
     def _down(*a, **k):
-        raise VendorRateLimitError("Yahoo Finance is unreachable")
+        raise VendorUnavailableError("Yahoo Finance is unreachable")
 
     monkeypatch.setitem(router.VENDOR_METHODS["get_balance_sheet"], "yfinance", _down)
 
@@ -235,13 +235,13 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch)
     delisted symbol either."""
     import pandas as pd
 
-    from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+    from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
     from tradingagents.dataflows.vendors.yahoo import ohlcv
 
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: mock.Mock(history=lambda **k: pd.DataFrame()))
 
     monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: False)
-    with pytest.raises(VendorRateLimitError, match="unreachable"):
+    with pytest.raises(VendorUnavailableError, match="unreachable"):
         yahoo_market.get_YFin_data_online("AAPL", "2026-09-01", "2026-09-10")
 
     monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)

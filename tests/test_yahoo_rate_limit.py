@@ -21,7 +21,7 @@ from tradingagents.agents.tools import (
 )
 from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.errors import VendorRateLimitError
+from tradingagents.dataflows.errors import VendorUnavailableError
 from tradingagents.dataflows.vendors.yahoo import fundamentals, ohlcv
 
 DAY = "2026-09-18"
@@ -84,7 +84,7 @@ def test_the_indicator_path_retries_a_rate_limit(yahoo):
 def test_yfinance_raises_the_rate_limit_from_history(yahoo):
     yahoo.setattr(YfData, "_make_request", _rate_limited)
 
-    with pytest.raises(VendorRateLimitError, match="rate limited"):
+    with pytest.raises(VendorUnavailableError, match="rate limited"):
         ohlcv.load_ohlcv("AAPL", DAY)
 
 
@@ -122,7 +122,7 @@ def test_a_price_request_that_raises_is_unavailable_whether_or_not_yahoo_answers
     yahoo.setattr(yf.Ticker, "history", refused)
     for reachable in (False, True):
         yahoo.setattr(ohlcv, "vendor_reachable", lambda url, _r=reachable: _r)
-        with pytest.raises(VendorRateLimitError, match="request failed"):
+        with pytest.raises(VendorUnavailableError, match="request failed"):
             ohlcv.load_ohlcv("AAPL", DAY)
 
 
@@ -136,7 +136,7 @@ def test_a_price_request_that_fails_is_unavailable_even_when_yahoo_answers(monke
     monkeypatch.setattr(ohlcv.yf, "Ticker", lambda s: type("T", (), {"history": lambda self, **k: timed_out(**k)})())
     monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
 
-    with pytest.raises(VendorRateLimitError):
+    with pytest.raises(VendorUnavailableError):
         ohlcv.load_ohlcv("NVDA", "2026-09-23")
 
 
@@ -174,5 +174,5 @@ def test_a_yahoo_request_that_fails_is_unavailable_not_absent(yahoo, call):
     yahoo.setattr(yf, "Ticker", _Unreachable)
     yahoo.setattr(yf, "Search", _Unreachable)
 
-    with pytest.raises(VendorRateLimitError):
+    with pytest.raises(VendorUnavailableError):
         call()

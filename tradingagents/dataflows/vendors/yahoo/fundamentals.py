@@ -4,7 +4,7 @@ import pandas as pd
 import yfinance as yf
 
 from tradingagents.dataflows.date_window import withhold_live_profile
-from tradingagents.dataflows.errors import VendorRateLimitError
+from tradingagents.dataflows.errors import VendorUnavailableError
 from tradingagents.dataflows.net import vendor_reachable
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.ohlcv import (
@@ -151,7 +151,7 @@ def get_insider_transactions(
     # so report it plainly rather than treating the symbol as invalid.
     if data is None or data.empty:
         if not vendor_reachable(YAHOO_HOST):
-            raise VendorRateLimitError("Yahoo Finance is unreachable; insider filings were not retrieved")
+            raise VendorUnavailableError("Yahoo Finance is unreachable; insider filings were not retrieved")
         return f"No insider transactions reported for symbol '{canonical}'"
 
     if as_of_date:

@@ -28,7 +28,7 @@ import requests
 
 from tradingagents import __version__
 from tradingagents.dataflows.config import get_config
-from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.files import replace_file
 
 logger = logging.getLogger(__name__)
@@ -109,9 +109,9 @@ def _fetch_json(url: str) -> dict:
         status = getattr(getattr(exc, "response", None), "status_code", None)
         # Every failure here is "this vendor cannot serve it now", so the router
         # moves on instead of seeing a transport exception it has no rule for.
-        raise VendorRateLimitError(f"SEC EDGAR request failed ({status or type(exc).__name__})") from exc
+        raise VendorUnavailableError(f"SEC EDGAR request failed ({status or type(exc).__name__})") from exc
     except ValueError as exc:
-        raise VendorRateLimitError("SEC EDGAR returned an unreadable response") from exc
+        raise VendorUnavailableError("SEC EDGAR returned an unreadable response") from exc
 
 
 def _cached_json(url: str, name: str) -> dict:
