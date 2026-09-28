@@ -1,3 +1,18 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: default_config.py
+ * @description: Default configuration for TradingAgents
+ * @author: AI Assistant
+ * @created: 2026-09-28T10:52:01
+ * @updated: 2026-09-28T10:52:01
+ * @version: 1.0.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
+
 import os
 
 _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
@@ -157,6 +172,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Trading days after the analysis date over which a decision's outcome is
     # measured, for reflection and for the backtest figures.
     "holding_period_days": 5,
+    "credit_holding_period_days": 30,
     "benchmark_ticker": None,
     "benchmark_map": {
         ".NS":  "^NSEI",       # NSE India (Nifty 50)
@@ -168,6 +184,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".AX":  "^AXJO",       # Australia (ASX 200)
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
+        ".SA":  "^IRFM",       # Brazil (inflation-linked bond index)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
 })
