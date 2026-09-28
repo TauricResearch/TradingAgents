@@ -53,10 +53,10 @@ cli = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -m \"not integration\""
 markers = [
     "unit: fast isolated unit tests",
-    "integration: tests requiring external services",
+    "integration: tests requiring external services; run only when asked for, with -m integration",
     "smoke: quick sanity-check tests",
 ]
 filterwarnings = [
