@@ -21,6 +21,7 @@ from tradingagents.agents.tools import (
 )
 from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.errors import VendorUnavailableError
 from tradingagents.dataflows.vendors.yahoo import common, fundamentals, ohlcv
 
@@ -55,7 +56,8 @@ def test_a_rate_limit_that_outlasts_the_retries_is_reported_as_one(yahoo, tool, 
     yahoo.setattr(yf.Ticker, "insider_transactions", property(_rate_limited))
     yahoo.setattr(yf, "Search", _rate_limited)
 
-    out = tool.func(*args, trade_date=DAY)
+    # Dated today: a past run is not served insider trades at all.
+    out = tool.func(*args, trade_date=get_current_date())
 
     assert out.startswith("DATA_UNAVAILABLE"), out
     assert "delisted" not in out

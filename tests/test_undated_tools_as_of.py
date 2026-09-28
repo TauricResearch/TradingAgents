@@ -7,7 +7,6 @@ only live odds, so a historical run withholds them.
 
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 import pandas as pd
@@ -16,7 +15,6 @@ import pytest
 from tradingagents.agents import tools
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.vendors import polymarket
-from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
 from tradingagents.dataflows.vendors.yahoo import (
     fundamentals as yahoo_fundamentals,
     market as yahoo_market,
@@ -38,34 +36,9 @@ def _yf_insider(frame, curr_date):
 
 
 @pytest.mark.unit
-def test_yfinance_insider_filings_after_the_date_are_dropped():
-    out = _yf_insider(_insider_frame("2026-09-08", "2025-06-02", "2025-05-30", "2025-01-10"), "2025-06-01")
-    assert "2026-09-08" not in out and "2025-06-02" not in out
-    assert "2025-05-30" in out and "2025-01-10" in out
-
-
-@pytest.mark.unit
-def test_yfinance_insider_date_before_coverage_is_unavailable_not_absent():
-    out = _yf_insider(_insider_frame("2026-09-08", "2025-06-02"), "2024-01-01")
-    assert "unavailable" in out and "No insider transactions reported" not in out
-    assert "2025-06-02" not in out  # a transaction after the run date
-
-
-@pytest.mark.unit
 def test_yfinance_insider_without_a_date_is_unfiltered():
     out = _yf_insider(_insider_frame("2026-09-08", "2025-01-10"), None)
     assert "2026-09-08" in out and "2025-01-10" in out
-
-
-@pytest.mark.unit
-def test_alpha_vantage_insider_filings_after_the_date_are_dropped():
-    body = json.dumps({"data": [
-        {"transaction_date": "2026-09-08", "executive": "A"},
-        {"transaction_date": "2025-05-30", "executive": "B"},
-    ]})
-    with mock.patch.object(alpha_vantage_news, "_make_api_request", return_value=body):
-        out = json.loads(alpha_vantage_news.get_insider_transactions("AAPL", "2025-06-01"))
-    assert [t["executive"] for t in out["data"]] == ["B"]
 
 
 @pytest.mark.unit
@@ -122,27 +95,6 @@ def test_a_current_run_is_not_cluttered_with_a_vintage_note(monkeypatch):
 
 
 @pytest.mark.unit
-def test_insider_rows_are_dated_by_the_trade_not_the_filing():
-    """yfinance reports the transaction date and carries no filing date. A trade
-    becomes public when the Form 4 is filed, up to two business days later, so a
-    run must not be told these rows were public on their transaction date."""
-    import pandas as pd
-
-    frame = pd.DataFrame({
-        "Shares": [100, 200],
-        "Text": ["Sale at price 10.00 per share.", "Sale at price 11.00 per share."],
-        "Start Date": pd.to_datetime(["2026-05-01", "2026-05-20"]),
-    })
-    ticker = mock.Mock(insider_transactions=frame)
-    with mock.patch.object(yahoo_market.yf, "Ticker", return_value=ticker):
-        out = yahoo_fundamentals.get_insider_transactions("AAPL", "2026-05-10")
-
-    assert "2026-05-01" in out and "2026-05-20" not in out   # still bounded by the date
-    assert "transaction date" in out.lower()                  # and says what the date means
-    assert "filed" in out.lower()                             # and that filing comes later
-
-
-@pytest.mark.unit
 def test_an_indicator_that_could_not_be_read_is_not_shown_as_a_blank_value():
     """The per-day fallback returned an empty string for a failed read, so the
     table rendered a row per day with nothing after the colon: an analyst reads
@@ -164,7 +116,7 @@ def test_an_indicator_that_could_not_be_read_is_not_shown_as_a_blank_value():
     ("get_balance_sheet", ("AAPL", "annual", get_current_date())),
     ("get_cashflow", ("AAPL", "annual", get_current_date())),
     ("get_income_statement", ("AAPL", "annual", get_current_date())),
-    ("get_insider_transactions", ("AAPL", "2026-09-01")),
+    ("get_insider_transactions", ("AAPL", get_current_date())),
 ])
 def test_a_yfinance_failure_is_a_vendor_error_not_a_report(func, args):
     """Returning the failure as text makes the router count it as an answer, so

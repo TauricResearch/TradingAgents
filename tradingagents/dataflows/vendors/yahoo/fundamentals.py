@@ -1,9 +1,12 @@
 from typing import Annotated
 
-import pandas as pd
 import yfinance as yf
 
-from tradingagents.dataflows.date_window import withhold_live_profile, withhold_undated_statements
+from tradingagents.dataflows.date_window import (
+    withhold_live_profile,
+    withhold_undated_statements,
+    withhold_undisclosed_trades,
+)
 from tradingagents.dataflows.errors import VendorUnavailableError
 from tradingagents.dataflows.net import vendor_reachable
 from tradingagents.dataflows.symbols import normalize_symbol
@@ -125,23 +128,15 @@ def get_income_statement(
     return _statement(ticker, freq, as_of_date, "Income Statement", "quarterly_income_stmt", "income_stmt")
 
 
-# Rows are dated by the transaction, which is when the insider traded, not when
-# the market learned of it: a Form 4 is filed up to two business days later and
-# this vendor reports no filing date, so the most recent rows may not have been
-# public on the analysis date.
-_TRANSACTION_DATE_VINTAGE = (
-    "# Rows are dated by transaction date. A trade becomes public when its Form 4 "
-    "is filed, up to two business days later, so the newest rows may not have been "
-    "known on this date.\n\n"
-)
-
-
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"],
-    as_of_date: Annotated[str | None, "only transactions on or before this date, yyyy-mm-dd"] = None,
+    as_of_date: Annotated[str | None, "analysis date, yyyy-mm-dd"] = None,
 ):
-    """Get insider transactions data from yfinance."""
+    """Get insider transactions data from yfinance, for a run dated today."""
     canonical = normalize_symbol(ticker)
+    withheld = withhold_undisclosed_trades(as_of_date, canonical)
+    if withheld:
+        return withheld
     data = yf_retry(lambda: yf.Ticker(canonical).insider_transactions)
 
     # Empty is normal here (many valid symbols have no insider filings),
@@ -151,17 +146,7 @@ def get_insider_transactions(
             raise VendorUnavailableError("Yahoo Finance is unreachable; insider filings were not retrieved")
         return f"No insider transactions reported for symbol '{canonical}'"
 
-    if as_of_date:
-        traded = data["Start Date"]
-        kept = data[traded <= pd.Timestamp(as_of_date)]
-        if kept.empty:
-            return (
-                f"<insider transactions unavailable for {canonical} as of {as_of_date}: "
-                "Yahoo serves recent transactions only>"
-            )
-        data = kept
-
-    return f"# Insider Transactions data for {canonical}\n" + _TRANSACTION_DATE_VINTAGE + data.to_csv()
+    return f"# Insider Transactions data for {canonical}\n" + data.to_csv()
 
 
 def get_company_profile(ticker: str) -> dict:

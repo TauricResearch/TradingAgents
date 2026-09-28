@@ -58,3 +58,21 @@ def test_statements_come_from_sec_edgar_first_by_default():
     with mock.patch.dict(router.VENDOR_METHODS, {"get_balance_sheet": chain}):
         router.route_to_vendor("get_balance_sheet", "AAPL", "quarterly", PAST)
     assert served == ["sec_edgar"]
+
+
+@pytest.mark.unit
+def test_yahoo_withholds_insider_trades_from_a_past_run_without_asking():
+    """A trade is dated when it happened; it became public with its Form 4, up to
+    two business days later, and Yahoo reports no filing date."""
+    with mock.patch.object(yahoo, "yf_retry", side_effect=AssertionError("requested")):
+        out = yahoo.get_insider_transactions("AAPL", PAST)
+    assert "withheld" in out and PAST in out
+
+
+@pytest.mark.unit
+def test_alpha_vantage_withholds_insider_trades_from_a_past_run_without_asking():
+    from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
+
+    with mock.patch.object(alpha_vantage_news, "_make_api_request", side_effect=AssertionError("requested")):
+        out = alpha_vantage_news.get_insider_transactions("IBM", PAST)
+    assert "withheld" in out and PAST in out

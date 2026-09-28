@@ -284,6 +284,8 @@ US company statements come from SEC EDGAR, which records the date every figure w
 
 Other companies' statements come from Yahoo Finance, which dates a statement by the period it covers rather than by when it was published. A run dated today reads them; a run dated in the past is told they are withheld, since Yahoo cannot say which figures were public by then.
 
+Insider trades are dated by when they happened, not when they were filed, so a run dated in the past is told they are withheld as well.
+
 SEC asks callers to identify themselves and refuses requests that carry no contact address, so a default one is sent. Set your own so SEC can reach you rather than the project:
 
 ```bash
