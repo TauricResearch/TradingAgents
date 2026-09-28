@@ -5,7 +5,7 @@
  * @description: Tests for ANBIMA data vendor
  * @author: Maíra Pontin
  * @created: 2026-09-28T10:24:09
- * @updated: 2026-09-28T11:05:32
+ * @updated: 2026-09-28T14:47:54
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:
@@ -53,7 +53,7 @@ def test_get_debenture_quote_returns_dict():
         mock_fetch.return_value = {
             "quotes": {"PETR41": {"price": 95.5, "yield": 12.5, "maturity": 3, "coupon": 10.0, "face_value": 1000}}
         }
-        result = get_debenture_quote("PETR41")
+        result = get_debenture_quote.invoke({"cusip": "PETR41"})
         assert isinstance(result, dict)
         assert "price" in result
         assert result["price"] == 95.5
@@ -65,7 +65,7 @@ def test_get_ima_b_index_returns_list():
         mock_fetch.return_value = {
             "ima_b": [("2026-09-01", 1000.0), ("2026-09-02", 1005.0)]
         }
-        result = get_ima_b_index()
+        result = get_ima_b_index.invoke({})
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0] == ("2026-09-01", 1000.0)
