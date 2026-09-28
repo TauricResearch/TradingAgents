@@ -11,7 +11,7 @@ import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
-from tradingagents.dataflows.date_window import get_current_date
+from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import build_llm_kwargs, create_llm_client
@@ -152,8 +152,7 @@ class TradingAgentsGraph:
         None, disabling the filter so live behavior and pre-migration entries
         (which have no stored resolution date) are unaffected.
         """
-        td = str(trade_date)
-        return td if td < datetime.now().strftime("%Y-%m-%d") else None
+        return str(trade_date) if is_historical(trade_date) else None
 
     def _run_signature(self, asset_type: str, portfolio=None) -> str:
         """Run inputs that must invalidate a checkpoint if changed.

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from tradingagents.dataflows.date_window import get_current_date
+from tradingagents.dataflows.date_window import is_historical
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ def get_prediction_markets(topic: str, limit: int | None = None, as_of_date: str
         each with its implied probability, traded volume, resolution date, and
         recent (1-week) move.
     """
-    if as_of_date and as_of_date < get_current_date():
+    if is_historical(as_of_date):
         return (
             f"Prediction-market odds are withheld for {as_of_date}. Polymarket serves "
             f"only live odds on open markets, with no historical vintage, so serving "

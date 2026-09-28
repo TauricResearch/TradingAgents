@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from tradingagents.agents import tools
+from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.vendors import polymarket
 from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
 from tradingagents.dataflows.vendors.yahoo import (
@@ -77,7 +78,7 @@ def test_polymarket_withholds_live_odds_from_a_historical_run():
 @pytest.mark.unit
 def test_polymarket_serves_a_current_run():
     with mock.patch.object(polymarket, "_request", return_value={"events": []}) as req:
-        polymarket.get_prediction_markets("Fed rate cut", as_of_date=polymarket.get_current_date())
+        polymarket.get_prediction_markets("Fed rate cut", as_of_date=get_current_date())
     req.assert_called_once()
 
 

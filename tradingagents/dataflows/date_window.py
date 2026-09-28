@@ -36,6 +36,11 @@ def get_current_date() -> str:
     return date.today().strftime("%Y-%m-%d")
 
 
+def is_historical(run_date) -> bool:
+    """Whether a run is dated before today, so live-only data would come from after it."""
+    return bool(run_date) and str(run_date) < get_current_date()
+
+
 def coverage_gap(
     dates, start_date: str, end_date: str, source: str, subject: str
 ) -> str | None:
@@ -106,10 +111,7 @@ def withhold_live_profile(as_of_date: str | None, label: str) -> str | None:
     Every fundamentals vendor withholds on this rule, so switching between them
     cannot reintroduce the leak.
     """
-    if not as_of_date:
-        return None
-    today = get_current_date()
-    if as_of_date >= today:
+    if not is_historical(as_of_date):
         return None
     return (
         f"# Company Fundamentals for {label}\n"

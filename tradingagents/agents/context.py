@@ -5,7 +5,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-from tradingagents.dataflows.date_window import get_current_date
+from tradingagents.dataflows.date_window import is_historical
 from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ def build_instrument_context(
     name = identity.get("company_name") or identity.get("name")
     label = "Name" if is_crypto else "Company"
     details = []
-    if trade_date and str(trade_date) < get_current_date():
+    if is_historical(trade_date):
         if name:
             details.append(
                 f"{label}: {name} (its current name, given only to identify it; "
