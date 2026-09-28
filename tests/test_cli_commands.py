@@ -151,3 +151,32 @@ def test_backtest_shows_each_cell_and_how_to_continue(runner, monkeypatch, tmp_p
 
     assert "[1/2] NVDA 2026-06-01" in result.output and "[2/2] NVDA 2026-06-08" in result.output
     assert f"--run-id {_Result(tmp_path).run_id}" in result.output
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("args, analysts", [
+    pytest.param(["--analysts", "sentiment,market"], ["market", "social"], id="named_as_in_analyze"),
+    pytest.param(["--asset-type", "crypto"], ["market", "social", "news"], id="crypto_default"),
+])
+def test_backtest_takes_its_analysts_as_an_analysis_does(runner, monkeypatch, tmp_path, args, analysts):
+    swept = []
+    monkeypatch.setattr(m, "run_backtest", lambda *a, **kw: swept.append(kw) or _Result(tmp_path))
+    monkeypatch.setattr(m, "summarize", lambda log: _Summary())
+
+    result = runner.invoke(m.app, ["backtest", "NVDA", "--start", "2026-06-01", "--end", "2026-06-01", *args])
+
+    assert result.exit_code == 0, result.output
+    assert swept[0]["selected_analysts"] == analysts
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("args", [
+    pytest.param(["--analysts", "fundamentals", "--asset-type", "crypto"], id="unavailable_for_crypto"),
+    pytest.param(["--asset-type", "bond"], id="unknown_asset_type"),
+])
+def test_backtest_refuses_a_selection_before_the_sweep(runner, monkeypatch, args):
+    monkeypatch.setattr(m, "run_backtest", lambda *a, **kw: pytest.fail("the sweep started"))
+
+    result = runner.invoke(m.app, ["backtest", "NVDA", "--start", "2026-06-01", "--end", "2026-06-01", *args])
+
+    assert result.exit_code == 1

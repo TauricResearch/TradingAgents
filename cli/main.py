@@ -3,6 +3,8 @@ import sys
 import typer
 
 from cli.display import console
+from cli.models import AnalystType, AssetType
+from cli.prompts import filter_analysts_for_asset_type, parse_analysts
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -101,7 +103,7 @@ def backtest(
     end: str = typer.Option(..., "--end", help="Last analysis date, YYYY-MM-DD"),
     every: int = typer.Option(7, "--every", help="Days between analysis dates"),
     analysts: str = typer.Option(
-        None, "--analysts", help="Comma-separated analysts to run; omit for all four"
+        None, "--analysts", help="Comma-separated analysts to run: market, sentiment, news, fundamentals; omit for all the asset type allows"
     ),
     asset_type: str = typer.Option("stock", "--asset-type", help="stock or crypto"),
     portfolio: str = typer.Option(
@@ -116,6 +118,11 @@ def backtest(
     try:
         dates = iter_grid(start, end, every)
         book = load_portfolio(portfolio) if portfolio else None
+        kind = AssetType(asset_type.strip().lower())
+        # The analysts are named and checked as for an analysis; without a
+        # choice, every analyst the asset type allows runs.
+        chosen = (parse_analysts(analysts, kind) if analysts
+                  else filter_analysts_for_asset_type(list(AnalystType), kind))
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None
@@ -128,9 +135,8 @@ def backtest(
     def show_progress(done, total, ticker, date):
         console.print(f"[dim][{done}/{total}] {ticker} {date}[/dim]")
 
-    kwargs = {"asset_type": asset_type, "portfolio": book, "run_id": run_id, "progress": show_progress}
-    if analysts:
-        kwargs["selected_analysts"] = [a.strip().lower() for a in analysts.split(",") if a.strip()]
+    kwargs = {"asset_type": kind.value, "portfolio": book, "run_id": run_id, "progress": show_progress,
+              "selected_analysts": [a.value for a in chosen]}
 
     try:
         result = run_backtest(names, dates, DEFAULT_CONFIG, **kwargs)
