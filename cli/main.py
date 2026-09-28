@@ -1,8 +1,18 @@
+import json
 import sys
+from contextlib import redirect_stdout
+from pathlib import Path
 
 import typer
 
 from cli.display import console
+from cli.headless import (
+    AssetMode,
+    ResearchEffort,
+    build_headless_config,
+    run_headless_analysis,
+)
+from cli.progress import resolve_progress_mode
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -50,6 +60,12 @@ def analyze(
 ):
     """Run an analysis. This is what a bare `tradingagents` does."""
     if ctx.invoked_subcommand is not None:
+        if ctx.invoked_subcommand == "analyze" and (
+            checkpoint is not None or clear_checkpoints or portfolio is not None
+        ):
+            raise typer.BadParameter(
+                "Put --checkpoint/--no-checkpoint, --clear-checkpoints and --portfolio after 'analyze'."
+            )
         return
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
@@ -124,6 +140,82 @@ def backtest(
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
     for ticker, reason in result.settlement_failures:
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
+
+
+@app.command("analyze")
+def analyze_headless(
+    symbol: str = typer.Argument(..., help="Required ticker, e.g. NVDA, 0700.HK, BTC-USD."),
+    date: str | None = typer.Option(None, "--date", help="Analysis date (YYYY-MM-DD); default: today, local time."),
+    analysts: str = typer.Option("all", "--analysts", help="all, or comma-separated market,social,news,fundamentals."),
+    effort: ResearchEffort | None = typer.Option(
+        None, "--effort", "--depth", case_sensitive=False,
+        help="Research depth: shallow=1, medium=3, deep=5 debate/risk rounds. Default: medium unless env rounds are set.",
+    ),
+    debate_rounds: int | None = typer.Option(None, "--debate-rounds", min=1, help="Override research debate rounds."),
+    risk_rounds: int | None = typer.Option(None, "--risk-rounds", min=1, help="Override risk discussion rounds."),
+    asset_type: AssetMode = typer.Option(AssetMode.AUTO, "--asset-type", case_sensitive=False),
+    provider: str | None = typer.Option(None, "--provider", help="LLM provider; default: .env / DEFAULT_CONFIG."),
+    quick_model: str | None = typer.Option(None, "--quick-model", help="Quick-thinking model ID."),
+    deep_model: str | None = typer.Option(None, "--deep-model", help="Deep-thinking model ID."),
+    backend_url: str | None = typer.Option(None, "--backend-url", help="LLM API base URL."),
+    header: list[str] | None = typer.Option(None, "--header", help="Extra HTTP header 'Name: value'; repeatable. Keep secrets in .env."),
+    language: str | None = typer.Option(None, "--language", help="Report language; default: .env / English."),
+    temperature: float | None = typer.Option(None, "--temperature", min=0),
+    max_tokens: int | None = typer.Option(None, "--max-tokens", min=1),
+    max_retries: int | None = typer.Option(None, "--max-retries", min=0),
+    checkpoint: bool | None = typer.Option(None, "--checkpoint/--no-checkpoint", help="Override checkpoint/resume setting."),
+    clear_checkpoints: bool = typer.Option(False, "--clear-checkpoints", help="Delete ALL saved checkpoints before running, like the interactive flag."),
+    portfolio: Path | None = typer.Option(None, "--portfolio", exists=True, dir_okay=False, readable=True, help="JSON holdings and cash."),
+    output_dir: Path | None = typer.Option(None, "--output-dir", file_okay=False, help="Complete-report export directory (native Save path). Logs remain under results_dir/SYMBOL/DATE."),
+    results_dir: Path | None = typer.Option(None, "--results-dir", file_okay=False, help="Override the native results root for ticker/date logs, JSON state and default report exports."),
+    progress: bool | None = typer.Option(
+        None, "--progress/--no-progress",
+        help="Show the native dashboard on stderr. Default: on in terminals, off for --json/pipes. Explicit --progress uses plain updates without a terminal.",
+    ),
+    save_report: bool = typer.Option(True, "--save-report/--no-save-report", help="Export the complete Markdown report (default: on). Native section files and logs are always written."),
+    show_report: bool = typer.Option(False, "--show-report/--no-show-report", help="Display the complete report after saving, without prompting. Uses stderr; --json stdout stays clean."),
+    json_output: bool = typer.Option(False, "--json", help="Print one machine-readable JSON summary to stdout; diagnostics go to stderr."),
+):
+    """Analyze SYMBOL without prompts and save reports automatically.
+
+    Defaults: today, all applicable analysts, medium research depth. Uses the
+    existing provider/model/key environment settings. Put options after analyze.
+    """
+    try:
+        # Inspect the original streams before diagnostic redirection. Live UI
+        # and plain progress always use stderr, leaving --json stdout parseable.
+        progress_mode = resolve_progress_mode(progress, json_output)
+        with redirect_stdout(sys.stderr):
+            config = build_headless_config(
+                DEFAULT_CONFIG,
+                effort=effort.value if effort is not None else None,
+                debate_rounds=debate_rounds, risk_rounds=risk_rounds, headers=header,
+                llm_provider=provider, quick_think_llm=quick_model, deep_think_llm=deep_model,
+                backend_url=backend_url, output_language=language, temperature=temperature,
+                max_tokens=max_tokens, llm_max_retries=max_retries,
+                checkpoint_enabled=checkpoint,
+                results_dir=str(results_dir) if results_dir is not None else None,
+            )
+            result = run_headless_analysis(
+                symbol, config=config, analysis_date=date, analysts=analysts,
+                asset_type=asset_type.value, portfolio_path=portfolio, output_dir=output_dir,
+                progress_mode=progress_mode, show_report=show_report,
+                save_report=save_report, clear_checkpoints=clear_checkpoints,
+            )
+    except Exception as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+    if json_output:
+        typer.echo(json.dumps(result, ensure_ascii=False))
+    else:
+        typer.echo(f"Analysis complete: {result['symbol']} on {result['date']}")
+        typer.echo(f"Decision: {result['decision']}")
+        if result["needs_review"]:
+            typer.echo("No rating could be parsed; review the saved report.", err=True)
+        if result["report"]:
+            typer.echo(f"Report: {result['report']}")
+        typer.echo(f"Run directory: {result['output_dir']}")
+        typer.echo(f"Message/tool log: {result['log_file']}")
 
 
 if __name__ == "__main__":

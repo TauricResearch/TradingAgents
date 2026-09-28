@@ -1,11 +1,4 @@
-"""The CLI must use the decision log the same way propagate() does.
-
-The CLI streams the graph itself instead of calling propagate(), so memory steps
-that lived only in propagate() never ran on the primary entry point: pending
-decisions were not settled, the Portfolio Manager got no past context, and the
-finished decision was not recorded. Both paths now build their initial state and
-record their decision through the same graph methods.
-"""
+"""Both CLI paths use the graph's ordinary decision log and checkpoint lifecycle."""
 
 from __future__ import annotations
 
@@ -17,7 +10,6 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
 def _bare_graph(tmp_path):
-    """A graph without __init__ (no LLM clients), wired to a temp log."""
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"memory_log_path": str(tmp_path / "trading_memory.md")}
     graph.memory_log = TradingMemoryLog(graph.config)
@@ -36,9 +28,7 @@ def test_create_run_state_settles_pending_and_carries_context(tmp_path, monkeypa
     monkeypatch.setattr(graph, "_memory_as_of", lambda d: d, raising=False)
     graph.memory_log.store_decision("NVDA", "2026-01-05", "Rating: Buy\nold call")
     graph.memory_log.update_with_outcome("NVDA", "2026-01-05", 0.01, 0.005, 5, "great trade", "2026-01-12")
-
     state = graph.create_run_state("NVDA", "2026-02-01")
-
     assert settled == ["NVDA"]
     assert "great trade" in state["past_context"]
     assert state["instrument_context"] == "id:NVDA"
@@ -60,16 +50,14 @@ def test_record_decision_skips_a_run_without_a_decision(tmp_path):
     assert graph.memory_log.load_entries() == []
 
 
-# --- the CLI path ----------------------------------------------------------------
-
 class _FakeGraph:
-    """Records the lifecycle calls run_analysis makes."""
+    """Records the lifecycle calls of the shared CLI runner."""
 
     def __init__(self, resuming=None):
         self.calls = []
         self.graph = self
         self.propagator = self
-        self.resuming = resuming      # None: checkpointing off
+        self.resuming = resuming
         self._resuming = False
 
     def create_run_state(self, ticker, trade_date, asset_type="stock", portfolio=None):
@@ -79,6 +67,9 @@ class _FakeGraph:
     def process_signal(self, text):
         from tradingagents.agents.rating import parse_rating
         return parse_rating(text)
+
+    def _log_state(self, trade_date, final_state):
+        self.calls.append(("log_state", trade_date, final_state.get("market_report")))
 
     def record_decision(self, ticker, trade_date, final_state):
         self.calls.append(("record_decision", ticker, trade_date, final_state.get("final_trade_decision")))
@@ -100,8 +91,9 @@ class _FakeGraph:
         pass
 
     def stream(self, graph_input, **kwargs):
+        assert kwargs["stream_mode"] == "values"
         yield {"messages": [], "market_report": "M"}
-        yield {"messages": [], "final_trade_decision": "Rating: Buy\n\nBuy NVDA."}
+        yield {"messages": [], "market_report": "M", "final_trade_decision": "Rating: Buy\n\nBuy NVDA."}
 
 
 class _NullLive:
@@ -141,7 +133,6 @@ class _FakeBuffer:
 
 
 def _run_cli(monkeypatch, tmp_path, fake):
-    """Drive run_analysis against ``fake``; returns the message buffer."""
     import cli.main as m
     from cli.models import AnalystType
 
@@ -167,11 +158,9 @@ def _run_cli(monkeypatch, tmp_path, fake):
 def test_cli_run_uses_the_decision_log_like_propagate(tmp_path, monkeypatch):
     fake = _FakeGraph()
     _run_cli(monkeypatch, tmp_path, fake)
-
     assert fake.calls == [
         ("create_run_state", "NVDA", "2026-01-10"),
-        # The decision is recorded from the merged stream, before the checkpoint
-        # is cleared, matching propagate().
+        ("log_state", "2026-01-10", "M"),
         ("record_decision", "NVDA", "2026-01-10", "Rating: Buy\n\nBuy NVDA."),
         ("clear_checkpoint",),
     ]
@@ -180,14 +169,11 @@ def test_cli_run_uses_the_decision_log_like_propagate(tmp_path, monkeypatch):
 @pytest.mark.unit
 @pytest.mark.parametrize("resuming, said", [(True, "resuming"), (False, "starting fresh")])
 def test_the_cli_run_says_whether_it_resumed(tmp_path, monkeypatch, resuming, said):
-    """The README promises the run view tells a resumed run from a fresh one."""
     buffer = _run_cli(monkeypatch, tmp_path, _FakeGraph(resuming=resuming))
-
     assert any(said in text.lower() for _, kind, text in buffer.messages if kind == "System")
 
 
 @pytest.mark.unit
 def test_a_run_without_checkpointing_says_nothing_about_resuming(tmp_path, monkeypatch):
     buffer = _run_cli(monkeypatch, tmp_path, _FakeGraph())
-
     assert not any("resum" in text.lower() or "fresh" in text.lower() for _, _, text in buffer.messages)

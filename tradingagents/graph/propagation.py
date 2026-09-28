@@ -6,9 +6,11 @@ from tradingagents.agents.state import InvestDebateState, RiskDebateState
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(self, max_recur_limit=100, callbacks: list | None = None):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
+        # Optional observers for every invocation (including checkpoint resume).
+        self.callbacks = list(callbacks or [])
 
     def create_initial_state(
         self,
@@ -70,8 +72,10 @@ class Propagator:
 
         Args:
             callbacks: Optional list of callback handlers for tool execution tracking.
-                       Note: LLM callbacks are handled separately via LLM constructor.
+                       None uses this propagator's observers; [] disables them.
+                       LangGraph forwards these to nodes, tools and LLM calls.
         """
+        callbacks = self.callbacks if callbacks is None else callbacks
         config = {"recursion_limit": self.max_recur_limit}
         if callbacks:
             config["callbacks"] = callbacks

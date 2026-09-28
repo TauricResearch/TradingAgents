@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .opencode_go import GO_MODEL_APIS, GO_MODEL_OPTIONS
+
 ModelOption = tuple[str, str]
 ProviderModeOptions = dict[str, dict[str, list[ModelOption]]]
 
@@ -94,6 +96,7 @@ _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
 
 
 MODEL_OPTIONS: ProviderModeOptions = {
+    "opencode-go": GO_MODEL_OPTIONS,
     "openai": {
         "quick": [
             ("GPT-6 Luna - Fast, high-volume and cost-efficient", "gpt-6-luna"),
@@ -233,6 +236,7 @@ def get_model_options(provider: str, mode: str) -> list[ModelOption]:
 # menu, and the explicit ID of a model listed under a shorter name. Known to
 # validation so a config naming one runs without an unknown-model warning.
 LEGACY_MODELS: dict[str, list[str]] = {
+    "opencode-go": list(GO_MODEL_APIS),
     "openai": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol"],
     "xai": ["grok-4.20-0309-reasoning", "grok-4.20-0309-non-reasoning",
             "grok-4.20-multi-agent-0309"],
