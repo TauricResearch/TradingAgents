@@ -1,3 +1,18 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: interface.py
+ * @description: Central data vendor interface and routing
+ * @author: AI Assistant
+ * @created: 2026-09-28T10:33:00
+ * @updated: 2026-09-28T10:33:00
+ * @version: 1.1.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
+
 import logging
 
 from .alpha_vantage import (
@@ -79,6 +94,15 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_prediction_markets",
         ]
+    },
+    "credit_data": {
+        "description": "Brazilian debenture credit data (yield curve, spreads, quotes)",
+        "tools": [
+            "get_yield_curve",
+            "get_credit_spreads",
+            "get_debenture_quote",
+            "get_ima_b_index",
+        ]
     }
 }
 
@@ -88,6 +112,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "anbima",  # Brazilian debenture data
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
