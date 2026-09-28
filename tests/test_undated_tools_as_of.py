@@ -93,19 +93,20 @@ def test_trade_date_is_injected_not_model_visible(tool):
 # --- the instrument's identity -------------------------------------------------
 
 @pytest.mark.unit
-def test_a_historical_run_is_told_the_identity_is_current(monkeypatch):
-    """The company name, sector and industry come from today's vendor profile.
-    They are usually right for a past date, but a company that renamed or was
-    reclassified since would read wrong, and every agent is told to anchor to
-    this identity, so the run has to know which date it describes."""
+def test_a_historical_run_gets_the_current_name_only_as_an_identifier(monkeypatch):
+    """The profile is today's. The name still tells the company apart from others
+    (#814), so a past run keeps it, marked as today's; a sector, industry or
+    exchange that may not have held on the run's date is not given."""
     from tradingagents.agents.context import build_instrument_context
 
     identity = {"company_name": "Example Corp", "sector": "Technology",
                 "industry": "Software", "exchange": "NMS"}
 
     historical = build_instrument_context("EXMP", "stock", identity, trade_date="2024-03-14")
-    assert "Example Corp" in historical
-    assert "2024-03-14" in historical and "today" in historical.lower()
+    assert "Example Corp" in historical and "current name" in historical
+    assert "2024-03-14" in historical
+    for later in ("Technology", "Software", "NMS"):
+        assert later not in historical
 
 
 @pytest.mark.unit
@@ -116,7 +117,7 @@ def test_a_current_run_is_not_cluttered_with_a_vintage_note(monkeypatch):
     today = build_instrument_context("EXMP", "stock", {"company_name": "Example Corp"},
                                      trade_date=get_current_date())
     assert "Example Corp" in today
-    assert "resolved today" not in today.lower()
+    assert "current name" not in today
 
 
 @pytest.mark.unit

@@ -119,9 +119,10 @@ def build_instrument_context(
     than pattern-matching the price chart to a wrong one (#814).
 
     That profile carries no historical vintage: it describes the company today.
-    For a run dated earlier, the context says so, since a company that has since
-    renamed or been reclassified would otherwise anchor the whole graph to an
-    identity it did not have on the analysis date.
+    A run dated earlier gets the current name alone, as a way to tell the
+    company apart from others rather than as what it was called then; a sector,
+    industry or exchange it holds today is not given, since it may not have held
+    on the analysis date.
     """
     is_crypto = asset_type == "crypto"
     instrument_label = "asset" if is_crypto else "instrument"
@@ -131,11 +132,19 @@ def build_instrument_context(
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
     )
 
+    identity = identity or {}
+    name = identity.get("company_name") or identity.get("name")
+    label = "Name" if is_crypto else "Company"
     details = []
-    if identity:
-        name = identity.get("company_name") or identity.get("name")
+    if trade_date and str(trade_date) < get_current_date():
         if name:
-            details.append(f"{'Name' if is_crypto else 'Company'}: {name}")
+            details.append(
+                f"{label}: {name} (its current name, given only to identify it; "
+                f"on {trade_date} it may have been named differently)"
+            )
+    else:
+        if name:
+            details.append(f"{label}: {name}")
         sector, industry = identity.get("sector"), identity.get("industry")
         if sector and industry:
             details.append(f"Business classification: {sector} / {industry}")
@@ -152,13 +161,6 @@ def build_instrument_context(
             "Do not substitute a different company or ticker unless a tool "
             "result explicitly disproves this resolved identity."
         )
-        today = get_current_date()
-        if trade_date and str(trade_date) < today:
-            context += (
-                f" This identity is how the vendor describes the instrument today, "
-                f"not necessarily on {trade_date}: a name or classification changed "
-                f"since then would read as the current one."
-            )
 
     if is_crypto:
         context += (
