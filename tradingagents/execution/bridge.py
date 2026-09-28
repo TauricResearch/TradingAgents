@@ -1,4 +1,10 @@
-"""ExchangeBridge: ccxt (Binance spot, L1) lifecycle, planning, gated execution.
+"""ExchangeBridge: ccxt lifecycle, planning, risk-gated execution (multi-exchange).
+
+Multi-exchange (L2): ``exec_exchange_id`` (or the ``exchange_id`` argument)
+selects the ccxt class; credentials come from ``{ID}_API_KEY`` / ``{ID}_SECRET``
+env vars only -- never from the config dict, never logged, never written to
+the audit trail (safety #5). ``exec_symbol_overrides`` maps a pipeline ticker
+to a full ccxt symbol and wins over the default ``base/quote`` mapping.
 
 Gate model (FR5): the effective mode is computed AT EXECUTE TIME and is
 authoritative -- live only when BOTH independent gates are open: the config
@@ -14,8 +20,19 @@ before it raises, and a live order that WAS placed but whose success-audit
 could not be written raises a distinctive "order was placed" error so a
 retry can never become a duplicate.
 
-Credentials come from BINANCE_API_KEY / BINANCE_SECRET only -- never from the
-config dict, never logged, never written to the audit trail (safety #5).
+Risk guard (FR-K3/K4, L2): every plan and every execution is checked by a
+``RiskGuard`` built from the config ``risk_*`` keys (injectable via
+``risk_guard`` for tests). A halted day refuses everything with a
+``PermissionError``; a plan that breaches a percentage limit comes back as a
+no-order plan (the "always returns a plan" contract holds) audited as
+``rejected_by_risk``; ``execute_order`` re-checks immediately before
+anything is sent, so a halt raised by any process on the shared audit log
+blocks both the dry and live paths.
+
+Audit lines carry a ``phase`` field ("plan" or "execute"): the risk guard
+replays only executed lines, so a planned order is never double-counted as
+a filled one. Lines without ``phase`` (legacy, control events) are treated
+as executed history.
 """
 
 from __future__ import annotations
@@ -31,21 +48,42 @@ from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.symbols import crypto_base
 from tradingagents.default_config import _BOOL_TRUE
 from tradingagents.execution.audit import append_event
+from tradingagents.execution.risk import RiskGuard, RiskLimits
 from tradingagents.execution.sizing import PlannedOrder, SizingRules, compute
 from tradingagents.portfolio import PortfolioContext, Position
 
 logger = logging.getLogger(__name__)
 
 
-def _default_exchange_factory() -> Any:
-    """Build the L1 Binance spot client lazily; credentials from env only."""
-    # ccxt is imported here, not at module level, so importing
-    # tradingagents.execution stays cheap and tests can inject fakes.
+def credential_env_names(exchange_id: str) -> tuple[str, str]:
+    """Env var names for an exchange's credentials: ``{ID}_API_KEY``/``{ID}_SECRET``.
+
+    "binance" maps to the L1 names BINANCE_API_KEY / BINANCE_SECRET unchanged;
+    every other id follows the same pattern (okx -> OKX_API_KEY, ...).
+    """
+    upper = exchange_id.strip().upper()
+    return f"{upper}_API_KEY", f"{upper}_SECRET"
+
+
+def _default_exchange_factory(exchange_id: str) -> Any:
+    """Build the configured ccxt client lazily; credentials from env only.
+
+    ``exchange_id`` must name a ``ccxt.Exchange`` subclass (e.g. "binance",
+    "okx"); anything else raises before any network call. ccxt is imported
+    here, not at module level, so importing tradingagents.execution stays
+    cheap and tests can inject fakes.
+    """
     import ccxt
 
-    return ccxt.binance({
-        "apiKey": os.environ.get("BINANCE_API_KEY", ""),
-        "secret": os.environ.get("BINANCE_SECRET", ""),
+    klass = getattr(ccxt, exchange_id, None)
+    if not (isinstance(klass, type) and issubclass(klass, ccxt.Exchange)):
+        raise ValueError(
+            f"exec_exchange_id {exchange_id!r} does not name a ccxt exchange class"
+        )
+    key_env, secret_env = credential_env_names(exchange_id)
+    return klass({
+        "apiKey": os.environ.get(key_env, ""),
+        "secret": os.environ.get(secret_env, ""),
         "enableRateLimit": True,
     })
 
@@ -62,7 +100,7 @@ class PreTradeRejection(RuntimeError):
 
 
 class ExchangeBridge:
-    """Signal -> plan -> approval-gated execution against one spot venue.
+    """Signal -> plan -> risk check -> approval-gated execution on one venue.
 
     ``config`` is shallow-merged OVER a fresh deepcopy of the process config
     (``get_config()`` already returns a copy), so a partial dict like
@@ -70,6 +108,10 @@ class ExchangeBridge:
     keeps its process value. The merge happens once at construction: a later
     ``set_config()`` is NOT seen by an existing bridge -- build a new one.
     ``rules`` overrides the default FR2 sizing mapping when given.
+    ``exchange_id`` overrides ``exec_exchange_id``; the default factory
+    resolves it to the ccxt class of the same (lowercase) name.
+    ``risk_guard`` overrides the default guard built from the ``risk_*``
+    config keys (tests inject a permissive or scripted guard here).
     """
 
     def __init__(
@@ -77,27 +119,63 @@ class ExchangeBridge:
         config: dict | None = None,
         exchange_factory: Callable[[], Any] | None = None,
         rules: SizingRules | None = None,
+        exchange_id: str | None = None,
+        risk_guard: RiskGuard | None = None,
     ) -> None:
         base = get_config()
         self.config: dict = {**base, **config} if config is not None else base
-        self._exchange_factory = (
-            exchange_factory if exchange_factory is not None else _default_exchange_factory
-        )
+        self.exchange_id = str(
+            exchange_id if exchange_id is not None else self.config.get("exec_exchange_id")
+        ).strip().lower()
+        if not self.exchange_id:
+            raise ValueError("exec_exchange_id is empty; cannot select a ccxt exchange class")
+        if exchange_factory is not None:
+            self._exchange_factory = exchange_factory
+        else:
+            self._exchange_factory = lambda: _default_exchange_factory(self.exchange_id)
         self.rules = rules if rules is not None else SizingRules()
         self._exchange: Any | None = None
+        self.risk_guard = risk_guard if risk_guard is not None else self._build_risk_guard()
+
+    def _build_risk_guard(self) -> RiskGuard:
+        limits = RiskLimits(
+            max_daily_loss_pct=float(self.config["risk_max_daily_loss_pct"]),
+            max_position_pct_per_asset=float(self.config["risk_max_position_pct_per_asset"]),
+            max_total_exposure_pct=float(self.config["risk_max_total_exposure_pct"]),
+            max_consecutive_loss_count=int(self.config["risk_max_consecutive_loss_count"]),
+            max_derivatives_leverage=float(self.config["risk_max_derivatives_leverage"]),
+            max_derivatives_exposure_pct=float(self.config["risk_max_derivatives_exposure_pct"]),
+        )
+        return RiskGuard(limits=limits, price_of=self._price_of_ticker)
+
+    def _price_of_ticker(self, ticker: str) -> float | None:
+        """Mark a pipeline-form ticker via the exchange; None when unpriceable."""
+        try:
+            symbol = self.symbol_for(ticker)
+        except ValueError:
+            return None
+        return self._fetch_price(symbol)
 
     def symbol_for(self, ticker: str) -> str:
-        """Map a pipeline (Yahoo-form) ticker to the ccxt spot symbol.
+        """Map a pipeline (Yahoo-form) ticker to the ccxt symbol.
 
-        The bridge is crypto-only at L1: the base must come from the
-        pipeline's closed crypto set via ``crypto_base``, the quote from
-        ``exec_quote_currency``. Anything else raises.
+        ``exec_symbol_overrides`` (config-only, keyed by pipeline ticker)
+        wins first -- it is the escape hatch for pairs outside the closed
+        crypto set. Otherwise the base must come from the pipeline's closed
+        crypto set via ``crypto_base``, the quote from ``exec_quote_currency``.
+        Anything else raises.
         """
+        overrides = self.config.get("exec_symbol_overrides")
+        if isinstance(overrides, dict):
+            override = overrides.get(ticker)
+            if override:
+                return str(override)
         base = crypto_base(ticker)
         if not base:
             raise ValueError(
-                f"{ticker!r} is not an executable crypto symbol; the L1 bridge "
-                "only trades the pipeline's known crypto bases"
+                f"{ticker!r} is not an executable crypto symbol; the bridge "
+                "only trades the pipeline's known crypto bases (or provide "
+                "an exec_symbol_overrides entry)"
             )
         quote = str(self.config.get("exec_quote_currency") or "").strip().upper()
         if not quote:
@@ -141,16 +219,48 @@ class ExchangeBridge:
             min_cost=min_cost,
         )
         order.mode = mode  # informational; the execute-time gate decides for real
+        decision = self.risk_guard.check(order, portfolio, self.config["exec_log_path"])
+        if decision.halted:
+            self._audit(
+                action="rejected_by_risk",
+                order=order,
+                mode=mode,
+                confirmed=False,
+                reason=decision.reason,
+                phase="plan",
+            )
+            raise PermissionError(f"risk guard halted trading: {decision.reason}")
+        if not decision.allowed:
+            # The always-returns-a-plan contract: a limit breach comes back as
+            # a no-order plan carrying the risk reason, never an exception.
+            rejected = order.model_copy(
+                update={"side": None, "quantity": None, "cost": None, "reason": decision.reason}
+            )
+            self._audit(
+                action="rejected_by_risk",
+                order=rejected,
+                mode=mode,
+                confirmed=False,
+                reason=decision.reason,
+                phase="plan",
+            )
+            return rejected
         self._audit(
             action=order.side or "no_order",
             order=order,
             mode=mode,
             confirmed=False,
             reason=order.reason,
+            phase="plan",
         )
         return order
 
-    def execute_order(self, order: PlannedOrder, confirm: bool = False) -> str | None:
+    def execute_order(
+        self,
+        order: PlannedOrder,
+        confirm: bool = False,
+        portfolio: PortfolioContext | None = None,
+    ) -> str | None:
         """Execute ``order``; live requires both gates open AND confirm=True.
 
         Dry mode simulates the fill without calling the exchange at all and
@@ -158,11 +268,29 @@ class ExchangeBridge:
         response carries none). Every refusal or failure on the live path is
         audited before it raises; nothing is ever sent on a refusal (#4).
 
-        Two refusals raise without an audit line because nothing could ever
+        The risk guard re-checks immediately before anything is sent (FR-K3):
+        a halt on the shared audit log -- including one appended by another
+        process after the plan was made -- or a limit breach raises
+        PermissionError on both the dry and live paths. Pass ``portfolio``
+        to re-check the percentage limits too; without it only the
+        denominator-free checks (halt, consecutive losses) run, and the dry
+        path stays fully offline.
+
+        Three refusals raise without an audit line because nothing could ever
         be sent: an order whose signal is not a tradeable 5-tier rating or
         that is flagged needs_review (safety #3 must hold on the execution
-        surface too, not only at plan time), and one without side/quantity.
+        surface too, not only at plan time), one without side/quantity, and
+        a derivatives plan -- the spot surface must never route one, because
+        the FR-D gates and the derivatives risk caps live only on
+        ``DerivativesExecutor`` (a spot venue selected via
+        ``exec_exchange_id`` is not a derivatives venue either).
         """
+        if getattr(order, "market", "spot") == "derivatives":
+            raise ValueError(
+                f"derivatives plan for {order.ticker!r} cannot execute through "
+                "the spot ExchangeBridge; use DerivativesExecutor (FR-D) -- "
+                "nothing was sent"
+            )
         if order.needs_review or order.signal not in RATINGS_5_TIER:
             raise ValueError(
                 f"order signal {order.signal!r} is not a tradeable rating; nothing was sent"
@@ -171,7 +299,24 @@ class ExchangeBridge:
             raise ValueError(
                 f"not an executable order: side={order.side!r}, quantity={order.quantity!r}"
             )
-        if self._effective_mode() == "dry":
+        mode = self._effective_mode()
+        # fail_closed=True: a send is being decided, so an unreadable audit
+        # log (locked by a backup/AV scan, permissions) must refuse -- the
+        # halt and loss-streak state it carries cannot be verified.
+        decision = self.risk_guard.check(
+            order, portfolio, self.config["exec_log_path"], fail_closed=True
+        )
+        if decision.halted or not decision.allowed:
+            self._audit(
+                action="rejected_by_risk",
+                order=order,
+                mode=mode,
+                confirmed=confirm,
+                reason=decision.reason,
+                phase="execute",
+            )
+            raise PermissionError(f"risk guard refused execution: {decision.reason}")
+        if mode == "dry":
             return self._execute_dry(order, confirm)
         return self._execute_live(order, confirm)
 
@@ -213,6 +358,7 @@ class ExchangeBridge:
             confirmed=confirm,
             order_id=None,
             reason="dry-run: order not sent to exchange",
+            phase="execute",
         )
 
     def _execute_live(self, order: PlannedOrder, confirm: bool) -> str | None:
@@ -223,6 +369,7 @@ class ExchangeBridge:
                 mode="live",
                 confirmed=confirm,
                 reason="live execution requires confirm=True",
+                phase="execute",
             )
             raise PermissionError("live execution requires confirm=True; nothing was sent")
         exchange = self._exchange_or_raise()
@@ -235,9 +382,11 @@ class ExchangeBridge:
                 mode="live",
                 confirmed=confirm,
                 reason="missing exchange API credentials",
+                phase="execute",
             )
+            key_env, secret_env = credential_env_names(self.exchange_id)
             raise RuntimeError(
-                "live execution requires BINANCE_API_KEY and BINANCE_SECRET; nothing was sent"
+                f"live execution requires {key_env} and {secret_env}; nothing was sent"
             )
         # Lazy ccxt import: only this live path needs the exception classes.
         import ccxt
@@ -260,6 +409,7 @@ class ExchangeBridge:
                     confirmed=confirm,
                     qty_precision=amount,
                     reason="fresh price unavailable at execute",
+                    phase="execute",
                 )
                 raise PreTradeRejection(
                     f"cannot verify {order.ccxt_symbol} price at execute time; nothing was sent"
@@ -276,6 +426,7 @@ class ExchangeBridge:
                     confirmed=confirm,
                     qty_precision=amount,
                     reason="cost below exchange minimum at execute",
+                    phase="execute",
                 )
                 raise PreTradeRejection(
                     f"{order.ccxt_symbol} cost {sent_cost:.8g} is below the exchange "
@@ -300,6 +451,7 @@ class ExchangeBridge:
                 confirmed=confirm,
                 order_id=order_id,
                 qty_precision=amount,
+                phase="execute",
             )
         except OSError as exc:
             # The order already exists on the exchange: never let this look
@@ -317,6 +469,52 @@ class ExchangeBridge:
         # truthiness.
         live = self.config.get("exec_live") is True and self._env_live_flag()
         return "live" if live else "dry"
+
+    def effective_mode(self) -> str:
+        """The gate-decided mode right now: ``"live"`` or ``"dry"`` (FR5).
+
+        Public because orchestrators (the daily runner) need the same value
+        the bridge will use, without reaching into private state.
+        """
+        return self._effective_mode()
+
+    def audit_plan(
+        self,
+        order: PlannedOrder,
+        *,
+        action: str,
+        reason: str | None = None,
+        confirmed: bool = False,
+        order_id: str | None = None,
+        phase: str = "plan",
+    ) -> None:
+        """Public audit writer for orchestrators (e.g. the daily runner and
+        the derivatives executor).
+
+        Keeps their lines in the bridge's exact shape and redaction rules
+        instead of hand-building dicts in another module.
+        """
+        self._audit(
+            action=action,
+            order=order,
+            mode=self._effective_mode(),
+            confirmed=confirmed,
+            order_id=order_id,
+            reason=reason,
+            phase=phase,
+        )
+
+    def fetch_price(self, ticker: str) -> float | None:
+        """Last price for a pipeline-form ticker via the venue; None if unavailable."""
+        return self._price_of_ticker(ticker)
+
+    def client(self) -> Any:
+        """The venue client this bridge trades through (built lazily).
+
+        Composed executors (derivatives) reuse the same client so call
+        recording, rate limiting and credential redaction stay in one place.
+        """
+        return self._exchange_or_raise()
 
     @staticmethod
     def _env_live_flag() -> bool:
@@ -367,8 +565,13 @@ class ExchangeBridge:
         order_id: str | None = None,
         qty_precision: str | None = None,
         reason: str | None = None,
+        phase: str = "execute",
     ) -> None:
-        """Write one audit line (FR7). The mode recorded is the effective one."""
+        """Write one audit line (FR7). The mode recorded is the effective one.
+
+        ``phase`` separates planned from executed lines so the risk guard's
+        FIFO replay never double-counts a plan that later executed.
+        """
         event: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "ticker": order.ticker,
@@ -380,6 +583,12 @@ class ExchangeBridge:
             "mode": mode,
             "confirmed": confirmed,
             "order_id": order_id,
+            "phase": phase,
+            # The risk guard's FIFO replay needs the market to recognize a
+            # derivatives sell as a short opener; leverage documents the
+            # notional multiplier alongside price_est.
+            "market": getattr(order, "market", "spot"),
+            "leverage": getattr(order, "leverage", 1.0),
         }
         if qty_precision is not None:
             event["qty_precision"] = qty_precision
@@ -397,6 +606,7 @@ class ExchangeBridge:
             mode="live",
             confirmed=confirm,
             reason=reason,
+            phase="execute",
         )
 
     def _redact(self, text: str) -> str:

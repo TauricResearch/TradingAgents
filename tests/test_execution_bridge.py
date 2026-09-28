@@ -14,11 +14,12 @@ testable.
 
 import json
 from copy import deepcopy
-from types import SimpleNamespace
+from datetime import datetime, timezone
 
 import ccxt
 import pytest
 
+import tradingagents.execution.risk as risk_module
 from tradingagents.default_config import DEFAULT_CONFIG, _apply_env_overrides
 from tradingagents.execution import ExchangeBridge, PlannedOrder, SizingRules
 from tradingagents.execution.audit import append_event
@@ -31,6 +32,11 @@ AUDIT_FIELDS = (
     "timestamp", "ticker", "ccxt_symbol", "signal", "action", "qty",
     "price_est", "mode", "confirmed", "order_id",
 )
+
+# The risk guard's clock is frozen for the whole module so day-scoped checks
+# (halt stickiness, daily P&L) are deterministic; injected control events use
+# the same day. Bridge audit timestamps use the real clock and are unaffected.
+FROZEN_NOW = datetime(2026, 9, 28, 12, 0, 0, tzinfo=timezone.utc)
 
 
 class FakeExchange:
@@ -77,16 +83,17 @@ class FakeExchange:
         return self.balance
 
 
-def make_bridge(tmp_path, monkeypatch, *, config=None, factory=None, env=None):
+def make_bridge(tmp_path, monkeypatch, *, config=None, factory=None, env=None, risk_guard=None):
     """A bridge whose audit log lives in tmp_path, execution env scrubbed."""
     monkeypatch.delenv("TRADINGAGENTS_EXEC_LIVE", raising=False)
     monkeypatch.delenv("BINANCE_API_KEY", raising=False)
     monkeypatch.delenv("BINANCE_SECRET", raising=False)
     for name, value in (env or {}).items():
         monkeypatch.setenv(name, value)
+    monkeypatch.setattr(risk_module, "_utc_now", lambda: FROZEN_NOW)
     merged = {"exec_log_path": str(tmp_path / "audit.jsonl")}
     merged.update(config or {})
-    return ExchangeBridge(config=merged, exchange_factory=factory)
+    return ExchangeBridge(config=merged, exchange_factory=factory, risk_guard=risk_guard)
 
 
 def read_audit(tmp_path):
@@ -275,7 +282,12 @@ def test_plan_below_min_cost_is_rejected(tmp_path, monkeypatch):
 def test_sizing_rules_are_configurable(tmp_path, monkeypatch):
     monkeypatch.delenv("TRADINGAGENTS_EXEC_LIVE", raising=False)
     bridge = ExchangeBridge(
-        config={"exec_log_path": str(tmp_path / "audit.jsonl")},
+        config={
+            "exec_log_path": str(tmp_path / "audit.jsonl"),
+            # the 50% buy_fraction would breach the default 25% per-asset cap
+            "risk_max_position_pct_per_asset": 100.0,
+            "risk_max_total_exposure_pct": 100.0,
+        },
         rules=SizingRules(buy_fraction=0.5),
     )
     order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
@@ -473,13 +485,23 @@ def test_foreign_runtime_error_in_execute_is_audited(tmp_path, monkeypatch):
 
 def test_success_audit_failure_reports_order_was_placed(tmp_path, monkeypatch):
     # If the audit write fails AFTER create_order succeeded, the raise must
-    # say the order exists -- otherwise a caller retry duplicates a real order.
+    # say the order exists -- otherwise a caller retry duplicates a real
+    # order. The log path is broken mid-flight (inside the fake create_order)
+    # so the fail-closed pre-send re-check still sees a healthy log and the
+    # failure lands on the post-send success audit.
     exchange = FakeExchange()
     bridge = live_bridge(tmp_path, monkeypatch, exchange)
     order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
     blocker = tmp_path / "blocker"
     blocker.write_text("not a directory", encoding="utf-8")  # audit log breaks post-plan
-    bridge.config["exec_log_path"] = str(blocker / "audit.jsonl")
+    real_create_order = exchange.create_order
+
+    def create_order_and_break_log(symbol, order_type, side, amount, price=None, params=None):
+        response = real_create_order(symbol, order_type, side, amount, price, params)
+        bridge.config["exec_log_path"] = str(blocker / "audit.jsonl")
+        return response
+
+    monkeypatch.setattr(exchange, "create_order", create_order_and_break_log)
     with pytest.raises(RuntimeError, match="WAS placed") as excinfo:
         bridge.execute_order(order, confirm=True)
     assert "order-123" in str(excinfo.value)
@@ -510,6 +532,39 @@ def test_execute_refuses_non_executable_plan(tmp_path, monkeypatch):
     review = bridge.plan_order("BTC-USD", "REVIEW", price=50_000.0)
     with pytest.raises(ValueError):
         bridge.execute_order(review, confirm=True)
+
+
+def test_execute_refuses_a_derivatives_plan_even_live_and_confirmed(tmp_path, monkeypatch):
+    # FR-D: only DerivativesExecutor executes derivatives. The spot surface
+    # must never route one -- exec_exchange_id is env-overridable, so a
+    # "spot" bridge can point at a futures venue id; the market field, not
+    # the venue, decides. Refusal fires before every gate, audit and send.
+    exchange = FakeExchange()
+    bridge = live_bridge(tmp_path, monkeypatch, exchange)  # both FR5 gates open
+    crafted = PlannedOrder(
+        ticker="BTC-USD", ccxt_symbol="BTC/USDT:USDT", signal="Sell", side="sell",
+        quantity=0.005, estimated_price=50_000.0, cost=250.0,
+        market="derivatives", leverage=50.0,
+    )
+    with pytest.raises(ValueError, match="DerivativesExecutor"):
+        bridge.execute_order(crafted, confirm=True)
+    assert not any(call[0] == "create_order" for call in exchange.calls)
+    assert read_audit(tmp_path) == []  # refused before any audit line
+
+
+def test_execute_refuses_a_derivatives_plan_in_dry(tmp_path, monkeypatch):
+    # The dry branch is guarded too: a derivatives plan must not be able to
+    # ride the no-confirm dry fill past the FR-D confirm requirement.
+    exchange = FakeExchange()
+    bridge = make_bridge(tmp_path, monkeypatch, factory=lambda: exchange)
+    crafted = PlannedOrder(
+        ticker="BTC-USD", ccxt_symbol="BTC/USDT:USDT", signal="Sell", side="sell",
+        quantity=0.005, estimated_price=50_000.0, cost=250.0,
+        market="derivatives", leverage=50.0,
+    )
+    with pytest.raises(ValueError, match="DerivativesExecutor"):
+        bridge.execute_order(crafted, confirm=True)
+    assert bridge._exchange is None  # nothing was ever built or sent
 
 
 def test_partial_config_injection_keeps_defaults(tmp_path, monkeypatch):
@@ -549,13 +604,318 @@ def test_default_factory_reads_credentials_from_env(monkeypatch):
 
     captured = {}
 
-    def fake_binance(options):
-        captured.update(options)
-        return SimpleNamespace(apiKey=options["apiKey"], secret=options["secret"])
+    class FakeBinance(ccxt.Exchange):
+        def __init__(self, options):
+            captured.update(options)
+            self.apiKey = options["apiKey"]
+            self.secret = options["secret"]
 
-    monkeypatch.setattr(ccxt, "binance", fake_binance)
-    bridge_module._default_exchange_factory()
+    monkeypatch.setattr(ccxt, "binance", FakeBinance)
+    bridge_module._default_exchange_factory("binance")
     assert captured == {"apiKey": "env-key", "secret": "env-secret", "enableRateLimit": True}
+
+
+def test_default_factory_selects_exchange_class_by_id(monkeypatch):
+    # Two fake exchange ids: each resolves its own ccxt class and its own
+    # {ID}_API_KEY / {ID}_SECRET env names (generalized from the L1 Binance
+    # pair, which keeps working unchanged for id "binance").
+    import tradingagents.execution.bridge as bridge_module
+
+    built = []
+
+    def make_fake(name):
+        class FakeVenue(ccxt.Exchange):
+            def __init__(self, options):
+                built.append((name, options))
+
+        return FakeVenue
+
+    monkeypatch.setattr(ccxt, "okx", make_fake("okx"))
+    monkeypatch.setattr(ccxt, "kraken", make_fake("kraken"))
+    monkeypatch.setenv("OKX_API_KEY", "okx-key")
+    monkeypatch.setenv("OKX_SECRET", "okx-secret")
+    monkeypatch.setenv("KRAKEN_API_KEY", "kraken-key")
+    monkeypatch.setenv("KRAKEN_SECRET", "kraken-secret")
+
+    bridge_module._default_exchange_factory("okx")
+    bridge_module._default_exchange_factory("kraken")
+    assert built == [
+        ("okx", {"apiKey": "okx-key", "secret": "okx-secret", "enableRateLimit": True}),
+        ("kraken", {"apiKey": "kraken-key", "secret": "kraken-secret", "enableRateLimit": True}),
+    ]
+
+
+def test_default_factory_rejects_unknown_exchange_id():
+    import tradingagents.execution.bridge as bridge_module
+
+    with pytest.raises(ValueError, match="does not name a ccxt exchange class"):
+        bridge_module._default_exchange_factory("nosuchexchange")
+
+
+def test_default_factory_rejects_non_exchange_attribute(monkeypatch):
+    import tradingagents.execution.bridge as bridge_module
+
+    monkeypatch.setattr(ccxt, "impostor", object(), raising=False)  # not an Exchange subclass
+    with pytest.raises(ValueError, match="does not name a ccxt exchange class"):
+        bridge_module._default_exchange_factory("impostor")
+
+
+def test_default_factory_rejects_plain_function(monkeypatch):
+    # A callable that is not a ccxt.Exchange subclass must fail the factory
+    # validation, not ride duck typing into the live path.
+    import tradingagents.execution.bridge as bridge_module
+
+    monkeypatch.setattr(ccxt, "impostor", lambda options: object(), raising=False)
+    with pytest.raises(ValueError, match="does not name a ccxt exchange class"):
+        bridge_module._default_exchange_factory("impostor")
+
+
+def test_bridge_uses_exchange_id_override(tmp_path, monkeypatch):
+    # The exchange_id constructor argument overrides exec_exchange_id and is
+    # what the default factory receives.
+    import tradingagents.execution.bridge as bridge_module
+
+    seen = []
+
+    def fake_factory(exchange_id):
+        seen.append(exchange_id)
+        return FakeExchange()
+
+    monkeypatch.setattr(bridge_module, "_default_exchange_factory", fake_factory)
+    bridge = ExchangeBridge(
+        config={"exec_log_path": str(tmp_path / "audit.jsonl"), "exec_exchange_id": "binance"},
+        exchange_id="kraken",
+    )
+    bridge._exchange_or_raise()
+    assert seen == ["kraken"]
+
+
+def test_bridge_defaults_exchange_id_from_config(tmp_path, monkeypatch):
+    bridge = make_bridge(tmp_path, monkeypatch, config={"exec_exchange_id": "okx"})
+    assert bridge.exchange_id == "okx"
+
+
+def test_bridge_rejects_empty_exchange_id(tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match="exec_exchange_id is empty"):
+        make_bridge(tmp_path, monkeypatch, config={"exec_exchange_id": "  "})
+
+
+# --- symbol overrides (L2) -------------------------------------------------
+
+
+def test_symbol_for_uses_exec_symbol_overrides(tmp_path, monkeypatch):
+    bridge = make_bridge(
+        tmp_path, monkeypatch, config={"exec_symbol_overrides": {"BTC-USD": "BTC/USDC"}}
+    )
+    assert bridge.symbol_for("BTC-USD") == "BTC/USDC"
+
+
+def test_symbol_override_allows_pairs_outside_the_closed_set(tmp_path, monkeypatch):
+    bridge = make_bridge(
+        tmp_path, monkeypatch, config={"exec_symbol_overrides": {"XYZ-USD": "XYZ/USDT"}}
+    )
+    assert bridge.symbol_for("XYZ-USD") == "XYZ/USDT"
+
+
+def test_symbol_override_plans_end_to_end(tmp_path, monkeypatch):
+    exchange = FakeExchange()
+    bridge = make_bridge(
+        tmp_path,
+        monkeypatch,
+        config={"exec_symbol_overrides": {"XYZ-USD": "XYZ/USDT"}},
+        factory=lambda: exchange,
+    )
+    order = bridge.plan_order("XYZ-USD", "Buy", buy_book(), price=100.0)
+    assert order.ccxt_symbol == "XYZ/USDT"
+    assert order.side == "buy"
+
+
+def test_symbol_override_unknown_ticker_without_entry_still_raises(tmp_path, monkeypatch):
+    bridge = make_bridge(
+        tmp_path, monkeypatch, config={"exec_symbol_overrides": {"BTC-USD": "BTC/USDC"}}
+    )
+    with pytest.raises(ValueError, match="not an executable crypto symbol"):
+        bridge.symbol_for("XYZ-USD")
+
+
+# --- risk guard integration (FR-K3) ----------------------------------------
+
+
+def test_plan_buy_within_default_limits_passes(tmp_path, monkeypatch):
+    bridge = make_bridge(tmp_path, monkeypatch)
+    order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    assert order.side == "buy"  # 25% of equity, exactly at the inclusive cap
+
+
+def test_plan_beyond_per_asset_cap_returns_no_order_plan(tmp_path, monkeypatch):
+    # cost 250 on equity 1000 = 25% > the tightened 10% cap: the contract is
+    # a no-order plan, never an exception.
+    bridge = make_bridge(
+        tmp_path, monkeypatch, config={"risk_max_position_pct_per_asset": 10.0}
+    )
+    order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    assert order.side is None
+    assert "per-asset" in order.reason
+    event = read_audit(tmp_path)[-1]
+    assert event["action"] == "rejected_by_risk"
+    assert event["phase"] == "plan"
+
+
+def test_plan_beyond_total_exposure_cap_returns_no_order_plan(tmp_path, monkeypatch):
+    # The fake exchange prices every symbol at 50_000: the held ETH-USD
+    # position marks at 50_000, equity is 51_000, and the 250 plan lifts
+    # total exposure to ~98.5% > the tightened 80% cap.
+    book = PortfolioContext(
+        cash=1_000.0,
+        positions=[Position(ticker="ETH-USD", quantity=1.0)],
+    )
+    bridge = make_bridge(
+        tmp_path,
+        monkeypatch,
+        config={"risk_max_total_exposure_pct": 80.0},
+        factory=lambda: FakeExchange(),
+    )
+    order = bridge.plan_order("BTC-USD", "Buy", book, price=50_000.0)
+    assert order.side is None
+    assert "total exposure" in order.reason
+
+
+def test_plan_halted_raises_and_audits(tmp_path, monkeypatch):
+    bridge = make_bridge(tmp_path, monkeypatch)
+    append_event(
+        bridge.config["exec_log_path"],
+        {"event": "halt", "timestamp": "2026-09-28T10:00:00+00:00", "reason": "test"},
+    )
+    with pytest.raises(PermissionError, match="halt"):
+        bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    event = read_audit(tmp_path)[-1]
+    assert event["action"] == "rejected_by_risk"
+
+
+def test_plan_rejection_is_never_double_counted_as_a_fill(tmp_path, monkeypatch):
+    # The plan line carries phase="plan"; the risk replay must count only
+    # executed lines, so planning + executing one order is one fill.
+    exchange = FakeExchange()
+    bridge = make_bridge(
+        tmp_path, monkeypatch, config={"risk_max_position_pct_per_asset": 100.0},
+        factory=lambda: exchange,
+    )
+    order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    bridge.execute_order(order)  # dry fill
+    assert [e.get("phase") for e in read_audit(tmp_path)] == ["plan", "execute"]
+
+
+def test_execute_halt_refuses_both_dry_and_live(tmp_path, monkeypatch):
+    exchange = FakeExchange()
+    bridge = live_bridge(tmp_path, monkeypatch, exchange)
+    order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    append_event(
+        bridge.config["exec_log_path"],
+        {"event": "halt", "timestamp": "2026-09-28T10:00:00+00:00", "reason": "mid-flight"},
+    )
+    with pytest.raises(PermissionError, match="halt"):
+        bridge.execute_order(order)  # dry path guarded too
+    with pytest.raises(PermissionError, match="halt"):
+        bridge.execute_order(order, confirm=True)  # live path guarded too
+    assert not any(call[0] == "create_order" for call in exchange.calls)
+    assert read_audit(tmp_path)[-1]["action"] == "rejected_by_risk"
+    assert read_audit(tmp_path)[-1]["phase"] == "execute"
+
+
+def test_execute_risk_rejection_audits_before_refusing(tmp_path, monkeypatch):
+    # A breach appearing between plan and execute (another process moved the
+    # limits, or the portfolio changed) still refuses with an audit line.
+    # The guard snapshots its limits at construction, so the test mutates the
+    # guard itself -- document: bridge.config edits after construction do NOT
+    # re-arm an existing guard; build a new bridge instead.
+    exchange = FakeExchange()
+    bridge = make_bridge(tmp_path, monkeypatch, factory=lambda: exchange)
+    bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)  # passes at 25%
+    bridge.risk_guard.limits.max_position_pct_per_asset = 5.0  # tightened afterwards
+    with pytest.raises(PermissionError, match="per-asset"):
+        bridge.execute_order(  # dry path: portfolio given so % limits re-run
+            PlannedOrder(
+                ticker="BTC-USD", ccxt_symbol="BTC/USDT", signal="Buy",
+                side="buy", quantity=0.005, estimated_price=50_000.0, cost=250.0,
+            ),
+            portfolio=buy_book(),
+        )
+    assert not any(call[0] == "create_order" for call in exchange.calls)
+
+
+def test_execute_fails_closed_when_audit_log_unreadable(tmp_path, monkeypatch):
+    # The execute-time re-check reads the log fail-closed: an unreadable
+    # audit log (locked by backup/AV, permissions) hides the halt and
+    # loss-streak state, so the order is refused and audited as
+    # rejected_by_risk -- never passed through.
+    exchange = FakeExchange()
+    bridge = live_bridge(tmp_path, monkeypatch, exchange)
+    order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    monkeypatch.setattr(risk_module, "_read_events", lambda path, *, fail_closed=False: None)
+    with pytest.raises(PermissionError, match="unreadable"):
+        bridge.execute_order(order, confirm=True)
+    assert not any(call[0] == "create_order" for call in exchange.calls)
+    event = read_audit(tmp_path)[-1]
+    assert event["action"] == "rejected_by_risk"
+    assert "unreadable" in event["reason"]
+
+
+def test_reset_halt_unblocks_planning(tmp_path, monkeypatch):
+    bridge = make_bridge(tmp_path, monkeypatch)
+    guard = bridge.risk_guard
+    append_event(
+        bridge.config["exec_log_path"],
+        {"event": "halt", "timestamp": "2026-09-28T10:00:00+00:00", "reason": "test"},
+    )
+    with pytest.raises(PermissionError):
+        bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    guard.reset_halt(bridge.config["exec_log_path"])
+    order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    assert order.side == "buy"
+
+
+def test_injected_risk_guard_is_the_one_used(tmp_path, monkeypatch):
+    from tradingagents.execution.risk import RiskDecision, RiskGuard
+
+    class ScriptedGuard(RiskGuard):
+        def check(self, order_plan, portfolio, audit_log):
+            return RiskDecision(allowed=False, halted=False, reason="scripted refusal")
+
+    bridge = make_bridge(tmp_path, monkeypatch, risk_guard=ScriptedGuard())
+    order = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    assert order.side is None
+    assert order.reason == "scripted refusal"
+
+
+def test_consecutive_loss_halt_blocks_planning(tmp_path, monkeypatch):
+    # Three losing sells in the audit (FIFO-matched): the next plan halts.
+    bridge = make_bridge(tmp_path, monkeypatch)
+    path = bridge.config["exec_log_path"]
+    for hour, (qty, price) in enumerate(
+        [(1.0, 100.0), (1.0, 90.0), (1.0, 100.0), (1.0, 80.0), (1.0, 100.0), (1.0, 70.0)], start=8
+    ):
+        append_event(path, {
+            "timestamp": f"2026-09-28T{hour:02d}:00:00+00:00",
+            "ticker": "BTC-USD",
+            "action": "buy" if hour % 2 == 0 else "sell",
+            "qty": qty,
+            "price_est": price,
+            "phase": "execute",
+        })
+    with pytest.raises(PermissionError, match="consecutive"):
+        bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+
+
+def test_no_secrets_in_risk_rejection_lines(tmp_path, monkeypatch):
+    exchange = FakeExchange(api_key="sentinel-key-123", secret="sentinel-secret-456")
+    bridge = live_bridge(tmp_path, monkeypatch, exchange)
+    bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    bridge.risk_guard.limits.max_position_pct_per_asset = 0.0  # force a risk refusal
+    rejected = bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    assert rejected.side is None  # a limit breach returns a plan; only a halt raises
+    text = (tmp_path / "audit.jsonl").read_text(encoding="utf-8")
+    assert "sentinel-key-123" not in text
+    assert "sentinel-secret-456" not in text
 
 
 def test_config_never_carries_credentials(tmp_path, monkeypatch):
@@ -606,6 +966,16 @@ def test_plan_audit_line_carries_fr7_fields(tmp_path, monkeypatch):
     assert event["ticker"] == "BTC-USD"
     assert event["ccxt_symbol"] == "BTC/USDT"
     assert event["timestamp"].endswith("+00:00")  # explicit UTC, TZ-safe under CI
+
+
+def test_audit_line_carries_market_and_leverage(tmp_path, monkeypatch):
+    # The risk matcher replays these lines: market="derivatives" is what lets
+    # it recognize a sell as a short opener; leverage documents the notional.
+    bridge = make_bridge(tmp_path, monkeypatch)
+    bridge.plan_order("BTC-USD", "Buy", buy_book(), price=50_000.0)
+    event = read_audit(tmp_path)[-1]
+    assert event["market"] == "spot"
+    assert event["leverage"] == 1.0
 
 
 def test_append_event_is_utf8_jsonl_with_parent_mkdir(tmp_path):

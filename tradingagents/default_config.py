@@ -31,6 +31,17 @@ _ENV_OVERRIDES = {
     # its only consumer is the fail-closed execute-time read in the bridge;
     # folding it into config at import would collapse the two gates into one.
     "TRADINGAGENTS_EXEC_QUOTE_CURRENCY":    "exec_quote_currency",
+    # Risk guard limits (L2, FR-K): percentages coerce as floats, the streak
+    # cap as an int. exec_symbol_overrides/exec_watchlist are deliberately NOT
+    # here — _coerce cannot build a dict or list, so an env row would inject a
+    # raw string where structured data is expected.
+    "TRADINGAGENTS_RISK_MAX_DAILY_LOSS_PCT":           "risk_max_daily_loss_pct",
+    "TRADINGAGENTS_RISK_MAX_POSITION_PCT_PER_ASSET":   "risk_max_position_pct_per_asset",
+    "TRADINGAGENTS_RISK_MAX_TOTAL_EXPOSURE_PCT":       "risk_max_total_exposure_pct",
+    "TRADINGAGENTS_RISK_MAX_CONSECUTIVE_LOSS_COUNT":   "risk_max_consecutive_loss_count",
+    "TRADINGAGENTS_RISK_MAX_DERIVATIVES_LEVERAGE":     "risk_max_derivatives_leverage",
+    "TRADINGAGENTS_RISK_MAX_DERIVATIVES_EXPOSURE_PCT": "risk_max_derivatives_exposure_pct",
+    "TRADINGAGENTS_EXEC_EXCHANGE_ID":                  "exec_exchange_id",
 }
 
 
@@ -182,4 +193,33 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "exec_live": False,
     "exec_log_path": os.getenv("TRADINGAGENTS_EXEC_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "execution", "audit.jsonl"),
     "exec_quote_currency": "USDT",
+    # Risk guard limits (L2, FR-K). Percent limits are fail-open by design:
+    # when equity cannot be computed (no cash and nothing to mark) the check
+    # is skipped and logged. The consecutive-loss cap is absolute — no
+    # denominator — but it only enforces while the audit log is READABLE:
+    # execute-time re-checks fail closed on an unreadable log (refuse the
+    # order), plan-time checks stay fail-open.
+    # risk_max_derivatives_exposure_pct defaults to 0: derivatives notional
+    # is blocked outright until raised.
+    "risk_max_daily_loss_pct": 5.0,
+    "risk_max_position_pct_per_asset": 25.0,
+    "risk_max_total_exposure_pct": 80.0,
+    "risk_max_consecutive_loss_count": 3,
+    "risk_max_derivatives_leverage": 1.0,
+    "risk_max_derivatives_exposure_pct": 0.0,
+    # Execution bridge (L2): multi-exchange. ``exec_exchange_id`` selects the
+    # ccxt class; credentials come from {ID}_API_KEY / {ID}_SECRET env vars.
+    # ``exec_symbol_overrides`` maps a pipeline ticker to a full ccxt symbol
+    # (e.g. {"BTC-USD": "BTC/USDC"}), bypassing the closed crypto set.
+    "exec_exchange_id": "binance",
+    "exec_symbol_overrides": {},
+    # Default coin list for the daily runner (pipeline ticker form).
+    "exec_watchlist": ["BTC-USD", "ETH-USD"],
+    # L2 FR5-style gates. Deliberately NOT in _ENV_OVERRIDES (same reasoning
+    # as exec_live above): the env halves TRADINGAGENTS_EXEC_AUTO_CONFIRM /
+    # TRADINGAGENTS_EXEC_DERIVATIVES are read fail-closed at call time, so no
+    # single switch can arm automatic or derivatives trading. Derivatives
+    # additionally requires per-order confirm=True even in dry-run.
+    "exec_auto_confirm": False,
+    "exec_derivatives": False,
 })

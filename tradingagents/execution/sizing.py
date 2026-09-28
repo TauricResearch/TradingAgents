@@ -42,7 +42,9 @@ class PlannedOrder(BaseModel):
     ``mode`` is informational -- the double-gate value at plan time. The
     effective mode is computed at execute time, so a plan made in dry mode
     CAN execute live if both gates are open and ``confirm=True`` is passed
-    at that moment.
+    at that moment. ``market``/``leverage`` default to a spot order at 1x;
+    derivatives plans set them explicitly (``cost`` is the margin committed,
+    notional = cost * leverage).
     """
 
     ticker: str
@@ -55,6 +57,8 @@ class PlannedOrder(BaseModel):
     mode: Literal["dry", "live"] = "dry"
     needs_review: bool = False
     reason: str | None = None
+    market: Literal["spot", "derivatives"] = "spot"
+    leverage: float = 1.0
 
 
 def compute(

@@ -6,6 +6,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed first in their release.
 
+## [Unreleased]
+
+Execution bridge L2: a risk guard over the audit log, multi-exchange support,
+a once-a-day runner, and leveraged derivatives behind a triple gate. Every
+new switch ships OFF — the derivatives and auto-confirm gates in particular
+are meant to be armed by the user only after a dry-run schedule has run clean
+(arm in code, never through env alone).
+
+### Upgrading from 0.5.1 (execution bridge)
+
+- Credentials are now read from `{EXCHANGE_ID}_API_KEY` / `{EXCHANGE_ID}_SECRET`.
+  For the default exchange id `binance` the names are unchanged
+  (`BINANCE_API_KEY` / `BINANCE_SECRET`); other venues follow the same pattern.
+- Audit lines carry a new `phase` field (`"plan"` or `"execute"`), and risk
+  control events (`{"event": "halt"}` / `{"event": "halt_reset"}`) have a
+  different shape than bridge lines. Any consumer of the audit JSONL must
+  accept both.
+- `ExchangeBridge` gained `exchange_id` and `risk_guard` constructor
+  parameters; `execute_order` gained an optional `portfolio` parameter.
+  Existing call sites keep working unchanged.
+
+### Added
+
+- **Risk guard (FR-K).** `RiskGuard` checks every plan and every execution
+  against the limits in the new `risk_*` config keys: max daily loss %,
+  max per-asset position %, max total exposure %, max consecutive losing
+  trades, and derivatives leverage/exposure caps. P&L is reconstructed FIFO
+  per ticker from the audit log (the L1 audit has no order ids; the rule is
+  documented in `tradingagents/execution/risk.py`). A consecutive-loss or
+  daily-loss breach appends a `halt` line that blocks everything for the
+  rest of the UTC day until `reset_halt()` or day rollover. Percentage
+  checks fail open (and say so) when equity cannot be computed; the
+  consecutive-loss cap is denominator-free and always enforces.
+- **Multi-exchange (FR-M).** `exec_exchange_id` selects the ccxt class
+  (validated as a real `ccxt.Exchange` subclass); `exec_symbol_overrides`
+  maps a pipeline ticker to any ccxt symbol; `exec_watchlist` feeds the
+  daily runner.
+- **Daily runner (FR-D).** `run_daily()` runs the crypto pipeline per coin,
+  syncs the balance, plans through the bridge, and either leaves the plan
+  for human approval (default) or, with `exec_auto_confirm=True` armed in
+  code plus `TRADINGAGENTS_EXEC_AUTO_CONFIRM` at run time, executes
+  automatically — dry fills freely, live orders only with both FR5 gates
+  open. One process per run; a failing coin never stops the watchlist.
+- **Derivatives (FR-D2).** `DerivativesExecutor` plans leveraged orders on
+  unified symbols (`BTC/USDT:USDT`; side `sell` = short) behind three
+  fail-closed layers: config `exec_derivatives=True`, the
+  `TRADINGAGENTS_EXEC_DERIVATIVES` env flag read at call time, and per-order
+  `confirm=True` — even for dry-runs. All three ship OFF.
+
+### Fixed
+
+- A planned order is no longer replayed as a filled one: audit lines carry
+  `phase` so the risk guard counts each trade exactly once.
+
 ## [0.5.1] — 2026-09-24
 
 A package layout organised by what each module holds, social posts screened by
