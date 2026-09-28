@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 import tradingagents.dataflows.vendors.yahoo.snapshot as validator
+from tradingagents.dataflows.errors import NoMarketDataError
 
 
 def _sample_ohlcv() -> pd.DataFrame:
@@ -76,3 +77,17 @@ class TestTool:
             {"symbol": "COF", "curr_date": "2026-05-20"}
         )
         assert "Verified market data snapshot for COF" in out
+
+    def test_tool_reports_unavailable_data_without_aborting(self, monkeypatch):
+        from tradingagents.agents.tools import get_verified_market_snapshot
+
+        def missing(*args, **kwargs):
+            raise NoMarketDataError("COF", "COF", "no price rows")
+
+        monkeypatch.setattr(validator, "load_ohlcv", missing)
+        out = get_verified_market_snapshot.invoke(
+            {"symbol": "COF", "curr_date": "2026-05-20"}
+        )
+        assert out.startswith("DATA_UNAVAILABLE:")
+        assert "no price rows" in out
+        assert "Do not claim exact prices" in out

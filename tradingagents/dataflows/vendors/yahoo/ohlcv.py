@@ -48,13 +48,13 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
     for attempt in range(max_retries + 1):
         try:
             return func()
-        except YFRateLimitError:
+        except YFRateLimitError as exc:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
                 logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(delay)
             else:
-                raise
+                raise VendorRateLimitError("Yahoo Finance rate limited") from exc
 
 
 def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
@@ -230,14 +230,13 @@ def load_ohlcv(symbol: str, curr_date: str, fill_gaps: bool = True) -> pd.DataFr
     # transient rate limit). Treat an empty/columnless cache as a miss and
     # re-fetch rather than serving the poisoned file forever.
     data = None
+    cached = None
     if os.path.exists(data_file):
-        cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
-        if (
-            not cached.empty
-            and "Close" in cached.columns
-            and _cache_is_fresh(data_file, curr_date_dt, now)
-        ):
-            data = cached
+        candidate = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
+        if not candidate.empty and "Close" in candidate.columns:
+            cached = candidate
+            if _cache_is_fresh(data_file, curr_date_dt, now):
+                data = cached
 
     if data is None:
         downloaded = yf_retry(lambda: yf.download(
@@ -251,9 +250,29 @@ def load_ohlcv(symbol: str, curr_date: str, fill_gaps: bool = True) -> pd.DataFr
         downloaded = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
-            raise_for_empty(symbol, canonical, "price rows")
-        downloaded.to_csv(data_file, index=False, encoding="utf-8")
-        data = downloaded
+            # Yahoo can return an empty frame for a valid ticker. A previous
+            # settled close is still usable if it predates the cache write and
+            # passes the existing stale-row guard. Never fall back to a candle
+            # from the day it was fetched: it may have been intraday.
+            if cached is None:
+                raise_for_empty(symbol, canonical, "price rows")
+            prior = _clean_dataframe(cached.copy())
+            prior = prior[(prior["Date"] <= curr_date_dt) & prior["Close"].notna()]
+            if prior.empty:
+                raise_for_empty(symbol, canonical, "price rows")
+            latest = prior["Date"].max().date()
+            cache_written = pd.Timestamp.fromtimestamp(os.path.getmtime(data_file)).date()
+            if latest >= cache_written:
+                raise_for_empty(symbol, canonical, "price rows")
+            _assert_ohlcv_not_stale(prior, curr_date, symbol, canonical)
+            logger.warning(
+                "Yahoo returned no %s price rows; using cached data through %s",
+                canonical, latest,
+            )
+            data = cached
+        else:
+            downloaded.to_csv(data_file, index=False, encoding="utf-8")
+            data = downloaded
 
     data = _clean_dataframe(data)
 
