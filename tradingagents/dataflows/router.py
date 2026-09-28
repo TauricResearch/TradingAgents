@@ -173,7 +173,7 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 
-def vendor_unavailable(method: str, error: VendorUnavailableError) -> str:
+def vendor_unavailable(method: str, error: Exception) -> str:
     """What a call returns when every vendor was throttled or unreachable."""
     return (
         f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
@@ -211,6 +211,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     last_no_data: NoMarketDataError | None = None
     last_unavailable: VendorUnavailableError | None = None
+    failed: Exception | None = None     # a vendor that raised something untyped
     first_error: Exception | None = None
     for vendor in vendor_chain:
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -239,9 +240,19 @@ def route_to_vendor(method: str, *args, **kwargs):
             logger.warning("Vendor %r failed for %s: %s", vendor, method, e)
             if first_error is None:
                 first_error = e
+            failed = e
             continue
 
-    # If any vendor reported "no data", the symbol is genuinely unavailable.
+    # A vendor that throttled or failed the request never said whether it has
+    # the symbol, so no other vendor's "no data" can speak for the whole chain:
+    # report the vendors as the problem, not the instrument. It must not end
+    # the run either.
+    if last_unavailable is not None:
+        return vendor_unavailable(method, last_unavailable)
+    if failed is not None and last_no_data is not None:
+        return vendor_unavailable(method, failed)
+
+    # Every vendor that answered reported "no data": the symbol is genuinely unavailable.
     # Return one explicit, instructive sentinel rather than a vendor-specific
     # empty string, so the agent reports "unavailable" instead of inventing a
     # value. This takes precedence over incidental fallback errors.
@@ -271,11 +282,6 @@ def route_to_vendor(method: str, *args, **kwargs):
     # first real error (e.g. the primary vendor's network failure). Optional
     # enrichment categories degrade to a sentinel instead, so flavour data can't
     # abort the run.
-    # Every vendor was throttled or unreachable: that is a fact about the
-    # vendors, not about the instrument, and it must not end the run.
-    if last_unavailable is not None:
-        return vendor_unavailable(method, last_unavailable)
-
     if first_error is not None:
         if category in OPTIONAL_CATEGORIES:
             logger.warning("Optional %s unavailable for %s: %s", category, method, first_error)
