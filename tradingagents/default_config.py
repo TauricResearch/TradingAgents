@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: default_config.py
  * @description: Default configuration for TradingAgents
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:52:01
- * @updated: 2026-09-28T10:52:01
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:

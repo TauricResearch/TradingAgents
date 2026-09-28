@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: test_interface.py
  * @description: Tests for data vendor interface
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:29:25
- * @updated: 2026-09-28T10:32:00
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:

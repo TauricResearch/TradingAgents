@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: credit_news_analyst.py
  * @description: Credit news analyst agent (issuer news, rating actions, covenant amendments)
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:46:55
- * @updated: 2026-09-28T10:46:55
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:

@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: test_credit_mode_integration.py
  * @description: Integration tests for credit mode
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T11:02:30
- * @updated: 2026-09-28T11:02:30
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:

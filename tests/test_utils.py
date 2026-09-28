@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: test_utils.py
  * @description: Tests for CLI utilities (detect_asset_type, filter_analysts)
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:14:45
- * @updated: 2026-09-28T10:20:10
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:

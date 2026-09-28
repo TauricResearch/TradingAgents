@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: interface.py
  * @description: Central data vendor interface and routing
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:33:00
- * @updated: 2026-09-28T10:33:00
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.1.0
  * @reviewer:
  * @ai_reviewer:

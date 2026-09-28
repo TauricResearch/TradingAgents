@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: test_credit_fundamentals_analyst.py
  * @description: Tests for credit fundamentals analyst
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:35:23
- * @updated: 2026-09-28T10:35:23
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:

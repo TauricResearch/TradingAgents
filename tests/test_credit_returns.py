@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: test_credit_returns.py
  * @description: Tests for credit return calculation
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:56:38
- * @updated: 2026-09-28T10:56:38
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:

@@ -3,9 +3,9 @@
  * @module: TradingAgents
  * @file: test_models.py
  * @description: Tests for CLI models (AssetType, AnalystType enums)
- * @author: AI Assistant
+ * @author: Maíra Pontin
  * @created: 2026-09-28T10:11:22
- * @updated: 2026-09-28T10:11:22
+ * @updated: 2026-09-28T11:05:32
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:
