@@ -26,6 +26,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    # Execution bridge (L1 ccxt): quote currency only. TRADINGAGENTS_EXEC_LIVE
+    # is deliberately NOT here — it is the env half of the FR5 double gate and
+    # its only consumer is the fail-closed execute-time read in the bridge;
+    # folding it into config at import would collapse the two gates into one.
+    "TRADINGAGENTS_EXEC_QUOTE_CURRENCY":    "exec_quote_currency",
 }
 
 
@@ -170,4 +175,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
+    # Execution bridge (L1 ccxt, Binance spot). Live requires BOTH this gate —
+    # armed as a literal True in code, never via env — and the
+    # TRADINGAGENTS_EXEC_LIVE env flag, re-read at execute time, fail-closed.
+    # Keeping the halves independent means no single switch arms live trading.
+    "exec_live": False,
+    "exec_log_path": os.getenv("TRADINGAGENTS_EXEC_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "execution", "audit.jsonl"),
+    "exec_quote_currency": "USDT",
 })
