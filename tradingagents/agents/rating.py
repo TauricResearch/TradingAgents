@@ -49,20 +49,13 @@ _RATING_LINE_RE = re.compile(
 # A line presenting the scale rather than a decision ("Rating Scale: Buy, ...").
 _RATING_SCALE_RE = re.compile(r"rating\s*(scale|options|legend)", re.IGNORECASE)
 
-# Standalone 5-tier word anywhere (word boundaries so "Buyer"/"Holding" don't match).
-_RATING_WORD_RE = re.compile(
-    r"\b(" + "|".join(RATINGS_5_TIER) + r")\b", re.IGNORECASE
-)
-
-
 def extract_rating(text: str) -> str | None:
-    """Extract a 5-tier rating from prose, or ``None`` if none is present.
+    """Extract a 5-tier rating from its label, or ``None`` if there is none.
 
-    Two-pass strategy on the NFKC-normalized text (so fullwidth punctuation like
-    ``Rating：Overweight`` is matched the same as ASCII):
-    1. An explicit "Rating: X" label (tolerant of markdown bold): the first one
-       opening its own line, else the last one anywhere.
-    2. A single 5-tier rating word, when the text names only one.
+    Reads an explicit "Rating: X" label (tolerant of markdown bold) in the
+    NFKC-normalized text, so fullwidth punctuation like ``Rating：Overweight``
+    matches as ASCII does: the first one opening its own line, else the last
+    one anywhere.
     """
     if not text:
         return None
@@ -83,14 +76,10 @@ def extract_rating(text: str) -> str | None:
         m = _RATING_LABEL_RE.search(line)
         if m and m.group(1).lower() in _RATING_SET:
             anywhere = m.group(1).capitalize()
-    if on_own_line or anywhere:
-        return on_own_line or anywhere
-
-    # No label. A single rating word in the text is the call; several are an
-    # argument, and picking one of them reports a direction nobody decided --
-    # prose that rejects a Buy before concluding Underweight read as Buy.
-    named = {m.group(1).capitalize() for m in _RATING_WORD_RE.finditer(norm)}
-    return named.pop() if len(named) == 1 else None
+    # Without a label there is no call to read: a rating word in the prose may be
+    # one the text argues against ("not a Sell"), and reading it reports a
+    # direction nobody decided.
+    return on_own_line or anywhere
 
 
 def parse_rating(text: str, default: str = RATING_REVIEW) -> str:

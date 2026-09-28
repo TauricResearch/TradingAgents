@@ -41,8 +41,15 @@ def test_prose_naming_several_ratings_without_a_label_needs_review():
 
 
 @pytest.mark.unit
-def test_prose_naming_one_rating_is_taken_as_the_call():
-    assert extract_rating("On balance we stay Underweight until margins recover.") == "Underweight"
+@pytest.mark.parametrize("prose", [
+    "We would not Sell here; the dip is a chance to add.",
+    "**评级**：买入\n\n不建议卖出 (Sell)。",   # a label in another language, and a negated Sell
+    "On balance we stay Underweight until margins recover.",
+])
+def test_a_rating_word_without_a_label_is_not_read_as_the_call(prose):
+    """A rating word in prose may be one the text argues against (#1435)."""
+    assert extract_rating(prose) is None
+    assert parse_rating(prose) == RATING_REVIEW
 
 
 @pytest.mark.unit
