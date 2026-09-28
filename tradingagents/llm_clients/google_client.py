@@ -3,7 +3,8 @@ from typing import Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient
+from .retry import invoke_with_retry, sdk_max_retries
 from .validators import validate_model
 
 _GEMINI_VERSION = re.compile(r"^gemini-(\d+)\.(\d+)")
@@ -24,11 +25,12 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     """ChatGoogleGenerativeAI with normalized content output.
 
     Gemini 3 models return content as list of typed blocks.
-    This normalizes to string for consistent downstream handling.
+    This normalizes to string for consistent downstream handling and retries
+    a temporary provider outage (503 high demand, 429, dropped connections).
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        return invoke_with_retry(super().invoke, input, config, kwargs)
 
 
 class GoogleClient(BaseLLMClient):
@@ -49,6 +51,9 @@ class GoogleClient(BaseLLMClient):
                     "callbacks", "http_client", "http_async_client"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+        # 0 means "use Gemini's default fast retries", so the shared backoff
+        # disables the SDK with 1 (the original request only).
+        llm_kwargs["max_retries"] = sdk_max_retries(self.kwargs.get("max_retries"), google=True)
 
         # Unified api_key maps to provider-specific google_api_key
         google_api_key = self.kwargs.get("api_key") or self.kwargs.get("google_api_key")

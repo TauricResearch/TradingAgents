@@ -1,7 +1,8 @@
 import os
 from typing import Any
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient
+from .retry import invoke_with_retry, sdk_max_retries
 from .validators import validate_model
 
 # Bedrock has no global default region; us-west-2 hosts the broadest model set.
@@ -29,10 +30,13 @@ def _bedrock_class():
         ) from exc
 
     class NormalizedChatBedrockConverse(ChatBedrockConverse):
-        """ChatBedrockConverse with normalized (string) content output."""
+        """ChatBedrockConverse with normalized (string) content output.
+
+        ``invoke`` retries a temporary provider outage.
+        """
 
         def invoke(self, input, config=None, **kwargs):
-            return normalize_content(super().invoke(input, config, **kwargs))
+            return invoke_with_retry(super().invoke, input, config, kwargs)
 
     _BEDROCK_CLASS = NormalizedChatBedrockConverse
     return _BEDROCK_CLASS
@@ -69,6 +73,7 @@ class BedrockClient(BaseLLMClient):
         for key in ("temperature", "max_tokens", "max_retries", "callbacks"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+        llm_kwargs["max_retries"] = sdk_max_retries(self.kwargs.get("max_retries"))
         return chat_cls(**llm_kwargs)
 
     def validate_model(self) -> bool:

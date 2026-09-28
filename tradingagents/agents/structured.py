@@ -8,9 +8,11 @@ canonical pattern:
    not support structured output (rare; mostly older Ollama models), the
    wrap is skipped and the agent uses free-text generation instead.
 2. At invocation, run the structured call and render the result back to
-   markdown. If the structured call itself fails for any reason
-   (malformed JSON from a weak model, transient provider issue), fall
-   back to a plain ``llm.invoke`` so the pipeline never blocks.
+   markdown. A temporary provider outage is retried inside the chat
+   client and, if the provider is still down, raised here so the run
+   backs off instead of immediately firing a second call. Any other
+   structured-call failure (malformed JSON, empty parse) falls back to
+   a plain ``llm.invoke`` so the pipeline never blocks on a bad schema.
 
 Centralising the pattern here keeps the agent factories small and ensures
 all three agents log the same warnings when fallback fires.
@@ -23,6 +25,8 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
+
+from tradingagents.llm_clients.retry import is_transient_llm_error
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +84,10 @@ def invoke_structured_or_freetext(
                 raise ValueError("structured output returned no parsed result")
             return render(result)
         except Exception as exc:
+            # The chat client already retried a 503/429. Another immediate
+            # call will hit the same outage; leave that error to the caller.
+            if is_transient_llm_error(exc):
+                raise
             logger.warning(
                 "%s: structured-output invocation failed (%s); retrying once as free text",
                 agent_name, exc,
