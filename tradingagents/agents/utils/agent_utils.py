@@ -93,8 +93,6 @@ def resolve_instrument_identity(ticker: str) -> dict:
     The symbol is normalized first (e.g. ``XAUUSD`` -> ``GC=F``) so identity
     resolves for the same instrument the price path actually fetches (#983).
     """
-    from tradingagents.dataflows.symbol_utils import normalize_symbol
-
     try:
         info = get_company_profile(ticker)
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run

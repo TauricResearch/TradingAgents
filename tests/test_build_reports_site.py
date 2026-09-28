@@ -199,6 +199,7 @@ def test_generated_pages_do_not_end_with_extra_blank_line():
     summaries = [builder.DailySummary("2026-06-02", [summary_row(builder, "AAPL", "run")])]
 
     home = builder.build_home({"AAPL": [run]}, 1, summaries, "20260602")
+    assert "[Everyday Financial Planning at Altair](https://altairworld.com/services/financial-planning)" in home
     hub = builder.build_ticker_hub("AAPL", [run])
 
     assert home.endswith("\n")

@@ -9,7 +9,6 @@ from unittest import mock
 
 import pytest
 
-import cli.main as m
 import cli.run as cli_run
 
 # Minimal selections dict shaped like get_user_selections()'s return value.

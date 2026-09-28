@@ -553,6 +553,8 @@ def build_home(
         "",
         DISCLAIMER,
         "",
+        "Part of [Everyday Financial Planning at Altair](https://altairworld.com/services/financial-planning).",
+        "",
         *build_daily_decision_summaries(daily_summaries, focus_analysis_date),
         *build_regeneration_skill(),
         "## Tickers",

@@ -86,7 +86,9 @@ def get_stock_stats_indicators_window(
         "stochrsi", "kdjk", "kdjd", "kdjj", "adx", "pdi", "mdi",
         "supertrend", "obv", "td_9", "z_score",
     }:
-        from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window as registered_window
+        from tradingagents.dataflows.y_finance import (
+            get_stock_stats_indicators_window as registered_window,
+        )
 
         return registered_window(symbol, indicator, curr_date, look_back_days)
 

@@ -48,7 +48,6 @@ from cli.utils import (
     select_shallow_thinking_agent,
 )
 from tradingagents.backtest import iter_grid, run_backtest, summarize
-from tradingagents.portfolio import load_portfolio
 from tradingagents.batch import BatchRunner
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
@@ -58,6 +57,7 @@ from tradingagents.graph.analyst_execution import (
     sync_analyst_tracker_from_chunk,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.portfolio import load_portfolio
 from tradingagents.reporting import write_report_tree
 
 console = Console()
