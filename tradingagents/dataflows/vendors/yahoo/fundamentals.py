@@ -36,6 +36,10 @@ def get_fundamentals(
     if not info:
         raise_for_empty(ticker, canonical, "fundamentals")
 
+    # Yahoo gives these two in percent (dividendYield 0.41 is 0.41%; debtToEquity
+    # 78.4 is 78.4%, a ratio of 0.78) but the margins and returns as fractions,
+    # so each carries its unit.
+    dividend_yield, debt_to_equity = info.get("dividendYield"), info.get("debtToEquity")
     fields = [
         ("Name", info.get("longName")),
         ("Sector", info.get("sector")),
@@ -47,7 +51,7 @@ def get_fundamentals(
         ("Price to Book", info.get("priceToBook")),
         ("EPS (TTM)", info.get("trailingEps")),
         ("Forward EPS", info.get("forwardEps")),
-        ("Dividend Yield", info.get("dividendYield")),
+        ("Dividend Yield", None if dividend_yield is None else f"{dividend_yield}%"),
         ("Beta", info.get("beta")),
         ("52 Week High", info.get("fiftyTwoWeekHigh")),
         ("52 Week Low", info.get("fiftyTwoWeekLow")),
@@ -61,7 +65,8 @@ def get_fundamentals(
         ("Operating Margin", info.get("operatingMargins")),
         ("Return on Equity", info.get("returnOnEquity")),
         ("Return on Assets", info.get("returnOnAssets")),
-        ("Debt to Equity", info.get("debtToEquity")),
+        ("Debt to Equity", None if debt_to_equity is None
+         else f"{debt_to_equity}% ({debt_to_equity / 100:.2f}x)"),
         ("Current Ratio", info.get("currentRatio")),
         ("Book Value", info.get("bookValue")),
         ("Free Cash Flow", info.get("freeCashflow")),
