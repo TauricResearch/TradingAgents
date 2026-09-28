@@ -134,6 +134,11 @@ Install the package and its dependencies (`uv pip install .` with uv):
 pip install .
 ```
 
+For development and test runs, install dev extras:
+```bash
+pip install -e ".[dev]"
+```
+
 ### Docker
 
 Alternatively, run with Docker:
@@ -179,6 +184,8 @@ COT and prediction-market enrichment are keyless by default:
 
 - CFTC Commitments of Traders (`positioning_data: cftc`) uses the public CFTC API
 - Prediction markets (`prediction_markets: polymarket`) use Polymarket's public API
+
+COT queries are futures-market topics (for example `E-MINI S&P 500`, `NASDAQ-100`, `GOLD`, `BITCOIN`), not equity tickers like `NVDA`.
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
@@ -383,12 +390,16 @@ You can control this cache with config keys or env vars:
 ```python
 config = DEFAULT_CONFIG.copy()
 config["cftc_cache_enabled"] = True      # set False to disable COT caching
-config["cftc_cache_max_age_days"] = 28   # prune cache files older than this
+config["cftc_cache_max_age_days"] = 48   # default; prune cache files older than this
+# Example override:
+# config["cftc_cache_max_age_days"] = 28
 ```
 
 ```bash
-TRADINGAGENTS_CFTC_CACHE_ENABLED=off
-TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS=28
+TRADINGAGENTS_CFTC_CACHE_ENABLED=on
+TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS=48
+# Example override:
+# TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS=28
 ```
 
 ## Evaluating decisions over time
