@@ -5,7 +5,7 @@
  * @description: ANBIMA data vendor (yield curve, credit spreads, indicative quotes, IMA-B index)
  * @author: AI Assistant
  * @created: 2026-09-28T10:24:09
- * @updated: 2026-09-28T10:24:09
+ * @updated: 2026-09-28T10:35:23
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:
@@ -14,7 +14,9 @@
 """
 
 import logging
-from typing import Dict, List, Tuple
+from typing import Annotated, Dict, List, Tuple
+
+from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,7 @@ def _fetch_anbima_data() -> dict:
     }
 
 
+@tool
 def get_yield_curve() -> Dict[int, float]:
     """Fetch ANBIMA yield curve (zero rates by maturity).
 
@@ -61,7 +64,8 @@ def get_yield_curve() -> Dict[int, float]:
     return data.get("yield_curve", {})
 
 
-def get_credit_spreads(issuer: str) -> Dict[int, float]:
+@tool
+def get_credit_spreads(issuer: Annotated[str, "issuer code, e.g. PETR, VALE"]) -> Dict[int, float]:
     """Fetch credit spread vs CDI for issuer's debentures.
 
     Args:

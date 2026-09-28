@@ -5,7 +5,7 @@
  * @description: Tests for ANBIMA data vendor
  * @author: AI Assistant
  * @created: 2026-09-28T10:24:09
- * @updated: 2026-09-28T10:24:09
+ * @updated: 2026-09-28T10:35:23
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:
@@ -29,7 +29,7 @@ def test_get_yield_curve_returns_dict():
         mock_fetch.return_value = {
             "yield_curve": {1: 10.5, 2: 11.0, 3: 11.5, 5: 12.0}
         }
-        result = get_yield_curve()
+        result = get_yield_curve.invoke({})
         assert isinstance(result, dict)
         assert 1 in result
         assert result[1] == 10.5
@@ -41,7 +41,7 @@ def test_get_credit_spreads_returns_dict():
         mock_fetch.return_value = {
             "credit_spreads": {"PETR": {1: 150, 2: 160, 3: 170}}
         }
-        result = get_credit_spreads("PETR")
+        result = get_credit_spreads.invoke({"issuer": "PETR"})
         assert isinstance(result, dict)
         assert 1 in result
         assert result[1] == 150
