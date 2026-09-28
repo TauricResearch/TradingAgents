@@ -1,4 +1,20 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: utils.py
+ * @description: CLI utilities: ticker handling, analyst selection, LLM provider config
+ * @author: Maíra Pontin
+ * @created: 2024-01-01T00:00:00
+ * @updated: 2026-09-28T10:14:45
+ * @version: 1.1.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
+
 import os
+import re
 from pathlib import Path
 
 import questionary
@@ -21,6 +37,9 @@ ANALYST_ORDER = [
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
+
+# Debenture CUSIP pattern: 4 letters + 2 digits (e.g., PETR41, VALE32)
+_DEBENTURE_CUSIP_PATTERN = re.compile(r"^[A-Z]{4}\d{2}$")
 
 
 def is_valid_ticker_input(value: str) -> bool:
@@ -80,10 +99,21 @@ def normalize_ticker_symbol(ticker: str) -> str:
 
 def detect_asset_type(ticker: str) -> AssetType:
     """Classify on the canonical symbol so e.g. BTCUSD and BTC-USDT both read as
-    crypto (#981/#982), matching what the data path will actually fetch."""
+    crypto (#981/#982), matching what the data path will actually fetch.
+
+    Credit mode: debenture CUSIP pattern (4 letters + 2 digits) -> CREDIT.
+    """
     canonical = normalize_ticker_symbol(ticker)
+
+    # Credit: debenture CUSIP pattern (e.g., PETR41, VALE32)
+    if _DEBENTURE_CUSIP_PATTERN.match(canonical):
+        return AssetType.CREDIT
+
+    # Crypto: -USD, -USDT, -USDC, etc.
     if canonical.endswith(CRYPTO_SUFFIXES):
         return AssetType.CRYPTO
+
+    # Default: stock
     return AssetType.STOCK
 
 
