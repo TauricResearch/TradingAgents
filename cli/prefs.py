@@ -22,6 +22,7 @@ from pathlib import Path
 
 from cli.models import AnalystType, AssetType
 from cli.prompts import _llm_provider_table, filter_analysts_for_asset_type
+from tradingagents.dataflows.files import replace_file
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 _PREFS_PATH = Path(os.path.expanduser("~")) / ".tradingagents" / "cli_prefs.json"
@@ -52,9 +53,8 @@ def save_last_run(selections: dict) -> None:
     kept = {k: v for k, v in kept.items() if v is not None}
     try:
         _PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        temp = _PREFS_PATH.with_suffix(".tmp")
-        temp.write_text(json.dumps(kept, indent=2), encoding="utf-8")
-        os.replace(temp, _PREFS_PATH)  # a concurrent run reads one file or the other
+        # A concurrent run reads one file or the other.
+        replace_file(_PREFS_PATH, lambda temp: Path(temp).write_text(json.dumps(kept, indent=2), encoding="utf-8"))
     except OSError:
         return
 
