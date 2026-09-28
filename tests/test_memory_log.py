@@ -1060,3 +1060,76 @@ def test_concurrent_writers_keep_every_decision_and_outcome(tmp_path):
     assert errors == []
     assert len(entries) == len(tickers) * len(dates)
     assert all(not e["pending"] for e in entries)
+
+
+def _closes(by_symbol):
+    """A get_closes stand-in serving each symbol's series between the dates asked."""
+    def get_closes(symbol, start_date, end_date):
+        series = by_symbol[symbol]
+        return series[(series.index >= start_date) & (series.index < end_date)]
+    return get_closes
+
+
+@pytest.mark.unit
+class TestSettlementWindow:
+    """Stock and benchmark are measured over the same dates, whatever their calendars."""
+
+    def test_a_seven_day_market_is_scored_against_the_benchmark_over_the_same_dates(self, monkeypatch):
+        coin = pd.Series([100.0 + i for i in range(10)], index=pd.date_range("2026-01-03", periods=10, freq="D"))
+        weekdays = pd.bdate_range("2025-12-29", "2026-01-16")
+        spy = pd.Series([400.0 + 2 * i for i in range(len(weekdays))], index=weekdays)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"BTC-USD": coin, "SPY": spy}))
+
+        raw, alpha, days, resolved = settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY")
+
+        # The coin is held Sat 3 -> Thu 8; SPY over the same span is Fri 2 -> Thu 8.
+        assert resolved == "2026-01-08"
+        assert raw == pytest.approx(105.0 / 100.0 - 1)
+        assert alpha == pytest.approx(raw - (spy["2026-01-08"] / spy["2026-01-02"] - 1))
+
+    def test_bars_stamped_in_different_time_zones_meet_on_their_dates(self, monkeypatch):
+        # Yahoo stamps a coin's daily bar at midnight UTC and SPY's at midnight
+        # New York, five hours later: the same day, not the day after.
+        coin = pd.Series([100.0 + i for i in range(10)],
+                         index=pd.date_range("2026-01-03", periods=10, freq="D", tz="UTC"))
+        weekdays = pd.bdate_range("2025-12-29", "2026-01-16", tz="America/New_York")
+        spy = pd.Series([400.0 + 2 * i for i in range(len(weekdays))], index=weekdays)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"BTC-USD": coin, "SPY": spy}))
+
+        raw, alpha, _, resolved = settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY")
+
+        assert resolved == "2026-01-08"
+        spy_by_day = spy.tz_localize(None)
+        assert alpha == pytest.approx(raw - (spy_by_day["2026-01-08"] / spy_by_day["2026-01-02"] - 1))
+
+    def test_the_outcome_waits_for_the_benchmark_to_trade_through_the_window(self, monkeypatch):
+        coin = pd.Series([100.0 + i for i in range(10)], index=pd.date_range("2026-01-03", periods=10, freq="D"))
+        spy = pd.Series([400.0, 401.0, 402.0], index=pd.to_datetime(["2026-01-02", "2026-01-05", "2026-01-06"]))
+        monkeypatch.setattr(settlement, "get_closes", _closes({"BTC-USD": coin, "SPY": spy}))
+
+        assert settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY") == (None, None, None, None)
+
+    def test_a_missing_close_is_skipped_not_scored(self, monkeypatch):
+        idx = pd.bdate_range("2026-01-05", periods=8)
+        stock = pd.Series([100.0, float("nan"), 101.0, 102.0, 103.0, 104.0, 105.0, 106.0], index=idx)
+        spy = pd.Series([400.0 + i for i in range(8)], index=idx)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
+
+        raw, alpha, _, resolved = settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY")
+
+        assert raw == pytest.approx(105.0 / 100.0 - 1)
+        assert resolved == "2026-01-13"
+        assert alpha == pytest.approx(raw - (spy["2026-01-13"] / spy["2026-01-05"] - 1))
+
+
+@pytest.mark.unit
+def test_a_close_that_is_not_a_price_is_skipped_not_scored(monkeypatch):
+    """A zero close would score as an infinite return and be written to the memory log."""
+    idx = pd.bdate_range("2026-01-05", periods=8)
+    stock = pd.Series([0.0, 100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0], index=idx)
+    spy = pd.Series([400.0 + i for i in range(8)], index=idx)
+    monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
+
+    raw, alpha, _, _ = settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY")
+
+    assert raw == pytest.approx(105.0 / 100.0 - 1)   # the window opens on the first real close

@@ -34,6 +34,20 @@ def resolve_benchmark(ticker: str, config: dict) -> str:
     return benchmark_map.get("", "SPY")
 
 
+def _by_day(closes):
+    """Closes keyed by the calendar day of their bar, missing closes dropped.
+
+    Yahoo stamps a daily bar at midnight in its market's time zone (UTC for a
+    coin, New York for SPY), so two series meet on their dates, not their
+    instants. A missing or non-positive close is no price at all, not a bar to
+    score on.
+    """
+    closes = closes[closes > 0]
+    if getattr(closes.index, "tz", None) is not None:
+        closes = closes.tz_localize(None)
+    return closes
+
+
 def fetch_returns(
     ticker: str, trade_date: str, holding_days: int = 5,
     benchmark: str = "SPY",
@@ -56,21 +70,31 @@ def fetch_returns(
         end_str = end.strftime("%Y-%m-%d")
 
         # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984).
-        stock = get_closes(ticker, trade_date, end_str)
-        bench = get_closes(benchmark, trade_date, end_str)
+        stock = _by_day(get_closes(ticker, trade_date, end_str))
+        # From a week earlier, so the benchmark has a close on or before entry.
+        bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
+        bench = _by_day(get_closes(benchmark, bench_start, end_str))
 
-        # Require the full holding window in both series. A rerun before it
-        # has traded leaves the entry pending to retry next run, rather than
-        # settling on a premature partial return (#1169).
-        if len(stock) <= holding_days or len(bench) <= holding_days:
+        # Require the full holding window to have traded. A rerun before it has
+        # leaves the entry pending to retry next run, rather than settling on a
+        # premature partial return (#1169).
+        if len(stock) <= holding_days:
+            return None, None, None, None
+        entry, exit_ = stock.index[0], stock.index[holding_days]
+        # The window is the stock's own sessions; the benchmark is valued at its
+        # last close by each end, so both returns span the same dates even when
+        # the calendars differ (a coin trades at weekends, an index does not).
+        # It must have traded through the exit, or its close there may yet move.
+        if bench.empty or bench.index[0] > entry or bench.index[-1] < exit_:
             return None, None, None, None
 
         raw = float((stock.iloc[holding_days] - stock.iloc[0]) / stock.iloc[0])
-        bench_ret = float((bench.iloc[holding_days] - bench.iloc[0]) / bench.iloc[0])
+        bench_entry, bench_exit = bench.asof(entry), bench.asof(exit_)
+        bench_ret = float((bench_exit - bench_entry) / bench_entry)
         alpha = raw - bench_ret
-        # The date of the last price bar used is when this outcome became
-        # known — the point-in-time cutoff for injecting the lesson (#1251).
-        resolution_date = stock.index[holding_days].strftime("%Y-%m-%d")
+        # Every close used is known by the exit: the point-in-time cutoff for
+        # injecting the lesson (#1251).
+        resolution_date = exit_.strftime("%Y-%m-%d")
         return raw, alpha, holding_days, resolution_date
     except Exception as e:
         logger.warning(
