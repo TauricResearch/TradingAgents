@@ -176,3 +176,26 @@ def test_a_yahoo_request_that_fails_is_unavailable_not_absent(yahoo, call):
 
     with pytest.raises(VendorUnavailableError):
         call()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("frame", [
+    pytest.param(pd.DataFrame(), id="unknown_symbol"),
+    pytest.param(pd.DataFrame({"Date": pd.to_datetime(["2026-09-25"]), "Open": [1.0], "High": [1.0],
+                               "Low": [1.0], "Close": [1.0], "Volume": [1]}), id="no_row_by_the_date"),
+])
+def test_a_snapshot_with_no_rows_is_reported_not_raised(yahoo, frame):
+    """An exception out of a tool ends the run; no rows is an answer about the symbol."""
+    from tradingagents.dataflows.errors import NoMarketDataError
+    from tradingagents.dataflows.vendors.yahoo import snapshot
+
+    def load(symbol, as_of_date, **kwargs):
+        if frame.empty:
+            raise NoMarketDataError(symbol, symbol, "no price rows")
+        return frame
+
+    yahoo.setattr(snapshot, "load_ohlcv", load)
+
+    out = get_verified_market_snapshot.func("ZZZZ", DAY, trade_date=DAY)
+
+    assert out.startswith("NO_DATA_AVAILABLE"), out

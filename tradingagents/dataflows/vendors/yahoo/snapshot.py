@@ -15,6 +15,8 @@ from collections.abc import Iterable
 import pandas as pd
 from stockstats import wrap
 
+from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
@@ -26,7 +28,7 @@ DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
 
 
 def _verified_rows(symbol: str, as_of_date: str) -> pd.DataFrame:
-    """OHLCV on or before as_of_date, date-sorted. Raises if nothing usable.
+    """OHLCV on or before as_of_date, date-sorted. Raises NoMarketDataError if nothing usable.
 
     ``load_ohlcv`` already normalizes the Date column and filters out
     look-ahead rows, but we re-apply the cutoff defensively — this is a
@@ -36,14 +38,14 @@ def _verified_rows(symbol: str, as_of_date: str) -> pd.DataFrame:
     # gap-filled cell would put the previous session's number under this date.
     data = load_ohlcv(symbol, as_of_date, fill_gaps=False)
     if data is None or data.empty:
-        raise ValueError(f"No OHLCV data available for {symbol}.")
+        raise NoMarketDataError(symbol, normalize_symbol(symbol), "no price rows")
 
     df = data.copy()
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df = df.dropna(subset=["Date"])
     df = df[df["Date"] <= pd.to_datetime(as_of_date)].sort_values("Date")
     if df.empty:
-        raise ValueError(f"No OHLCV rows on or before {as_of_date} for {symbol}.")
+        raise NoMarketDataError(symbol, normalize_symbol(symbol), f"no price rows on or before {as_of_date}")
     return df
 
 
