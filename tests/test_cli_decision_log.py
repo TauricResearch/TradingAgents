@@ -67,6 +67,7 @@ class _FakeGraph:
 
     def __init__(self, resuming=None):
         self.calls = []
+        self.config = {}          # real graphs carry their own config dict
         self.graph = self
         self.propagator = self
         self.resuming = resuming      # None: checkpointing off

@@ -113,6 +113,7 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
     printed = []
 
     class _Graph:
+        config = {}              # real graphs carry their own config dict
         graph = propagator = None
 
         def create_run_state(self, *a, **k):

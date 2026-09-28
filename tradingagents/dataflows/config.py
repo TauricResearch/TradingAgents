@@ -36,6 +36,13 @@ def set_config(config: dict):
     Dict-valued keys (e.g. ``data_vendors``) are merged one level deep so a
     partial update like ``{"data_vendors": {"core_stock_apis": "alpha_vantage"}}``
     keeps the other nested keys from the default; scalar keys are replaced.
+
+    This edits the process-wide config, read by bare tool calls and by a
+    ``TradingAgentsGraph``'s ``__init__``. Once a graph is built, its runs
+    read the config the graph was constructed with, not later ``set_config``
+    calls: ``propagate`` and the CLI's stream loop bind the graph's own
+    config for the length of the run (#1369, 96daaf1). To change a built
+    graph's behaviour, pass ``config`` when constructing it.
     """
     initialize_config()
     _merge(_config, config)
