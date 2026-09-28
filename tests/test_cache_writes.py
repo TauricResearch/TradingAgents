@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from tradingagents.dataflows import files
 from tradingagents.dataflows.vendors import sec_edgar
 from tradingagents.dataflows.vendors.yahoo import ohlcv
 
@@ -82,3 +83,46 @@ def test_a_file_held_open_elsewhere_keeps_its_old_content(monkeypatch, tmp_path)
 
     assert target.read_text() == "old"
     assert list(tmp_path.iterdir()) == [target]
+
+
+def _fake_msvcrt(results):
+    """msvcrt whose locking() raises the next error in ``results``, or succeeds on None."""
+    import types
+
+    calls = []
+
+    def locking(fd, mode, nbytes):
+        calls.append(mode)
+        if mode == 2 and results:   # LK_LOCK; unlocking always succeeds
+            error = results.pop(0)
+            if error is not None:
+                raise error
+
+    return types.SimpleNamespace(LK_LOCK=2, LK_UNLCK=0, locking=locking), calls
+
+
+@pytest.mark.unit
+def test_on_windows_the_lock_is_waited_for_while_another_writer_holds_it(tmp_path, monkeypatch):
+    import errno
+    import sys
+
+    fake, calls = _fake_msvcrt([OSError(errno.EDEADLOCK, "held"), None])
+    monkeypatch.setitem(sys.modules, "msvcrt", fake)
+
+    with open(tmp_path / "log.md.lock", "a+b") as handle, files._hold_windows(handle):
+        pass
+
+    assert calls == [2, 2, 0]
+
+
+@pytest.mark.unit
+def test_on_windows_a_lock_that_cannot_be_taken_is_reported_not_retried_forever(tmp_path, monkeypatch):
+    import errno
+    import sys
+
+    fake, _ = _fake_msvcrt([OSError(errno.EINVAL, "bad handle")] * 3)
+    monkeypatch.setitem(sys.modules, "msvcrt", fake)
+
+    with pytest.raises(OSError, match="bad handle"), open(tmp_path / "log.md.lock", "a+b") as handle, \
+            files._hold_windows(handle):
+        pass

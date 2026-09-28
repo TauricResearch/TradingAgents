@@ -1029,3 +1029,34 @@ def test_a_longer_window_asks_for_enough_price_history(monkeypatch):
     raw, alpha, days, resolved = settlement.fetch_returns("NVDA", "2026-06-01", 21, benchmark="SPY")
 
     assert days == 21 and resolved is not None, (raw, alpha, days, resolved)
+
+
+@pytest.mark.unit
+def test_concurrent_writers_keep_every_decision_and_outcome(tmp_path):
+    """Graphs sharing one log record and settle at the same time; none may lose another's write."""
+    import threading
+
+    path = tmp_path / "memory.md"
+    tickers = [f"T{i}" for i in range(8)]
+    dates = [f"2026-01-{day:02d}" for day in range(1, 13)]
+    errors = []
+
+    def work(ticker):
+        log = TradingMemoryLog({"memory_log_path": str(path)})
+        try:
+            for date in dates:
+                log.store_decision(ticker, date, "**Rating**: Buy")
+                log.update_with_outcome(ticker, date, 0.01, 0.005, 5, "held up")
+        except Exception as exc:  # noqa: BLE001 — collected for the assertion
+            errors.append(exc)
+
+    threads = [threading.Thread(target=work, args=(t,)) for t in tickers]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    entries = TradingMemoryLog({"memory_log_path": str(path)}).load_entries()
+    assert errors == []
+    assert len(entries) == len(tickers) * len(dates)
+    assert all(not e["pending"] for e in entries)

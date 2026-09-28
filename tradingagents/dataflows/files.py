@@ -1,9 +1,11 @@
-"""Cache files written whole, safe under concurrent writers."""
+"""Files written whole, and held by one writer at a time, under concurrent writers."""
 
+import errno
 import logging
 import os
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -29,3 +31,49 @@ def replace_file(path, write: Callable[[str], None]) -> None:
     except BaseException:
         temp.unlink(missing_ok=True)
         raise
+
+
+@contextmanager
+def locked(path) -> Iterator[None]:
+    """Hold ``path`` for one writer at a time, across threads and processes.
+
+    For a file read, changed and written back: without the lock, two writers
+    each read the same text and the second write drops the first's change. The
+    lock is taken on a ``.lock`` file beside ``path``.
+    """
+    with open(f"{path}.lock", "a+b") as handle:
+        hold = _hold_windows if os.name == "nt" else _hold_posix
+        with hold(handle):
+            yield
+
+
+@contextmanager
+def _hold_posix(handle) -> Iterator[None]:
+    import fcntl
+
+    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+    try:
+        yield
+    finally:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _hold_windows(handle) -> Iterator[None]:
+    import msvcrt
+
+    handle.seek(0)
+    while True:
+        try:
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            break
+        except OSError as exc:
+            # LK_LOCK gives up after about ten seconds of another writer's hold;
+            # any other failure is not a wait.
+            if exc.errno != errno.EDEADLOCK:
+                raise
+    try:
+        yield
+    finally:
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
