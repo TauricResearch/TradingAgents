@@ -7,7 +7,7 @@ from tradingagents.dataflows.date_window import withhold_live_profile, withhold_
 from tradingagents.dataflows.errors import VendorUnavailableError
 from tradingagents.dataflows.net import vendor_reachable
 from tradingagents.dataflows.symbols import normalize_symbol
-from tradingagents.dataflows.vendors.yahoo.ohlcv import (
+from tradingagents.dataflows.vendors.yahoo.common import (
     YAHOO_HOST,
     raise_for_empty,
     yf_retry,

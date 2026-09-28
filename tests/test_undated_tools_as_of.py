@@ -200,16 +200,16 @@ def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
     import pandas as pd
 
     from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
-    from tradingagents.dataflows.vendors.yahoo import ohlcv
+    from tradingagents.dataflows.vendors.yahoo import common
 
     empty = mock.Mock(quarterly_balance_sheet=pd.DataFrame(), balance_sheet=pd.DataFrame())
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: empty)
 
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: False)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: False)
     with pytest.raises(VendorUnavailableError, match="unreachable"):
         yahoo_fundamentals.get_balance_sheet("AAPL", "annual", get_current_date())
 
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
     with pytest.raises(NoMarketDataError):
         yahoo_fundamentals.get_balance_sheet("AAPL", "annual", get_current_date())
 
@@ -241,15 +241,15 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch)
     import pandas as pd
 
     from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
-    from tradingagents.dataflows.vendors.yahoo import ohlcv
+    from tradingagents.dataflows.vendors.yahoo import common
 
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: mock.Mock(history=lambda **k: pd.DataFrame()))
 
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: False)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: False)
     with pytest.raises(VendorUnavailableError, match="unreachable"):
         yahoo_market.get_YFin_data_online("AAPL", "2026-09-01", "2026-09-10")
 
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
     with pytest.raises(NoMarketDataError):
         yahoo_market.get_YFin_data_online("AAPL", "2026-09-01", "2026-09-10")
 

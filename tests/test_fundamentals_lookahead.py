@@ -129,9 +129,9 @@ class TestNoUsableFieldsStillRaises:
         # yfinance returns {"trailingPegRatio": None} for unknown symbols; on a
         # live run that must stay a hard "no data", not a bare header.
         from tradingagents.dataflows.errors import NoMarketDataError
-        from tradingagents.dataflows.vendors.yahoo import ohlcv
+        from tradingagents.dataflows.vendors.yahoo import common
 
-        monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+        monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
 
         with pytest.raises(NoMarketDataError):
             _yf(_TODAY, info={"trailingPegRatio": None})

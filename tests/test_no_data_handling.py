@@ -17,7 +17,7 @@ import pytest
 from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.errors import NoMarketDataError
-from tradingagents.dataflows.vendors.yahoo import ohlcv
+from tradingagents.dataflows.vendors.yahoo import common, ohlcv
 
 
 @pytest.mark.unit
@@ -35,7 +35,7 @@ class TestLoadOhlcvNoPoison(unittest.TestCase):
     def test_empty_download_raises_and_does_not_cache(self):
         empty = mock.Mock(history=mock.Mock(return_value=pd.DataFrame()))
         # Yahoo answers, so an empty download means the symbol has no data.
-        reachable = mock.patch.object(ohlcv, "vendor_reachable", return_value=True)
+        reachable = mock.patch.object(common, "vendor_reachable", return_value=True)
         reachable.start()
         self.addCleanup(reachable.stop)
         with mock.patch.object(ohlcv.yf, "Ticker", return_value=empty), \

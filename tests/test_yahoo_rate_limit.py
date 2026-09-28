@@ -22,7 +22,7 @@ from tradingagents.agents.tools import (
 from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.errors import VendorUnavailableError
-from tradingagents.dataflows.vendors.yahoo import fundamentals, ohlcv
+from tradingagents.dataflows.vendors.yahoo import common, fundamentals, ohlcv
 
 DAY = "2026-09-18"
 
@@ -34,8 +34,8 @@ def _rate_limited(*args, **kwargs):
 @pytest.fixture
 def yahoo(monkeypatch, tmp_path):
     set_config({"data_cache_dir": str(tmp_path)})
-    monkeypatch.setattr(ohlcv.time, "sleep", lambda seconds: None)
-    for module in (ohlcv, fundamentals):
+    monkeypatch.setattr(common.time, "sleep", lambda seconds: None)
+    for module in (common, fundamentals):
         monkeypatch.setattr(module, "vendor_reachable", lambda url: True)
     return monkeypatch
 
@@ -121,7 +121,7 @@ def test_a_price_request_that_raises_is_unavailable_whether_or_not_yahoo_answers
 
     yahoo.setattr(yf.Ticker, "history", refused)
     for reachable in (False, True):
-        yahoo.setattr(ohlcv, "vendor_reachable", lambda url, _r=reachable: _r)
+        yahoo.setattr(common, "vendor_reachable", lambda url, _r=reachable: _r)
         with pytest.raises(VendorUnavailableError, match="request failed"):
             ohlcv.load_ohlcv("AAPL", DAY)
 
@@ -134,7 +134,7 @@ def test_a_price_request_that_fails_is_unavailable_even_when_yahoo_answers(monke
 
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     monkeypatch.setattr(ohlcv.yf, "Ticker", lambda s: type("T", (), {"history": lambda self, **k: timed_out(**k)})())
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
 
     with pytest.raises(VendorUnavailableError):
         ohlcv.load_ohlcv("NVDA", "2026-09-23")
