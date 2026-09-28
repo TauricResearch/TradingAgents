@@ -199,3 +199,44 @@ def test_a_snapshot_with_no_rows_is_reported_not_raised(yahoo, frame):
     out = get_verified_market_snapshot.func("ZZZZ", DAY, trade_date=DAY)
 
     assert out.startswith("NO_DATA_AVAILABLE"), out
+
+
+def _yahoo_request_raises(yahoo, exc):
+    """Every request yfinance makes raises ``exc``, below its own error handling."""
+    from yfinance.data import YfData
+
+    def request(self, *args, **kwargs):
+        raise exc
+
+    yahoo.setattr(YfData, "_make_request", request)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("call", _yahoo_calls())
+def test_a_request_that_yfinance_would_swallow_is_unavailable(yahoo, call):
+    """yfinance answers some failed requests with an empty result; an empty
+    statement from a Yahoo whose host answers a probe read as "no data"."""
+    _yahoo_request_raises(yahoo, TimeoutError("read timed out"))
+
+    with pytest.raises(VendorUnavailableError):
+        call()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("call", [c for c in _yahoo_calls() if c.id in ("fundamentals", "stock_data", "insider")])
+def test_yahoo_answering_not_found_is_no_data(yahoo, call):
+    """Yahoo answers an unknown symbol with HTTP 404: an answer about the symbol, not an outage."""
+    from curl_cffi.requests import Response
+    from curl_cffi.requests.exceptions import HTTPError
+
+    from tradingagents.dataflows.errors import NoMarketDataError
+
+    not_found = Response()
+    not_found.status_code = 404
+    _yahoo_request_raises(yahoo, HTTPError("HTTP Error 404: ", response=not_found))
+
+    try:
+        out = call()
+    except NoMarketDataError:
+        return
+    assert out.startswith("No insider transactions"), out   # an empty filing list is not an error

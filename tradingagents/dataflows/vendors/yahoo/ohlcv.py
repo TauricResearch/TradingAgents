@@ -39,15 +39,25 @@ def raise_for_empty(symbol: str, canonical: str, what: str) -> None:
     raise NoMarketDataError(symbol, canonical, f"no {what}")
 
 
+# yfinance answers some failed requests with an empty result, which would read as
+# "no data" for a symbol nobody checked; raised, the failure is reported as one.
+yf.config.debug.hide_exceptions = False
+
+
+def _not_found(exc: Exception) -> bool:
+    """Whether Yahoo answered that it has no such symbol (HTTP 404)."""
+    return getattr(getattr(exc, "response", None), "status_code", None) == 404
+
+
 def yf_retry(func, max_retries=3, base_delay=2.0):
     """Execute a yfinance call with exponential backoff on rate limits.
 
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
     retry them internally, so this wrapper retries them. A rate limit that
     outlasts the retries, or any other exception, is raised as
-    VendorUnavailableError: Yahoo answers an unknown symbol with an empty
-    result, so a request that raised failed in transit and says nothing about
-    the symbol. ``func`` should build its own Ticker and make the request
+    VendorUnavailableError: it failed in transit and says nothing about the
+    symbol. Yahoo answering that it has no such symbol (HTTP 404) returns None,
+    an empty answer. ``func`` should build its own Ticker and make the request
     itself: a Ticker keeps a failed ``info`` fetch as done, so asking the same
     one again reads an empty profile.
     """
@@ -64,6 +74,8 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
                     f"Yahoo Finance rate limited after {max_retries} retries: {exc}"
                 ) from exc
         except Exception as exc:
+            if _not_found(exc):
+                return None
             raise VendorUnavailableError(f"Yahoo Finance request failed: {type(exc).__name__}") from exc
 
 
@@ -258,6 +270,8 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
             auto_adjust=True,
             actions=False,
         ))
+        if downloaded is None:
+            raise_for_empty(symbol, canonical, "price rows")
         downloaded = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:

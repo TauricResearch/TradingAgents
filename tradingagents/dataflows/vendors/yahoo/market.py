@@ -30,18 +30,17 @@ def get_YFin_data_online(
 
     # Resolve broker/forex symbols to Yahoo's convention (XAUUSD+ -> GC=F).
     canonical = normalize_symbol(symbol)
-    ticker = yf.Ticker(canonical)
 
     # yfinance treats ``end`` as EXCLUSIVE, so it would drop the requested
     # end_date row (and the current day when end_date is today). Request one day
     # past end_date so the requested range is actually inclusive (#986/#987).
     end_inclusive = (end_dt + relativedelta(days=1)).strftime("%Y-%m-%d")
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_inclusive))
+    data = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_inclusive))
 
     # Empty result means the symbol is unknown/delisted. Raise a typed error
     # instead of returning prose: the routing layer turns it into a single
     # unambiguous "no data" signal so the agent never fabricates a price.
-    if data.empty:
+    if data is None or data.empty:
         raise_for_empty(symbol, canonical, f"rows between {start_date} and {end_date}")
 
     # Remove timezone info from index for cleaner output
@@ -274,7 +273,7 @@ def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     """Daily closes from ``start_date`` up to, not including, ``end_date``."""
     canonical = normalize_symbol(symbol)
     history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date))
-    return history["Close"] if "Close" in history else pd.Series(dtype=float)
+    return history["Close"] if history is not None and "Close" in history else pd.Series(dtype=float)
 
 
 def get_stock_stats(

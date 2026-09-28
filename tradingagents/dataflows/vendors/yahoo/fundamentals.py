@@ -100,7 +100,8 @@ def _statement(ticker, freq, as_of_date, title, quarterly_attr, annual_attr) -> 
     canonical = normalize_symbol(ticker)
     what = title.lower()
     attr = quarterly_attr if freq.lower() == "quarterly" else annual_attr
-    data = filter_financials_by_date(yf_retry(lambda: getattr(yf.Ticker(canonical), attr)), as_of_date)
+    data = yf_retry(lambda: getattr(yf.Ticker(canonical), attr))
+    data = pd.DataFrame() if data is None else filter_financials_by_date(data, as_of_date)
     if data.empty:
         raise_for_empty(ticker, canonical, f"{what} data")
     return f"# {title} data for {canonical} ({freq})\n" + _PERIOD_END_VINTAGE + data.to_csv()
