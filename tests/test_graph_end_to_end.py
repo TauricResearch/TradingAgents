@@ -12,7 +12,7 @@ import copy
 import pandas as pd
 import pytest
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.runnables import RunnableLambda
 from pydantic import Field
@@ -232,3 +232,58 @@ def test_a_streamed_run_reads_its_own_graph_config(tmp_path, monkeypatch, offlin
 
     assert seen and set(seen) == {"French"}
     assert set(between) == {"German"}
+
+
+class LoopingModel(ScriptedModel):
+    """Calls a tool on every turn it is offered one (#1420)."""
+
+    tool_turns: list = Field(default_factory=list)    # shared across bound copies
+    last_turns: list = Field(default_factory=list)    # histories of the turns offered no tools
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:
+        if not self.tools:
+            self.last_turns.append(messages)
+            return super()._generate(messages, stop, run_manager, **kwargs)
+        self.tool_turns.append(1)
+        tool = self.tools[0]
+        call = {"name": tool.name, "id": f"call_{len(self.tool_turns)}",
+                "args": {k: v for k, v in ARGS.items()
+                         if k in tool.tool_call_schema.model_json_schema()["properties"]}}
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content="", tool_calls=[call]))])
+
+
+@pytest.mark.unit
+def test_an_analyst_that_keeps_calling_tools_writes_its_report_at_the_limit(tmp_path, monkeypatch, offline):
+    """A model that does not stop calling tools must not end the run (#1420)."""
+    model = LoopingModel(structured=True)
+    graph = _graph(tmp_path, monkeypatch, model, max_tool_rounds=3)
+
+    final_state, rating = graph.propagate("NVDA", TRADE_DATE)
+
+    assert len(model.tool_turns) == 3 * 3   # three tool-using analysts, three rounds each
+    for key in ("market_report", "news_report", "fundamentals_report"):
+        assert final_state[key] == TEXT
+    assert rating == "Overweight"
+
+
+@pytest.mark.unit
+def test_the_last_turn_is_offered_no_tools_and_reads_its_tool_results_as_text(tmp_path, monkeypatch, offline):
+    """Offered tools, a model may call one whatever it is told; a history holding
+    tool calls may be refused by a provider when no tools are bound."""
+    model = LoopingModel(structured=True)
+    graph = _graph(tmp_path, monkeypatch, model, max_tool_rounds=2)
+
+    graph.propagate("NVDA", TRADE_DATE)
+
+    wrap_ups = [h for h in model.last_turns if isinstance(h[-1], HumanMessage) and "tool round" in h[-1].content]
+    assert len(wrap_ups) == 3
+    for history in wrap_ups:
+        assert not any(isinstance(m, ToolMessage) or getattr(m, "tool_calls", None) for m in history)
+        assert any("returned]" in str(m.content) for m in history)
+        assert "tool rounds are spent" in history[0].content   # the system prompt lists no tools
+
+
+@pytest.mark.unit
+def test_a_tool_limit_the_recursion_limit_cannot_hold_is_refused(tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match="max_tool_rounds"):
+        _graph(tmp_path, monkeypatch, ScriptedModel(), max_tool_rounds=60, max_recur_limit=100)
