@@ -5,7 +5,11 @@ from io import StringIO
 
 import pandas as pd
 
-from tradingagents.dataflows.errors import VendorNotConfiguredError, VendorRateLimitError
+from tradingagents.dataflows.errors import (
+    VendorError,
+    VendorNotConfiguredError,
+    VendorRateLimitError,
+)
 from tradingagents.dataflows.net import get_scrubbed
 
 API_BASE_URL = "https://www.alphavantage.co/query"
@@ -67,6 +71,17 @@ class AlphaVantageRateLimitError(VendorRateLimitError):
     pass
 
 
+class AlphaVantageApiError(VendorError):
+    """Raised when Alpha Vantage rejects the API call itself.
+
+    Covers the ``{"Error Message": ...}`` contract: an invalid symbol,
+    function name, or parameter list. Not a rate limit and not a missing key,
+    so the router treats it as a generic vendor failure (logged, try next
+    vendor) instead of returning the error JSON as if it were data.
+    """
+    pass
+
+
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
 
@@ -118,6 +133,14 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
             # Reuse the existing "not configured" error so a bad key surfaces as
             # a real, actionable failure rather than a mislabeled rate limit (#991).
             raise AlphaVantageNotConfiguredError(f"Alpha Vantage API key invalid or missing: {notice}")
+
+    # An invalid API call (bad symbol, bad function name, malformed params)
+    # reports itself as {"Error Message": "..."}. Returning that JSON as data
+    # makes get_stock emit a header-only CSV and get_indicator mislabel the
+    # failure as "no data", so classify it as a vendor failure instead.
+    error_message = response_json.get("Error Message")
+    if error_message:
+        raise AlphaVantageApiError(f"Alpha Vantage rejected the API call: {error_message}")
 
     return response_text
 
