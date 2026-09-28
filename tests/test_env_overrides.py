@@ -116,6 +116,34 @@ def test_empty_path_value_keeps_the_default_path(monkeypatch):
     assert dc.DEFAULT_CONFIG["memory_log_path"] == os.path.join(home, "memory", "trading_memory.md")
 
 
+def test_whitespace_path_value_keeps_the_default_path(monkeypatch):
+    """A whitespace-only value is truthy, so it slipped past the empty-string
+    guards: results_dir became " " and the app created a directory literally
+    named " " under the CWD, writing every report to the wrong place."""
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_RESULTS_DIR=" ",
+        TRADINGAGENTS_CACHE_DIR="  ",
+        TRADINGAGENTS_MEMORY_LOG_PATH="\t",
+    )
+    home = dc._TRADINGAGENTS_HOME
+    assert dc.DEFAULT_CONFIG["results_dir"] == os.path.join(home, "logs")
+    assert dc.DEFAULT_CONFIG["data_cache_dir"] == os.path.join(home, "cache")
+    assert dc.DEFAULT_CONFIG["memory_log_path"] == os.path.join(home, "memory", "trading_memory.md")
+
+
+def test_whitespace_bool_and_int_values_are_ignored(monkeypatch):
+    """Same stray-space typo on non-path keys used to raise ValueError at
+    import (bool/int coercion); whitespace-only means unset for them too."""
+    dc = _reload_with_env(
+        monkeypatch,
+        TRADINGAGENTS_CHECKPOINT_ENABLED=" ",
+        TRADINGAGENTS_MAX_DEBATE_ROUNDS=" ",
+    )
+    assert dc.DEFAULT_CONFIG["checkpoint_enabled"] is False
+    assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 1
+
+
 def test_invalid_int_raises(monkeypatch):
     """Garbage int values should surface a ValueError at import, not silently misconfigure."""
     monkeypatch.setenv("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "not-a-number")

@@ -60,7 +60,11 @@ def _apply_env_overrides(config: dict) -> dict:
     """Apply TRADINGAGENTS_* env vars to the config dict in-place."""
     for env_var, key in _ENV_OVERRIDES.items():
         raw = os.environ.get(env_var)
-        if raw is None or raw == "":
+        # Whitespace-only values are treated as unset: on these coercion keys
+        # (bool/int/str) a stray space would otherwise raise ValueError at
+        # import, far from the typo that caused it. (The path keys are guarded
+        # separately by _env_path below.)
+        if raw is None or not raw.strip():
             continue
         try:
             config[key] = _coerce(raw, config.get(key))
@@ -69,10 +73,22 @@ def _apply_env_overrides(config: dict) -> dict:
     return config
 
 
+def _env_path(env_var: str, default: str) -> str:
+    """Env-provided path, or ``default`` when unset or whitespace-only.
+
+    ``" "`` is truthy, so the ``or`` fallback used for these keys missed it:
+    a whitespace-only value became the configured path and the app created a
+    directory literally named ``" "`` under the CWD (empty-string values were
+    already guarded, but not whitespace-only ones).
+    """
+    value = os.getenv(env_var)
+    return value if value and value.strip() else default
+
+
 DEFAULT_CONFIG = _apply_env_overrides({
-    "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR") or os.path.join(_TRADINGAGENTS_HOME, "logs"),
-    "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR") or os.path.join(_TRADINGAGENTS_HOME, "cache"),
-    "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md"),
+    "results_dir": _env_path("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
+    "data_cache_dir": _env_path("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
+    "memory_log_path": _env_path("TRADINGAGENTS_MEMORY_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md")),
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
