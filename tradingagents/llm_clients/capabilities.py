@@ -82,6 +82,20 @@ _MINIMAX_THINKING = ModelCapabilities(
     requires_reasoning_split=True,
 )
 
+# Muse Spark accepts only automatic tool selection. The default schema-as-tool
+# strategy forces a named tool and fails with HTTP 400 in every entry point
+# (interactive, headless and Python). Prefer its native JSON Schema output:
+# LangChain maps this to text.format on Responses and response_format on Chat
+# Completions, without forcing a tool or weakening the output to free text.
+# Sources: dev.meta.ai/docs/cookbook/tool-function-calling and
+# dev.meta.ai/docs/cookbook/structured-output (checked 2026-09-27).
+_MUSE_SPARK = ModelCapabilities(
+    supports_tool_choice=False,
+    supports_json_mode=True,
+    supports_json_schema=True,
+    preferred_structured_method="json_schema",
+)
+
 _DEFAULT = ModelCapabilities(
     supports_tool_choice=True,
     supports_json_mode=True,
@@ -92,6 +106,13 @@ _DEFAULT = ModelCapabilities(
 
 # Exact-ID matches take precedence over pattern matches.
 _BY_ID: dict[str, ModelCapabilities] = {
+    # Versioned standard and Contributor IDs; don't change unknown models or
+    # unrelated third-party models that happen to contain "muse-spark".
+    "muse-spark-1.1": _MUSE_SPARK,
+    "muse-spark-1.2": _MUSE_SPARK,
+    "muse-spark-1.3": _MUSE_SPARK,
+    "muse-spark-1.2-contributor": _MUSE_SPARK,
+    "muse-spark-1.3-contributor": _MUSE_SPARK,
     "deepseek-chat": _DEEPSEEK_CHAT,
     "deepseek-reasoner": _DEEPSEEK_THINKING,
     "deepseek-v4-flash": _DEEPSEEK_THINKING,
