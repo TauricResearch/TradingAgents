@@ -3,7 +3,7 @@ from typing import Annotated
 import pandas as pd
 import yfinance as yf
 
-from tradingagents.dataflows.date_window import withhold_live_profile
+from tradingagents.dataflows.date_window import withhold_live_profile, withhold_undated_statements
 from tradingagents.dataflows.errors import VendorUnavailableError
 from tradingagents.dataflows.net import vendor_reachable
 from tradingagents.dataflows.symbols import normalize_symbol
@@ -84,27 +84,18 @@ def get_fundamentals(
     return f"# Company Fundamentals for {canonical}\n\n" + "\n".join(lines)
 
 
-# This vendor dates a statement by the period it covers, not by the day it was
-# filed, and carries no filing date to do better. A company files weeks after its
-# period ends, so a run dated in that gap can be served figures that were not yet
-# public. Say so rather than implying the stricter guarantee (SEC EDGAR, which
-# does carry filing dates, serves US filers as filed).
-_PERIOD_END_VINTAGE = (
-    "# Periods are cut at the fiscal period end; this vendor does not report "
-    "filing dates, so the most recent period may not have been published yet.\n\n"
-)
-
-
 def _statement(ticker, freq, as_of_date, title, quarterly_attr, annual_attr) -> str:
-    """One financial statement as CSV, cut at ``as_of_date`` by period end."""
+    """One financial statement as CSV, for a run dated today."""
     canonical = normalize_symbol(ticker)
+    withheld = withhold_undated_statements(as_of_date, canonical, title)
+    if withheld:
+        return withheld
     what = title.lower()
     attr = quarterly_attr if freq.lower() == "quarterly" else annual_attr
     data = yf_retry(lambda: getattr(yf.Ticker(canonical), attr))
-    data = pd.DataFrame() if data is None else filter_financials_by_date(data, as_of_date)
-    if data.empty:
+    if data is None or data.empty:
         raise_for_empty(ticker, canonical, f"{what} data")
-    return f"# {title} data for {canonical} ({freq})\n" + _PERIOD_END_VINTAGE + data.to_csv()
+    return f"# {title} data for {canonical} ({freq})\n" + data.to_csv()
 
 
 def get_balance_sheet(
@@ -176,17 +167,3 @@ def get_insider_transactions(
 def get_company_profile(ticker: str) -> dict:
     """Yahoo's current profile for ``ticker``: name, sector, industry and the like."""
     return yf_retry(lambda: yf.Ticker(normalize_symbol(ticker)).info) or {}
-
-
-def filter_financials_by_date(data: pd.DataFrame, as_of_date: str) -> pd.DataFrame:
-    """Drop financial statement columns (fiscal period timestamps) after as_of_date.
-
-    yfinance financial statements use fiscal period end dates as columns.
-    Columns after as_of_date represent future data and are removed to
-    prevent look-ahead bias.
-    """
-    if not as_of_date or data.empty:
-        return data
-    cutoff = pd.Timestamp(as_of_date)
-    mask = pd.to_datetime(data.columns, errors="coerce") <= cutoff
-    return data.loc[:, mask]

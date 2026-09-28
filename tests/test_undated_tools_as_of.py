@@ -160,9 +160,10 @@ def test_an_indicator_that_could_not_be_read_is_not_shown_as_a_blank_value():
     # A past date withholds the live profile before any request, so the
     # fundamentals case is exercised on the date it does fetch.
     ("get_fundamentals", ("AAPL", None)),
-    ("get_balance_sheet", ("AAPL", "annual", "2026-09-01")),
-    ("get_cashflow", ("AAPL", "annual", "2026-09-01")),
-    ("get_income_statement", ("AAPL", "annual", "2026-09-01")),
+    # Statements are requested only for a run dated today; a past one withholds them.
+    ("get_balance_sheet", ("AAPL", "annual", get_current_date())),
+    ("get_cashflow", ("AAPL", "annual", get_current_date())),
+    ("get_income_statement", ("AAPL", "annual", get_current_date())),
     ("get_insider_transactions", ("AAPL", "2026-09-01")),
 ])
 def test_a_yfinance_failure_is_a_vendor_error_not_a_report(func, args):
@@ -206,11 +207,11 @@ def test_an_unreachable_vendor_is_not_reported_as_a_missing_symbol(monkeypatch):
 
     monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: False)
     with pytest.raises(VendorUnavailableError, match="unreachable"):
-        yahoo_fundamentals.get_balance_sheet("AAPL", "annual", "2026-09-01")
+        yahoo_fundamentals.get_balance_sheet("AAPL", "annual", get_current_date())
 
     monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
     with pytest.raises(NoMarketDataError):
-        yahoo_fundamentals.get_balance_sheet("AAPL", "annual", "2026-09-01")
+        yahoo_fundamentals.get_balance_sheet("AAPL", "annual", get_current_date())
 
 
 @pytest.mark.unit
@@ -218,11 +219,13 @@ def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
     """A throttled or unreachable chain used to raise RuntimeError('No available
     vendor'), which ends the run, and never said the vendor was the problem."""
     from tradingagents.dataflows import router
+    from tradingagents.dataflows.config import set_config
     from tradingagents.dataflows.errors import VendorUnavailableError
 
     def _down(*a, **k):
         raise VendorUnavailableError("Yahoo Finance is unreachable")
 
+    set_config({"data_vendors": {"fundamental_data": "yfinance"}})
     monkeypatch.setitem(router.VENDOR_METHODS["get_balance_sheet"], "yfinance", _down)
 
     out = router.route_to_vendor("get_balance_sheet", "AAPL", "annual", "2026-09-01")

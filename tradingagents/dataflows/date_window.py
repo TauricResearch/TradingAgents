@@ -122,6 +122,26 @@ def withhold_live_profile(as_of_date: str | None, label: str) -> str | None:
         f"today's quote, and even the name, sector and industry reflect today "
         f"rather than {as_of_date} (companies rename and get reclassified). "
         f"Serving them would put post-decision information into a {as_of_date} "
-        f"analysis. Point-in-time fundamentals for {as_of_date} are available "
-        f"from the balance sheet, income statement, and cash flow tools."
+        f"analysis. Statements filed by {as_of_date} are served as filed where "
+        f"the filing date is known (SEC EDGAR, for US filers)."
+    )
+
+
+def withhold_undated_statements(as_of_date: str | None, label: str, title: str) -> str | None:
+    """Notice to serve instead of a statement with no filing date, or None to serve it.
+
+    A vendor that dates a statement by the period it covers (Yahoo, Alpha
+    Vantage) cannot say when its figures became public: a company files weeks
+    after the period ends, so a run dated in that gap would read figures that
+    were not yet known. A past run is told so; SEC EDGAR, which dates every
+    filing, serves US filers as filed.
+    """
+    if not is_historical(as_of_date):
+        return None
+    return (
+        f"# {title} for {label}\n"
+        f"# Point-in-time as of: {as_of_date}\n\n"
+        f"{title} data is withheld for this date. This vendor dates a statement by "
+        f"the period it covers and reports no filing date, so it cannot show which "
+        f"figures were public on {as_of_date}. SEC EDGAR serves US filers as filed."
     )
