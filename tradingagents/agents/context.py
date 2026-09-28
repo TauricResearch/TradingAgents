@@ -1,5 +1,4 @@
-"""Prompt context shared by the agents: instrument identity, output language,
-portfolio, and the message reset between analysts."""
+"""Prompt context shared by the agents: instrument identity, output language and portfolio."""
 
 import functools
 import logging

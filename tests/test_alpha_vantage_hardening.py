@@ -102,7 +102,7 @@ def test_fundamentals_non_json_body_unchanged(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Date trim (see the rationale on the unguarded trim in alpha_vantage_common)
+# Date trim (see the rationale on the unguarded trim in alpha_vantage.common)
 # ---------------------------------------------------------------------------
 
 _DAILY_CSV = (

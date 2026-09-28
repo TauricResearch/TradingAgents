@@ -14,5 +14,3 @@ ta = TradingAgentsGraph(debug=True, config=config)
 # forward propagate
 _, decision = ta.propagate("NVDA", "2026-09-01")
 print(decision)
-
-# Memorize mistakes and reflect
