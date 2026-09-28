@@ -85,7 +85,7 @@ fi
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs/gemini/$DATE_SLUG/$MODEL_SLUG}"
 mkdir -p "$LOGDIR" || exit 1
 
-DEFAULT_TICKERS=(SPY QQQ SOXX YINN SPCX CRM MSFT META AAPL NVDA MU INTC AVGO GOOGL)
+source "$ROOT/scripts/default_tickers.sh"
 ALL_TICKERS=()
 if [ "$#" -gt 0 ]; then
   for t in "$@"; do

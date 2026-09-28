@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Shared default ticker groups for the run_missing_today launchers.
+
+
+INDEX_TICKERS=(SPY QQQ SOXX YINN)
+AI_TICKERS=(NVDA AMD MU INTC AVGO BE GEV CRDO NBIS LITE COHR)
+BIG_TICKERS=(CRM MSFT META AAPL GOOGL AMZN TSLA NFLX)
+ALPHA_TICKERS=(STRL MKSI CDE HL KGC LLY UBER MELI SE)
+
+DEFAULT_TICKERS=(
+  "${INDEX_TICKERS[@]}"
+  "${AI_TICKERS[@]}"
+  "${BIG_TICKERS[@]}"
+  "${ALPHA_TICKERS[@]}"
+)

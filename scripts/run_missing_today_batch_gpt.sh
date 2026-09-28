@@ -30,7 +30,7 @@ model_slug() {
 }
 
 REPORT_GLOB="${DATE_SLUG}_$(model_slug "$DEEP_MODEL")_*"
-DEFAULT_TICKERS=(SPY QQQ SOXX YINN SPCX CRM MSFT META AAPL NVDA MU INTC AVGO GOOGL)
+source "$ROOT/scripts/default_tickers.sh"
 ALL_TICKERS=()
 if [ "$#" -gt 0 ]; then
   for t in "$@"; do
