@@ -2,172 +2,191 @@
 
 ```bash
 tradingagents analyze NVDA
-# Equivalent when running from the source checkout:
+# Equivalent from a source checkout:
 python -m cli.main analyze NVDA
 ```
 
-`SYMBOL` is the only required argument. This command never opens the interactive
-wizard, reads saved interactive preferences, asks for API keys, or asks whether
-to save. In a terminal it shows live status without requiring input; use
-`--no-progress` to disable the display. Configure provider credentials in
-`.env` / environment variables first. A missing key fails rather than prompting.
-The existing bare `tradingagents` command remains interactive; `backtest` is
-unchanged. This is ordinary analysis, not a one-cell backtest.
+`SYMBOL` is the only required argument. The command uses the **same CLI runner,
+streamed state processing, native dashboard, report writer and log format as
+interactive mode**, with inputs supplied by flags/configuration rather than
+questions. Bare `tradingagents` remains interactive; `backtest` is unchanged.
 
-## Defaults
+Configure credentials in `.env` / the environment first. Headless mode never
+opens the wizard, asks for a key, or reads/writes saved interactive preferences.
+Missing credentials fail instead of prompting.
 
-- **Date:** today in the machine's local timezone, resolved at invocation time.
-  It is the calendar date, not automatically the last market trading day.
-- **Analysts:** all four: market, sentiment (`social`), news and fundamentals.
-  Like the interactive workflow, crypto uses all applicable analysts (market,
-  social and news); company fundamentals are not applicable to crypto.
-- **Effort:** medium: **3 research-debate rounds and 3 risk-discussion rounds**.
-  This is workflow depth, not a provider's token-level reasoning/thinking budget.
-  Existing provider-specific reasoning settings remain available through `.env`.
-- **Provider, models, language, credentials:** existing `.env` / `DEFAULT_CONFIG`
-  settings, including the native OpenCode Go provider and custom headers.
-- **Saving:** automatic; each invocation creates its own run directory so a
-  second run of the same symbol/date does not overwrite the first one's files.
-- **Progress:** live status on stderr when stdout and stderr are terminals;
-  disabled automatically for `--json`, redirected output and `TERM=dumb`.
+## Defaults and precedence
 
-Explicit per-option CLI flags override the corresponding environment settings.
-For round counts, the order is: `--debate-rounds` / `--risk-rounds`, then an
-explicit `--effort`, then `TRADINGAGENTS_MAX_DEBATE_ROUNDS` /
-`TRADINGAGENTS_MAX_RISK_ROUNDS`, then the medium default of 3 for each unset count.
-Saved interactive preferences are deliberately not used by headless runs.
+- **Date:** today in the machine's local timezone, resolved at invocation time;
+  not automatically the last market trading day.
+- **Analysts:** market, sentiment (`social`), news and fundamentals. Auto-detected
+  crypto runs use all applicable analysts (market, social and news).
+- **Effort:** medium, meaning **3 research-debate and 3 risk-discussion rounds**.
+  This is workflow depth, not a model's internal reasoning token budget.
+- **Provider/models/language/headers:** existing `.env` / `DEFAULT_CONFIG`.
+  OpenCode Go and custom headers continue to work without extra setup.
+- **Saving:** native incremental logs/sections are always saved. A complete
+  report is automatically exported as well, unless `--no-save-report` is given.
+- **Display:** the native live dashboard appears in a normal terminal; no
+  questions are asked. The optional final full-report print is off by default.
+
+Explicit flags override their corresponding environment settings. Round-count
+precedence remains: individual `--debate-rounds` / `--risk-rounds`, explicit
+`--effort`, environment round overrides, then 3 for each unset count. These
+requested headless defaults do not overwrite saved interactive preferences.
+
+## Native directories and logging
+
+With the default results root, an example historical run writes:
+
+```text
+~/.tradingagents/logs/
+├── GOOG/
+│   ├── 2026-09-27/
+│   │   ├── message_tool.log
+│   │   ├── run.json
+│   │   └── reports/
+│   │       ├── market_report.md
+│   │       ├── sentiment_report.md
+│   │       ├── news_report.md
+│   │       ├── fundamentals_report.md
+│   │       ├── investment_plan.md
+│   │       ├── trader_investment_plan.md
+│   │       └── final_trade_decision.md
+│   └── TradingAgentsStrategy_logs/
+│       └── full_states_log_2026-09-27.json
+└── reports/
+    └── GOOG_<YYYYMMDD_HHMMSS>/
+        ├── complete_report.md
+        ├── 1_analysts/
+        ├── 2_research/
+        ├── 3_trading/
+        ├── 4_risk/
+        └── 5_portfolio/
+```
+
+There are **two native report locations**, serving different purposes:
+
+1. `<results_dir>/<symbol>/<analysis-date>/reports` holds the incremental,
+   flat-named sections. These are written as states arrive, not only at the
+   end. An interrupted/failed run retains the sections already generated.
+   Only selected/generated sections are written.
+2. `<results_dir>/reports/<symbol>_<timestamp>` is the interactive **Save report?**
+   default export location: the consolidated Markdown report and team subfolders.
+   Headless mode defaults to the equivalent of answering Yes and accepting that
+   path. `--output-dir` selects an explicit export path; `--no-save-report` skips
+   this extra export, not the native incremental files/log.
+
+`message_tool.log` uses the native timestamped `[System]`, `[User]`, `[Agent]`,
+`[Data]` / `[Control]` and `[Tool Call]` events. Tool call arguments and generated
+text are included just as in interactive mode. Treat these logs/reports as
+private data. Configuration headers/keys are not dumped into the run summary.
+Warnings from external data providers remain visible on stderr; they are not
+silently suppressed or converted into fabricated report data.
+
+**Rerun behavior matches interactive mode:** the same symbol/date reuses its
+directory; the message/tool log appends, generated section files overwrite,
+and the final-state JSON replaces that date's prior snapshot. Existing files
+for unselected sections are not automatically deleted. Use the selected-agent
+list in `run.json` or the complete export to identify the current run's output.
+An explicitly reused export directory likewise overwrites generated names and
+leaves unrelated files alone. Choose a different results root/export path when
+separate archives are needed; default export timestamps have second precision.
+
+The previous headless `runs/` naming is no longer used. Existing `runs/` contents
+are not migrated, removed or modified. To change the common results root, use
+`TRADINGAGENTS_RESULTS_DIR` or `--results-dir`.
+
+## Live view and post-run choices
+
+Both CLI modes now use `cli.run.run_analysis` and the existing `cli.display`
+layout: **Progress**, **Messages & Tools**, **Current Report**, and the statistics
+footer (agents/reports, LLM/tool calls, available tokens and elapsed time).
+The elapsed/statistics display refreshes even while a model call is in flight.
+Native incremental journaling runs independently of whether a display is enabled.
+
+The display goes to stderr, is automatically disabled for `--json` or redirected
+stdout/stderr, and closes on success, failure or Ctrl+C. `--progress` explicitly
+enables it; with no usable terminal, that flag uses plain status events instead
+of terminal control sequences. `--no-progress` disables only the display.
+
+The interactive post-run questions have explicit headless equivalents:
+
+| Interactive choice | Headless equivalent |
+| --- | --- |
+| Save report? Yes (default) | `--save-report` (default) |
+| Save report? No | `--no-save-report` |
+| Save path | `--output-dir DIR` (complete export only) |
+| Display full report? Yes | `--show-report` |
+| Display full report? No | `--no-show-report` (default) |
+| Clear saved checkpoints | `--clear-checkpoints` (explicit, clears all just like the native flag) |
+
+The full report, when requested, also goes to stderr. JSON stdout remains one
+parseable summary. No prompts are reintroduced by any of these flags.
+
+```bash
+tradingagents analyze GOOG --language Chinese
+tradingagents analyze GOOG --date 2026-09-27 --no-progress
+tradingagents analyze GOOG --show-report
+tradingagents analyze GOOG --no-save-report
+tradingagents analyze GOOG --output-dir ./exports/goog --json
+tradingagents analyze GOOG --json --progress > summary.json 2> progress.log
+```
 
 ## Parameters
 
-Place these **after `analyze`**. Root-level analysis flags before the subcommand
-are rejected rather than silently ignored. `--clear-checkpoints` remains an
-interactive-mode option; use `--no-checkpoint` for a fresh headless invocation.
+Put flags **after `analyze`**. Use `tradingagents analyze --help` for the full
+reference. Root analysis flags before this subcommand are rejected, not ignored.
 
 | Parameter | Meaning |
 | --- | --- |
-| `SYMBOL` | Required ticker. Existing symbol normalization applies (`700.HK` → `0700.HK`, `BTCUSDT` → `BTC-USD`, etc.). |
-| `--date YYYY-MM-DD` | Analysis date; defaults to today. Invalid/future dates fail before the graph runs. |
-| `--analysts all` | All applicable analysts (default). Or a comma-separated subset: `market,social,news,fundamentals`. `sentiment` aliases `social`; order is canonical and duplicates are removed. |
-| `--effort shallow\|medium\|deep` | 1 / 3 / 5 rounds of both debates. `--depth` is an alias. |
-| `--debate-rounds N` | Positive research-debate count; overrides the effort preset. |
-| `--risk-rounds N` | Positive risk-discussion count; overrides the effort preset. |
-| `--asset-type auto\|stock\|crypto` | Defaults to auto-detection from the normalized ticker. |
-| `--provider NAME` | Override the configured LLM provider. When changing providers, also supply both model flags. |
-| `--quick-model ID` | Quick-thinking model override. |
-| `--deep-model ID` | Deep-thinking model override. |
-| `--backend-url URL` | API base URL override. |
-| `--header 'Name: value'` | Repeatable custom HTTP header. Merges with configured headers case-insensitively; the last CLI value for a name wins. |
-| `--language NAME` | Report language, such as `Chinese` or `English`. |
-| `--temperature N` | Finite, non-negative sampling temperature. Model support still varies. |
-| `--max-tokens N` | Positive output-token cap. |
-| `--max-retries N` | Non-negative SDK retry budget; 0 disables retries. |
-| `--checkpoint / --no-checkpoint` | Override the existing checkpoint setting; otherwise use the environment/default. |
-| `--portfolio FILE` | Existing portfolio JSON file with holdings/cash. |
-| `--results-dir DIR` | Root used for automatic per-run output directories. |
-| `--output-dir DIR` | Exact output directory for this invocation. Must be new or empty; takes precedence over the results root. |
-| `--progress / --no-progress` | Enable/disable status on stderr. Explicit `--progress` falls back to plain event lines when stderr is not a usable terminal. |
-| `--json` | Emit one JSON summary on stdout; run diagnostics go to stderr. Reports are still saved. |
+| `SYMBOL` | Required ticker; existing symbol normalization applies. |
+| `--date YYYY-MM-DD` | Today by default; invalid/future dates fail before requests. |
+| `--analysts all` | Or a comma-separated subset of `market,social,news,fundamentals`; `sentiment` aliases `social`. |
+| `--effort shallow\|medium\|deep` | 1 / 3 / 5 rounds; `--depth` is an alias. |
+| `--debate-rounds N`, `--risk-rounds N` | Positive per-debate overrides. |
+| `--asset-type auto\|stock\|crypto` | Auto-detection by default. |
+| `--provider NAME` | Changing provider also requires both model flags. |
+| `--quick-model ID`, `--deep-model ID` | Model overrides. |
+| `--backend-url URL` | Provider API base URL. |
+| `--header 'Name: value'` | Repeatable; merges case-insensitively, last CLI value wins. Keep secrets in `.env`. |
+| `--language NAME` | Report language. |
+| `--temperature N`, `--max-tokens N`, `--max-retries N` | Sampling, output cap and retry budget. |
+| `--checkpoint / --no-checkpoint` | Override environment checkpoint settings. |
+| `--clear-checkpoints` | Delete all saved checkpoints before starting; never happens implicitly. |
+| `--portfolio FILE` | Existing holdings/cash JSON input. |
+| `--results-dir DIR` | Root for native logs, JSON states and default exports. |
+| `--output-dir DIR` | Complete-report export path; does not move the native ticker/date logs. |
+| `--save-report / --no-save-report` | Enable/disable complete export; native logs/sections are always saved. |
+| `--show-report / --no-show-report` | Print the full report without asking; default off. |
+| `--progress / --no-progress` | Display control; independent of logging/saving. |
+| `--json` | One JSON summary on stdout; everything else goes to stderr. |
 
-Changing `--provider` drops the previous provider's inherited backend URL and
-headers, to avoid sending provider-specific credentials to a different service.
-Pass `--backend-url` / `--header` explicitly for the new provider as needed.
-Changing only a model within the same provider retains those settings.
-Keep secret headers and API keys in an untracked `.env` / secret manager rather
-than command-line arguments (which may be visible in shell history/process lists).
+Changing providers still drops inherited endpoint/headers to avoid forwarding
+provider-specific credentials to another service. Set the new endpoint/headers
+explicitly as needed. Changing only a model within one provider preserves them.
+`--output-dir` cannot be combined with `--no-save-report`.
 
-## Examples
+## Execution parity and automation
 
-```bash
-# Today, all analysts, medium depth, existing provider configuration:
-tradingagents analyze NVDA
+Both CLI entry points now share initial-state creation (instrument identity,
+portfolio context, pending-decision settlement and historical memory cutoff),
+ordered analyst execution, tool loops, debates, state streaming, per-section
+journaling, final JSON logging, decision recording and checkpoint teardown.
+The workflow is executed once. Full `values` snapshots are consumed as snapshots,
+without retaining an ever-growing list of earlier states. Checkpoint resume
+still feeds `None`; graph-execution failure keeps the checkpoint. Successful
+analysis records the decision once and clears it. A later export failure does
+not undo that recorded analysis or recreate its cleared checkpoint. Memory/cache locations are not relocated into report folders.
 
-# Historical date, fewer analysts and shallow research:
-tradingagents analyze AAPL --date 2026-09-25 --analysts market,news --effort shallow
+Headless `run.json` lives beside `message_tool.log`. Its `status` transitions from
+`running` to `completed`, `failed` or `interrupted`, so a failed rerun cannot leave
+an older success summary looking current. The successful stdout JSON matches
+this file. `output_dir` is the native ticker/date directory, `log_file` is its
+message/tool log, and `report` is the complete export path (null when disabled).
 
-# Native OpenCode Go, with OPENCODE_GO_API_KEY already in .env:
-tradingagents analyze NVDA --provider opencode-go --quick-model glm-5.3-flash --deep-model kimi-k3
-
-# Chinese reports, deeper discussion, resume after a failure:
-tradingagents analyze 0700.HK --language Chinese --effort deep --checkpoint
-
-# Explicit output directory and a machine-readable summary:
-tradingagents analyze NVDA --output-dir ./results/nvda-run-001 --json
-```
-
-For normal Go use you do not need header flags: the provider supplies its
-User-Agent and session header. See [OpenCode Go](opencode-go.md) for protocol
-selection, service usage requirements and persisting a session ID when resuming
-across processes. Headless mode constructs a fresh graph for each invocation.
-
-## Live status without interaction
-
-The display shows each selected analyst and the research, trading, risk and
-portfolio agents, with pending/running/waiting/completed/error states. It also
-shows per-agent turn counts and execution time, continuously refreshed elapsed
-time, report counts, LLM/tool call counts, available token usage and recent
-agent/tool events. A turn includes each graph-node invocation (including
-analyst tool-call loops); it is not necessarily one configured debate round.
-Token counts reflect usage returned by the model, not a billing estimate.
-
-Events come from the existing graph's callbacks. There is no second execution
-loop, token streaming requirement, extra LLM request or prompt. Debate agents
-wait between turns and complete when their manager starts judging. Resumed
-node inputs restore already-produced report status; times and counters measure
-only this invocation. Short/narrow terminals use a compact current-stage view.
-Ordinary warnings remain visible; the observer never logs tool arguments or
-raw model prompts. The live display is cleared on exit, including failures and
-Ctrl+C; normal summaries and report paths still print after a successful run.
-
-```bash
-# Automatic live display in a terminal, no questions:
-tradingagents analyze NVDA --language Chinese
-
-# Keep the previous quiet behavior (warnings still appear):
-tradingagents analyze NVDA --no-progress
-
-# JSON stdout plus progress on stderr; plain lines when stderr is a file:
-tradingagents analyze NVDA --json --progress > summary.json 2> progress.log
-```
-
-## Saved output and automation
-
-Unless overridden, a run creates:
-
-```text
-~/.tradingagents/logs/runs/<SYMBOL>_<analysis-date>_<timestamp>_<unique-suffix>/
-├── run.json
-├── reports/
-│   ├── complete_report.md
-│   ├── 1_analysts/
-│   ├── 2_research/
-│   ├── 3_trading/
-│   ├── 4_risk/
-│   └── 5_portfolio/
-└── <SYMBOL>/TradingAgentsStrategy_logs/full_states_log_<analysis-date>.json
-```
-
-Only report sections generated by the selected agents are written. The engine's
-JSON state and the Markdown exports share the run directory. `run.json` and the
-`--json` stdout object have the same summary: symbol, date, asset type, selected
-analysts, provider/model names, round counts, decision, `needs_review`, output
-directory and complete-report path. They do not dump headers, keys or holdings.
-
-The ordinary persistent decision memory and checkpoint cache keep their existing
-configured locations, so successful decisions still inform later ordinary runs
-and an interrupted run can resume. The new command uses `propagate()` followed
-by `save_reports()` rather than implementing a second agent workflow.
-
-A completed analysis returns exit code **0**. Command-line usage errors return
-**2**; configuration, API, graph and file-save failures return **1**, with an
-error on stderr and no success JSON. An unparseable decision is still exported
-with `decision: "REVIEW"` and `needs_review: true`; automation must check that
-field rather than treating exit code 0 alone as a tradable signal.
-
-```bash
-tradingagents analyze NVDA --json > summary.json 2> diagnostics.log
-```
-
-On failure, partial files may remain in the run directory. An explicit
-`--output-dir` must not reuse that nonempty directory; omit the flag or select a
-new directory when resuming. The checkpoint is independent of the output path.
-Use `tradingagents analyze --help` for the complete CLI reference.
+Usage errors return 2; runtime/configuration/export failures return 1 with no
+success JSON. A completed analysis returns 0, but automation must still check
+`needs_review`: an unparseable decision is exported as `REVIEW`, not a position.
+Go session headers and provider-specific compatibility rules are unchanged;
+see [OpenCode Go](opencode-go.md) for session persistence and service scope.

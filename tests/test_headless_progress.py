@@ -1,4 +1,4 @@
-"""Headless status is an observer: never change execution or contaminate stdout."""
+"""Native dashboard integration, stream separation, and plain observer regressions."""
 
 import json
 import sys
@@ -14,11 +14,14 @@ from typer.testing import CliRunner
 import cli.headless as headless
 import cli.main as main
 import cli.progress as progress_module
+import cli.run as native
 from cli.progress import AnalysisProgress, analysis_progress, resolve_progress_mode
+from tests.native_cli_helpers import RecordingGraph
 from tradingagents.graph.propagation import Propagator
 
 
 class Terminal(StringIO):
+
     def __init__(self, terminal=True):
         super().__init__()
         self.terminal = terminal
@@ -44,8 +47,7 @@ class Terminal(StringIO):
 ])
 def test_terminal_policy(requested, json_output, out_tty, err_tty, term, expected, monkeypatch):
     monkeypatch.setenv("TERM", term)
-    assert resolve_progress_mode(requested, json_output, stdout=Terminal(out_tty),
-                                 stderr=Terminal(err_tty)) == expected
+    assert resolve_progress_mode(requested, json_output, stdout=Terminal(out_tty), stderr=Terminal(err_tty)) == expected
 
 
 def test_streams_without_isatty_are_not_terminals(monkeypatch):
@@ -55,8 +57,7 @@ def test_streams_without_isatty_are_not_terminals(monkeypatch):
 
 @pytest.fixture
 def observer():
-    return AnalysisProgress("NVDA", "2026-09-28", ["market", "news"],
-                            console=Console(file=StringIO(), width=120, height=40))
+    return AnalysisProgress("NVDA", "2026-09-28", ["market", "news"], console=Console(file=StringIO(), width=120, height=40))
 
 
 def start_node(p, node, state=None, parent=None):
@@ -161,8 +162,7 @@ def test_elapsed_time_and_agent_timing_refresh_without_new_events(observer, monk
     clock[0] = 75.0
     observer.console.print(observer.render())
     text = observer.console.file.getvalue()
-    assert "Elapsed 01:05" in text
-    assert "65s" in text
+    assert "Elapsed 01:05" in text and "65s" in text
     assert "Trader" in text and "running" in text
 
 
@@ -203,9 +203,7 @@ def test_live_cleanup_on_failure_or_interrupt(monkeypatch, error):
         raise error
     assert p.agents["Market Analyst"].status == "error"
     assert p.phase in {"Failed", "Interrupted"}
-    assert sys.stderr is stream
-    assert stdout.getvalue() == ""
-    # Rich restores the cursor when exiting the Live context.
+    assert sys.stderr is stream and stdout.getvalue() == ""
     assert "\x1b[?25h" in stream.getvalue()
 
 
@@ -225,31 +223,15 @@ def fake_graph(monkeypatch, tmp_path):
                   quick_think_llm="gpt-4.1-mini", deep_think_llm="gpt-4.1")
     monkeypatch.setattr(main, "DEFAULT_CONFIG", config)
     monkeypatch.setattr(headless, "get_current_date", lambda: "2026-09-28")
+    monkeypatch.setattr(native, "get_current_date", lambda: "2026-09-28")
     calls = []
 
-    class Graph:
-        def __init__(self, selected, config):
-            self.propagator = Propagator()
-            calls.append(self)
-            self.observed = []
-
-        def propagate(self, ticker, date, **kwargs):
-            self.observed = self.propagator.callbacks
-            for p in self.observed:
-                run_id = start_node(p, "Market Analyst")
-                p.on_chat_model_start({}, [])
-                p.on_tool_start({"name": "get_stock_data"}, "secret")
-                p.on_chain_end({"market_report": "report"}, run_id=run_id)
-            return {"market_report": "report"}, "Hold"
-
-        def save_reports(self, state, ticker, save_path):
-            save_path.mkdir()
-            path = save_path / "complete_report.md"
-            path.write_text("report", encoding="utf-8")
-            return path
-
-    monkeypatch.setattr(headless, "_create_graph", Graph)
-    monkeypatch.setattr(main, "run_analysis", lambda **kw: pytest.fail("prompt path entered"))
+    def create(selected, config, callbacks=None):
+        graph = RecordingGraph(selected, config, callbacks)
+        calls.append(graph)
+        return graph
+    monkeypatch.setattr(headless, "_create_graph", create)
+    monkeypatch.setattr(native, "get_user_selections", lambda: pytest.fail("wizard entered"))
     return calls
 
 
@@ -258,18 +240,18 @@ def fake_graph(monkeypatch, tmp_path):
 def test_cli_progress_flags_and_json_stream_separation(fake_graph, flags, observed):
     result = CliRunner().invoke(main.app, ["analyze", "NVDA", *flags])
     assert result.exit_code == 0, result.output
-    assert bool(fake_graph[0].observed) is observed
+    # The native StatsCallbackHandler is always wired, even with no display.
+    assert any(isinstance(cb, AnalysisProgress) for cb in fake_graph[0].observed) is observed
     if observed:
         assert "Market Analyst: running" in result.stderr
         assert "Completed; reports saved" in result.stderr
-        assert "\x1b" not in result.stderr  # CliRunner has no terminal: plain fallback.
+        assert "\x1b" not in result.stderr
     else:
         assert "Preparing analysis" not in result.stderr
     if "--json" in flags:
-        summary = json.loads(result.stdout)
-        assert summary["decision"] == "Hold"
+        assert json.loads(result.stdout)["decision"] == "Hold"
         assert "Market Analyst: running" not in result.stdout
-    assert "secret" not in result.output
+    assert "private-tool-input" not in result.output
 
 
 def test_cli_selects_auto_mode_before_redirect_stdout(fake_graph, monkeypatch):
@@ -277,20 +259,14 @@ def test_cli_selects_auto_mode_before_redirect_stdout(fake_graph, monkeypatch):
         assert sys.stdout is not sys.stderr
         return "plain"
     monkeypatch.setattr(main, "resolve_progress_mode", resolve)
-    result = CliRunner().invoke(main.app, ["analyze", "NVDA"])
-    assert result.exit_code == 0, result.output
+    assert CliRunner().invoke(main.app, ["analyze", "NVDA"]).exit_code == 0
     assert fake_graph[0].observed
 
 
 def test_save_failure_is_not_shown_as_completed(fake_graph, monkeypatch):
-    original = headless._create_graph
-    def create(*args):
-        graph = original(*args)
-        def fail(*args, **kwargs):
-            raise OSError("disk full")
-        graph.save_reports = fail
-        return graph
-    monkeypatch.setattr(headless, "_create_graph", create)
+    def fail(*args, **kwargs):
+        raise OSError("disk full")
+    monkeypatch.setattr(native, "write_report_tree", fail)
     result = CliRunner().invoke(main.app, ["analyze", "NVDA", "--json", "--progress"])
     assert result.exit_code == 1
     assert "Saving reports" in result.stderr and "Failed" in result.stderr
@@ -299,7 +275,7 @@ def test_save_failure_is_not_shown_as_completed(fake_graph, monkeypatch):
 
 
 def test_callbacks_receive_actual_langgraph_nodes(observer):
-    """No network: verifies metadata/parent IDs against real LangGraph when installed."""
+    """Verify callback metadata against real LangGraph when installed."""
     graph_module = pytest.importorskip("langgraph.graph")
     from typing_extensions import TypedDict
 
@@ -309,7 +285,6 @@ def test_callbacks_receive_actual_langgraph_nodes(observer):
     def market(state):
         assert observer.agents["Market Analyst"].status == "running"
         return {"market_report": "report"}
-
     workflow = graph_module.StateGraph(State)
     workflow.add_node("Market Analyst", market)
     workflow.add_edge(graph_module.START, "Market Analyst")
@@ -323,7 +298,6 @@ def test_callbacks_receive_actual_langgraph_nodes(observer):
 
 def test_token_counts_and_retry_attempts_use_existing_stats_handler(observer):
     from langchain_core.messages import AIMessage
-
     observer.on_chat_model_start({}, [])
     observer.on_llm_error(ValueError("retryable"))
     observer.on_chat_model_start({}, [])
@@ -332,12 +306,19 @@ def test_token_counts_and_retry_attempts_use_existing_stats_handler(observer):
     assert observer.get_stats() == {"llm_calls": 2, "tool_calls": 0, "tokens_in": 120, "tokens_out": 40}
 
 
-def test_json_stays_clean_with_live_renderer(fake_graph, monkeypatch):
+def test_json_stays_clean_with_native_live_renderer(fake_graph, monkeypatch):
     monkeypatch.setattr(main, "resolve_progress_mode", lambda *args: "live")
+    original = native.update_display
+    rendered = []
+
+    def render(*args, **kwargs):
+        rendered.append(True)
+        return original(*args, **kwargs)
+    monkeypatch.setattr(native, "update_display", render)
     result = CliRunner().invoke(main.app, ["analyze", "NVDA", "--json", "--progress"])
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["decision"] == "Hold"
-    assert "TradingAgents |" not in result.stdout
+    assert rendered  # Reuses the interactive renderer, not a separate status panel.
 
 
 def test_graph_setup_failure_closes_progress_without_success_json(fake_graph, monkeypatch):

@@ -1,7 +1,7 @@
-"""Non-interactive analysis using the same graph and report writer as the UI.
+"""Resolve prompt-free inputs, then use the native interactive CLI runner.
 
-No prompt or user-preference file is touched by this path. The caller supplies
-a symbol; an optional progress observer never changes the execution workflow.
+Only argument/default resolution and the JSON summary are headless-specific;
+execution, incremental logging, report names and the live view are shared.
 """
 
 from __future__ import annotations
@@ -9,14 +9,14 @@ from __future__ import annotations
 import json
 import math
 import os
+from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from tempfile import mkdtemp
 
 from cli.models import AnalystType
-from cli.progress import analysis_progress
+from cli.run_output import run_directory
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV
@@ -179,11 +179,11 @@ def resolve_analysis_inputs(
     return ticker, trade_date, selected, asset_type
 
 
-def _create_graph(selected_analysts: list[str], config: dict):
-    # Keep the planning/validation helpers usable without importing LLM SDKs.
+def _create_graph(selected_analysts: list[str], config: dict, callbacks=None):
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
-    return TradingAgentsGraph(selected_analysts=selected_analysts, config=config, debug=False)
+    return TradingAgentsGraph(selected_analysts=selected_analysts, config=config,
+                              debug=False, callbacks=callbacks)
 
 
 def run_headless_analysis(
@@ -196,55 +196,70 @@ def run_headless_analysis(
     portfolio_path: Path | None = None,
     output_dir: Path | None = None,
     progress_mode: str = "off",
+    show_report: bool = False,
+    save_report: bool = True,
+    clear_checkpoints: bool = False,
 ) -> dict:
-    """Run once, automatically save all reports, and return a JSON-safe summary.
+    """Resolve inputs and use the native runner without any prompts.
 
-    Each invocation owns a new output directory, including the graph's JSON
-    state logs. The normal decision memory and checkpoint cache paths are kept.
-    Report/save failures propagate to the command so automation sees failure.
+    `output_dir` is the complete-report export path (the interactive Save path),
+    not a replacement results root. Logs always use results_dir/ticker/date.
     """
+    from cli.run import run_analysis
+
     ticker, trade_date, selected, asset_type = resolve_analysis_inputs(
         symbol, analysis_date, analysts, asset_type
     )
+    if output_dir is not None and not save_report:
+        raise ValueError("--output-dir requires --save-report")
     book = load_portfolio(portfolio_path) if portfolio_path is not None else None
-    if output_dir is None:
-        root = Path(config["results_dir"]).expanduser().resolve() / "runs"
-        root.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_dir = Path(mkdtemp(prefix=f"{ticker}_{trade_date}_{stamp}_", dir=root))
-    else:
-        run_dir = Path(output_dir).expanduser().resolve()
-        if run_dir.exists() and (not run_dir.is_dir() or any(run_dir.iterdir())):
-            raise ValueError("--output-dir must be a new or empty directory (existing reports are never overwritten)")
-        run_dir.mkdir(parents=True, exist_ok=True)
-    run_config = {**deepcopy(config), "results_dir": str(run_dir)}
-    with analysis_progress(progress_mode, ticker, trade_date, selected) as progress:
-        graph = _create_graph(selected, run_config)
-        if progress is not None:
-            graph.propagator.callbacks.append(progress)
-        state, decision = graph.propagate(ticker, trade_date, asset_type=asset_type, portfolio=book)
-        if progress is not None:
-            progress.stage("Saving reports")
-        report = graph.save_reports(state, ticker, save_path=run_dir / "reports")
-        # An allowlist, not a config dump: headers, API keys and portfolio holdings
-        # must not accidentally end up in stdout or metadata.
-        summary = {
-            "symbol": ticker,
-            "date": trade_date,
-            "asset_type": asset_type,
-            "analysts": selected,
-            "provider": run_config["llm_provider"],
-            "quick_model": run_config["quick_think_llm"],
-            "deep_model": run_config["deep_think_llm"],
-            "debate_rounds": run_config["max_debate_rounds"],
-            "risk_rounds": run_config["max_risk_discuss_rounds"],
-            "decision": decision,
-            "needs_review": decision == "REVIEW",
-            "output_dir": str(run_dir),
-            "report": str(Path(report).resolve()),
-        }
-        (run_dir / "run.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
-                                        encoding="utf-8")
-        if progress is not None:
-            progress.complete()
-        return summary
+    if output_dir is not None and Path(output_dir).expanduser().exists() and not Path(output_dir).expanduser().is_dir():
+        raise ValueError("--output-dir must be a directory")
+    run_settings = deepcopy(config)  # Never relocate results_dir under runs/.
+    directory = run_directory(run_settings, ticker, trade_date).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    summary = {
+        "symbol": ticker,
+        "date": trade_date,
+        "asset_type": asset_type,
+        "analysts": selected,
+        "provider": run_settings["llm_provider"],
+        "quick_model": run_settings["quick_think_llm"],
+        "deep_model": run_settings["deep_think_llm"],
+        "debate_rounds": run_settings["max_debate_rounds"],
+        "risk_rounds": run_settings["max_risk_discuss_rounds"],
+        "status": "running",
+        "decision": None,
+        "needs_review": True,
+        "output_dir": str(directory),
+        "log_file": str(directory / "message_tool.log"),
+        "report": None,
+    }
+
+    def save_summary():
+        # An allowlist: no headers, credentials, holdings or exception text.
+        (directory / "run.json").write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+
+    save_summary()  # A failed rerun must not leave an older success summary.
+    try:
+        result = run_analysis(
+            portfolio=book, config=run_settings,
+            selections={"ticker": ticker, "analysis_date": trade_date,
+                        "analysts": [AnalystType(key) for key in selected], "asset_type": asset_type},
+            interactive=False, output_dir=output_dir, progress_mode=progress_mode,
+            show_report=show_report, save_report=save_report, clear_checkpoints=clear_checkpoints,
+            graph_factory=_create_graph,
+        )
+        summary.update(status="completed", decision=result.decision,
+                       needs_review=result.decision == "REVIEW", report=str(result.report) if result.report is not None else None)
+        save_summary()
+    except BaseException as exc:
+        summary.update(status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+                       decision=None, needs_review=True, report=None)
+        # Do not replace the original error with a secondary disk failure.
+        with suppress(OSError):
+            save_summary()
+        raise
+    return summary

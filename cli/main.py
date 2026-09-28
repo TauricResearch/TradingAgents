@@ -64,8 +64,7 @@ def analyze(
             checkpoint is not None or clear_checkpoints or portfolio is not None
         ):
             raise typer.BadParameter(
-                "Put --checkpoint/--no-checkpoint and --portfolio after 'analyze'. "
-                "--clear-checkpoints is only available in interactive mode."
+                "Put --checkpoint/--no-checkpoint, --clear-checkpoints and --portfolio after 'analyze'."
             )
         return
     if clear_checkpoints:
@@ -165,13 +164,16 @@ def analyze_headless(
     max_tokens: int | None = typer.Option(None, "--max-tokens", min=1),
     max_retries: int | None = typer.Option(None, "--max-retries", min=0),
     checkpoint: bool | None = typer.Option(None, "--checkpoint/--no-checkpoint", help="Override checkpoint/resume setting."),
+    clear_checkpoints: bool = typer.Option(False, "--clear-checkpoints", help="Delete ALL saved checkpoints before running, like the interactive flag."),
     portfolio: Path | None = typer.Option(None, "--portfolio", exists=True, dir_okay=False, readable=True, help="JSON holdings and cash."),
-    output_dir: Path | None = typer.Option(None, "--output-dir", file_okay=False, help="New/empty directory for this run; otherwise create a unique directory under results_dir/runs."),
-    results_dir: Path | None = typer.Option(None, "--results-dir", file_okay=False, help="Override the results root when --output-dir is omitted."),
+    output_dir: Path | None = typer.Option(None, "--output-dir", file_okay=False, help="Complete-report export directory (native Save path). Logs remain under results_dir/SYMBOL/DATE."),
+    results_dir: Path | None = typer.Option(None, "--results-dir", file_okay=False, help="Override the native results root for ticker/date logs, JSON state and default report exports."),
     progress: bool | None = typer.Option(
         None, "--progress/--no-progress",
-        help="Show live status on stderr. Default: on in terminals, off for --json/pipes. Explicit --progress uses plain updates without a terminal.",
+        help="Show the native dashboard on stderr. Default: on in terminals, off for --json/pipes. Explicit --progress uses plain updates without a terminal.",
     ),
+    save_report: bool = typer.Option(True, "--save-report/--no-save-report", help="Export the complete Markdown report (default: on). Native section files and logs are always written."),
+    show_report: bool = typer.Option(False, "--show-report/--no-show-report", help="Display the complete report after saving, without prompting. Uses stderr; --json stdout stays clean."),
     json_output: bool = typer.Option(False, "--json", help="Print one machine-readable JSON summary to stdout; diagnostics go to stderr."),
 ):
     """Analyze SYMBOL without prompts and save reports automatically.
@@ -197,7 +199,8 @@ def analyze_headless(
             result = run_headless_analysis(
                 symbol, config=config, analysis_date=date, analysts=analysts,
                 asset_type=asset_type.value, portfolio_path=portfolio, output_dir=output_dir,
-                progress_mode=progress_mode,
+                progress_mode=progress_mode, show_report=show_report,
+                save_report=save_report, clear_checkpoints=clear_checkpoints,
             )
     except Exception as exc:
         typer.echo(f"Error: {exc}", err=True)
@@ -209,8 +212,10 @@ def analyze_headless(
         typer.echo(f"Decision: {result['decision']}")
         if result["needs_review"]:
             typer.echo("No rating could be parsed; review the saved report.", err=True)
-        typer.echo(f"Report: {result['report']}")
+        if result["report"]:
+            typer.echo(f"Report: {result['report']}")
         typer.echo(f"Run directory: {result['output_dir']}")
+        typer.echo(f"Message/tool log: {result['log_file']}")
 
 
 if __name__ == "__main__":
