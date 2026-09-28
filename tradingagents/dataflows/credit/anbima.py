@@ -5,7 +5,7 @@
  * @description: ANBIMA data vendor (yield curve, credit spreads, indicative quotes, IMA-B index)
  * @author: Maíra Pontin
  * @created: 2026-09-28T10:24:09
- * @updated: 2026-09-28T11:05:32
+ * @updated: 2026-09-28T11:29:39
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:
@@ -80,6 +80,7 @@ def get_credit_spreads(issuer: Annotated[str, "issuer code, e.g. PETR, VALE"]) -
     return spreads.get(issuer, {})
 
 
+@tool
 def get_debenture_quote(cusip: str) -> dict:
     """Fetch indicative quote for specific debenture.
 
@@ -95,6 +96,7 @@ def get_debenture_quote(cusip: str) -> dict:
     return quotes.get(cusip, {})
 
 
+@tool
 def get_ima_b_index() -> List[Tuple[str, float]]:
     """Fetch IMA-B index daily values.
 

@@ -1,4 +1,17 @@
-# TradingAgents/graph/conditional_logic.py
+"""
+/**
+ * @module: TradingAgents
+ * @file: conditional_logic.py
+ * @description: Handles conditional logic for determining graph flow
+ * @author: TradingAgents Team
+ * @created: 2024-01-01T00:00:00
+ * @updated: 2026-09-28T11:29:39
+ * @version: 1.1.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
 
 from tradingagents.agents.utils.agent_states import AgentState
 
@@ -48,6 +61,22 @@ class ConditionalLogic:
         if last_message.tool_calls:
             return "tools_fundamentals"
         return "Msg Clear Fundamentals"
+
+    def should_continue_credit_fundamentals(self, state: AgentState):
+        """Determine if credit fundamentals analysis should continue."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        if last_message.tool_calls:
+            return "tools_credit_fundamentals"
+        return "Msg Clear Credit Fundamentals"
+
+    def should_continue_credit_news(self, state: AgentState):
+        """Determine if credit news analysis should continue."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        if last_message.tool_calls:
+            return "tools_credit_news"
+        return "Msg Clear Credit News"
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""

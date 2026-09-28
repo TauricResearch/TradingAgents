@@ -5,7 +5,7 @@
  * @description: Central data vendor interface and routing
  * @author: Maíra Pontin
  * @created: 2026-09-28T10:33:00
- * @updated: 2026-09-28T11:05:32
+ * @updated: 2026-09-28T11:29:39
  * @version: 1.1.0
  * @reviewer:
  * @ai_reviewer:
@@ -120,7 +120,7 @@ VENDOR_LIST = [
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "credit_data"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {

@@ -1,3 +1,17 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: analyst_execution.py
+ * @description: Analyst node specs and execution plan for the graph pipeline
+ * @author: Maíra Pontin
+ * @created: 2026-09-28T10:00:00
+ * @updated: 2026-09-28T11:29:39
+ * @version: 1.1.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
 from collections.abc import Iterable
 from dataclasses import dataclass
 from time import monotonic
@@ -49,6 +63,20 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         clear_node="Msg Clear Fundamentals",
         tool_node="tools_fundamentals",
         report_key="fundamentals_report",
+    ),
+    "credit_fundamentals": AnalystNodeSpec(
+        key="credit_fundamentals",
+        agent_node="Credit Fundamentals Analyst",
+        clear_node="Msg Clear Credit Fundamentals",
+        tool_node="tools_credit_fundamentals",
+        report_key="credit_fundamentals_report",
+    ),
+    "credit_news": AnalystNodeSpec(
+        key="credit_news",
+        agent_node="Credit News Analyst",
+        clear_node="Msg Clear Credit News",
+        tool_node="tools_credit_news",
+        report_key="credit_news_report",
     ),
 }
 

@@ -5,7 +5,7 @@
  * @description: Main graph class that orchestrates the trading agents framework
  * @author: TradingAgents Team
  * @created: 2024-01-01T00:00:00
- * @updated: 2026-09-28T10:56:38
+ * @updated: 2026-09-28T11:29:39
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:
@@ -18,6 +18,7 @@
 import json
 import logging
 import os
+import re
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -45,7 +46,11 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.credit.anbima import get_debenture_quote
+from tradingagents.dataflows.credit.anbima import (
+    get_credit_spreads,
+    get_debenture_quote,
+    get_yield_curve,
+)
 from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
@@ -59,6 +64,11 @@ from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
+
+# Debenture CUSIP pattern: 4 letters + 2 digits (e.g., PETR41, VALE32).
+# Mirrors cli/utils._DEBENTURE_CUSIP_PATTERN; kept local to avoid a cross-package
+# import from the graph layer into the CLI.
+_DEBENTURE_CUSIP_RE = re.compile(r"^[A-Z]{4}\d{2}$")
 
 
 def _validate_trade_date(trade_date) -> str:
@@ -277,6 +287,21 @@ class TradingAgentsGraph:
                     get_income_statement,
                 ]
             ),
+            "credit_fundamentals": ToolNode(
+                [
+                    get_fundamentals,
+                    get_balance_sheet,
+                    get_cashflow,
+                    get_income_statement,
+                    get_yield_curve,
+                    get_credit_spreads,
+                ]
+            ),
+            "credit_news": ToolNode(
+                [
+                    get_news,
+                ]
+            ),
         }
 
     def _resolve_benchmark(self, ticker: str) -> str:
@@ -427,12 +452,19 @@ class TradingAgentsGraph:
             return
 
         benchmark = self._resolve_benchmark(ticker)
+        is_credit = _DEBENTURE_CUSIP_RE.match(ticker.upper()) is not None
         updates = []
         for entry in pending:
-            raw, alpha, days, resolution_date = self._fetch_returns(
-                ticker, entry["date"], self.config.get("holding_period_days", 5),
-                benchmark=benchmark,
-            )
+            if is_credit:
+                raw, alpha, days, resolution_date = self._fetch_credit_returns(
+                    ticker, entry["date"], benchmark,
+                    holding_days=self.config.get("credit_holding_period_days", 30),
+                )
+            else:
+                raw, alpha, days, resolution_date = self._fetch_returns(
+                    ticker, entry["date"], self.config.get("holding_period_days", 5),
+                    benchmark=benchmark,
+                )
             if raw is None:
                 continue  # price not available yet — try again next run
             try:

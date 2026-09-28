@@ -5,7 +5,7 @@
  * @description: CLI utilities: ticker handling, analyst selection, LLM provider config
  * @author: Maíra Pontin
  * @created: 2024-01-01T00:00:00
- * @updated: 2026-09-28T10:20:10
+ * @updated: 2026-09-28T11:29:39
  * @version: 1.1.0
  * @reviewer:
  * @ai_reviewer:
@@ -34,6 +34,8 @@ ANALYST_ORDER = [
     ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
+    ("Credit Fundamentals Analyst", AnalystType.CREDIT_FUNDAMENTALS),
+    ("Credit News Analyst", AnalystType.CREDIT_NEWS),
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")

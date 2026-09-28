@@ -1,3 +1,18 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: setup.py
+ * @description: Graph setup and workflow construction for the agent pipeline
+ * @author: TradingAgents Team
+ * @created: 2024-01-01T00:00:00
+ * @updated: 2026-09-28T11:29:39
+ * @version: 1.1.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
+
 # TradingAgents/graph/setup.py
 
 from typing import Any
@@ -19,6 +34,12 @@ from tradingagents.agents import (
     create_research_manager,
     create_sentiment_analyst,
     create_trader,
+)
+from tradingagents.agents.analysts.credit_fundamentals_analyst import (
+    create_credit_fundamentals_analyst,
+)
+from tradingagents.agents.analysts.credit_news_analyst import (
+    create_credit_news_analyst,
 )
 from tradingagents.agents.utils.agent_states import AgentState
 
@@ -77,6 +98,8 @@ class GraphSetup:
             "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
             "news": lambda: create_news_analyst(self.quick_thinking_llm),
             "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
+            "credit_fundamentals": lambda: create_credit_fundamentals_analyst(self.quick_thinking_llm),
+            "credit_news": lambda: create_credit_news_analyst(self.quick_thinking_llm),
         }
 
         # Create researcher and manager nodes
