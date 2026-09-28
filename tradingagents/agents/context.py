@@ -25,7 +25,14 @@ def get_language_instruction() -> str:
     lang = get_config().get("output_language", "English")
     if lang.strip().lower() == "english":
         return ""
-    return f" Write your entire response in {lang}."
+    # The labelled lines are read by the program, so they keep their English
+    # label and value: a translated rating line leaves the reader prose to
+    # search, where a negated rating ("not a Sell") reads as the call (#1435).
+    return (
+        f" Write your entire response in {lang}, except the labelled lines the format"
+        f" asks for (the \"**Rating**:\" line, \"FINAL TRANSACTION PROPOSAL:\"):"
+        f" keep their label and value in English, exactly as specified."
+    )
 
 
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
