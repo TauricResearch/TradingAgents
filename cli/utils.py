@@ -5,7 +5,7 @@
  * @description: CLI utilities: ticker handling, analyst selection, LLM provider config
  * @author: Maíra Pontin
  * @created: 2024-01-01T00:00:00
- * @updated: 2026-09-28T10:14:45
+ * @updated: 2026-09-28T10:20:10
  * @version: 1.1.0
  * @reviewer:
  * @ai_reviewer:
@@ -120,13 +120,27 @@ def detect_asset_type(ticker: str) -> AssetType:
 def filter_analysts_for_asset_type(
     analysts: list[AnalystType], asset_type: AssetType
 ) -> list[AnalystType]:
-    if asset_type != AssetType.CRYPTO:
-        return analysts
-    return [
-        analyst
-        for analyst in analysts
-        if analyst != AnalystType.FUNDAMENTALS
-    ]
+    """Filter analysts based on asset type.
+
+    Credit mode: keep only CREDIT_FUNDAMENTALS and CREDIT_NEWS.
+    Crypto mode: drop FUNDAMENTALS (no company fundamentals for crypto).
+    Stock mode: keep all.
+    """
+    if asset_type == AssetType.CREDIT:
+        return [
+            analyst
+            for analyst in analysts
+            if analyst in (AnalystType.CREDIT_FUNDAMENTALS, AnalystType.CREDIT_NEWS)
+        ]
+
+    if asset_type == AssetType.CRYPTO:
+        return [
+            analyst
+            for analyst in analysts
+            if analyst != AnalystType.FUNDAMENTALS
+        ]
+
+    return analysts
 
 
 def get_analysis_date() -> str:

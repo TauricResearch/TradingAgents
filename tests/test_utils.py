@@ -5,7 +5,7 @@
  * @description: Tests for CLI utilities (detect_asset_type, filter_analysts)
  * @author: AI Assistant
  * @created: 2026-09-28T10:14:45
- * @updated: 2026-09-28T10:14:45
+ * @updated: 2026-09-28T10:20:10
  * @version: 1.0.0
  * @reviewer:
  * @ai_reviewer:
@@ -41,3 +41,46 @@ def test_detect_asset_type_us_equity():
     """US equity (no suffix) should be STOCK."""
     assert detect_asset_type("AAPL") == AssetType.STOCK
     assert detect_asset_type("MSFT") == AssetType.STOCK
+
+
+from cli.models import AnalystType
+from cli.utils import filter_analysts_for_asset_type
+
+
+def test_filter_analysts_credit_mode():
+    """Credit mode should keep only credit fundamentals and credit news."""
+    all_analysts = [
+        AnalystType.MARKET,
+        AnalystType.SOCIAL,
+        AnalystType.NEWS,
+        AnalystType.FUNDAMENTALS,
+        AnalystType.CREDIT_FUNDAMENTALS,
+        AnalystType.CREDIT_NEWS,
+    ]
+    filtered = filter_analysts_for_asset_type(all_analysts, AssetType.CREDIT)
+    assert filtered == [AnalystType.CREDIT_FUNDAMENTALS, AnalystType.CREDIT_NEWS]
+
+
+def test_filter_analysts_crypto_mode():
+    """Crypto mode should drop fundamentals (existing behavior)."""
+    all_analysts = [
+        AnalystType.MARKET,
+        AnalystType.SOCIAL,
+        AnalystType.NEWS,
+        AnalystType.FUNDAMENTALS,
+    ]
+    filtered = filter_analysts_for_asset_type(all_analysts, AssetType.CRYPTO)
+    assert AnalystType.FUNDAMENTALS not in filtered
+    assert AnalystType.MARKET in filtered
+
+
+def test_filter_analysts_stock_mode():
+    """Stock mode should keep all analysts (existing behavior)."""
+    all_analysts = [
+        AnalystType.MARKET,
+        AnalystType.SOCIAL,
+        AnalystType.NEWS,
+        AnalystType.FUNDAMENTALS,
+    ]
+    filtered = filter_analysts_for_asset_type(all_analysts, AssetType.STOCK)
+    assert filtered == all_analysts
