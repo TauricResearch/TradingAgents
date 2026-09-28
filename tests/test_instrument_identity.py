@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from tradingagents.agents.context import (
+    _identity,
     build_instrument_context,
     get_instrument_context_from_state,
     resolve_instrument_identity,
@@ -16,7 +17,7 @@ from tradingagents.agents.context import (
 @pytest.mark.unit
 class ResolveInstrumentIdentityTests(unittest.TestCase):
     def setUp(self):
-        resolve_instrument_identity.cache_clear()
+        _identity.cache_clear()
 
     def test_resolves_company_metadata_from_yfinance(self):
         with patch("tradingagents.dataflows.vendors.yahoo.market.yf.Ticker") as mock:
@@ -53,6 +54,15 @@ class ResolveInstrumentIdentityTests(unittest.TestCase):
             side_effect=RuntimeError("rate limited"),
         ):
             self.assertEqual(resolve_instrument_identity("TOTDY"), {})
+
+    def test_a_failed_lookup_is_asked_again(self):
+        # A long process (a backtest) must not run every later cell without an
+        # identity because one request failed.
+        with patch("tradingagents.dataflows.vendors.yahoo.market.yf.Ticker") as mock:
+            type(mock.return_value).info = property(lambda self: (_ for _ in ()).throw(TimeoutError()))
+            self.assertEqual(resolve_instrument_identity("TOTDY"), {})
+            type(mock.return_value).info = {"longName": "TOTO LTD."}
+            self.assertEqual(resolve_instrument_identity("TOTDY")["company_name"], "TOTO LTD.")
 
     def test_result_is_cached(self):
         with patch("tradingagents.dataflows.vendors.yahoo.market.yf.Ticker") as mock:

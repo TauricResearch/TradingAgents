@@ -25,7 +25,7 @@ def test_identity_lookup_normalizes_symbol(monkeypatch):
             return {"longName": "Gold Futures", "quoteType": "FUTURE"}
 
     monkeypatch.setattr(yahoo_market.yf, "Ticker", FakeTicker)
-    au.resolve_instrument_identity.cache_clear()
+    au._identity.cache_clear()
 
     identity = au.resolve_instrument_identity("XAUUSD")
 

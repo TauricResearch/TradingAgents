@@ -52,7 +52,6 @@ def _clean_identity_value(value: Any) -> str | None:
     return cleaned
 
 
-@functools.lru_cache(maxsize=256)
 def resolve_instrument_identity(ticker: str) -> dict:
     """Resolve deterministic identity metadata (company name, sector, …) for a ticker.
 
@@ -64,18 +63,23 @@ def resolve_instrument_identity(ticker: str) -> dict:
 
     Best-effort by design: if yfinance is unavailable, rate-limited, or doesn't
     recognise the ticker, we return ``{}`` and the caller falls back to
-    ticker-only context rather than failing before analysis starts. Cached so
-    the lookup happens at most once per ticker per process.
+    ticker-only context rather than failing before analysis starts. An answer
+    is cached for the process; a failed lookup is asked again next time.
 
     Identity resolves for the same instrument the price path fetches
     (``XAUUSD`` -> ``GC=F``, #983).
     """
     try:
-        info = get_company_profile(ticker)
+        return _identity(ticker)
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}
 
+
+@functools.lru_cache(maxsize=256)
+def _identity(ticker: str) -> dict:
+    """The vendor's identity fields for ``ticker``; raises if the lookup fails."""
+    info = get_company_profile(ticker)
     identity: dict[str, str] = {}
     company_name = _clean_identity_value(info.get("longName")) or _clean_identity_value(
         info.get("shortName")
