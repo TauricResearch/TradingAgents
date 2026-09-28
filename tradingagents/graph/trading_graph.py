@@ -294,13 +294,13 @@ class TradingAgentsGraph:
         an explicit ``save_path`` or let it default under ``results_dir``.
         """
         if save_path is None:
-            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            save_path = (
-                Path(self.config["results_dir"])
-                / "reports"
-                / f"{safe_ticker_component(ticker)}_{stamp}"
-            )
+            save_path = self.default_report_path(ticker)
         return write_report_tree(final_state, ticker, save_path, settings=self.run_settings())
+
+    def default_report_path(self, ticker) -> Path:
+        """Where a run's reports go unless told otherwise: under results_dir, stamped now."""
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return Path(self.config["results_dir"]) / "reports" / f"{safe_ticker_component(ticker)}_{stamp}"
 
     def create_run_state(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Build a run's initial state; propagate() and the CLI both start here.

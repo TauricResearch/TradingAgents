@@ -95,10 +95,14 @@ def test_save_and_show_answer_the_questions_after_the_run(monkeypatch, tmp_path)
     monkeypatch.setattr(run.typer, "prompt", no_prompt)
     shown = []
     monkeypatch.setattr(run, "display_complete_report", lambda state: shown.append(state))
-    graph = type("G", (), {"run_settings": lambda self: {}})()
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path)}
+    graph.run_settings = lambda: {}
     state = {"market_report": "M", "final_trade_decision": "**Rating**: Hold"}
 
-    run._offer_reports(state, graph, {"results_dir": str(tmp_path)}, "NVDA", save=True, show=False)
+    run._offer_reports(state, graph, "NVDA", save=True, show=False)
 
     assert list(tmp_path.glob("reports/NVDA_*/complete_report.md"))
     assert shown == []

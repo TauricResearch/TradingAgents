@@ -50,8 +50,10 @@ def test_save_reports_explicit_path(tmp_path):
 
 @pytest.mark.unit
 def test_save_reports_defaults_under_results_dir(tmp_path):
-    mock_self = SimpleNamespace(config={"results_dir": str(tmp_path)}, run_settings=lambda: SETTINGS)
-    out = TradingAgentsGraph.save_reports(mock_self, _state(), "AAPL")
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path)}
+    graph.run_settings = lambda: SETTINGS
+    out = graph.save_reports(_state(), "AAPL")
     assert out.exists()
     assert out.parent.parent.name == "reports"  # results_dir/reports/AAPL_<stamp>/...
     assert out.parent.name.startswith("AAPL_")

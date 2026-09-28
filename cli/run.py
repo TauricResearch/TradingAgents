@@ -1,6 +1,5 @@
 """Running one analysis from the CLI: build the graph, stream it into the live view, save the report."""
 
-import datetime
 import os
 import sys
 import time
@@ -31,7 +30,6 @@ from tradingagents.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.reporting import write_report_tree
 
 
 def _run_directory(config: dict, ticker: str, trade_date: str) -> Path:
@@ -384,29 +382,26 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         )
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    _offer_reports(final_state, graph, config, selections["ticker"],
+    _offer_reports(final_state, graph, selections["ticker"],
                    save=flags.get("save"), show=flags.get("show"))
 
 
-def _offer_reports(final_state, graph, config, ticker, save=None, show=None):
+def _offer_reports(final_state, graph, ticker, save=None, show=None):
     """Save the report tree and show it; ``save``/``show`` answer the questions when given."""
     asked = save is None
     if asked:
         save = typer.prompt("Save report?", default="Y").strip().upper() in ("Y", "YES", "")
     if save:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         # Under results_dir, not the working directory: in Docker the working
         # directory is inside the container and the report goes with it, while
         # results_dir is the mounted volume the rest of the run already writes to.
-        save_path = (Path(config["results_dir"]) / "reports"
-                     / f"{safe_ticker_component(ticker)}_{timestamp}")
+        save_path = graph.default_report_path(ticker)
         if asked:   # someone at the prompt may pick another folder
             save_path = Path(typer.prompt(
                 "Save path (press Enter for default)", default=str(save_path)
             ).strip())
         try:
-            report_file = write_report_tree(final_state, ticker, save_path,
-                                            settings=graph.run_settings())
+            report_file = graph.save_reports(final_state, ticker, save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
