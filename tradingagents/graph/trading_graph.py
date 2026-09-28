@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -38,6 +39,13 @@ def _validate_trade_date(trade_date) -> str:
     if value > get_current_date():
         raise ValueError(f"trade_date cannot be in the future: {value}")
     return value
+
+
+# Config keys that do not change what a run writes: where it keeps its files,
+# whether it checkpoints, and how often it retries a provider.
+_NOT_IN_SIGNATURE = frozenset({
+    "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
+})
 
 
 class TradingAgentsGraph:
@@ -148,12 +156,17 @@ class TradingAgentsGraph:
         return td if td < datetime.now().strftime("%Y-%m-%d") else None
 
     def _run_signature(self, asset_type: str, portfolio=None) -> str:
-        """Graph-shape inputs that must invalidate a checkpoint if changed.
+        """Run inputs that must invalidate a checkpoint if changed.
 
         Keyed into the checkpoint thread ID so a resume under a different analyst
         selection, debate/risk depth, or asset mode starts fresh instead of
-        silently continuing the previous graph (#1089).
+        silently continuing the previous graph (#1089). The rest of the config
+        counts too (provider, models, endpoint, language, vendors, limits): a
+        resume must not carry reports that other settings produced. Only where
+        the run keeps its files and how it retries are left out.
         """
+        settings = {k: v for k, v in self.config.items() if k not in _NOT_IN_SIGNATURE}
+        digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode()).hexdigest()[:12]
         return "|".join([
             "analysts=" + ",".join(self.selected_analysts),
             f"debate={self.config['max_debate_rounds']}",
@@ -164,6 +177,7 @@ class TradingAgentsGraph:
             # The layout itself: a checkpoint saved when analysts ran one after
             # another has pending nodes this graph no longer has.
             "analysts=parallel",
+            f"settings={digest}",
         ])
 
     def propagate(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
