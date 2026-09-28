@@ -6,7 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
+from tradingagents.agents.context import (
+    build_instrument_context,
+    ensure_user_query_message,
+    resolve_instrument_identity,
+)
 from tradingagents.agents.rating import parse_rating
 from tradingagents.dataflows.config import run_config, set_config
 from tradingagents.dataflows.date_window import get_current_date
@@ -208,6 +212,30 @@ class TradingAgentsGraph:
             logger.info("Starting fresh for %s on %s", company_name, trade_date)
         return thread_id(company_name, str(trade_date), signature)
 
+    def _normalize_initial_user_query(self, init_state):
+        """Ensure a fresh-run state carries at least one user query message.
+
+        Some OpenAI-compatible gateways reject chat payloads that contain no
+        user/human message ("no user query found in messages"). This hardens
+        the graph boundary so every fresh run starts with at least one user
+        prompt, even if a caller assembled ``init_state`` manually.
+        """
+        if not isinstance(init_state, dict) or "messages" not in init_state:
+            return init_state
+
+        ticker = str(init_state.get("company_of_interest") or "the requested instrument")
+        trade_date = str(init_state.get("trade_date") or "the requested date")
+        instrument_context = init_state.get("instrument_context")
+        fallback_query = f"Proceed with analysis for `{ticker}` on {trade_date}."
+        if isinstance(instrument_context, str) and instrument_context.strip():
+            fallback_query += f" {instrument_context}"
+
+        init_state["messages"] = ensure_user_query_message(
+            init_state.get("messages"),
+            fallback_query,
+        )
+        return init_state
+
     def checkpoint_input(self, init_state):
         """The value to stream/invoke: ``None`` to resume an existing checkpoint,
         else the initial state for a fresh run.
@@ -215,8 +243,11 @@ class TradingAgentsGraph:
         LangGraph resumes an interrupted thread when invoked with ``None``;
         re-passing the initial state instead appends it through the message
         reducer, duplicating messages in the resumed state (#1249).
+
+        For fresh runs, normalize the initial state so the message list always
+        includes a user query for providers that enforce that contract.
         """
-        return None if self._resuming else init_state
+        return None if self._resuming else self._normalize_initial_user_query(init_state)
 
     def end_checkpoint(self):
         """Restore the plain uncheckpointed graph after a checkpointed run."""

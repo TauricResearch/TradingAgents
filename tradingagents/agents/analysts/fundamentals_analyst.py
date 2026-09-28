@@ -1,6 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.context import (
+    ensure_user_query_message,
+    get_instrument_context_from_state,
+    get_language_instruction,
+)
 from tradingagents.agents.tools import (
     get_balance_sheet,
     get_cashflow,
@@ -55,7 +59,11 @@ def create_fundamentals_analyst(llm):
 
         chain = prompt | llm.bind_tools(TOOLS)
 
-        result = chain.invoke(state["messages"])
+        fallback_query = (
+            f"Run fundamentals analysis for `{state['company_of_interest']}` on "
+            f"{current_date}. {instrument_context}"
+        )
+        result = chain.invoke(ensure_user_query_message(state.get("messages"), fallback_query))
 
         report = ""
 

@@ -200,11 +200,10 @@ def test_ollama_offers_custom_model_id():
         assert values[-1] == "custom", f"'custom' should be last entry: {values}"
 
 
-@pytest.mark.unit
-def test_structured_output_suppresses_object_tool_choice(monkeypatch):
-    """Ollama rejects the object-form tool_choice like other local servers
-    (#1062), and a local model ID has no capability entry saying otherwise, so
-    it takes the same client as the generic local endpoint."""
+def _capture_structured_output(monkeypatch, provider, model, base_url=None):
+    """Bind a schema and capture the kwargs the client hands to langchain's
+    ``with_structured_output`` (the base class is monkeypatched, so only what
+    the client explicitly sets lands in the captured dict)."""
     from langchain_openai import ChatOpenAI
     from pydantic import BaseModel
 
@@ -220,6 +219,35 @@ def test_structured_output_suppresses_object_tool_choice(monkeypatch):
         lambda self, schema, method=None, **kw: captured.update({"method": method, **kw}) or "BOUND",
     )
 
-    create_llm_client(provider="ollama", model="qwen3:30b").get_llm().with_structured_output(Schema)
+    client = create_llm_client(provider=provider, model=model, base_url=base_url)
+    client.get_llm().with_structured_output(Schema)
+    return captured
+
+
+@pytest.mark.unit
+def test_ollama_lets_tool_choice_through(monkeypatch):
+    """Ollama accepts the object-form ``tool_choice`` langchain sends for
+    function-calling structured output, so the client must NOT pin it to None.
+    Letting it through forces the model to call the schema tool instead of
+    answering in free text — which thinking models (e.g. Qwen3) otherwise do on
+    long prompts, returning no parsed result and tripping the free-text fallback.
+    (Generic local servers still suppress it; see the companion test.)"""
+    captured = _capture_structured_output(monkeypatch, "ollama", "qwen3:30b")
+
+    # The client must not suppress tool_choice; langchain sends the object-form
+    # tool_choice, which Ollama accepts.
+    assert "tool_choice" not in captured
+    assert captured["method"] == "function_calling"
+
+
+@pytest.mark.unit
+def test_generic_local_server_suppresses_tool_choice(monkeypatch):
+    """Generic local servers (LM Studio, vLLM, llama.cpp via the
+    ``openai_compatible`` provider) reject the object-form ``tool_choice``, so
+    the client pins it to None while still binding the schema as a tool (#1057)."""
+    captured = _capture_structured_output(
+        monkeypatch, "openai_compatible", "local-model", base_url="http://localhost:8000/v1"
+    )
 
     assert captured["tool_choice"] is None
+    assert captured["method"] == "function_calling"

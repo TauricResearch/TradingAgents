@@ -17,6 +17,9 @@ from tradingagents.dataflows.vendors.alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from tradingagents.dataflows.vendors.cftc import (
+    get_commitments_of_traders as get_cftc_commitments_of_traders,
+)
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
 from tradingagents.dataflows.vendors.polymarket import (
     get_prediction_markets as get_polymarket_prediction_markets,
@@ -78,6 +81,12 @@ TOOLS_CATEGORIES = {
             "get_macro_indicators",
         ]
     },
+    "positioning_data": {
+        "description": "CFTC Commitment of Traders positioning by market and trader class",
+        "tools": [
+            "get_commitments_of_traders",
+        ]
+    },
     "prediction_markets": {
         "description": "Market-implied probabilities for forward-looking events",
         "tools": [
@@ -90,6 +99,7 @@ VENDOR_LIST = [
     "yfinance",
     "sec_edgar",
     "fred",
+    "cftc",
     "polymarket",
     "alpha_vantage",
 ]
@@ -99,7 +109,7 @@ VENDOR_LIST = [
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+OPTIONAL_CATEGORIES = {"macro_data", "positioning_data", "prediction_markets"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
@@ -149,6 +159,10 @@ VENDOR_METHODS = {
     # macro_data
     "get_macro_indicators": {
         "fred": get_fred_macro_data,
+    },
+    # positioning_data
+    "get_commitments_of_traders": {
+        "cftc": get_cftc_commitments_of_traders,
     },
     # prediction_markets
     "get_prediction_markets": {

@@ -208,6 +208,37 @@ def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
     )
 
 
+def _is_user_like_message(message: Any) -> bool:
+    """Whether ``message`` is user/human authored across accepted input shapes."""
+    if isinstance(message, HumanMessage):
+        return True
+    msg_type = getattr(message, "type", None)
+    if isinstance(msg_type, str) and msg_type.lower() in {"human", "user"}:
+        return True
+    if isinstance(message, (tuple, list)) and message:
+        role = str(message[0]).strip().lower()
+        if role in {"human", "user"}:
+            return True
+    if isinstance(message, Mapping):
+        role = message.get("role") or message.get("type")
+        if isinstance(role, str) and role.strip().lower() in {"human", "user"}:
+            return True
+    return False
+
+
+def ensure_user_query_message(messages: Any, fallback_prompt: str) -> list:
+    """Return ``messages`` with at least one user message.
+
+    Some OpenAI-compatible gateways reject requests that carry only system/tool
+    content ("no user query found in messages"). This normalizes the analyst
+    input so there is always at least one user/human message.
+    """
+    normalized = list(messages or [])
+    if any(_is_user_like_message(m) for m in normalized):
+        return normalized
+    return normalized + [HumanMessage(content=fallback_prompt)]
+
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add a context-anchored placeholder.

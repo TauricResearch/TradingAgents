@@ -26,6 +26,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_CFTC_CACHE_ENABLED":       "cftc_cache_enabled",
+    "TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS":  "cftc_cache_max_age_days",
 }
 
 
@@ -77,6 +79,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
+    # CFTC COT cache controls (weekly data; reused across symbols/runs)
+    "cftc_cache_enabled": True,
+    "cftc_cache_max_age_days": 48,
     # LLM settings
     "llm_provider": "openai",
     "deep_think_llm": "gpt-6-sol",
@@ -141,6 +146,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
         "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
+        "positioning_data": "cftc",          # Options: cftc (keyless)
         "prediction_markets": "polymarket",  # Options: polymarket (keyless)
     },
     # Tool-level configuration (takes precedence over category-level)

@@ -1,7 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.context import (
+    ensure_user_query_message,
+    get_instrument_context_from_state,
+    get_language_instruction,
+)
 from tradingagents.agents.tools import (
+    get_commitments_of_traders,
     get_global_news,
     get_macro_indicators,
     get_news,
@@ -13,6 +18,7 @@ TOOLS = (
     get_news,
     get_global_news,
     get_macro_indicators,
+    get_commitments_of_traders,
     get_prediction_markets,
 )
 
@@ -25,7 +31,7 @@ def create_news_analyst(llm):
         instrument_context = get_instrument_context_from_state(state)
 
         system_message = (
-            f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(ticker, start_date, end_date) for {asset_label}-specific news by ticker symbol, get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news, get_macro_indicators(indicator, curr_date, look_back_days) to ground macro commentary in actual data from FRED (e.g. 'cpi', 'core_pce', 'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve'), and get_prediction_markets(topic, limit) for live market-implied probabilities of forward-looking events (e.g. 'Fed rate cut', 'recession 2026', geopolitical or sector events). Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(ticker, start_date, end_date) for {asset_label}-specific news by ticker symbol, get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news, get_macro_indicators(indicator, curr_date, look_back_days) to ground macro commentary in actual data from FRED (e.g. 'cpi', 'core_pce', 'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve'), get_commitments_of_traders(topic, look_back_weeks) for CFTC positioning (e.g. 'E-MINI S&P 500', 'NASDAQ-100', '10-YEAR U.S. TREASURY NOTE', 'CRUDE OIL', 'GOLD', 'BITCOIN'), and get_prediction_markets(topic, limit) for live market-implied probabilities of forward-looking events (e.g. 'Fed rate cut', 'recession 2026', geopolitical or sector events). Include at least one COT positioning read in your analysis and connect it to risk appetite, crowding, or potential squeeze risk. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )
@@ -53,7 +59,11 @@ def create_news_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(TOOLS)
-        result = chain.invoke(state["messages"])
+        fallback_query = (
+            f"Run news and macro analysis for `{state['company_of_interest']}` on "
+            f"{current_date}. {instrument_context}"
+        )
+        result = chain.invoke(ensure_user_query_message(state.get("messages"), fallback_query))
 
         report = ""
 

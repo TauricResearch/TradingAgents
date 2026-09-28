@@ -258,6 +258,36 @@ def get_macro_indicators(
 
 
 @tool
+def get_commitments_of_traders(
+    topic: Annotated[
+        str | None,
+        "COT market/topic keyword, e.g. 'E-MINI S&P 500', 'NASDAQ-100', "
+        "'10-YEAR U.S. TREASURY NOTE', 'CRUDE OIL', 'GOLD', 'BITCOIN'. "
+        "If omitted, a default equity-risk proxy is used.",
+    ] = None,
+    look_back_weeks: Annotated[
+        int | None, "Trailing weeks to analyze; omit for a default 26-week window"
+    ] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Retrieve CFTC Commitments of Traders positioning for a futures market.
+
+    Uses the configured positioning_data vendor to summarize net positioning by
+    trader category (e.g., asset managers, leveraged funds, managed money),
+    weekly changes, and positioning context over a trailing window.
+
+    Args:
+        topic (str | None): Market keyword to search in COT reports
+        look_back_weeks (int | None): Number of trailing released reports
+
+    Returns:
+        str: A formatted markdown report of COT positioning
+    """
+    return route_to_vendor("get_commitments_of_traders", topic, look_back_weeks, trade_date or None)
+
+
+@tool
 def get_prediction_markets(
     topic: Annotated[
         str,

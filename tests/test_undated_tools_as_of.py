@@ -82,8 +82,11 @@ def test_polymarket_serves_a_current_run():
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("tool", [tools.get_insider_transactions,
-                                  tools.get_prediction_markets], ids=lambda t: t.name)
+@pytest.mark.parametrize("tool", [
+    tools.get_insider_transactions,
+    tools.get_commitments_of_traders,
+    tools.get_prediction_markets,
+], ids=lambda t: t.name)
 def test_trade_date_is_injected_not_model_visible(tool):
     assert "trade_date" in tool.func.__code__.co_varnames
     props = tool.tool_call_schema.model_json_schema()["properties"]
