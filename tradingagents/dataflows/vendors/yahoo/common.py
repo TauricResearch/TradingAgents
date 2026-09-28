@@ -4,7 +4,7 @@ import logging
 import time
 
 import yfinance as yf
-from yfinance.exceptions import YFRateLimitError
+from yfinance.exceptions import YFPricesMissingError, YFRateLimitError
 
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.net import vendor_reachable
@@ -30,8 +30,19 @@ def raise_for_empty(symbol: str, canonical: str, what: str) -> None:
 yf.config.debug.hide_exceptions = False
 
 
-def _not_found(exc: Exception) -> bool:
-    """Whether Yahoo answered that it has no such symbol (HTTP 404)."""
+def _answered_empty(exc: Exception) -> bool:
+    """Whether Yahoo answered that it has nothing: no such symbol (HTTP 404), or a
+    price window with no prices in it.
+
+    yfinance raises YFPricesMissingError for that answer and also for an answer
+    that was an error (an error status, or Yahoo describing a failure), so only
+    a chart with no prices, or Yahoo saying the data does not exist, counts.
+    A missing time zone is not an answer: yfinance reports a failed lookup the same way.
+    """
+    if isinstance(exc, YFPricesMissingError):
+        reason = exc.yahoo_reason
+        return "status_code" not in (exc.debug_info or "") and (
+            reason is None or reason.startswith("Data doesn't exist"))
     return getattr(getattr(exc, "response", None), "status_code", None) == 404
 
 
@@ -42,7 +53,7 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
     retry them internally, so this wrapper retries them. A rate limit that
     outlasts the retries, or any other exception, is raised as
     VendorUnavailableError: it failed in transit and says nothing about the
-    symbol. Yahoo answering that it has no such symbol (HTTP 404) returns None,
+    symbol. Yahoo answering that it has nothing for the symbol returns None,
     an empty answer. ``func`` should build its own Ticker and make the request
     itself: a Ticker keeps a failed ``info`` fetch as done, so asking the same
     one again reads an empty profile.
@@ -60,6 +71,6 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
                     f"Yahoo Finance rate limited after {max_retries} retries: {exc}"
                 ) from exc
         except Exception as exc:
-            if _not_found(exc):
+            if _answered_empty(exc):
                 return None
             raise VendorUnavailableError(f"Yahoo Finance request failed: {type(exc).__name__}") from exc

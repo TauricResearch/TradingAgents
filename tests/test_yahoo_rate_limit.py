@@ -240,3 +240,45 @@ def test_yahoo_answering_not_found_is_no_data(yahoo, call):
     except NoMarketDataError:
         return
     assert out.startswith("No insider transactions"), out   # an empty filing list is not an error
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("debug, reason, absent", [
+    pytest.param(" (1d 2026-09-26 -> 2026-09-27)", None, True, id="a_chart_with_no_prices"),
+    pytest.param(" (1d 1970-01-01 -> 1970-02-01)", "Data doesn't exist for startDate = 18000, endDate = 2696400",
+                 True, id="yahoo_says_the_data_does_not_exist"),
+    pytest.param(" (1d 2026-09-21 -> 2026-09-25)(Yahoo status_code = 503)", None, False, id="an_http_error"),
+    pytest.param(" (1d 2026-09-21 -> 2026-09-25)", "Service temporarily unavailable", False,
+                 id="yahoo_reports_a_service_failure"),
+])
+def test_only_yahoo_saying_a_window_has_no_prices_is_no_data(yahoo, debug, reason, absent):
+    """yfinance raises YFPricesMissingError both when Yahoo answered with no prices
+    and when its answer was an error; only the first is a fact about the symbol."""
+    from yfinance.exceptions import YFPricesMissingError
+
+    from tradingagents.dataflows.errors import NoMarketDataError
+    from tradingagents.dataflows.vendors.yahoo import market
+
+    def no_prices(self, **kwargs):
+        raise YFPricesMissingError("AAPL", debug, yahoo_reason=reason)
+
+    yahoo.setattr(yf.Ticker, "history", no_prices)
+
+    with pytest.raises(NoMarketDataError if absent else VendorUnavailableError):
+        market.get_YFin_data_online("AAPL", "2026-09-21", "2026-09-25")
+
+
+@pytest.mark.unit
+def test_a_missing_time_zone_is_not_taken_for_an_answer(yahoo):
+    """yfinance reports a failed time-zone lookup the same way as a symbol without one."""
+    from yfinance.exceptions import YFTzMissingError
+
+    from tradingagents.dataflows.vendors.yahoo import market
+
+    def no_tz(self, **kwargs):
+        raise YFTzMissingError("AAPL")
+
+    yahoo.setattr(yf.Ticker, "history", no_tz)
+
+    with pytest.raises(VendorUnavailableError):
+        market.get_YFin_data_online("AAPL", "2026-09-21", "2026-09-25")
