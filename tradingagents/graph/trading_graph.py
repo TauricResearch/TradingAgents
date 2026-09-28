@@ -1,3 +1,18 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: trading_graph.py
+ * @description: Main graph class that orchestrates the trading agents framework
+ * @author: TradingAgents Team
+ * @created: 2024-01-01T00:00:00
+ * @updated: 2026-09-28T10:56:38
+ * @version: 1.0.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
+
 # TradingAgents/graph/trading_graph.py
 
 import json
@@ -30,6 +45,7 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.credit.anbima import get_debenture_quote
 from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
@@ -340,6 +356,59 @@ class TradingAgentsGraph:
             logger.warning(
                 "Could not resolve outcome for %s on %s vs %s (will retry next run): %s",
                 ticker, trade_date, benchmark, e,
+            )
+            return None, None, None, None
+
+    def _fetch_credit_returns(
+        self,
+        cusip: str,
+        trade_date: str,
+        benchmark: str,
+        holding_days: int = 30,
+    ) -> tuple[float | None, float | None, int | None, str | None]:
+        """Calculate total return for a debenture over the holding period.
+
+        Total return = (price_end - price_start) / price_start
+        (Simplified: yield change only; accrued interest and roll-down in v2)
+
+        Returns (raw_return, alpha, holding_days, resolution_date) or (None, None, None, None)
+        if data is unavailable.
+        """
+        from datetime import datetime, timedelta
+
+        try:
+            start_date = datetime.strptime(trade_date, "%Y-%m-%d")
+            end_date = start_date + timedelta(days=holding_days)
+
+            # Fetch quotes at start and end
+            # TODO: Implement date-specific quote fetching
+            # For now, use current quotes as placeholder
+            start_quote = get_debenture_quote(cusip)
+            end_quote = get_debenture_quote(cusip)  # TODO: fetch at end_date
+
+            if not start_quote or not end_quote:
+                return None, None, None, None
+
+            price_start = start_quote.get("price")
+            price_end = end_quote.get("price")
+
+            if price_start is None or price_end is None:
+                return None, None, None, None
+
+            raw_return = (price_end - price_start) / price_start
+
+            # TODO: Calculate benchmark return (IMA-B index)
+            # For now, alpha = raw_return (no benchmark comparison)
+            alpha = raw_return
+
+            resolution_date = end_date.strftime("%Y-%m-%d")
+
+            return raw_return, alpha, holding_days, resolution_date
+
+        except Exception as e:
+            logger.warning(
+                "Could not resolve credit outcome for %s on %s (will retry next run): %s",
+                cusip, trade_date, e,
             )
             return None, None, None, None
 
