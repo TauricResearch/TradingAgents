@@ -12,6 +12,7 @@ from cli.headless import (
     build_headless_config,
     run_headless_analysis,
 )
+from cli.progress import resolve_progress_mode
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -167,6 +168,10 @@ def analyze_headless(
     portfolio: Path | None = typer.Option(None, "--portfolio", exists=True, dir_okay=False, readable=True, help="JSON holdings and cash."),
     output_dir: Path | None = typer.Option(None, "--output-dir", file_okay=False, help="New/empty directory for this run; otherwise create a unique directory under results_dir/runs."),
     results_dir: Path | None = typer.Option(None, "--results-dir", file_okay=False, help="Override the results root when --output-dir is omitted."),
+    progress: bool | None = typer.Option(
+        None, "--progress/--no-progress",
+        help="Show live status on stderr. Default: on in terminals, off for --json/pipes. Explicit --progress uses plain updates without a terminal.",
+    ),
     json_output: bool = typer.Option(False, "--json", help="Print one machine-readable JSON summary to stdout; diagnostics go to stderr."),
 ):
     """Analyze SYMBOL without prompts and save reports automatically.
@@ -175,8 +180,9 @@ def analyze_headless(
     existing provider/model/key environment settings. Put options after analyze.
     """
     try:
-        # Third-party tools can print diagnostics. Keep stdout parseable for
-        # --json and keep a redirected terminal from ever entering a Live UI.
+        # Inspect the original streams before diagnostic redirection. Live UI
+        # and plain progress always use stderr, leaving --json stdout parseable.
+        progress_mode = resolve_progress_mode(progress, json_output)
         with redirect_stdout(sys.stderr):
             config = build_headless_config(
                 DEFAULT_CONFIG,
@@ -191,6 +197,7 @@ def analyze_headless(
             result = run_headless_analysis(
                 symbol, config=config, analysis_date=date, analysts=analysts,
                 asset_type=asset_type.value, portfolio_path=portfolio, output_dir=output_dir,
+                progress_mode=progress_mode,
             )
     except Exception as exc:
         typer.echo(f"Error: {exc}", err=True)

@@ -7,8 +7,9 @@ python -m cli.main analyze NVDA
 ```
 
 `SYMBOL` is the only required argument. This command never opens the interactive
-wizard, reads saved interactive preferences, asks for API keys, asks whether to
-save, or displays a terminal dashboard. Configure your provider credentials in
+wizard, reads saved interactive preferences, asks for API keys, or asks whether
+to save. In a terminal it shows live status without requiring input; use
+`--no-progress` to disable the display. Configure provider credentials in
 `.env` / environment variables first. A missing key fails rather than prompting.
 The existing bare `tradingagents` command remains interactive; `backtest` is
 unchanged. This is ordinary analysis, not a one-cell backtest.
@@ -27,6 +28,8 @@ unchanged. This is ordinary analysis, not a one-cell backtest.
   settings, including the native OpenCode Go provider and custom headers.
 - **Saving:** automatic; each invocation creates its own run directory so a
   second run of the same symbol/date does not overwrite the first one's files.
+- **Progress:** live status on stderr when stdout and stderr are terminals;
+  disabled automatically for `--json`, redirected output and `TERM=dumb`.
 
 Explicit per-option CLI flags override the corresponding environment settings.
 For round counts, the order is: `--debate-rounds` / `--risk-rounds`, then an
@@ -62,6 +65,7 @@ interactive-mode option; use `--no-checkpoint` for a fresh headless invocation.
 | `--portfolio FILE` | Existing portfolio JSON file with holdings/cash. |
 | `--results-dir DIR` | Root used for automatic per-run output directories. |
 | `--output-dir DIR` | Exact output directory for this invocation. Must be new or empty; takes precedence over the results root. |
+| `--progress / --no-progress` | Enable/disable status on stderr. Explicit `--progress` falls back to plain event lines when stderr is not a usable terminal. |
 | `--json` | Emit one JSON summary on stdout; run diagnostics go to stderr. Reports are still saved. |
 
 Changing `--provider` drops the previous provider's inherited backend URL and
@@ -94,6 +98,36 @@ For normal Go use you do not need header flags: the provider supplies its
 User-Agent and session header. See [OpenCode Go](opencode-go.md) for protocol
 selection, service usage requirements and persisting a session ID when resuming
 across processes. Headless mode constructs a fresh graph for each invocation.
+
+## Live status without interaction
+
+The display shows each selected analyst and the research, trading, risk and
+portfolio agents, with pending/running/waiting/completed/error states. It also
+shows per-agent turn counts and execution time, continuously refreshed elapsed
+time, report counts, LLM/tool call counts, available token usage and recent
+agent/tool events. A turn includes each graph-node invocation (including
+analyst tool-call loops); it is not necessarily one configured debate round.
+Token counts reflect usage returned by the model, not a billing estimate.
+
+Events come from the existing graph's callbacks. There is no second execution
+loop, token streaming requirement, extra LLM request or prompt. Debate agents
+wait between turns and complete when their manager starts judging. Resumed
+node inputs restore already-produced report status; times and counters measure
+only this invocation. Short/narrow terminals use a compact current-stage view.
+Ordinary warnings remain visible; the observer never logs tool arguments or
+raw model prompts. The live display is cleared on exit, including failures and
+Ctrl+C; normal summaries and report paths still print after a successful run.
+
+```bash
+# Automatic live display in a terminal, no questions:
+tradingagents analyze NVDA --language Chinese
+
+# Keep the previous quiet behavior (warnings still appear):
+tradingagents analyze NVDA --no-progress
+
+# JSON stdout plus progress on stderr; plain lines when stderr is a file:
+tradingagents analyze NVDA --json --progress > summary.json 2> progress.log
+```
 
 ## Saved output and automation
 

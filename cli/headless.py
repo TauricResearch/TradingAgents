@@ -1,7 +1,7 @@
 """Non-interactive analysis using the same graph and report writer as the UI.
 
-No prompt, terminal UI or user-preference file is touched by this path. The
-caller supplies a symbol; run settings come from CLI overrides / DEFAULT_CONFIG.
+No prompt or user-preference file is touched by this path. The caller supplies
+a symbol; an optional progress observer never changes the execution workflow.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 from cli.models import AnalystType
+from cli.progress import analysis_progress
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV
@@ -194,6 +195,7 @@ def run_headless_analysis(
     asset_type: str = "auto",
     portfolio_path: Path | None = None,
     output_dir: Path | None = None,
+    progress_mode: str = "off",
 ) -> dict:
     """Run once, automatically save all reports, and return a JSON-safe summary.
 
@@ -216,26 +218,33 @@ def run_headless_analysis(
             raise ValueError("--output-dir must be a new or empty directory (existing reports are never overwritten)")
         run_dir.mkdir(parents=True, exist_ok=True)
     run_config = {**deepcopy(config), "results_dir": str(run_dir)}
-    graph = _create_graph(selected, run_config)
-    state, decision = graph.propagate(ticker, trade_date, asset_type=asset_type, portfolio=book)
-    report = graph.save_reports(state, ticker, save_path=run_dir / "reports")
-    # An allowlist, not a config dump: headers, API keys and portfolio holdings
-    # must not accidentally end up in stdout or metadata.
-    summary = {
-        "symbol": ticker,
-        "date": trade_date,
-        "asset_type": asset_type,
-        "analysts": selected,
-        "provider": run_config["llm_provider"],
-        "quick_model": run_config["quick_think_llm"],
-        "deep_model": run_config["deep_think_llm"],
-        "debate_rounds": run_config["max_debate_rounds"],
-        "risk_rounds": run_config["max_risk_discuss_rounds"],
-        "decision": decision,
-        "needs_review": decision == "REVIEW",
-        "output_dir": str(run_dir),
-        "report": str(Path(report).resolve()),
-    }
-    (run_dir / "run.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
-                                    encoding="utf-8")
-    return summary
+    with analysis_progress(progress_mode, ticker, trade_date, selected) as progress:
+        graph = _create_graph(selected, run_config)
+        if progress is not None:
+            graph.propagator.callbacks.append(progress)
+        state, decision = graph.propagate(ticker, trade_date, asset_type=asset_type, portfolio=book)
+        if progress is not None:
+            progress.stage("Saving reports")
+        report = graph.save_reports(state, ticker, save_path=run_dir / "reports")
+        # An allowlist, not a config dump: headers, API keys and portfolio holdings
+        # must not accidentally end up in stdout or metadata.
+        summary = {
+            "symbol": ticker,
+            "date": trade_date,
+            "asset_type": asset_type,
+            "analysts": selected,
+            "provider": run_config["llm_provider"],
+            "quick_model": run_config["quick_think_llm"],
+            "deep_model": run_config["deep_think_llm"],
+            "debate_rounds": run_config["max_debate_rounds"],
+            "risk_rounds": run_config["max_risk_discuss_rounds"],
+            "decision": decision,
+            "needs_review": decision == "REVIEW",
+            "output_dir": str(run_dir),
+            "report": str(Path(report).resolve()),
+        }
+        (run_dir / "run.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
+                                        encoding="utf-8")
+        if progress is not None:
+            progress.complete()
+        return summary
