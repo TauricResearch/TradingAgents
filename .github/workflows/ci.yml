@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         # One run away from UTC, so a test that only passes in UTC fails here.
         include:
           - python-version: "3.12"
@@ -24,8 +24,8 @@ jobs:
     env:
       TZ: ${{ matrix.tz }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install (with dev extras)
@@ -39,8 +39,8 @@ jobs:
     name: clean-install smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Fresh install (no dev extras) and import
@@ -55,12 +55,12 @@ jobs:
     name: ruff (strict, full repo)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install "ruff>=0.15"
+        run: pip install "ruff>=0.16"
       - name: Lint the repository
         # The repo is fully clean under the strict select, so we lint everything
         # (generated results/ is excluded via pyproject extend-exclude).
