@@ -96,6 +96,46 @@ def test_a_cell_already_in_the_log_is_not_run_again(tmp_path):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("tickers", "dates"),
+    [
+        (["NVDA", "NVDA"], ["2026-01-05"]),
+        (["NVDA"], ["2026-01-05", "2026-01-05"]),
+    ],
+)
+def test_duplicate_input_runs_each_cell_once(tmp_path, tickers, dates):
+    result = run_backtest(tickers, dates, _config(tmp_path))
+
+    assert _FakeGraph.instances[-1].calls == [("NVDA", "2026-01-05")]
+    assert result.cells_run == 1
+    assert result.skipped == 1
+
+
+@pytest.mark.unit
+def test_duplicate_input_retries_a_failed_cell(tmp_path, monkeypatch):
+    original_propagate = _FakeGraph.propagate
+    attempts = 0
+
+    def fail_once(self, ticker, trade_date, asset_type="stock", portfolio=None):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            self.calls.append((ticker, trade_date))
+            raise RuntimeError("temporary vendor failure")
+        return original_propagate(self, ticker, trade_date, asset_type, portfolio)
+
+    monkeypatch.setattr(_FakeGraph, "propagate", fail_once)
+    result = run_backtest(["NVDA", "NVDA"], ["2026-01-05"], _config(tmp_path))
+
+    assert _FakeGraph.instances[-1].calls == [
+        ("NVDA", "2026-01-05"), ("NVDA", "2026-01-05")
+    ]
+    assert result.cells_run == 1
+    assert result.skipped == 0
+    assert result.failures == [("NVDA", "2026-01-05", "temporary vendor failure")]
+
+
+@pytest.mark.unit
 def test_every_ticker_is_settled_after_the_grid(tmp_path):
     """Settlement runs at the start of the next same-ticker run, so the last
     date of each ticker would stay pending without an explicit pass."""

@@ -160,6 +160,7 @@ def run_backtest(
             try:
                 graph.propagate(ticker, date, asset_type, portfolio=portfolio)
                 result.cells_run += 1
+                done.add((ticker, date))
             except Exception as exc:  # one unreachable vendor must not end the sweep
                 logger.warning("Backtest cell %s %s failed: %s", ticker, date, exc)
                 result.failures.append((ticker, date, str(exc)))
