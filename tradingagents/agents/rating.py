@@ -45,6 +45,36 @@ _RATING_WORD_RE = re.compile(
     r"\b(" + "|".join(RATINGS_5_TIER) + r")\b", re.IGNORECASE
 )
 
+# Localized rating aliases for common non-English reports. When the output
+# language is not English, a freetext decision may still spell the anchor
+# line in the target language even though parsers match English words.
+# Chinese brokerage research conventions are unambiguous and standardized:
+# 买入/增持/持有/减持/卖出 map one-to-one onto the 5-tier scale.
+_LOCALIZED_RATING_ALIASES = {
+    "买入": "Buy",
+    "增持": "Overweight",
+    "持有": "Hold",
+    "减持": "Underweight",
+    "卖出": "Sell",
+}
+
+# A localized anchor line ("**评级**：买入") gets the same explicit-label
+# precedence as "**Rating**: Buy". Whitespace-tolerant of the bold markdown and
+# either colon.
+_LOCALIZED_RATING_LABEL_RE = re.compile(
+    r"评级[\s*]*[：:][\s*]*(买入|增持|持有|减持|卖出)")
+
+
+def _resolve_alias(value: str) -> str | None:
+    """Resolve an English word or a localized alias to a canonical rating."""
+    lowered = value.strip().lower()
+    if lowered in _RATING_SET:
+        return lowered.capitalize()
+    for alias, canonical in _LOCALIZED_RATING_ALIASES.items():
+        if value.strip() == alias:
+            return canonical
+    return None
+
 
 def extract_rating(text: str) -> str | None:
     """Extract a 5-tier rating from prose, or ``None`` if none is present.
@@ -53,6 +83,9 @@ def extract_rating(text: str) -> str | None:
     ``Rating：Overweight`` is matched the same as ASCII):
     1. An explicit "Rating: X" label (tolerant of markdown bold).
     2. The first standalone 5-tier rating word found anywhere.
+
+    Localized aliases (e.g. ``**评级**：买入``) are accepted in both passes so a
+    non-English freetext decision still parses instead of falling to REVIEW.
     """
     if not text:
         return None
@@ -66,16 +99,34 @@ def extract_rating(text: str) -> str | None:
         if _RATING_SCALE_RE.search(line):
             continue
         m = _RATING_LABEL_RE.search(line)
-        if m and m.group(1).lower() in _RATING_SET:
-            labelled = m.group(1).capitalize()
+        if m:
+            resolved = _resolve_alias(m.group(1))
+            if resolved:
+                labelled = resolved
+                continue
+        # A localized anchor line gets the same explicit-label precedence as
+        # the English one. Two tiers on one line is the legend the model
+        # echoed, not a decision.
+        lm = _LOCALIZED_RATING_LABEL_RE.search(line)
+        if lm:
+            if labelled is None:
+                labelled = _LOCALIZED_RATING_ALIASES[lm.group(1)]
+            elif labelled != _LOCALIZED_RATING_ALIASES[lm.group(1)]:
+                labelled = None
     if labelled:
         return labelled
 
     # No label. A single rating word in the text is the call; several are an
     # argument, and picking one of them reports a direction nobody decided --
     # prose that rejects a Buy before concluding Underweight read as Buy.
+    # Localized aliases are deliberately NOT matched in prose: Chinese has no
+    # word boundaries, so "不要买入" ("don't buy") or "机构持有" ("institutions
+    # hold") would read as positive calls — exactly the direction-flip this
+    # parser exists to prevent. Prose without a label parses to REVIEW.
     named = {m.group(1).capitalize() for m in _RATING_WORD_RE.finditer(norm)}
-    return named.pop() if len(named) == 1 else None
+    if len(named) == 1:
+        return named.pop()
+    return None
 
 
 def parse_rating(text: str, default: str = RATING_REVIEW) -> str:

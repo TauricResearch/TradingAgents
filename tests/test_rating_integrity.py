@@ -33,6 +33,66 @@ def test_a_rating_argued_against_is_not_read_as_the_decision():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    "alias,expected",
+    [
+        ("买入", "Buy"),
+        ("增持", "Overweight"),
+        ("持有", "Hold"),
+        ("减持", "Underweight"),
+        ("卖出", "Sell"),
+    ],
+)
+def test_localized_alias_on_the_labelled_line_parses(alias, expected):
+    """A non-English freetext decision may spell the anchor line in the
+    target language; the parser should read it rather than fall to REVIEW
+    (which silently drops the decision from backtest scoring)."""
+    text = f"**评级**：{alias}\n\n基本面强劲，营收稳定增长。"
+    assert extract_rating(text) == expected
+
+
+@pytest.mark.unit
+def test_localized_alias_with_english_label_still_parses():
+    """English label + localized value: the model obeyed the language
+    directive but translated the value too."""
+    assert extract_rating("**Rating**: 买入") == "Buy"
+
+
+@pytest.mark.unit
+def test_negated_localized_words_in_prose_are_not_calls():
+    """Chinese has no word boundaries: "不要买入" contains "买入". Negated or
+    descriptive uses of the tier words must not parse as positive calls —
+    the direction-flip this parser exists to prevent."""
+    assert extract_rating("建议不要买入，当前估值过高。") is None
+    assert extract_rating("不减持当前仓位。") is None
+
+
+@pytest.mark.unit
+def test_descriptive_localized_words_in_prose_are_not_calls():
+    """"持有" is ordinary financial prose ("institutions hold"), not a rating
+    anchor; without a label line it parses to REVIEW."""
+    assert extract_rating("市场持续持有该仓位。") is None
+
+
+@pytest.mark.unit
+def test_localized_label_takes_precedence_over_prose():
+    """A localized anchor line gets the same explicit-label precedence as an
+    English one: the labelled call wins over tier words in the prose below."""
+    text = "**评级**：买入\n\n风险：若破位考虑卖出。"
+    assert extract_rating(text) == "Buy"
+
+
+@pytest.mark.unit
+def test_localized_prose_with_an_english_word_parses_by_the_english_rule():
+    """Localized tier words are ignored in prose (no word boundaries); an
+    English word present alone still follows the single-word rule. When
+    multiple English tiers appear, the argument-not-a-decision rule applies."""
+    text = "多方认为应当买入，但空方坚持 Sell，委员会分歧严重。"
+    assert extract_rating(text) == "Sell"
+    assert extract_rating("买入 Hold，或者 Sell，未定。") is None
+
+
+@pytest.mark.unit
 def test_prose_naming_several_ratings_without_a_label_needs_review():
     """Nothing in the text says which one is the call, so guessing risks
     reporting the opposite of the decision."""

@@ -46,6 +46,16 @@ class TestLanguageInstruction:
         assert "中文" in out
         assert "entire response" in out
 
+    def test_non_english_keeps_parsed_anchors_in_english(self):
+        """The directive must exempt machine-parsed anchor lines; otherwise a
+        fully-localized freetext decision cannot be parsed and every backtest
+        decision silently falls to REVIEW."""
+        from tradingagents.dataflows.config import set_config
+        set_config({"output_language": "中文"})
+        out = get_language_instruction()
+        assert "**Rating**:" in out
+        assert "**Action**:" in out
+
 
 @pytest.mark.unit
 @pytest.mark.parametrize("rel", REPORT_AGENTS)

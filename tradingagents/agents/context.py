@@ -22,12 +22,24 @@ def get_language_instruction() -> str:
     analysts, researchers, debaters, research manager, trader, and
     portfolio manager — so a non-English run produces a fully localized
     report rather than a mix of languages.
+
+    The machine-parsed anchor lines (``**Rating**:`` for the portfolio
+    manager, ``**Action**:`` for the trader) are exempted: downstream
+    parsers match the English label and the five English rating words,
+    so a fully-localized anchor line makes every decision fall back to
+    REVIEW and silently drops it from backtest scoring.
     """
     from tradingagents.dataflows.config import get_config
     lang = get_config().get("output_language", "English")
     if lang.strip().lower() == "english":
         return ""
-    return f" Write your entire response in {lang}."
+    return (
+        f" Write your entire response in {lang}."
+        " Keep machine-parsed lines in English:"
+        " the '**Rating**:' line and its value (Buy / Overweight / Hold /"
+        " Underweight / Sell), and the '**Action**:' line and its value"
+        " (buy / sell / hold), must stay in English so parsers can read them."
+    )
 
 
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
