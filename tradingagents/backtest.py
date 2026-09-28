@@ -155,6 +155,8 @@ def run_backtest(
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
     done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}
 
+    # A ticker or date given twice is one cell, run and settled once.
+    tickers, dates = list(dict.fromkeys(tickers)), list(dict.fromkeys(dates))
     cells = [(ticker, date) for ticker in tickers for date in dates]
     todo = [cell for cell in cells if cell not in done]
     result.skipped = len(cells) - len(todo)

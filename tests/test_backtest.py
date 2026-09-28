@@ -296,3 +296,11 @@ def test_a_resumed_sweep_reports_only_the_cells_it_runs(tmp_path):
                  progress=lambda done, total, ticker, date: seen.append((done, total, date)))
 
     assert seen == [(1, 1, "2026-01-12")]
+
+
+@pytest.mark.unit
+def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
+    run_backtest(["NVDA", "NVDA"], ["2026-01-05", "2026-01-05"], _config(tmp_path))
+    graph = _FakeGraph.instances[-1]
+    assert graph.calls == [("NVDA", "2026-01-05")]
+    assert graph.settled == ["NVDA"]
