@@ -1,6 +1,6 @@
-import json
 
 from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.date_window import withhold_undisclosed_trades
 from tradingagents.dataflows.vendors.alpha_vantage.common import (
     _make_api_request,
     format_datetime_for_api,
@@ -33,13 +33,13 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
     return _make_api_request("NEWS_SENTIMENT", params)
 
 
-def get_global_news(curr_date, look_back_days: int | None = None, limit: int | None = None) -> dict[str, str] | str:
+def get_global_news(as_of_date, look_back_days: int | None = None, limit: int | None = None) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
 
     Args:
-        curr_date: Current date in yyyy-mm-dd format.
+        as_of_date: Current date in yyyy-mm-dd format.
         look_back_days: Number of days to look back; ``None`` uses
             ``global_news_lookback_days`` from the active config.
         limit: Maximum number of articles; ``None`` uses
@@ -56,40 +56,34 @@ def get_global_news(curr_date, look_back_days: int | None = None, limit: int | N
     if limit is None:
         limit = config["global_news_article_limit"]
 
-    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    curr_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
     start_dt = curr_dt - timedelta(days=look_back_days)
     start_date = start_dt.strftime("%Y-%m-%d")
 
     params = {
         "topics": "financial_markets,economy_macro,economy_monetary",
         "time_from": format_datetime_for_api(start_date),
-        "time_to": format_datetime_for_api(curr_date, end_of_day=True),
+        "time_to": format_datetime_for_api(as_of_date, end_of_day=True),
         "limit": str(limit),
     }
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
 
-def get_insider_transactions(symbol: str, curr_date: str | None = None) -> dict[str, str] | str:
+def get_insider_transactions(symbol: str, as_of_date: str | None = None) -> dict[str, str] | str:
     """Returns latest and historical insider transactions by key stakeholders.
 
     Covers transactions by founders, executives, board members, etc.
 
     Args:
         symbol: Ticker symbol. Example: "IBM".
-        curr_date: When given, only transactions on or before it (yyyy-mm-dd).
+        as_of_date: The analysis date (yyyy-mm-dd); a past one withholds them.
 
     Returns:
         Dictionary containing insider transaction data or JSON string.
     """
 
-    params = {
-        "symbol": symbol,
-    }
-
-    response = _make_api_request("INSIDER_TRANSACTIONS", params)
-    if not curr_date:
-        return response
-    payload = json.loads(response)
-    payload["data"] = [t for t in payload["data"] if t["transaction_date"] <= curr_date]
-    return json.dumps(payload)
+    withheld = withhold_undisclosed_trades(as_of_date, symbol)
+    if withheld:
+        return withheld
+    return _make_api_request("INSIDER_TRANSACTIONS", {"symbol": symbol})

@@ -8,7 +8,7 @@ as-of date. All three sources share dataflows.date_window.in_window.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -38,10 +38,10 @@ class _JsonResp:
 def test_in_window_bounds_and_exclusive_upper():
     start = datetime(2026, 5, 1)
     end = datetime(2026, 5, 9)
-    assert in_window(datetime(2026, 5, 5, tzinfo=timezone.utc), start, end) is True
-    assert in_window(datetime(2026, 5, 9, 23, 59, tzinfo=timezone.utc), start, end) is True
+    assert in_window(datetime(2026, 5, 5, tzinfo=UTC), start, end) is True
+    assert in_window(datetime(2026, 5, 9, 23, 59, tzinfo=UTC), start, end) is True
     # exactly midnight after end -> excluded (no leak)
-    assert in_window(datetime(2026, 5, 10, 0, 0, tzinfo=timezone.utc), start, end) is False
+    assert in_window(datetime(2026, 5, 10, 0, 0, tzinfo=UTC), start, end) is False
     # offset-aware converted, not truncated: 05-10T01:00+05:00 == 05-09T20:00Z
     assert in_window(datetime.fromisoformat("2026-05-10T01:00:00+05:00"), start, end) is True
 
@@ -50,7 +50,7 @@ def test_in_window_bounds_and_exclusive_upper():
 def test_in_window_undated_excluded_in_backtest_kept_live():
     old = datetime(2026, 5, 9)
     assert in_window(None, datetime(2026, 5, 1), old) is False       # historical
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert in_window(None, now, now) is True                          # live
 
 
@@ -96,7 +96,7 @@ def test_stocktwits_no_window_is_unfiltered(monkeypatch):
 # --- Reddit -----------------------------------------------------------------
 
 def _epoch(date_str):
-    return int(datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+    return int(datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
 
 
 @pytest.mark.unit
@@ -184,7 +184,7 @@ def test_reddit_window_straddling_the_lookback_is_unavailable(monkeypatch):
     # Ten days ago through five days ago: the week-long search never reaches the
     # first three days, so an empty result cannot stand for the whole window.
     from datetime import timedelta
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     monkeypatch.setattr(reddit, "_fetch_subreddit_rss", lambda *a, **k: [])
     out = reddit.fetch_reddit_posts(
         "AAPL", subreddits=("stocks",),
@@ -198,7 +198,7 @@ def test_reddit_standard_week_window_empty_is_a_real_absence(monkeypatch):
     # The graph's window is [trade_date - 7, trade_date]; the week-long search
     # covers it, so an empty result is genuine silence.
     from datetime import timedelta
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     monkeypatch.setattr(reddit, "_fetch_subreddit_rss", lambda *a, **k: [])
     out = reddit.fetch_reddit_posts(
         "AAPL", subreddits=("stocks",),
@@ -212,7 +212,7 @@ def test_reddit_full_page_does_not_vouch_for_older_days(monkeypatch):
     # 100 posts from today say nothing about five days ago: the page may have
     # cut older matches off, so the window stays unavailable.
     from datetime import timedelta
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     ts = _epoch(str(today))
     page = [{"title": f"T{i}", "created_utc": ts, "subreddit": "stocks"} for i in range(reddit._FEED_PAGE)]
     monkeypatch.setattr(reddit, "_fetch_subreddit_rss", lambda *a, **k: page)

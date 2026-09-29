@@ -144,13 +144,13 @@ def test_a_throttle_lets_the_next_vendor_try(monkeypatch):
     """SEC throttles by refusing the request; the router then tries yfinance."""
     import requests
 
-    from tradingagents.dataflows.errors import VendorRateLimitError
+    from tradingagents.dataflows.errors import VendorUnavailableError
 
     def _throttled(*a, **k):
         raise requests.HTTPError(response=mock.Mock(status_code=429))
 
     monkeypatch.setattr(sec_edgar.requests, "get", _throttled)
-    with pytest.raises(VendorRateLimitError):
+    with pytest.raises(VendorUnavailableError):
         _REAL_FETCH("https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json")
 
 
@@ -205,8 +205,8 @@ def test_older_periods_fall_back_to_the_tag_the_filer_used_then():
              "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
                  _fact("2024-09-28", 391_035_000_000, "2024-11-01", start="2023-09-30")]}}}
     values, unit = sec_edgar._as_of(facts, ("RevenueFromContractWithCustomerExcludingAssessedTax",
-                                            "Revenues"), "2026-01-01", (300, 400))
-    assert values == {"2015-09-26": 233_715_000_000, "2024-09-28": 391_035_000_000}
+                                            "Revenues"), "2026-01-01", ((300, 400),))
+    assert values == {("2015-09-26", 0): 233_715_000_000, ("2024-09-28", 0): 391_035_000_000}
     assert unit == "USD"
 
 
@@ -216,27 +216,17 @@ def test_a_period_reported_under_two_tags_takes_the_preferred_one_not_both():
              "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
                  _fact("2024-09-28", 999, "2024-11-01", start="2023-09-30")]}}}
     values, _ = sec_edgar._as_of(facts, ("RevenueFromContractWithCustomerExcludingAssessedTax",
-                                         "Revenues"), "2026-01-01", (300, 400))
-    assert values == {"2024-09-28": 999}
+                                         "Revenues"), "2026-01-01", ((300, 400),))
+    assert values == {("2024-09-28", 0): 999}
 
 
 @pytest.mark.unit
-def test_the_default_identification_tracks_the_installed_version(monkeypatch):
-    """A release should identify itself, not a version frozen in the source."""
+def test_the_default_identification_names_the_package_version(monkeypatch):
+    """SEC asks automated clients to identify themselves; a release names its own version."""
+    import tradingagents
+
     monkeypatch.delenv("SEC_EDGAR_USER_AGENT", raising=False)
-    monkeypatch.setattr(sec_edgar.metadata, "version", lambda name: "9.9.9")
-    assert sec_edgar._user_agent() == "TradingAgents/9.9.9 (contact@example.com)"
-
-
-@pytest.mark.unit
-def test_an_uninstalled_checkout_still_identifies_itself(monkeypatch):
-    monkeypatch.delenv("SEC_EDGAR_USER_AGENT", raising=False)
-
-    def _missing(name):
-        raise sec_edgar.metadata.PackageNotFoundError(name)
-
-    monkeypatch.setattr(sec_edgar.metadata, "version", _missing)
-    assert "@" in sec_edgar._user_agent()
+    assert sec_edgar._user_agent() == f"TradingAgents/{tradingagents.__version__} (contact@example.com)"
 
 
 @pytest.mark.unit
@@ -293,3 +283,41 @@ def test_a_recast_outside_the_annual_report_still_counts_from_its_filing(monkeyp
 
     assert eps("2019-01-01") == "16.97"
     assert eps("2020-01-01") == "2.12"
+
+
+@pytest.mark.unit
+def test_a_cash_flow_filed_year_to_date_is_served_with_its_span(monkeypatch):
+    """Many filers tag a 10-Q's cash flows only year to date (3, 6, then 9 months):
+    a quarterly table of discrete quarters alone would stop at each first quarter."""
+    ytd = [
+        _fact("2025-12-27", 30_000_000_000, "2026-01-30", form="10-Q", fp="Q1", start="2025-09-28"),
+        _fact("2026-03-28", 53_000_000_000, "2026-05-01", form="10-Q", fp="Q2", start="2025-09-28"),
+        _fact("2026-06-27", 81_000_000_000, "2026-08-01", form="10-Q", fp="Q3", start="2025-09-28"),
+    ]
+    facts = {"facts": {"us-gaap": {"NetCashProvidedByUsedInOperatingActivities": {"units": {"USD": ytd}}}}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+
+    out = sec_edgar.get_cashflow("AAPL", "quarterly", "2026-09-28")
+
+    assert _columns(out) == ["2025-12-27", "2026-03-28 (6 months)", "2026-06-27 (9 months)"]
+    assert [r for r in out.splitlines() if r.startswith("Operating Cash Flow")] == ["Operating Cash Flow,30000,53000,81000"]
+
+
+@pytest.mark.unit
+def test_a_row_filed_only_year_to_date_keeps_its_figure_beside_a_row_filed_by_quarter(monkeypatch):
+    facts = {"facts": {"us-gaap": {
+        "NetCashProvidedByUsedInOperatingActivities": {"units": {"USD": [
+            _fact("2026-06-30", 120_000_000, "2026-08-01", form="10-Q", fp="Q2", start="2026-01-01")]}},
+        "PaymentsToAcquirePropertyPlantAndEquipment": {"units": {"USD": [
+            _fact("2026-06-30", 10_000_000, "2026-08-01", form="10-Q", fp="Q2", start="2026-04-01")]}},
+    }}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+
+    out = sec_edgar.get_cashflow("AAPL", "quarterly", "2026-09-28")
+
+    assert _columns(out) == ["2026-06-30", "2026-06-30 (6 months)"]
+    rows = {r.split(",")[0]: r.split(",")[1:] for r in out.splitlines()[3:]}
+    assert rows["Operating Cash Flow"] == ["", "120"]
+    assert rows["Capital Expenditure"] == ["10", ""]
