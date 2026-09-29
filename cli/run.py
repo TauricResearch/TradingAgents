@@ -126,6 +126,11 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     )
 
     message_buffer.init_for_analysis(selected_analyst_keys)
+    message_buffer.run_context = {
+        "ticker": selections["ticker"],
+        "analysis_date": selections["analysis_date"],
+        "provider": config.get("llm_provider", selections.get("llm_provider")),
+    }
 
     # Track start time for elapsed display
     start_time = time.time()

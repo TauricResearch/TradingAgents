@@ -10,11 +10,15 @@ import json
 import unittest
 
 import pytest
+from rich.console import Console
 
 from cli.display import (
     AnalystWallTimeTracker,
+    create_layout,
     extract_content_string,
+    message_buffer,
     sync_analyst_tracker_from_chunk,
+    update_display,
 )
 from tradingagents.graph.analyst_execution import build_analyst_execution_plan
 
@@ -103,6 +107,28 @@ def test_the_live_display_does_not_scroll_the_terminal():
     import cli.main as m
 
     assert "screen=True" in inspect.getsource(m.run_analysis)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("width", [80, 120])
+def test_live_display_renders_as_a_compact_dashboard(width):
+    message_buffer.init_for_analysis(
+        ["market"],
+        {"ticker": "AAPL", "analysis_date": "2026-09-26", "provider": "ollama"},
+    )
+    message_buffer.update_agent_status("Market Analyst", "in_progress")
+    message_buffer.add_message("System", "Starting AAPL analysis")
+    message_buffer.update_report_section("market_report", "Market conditions are stable.")
+
+    layout = create_layout()
+    update_display(layout)
+    console = Console(width=width, record=True, color_system=None)
+    console.print(layout)
+    rendered = console.export_text()
+
+    for label in ("TAURIC", "AAPL", "OLLAMA", "WORKFLOW", "ACTIVE", "ACTIVITY",
+                  "LATEST REPORT", "AGENTS"):
+        assert label in rendered
 
 
 class AnalystWallTimeTrackerTests(unittest.TestCase):
