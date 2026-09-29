@@ -77,3 +77,25 @@ only. Use `publish_site.sh` for releases: it restores historical content from
 All report Markdown under `docs/` is currently gitignored. Incremental releases
 preserve published HTML, **not** original Markdown, stage outputs, or raw market
 data. Back up those source files separately if you need to rerun analyses.
+
+## Duplicate report protection
+
+All four generation launchers (`run_missing_today_claude.sh`,
+`run_missing_today_gemini.sh`, `run_missing_today_gpt.sh`, and `run_all_today.sh`)
+skip existing `docs/<TICKER>/<YYYYMMDD>_<DEEP_MODEL_SLUG>_<RUN_DATE>_<RUN_TIME>/`
+report folders, using the writer's `YYYYMMDD_HHMMSS` timestamp suffix.
+The deep model uses the report writer's normalization (`/`, `:`, and `.` become
+`-`). Ticker arguments are uppercased and deduplicated. Different dates, models,
+or tickers remain eligible; quick model and proxy/direct mode do not change
+this identity.
+
+A shared Python 3 helper holds an OS lock for each report identity while its
+worker runs, then waiting launchers recheck `docs/` before generating. A failed
+worker that saved no report can be retried. Duplicate skips do not truncate the
+original worker log. Lock files live in `.tradingagents/report-locks/`; they
+remain on disk but the OS releases their locks when processes exit. Do not
+remove lock files while workers are running. These locks coordinate the shell
+launchers on one host; standalone CLI invocations do not participate.
+
+`run_all_today.sh` now honors `TRADINGAGENTS_DEEP_MODEL` and
+`TRADINGAGENTS_QUICK_MODEL` so its completion check matches the models it runs.

@@ -32,6 +32,7 @@ def test_edit_during_worker_preserves_completion(tmp_path, name, worker_fails):
     script = root / "scripts" / name
     shutil.copy2(ROOT / "scripts" / name, script)
     shutil.copy2(ROOT / "scripts/default_tickers.sh", root / "scripts/default_tickers.sh")
+    shutil.copy2(ROOT / "scripts/report_guard.py", root / "scripts/report_guard.py")
     original = script.read_text()
 
     worker = root / "worker.py"
@@ -50,7 +51,7 @@ if sys.argv[1].endswith("build_publish_site.py"):
     raise SystemExit(0)
 value = lambda flag: sys.argv[sys.argv.index(flag) + 1]
 slug = value("--deep-model").translate(str.maketrans({"/": "-", ":": "-", ".": "-"}))
-report = Path(os.environ["TRADINGAGENTS_REPORTS_DIR"]) / value("--ticker") / (value("--date").replace("-", "") + "_" + slug + "_fixture")
+report = Path(os.environ["TRADINGAGENTS_REPORTS_DIR"]) / value("--ticker") / (value("--date").replace("-", "") + "_" + slug + "_20000102_030405")
 report.mkdir(parents=True)
 ''')
     wrapper = f'#!/bin/bash\nexec {shlex.quote(sys.executable)} {shlex.quote(str(worker))} "$@"\n'

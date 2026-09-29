@@ -81,13 +81,14 @@ def test_no_arguments_uses_all_shared_tickers(tmp_path, provider):
     (root / "scripts").mkdir(parents=True)
     script = root / f"scripts/run_missing_today_{provider}.sh"
     shutil.copy2(ROOT / script.relative_to(root), script)
+    shutil.copy2(ROOT / "scripts/report_guard.py", root / "scripts/report_guard.py")
     # A changed shared list must apply to every launcher without local copies.
     tickers = ["SPY", "YINN", "CUSTOM"]
     (root / "scripts/default_tickers.sh").write_text(
         "DEFAULT_TICKERS=(" + " ".join(tickers) + ")\n"
     )
     for ticker in tickers:
-        (root / "docs" / ticker / "20000101_fixture-model_complete").mkdir(parents=True)
+        (root / "docs" / ticker / "20000101_fixture-model_20000102_030405").mkdir(parents=True)
     result = subprocess.run(
         ["bash", str(script)], cwd=tmp_path,
         env={

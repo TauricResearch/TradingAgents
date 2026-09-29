@@ -102,18 +102,6 @@ export TRADINGAGENTS_RESULTS_DIR="${TRADINGAGENTS_RESULTS_DIR:-$ROOT/.tradingage
 export TRADINGAGENTS_CACHE_DIR="${TRADINGAGENTS_CACHE_DIR:-$ROOT/.tradingagents/cache}"
 mkdir -p "$ROOT/.tradingagents" "$UV_CACHE_DIR" "$TRADINGAGENTS_RESULTS_DIR" "$TRADINGAGENTS_CACHE_DIR" || exit 1
 
-# Refuse overlapping invocations: each invocation decides what is missing only
-# once, so concurrent runs can otherwise generate duplicate timestamped reports.
-LOCK_DIR="$ROOT/.tradingagents/run_missing_today_gpt.lock"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "Another run_missing_today_gpt.sh invocation is already running: $LOCK_DIR" >&2
-  exit 1
-fi
-cleanup_lock() { rmdir "$LOCK_DIR" 2>/dev/null || true; }
-trap cleanup_lock EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs/gpt/$DATE_SLUG/$MODEL_SLUG}"
 mkdir -p "$LOGDIR" || exit 1
 
@@ -129,11 +117,8 @@ fi
 
 # --- a ticker is "missing" if it has no docs/<T>/<DATESLUG>_<MODEL_SLUG>_*/ folder ------
 missing_tickers() {
-  for t in "${ALL_TICKERS[@]}"; do
-    if [ -z "$(find "docs/$t" -maxdepth 1 -type d -name "$REPORT_GLOB" 2>/dev/null | head -1)" ]; then
-      printf '%s\n' "$t"
-    fi
-  done
+  python3 "$ROOT/scripts/report_guard.py" missing --reports-dir "$ROOT/docs" \
+    --date "$DATE" --model "$DEEP_MODEL" -- "${ALL_TICKERS[@]}"
 }
 
 # --- run one heavy-run pass over a list of tickers ------------------------
@@ -142,13 +127,14 @@ run_pass() {
   local conc="$1"; shift
   printf '%s\n' "$@" | xargs -P"$conc" -I{} bash -c '
       t="$1"; DATE="$2"; LOGDIR="$3"; PROVIDER="$4"; BACKEND_URL="$5"; DEEP_MODEL="$6"; QUICK_MODEL="$7"; REASONING_EFFORT="$8"; ANALYSTS="$9"; DEPTH="${10}"
-      echo "[START $t] $(date +%T)"
       TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT="${TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT:-0}" \
       TRADINGAGENTS_LLM_PROVIDER="$PROVIDER" \
       TRADINGAGENTS_LLM_BACKEND_URL="$BACKEND_URL" \
       TRADINGAGENTS_DEEP_THINK_LLM="$DEEP_MODEL" \
       TRADINGAGENTS_QUICK_THINK_LLM="$QUICK_MODEL" \
-      uv run python -m cli.main run \
+      python3 "$PWD/scripts/report_guard.py" run --reports-dir "$TRADINGAGENTS_REPORTS_DIR" \
+        --date "$DATE" --model "$DEEP_MODEL" --ticker "$t" --log "${LOGDIR}/${t}.log" -- \
+        uv run python -m cli.main run \
         --ticker "$t" --date "$DATE" \
         --analysts "$ANALYSTS" \
         --depth "$DEPTH" --language English \
@@ -156,7 +142,6 @@ run_pass() {
         --deep-model "$DEEP_MODEL" --quick-model "$QUICK_MODEL" \
         --openai-reasoning-effort "$REASONING_EFFORT" \
         --checkpoint --clear-checkpoints \
-        > "${LOGDIR}/${t}.log" 2>&1 \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"
     ' _ {} "$DATE" "$LOGDIR" "$PROVIDER" "$BACKEND_URL" "$DEEP_MODEL" "$QUICK_MODEL" "$REASONING_EFFORT" "$ANALYSTS" "$DEPTH"
 }
@@ -170,8 +155,19 @@ read_into() {  # read_into ARRAYNAME < input
   done
 }
 
+# Propagate discovery errors rather than treating a failed check as no work.
+collect_missing() {
+  local missing
+  missing="$(missing_tickers)" || return 1
+  read_into "$1" <<< "$missing"
+  return 0
+}
+
+# Normalize and deduplicate arguments before scheduling parallel workers.
+read_into ALL_TICKERS < <(printf '%s\n' "${ALL_TICKERS[@]}" | awk 'NF {t=toupper($0); if (!seen[t]++) print t}')
+
 # --- pass 1: everything missing, at the safe concurrency ------------------
-read_into TODO < <(missing_tickers)
+collect_missing TODO || exit 1
 if [ "${#TODO[@]}" -eq 0 ]; then
   echo "Nothing to run — all ${#ALL_TICKERS[@]} tickers already have a ${REPORT_GLOB} report."
   exit 0
@@ -183,7 +179,7 @@ echo "  ${TODO[*]}"
 run_pass "$CONCURRENCY" "${TODO[@]}"
 
 # --- final report ---------------------------------------------------------
-read_into FAILED < <(missing_tickers)
+collect_missing FAILED || exit 1
 DONE=$(( ${#ALL_TICKERS[@]} - ${#FAILED[@]} ))
 echo "=== DONE: ${DONE}/${#ALL_TICKERS[@]} have a ${REPORT_GLOB} report ==="
 if [ "${#FAILED[@]}" -gt 0 ]; then

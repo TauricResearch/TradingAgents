@@ -38,6 +38,7 @@ def test_launcher(tmp_path, mode, brew_status, check_only, probe_status):
     script = root / "scripts/run_missing_today_gemini.sh"
     shutil.copy2(ROOT / "scripts/run_missing_today_gemini.sh", script)
     shutil.copy2(ROOT / "scripts/default_tickers.sh", root / "scripts/default_tickers.sh")
+    shutil.copy2(ROOT / "scripts/report_guard.py", root / "scripts/report_guard.py")
     programs = {
         "brew": 'echo "brew $*" >> "$CAPTURE"\nexit "$BREW_STATUS"',
         "python": 'echo python >> "$CAPTURE"\nif [ "$2" = --key ]; then echo fixture-key; elif [ "$1" = -m ]; then [ "$2" = scripts.gemini_model_probe ] && exit "$PROBE_STATUS"; else [ "$3" = gemini ]; fi',
@@ -54,7 +55,7 @@ else
   [ -z "${GEMINI_API_KEY:-}" ] || exit 10
   [ "$TRADINGAGENTS_LLM_BACKEND_URL" = https://generativelanguage.googleapis.com ] || exit 8
 fi
-mkdir -p docs/NVDA/20000101_gemini-test_fixture
+mkdir -p docs/NVDA/20000101_gemini-test_20000102_030405
 ''',
     }
     for name, body in programs.items():
