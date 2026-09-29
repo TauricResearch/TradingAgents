@@ -18,7 +18,7 @@ so that:
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -63,7 +63,7 @@ def _coerce_optional_float(value):
 # ---------------------------------------------------------------------------
 
 
-class PortfolioRating(str, Enum):
+class PortfolioRating(StrEnum):
     """5-tier rating used by the Research Manager and Portfolio Manager."""
 
     BUY = "Buy"
@@ -73,7 +73,7 @@ class PortfolioRating(str, Enum):
     SELL = "Sell"
 
 
-class TraderAction(str, Enum):
+class TraderAction(StrEnum):
     """3-tier transaction direction used by the Trader.
 
     The Trader's job is to translate the Research Manager's investment plan
@@ -293,7 +293,7 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
 # ---------------------------------------------------------------------------
 
 
-class SentimentBand(str, Enum):
+class SentimentBand(StrEnum):
     """Discrete sentiment direction produced by the Sentiment Analyst.
 
     Six tiers keep the signal granular enough to be actionable while remaining

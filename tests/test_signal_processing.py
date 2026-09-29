@@ -75,20 +75,3 @@ class TestExtractRating:
         # The memory log tags an unreadable decision REVIEW, never a tradeable rating.
         assert parse_rating("No rating here.") == RATING_REVIEW
         assert parse_rating("No rating here.", default="Underweight") == "Underweight"
-
-
-@pytest.mark.unit
-class TestGraphSignalContract:
-    """The graph-facing signal (TradingAgentsGraph.process_signal) honors the
-    documented "5-tier or REVIEW" contract, not just the parser in isolation."""
-
-    def _bare_graph(self):
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
-        g = object.__new__(TradingAgentsGraph)
-        return g
-
-    def test_graph_surfaces_review(self):
-        assert self._bare_graph().process_signal("no rating in here") == RATING_REVIEW
-
-    def test_graph_returns_rating(self):
-        assert self._bare_graph().process_signal("**Rating**: Sell") == "Sell"

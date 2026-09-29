@@ -72,13 +72,14 @@ class VendorRoutingTests(unittest.TestCase):
         self.assertEqual(result, "AV_DATA")
 
     def test_primary_error_is_logged_not_masked(self):
-        # #989: primary errors + fallback no-data -> NO_DATA, but the failure
-        # must be visible in logs (broken primary not hidden).
+        # #989: a broken primary is not hidden behind a fallback's verdict. It
+        # never said whether it has the symbol, so the answer is unavailable,
+        # and the failure is in the logs.
         set_config({"data_vendors": {"core_stock_apis": "yfinance,alpha_vantage"}})
         with self._route({"yfinance": _raises(ValueError("boom")), "alpha_vantage": _no_data}), \
                 self.assertLogs("tradingagents.dataflows.router", level="WARNING") as cm:
             result = router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
-        self.assertIn("NO_DATA_AVAILABLE", result)
+        self.assertTrue(result.startswith("DATA_UNAVAILABLE"), result)
         joined = "\n".join(cm.output)
         self.assertIn("boom", joined)            # the real error surfaced in logs
         self.assertIn("yfinance", joined)

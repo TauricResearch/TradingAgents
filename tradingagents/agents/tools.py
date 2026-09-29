@@ -10,26 +10,26 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.date_window import as_of, as_of_window
-from tradingagents.dataflows.router import route_to_vendor
+from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
+from tradingagents.dataflows.router import no_data_available, route_to_vendor, vendor_unavailable
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 
 @tool
 def get_stock_data(
-    symbol: Annotated[str, "ticker symbol of the company"],
+    symbol: Annotated[str, InjectedState("company_of_interest")],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve stock price data (OHLCV) for a given ticker symbol.
+    Retrieve stock price data (OHLCV) for the instrument under analysis.
     Uses the configured core_stock_apis vendor.
     Args:
-        symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
         start_date (str): Start date in yyyy-mm-dd format
         end_date (str): End date in yyyy-mm-dd format
     Returns:
-        str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
+        str: A formatted dataframe containing the price data for the instrument over the date range.
     """
     start_date, end_date = as_of_window(start_date, end_date, trade_date)
     return route_to_vendor("get_stock_data", symbol, start_date, end_date)
@@ -37,22 +37,21 @@ def get_stock_data(
 
 @tool
 def get_indicators(
-    symbol: Annotated[str, "ticker symbol of the company"],
+    symbol: Annotated[str, InjectedState("company_of_interest")],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
     curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
     look_back_days: Annotated[int, "how many days to look back"] = 30,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve a single technical indicator for a given ticker symbol.
+    Retrieve a single technical indicator for the instrument under analysis.
     Uses the configured technical_indicators vendor.
     Args:
-        symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
         indicator (str): A single technical indicator name, e.g. 'rsi', 'macd'. Call this tool once per indicator.
         curr_date (str): The current trading date you are trading on, YYYY-mm-dd
         look_back_days (int): How many days to look back, default is 30
     Returns:
-        str: A formatted dataframe containing the technical indicators for the specified ticker symbol and indicator.
+        str: A formatted dataframe containing the technical indicators for the instrument and indicator.
     """
     # LLMs sometimes pass multiple indicators as a comma-separated string;
     # split and process each individually.
@@ -69,7 +68,7 @@ def get_indicators(
 
 @tool
 def get_verified_market_snapshot(
-    symbol: Annotated[str, "ticker symbol of the company"],
+    symbol: Annotated[str, InjectedState("company_of_interest")],
     curr_date: Annotated[str, "the current trading date, YYYY-mm-dd"],
     look_back_days: Annotated[
         int, "number of recent trading rows to include for sanity-checking"
@@ -83,20 +82,25 @@ def get_verified_market_snapshot(
     price levels, Bollinger bands, RSI, MACD, moving averages, support /
     resistance, or historical comparisons, and treat it as the source of truth.
     """
-    return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
+    # An exception out of a tool would end the run.
+    try:
+        return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
+    except VendorUnavailableError as exc:
+        return vendor_unavailable("get_verified_market_snapshot", exc)
+    except NoMarketDataError as exc:
+        return no_data_available(exc)
 
 
 @tool
 def get_fundamentals(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, InjectedState("company_of_interest")],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve comprehensive fundamental data for a given ticker symbol.
+    Retrieve comprehensive fundamental data for the instrument under analysis.
     Uses the configured fundamental_data vendor.
     Args:
-        ticker (str): Ticker symbol of the company
         curr_date (str): Current date you are trading at, yyyy-mm-dd
     Returns:
         str: A formatted report containing comprehensive fundamental data
@@ -106,16 +110,15 @@ def get_fundamentals(
 
 @tool
 def get_balance_sheet(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, InjectedState("company_of_interest")],
     freq: Annotated[str, "reporting frequency: annual/quarterly"] = "quarterly",
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve balance sheet data for a given ticker symbol.
+    Retrieve balance sheet data for the instrument under analysis.
     Uses the configured fundamental_data vendor.
     Args:
-        ticker (str): Ticker symbol of the company
         freq (str): Reporting frequency: annual/quarterly (default quarterly)
         curr_date (str): Current date you are trading at, yyyy-mm-dd
     Returns:
@@ -126,16 +129,15 @@ def get_balance_sheet(
 
 @tool
 def get_cashflow(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, InjectedState("company_of_interest")],
     freq: Annotated[str, "reporting frequency: annual/quarterly"] = "quarterly",
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve cash flow statement data for a given ticker symbol.
+    Retrieve cash flow statement data for the instrument under analysis.
     Uses the configured fundamental_data vendor.
     Args:
-        ticker (str): Ticker symbol of the company
         freq (str): Reporting frequency: annual/quarterly (default quarterly)
         curr_date (str): Current date you are trading at, yyyy-mm-dd
     Returns:
@@ -146,16 +148,15 @@ def get_cashflow(
 
 @tool
 def get_income_statement(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, InjectedState("company_of_interest")],
     freq: Annotated[str, "reporting frequency: annual/quarterly"] = "quarterly",
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve income statement data for a given ticker symbol.
+    Retrieve income statement data for the instrument under analysis.
     Uses the configured fundamental_data vendor.
     Args:
-        ticker (str): Ticker symbol of the company
         freq (str): Reporting frequency: annual/quarterly (default quarterly)
         curr_date (str): Current date you are trading at, yyyy-mm-dd
     Returns:
@@ -166,16 +167,15 @@ def get_income_statement(
 
 @tool
 def get_news(
-    ticker: Annotated[str, "Ticker symbol"],
+    ticker: Annotated[str, InjectedState("company_of_interest")],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve news data for a given ticker symbol.
+    Retrieve news data for the instrument under analysis.
     Uses the configured news_data vendor.
     Args:
-        ticker (str): Ticker symbol
         start_date (str): Start date in yyyy-mm-dd format
         end_date (str): End date in yyyy-mm-dd format
     Returns:
@@ -211,14 +211,12 @@ def get_global_news(
 
 @tool
 def get_insider_transactions(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, InjectedState("company_of_interest")],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
     Retrieve insider transaction information about a company.
     Uses the configured news_data vendor.
-    Args:
-        ticker (str): Ticker symbol of the company
     Returns:
         str: A report of insider transaction data
     """
