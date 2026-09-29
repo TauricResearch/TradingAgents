@@ -1,7 +1,22 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: analyst_execution.py
+ * @description: Analyst node specs and execution plan for the graph pipeline
+ * @author: Maíra Pontin
+ * @created: 2026-09-28T10:00:00
+ * @updated: 2026-09-28T11:29:39
+ * @version: 1.1.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
 from collections.abc import Iterable
 from dataclasses import dataclass
 
 from tradingagents.agents.analysts import fundamentals_analyst, market_analyst, news_analyst
+from tradingagents.agents.analysts import credit_fundamentals_analyst, credit_news_analyst
 
 
 @dataclass(frozen=True)
@@ -52,6 +67,20 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         clear_node="Msg Clear Fundamentals",
         report_key="fundamentals_report",
         tools=fundamentals_analyst.TOOLS,
+    ),
+    "credit_fundamentals": AnalystNodeSpec(
+        key="credit_fundamentals",
+        agent_node="Credit Fundamentals Analyst",
+        clear_node="Msg Clear Credit Fundamentals",
+        report_key="fundamentals_report",
+        tools=credit_fundamentals_analyst.TOOLS,
+    ),
+    "credit_news": AnalystNodeSpec(
+        key="credit_news",
+        agent_node="Credit News Analyst",
+        clear_node="Msg Clear Credit News",
+        report_key="news_report",
+        tools=credit_news_analyst.TOOLS,
     ),
 }
 

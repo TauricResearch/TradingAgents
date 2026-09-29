@@ -1,3 +1,18 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: interface.py
+ * @description: Central data vendor interface and routing
+ * @author: Maíra Pontin
+ * @created: 2026-09-28T10:33:00
+ * @updated: 2026-09-28T11:29:39
+ * @version: 1.1.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
+
 import logging
 
 from tradingagents.dataflows.config import get_config
@@ -83,6 +98,15 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_prediction_markets",
         ]
+    },
+    "credit_data": {
+        "description": "Brazilian debenture credit data (yield curve, spreads, quotes)",
+        "tools": [
+            "get_yield_curve",
+            "get_credit_spreads",
+            "get_debenture_quote",
+            "get_ima_b_index",
+        ]
     }
 }
 
@@ -92,6 +116,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "anbima",  # Brazilian debenture data
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -99,7 +124,7 @@ VENDOR_LIST = [
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "credit_data"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {

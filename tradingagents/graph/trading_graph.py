@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +25,11 @@ from .reflection import Reflector
 from .setup import GraphSetup
 
 logger = logging.getLogger(__name__)
+
+# Debenture CUSIP pattern: 4 letters + 2 digits (e.g., PETR41, VALE32).
+# Mirrors cli/utils._DEBENTURE_CUSIP_PATTERN; kept local to avoid a cross-package
+# import from the graph layer into the CLI.
+_DEBENTURE_CUSIP_RE = re.compile(r"^[A-Z]{4}\d{2}$")
 
 
 def _validate_trade_date(trade_date) -> str:

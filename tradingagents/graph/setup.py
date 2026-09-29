@@ -18,6 +18,12 @@ from tradingagents.agents import (
     create_sentiment_analyst,
     create_trader,
 )
+from tradingagents.agents.analysts.credit_fundamentals_analyst import (
+    create_credit_fundamentals_analyst,
+)
+from tradingagents.agents.analysts.credit_news_analyst import (
+    create_credit_news_analyst,
+)
 from tradingagents.agents.state import AgentState
 
 from .analyst_execution import build_analyst_execution_plan
@@ -80,6 +86,8 @@ class GraphSetup:
             "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
             "news": lambda: create_news_analyst(self.quick_thinking_llm),
             "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
+            "credit_fundamentals": lambda: create_credit_fundamentals_analyst(self.quick_thinking_llm),
+            "credit_news": lambda: create_credit_news_analyst(self.quick_thinking_llm),
         }
 
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)

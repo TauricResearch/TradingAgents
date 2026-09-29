@@ -1,3 +1,18 @@
+"""
+/**
+ * @module: TradingAgents
+ * @file: default_config.py
+ * @description: Default configuration for TradingAgents
+ * @author: Maíra Pontin
+ * @created: 2026-09-28T10:52:01
+ * @updated: 2026-09-28T11:05:32
+ * @version: 1.0.0
+ * @reviewer:
+ * @ai_reviewer:
+ * @reviewer_date:
+ */
+"""
+
 import os
 
 _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
@@ -156,6 +171,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Trading days after the analysis date over which a decision's outcome is
     # measured, for reflection and for the backtest figures.
     "holding_period_days": 5,
+    "credit_holding_period_days": 30,
     "benchmark_ticker": None,
     "benchmark_map": {
         ".NS":  "^NSEI",       # NSE India (Nifty 50)
