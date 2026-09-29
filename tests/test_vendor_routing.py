@@ -147,12 +147,12 @@ class VendorRoutingTests(unittest.TestCase):
         self.assertLess(result.index("`two`"), result.index("`three`"))
 
     def test_global_news_aggregates_partial_success_and_reports_failure(self):
-        from tradingagents.dataflows.errors import VendorRateLimitError
+        from tradingagents.dataflows.errors import VendorUnavailableError
 
         set_config({"data_vendors": {"news_data": "down,working"}})
 
         def down(*args, **kwargs):
-            raise VendorRateLimitError("quota")
+            raise VendorUnavailableError("quota")
 
         with self._route_method(
             "get_global_news", {"down": down, "working": lambda *a, **k: "GLOBAL NEWS"}

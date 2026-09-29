@@ -15,7 +15,7 @@ from tradingagents.dataflows.date_window import coverage_gap, in_window
 from tradingagents.dataflows.errors import (
     NoMarketDataError,
     VendorNotConfiguredError,
-    VendorRateLimitError,
+    VendorUnavailableError,
 )
 from tradingagents.dataflows.net import get_scrubbed
 
@@ -55,7 +55,7 @@ def _request(params: dict) -> dict:
     try:
         payload = response.json()
     except ValueError as exc:
-        raise VendorRateLimitError("NewsData.io returned an unreadable response") from exc
+        raise VendorUnavailableError("NewsData.io returned an unreadable response") from exc
 
     if response.status_code < 400 and payload.get("status") != "error":
         return payload
@@ -67,10 +67,10 @@ def _request(params: dict) -> dict:
     if response.status_code == 429 or any(
         marker in low for marker in ("rate limit", "credit", "quota", "too many")
     ):
-        raise VendorRateLimitError(f"NewsData.io limit reached: {message}")
+        raise VendorUnavailableError(f"NewsData.io limit reached: {message}")
     # Entitlement/date failures should fall through to the next configured
     # source instead of aborting the complete analysis.
-    raise VendorRateLimitError(f"NewsData.io request unavailable: {message}")
+    raise VendorUnavailableError(f"NewsData.io request unavailable: {message}")
 
 
 def _published_at(article: dict) -> datetime | None:
@@ -100,7 +100,7 @@ def _render(
 ) -> str:
     raw_results = payload.get("results")
     if not isinstance(raw_results, list):
-        raise VendorRateLimitError("NewsData.io returned an unexpected response shape")
+        raise VendorUnavailableError("NewsData.io returned an unexpected response shape")
 
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
