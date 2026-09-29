@@ -21,6 +21,7 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.prompts.loader import render_agent_prompt
 
 
 def create_portfolio_manager(llm):
@@ -42,41 +43,17 @@ def create_portfolio_manager(llm):
             else ""
         )
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
-
-{instrument_context}
-
-{portfolio_context}
-
----
-
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
-
-**Context:**
-- Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
-{lessons_line}
-**Risk Analysts Debate History:**
-{history}
-
----
-
-Ground every conclusion in specific evidence from the analysts. The risk debate always contains conflicting stances; deciding which is stronger is the job, so conflict alone is not a reason to Hold. Commit to the stronger case, sized by how decisively it wins. Choose Hold only when the evidence is still balanced after that weighing, or too thin to support a call; do not force a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
-
-## Output
-
-Write these sections, in this order, starting with the rating on its own line:
-
-- **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
-- **Executive Summary**: the call and how to act on it
-- **Investment Thesis**: the evidence that decided it, and what would change it
-
-{NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
+        # The prompt states: conflict alone is not a reason to Hold.
+        prompt = render_agent_prompt(
+            "managers/portfolio_manager.txt",
+            instrument_context=instrument_context,
+            portfolio_context=portfolio_context,
+            research_plan=research_plan,
+            trader_plan=trader_plan,
+            lessons_line=lessons_line,
+            history=history,
+            NO_EXTERNAL_TOOLS=NO_EXTERNAL_TOOLS,
+        ) + get_language_instruction()
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,

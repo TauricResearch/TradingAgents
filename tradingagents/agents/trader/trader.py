@@ -17,6 +17,7 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.prompts.loader import load_prompt, render_agent_prompt
 
 
 def create_trader(llm):
@@ -48,38 +49,20 @@ def create_trader(llm):
         messages = [
             {
                 "role": "system",
-                "content": (
-                    "You are a trading agent analyzing market data to make investment decisions. "
-                    "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    + grounding
-                    # Entry/stop are numeric price fields. Asking for concrete
-                    # levels invites a percentage ("15%"), which is not a price
-                    # and fails the structured parse (#1288).
-                    + "State entry price and stop-loss as absolute price levels in the "
-                    "instrument's quote currency (for example 189.5), never a percentage "
-                    "or a range; convert a percentage distance to the price level it "
-                    "implies, or omit the field if you cannot state a number. "
-                    + NO_EXTERNAL_TOOLS
-                    + get_language_instruction()
-                ),
+                "content": render_agent_prompt(
+                    "trader/system.txt",
+                    grounding=grounding,
+                    NO_EXTERNAL_TOOLS=NO_EXTERNAL_TOOLS,
+                ) + get_language_instruction(),
             },
             {
                 "role": "user",
-                "content": (
-                    f"Here is the research team's investment plan for {company_name}. "
-                    f"{instrument_context}\n\n"
-                    f"{report_section}"
-                    f"{portfolio_context}\n\n"
-                    f"Proposed Investment Plan:\n{investment_plan}\n\n"
-                    "Make an informed, strategic trading decision.\n\n"
-                    "## Output\n\n"
-                    "Write these sections, in this order, starting with the action "
-                    "on its own line:\n\n"
-                    "- **Action**: exactly one of Buy / Hold / Sell. A research "
-                    "recommendation of Overweight is a Buy and Underweight is a Sell, "
-                    "sized by how strong the case is; conflict alone is not a Hold.\n"
-                    "- **Reasoning**: why, against the plan and the price structure\n"
-                    "- **Entry Price**, **Stop Loss**, **Position Sizing**: when you can state them"
+                "content": load_prompt("trader/user.txt").format(
+                    company_name=company_name,
+                    instrument_context=instrument_context,
+                    report_section=report_section,
+                    portfolio_context=portfolio_context,
+                    investment_plan=investment_plan,
                 ),
             },
         ]

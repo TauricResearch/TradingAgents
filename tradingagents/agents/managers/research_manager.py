@@ -9,6 +9,7 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.prompts.loader import render_agent_prompt
 
 
 def create_research_manager(llm):
@@ -20,35 +21,13 @@ def create_research_manager(llm):
 
         investment_debate_state = state["investment_debate_state"]
 
-        prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
-
-{instrument_context}
-
----
-
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
-- **Overweight**: Constructive view; recommend gradually increasing exposure
-- **Hold**: Balanced view; recommend maintaining the current position
-- **Underweight**: Cautious view; recommend trimming exposure
-- **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
-
-The debate always contains conflicting arguments; deciding which side is stronger is the job, so conflict alone is not a reason to Hold. Commit to the side with the stronger case, sized by how decisively it wins. Choose Hold only when the evidence is still balanced after that weighing, or too thin to support a call; do not manufacture a direction to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
-
----
-
-**Debate History:**
-{history}
-
-## Output
-
-Write these sections, in this order, starting with the recommendation on its own line:
-
-- **Recommendation**: exactly one of Buy / Overweight / Hold / Underweight / Sell
-- **Rationale**: which arguments decided it
-- **Strategic Actions**: concrete steps for the trader, sized against a standard allocation
-
-{NO_EXTERNAL_TOOLS}""" + get_language_instruction()
+        # The prompt states: conflict alone is not a reason to Hold.
+        prompt = render_agent_prompt(
+            "managers/research_manager.txt",
+            instrument_context=instrument_context,
+            history=history,
+            NO_EXTERNAL_TOOLS=NO_EXTERNAL_TOOLS,
+        ) + get_language_instruction()
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,

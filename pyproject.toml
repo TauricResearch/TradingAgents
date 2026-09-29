@@ -47,6 +47,14 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+tradingagents = [
+    "prompts/*.txt",
+    "prompts/analysts/*.txt",
+    "prompts/managers/*.txt",
+    "prompts/researchers/*.txt",
+    "prompts/risk_mgmt/*.txt",
+    "prompts/trader/*.txt",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

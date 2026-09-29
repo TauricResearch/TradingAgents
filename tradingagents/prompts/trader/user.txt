@@ -1,0 +1,16 @@
+Here is the research team's investment plan for {company_name}. {instrument_context}
+
+{report_section}{portfolio_context}
+
+Proposed Investment Plan:
+{investment_plan}
+
+Make an informed, strategic trading decision.
+
+## Output
+
+Write these sections, in this order, starting with the action on its own line:
+
+- **Action**: exactly one of Buy / Hold / Sell. A research recommendation of Overweight is a Buy and Underweight is a Sell, sized by how strong the case is; conflict alone is not a Hold.
+- **Reasoning**: why, against the plan and the price structure
+- **Entry Price**, **Stop Loss**, **Position Sizing**: when you can state them

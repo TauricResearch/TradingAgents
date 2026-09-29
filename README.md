@@ -229,6 +229,8 @@ An interface will appear showing results as they load, letting you track the age
 
 We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
 
+Agent prompts are stored under `tradingagents/prompts/`. The shared `global_policy.txt` contains minimal instructions applied to all trading agents. `global_policy.example.hardmode.txt` is a stricter reference policy for local experimentation and is not enabled by default.
+
 ### Python Usage
 
 To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
