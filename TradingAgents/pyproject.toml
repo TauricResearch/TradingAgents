@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradingagents"
+dynamic = ["version"]
+description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain-core>=1.6.5",
+    "langchain-anthropic>=1.7.4",
+    "langchain-google-genai>=4.4.0",
+    "langchain-openai>=1.6.6",
+    "langgraph>=1.2.12",
+    "langgraph-checkpoint-sqlite>=3.1.1",
+    "pandas>=3.0.6",
+    "python-dotenv>=1.0.0",
+    "pytz>=2025.2",
+    "questionary>=2.1.0",
+    "requests>=2.32.4",
+    "rich>=14.0.0",
+    "typer>=0.21.0",
+    "stockstats>=0.6.5",
+    "typing-extensions>=4.14.0",
+    "yfinance>=1.7.0",
+    "langchain-experimental>=0.4.2",
+    "rank-bm25>=0.2.2",
+    "setuptools>=84.0.0",
+    "backtrader>=1.9.78.123",
+    "parsel>=1.12.1",
+    "tqdm>=4.70.1",
+    "redis>=8.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.16",
+    "pytest>=8.0",
+    "pytest-subtests>=0.13",
+]
+# Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
+# stays lean: pip install "tradingagents[bedrock]".
+bedrock = [
+    "langchain-aws>=1.7.9",
+]
+
+[project.scripts]
+tradingagents = "cli.main:app"
+
+[tool.setuptools.dynamic]
+version = {attr = "tradingagents.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["tradingagents*", "cli*"]
+
+[tool.setuptools.package-data]
+cli = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers -m \"not integration\""
+markers = [
+    "unit: fast isolated unit tests",
+    "integration: tests requiring external services; run only when asked for, with -m integration",
+    "smoke: quick sanity-check tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["results"]
+
+[tool.ruff.lint]
+# Standard "good defaults" rule set (pyflakes + pycodestyle + isort + bugbear +
+# pyupgrade + comprehensions/simplify). Line length (E501) and layout are owned
+# by the formatter; whole-repo `ruff format` adoption is deferred until the
+# open-PR backlog clears, to avoid mass merge conflicts.
+select = ["E", "W", "F", "I", "B", "UP", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]   # intentional re-exports
+
+[tool.ruff.lint.isort]
+# Keep multiple aliased names from one module in a single combined import block
+# (e.g. the vendor imports in router.py) instead of one statement per name.
+combine-as-imports = true
