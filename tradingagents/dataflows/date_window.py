@@ -12,12 +12,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 
 def to_utc(dt: datetime) -> datetime:
     """Normalize a datetime to UTC-aware; a naive value is assumed to be UTC."""
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
 def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> bool:
@@ -28,7 +28,7 @@ def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> 
     end = to_utc(end_dt)
     if pub_dt is not None:
         return to_utc(start_dt) <= to_utc(pub_dt) < end + timedelta(days=1)
-    return end >= datetime.now(timezone.utc) - timedelta(days=1)
+    return end >= datetime.now(UTC) - timedelta(days=1)
 
 
 def get_current_date() -> str:
@@ -57,7 +57,7 @@ def coverage_gap(
     returned newest-first and unbroken in time; a merged or relevance-ranked
     result passes no dates, leaving only the present as the bound.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     oldest = min((to_utc(d) for d in dates if d is not None), default=now)
     if datetime.strptime(end_date, "%Y-%m-%d").date() > now.date():
         reason = "the window extends past today"

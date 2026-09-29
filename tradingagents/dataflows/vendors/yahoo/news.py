@@ -1,7 +1,7 @@
 """yfinance-based news data fetching functions."""
 
 import contextlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
@@ -47,7 +47,7 @@ def _extract_article_data(article: dict) -> dict:
             # Epoch seconds are UTC; parse them as UTC-aware so filtering does
             # not shift with the host timezone (#1126).
             with contextlib.suppress(ValueError, OSError, TypeError):
-                pub_date = datetime.fromtimestamp(ts, tz=timezone.utc)
+                pub_date = datetime.fromtimestamp(ts, tz=UTC)
         return {
             "title": article.get("title", "No title"),
             "summary": article.get("summary", ""),
