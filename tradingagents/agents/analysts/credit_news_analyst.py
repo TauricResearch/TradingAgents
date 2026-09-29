@@ -15,11 +15,10 @@
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_utils import (
-    get_news,
-    get_instrument_context_from_state,
-    get_language_instruction,
-)
+from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.tools import get_news
+
+TOOLS = (get_news,)
 
 
 def create_credit_news_analyst(llm):
@@ -32,9 +31,7 @@ def create_credit_news_analyst(llm):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
 
-        tools = [
-            get_news,
-        ]
+        tools = list(TOOLS)
 
         system_message = (
             "You are a credit news analyst monitoring Brazilian corporate bond issuers. "

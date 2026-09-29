@@ -2,8 +2,8 @@ import unittest
 
 import pytest
 
-from cli.utils import normalize_ticker_symbol
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from cli.prompts import normalize_ticker_symbol
+from tradingagents.agents.context import build_instrument_context
 
 
 @pytest.mark.unit
@@ -17,12 +17,11 @@ class TickerSymbolHandlingTests(unittest.TestCase):
         self.assertIn("exchange suffix", context)
 
     def test_single_get_ticker_no_shadow(self):
-        # Regression: cli/main.py had a duplicate get_ticker with an empty
-        # questionary prompt (rendered as a bare "?") that shadowed the
-        # descriptive one in cli/utils. Keep a single canonical definition.
-        import cli.main
-        import cli.utils
-        self.assertIs(cli.main.get_ticker, cli.utils.get_ticker)
+        # A second get_ticker with an empty prompt (a bare "?") once shadowed
+        # the descriptive one; the selection flow must use the one in prompts.
+        import cli.prompts
+        import cli.selections
+        self.assertIs(cli.selections.get_ticker, cli.prompts.get_ticker)
 
 
 if __name__ == "__main__":

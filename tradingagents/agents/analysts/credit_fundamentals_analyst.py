@@ -15,15 +15,23 @@
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.tools import (
     get_balance_sheet,
     get_cashflow,
     get_fundamentals,
     get_income_statement,
-    get_instrument_context_from_state,
-    get_language_instruction,
 )
 from tradingagents.dataflows.credit.anbima import (
+    get_yield_curve,
+    get_credit_spreads,
+)
+
+TOOLS = (
+    get_fundamentals,
+    get_balance_sheet,
+    get_cashflow,
+    get_income_statement,
     get_yield_curve,
     get_credit_spreads,
 )
@@ -39,14 +47,7 @@ def create_credit_fundamentals_analyst(llm):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
 
-        tools = [
-            get_fundamentals,
-            get_balance_sheet,
-            get_cashflow,
-            get_income_statement,
-            get_yield_curve,
-            get_credit_spreads,
-        ]
+        tools = list(TOOLS)
 
         system_message = (
             "You are a credit analyst specializing in Brazilian corporate bonds (debêntures). "

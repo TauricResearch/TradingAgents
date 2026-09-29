@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from tradingagents.agents.utils.agent_utils import get_portfolio_context_from_state
+from tradingagents.agents.context import get_portfolio_context_from_state
 from tradingagents.portfolio import PortfolioContext, load_portfolio
 
 HOLDING = {
@@ -76,7 +76,7 @@ def test_load_reads_a_valid_file(tmp_path):
 # --- threading through the graph --------------------------------------------
 
 def _bare_graph(tmp_path):
-    from tradingagents.agents.utils.memory import TradingMemoryLog
+    from tradingagents.decision_log import TradingMemoryLog
     from tradingagents.graph.propagation import Propagator
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -86,7 +86,7 @@ def _bare_graph(tmp_path):
     graph.memory_log = TradingMemoryLog(graph.config)
     graph.propagator = Propagator()
     graph.selected_analysts = ["market"]
-    graph._resolve_pending_entries = lambda t: None
+    graph.settle_pending = lambda t: None
     graph.resolve_instrument_context = lambda t, a="stock", d=None: ""
     graph._memory_as_of = lambda d: None
     return graph

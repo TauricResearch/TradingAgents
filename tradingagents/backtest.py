@@ -21,9 +21,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.agents.utils.rating import RATING_REVIEW
-from tradingagents.dataflows.utils import get_current_date, safe_ticker_component
+from tradingagents.agents.rating import RATING_REVIEW
+from tradingagents.dataflows.date_window import get_current_date
+from tradingagents.dataflows.symbols import safe_ticker_component
+from tradingagents.decision_log import TradingMemoryLog
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 logger = logging.getLogger(__name__)
@@ -174,9 +175,15 @@ def run_backtest(
     return result
 
 
-def summarize(memory_log: TradingMemoryLog) -> BacktestSummary:
-    """Score the settled decisions in a log, by rating."""
-    entries = memory_log.load_entries()
+def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
+    """Score the settled decisions of a backtest, or of a decision log at a path, by rating."""
+    if isinstance(source, BacktestResult):
+        path = source.log_path      # a run whose cells all failed wrote no log: nothing to score
+    elif Path(source).is_file():
+        path = Path(source)
+    else:
+        raise FileNotFoundError(f"no decision log at {source}")
+    entries = TradingMemoryLog({"memory_log_path": str(path)}).load_entries()
     # A decision with no readable rating has no direction, so it can neither
     # count for nor against the system; it is reported as unscored instead.
     resolved = [(e, _alpha(e)) for e in entries

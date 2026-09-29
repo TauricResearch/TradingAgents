@@ -1,19 +1,4 @@
-"""
-/**
- * @module: TradingAgents
- * @file: conditional_logic.py
- * @description: Handles conditional logic for determining graph flow
- * @author: TradingAgents Team
- * @created: 2024-01-01T00:00:00
- * @updated: 2026-09-28T11:29:39
- * @version: 1.1.0
- * @reviewer:
- * @ai_reviewer:
- * @reviewer_date:
- */
-"""
-
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.state import AgentState
 
 
 class ConditionalLogic:
@@ -23,60 +8,6 @@ class ConditionalLogic:
         """Initialize with configuration parameters."""
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
-
-    def should_continue_market(self, state: AgentState):
-        """Determine if market analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_market"
-        return "Msg Clear Market"
-
-    def should_continue_social(self, state: AgentState):
-        """Determine if sentiment-analyst tool round should continue.
-
-        Method name keeps the legacy ``social`` suffix to match the
-        ``AnalystType.SOCIAL = "social"`` wire value (saved-config
-        back-compat); the returned ``clear_node`` label uses the v0.2.5
-        rename so it matches the node registered by the execution plan.
-        """
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_social"
-        return "Msg Clear Sentiment"
-
-    def should_continue_news(self, state: AgentState):
-        """Determine if news analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_news"
-        return "Msg Clear News"
-
-    def should_continue_fundamentals(self, state: AgentState):
-        """Determine if fundamentals analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
-
-    def should_continue_credit_fundamentals(self, state: AgentState):
-        """Determine if credit fundamentals analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_credit_fundamentals"
-        return "Msg Clear Credit Fundamentals"
-
-    def should_continue_credit_news(self, state: AgentState):
-        """Determine if credit news analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_credit_news"
-        return "Msg Clear Credit News"
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""

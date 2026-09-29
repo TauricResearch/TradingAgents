@@ -1,5 +1,3 @@
-# TradingAgents/graph/reflection.py
-
 from typing import Any
 
 
