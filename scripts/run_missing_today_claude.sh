@@ -11,10 +11,15 @@
 # default http://127.0.0.1:8317 server root.
 # TRADINGAGENTS_DEEP_MODEL / TRADINGAGENTS_QUICK_MODEL must be advertised by
 # the proxy. --check-only checks access and model IDs without generating reports.
-# For the public Anthropic API, set TRADINGAGENTS_CLAUDE_MODE=direct and
+# For the public Anthropic API, set TRADINGAGENTS_MODE=direct and
 # ANTHROPIC_API_KEY. The direct API key may also come from the project's .env.
+# TRADINGAGENTS_MODE defaults to proxy; TRADINGAGENTS_CLAUDE_MODE overrides it.
+# TRADINGAGENTS_OPENAI_REASONING_EFFORT also sets Claude effort (default high).
 # TRADINGAGENTS_LLM_RPM controls per-worker request pacing.
 
+# Parse the complete body before running; edits during a batch must not shift
+# the file positions Bash reads after workers finish. Exit inside this block.
+{
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -27,11 +32,11 @@ export TRADINGAGENTS_REPORTS_DIR="$ROOT/docs"
 DATE="${TRADINGAGENTS_DATE:-$(date +%F)}"
 DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder prefix)
 PROVIDER="anthropic"
-MODE="${TRADINGAGENTS_CLAUDE_MODE:-proxy}"
+MODE="${TRADINGAGENTS_CLAUDE_MODE:-${TRADINGAGENTS_MODE:-proxy}}"
 case "$MODE" in
   proxy) BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-http://127.0.0.1:8317}" ;;
   direct) BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-https://api.anthropic.com}" ;;
-  *) echo "TRADINGAGENTS_CLAUDE_MODE must be proxy or direct" >&2; exit 1 ;;
+  *) echo "TRADINGAGENTS_CLAUDE_MODE/TRADINGAGENTS_MODE must be proxy or direct" >&2; exit 1 ;;
 esac
 PYTHON="${TRADINGAGENTS_PYTHON:-$ROOT/.venv/bin/python}"
 if [ ! -x "$PYTHON" ]; then
@@ -61,6 +66,7 @@ proxy_preflight() {
 }
 DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-claude-opus-5-5}"
 QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-claude-sonnet-5}"
+REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-high}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
 DEPTH="${TRADINGAGENTS_DEPTH:-5}"
 model_slug() {
@@ -72,7 +78,7 @@ model_slug() {
 }
 MODEL_SLUG="$(model_slug "$DEEP_MODEL")"
 REPORT_GLOB="${DATE_SLUG}_${MODEL_SLUG}_*"
-CONCURRENCY="${CONCURRENCY:-10}"
+CONCURRENCY="${CONCURRENCY:-5}"
 case "$CONCURRENCY" in
   ''|*[!0-9]*|0) echo "CONCURRENCY must be a positive integer" >&2; exit 1 ;;
 esac
@@ -107,7 +113,7 @@ missing_tickers() {
 run_pass() {
   local conc="$1"; shift
   printf '%s\n' "$@" | xargs -P"$conc" -I{} bash -c '
-      t="$1"; DATE="$2"; LOGDIR="$3"; PROVIDER="$4"; BACKEND_URL="$5"; DEEP_MODEL="$6"; QUICK_MODEL="$7"; ANALYSTS="$8"; DEPTH="$9"
+      t="$1"; DATE="$2"; LOGDIR="$3"; PROVIDER="$4"; BACKEND_URL="$5"; DEEP_MODEL="$6"; QUICK_MODEL="$7"; ANALYSTS="$8"; DEPTH="$9"; REASONING_EFFORT="${10}"
       echo "[START $t] $(date +%T)"
       TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT="${TRADINGAGENTS_SENTIMENT_INCLUDE_REDDIT:-0}" \
       TRADINGAGENTS_ANTHROPIC_CACHE=1 \
@@ -121,11 +127,11 @@ run_pass() {
         --depth "$DEPTH" --language English \
         --provider "$PROVIDER" \
         --deep-model "$DEEP_MODEL" --quick-model "$QUICK_MODEL" \
-        --anthropic-effort low \
+        --anthropic-effort "$REASONING_EFFORT" \
         --checkpoint --clear-checkpoints \
         > "${LOGDIR}/${t}.log" 2>&1 \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"
-    ' _ {} "$DATE" "$LOGDIR" "$PROVIDER" "$BACKEND_URL" "$DEEP_MODEL" "$QUICK_MODEL" "$ANALYSTS" "$DEPTH"
+    ' _ {} "$DATE" "$LOGDIR" "$PROVIDER" "$BACKEND_URL" "$DEEP_MODEL" "$QUICK_MODEL" "$ANALYSTS" "$DEPTH" "$REASONING_EFFORT"
 }
 
 # Portable (bash 3.2 / macOS) array-from-lines; sets the named global array.
@@ -156,3 +162,5 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "STILL FAILING (check ${LOGDIR}/<TICKER>.log): ${FAILED[*]}"
   exit 1
 fi
+exit 0
+}

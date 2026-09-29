@@ -11,6 +11,9 @@
 # publishes the compiled site. Published report HTML is retained even when its
 # source Markdown is missing locally. Releases extend the existing Git history.
 
+# Parse the complete body before running; edits during a build must not shift
+# the file positions Bash reads afterward. Exit inside this block.
+{
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -127,3 +130,5 @@ release_commit="$(git -c user.useConfigOnly=true commit-tree "$site_tree" \
 git push origin "$release_commit:refs/heads/gh-pages"
 
 echo "==> Done. GitHub Pages will serve the updated gh-pages branch shortly."
+exit 0
+}

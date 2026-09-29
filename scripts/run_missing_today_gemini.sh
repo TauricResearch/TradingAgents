@@ -3,16 +3,22 @@
 # Usage:
 #   bash scripts/run_missing_today_gemini.sh --check-only
 #   bash scripts/run_missing_today_gemini.sh NVDA AMD
-#   TRADINGAGENTS_GEMINI_MODE=direct bash scripts/run_missing_today_gemini.sh
+#   TRADINGAGENTS_MODE=direct bash scripts/run_missing_today_gemini.sh
+# --check-only verifies model access with a small Gemini request.
 #
 # Proxy mode starts the Homebrew service and uses CLIPROXY_API_KEY or the
 # client key in CLIPROXY_CONFIG (default /opt/homebrew/etc/cliproxyapi.conf).
 # TRADINGAGENTS_LLM_BACKEND_URL overrides the server root (no /v1 suffix).
 # Direct mode uses GOOGLE_API_KEY from the environment or project .env.
+# TRADINGAGENTS_MODE defaults to proxy; TRADINGAGENTS_GEMINI_MODE overrides it.
+# Direct mode defaults to gemini-3.8-flash; proxy mode uses its -high alias.
 # Model overrides: TRADINGAGENTS_DEEP_MODEL / TRADINGAGENTS_QUICK_MODEL.
-# TRADINGAGENTS_GOOGLE_THINKING_LEVEL defaults to low; CONCURRENCY to 10.
+# TRADINGAGENTS_GOOGLE_THINKING_LEVEL defaults to high; CONCURRENCY to 10.
 # Reports always go to this repository's docs/; TA_LOGDIR overrides logs.
 
+# Parse the complete body before running; edits during a batch must not shift
+# the file positions Bash reads after workers finish. Exit inside this block.
+{
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -24,41 +30,58 @@ export TRADINGAGENTS_REPORTS_DIR="$ROOT/docs"
 DATE="${TRADINGAGENTS_DATE:-$(date +%F)}"
 DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder prefix)
 PROVIDER="google"
-MODE="${TRADINGAGENTS_GEMINI_MODE:-proxy}"
+MODE="${TRADINGAGENTS_GEMINI_MODE:-${TRADINGAGENTS_MODE:-proxy}}"
 case "$MODE" in
-  proxy) BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-http://127.0.0.1:8317}" ;;
-  direct) BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-https://generativelanguage.googleapis.com}" ;;
-  *) echo "TRADINGAGENTS_GEMINI_MODE must be proxy or direct" >&2; exit 1 ;;
+  proxy)
+    BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-http://127.0.0.1:8317}"
+    DEFAULT_MODEL="gemini-3.8-flash-high" ;;
+  direct)
+    BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-https://generativelanguage.googleapis.com}"
+    DEFAULT_MODEL="gemini-3.8-flash" ;;
+  *) echo "TRADINGAGENTS_GEMINI_MODE/TRADINGAGENTS_MODE must be proxy or direct" >&2; exit 1 ;;
 esac
 PYTHON="${TRADINGAGENTS_PYTHON:-$ROOT/.venv/bin/python}"
+export GOOGLE_GENAI_USE_VERTEXAI=false
 CHECK_ONLY=0
 if [ "${1:-}" = "--check-only" ]; then
   CHECK_ONLY=1
   shift
 fi
-proxy_preflight() {
+model_preflight() {
+  if ! command -v "$PYTHON" >/dev/null 2>&1; then
+    echo "Python not found: $PYTHON; set TRADINGAGENTS_PYTHON." >&2
+    return 1
+  fi
   if [ "$MODE" = proxy ]; then
-    if ! command -v "$PYTHON" >/dev/null 2>&1; then
-      echo "Python not found: $PYTHON; set TRADINGAGENTS_PYTHON." >&2
-      return 1
-    fi
-    if ! brew services start cliproxyapi; then
+    local service_output
+    if ! service_output="$(brew services start cliproxyapi 2>&1)"; then
       echo "Could not start CLIProxyAPI with Homebrew; proxy preflight aborted." >&2
+      echo "$service_output" >&2
       return 1
     fi
     CLIPROXY_API_KEY="$("$PYTHON" scripts/claude_proxy.py --key)" || return 1
     export CLIPROXY_API_KEY
     export GOOGLE_API_KEY="$CLIPROXY_API_KEY"
-    export GEMINI_API_KEY="$CLIPROXY_API_KEY"
-    export GOOGLE_GENAI_USE_VERTEXAI=false
-    "$PYTHON" scripts/claude_proxy.py --provider gemini --base-url "$BACKEND_URL" "$DEEP_MODEL" "$QUICK_MODEL" || return 1
+    "$PYTHON" scripts/claude_proxy.py --provider gemini --base-url "$BACKEND_URL" "${MODELS[@]}" || return 1
   else
-    echo "Direct Google API selected; proxy preflight does not apply."
+    echo "Direct Google API selected."
+  fi
+  unset GEMINI_API_KEY
+  if ! "$PYTHON" -m scripts.gemini_model_probe --mode "$MODE" --base-url "$BACKEND_URL" \
+    --thinking-level "$GOOGLE_THINKING_LEVEL" "${MODELS[@]}"; then
+    if [ "$MODE" = proxy ]; then
+      echo "To check your direct Google key: TRADINGAGENTS_GEMINI_MODE=direct bash scripts/run_missing_today_gemini.sh --check-only" >&2
+    fi
+    return 1
   fi
 }
-DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-gemini-3.8-flash}"
-QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-gemini-3.8-flash}"
-GOOGLE_THINKING_LEVEL="${TRADINGAGENTS_GOOGLE_THINKING_LEVEL:-low}"
+DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-$DEFAULT_MODEL}"
+QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-$DEFAULT_MODEL}"
+MODELS=("$DEEP_MODEL")
+if [ "$QUICK_MODEL" != "$DEEP_MODEL" ]; then
+  MODELS+=("$QUICK_MODEL")
+fi
+GOOGLE_THINKING_LEVEL="${TRADINGAGENTS_GOOGLE_THINKING_LEVEL:-high}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
 DEPTH="${TRADINGAGENTS_DEPTH:-5}"
 model_slug() {
@@ -79,7 +102,7 @@ if ! [ "$CONCURRENCY" -gt 0 ] 2>/dev/null; then
   exit 1
 fi
 if [ "$CHECK_ONLY" -eq 1 ]; then
-  proxy_preflight
+  model_preflight
   exit $?
 fi
 LOGDIR="${TA_LOGDIR:-/tmp/ta_runlogs/gemini/$DATE_SLUG/$MODEL_SLUG}"
@@ -145,7 +168,7 @@ if [ "${#TODO[@]}" -eq 0 ]; then
   echo "Nothing to run — all ${#ALL_TICKERS[@]} tickers already have a ${REPORT_GLOB} report."
   exit 0
 fi
-proxy_preflight || exit 1
+model_preflight || exit 1
 echo "Logs: $LOGDIR"
 echo "Pass 1: ${#TODO[@]} ticker(s) missing for ${DATE} ${MODEL_SLUG}, concurrency=${CONCURRENCY}"
 echo "  ${TODO[*]}"
@@ -159,3 +182,5 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "STILL FAILING (check ${LOGDIR}/<TICKER>.log): ${FAILED[*]}"
   exit 1
 fi
+exit 0
+}

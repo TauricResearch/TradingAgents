@@ -10,11 +10,15 @@
 # not the upstream OAuth token. TRADINGAGENTS_LLM_BACKEND_URL overrides
 # http://127.0.0.1:8317/v1. Model overrides must be advertised by the proxy.
 # --check-only checks access and model IDs without launching reports or locking.
-# For the public OpenAI API, set TRADINGAGENTS_GPT_MODE=direct and
+# For the public OpenAI API, set TRADINGAGENTS_MODE=direct and
 # OPENAI_API_KEY (which may also come from the project's .env).
+# TRADINGAGENTS_MODE defaults to proxy; TRADINGAGENTS_GPT_MODE overrides it.
 # TRADINGAGENTS_LLM_RPM controls per-worker request pacing.
 # Logs default to /tmp/ta_runlogs/gpt/<DATE>/<MODEL>/; TA_LOGDIR overrides this.
 
+# Parse the complete body before running; edits during a batch must not shift
+# the file positions Bash reads after workers finish. Exit inside this block.
+{
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -31,11 +35,11 @@ DATE_SLUG="${DATE//-/}"                       # 2026-06-01 -> 20260601 (folder p
 # override is how you point it at a local OpenAI-compatible gateway instead
 # of api.openai.com.
 PROVIDER="openai"
-MODE="${TRADINGAGENTS_GPT_MODE:-proxy}"
+MODE="${TRADINGAGENTS_GPT_MODE:-${TRADINGAGENTS_MODE:-proxy}}"
 case "$MODE" in
   proxy) BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-http://127.0.0.1:8317/v1}" ;;
   direct) BACKEND_URL="${TRADINGAGENTS_LLM_BACKEND_URL:-https://api.openai.com/v1}" ;;
-  *) echo "TRADINGAGENTS_GPT_MODE must be proxy or direct" >&2; exit 1 ;;
+  *) echo "TRADINGAGENTS_GPT_MODE/TRADINGAGENTS_MODE must be proxy or direct" >&2; exit 1 ;;
 esac
 PYTHON="${TRADINGAGENTS_PYTHON:-$ROOT/.venv/bin/python}"
 if ! command -v "$PYTHON" >/dev/null 2>&1; then
@@ -64,8 +68,8 @@ proxy_preflight() {
   fi
 }
 DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-gpt-6-astra}"
-QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-gpt-5.6-luna}"
-REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-xhigh}"
+QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-gpt-6-luna}"
+REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-max}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
 DEPTH="${TRADINGAGENTS_DEPTH:-5}"
 model_slug() {
@@ -186,3 +190,5 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "STILL FAILING (check ${LOGDIR}/<TICKER>.log): ${FAILED[*]}"
   exit 1
 fi
+exit 0
+}

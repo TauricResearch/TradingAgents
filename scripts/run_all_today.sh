@@ -24,6 +24,9 @@
 # divide the provider's request quota across the parallel workers (each run
 # paces itself; the limiter is per-process and cannot see its siblings).
 
+# Parse the complete body before running; edits during a batch must not shift
+# the file positions Bash reads after workers finish. Exit inside this block.
+{
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -64,7 +67,7 @@ missing_tickers() {
 # Mirrors the skill.md "heavy run" one-liner exactly.
 run_pass() {
   local conc="$1"; shift
-  printf '%s\n' "$@" | xargs -n1 -P"$conc" -I{} bash -c '
+  printf '%s\n' "$@" | xargs -P"$conc" -I{} bash -c '
       t="$1"; DATE="$2"; LOGDIR="$3"
       echo "[START $t] $(date +%T)"
       TRADINGAGENTS_ANTHROPIC_CACHE=1 \
@@ -116,3 +119,5 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   echo "STILL FAILING (check ${LOGDIR}/<TICKER>.log): ${FAILED[*]}"
   exit 1
 fi
+exit 0
+}

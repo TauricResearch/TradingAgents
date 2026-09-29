@@ -16,6 +16,25 @@ Run TradingAgents analyses and build the report site.
 
 Run every ticker missing today's report via the `/run-missing` skill.
 
+## Missing-report launcher mode
+
+`run_missing_today_claude.sh`, `run_missing_today_gemini.sh`, and
+`run_missing_today_gpt.sh` use CLIProxyAPI by default. Set one shared variable
+to use each provider's direct API instead:
+
+```bash
+export TRADINGAGENTS_MODE=direct
+bash scripts/run_missing_today_gemini.sh --check-only
+bash scripts/run_missing_today_claude.sh --check-only
+bash scripts/run_missing_today_gpt.sh --check-only
+```
+
+`TRADINGAGENTS_CLAUDE_MODE`, `TRADINGAGENTS_GEMINI_MODE`, and
+`TRADINGAGENTS_GPT_MODE` override the shared setting for their own launcher.
+Each mode accepts `proxy` or `direct`. Direct mode uses the corresponding
+provider API key from the environment or project `.env`.
+The older `run_all_today.sh` has no proxy/direct selector.
+
 ## Incremental releases
 
 Install the documentation dependencies with `python3 -m pip install '.[docs]'`.
