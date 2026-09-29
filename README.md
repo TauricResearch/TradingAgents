@@ -178,6 +178,7 @@ export NVIDIA_API_KEY=...          # NVIDIA NIM
 export FRED_API_KEY=...            # FRED macro data (free, optional)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
+export TYPESAFE_BASE_URL=...       # Jev-compatible server base URL (optional)
 ```
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
@@ -188,7 +189,7 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
-With `TYPESAFE_API_KEY` set, the Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. Without the key, posts pass through unscreened. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs.
+The Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. By default, screening uses TypeSafe's endpoint and requires `TYPESAFE_API_KEY`. To use a self-hosted Jev-compatible server, set `TYPESAFE_BASE_URL`; the client appends `/v1/systemone`, and the key can be omitted if that server does not require authentication. If neither a key nor custom base URL is configured, posts pass through unscreened. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
