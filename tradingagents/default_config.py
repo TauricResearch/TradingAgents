@@ -88,6 +88,10 @@ def build_default_config() -> dict:
         "llm_provider": "openai",
         "deep_think_llm": "gpt-6-sol",
         "quick_think_llm": "gpt-6-luna",
+    # Optional per-team overrides: {team: {api_key_env, backend_url,
+    # quick_think_llm, deep_think_llm}}. Teams: analysts, research, trader,
+    # risk, portfolio. See tradingagents/graph/team_llms.py.
+    "team_llms": None,
         # When None, each provider's client falls back to its own default endpoint
         # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
         # The CLI overrides this per provider when the user picks one. Keeping a
