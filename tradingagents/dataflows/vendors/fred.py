@@ -76,6 +76,13 @@ MACRO_SERIES = {
     "consumer_sentiment": "UMCSENT",
     "housing_starts": "HOUST",
     "retail_sales": "RSAFS",
+    # India
+    "india_cpi": "INDCPIALLMINMEI",
+    "india_inflation": "INDCPIALLMINMEI",
+    "rbi_lending_rate": "INTDSRINM193N",
+    "india_10y_yield": "INDIRLTLT01STM",
+    "usdinr": "DEXINUS",
+    "india_gdp_per_capita": "INDGDPRPCPPPT",
 }
 
 

@@ -58,6 +58,26 @@ class FredResolutionTests(unittest.TestCase):
         self.assertEqual(fred._resolve_series_id("Fed Funds Rate"), "FEDFUNDS")
         self.assertEqual(fred._resolve_series_id("10y-treasury"), "DGS10")
 
+    def test_india_macro_aliases(self):
+        self.assertEqual(fred._resolve_series_id("india_cpi"), "INDCPIALLMINMEI")
+        self.assertEqual(
+            fred._resolve_series_id("india_inflation"),
+            "INDCPIALLMINMEI",
+        )
+        self.assertEqual(
+            fred._resolve_series_id("rbi_lending_rate"),
+            "INTDSRINM193N",
+        )
+        self.assertEqual(
+            fred._resolve_series_id("india_10y_yield"),
+            "INDIRLTLT01STM",
+        )
+        self.assertEqual(fred._resolve_series_id("usdinr"), "DEXINUS")
+        self.assertEqual(
+            fred._resolve_series_id("india_gdp_per_capita"),
+            "INDGDPRPCPPPT",
+        )
+
     def test_unknown_alias_is_treated_as_raw_series_id(self):
         # Power users can pass any FRED series ID; we uppercase by convention.
         self.assertEqual(fred._resolve_series_id("dgs30"), "DGS30")
