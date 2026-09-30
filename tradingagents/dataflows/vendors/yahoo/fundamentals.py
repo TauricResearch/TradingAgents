@@ -43,27 +43,38 @@ def get_fundamentals(
     # 78.4 is 78.4%, a ratio of 0.78) but the margins and returns as fractions,
     # so each carries its unit.
     dividend_yield, debt_to_equity = info.get("dividendYield"), info.get("debtToEquity")
+
+    # Yahoo gives the market figures in the trading currency and the statement
+    # figures in the reporting currency, which differ for an ADR (PBR trades in
+    # USD and reports in BRL), so each money figure carries its currency. Book
+    # value stays bare: for some ADRs Yahoo's figure fits neither currency.
+    trading, reporting = info.get("currency"), info.get("financialCurrency")
+
+    def money(key, currency):
+        value = info.get(key)
+        return value if value is None or not currency else f"{value} {currency}"
+
     fields = [
         ("Name", info.get("longName")),
         ("Sector", info.get("sector")),
         ("Industry", info.get("industry")),
-        ("Market Cap", info.get("marketCap")),
+        ("Market Cap", money("marketCap", trading)),
         ("PE Ratio (TTM)", info.get("trailingPE")),
         ("Forward PE", info.get("forwardPE")),
         ("PEG Ratio", info.get("pegRatio")),
         ("Price to Book", info.get("priceToBook")),
-        ("EPS (TTM)", info.get("trailingEps")),
-        ("Forward EPS", info.get("forwardEps")),
+        ("EPS (TTM)", money("trailingEps", trading)),
+        ("Forward EPS", money("forwardEps", trading)),
         ("Dividend Yield", None if dividend_yield is None else f"{dividend_yield}%"),
         ("Beta", info.get("beta")),
-        ("52 Week High", info.get("fiftyTwoWeekHigh")),
-        ("52 Week Low", info.get("fiftyTwoWeekLow")),
-        ("50 Day Average", info.get("fiftyDayAverage")),
-        ("200 Day Average", info.get("twoHundredDayAverage")),
-        ("Revenue (TTM)", info.get("totalRevenue")),
-        ("Gross Profit", info.get("grossProfits")),
-        ("EBITDA", info.get("ebitda")),
-        ("Net Income", info.get("netIncomeToCommon")),
+        ("52 Week High", money("fiftyTwoWeekHigh", trading)),
+        ("52 Week Low", money("fiftyTwoWeekLow", trading)),
+        ("50 Day Average", money("fiftyDayAverage", trading)),
+        ("200 Day Average", money("twoHundredDayAverage", trading)),
+        ("Revenue (TTM)", money("totalRevenue", reporting)),
+        ("Gross Profit", money("grossProfits", reporting)),
+        ("EBITDA", money("ebitda", reporting)),
+        ("Net Income", money("netIncomeToCommon", reporting)),
         ("Profit Margin", info.get("profitMargins")),
         ("Operating Margin", info.get("operatingMargins")),
         ("Return on Equity", info.get("returnOnEquity")),
@@ -72,7 +83,7 @@ def get_fundamentals(
          else f"{debt_to_equity}% ({debt_to_equity / 100:.2f}x)"),
         ("Current Ratio", info.get("currentRatio")),
         ("Book Value", info.get("bookValue")),
-        ("Free Cash Flow", info.get("freeCashflow")),
+        ("Free Cash Flow", money("freeCashflow", reporting)),
     ]
 
     lines = [f"{label}: {v}" for label, v in fields if v is not None]
