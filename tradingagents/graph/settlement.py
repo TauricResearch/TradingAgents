@@ -2,12 +2,19 @@
 it against its benchmark and record a reflection on it in the decision log."""
 
 import logging
+import re
 from datetime import datetime, timedelta
 
+from tradingagents.dataflows.credit.anbima import get_debenture_quote
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes
 
 logger = logging.getLogger(__name__)
+
+# Debenture CUSIP pattern: 4 letters + 2 digits (e.g., PETR41, VALE32).
+# Mirrors cli/utils._DEBENTURE_CUSIP_PATTERN and trading_graph._DEBENTURE_CUSIP_RE;
+# kept local to avoid cross-module imports.
+_DEBENTURE_CUSIP_RE = re.compile(r"^[A-Z]{4}\d{2}$")
 
 
 def resolve_benchmark(ticker: str, config: dict) -> str:
@@ -81,6 +88,57 @@ def fetch_returns(
         return None, None, None, None
 
 
+def fetch_credit_returns(
+    cusip: str,
+    trade_date: str,
+    benchmark: str,
+    holding_days: int = 30,
+) -> tuple[float | None, float | None, int | None, str | None]:
+    """Calculate total return for a debenture over the holding period.
+
+    Total return = (price_end - price_start) / price_start
+    (Simplified: yield change only; accrued interest and roll-down in v2)
+
+    Returns (raw_return, alpha, holding_days, resolution_date) or (None, None, None, None)
+    if data is unavailable.
+    """
+    try:
+        start_date = datetime.strptime(trade_date, "%Y-%m-%d")
+        end_date = start_date + timedelta(days=holding_days)
+
+        # Fetch quotes at start and end
+        # TODO: Implement date-specific quote fetching
+        # For now, use current quotes as placeholder
+        start_quote = get_debenture_quote(cusip)
+        end_quote = get_debenture_quote(cusip)  # TODO: fetch at end_date
+
+        if not start_quote or not end_quote:
+            return None, None, None, None
+
+        price_start = start_quote.get("price")
+        price_end = end_quote.get("price")
+
+        if price_start is None or price_end is None:
+            return None, None, None, None
+
+        raw_return = (price_end - price_start) / price_start
+
+        # TODO: Calculate benchmark return (IMA-B index)
+        # For now, alpha = raw_return (no benchmark comparison)
+        alpha = raw_return
+
+        resolution_date = end_date.strftime("%Y-%m-%d")
+
+        return raw_return, alpha, holding_days, resolution_date
+
+    except Exception as e:
+        logger.warning(
+            "Could not resolve credit outcome for %s on %s (will retry next run): %s",
+            cusip, trade_date, e,
+        )
+        return None, None, None, None
+
+
 def settle_pending(ticker: str, memory_log, reflector, config: dict) -> None:
     """Settle ``ticker``'s pending decisions whose holding window has traded.
 
@@ -96,12 +154,19 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict) -> None:
         return
 
     benchmark = resolve_benchmark(ticker, config)
+    is_credit = _DEBENTURE_CUSIP_RE.match(ticker.upper()) is not None
     updates = []
     for entry in pending:
-        raw, alpha, days, resolution_date = fetch_returns(
-            ticker, entry["date"], config.get("holding_period_days", 5),
-            benchmark=benchmark,
-        )
+        if is_credit:
+            raw, alpha, days, resolution_date = fetch_credit_returns(
+                ticker, entry["date"], benchmark,
+                holding_days=config.get("credit_holding_period_days", 30),
+            )
+        else:
+            raw, alpha, days, resolution_date = fetch_returns(
+                ticker, entry["date"], config.get("holding_period_days", 5),
+                benchmark=benchmark,
+            )
         if raw is None:
             continue  # price not available yet — try again next run
         try:

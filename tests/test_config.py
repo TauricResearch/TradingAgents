@@ -5,8 +5,8 @@
  * @description: Tests for default configuration
  * @author: Maíra Pontin
  * @created: 2026-09-28T10:52:01
- * @updated: 2026-09-28T11:05:32
- * @version: 1.0.0
+ * @updated: 2026-09-28T12:05:00
+ * @version: 1.1.0
  * @reviewer:
  * @ai_reviewer:
  * @reviewer_date:
@@ -18,9 +18,9 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def test_benchmark_map_has_brazil():
-    """Benchmark map should include .SA (Brazil) entry."""
+    """Benchmark map should include .SA (Brazil) entry for equities."""
     assert ".SA" in DEFAULT_CONFIG["benchmark_map"]
-    assert DEFAULT_CONFIG["benchmark_map"][".SA"] == "^IRFM"
+    assert DEFAULT_CONFIG["benchmark_map"][".SA"] == "^BVSP"  # Ibovespa for Brazilian stocks
 
 
 def test_credit_holding_period_days():
