@@ -8,6 +8,7 @@ the wiring: a restructure that drops a node, a tool or an edge fails here.
 from __future__ import annotations
 
 import copy
+import time
 
 import pandas as pd
 import pytest
@@ -287,3 +288,43 @@ def test_the_last_turn_is_offered_no_tools_and_reads_its_tool_results_as_text(tm
 def test_a_tool_limit_the_recursion_limit_cannot_hold_is_refused(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="max_tool_rounds"):
         _graph(tmp_path, monkeypatch, ScriptedModel(), max_tool_rounds=60, max_recur_limit=100)
+
+
+class TimedModel(ScriptedModel):
+    """ScriptedModel that records each call's graph step, prompt and timing."""
+
+    seen: list = Field(default_factory=list)    # shared across bound copies
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:
+        step = (run_manager.metadata or {}).get("langgraph_node") if run_manager else None
+        started = time.monotonic()
+        if step in {"Market Analyst", "agent"} or step == "Memory Log":
+            time.sleep(0.2)                     # long enough to see what overlaps
+        result = super()._generate(messages, stop, run_manager, **kwargs)
+        prompt = "\n".join(str(m.content) for m in messages)
+        self.seen.append((step, prompt, started, time.monotonic()))
+        return result
+
+
+@pytest.mark.unit
+def test_past_decisions_settle_alongside_the_analysts(tmp_path, monkeypatch, offline):
+    from tradingagents.memory import settlement
+
+    model = TimedModel()
+    graph = _graph(tmp_path, monkeypatch, model)
+    graph.memory_log.store_decision("NVDA", "2026-01-02", "Rating: Buy\n\nBuy NVDA.")
+    closes = pd.Series([100.0 + i for i in range(10)], index=pd.bdate_range("2026-01-02", periods=10))
+    monkeypatch.setattr(settlement, "get_closes", lambda *a, **k: closes)
+
+    graph.propagate("NVDA", TRADE_DATE)
+
+    reflections = [c for c in model.seen if c[0] == "Memory Log"]
+    assert len(reflections) == 1                # settled once, inside the run
+    analyst_turns = [c for c in model.seen if c[0] == "agent"]
+    assert reflections[0][2] < max(c[3] for c in analyst_turns), "settled before the analysts, not alongside"
+    settled = next(e for e in graph.memory_log.load_entries() if e["date"] == "2026-01-02")
+    assert not settled["pending"]
+    lessons = graph.memory_log.get_past_context("NVDA", as_of=TRADE_DATE)
+    assert lessons
+    pm_prompt = next(c[1] for c in model.seen if c[0] == "Portfolio Manager")
+    assert lessons in pm_prompt

@@ -26,27 +26,6 @@ def _bare_graph(tmp_path):
 
 
 @pytest.mark.unit
-def test_create_run_state_settles_pending_and_carries_context(tmp_path, monkeypatch):
-    from tradingagents.graph.propagation import Propagator
-
-    graph = _bare_graph(tmp_path)
-    graph.propagator = Propagator()
-    settled = []
-    monkeypatch.setattr(graph, "settle_pending", settled.append, raising=False)
-    monkeypatch.setattr(graph, "resolve_instrument_context", lambda t, a="stock", d=None: f"id:{t}", raising=False)
-    monkeypatch.setattr(graph, "_memory_as_of", lambda d: d, raising=False)
-    graph.memory_log.store_decision("NVDA", "2026-01-05", "Rating: Buy\nold call")
-    graph.memory_log.update_with_outcome("NVDA", "2026-01-05", 0.01, 0.005, 5, "great trade", "2026-01-12")
-
-    state = graph.create_run_state("NVDA", "2026-02-01")
-
-    assert settled == ["NVDA"]
-    assert "great trade" in state["past_context"]
-    assert state["instrument_context"] == "id:NVDA"
-    assert state["company_of_interest"] == "NVDA"
-
-
-@pytest.mark.unit
 def test_record_decision_appends_a_pending_entry(tmp_path):
     graph = _bare_graph(tmp_path)
     graph.record_decision("NVDA", "2026-01-10", {"final_trade_decision": "Rating: Buy\n\nBuy NVDA."})

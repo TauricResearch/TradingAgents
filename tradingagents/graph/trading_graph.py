@@ -126,7 +126,7 @@ class TradingAgentsGraph:
         self.selected_analysts = tuple(selected_analysts)
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = self.graph_setup.setup_graph(selected_analysts, memory_node=self._memory_step)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
         self._resuming = False
@@ -174,8 +174,10 @@ class TradingAgentsGraph:
             # None, an empty book and a changed book are three different runs.
             f"portfolio={portfolio.fingerprint() if portfolio is not None else 'none'}",
             # The layout itself: a checkpoint saved when analysts ran one after
-            # another has pending nodes this graph no longer has.
+            # another has pending nodes this graph no longer has, and one saved
+            # before the Memory Log step would resume without the lessons.
             "analysts=parallel",
+            "memory=parallel",
             f"settings={digest}",
         ])
 
@@ -305,22 +307,30 @@ class TradingAgentsGraph:
     def create_run_state(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Build a run's initial state; propagate() and the CLI both start here.
 
-        Settles this ticker's pending decisions first, then injects the lessons
-        known by the trade date for the Portfolio Manager (#1251) and the
-        resolved instrument identity for every agent (#814). An entry point that
-        assembled the state itself would skip the memory log.
+        Injects the resolved instrument identity for every agent (#814). The
+        memory log's lessons are not here: the graph's Memory Log step settles
+        and loads them alongside the analysts (see ``_memory_step``).
         """
-        self.settle_pending(company_name)
         return self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
-            past_context=self.memory_log.get_past_context(
-                company_name, as_of=self._memory_as_of(trade_date)
-            ),
             instrument_context=self.resolve_instrument_context(company_name, asset_type, trade_date),
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
+
+    def _memory_step(self, state):
+        """The graph's Memory Log step: settle this ticker's pending decisions,
+        then return the lessons known by the trade date for the Portfolio
+        Manager (#1251).
+
+        Settling fetches prices and asks the model for a reflection per settled
+        decision, so it runs alongside the analysts instead of before them.
+        """
+        ticker = state["company_of_interest"]
+        self.settle_pending(ticker)
+        return {"past_context": self.memory_log.get_past_context(
+            ticker, as_of=self._memory_as_of(state["trade_date"]))}
 
     def settle_pending(self, company_name):
         """Settle this ticker's decisions whose holding window has now traded.
