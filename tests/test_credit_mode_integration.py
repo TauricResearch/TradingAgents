@@ -15,7 +15,7 @@
 
 import pytest
 from cli.models import AssetType, AnalystType
-from cli.utils import detect_asset_type, filter_analysts_for_asset_type
+from cli.prompts import detect_asset_type, filter_analysts_for_asset_type
 
 
 def test_credit_mode_end_to_end():

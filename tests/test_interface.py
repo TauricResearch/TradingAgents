@@ -29,7 +29,7 @@ for mod in [
         sys.modules[mod] = _mock
 
 import pytest
-from tradingagents.dataflows.interface import VENDOR_LIST, TOOLS_CATEGORIES
+from tradingagents.dataflows.router import VENDOR_LIST, TOOLS_CATEGORIES
 
 
 def test_anbima_in_vendor_list():

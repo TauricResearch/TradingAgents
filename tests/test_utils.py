@@ -15,7 +15,7 @@
 
 import pytest
 from cli.models import AssetType
-from cli.utils import detect_asset_type
+from cli.prompts import detect_asset_type
 
 
 def test_detect_asset_type_credit_cusip():
@@ -44,7 +44,7 @@ def test_detect_asset_type_us_equity():
 
 
 from cli.models import AnalystType
-from cli.utils import filter_analysts_for_asset_type
+from cli.prompts import filter_analysts_for_asset_type
 
 
 def test_filter_analysts_credit_mode():
