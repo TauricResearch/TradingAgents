@@ -25,7 +25,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import requests
 
@@ -254,19 +254,19 @@ def _cache_dir() -> str:
 
 
 def _cache_path(dataset_id: str, query: str) -> str:
-    key = hashlib.sha256(f"{dataset_id}\n{query.strip().lower()}".encode("utf-8")).hexdigest()
+    key = hashlib.sha256(f"{dataset_id}\n{query.strip().lower()}".encode()).hexdigest()
     return os.path.join(_cache_dir(), f"{dataset_id}-{key}.json")
 
 
 def _prune_cache_dir(max_age_days: int) -> None:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
     cache_dir = _cache_dir()
     for name in os.listdir(cache_dir):
         if not name.endswith(".json"):
             continue
         path = os.path.join(cache_dir, name)
         try:
-            modified = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
+            modified = datetime.fromtimestamp(os.path.getmtime(path), tz=UTC)
             if modified < cutoff:
                 os.remove(path)
         except OSError:
@@ -289,7 +289,7 @@ def _load_cache(dataset_id: str, query: str) -> tuple[list[dict] | None, datetim
             try:
                 cached_at = datetime.fromisoformat(cached_at_raw.replace("Z", "+00:00"))
                 if cached_at.tzinfo is None:
-                    cached_at = cached_at.replace(tzinfo=timezone.utc)
+                    cached_at = cached_at.replace(tzinfo=UTC)
             except ValueError:
                 cached_at = None
         return rows, cached_at
@@ -303,7 +303,7 @@ def _write_cache(dataset_id: str, query: str, rows: list[dict]) -> None:
     payload = {
         "dataset_id": dataset_id,
         "query": query,
-        "cached_at": datetime.now(timezone.utc).isoformat(),
+        "cached_at": datetime.now(UTC).isoformat(),
         "rows": rows,
     }
     tmp = f"{path}.tmp"
@@ -337,7 +337,7 @@ def _cache_is_fresh(rows: list[dict], cached_at: datetime | None, as_of: date) -
         return latest >= _expected_latest_report_date(as_of)
     if cached_at is None:
         return False
-    return datetime.now(timezone.utc) - cached_at <= timedelta(hours=EMPTY_CACHE_TTL_HOURS)
+    return datetime.now(UTC) - cached_at <= timedelta(hours=EMPTY_CACHE_TTL_HOURS)
 
 
 def _request_cached(dataset_id: str, query: str, as_of: date) -> list[dict]:
