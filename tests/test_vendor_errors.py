@@ -16,7 +16,7 @@ from tradingagents.dataflows.errors import (
     NoMarketDataError,
     VendorError,
     VendorNotConfiguredError,
-    VendorRateLimitError,
+    VendorUnavailableError,
 )
 from tradingagents.dataflows.vendors.alpha_vantage.common import (
     AlphaVantageNotConfiguredError,
@@ -28,7 +28,7 @@ from tradingagents.dataflows.vendors.fred import FredNotConfiguredError
 @pytest.mark.unit
 class HierarchyTests(unittest.TestCase):
     def test_all_conditions_derive_from_vendor_error(self):
-        for cls in (NoMarketDataError, VendorRateLimitError, VendorNotConfiguredError):
+        for cls in (NoMarketDataError, VendorUnavailableError, VendorNotConfiguredError):
             self.assertTrue(issubclass(cls, VendorError))
 
     def test_not_configured_is_still_a_value_error(self):
@@ -36,7 +36,7 @@ class HierarchyTests(unittest.TestCase):
         self.assertTrue(issubclass(VendorNotConfiguredError, ValueError))
 
     def test_vendor_named_errors_subclass_the_generic_bases(self):
-        self.assertTrue(issubclass(AlphaVantageRateLimitError, VendorRateLimitError))
+        self.assertTrue(issubclass(AlphaVantageRateLimitError, VendorUnavailableError))
         self.assertTrue(issubclass(AlphaVantageNotConfiguredError, VendorNotConfiguredError))
         self.assertTrue(issubclass(FredNotConfiguredError, VendorNotConfiguredError))
         # ... and therefore still ValueErrors
@@ -93,6 +93,26 @@ class RouterHandlesBaseTypesTests(unittest.TestCase):
             clear=False,
         ), self.assertRaises(AlphaVantageNotConfiguredError):
             router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+
+    def test_an_unavailable_vendor_keeps_absence_from_being_claimed(self):
+        # The throttled vendor's coverage was never learned, so "no usable data
+        # from any configured vendor" would be a claim nobody checked.
+        def throttled(*a, **k):
+            raise VendorUnavailableError("Yahoo HTTP 429")
+
+        def timed_out(*a, **k):
+            raise TimeoutError("read timed out")    # a vendor that does not type its failures
+
+        def not_covered(*a, **k):
+            raise NoMarketDataError("AAPL", "AAPL", "not covered")
+
+        for chain in ({"yfinance": throttled, "alpha_vantage": not_covered},
+                      {"yfinance": not_covered, "alpha_vantage": throttled},
+                      {"alpha_vantage": timed_out, "yfinance": not_covered}):
+            set_config({"data_vendors": {"core_stock_apis": ",".join(chain)}})
+            with mock.patch.dict(router.VENDOR_METHODS, {"get_stock_data": chain}, clear=False):
+                out = router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
+            self.assertTrue(out.startswith("DATA_UNAVAILABLE"), out)
 
 
 if __name__ == "__main__":

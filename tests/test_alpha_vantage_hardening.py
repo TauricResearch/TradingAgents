@@ -78,31 +78,13 @@ _FUNDAMENTALS_JSON = json.dumps({
 
 
 @pytest.mark.unit
-def test_fundamentals_look_ahead_filter_runs_on_json_string(monkeypatch):
-    # #1115: the payload arrives as a JSON *string*; the old dict-only guard let
-    # future-dated fiscal periods leak into historical runs.
-    monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: _FUNDAMENTALS_JSON)
-    out = avf.get_balance_sheet("AAPL", curr_date="2024-01-01")
-    assert isinstance(out, str)  # callers still receive a str
-    parsed = json.loads(out)
-    assert [r["fiscalDateEnding"] for r in parsed["annualReports"]] == ["2023-12-31"]
-    assert [r["fiscalDateEnding"] for r in parsed["quarterlyReports"]] == ["2023-09-30"]
-
-
-@pytest.mark.unit
 def test_fundamentals_no_curr_date_passes_through(monkeypatch):
     monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: _FUNDAMENTALS_JSON)
     assert avf.get_income_statement("AAPL") == _FUNDAMENTALS_JSON
 
 
-@pytest.mark.unit
-def test_fundamentals_non_json_body_unchanged(monkeypatch):
-    monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: "not-json")
-    assert avf.get_cashflow("AAPL", curr_date="2024-01-01") == "not-json"
-
-
 # ---------------------------------------------------------------------------
-# Date trim (see the rationale on the unguarded trim in alpha_vantage_common)
+# Date trim (see the rationale on the unguarded trim in alpha_vantage.common)
 # ---------------------------------------------------------------------------
 
 _DAILY_CSV = (

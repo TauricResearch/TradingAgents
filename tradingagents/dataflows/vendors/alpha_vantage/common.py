@@ -5,7 +5,7 @@ from io import StringIO
 
 import pandas as pd
 
-from tradingagents.dataflows.errors import VendorNotConfiguredError, VendorRateLimitError
+from tradingagents.dataflows.errors import VendorNotConfiguredError, VendorUnavailableError
 from tradingagents.dataflows.net import get_scrubbed
 
 API_BASE_URL = "https://www.alphavantage.co/query"
@@ -62,7 +62,7 @@ def format_datetime_for_api(date_input, end_of_day: bool = False) -> str:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
 
-class AlphaVantageRateLimitError(VendorRateLimitError):
+class AlphaVantageRateLimitError(VendorUnavailableError):
     """Raised when the Alpha Vantage API rate limit is exceeded."""
     pass
 

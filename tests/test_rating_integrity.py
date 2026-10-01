@@ -41,8 +41,15 @@ def test_prose_naming_several_ratings_without_a_label_needs_review():
 
 
 @pytest.mark.unit
-def test_prose_naming_one_rating_is_taken_as_the_call():
-    assert extract_rating("On balance we stay Underweight until margins recover.") == "Underweight"
+@pytest.mark.parametrize("prose", [
+    "We would not Sell here; the dip is a chance to add.",
+    "**评级**：买入\n\n不建议卖出 (Sell)。",   # a label in another language, and a negated Sell
+    "On balance we stay Underweight until margins recover.",
+])
+def test_a_rating_word_without_a_label_is_not_read_as_the_call(prose):
+    """A rating word in prose may be one the text argues against (#1435)."""
+    assert extract_rating(prose) is None
+    assert parse_rating(prose) == RATING_REVIEW
 
 
 @pytest.mark.unit
@@ -64,7 +71,7 @@ def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
 
 @pytest.mark.unit
 def test_the_memory_log_records_review_rather_than_a_tradeable_hold(tmp_path):
-    from tradingagents.decision_log import TradingMemoryLog
+    from tradingagents.memory import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     log.store_decision("NVDA", "2026-01-05", REFUSAL)
@@ -76,7 +83,7 @@ def test_the_memory_log_records_review_rather_than_a_tradeable_hold(tmp_path):
 @pytest.mark.unit
 def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
     from tradingagents.agents.rating import parse_rating
-    from tradingagents.decision_log import TradingMemoryLog
+    from tradingagents.memory import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     for text in (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate."):
@@ -91,7 +98,7 @@ def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
 def test_an_unscored_decision_is_left_out_of_the_backtest_figures(tmp_path):
     """REVIEW has no direction, so it cannot count for or against the system."""
     from tradingagents.backtest import summarize
-    from tradingagents.decision_log import TradingMemoryLog
+    from tradingagents.memory import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     log.store_decision("NVDA", "2026-01-05", "**Rating**: Buy\n\nx")
@@ -121,10 +128,6 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
         def record_decision(self, *a, **k):
             pass
 
-        def process_signal(self, text):
-            from tradingagents.agents.rating import parse_rating
-            return parse_rating(text)
-
         def get_graph_args(self, callbacks=None):
             return {}
 
@@ -140,8 +143,8 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
         def end_checkpoint(self):
             pass
 
-        def stream(self, *a, **k):
-            yield {"messages": [], "final_trade_decision": REFUSAL}
+        def stream_run(self, *a, **k):
+            yield [], {"messages": [], "final_trade_decision": REFUSAL, "final_rating": RATING_REVIEW}
 
     fake = _Graph()
     fake.graph = fake
@@ -155,7 +158,7 @@ def test_the_cli_says_when_a_run_produced_no_usable_rating(monkeypatch, tmp_path
     monkeypatch.setattr(m.console, "print", lambda *a, **k: printed.append(" ".join(str(x) for x in a)))
     monkeypatch.setattr(cli_run, "display_complete_report", lambda *a, **k: None)
     monkeypatch.setattr(m.typer, "prompt", lambda *a, **k: "N")
-    monkeypatch.setattr(cli_run, "get_user_selections", lambda: {
+    monkeypatch.setattr(cli_run, "get_user_selections", lambda flags=None: {
         "ticker": "NVDA", "analysis_date": "2026-01-10",
         "analysts": [AnalystType.MARKET], "asset_type": "stock",
     })
@@ -198,11 +201,11 @@ def test_a_decision_prompt_states_the_shape_of_its_answer(module, factory, must_
         "news_report": "N", "fundamentals_report": "F", "investment_plan": "P",
         "trader_investment_plan": "T", "past_context": "", "portfolio_context": "",
         "investment_debate_state": {"bull_history": "b", "bear_history": "r", "history": "h",
-                                    "current_response": "", "judge_decision": "", "count": 2},
+                                    "current_response": "", "count": 2},
         "risk_debate_state": {"history": "h", "latest_speaker": "", "count": 3,
                               "aggressive_history": "", "conservative_history": "", "neutral_history": "",
                               "current_aggressive_response": "", "current_conservative_response": "",
-                              "current_neutral_response": "", "judge_decision": ""},
+                              "current_neutral_response": ""},
     }
     getattr(mod, factory)(_LLM())(state)
 
@@ -210,3 +213,41 @@ def test_a_decision_prompt_states_the_shape_of_its_answer(module, factory, must_
     assert "## Output" in prompt, "no output-format section in the prompt"
     section = prompt.split("## Output", 1)[1]
     assert f"**{must_name}**" in section, section[:300]
+
+
+@pytest.mark.unit
+def test_a_state_without_the_typed_rating_reads_it_from_the_decision():
+    """A run finished by an older version and resumed from its checkpoint has
+    no final_rating; every reader falls back the same way instead of one
+    raising and another reporting REVIEW."""
+    from tradingagents.agents.rating import run_rating
+
+    assert run_rating({"final_rating": "Hold", "final_trade_decision": "**Rating**: Buy"}) == "Hold"
+    assert run_rating({"final_trade_decision": "**Rating**: Sell\n\nExit."}) == "Sell"
+    assert run_rating({}) == RATING_REVIEW
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("quoted", [
+    "Street consensus rating: Buy (28 of 35 analysts).",
+    "Moody's affirmed the credit rating: Buy-side demand for the bonds stayed firm.",
+    "Operating margin: Sell-side estimates sit below guidance.",
+])
+def test_a_rating_the_text_quotes_does_not_replace_the_decision(quoted):
+    """A free-text decision opens with its own rating line; a rating it quotes
+    as evidence, or a word merely ending in 'rating', is not the call."""
+    text = f"**Rating**: Hold\n\n**Investment Thesis**: {quoted} We wait for margins."
+    assert extract_rating(text) == "Hold"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("quoted", [
+    "- Rating: Buy (Goldman Sachs, 12m target 180)",
+    "| Rating: Buy | Morgan Stanley |",
+    "> Rating: Buy, per the sell-side note",
+    "Street consensus rating: Buy",
+    "Consensus rating: Buy (28 of 35 analysts)",
+])
+def test_a_quoted_rating_in_a_list_table_or_quote_is_not_the_decision(quoted):
+    text = f"Our rating: Hold\n\nWhat others say:\n{quoted}\n\nWe wait for margins."
+    assert extract_rating(text) == "Hold"

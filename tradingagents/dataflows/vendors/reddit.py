@@ -24,7 +24,7 @@ import re
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -51,7 +51,7 @@ def _within_window(posts, start_date, end_date):
 def _posted_at(post) -> datetime | None:
     """A post's ``created_utc`` epoch as a UTC datetime, or None when missing."""
     ts = post.get("created_utc")
-    return datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
+    return datetime.fromtimestamp(ts, tz=UTC) if ts else None
 
 
 def _coverage_dates(posts) -> list:
@@ -61,7 +61,7 @@ def _coverage_dates(posts) -> list:
     themselves do."""
     dates = [_posted_at(p) for p in posts]
     if len(posts) < _FEED_PAGE:
-        dates.append(datetime.now(timezone.utc) - _SEARCH_LOOKBACK)
+        dates.append(datetime.now(UTC) - _SEARCH_LOOKBACK)
     return dates
 
 
