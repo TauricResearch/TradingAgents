@@ -16,6 +16,9 @@ from tradingagents.dataflows.vendors.yahoo.common import (
     yf_retry,
 )
 
+# Quote currencies Yahoo gives in a minor unit, and the main unit of each.
+_MAIN_UNIT = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
+
 
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
@@ -43,27 +46,41 @@ def get_fundamentals(
     # 78.4 is 78.4%, a ratio of 0.78) but the margins and returns as fractions,
     # so each carries its unit.
     dividend_yield, debt_to_equity = info.get("dividendYield"), info.get("debtToEquity")
+    # Money figures come in three currencies (#1456): price levels in the quote
+    # currency, which can be a minor unit (London in pence, GBp); market cap and
+    # per-share figures in that currency's main unit (GBP), as Yahoo's own P/E
+    # and P/B are computed against them; income figures in the currency the
+    # company reports in (an ADR quotes in USD, reports in TWD), or bare when
+    # Yahoo does not say which.
+    quote = info.get("currency")
+    main = _MAIN_UNIT.get(quote, quote)
+    reported = info.get("financialCurrency")
+
+    def money(key, currency):
+        value = info.get(key)
+        return None if value is None else f"{value} {currency}" if currency else value
+
     fields = [
         ("Name", info.get("longName")),
         ("Sector", info.get("sector")),
         ("Industry", info.get("industry")),
-        ("Market Cap", info.get("marketCap")),
+        ("Market Cap", money("marketCap", main)),
         ("PE Ratio (TTM)", info.get("trailingPE")),
         ("Forward PE", info.get("forwardPE")),
         ("PEG Ratio", info.get("pegRatio")),
         ("Price to Book", info.get("priceToBook")),
-        ("EPS (TTM)", info.get("trailingEps")),
-        ("Forward EPS", info.get("forwardEps")),
+        ("EPS (TTM)", money("trailingEps", main)),
+        ("Forward EPS", money("forwardEps", main)),
         ("Dividend Yield", None if dividend_yield is None else f"{dividend_yield}%"),
         ("Beta", info.get("beta")),
-        ("52 Week High", info.get("fiftyTwoWeekHigh")),
-        ("52 Week Low", info.get("fiftyTwoWeekLow")),
-        ("50 Day Average", info.get("fiftyDayAverage")),
-        ("200 Day Average", info.get("twoHundredDayAverage")),
-        ("Revenue (TTM)", info.get("totalRevenue")),
-        ("Gross Profit", info.get("grossProfits")),
-        ("EBITDA", info.get("ebitda")),
-        ("Net Income", info.get("netIncomeToCommon")),
+        ("52 Week High", money("fiftyTwoWeekHigh", quote)),
+        ("52 Week Low", money("fiftyTwoWeekLow", quote)),
+        ("50 Day Average", money("fiftyDayAverage", quote)),
+        ("200 Day Average", money("twoHundredDayAverage", quote)),
+        ("Revenue (TTM)", money("totalRevenue", reported)),
+        ("Gross Profit", money("grossProfits", reported)),
+        ("EBITDA", money("ebitda", reported)),
+        ("Net Income", money("netIncomeToCommon", reported)),
         ("Profit Margin", info.get("profitMargins")),
         ("Operating Margin", info.get("operatingMargins")),
         ("Return on Equity", info.get("returnOnEquity")),
@@ -71,8 +88,8 @@ def get_fundamentals(
         ("Debt to Equity", None if debt_to_equity is None
          else f"{debt_to_equity}% ({debt_to_equity / 100:.2f}x)"),
         ("Current Ratio", info.get("currentRatio")),
-        ("Book Value", info.get("bookValue")),
-        ("Free Cash Flow", info.get("freeCashflow")),
+        ("Book Value", money("bookValue", main)),
+        ("Free Cash Flow", money("freeCashflow", reported)),
     ]
 
     lines = [f"{label}: {v}" for label, v in fields if v is not None]
