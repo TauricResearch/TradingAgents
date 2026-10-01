@@ -87,12 +87,22 @@ def test_nothing_is_missing_when_flags_and_environment_answer_every_step(monkeyp
     assert selections.unattended_gaps(FLAGS) == []
 
 
+class _Browser:
+    def __init__(self):
+        self.opened = []
+
+    def open(self, url):
+        self.opened.append(url)
+        return True
+
+
 @pytest.mark.unit
 def test_save_and_show_answer_the_questions_after_the_run(monkeypatch, tmp_path):
     def no_prompt(*a, **k):
         raise AssertionError("prompted although --save/--show answered")
 
     monkeypatch.setattr(run.typer, "prompt", no_prompt)
+    monkeypatch.setattr(run, "_graphical_browser", lambda: _Browser())   # even at a desktop
     shown = []
     monkeypatch.setattr(run, "display_complete_report", lambda state: shown.append(state))
     from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -145,7 +155,7 @@ def test_the_command_passes_its_flags_to_the_run(monkeypatch):
                                                "--analysts", "market,news", "--save", "--no-show"])
 
     assert result.exit_code == 0, result.output
-    assert seen["flags"] == FLAGS
+    assert seen["flags"] == {**FLAGS, "html": None}
 
 
 @pytest.mark.unit
@@ -220,6 +230,126 @@ def test_each_tier_provider_s_key_is_checked_before_the_run(monkeypatch):
     assert checked == ["openai", "anthropic"]
 
 
+def _report_graph(tmp_path):
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path)}
+    graph.run_settings = lambda: {}
+    return graph
+
+
+STATE = {"market_report": "M", "final_trade_decision": "**Rating**: Hold"}
+
+
+@pytest.mark.unit
+def test_a_saved_report_includes_the_html_page_unless_declined(monkeypatch, tmp_path):
+    monkeypatch.setattr(run, "display_complete_report", lambda state: None)
+
+    run._offer_reports(STATE, _report_graph(tmp_path / "a"), "NVDA", save=True, show=False)
+    run._offer_reports(STATE, _report_graph(tmp_path / "b"), "NVDA", save=True, show=False, html=False)
+
+    assert list((tmp_path / "a").glob("reports/NVDA_*/complete_report.html"))
+    assert list((tmp_path / "b").glob("reports/NVDA_*/complete_report.md"))
+    assert not list((tmp_path / "b").glob("reports/NVDA_*/complete_report.html"))
+
+
+def _answer(monkeypatch, answers):
+    asked = []
+
+    def prompt(text, default=None, **k):
+        asked.append(text)
+        for question, answer in answers.items():
+            if question in text:
+                return default if answer is None else answer
+        raise AssertionError(f"unexpected question: {text}")
+
+    monkeypatch.setattr(run.typer, "prompt", prompt)
+    monkeypatch.setattr(run, "display_complete_report", lambda state: None)
+    return asked
+
+
+@pytest.mark.unit
+def test_an_interactive_run_asks_for_the_html_page_and_opens_it(monkeypatch, tmp_path):
+    asked = _answer(monkeypatch, {"Save report": "Y", "Save path": "rel/out", "HTML": "Y",
+                                  "browser": "Y", "Display full report": "N"})
+    browser = _Browser()
+    monkeypatch.setattr(run, "_graphical_browser", lambda: browser)
+    monkeypatch.chdir(tmp_path)
+
+    run._offer_reports(STATE, _report_graph(tmp_path), "NVDA")
+
+    page = tmp_path / "rel" / "out" / "complete_report.html"
+    assert page.exists() and browser.opened == [page.resolve().as_uri()]
+    assert [q for q in asked if "HTML" in q] and [q for q in asked if "browser" in q]
+
+
+@pytest.mark.unit
+def test_without_a_browser_window_the_page_is_not_offered_for_opening(monkeypatch, tmp_path):
+    asked = _answer(monkeypatch, {"Save report": "Y", "Save path": None, "HTML": "Y",
+                                  "Display full report": "N"})
+    monkeypatch.setattr(run, "_graphical_browser", lambda: None)
+
+    run._offer_reports(STATE, _report_graph(tmp_path), "NVDA")
+
+    assert not [q for q in asked if "browser" in q]
+    assert list(tmp_path.glob("reports/NVDA_*/complete_report.html"))
+
+
+@pytest.mark.unit
+def test_declining_the_html_page_saves_only_the_markdown(monkeypatch, tmp_path):
+    asked = _answer(monkeypatch, {"Save report": "Y", "Save path": None, "HTML": "N",
+                                  "Display full report": "N"})
+    monkeypatch.setattr(run, "_graphical_browser", lambda: _Browser())
+
+    run._offer_reports(STATE, _report_graph(tmp_path), "NVDA")
+
+    assert not list(tmp_path.glob("reports/NVDA_*/complete_report.html"))
+    assert not [q for q in asked if "browser" in q]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("env, browser, offered", [
+    ({}, "background", True),
+    ({"SSH_CONNECTION": "10.0.0.1 22 10.0.0.2 22"}, "background", False),   # the page is on the remote
+    ({"SSH_TTY": "/dev/pts/0"}, "background", False),
+    ({}, "terminal", False),       # a text browser would take over the terminal
+    ({}, "elinks", False),
+    ({}, None, False),             # no browser at all
+])
+def test_a_page_is_opened_only_in_a_browser_window_on_this_machine(monkeypatch, env, browser, offered):
+    import webbrowser
+
+    for name in ("SSH_CONNECTION", "SSH_TTY"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+    def get():
+        if browser is None:
+            raise webbrowser.Error("no runnable browser")
+        return {"background": lambda: webbrowser.BackgroundBrowser("firefox"),
+                "terminal": lambda: webbrowser.GenericBrowser("lynx"),
+                "elinks": lambda: webbrowser.Elinks("elinks")}[browser]()
+
+    monkeypatch.setattr(run.webbrowser, "get", get)
+    assert (run._graphical_browser() is not None) is offered
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("args, expected", [([], None), (["--no-html"], False), (["--html"], True)])
+def test_the_html_flag_reaches_the_run(monkeypatch, args, expected):
+    from typer.testing import CliRunner
+
+    from cli import main as cli_main
+
+    seen = {}
+    monkeypatch.setattr(cli_main, "run_analysis", lambda **kw: seen.update(kw))
+    result = CliRunner().invoke(cli_main.app, ["--ticker", "NVDA", "--save", "--no-show", *args])
+
+    assert result.exit_code == 0 and seen["flags"]["html"] is expected
+
+
 @pytest.mark.unit
 def test_only_the_providers_the_tiers_use_need_a_key(monkeypatch):
     """Both tiers on a local Ollama: the main provider's key is not needed."""
@@ -231,3 +361,19 @@ def test_only_the_providers_the_tiers_use_need_a_key(monkeypatch):
     selections._prompt_selections({}, FLAGS)
 
     assert checked == ["ollama"]
+
+
+@pytest.mark.unit
+def test_a_page_the_browser_cannot_open_is_pointed_to(monkeypatch, tmp_path, capsys):
+    class Failing(_Browser):
+        def open(self, url):
+            return False
+
+    _answer(monkeypatch, {"Save report": "Y", "Save path": None, "HTML": "Y", "browser": "Y",
+                          "Display full report": "N"})
+    monkeypatch.setattr(run, "_graphical_browser", lambda: Failing())
+    monkeypatch.setattr(run.console, "print", lambda *a, **k: print(*a))
+
+    run._offer_reports(STATE, _report_graph(tmp_path), "NVDA")
+
+    assert "complete_report.html" in capsys.readouterr().out.split("the page is at:")[-1]

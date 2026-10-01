@@ -212,6 +212,8 @@ tradingagents --ticker NVDA --date 2026-09-23 --analysts market,news,fundamental
 ```
 Each flag skips only its own question. Run without a terminal, a missing answer stops the run before it starts and names the flag or variable to set.
 
+A saved report also includes `complete_report.html`, the report as one page with its sections listed beside the text, for reading in a browser, on a phone or in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` skips it, and so does `ta.save_reports(state, "NVDA", html=False)` from Python.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
