@@ -26,6 +26,8 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
         vendors = {**(s("data_vendors") or {}), **(s("tool_vendors") or {})}
         if vendors:
             lines.append("- Data vendors: " + ", ".join(f"{k} {v}" for k, v in vendors.items()))
+    if final_state.get("memory_note"):
+        lines.append(f"- Memory log: {final_state['memory_note']}")
     return "\n".join(lines) + "\n\n"
 
 

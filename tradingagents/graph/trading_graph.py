@@ -126,7 +126,7 @@ class TradingAgentsGraph:
         self.selected_analysts = tuple(selected_analysts)
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = self.graph_setup.setup_graph(selected_analysts, memory_node=self._memory_step)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
         self._resuming = False
@@ -174,8 +174,10 @@ class TradingAgentsGraph:
             # None, an empty book and a changed book are three different runs.
             f"portfolio={portfolio.fingerprint() if portfolio is not None else 'none'}",
             # The layout itself: a checkpoint saved when analysts ran one after
-            # another has pending nodes this graph no longer has.
+            # another has pending nodes this graph no longer has, and one saved
+            # before the Memory Log step would resume without the lessons.
             "analysts=parallel",
+            "memory=parallel",
             f"settings={digest}",
         ])
 
@@ -305,28 +307,51 @@ class TradingAgentsGraph:
     def create_run_state(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Build a run's initial state; propagate() and the CLI both start here.
 
-        Settles this ticker's pending decisions first, then injects the lessons
-        known by the trade date for the Portfolio Manager (#1251) and the
-        resolved instrument identity for every agent (#814). An entry point that
-        assembled the state itself would skip the memory log.
+        Injects the resolved instrument identity for every agent (#814). The
+        memory log's lessons are not here: the graph's Memory Log step settles
+        and loads them alongside the analysts (see ``_memory_step``).
         """
-        self.settle_pending(company_name)
         return self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
-            past_context=self.memory_log.get_past_context(
-                company_name, as_of=self._memory_as_of(trade_date)
-            ),
             instrument_context=self.resolve_instrument_context(company_name, asset_type, trade_date),
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
 
+    def _memory_step(self, state):
+        """The graph's Memory Log step, alongside the analysts (#1428): settle every
+        ticker's due decisions (#1445), then return the lessons known by the
+        trade date for the Portfolio Manager (#1251).
+
+        Settling fetches prices and asks the model for a reflection per decision,
+        so it runs beside the analysts instead of before them. A failure here
+        does not end the run: the analysts' work is kept, the lessons already in
+        the log are used, and the report says what could not be settled.
+        """
+        note = ""
+        try:
+            done = self.settle_all_pending()
+            if done.failed:
+                note = (f"{len(done.failed)} past decision(s) could not be settled this run "
+                        "and stay pending.")
+        except Exception as exc:
+            logger.warning("Settling past decisions failed: %s", exc)
+            note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."
+        try:
+            past_context = self.memory_log.get_past_context(
+                state["company_of_interest"], as_of=self._memory_as_of(state["trade_date"]))
+        except Exception as exc:
+            logger.warning("Reading the memory log failed: %s", exc)
+            past_context = ""
+            note = note or f"The memory log could not be read this run ({type(exc).__name__})."
+        return {"past_context": past_context, "memory_note": note}
+
     def settle_pending(self, company_name) -> settlement.Settlement:
         """Settle this ticker's decisions whose holding window has now traded.
 
-        A run settles its ticker's earlier decisions as it starts, so the most
-        recent one stays pending until a later run. A caller that is done
+        A run settles every due decision alongside its analysts, so its own
+        decision stays pending until a later run. A caller that is done
         analyzing a ticker (a backtest sweep, a scheduled job) calls this to
         settle it now. Returns what was settled and what failed.
         """
