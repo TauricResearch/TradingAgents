@@ -68,20 +68,6 @@ class LocalCompatibleChatOpenAI(NormalizedChatOpenAI):
         return super().with_structured_output(schema, method=method, **kwargs)
 
 
-class OllamaChatOpenAI(NormalizedChatOpenAI):
-    """Ollama client that lets langchain's ``tool_choice`` through.
-
-    Unlike the generic local-server client (which suppresses ``tool_choice``
-    because many servers reject it), Ollama accepts the object-form
-    ``tool_choice`` langchain sends for function-calling structured output. Letting
-    it through forces the model to call the schema tool instead of answering in
-    free text — which thinking models (e.g. Qwen3) otherwise do on long prompts,
-    returning no parsed result and tripping the free-text fallback on every
-    structured call. Models that lack tool support surface a clear API error
-    rather than silently degrading.
-    """
-
-
 def _input_to_messages(input_: Any) -> list:
     """Normalise a langchain LLM input to a list of message objects.
 
@@ -240,7 +226,7 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama",
-                               chat_class=OllamaChatOpenAI),
+                               chat_class=LocalCompatibleChatOpenAI),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(
         require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI

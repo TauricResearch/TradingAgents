@@ -339,16 +339,7 @@ def _prompt_selections(prefs, flags):
 
 
 def get_analysis_date():
-    """Get the analysis date from user input.
-
-    Skipped when ``TRADINGAGENTS_INPUT_AUTO_CURR_DATE`` is set to a truthy
-    value (``1``, ``true``, ``yes``, ``on``): the current date is used.
-    """
-    auto = os.getenv("TRADINGAGENTS_INPUT_AUTO_CURR_DATE", "").strip().lower()
-    if auto in {"1", "true", "yes", "on"}:
-        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
-        console.print(f"[green]✓ Analysis date from environment:[/green] {date_str}")
-        return date_str
+    """Get the analysis date from user input."""
     while True:
         date_str = typer.prompt(
             "", default=datetime.datetime.now().strftime("%Y-%m-%d")
