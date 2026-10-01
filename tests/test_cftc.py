@@ -4,7 +4,7 @@ import copy
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -194,7 +194,7 @@ class CftcVendorTests(unittest.TestCase):
             stale_file = os.path.join(cache_subdir, "stale.json")
             with open(stale_file, "w", encoding="utf-8") as f:
                 f.write("{}")
-            stale_time = (datetime.now(timezone.utc) - timedelta(days=7)).timestamp()
+            stale_time = (datetime.now(UTC) - timedelta(days=7)).timestamp()
             os.utime(stale_file, (stale_time, stale_time))
 
             with run_config({
