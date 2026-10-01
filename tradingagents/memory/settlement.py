@@ -2,6 +2,7 @@
 it against its benchmark and record a reflection on it in the memory log."""
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from tradingagents.dataflows.symbols import normalize_symbol
@@ -104,19 +105,26 @@ def fetch_returns(
         return None, None, None, None
 
 
-def settle_pending(ticker: str, memory_log, reflector, config: dict) -> None:
+@dataclass
+class Settlement:
+    """What a settlement pass did: the decisions it settled and those it could not."""
+
+    settled: list[tuple[str, str]] = field(default_factory=list)        # (ticker, date)
+    failed: list[tuple[str, str, str]] = field(default_factory=list)    # (ticker, date, reason)
+
+
+def settle_pending(ticker: str, memory_log, reflector, config: dict) -> Settlement:
     """Settle ``ticker``'s pending decisions whose holding window has traded.
 
     Fetches returns for each same-ticker pending entry, generates reflections,
     then writes all updates in a single atomic batch write to avoid redundant I/O.
-    Skips entries whose price data is not yet available (too recent or delisted).
-
-    Trade-off: only same-ticker entries are resolved per run.  Entries for
-    other tickers accumulate until that ticker is run again.
+    Skips entries whose price data is not yet available (too recent or delisted);
+    an entry whose reflection fails stays pending and is reported as failed.
     """
+    result = Settlement()
     pending = [e for e in memory_log.get_pending_entries() if e["ticker"] == ticker]
     if not pending:
-        return
+        return result
 
     benchmark = resolve_benchmark(ticker, config)
     updates = []
@@ -136,10 +144,10 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict) -> None:
                 holding_days=days,
             )
         except Exception as exc:
-            # Reflection calls a provider, and this runs on the way into a
-            # new run: a transient failure leaves the entry pending for the
-            # next one rather than stopping the analysis that was asked for.
+            # Reflection calls a provider: a transient failure leaves the entry
+            # pending for the next pass rather than stopping the analysis.
             logger.warning("Reflection failed for %s on %s: %s", ticker, entry["date"], exc)
+            result.failed.append((ticker, entry["date"], f"reflection failed: {exc}"))
             continue
         updates.append({
             "ticker": ticker,
@@ -153,3 +161,19 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict) -> None:
 
     if updates:
         memory_log.batch_update_with_outcomes(updates)
+        result.settled.extend((ticker, u["trade_date"]) for u in updates)
+    return result
+
+
+def settle_all_pending(memory_log, reflector, config: dict) -> Settlement:
+    """Settle every ticker's pending decisions whose holding window has traded (#1445).
+
+    A run settles its own ticker; a ticker no longer analysed would otherwise
+    keep its decisions pending, and their lessons out of later runs.
+    """
+    result = Settlement()
+    for ticker in dict.fromkeys(e["ticker"] for e in memory_log.get_pending_entries()):
+        done = settle_pending(ticker, memory_log, reflector, config)
+        result.settled.extend(done.settled)
+        result.failed.extend(done.failed)
+    return result

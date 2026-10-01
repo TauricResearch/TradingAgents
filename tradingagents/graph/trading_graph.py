@@ -322,16 +322,25 @@ class TradingAgentsGraph:
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
 
-    def settle_pending(self, company_name):
+    def settle_pending(self, company_name) -> settlement.Settlement:
         """Settle this ticker's decisions whose holding window has now traded.
 
-        A run settles the ticker's earlier decisions on its way in, so the most
-        recent one stays pending until the next run for that ticker. A caller
-        that is done analyzing a ticker (a backtest sweep, a scheduled job) calls
-        this to settle it now.
+        A run settles its ticker's earlier decisions as it starts, so the most
+        recent one stays pending until a later run. A caller that is done
+        analyzing a ticker (a backtest sweep, a scheduled job) calls this to
+        settle it now. Returns what was settled and what failed.
         """
         with run_config(self.config):
-            settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
+            return settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
+
+    def settle_all_pending(self) -> settlement.Settlement:
+        """Settle every ticker's decisions whose holding window has now traded (#1445).
+
+        For a scheduler whose tickers rotate: a ticker it stops analysing would
+        otherwise keep its decisions pending, and their lessons out of later runs.
+        """
+        with run_config(self.config):
+            return settlement.settle_all_pending(self.memory_log, self.reflector, self.config)
 
     def record_decision(self, company_name, trade_date, final_state):
         """Record a finished run: its state log, and its decision in the memory log

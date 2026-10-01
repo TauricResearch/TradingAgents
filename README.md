@@ -324,6 +324,8 @@ The memory log is always on. Each completed run appends its decision to `~/.trad
 
 Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
+A scheduled job whose tickers change can settle the decisions of tickers it no longer analyses with `ta.settle_all_pending()`, which returns the decisions it settled and any it could not.
+
 ### Checkpoint resume
 
 Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. The run view says whether it resumed a saved run or started fresh. Checkpoints are cleared automatically on successful completion.
