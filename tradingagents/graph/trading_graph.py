@@ -317,7 +317,8 @@ class TradingAgentsGraph:
         """
         note = ""
         try:
-            done = self.settle_all_pending()
+            # Another run settling the same log does the work; this one goes on.
+            done = self.settle_all_pending(wait=False)
             if done.failed:
                 note = (f"{len(done.failed)} past decision(s) could not be settled this run "
                         "and stay pending.")
@@ -344,14 +345,15 @@ class TradingAgentsGraph:
         with run_config(self.config):
             return settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
 
-    def settle_all_pending(self) -> settlement.Settlement:
+    def settle_all_pending(self, wait: bool = True) -> settlement.Settlement:
         """Settle every ticker's decisions whose holding window has now traded (#1445).
 
         For a scheduler whose tickers rotate: a ticker it stops analysing would
         otherwise keep its decisions pending, and their lessons out of later runs.
+        With ``wait=False`` a pass already running on the same log is not waited for.
         """
         with run_config(self.config):
-            return settlement.settle_all_pending(self.memory_log, self.reflector, self.config)
+            return settlement.settle_all_pending(self.memory_log, self.reflector, self.config, wait=wait)
 
     def record_decision(self, company_name, trade_date, final_state):
         """Record a finished run: its state log, and its decision in the memory log

@@ -93,12 +93,12 @@ def _fake_msvcrt(results):
 
     def locking(fd, mode, nbytes):
         calls.append(mode)
-        if mode == 2 and results:   # LK_LOCK; unlocking always succeeds
+        if mode in (1, 2) and results:   # LK_NBLCK, LK_LOCK; unlocking always succeeds
             error = results.pop(0)
             if error is not None:
                 raise error
 
-    return types.SimpleNamespace(LK_LOCK=2, LK_UNLCK=0, locking=locking), calls
+    return types.SimpleNamespace(LK_LOCK=2, LK_NBLCK=1, LK_UNLCK=0, locking=locking), calls
 
 
 @pytest.mark.unit
@@ -126,3 +126,39 @@ def test_on_windows_a_lock_that_cannot_be_taken_is_reported_not_retried_forever(
     with pytest.raises(OSError, match="bad handle"), open(tmp_path / "log.md.lock", "a+b") as handle, \
             files._hold_windows(handle):
         pass
+
+
+@pytest.mark.unit
+def test_a_lock_held_elsewhere_is_reported_when_not_waiting(tmp_path):
+    import threading
+
+    path = tmp_path / "log.md"
+    held, release = threading.Event(), threading.Event()
+
+    def holder():
+        with files.locked(path):
+            held.set()
+            release.wait(5)
+
+    worker = threading.Thread(target=holder)
+    worker.start()
+    held.wait(5)
+    with files.locked(path, wait=False) as acquired:
+        assert acquired is False
+    release.set()
+    worker.join()
+    with files.locked(path, wait=False) as acquired:
+        assert acquired is True
+
+
+@pytest.mark.unit
+def test_on_windows_a_held_lock_is_reported_when_not_waiting(tmp_path, monkeypatch):
+    import errno
+    import sys
+
+    fake, calls = _fake_msvcrt([OSError(errno.EACCES, "held")])
+    monkeypatch.setitem(sys.modules, "msvcrt", fake)
+
+    with open(tmp_path / "log.md.lock", "a+b") as handle, files._hold_windows(handle, wait=False) as acquired:
+        assert acquired is False
+    assert calls == [1]                # one try, no unlock of a lock it never held
