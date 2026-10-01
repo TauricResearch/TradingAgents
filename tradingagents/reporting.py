@@ -9,12 +9,16 @@ run produces the same on-disk report tree a CLI run does.
 from datetime import datetime
 from pathlib import Path
 
+from tradingagents.agents.rating import run_rating
+
 
 def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
     """The report's title and what produced it: analysis date, version, models, analysts, vendors."""
     lines = [f"# Trading Analysis Report: {ticker}", ""]
     if final_state.get("trade_date"):
         lines.append(f"- Analysis date: {final_state['trade_date']}")
+    if final_state.get("final_trade_decision"):
+        lines.append(f"- Rating: {run_rating(final_state)}")
     lines.append(f"- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     if settings:
         s = settings.get

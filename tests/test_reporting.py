@@ -106,3 +106,16 @@ def test_run_settings_name_the_version_of_the_running_code():
     graph = object.__new__(TradingAgentsGraph)
     graph.selected_analysts, graph.config = ("market",), {}
     assert graph.run_settings()["version"] == tradingagents.__version__
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("decision, rating", [
+    ("**Rating**: Overweight\n\nAdd on weakness.", "Overweight"),
+    ("Add on weakness.", "REVIEW"),           # no readable rating is said, not left out
+])
+def test_the_report_header_names_the_rating(tmp_path, decision, rating):
+    state = dict(_state(), final_trade_decision=decision)
+
+    header = write_report_tree(state, "NVDA", tmp_path, settings=SETTINGS).read_text().split("## ")[0]
+
+    assert f"- Rating: {rating}" in header
