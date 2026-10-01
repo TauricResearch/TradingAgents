@@ -2,8 +2,27 @@
 
 import os
 import socket
+from pathlib import Path
 
 import pytest
+
+
+def _suite_temp_root() -> Path:
+    """Create a temp root entirely outside the user's home for the suite.
+
+    Some libraries (notably yfinance) create cache directories under the OS temp
+    root. On Windows the default temp root often lives under the user profile,
+    which violates the suite isolation contract before any test runs.
+    """
+    if os.name == "nt":
+        root = Path(Path.home().anchor) / "tradingagents-suite-tmp"
+    else:
+        root = Path("/tmp/tradingagents-suite-tmp")
+    root.mkdir(exist_ok=True, parents=True)
+    os.environ["TMPDIR"] = str(root)
+    os.environ["TEMP"] = str(root)
+    os.environ["TMP"] = str(root)
+    return root
 
 
 def _blank_settings_overlay():
@@ -35,7 +54,8 @@ def _own_file_locations():
     """
     import tempfile
 
-    home = tempfile.mkdtemp(prefix="tradingagents-tests-")
+    root = _suite_temp_root()
+    home = tempfile.mkdtemp(prefix="tradingagents-tests-", dir=root)
     os.environ["TRADINGAGENTS_RESULTS_DIR"] = os.path.join(home, "logs")
     os.environ["TRADINGAGENTS_CACHE_DIR"] = os.path.join(home, "cache")
     os.environ["TRADINGAGENTS_MEMORY_LOG_PATH"] = os.path.join(home, "memory", "trading_memory.md")
@@ -53,7 +73,8 @@ def pytest_configure(config):
 
     import yfinance
 
-    yfinance.set_tz_cache_location(tempfile.mkdtemp(prefix="tradingagents-tests-yf-"))
+    root = _suite_temp_root()
+    yfinance.set_tz_cache_location(tempfile.mkdtemp(prefix="tradingagents-tests-yf-", dir=root))
 
 
 @pytest.fixture(autouse=True)
