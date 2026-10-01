@@ -1,14 +1,16 @@
 """Tests for deterministic instrument-identity resolution (#814) and the
-context-anchored message placeholder (#888)."""
+user-query message guard for strict OpenAI-compatible gateways."""
 
 import unittest
 from unittest.mock import patch
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from tradingagents.agents.context import (
     _identity,
     build_instrument_context,
+    ensure_user_query_message,
     get_instrument_context_from_state,
     resolve_instrument_identity,
 )
@@ -124,6 +126,26 @@ class GetInstrumentContextFromStateTests(unittest.TestCase):
             {"company_of_interest": "BTC-USD", "asset_type": "crypto"}
         )
         self.assertIn("crypto asset", context)
+
+
+@pytest.mark.unit
+class EnsureUserQueryMessageTests(unittest.TestCase):
+    def test_appends_fallback_when_no_user_message_exists(self):
+        messages = [SystemMessage(content="sys"), AIMessage(content="assistant")]
+
+        normalized = ensure_user_query_message(messages, "fallback query")
+
+        self.assertEqual(len(normalized), 3)
+        self.assertIsInstance(normalized[-1], HumanMessage)
+        self.assertEqual(normalized[-1].content, "fallback query")
+
+    def test_leaves_messages_unchanged_when_user_message_exists(self):
+        user_message = HumanMessage(content="Analyze NVDA")
+        messages = [SystemMessage(content="sys"), user_message]
+
+        normalized = ensure_user_query_message(messages, "fallback query")
+
+        self.assertEqual(normalized, messages)
 
 
 if __name__ == "__main__":

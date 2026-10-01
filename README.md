@@ -79,7 +79,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 ### Analyst Team
 - Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
 - Sentiment Analyst: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
-- News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
+- News Analyst: Monitors global news, macroeconomic indicators, CFTC Commitments of Traders (COT) positioning, and prediction markets to interpret event impact, crowding, and risk appetite.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
 
 The selected analysts work at the same time, each on its own tools, and the research debate starts once all of their reports are in.
@@ -137,6 +137,11 @@ Install the package and its dependencies (`uv pip install .` with uv):
 pip install .
 ```
 
+For development and test runs, install dev extras:
+```bash
+pip install -e ".[dev]"
+```
+
 ### Docker
 
 Alternatively, run with Docker:
@@ -180,13 +185,20 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
 ```
 
+COT and prediction-market enrichment are keyless by default:
+
+- CFTC Commitments of Traders (`positioning_data: cftc`) uses the public CFTC API
+- Prediction markets (`prediction_markets: polymarket`) use Polymarket's public API
+
+COT queries are futures-market topics (for example `E-MINI S&P 500`, `NASDAQ-100`, `GOLD`, `BITCOIN`), not equity tickers like `NVDA`.
+
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-5-5`.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
-For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
+For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one. TradingAgents also normalizes fresh-run and analyst prompts to guarantee at least one user/human message, which avoids strict gateways that reject payloads with `no user query found in messages`.
 
 With `TYPESAFE_API_KEY` set, the Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. Without the key, posts pass through unscreened. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs.
 
@@ -279,6 +291,44 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Data vendors and tool routing
+
+Data tools route by category (`data_vendors`) and can be overridden per tool (`tool_vendors`).
+
+```python
+config = DEFAULT_CONFIG.copy()
+
+# Category-level vendor chain (ordered fallback inside the list)
+config["data_vendors"] = {
+    "core_stock_apis": "yfinance",                 # get_stock_data
+    "technical_indicators": "yfinance",           # get_indicators
+    "fundamental_data": "sec_edgar,yfinance",     # fundamentals/statements
+    "news_data": "yfinance",                      # news + insider
+    "macro_data": "fred",                         # get_macro_indicators
+    "positioning_data": "cftc",                   # get_commitments_of_traders
+    "prediction_markets": "polymarket",           # get_prediction_markets
+}
+
+# Optional per-tool override (takes precedence over category)
+config["tool_vendors"] = {
+    "get_commitments_of_traders": "cftc",
+    # "get_news": "alpha_vantage",
+}
+```
+
+Routing behavior:
+
+- The configured chain is exact: TradingAgents does not silently use unconfigured vendors.
+- Use comma-separated values for ordered fallback (e.g. `"sec_edgar,yfinance"`).
+- `"default"` means all available vendors for that tool.
+
+Optional enrichment categories (`macro_data`, `positioning_data`, `prediction_markets`) degrade to `DATA_UNAVAILABLE` on vendor errors, so runs continue without aborting. Core categories (prices, fundamentals, news) still fail loudly when broken.
+
+### Point-in-time behavior of macro/event enrichments
+
+- **COT (CFTC):** weekly Tuesday snapshots are treated as available after a Friday release lag (Tuesday + 3 days), so historical runs only see reports likely public by `trade_date`.
+- **Polymarket:** serves live odds only; historical runs withhold them to avoid look-ahead leakage.
+
 ### Fundamentals as filed
 
 US company statements come from SEC EDGAR, which records the date every figure was filed. A run dated in the past reads the statements exactly as they stood that day: a fiscal year that has ended but has not been filed yet is not served, and a figure restated later still reads as first reported. Apple's 2008 total assets were filed as $39.6B and restated to $36.2B in 2010, so a run dated in between reads $39.6B. EDGAR needs no account or API key.
@@ -326,7 +376,7 @@ Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
 ### Checkpoint resume
 
-Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. The run view says whether it resumed a saved run or started fresh. Checkpoints are cleared automatically on successful completion.
+Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. The run view says whether it resumed a saved run or started fresh. Checkpoints are cleared automatically on successful completion. On fresh starts (and analyst invocations), TradingAgents also ensures at least one user/human query message is present so strict OpenAI-compatible gateways accept the request.
 
 Per-ticker SQLite databases live at `~/.tradingagents/cache/checkpoints/<TICKER>.db` (override the base with `TRADINGAGENTS_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
 
@@ -340,6 +390,30 @@ config = DEFAULT_CONFIG.copy()
 config["checkpoint_enabled"] = True
 ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-09-01")
+```
+
+### COT data cache
+
+CFTC Commitments of Traders data is published weekly, so TradingAgents caches raw COT API responses on disk under `~/.tradingagents/cache/cftc` (or under your `TRADINGAGENTS_CACHE_DIR`) and reuses them across symbols and runs.
+
+You can control this cache with config keys or env vars:
+
+- `cftc_cache_enabled` / `TRADINGAGENTS_CFTC_CACHE_ENABLED` (default: `True`)
+- `cftc_cache_max_age_days` / `TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS` (default: `48`)
+
+```python
+config = DEFAULT_CONFIG.copy()
+config["cftc_cache_enabled"] = True      # set False to disable COT caching
+config["cftc_cache_max_age_days"] = 48   # default; prune cache files older than this
+# Example override:
+# config["cftc_cache_max_age_days"] = 28
+```
+
+```bash
+TRADINGAGENTS_CFTC_CACHE_ENABLED=on
+TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS=48
+# Example override:
+# TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS=28
 ```
 
 ## Evaluating decisions over time
