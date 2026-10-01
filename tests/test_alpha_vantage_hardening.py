@@ -86,6 +86,23 @@ def test_a_rejected_request_is_unavailable_not_data(monkeypatch):
     assert out.startswith("DATA_UNAVAILABLE"), out
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize("body", [
+    '{"Note": "Thank you for using key k-secret. API call frequency is 5 calls per minute."}',
+    '{"Information": "the apikey k-secret is invalid or missing."}',
+])
+def test_the_key_never_reaches_an_error_message(monkeypatch, body):
+    """Alpha Vantage can echo the key in its notices; error text reaches logs and reports."""
+    from tradingagents.dataflows.errors import VendorError
+
+    monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "k-secret")
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
+
+    with pytest.raises(VendorError) as raised:
+        av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+    assert "k-secret" not in str(raised.value)
+
+
 _FUNDAMENTALS_JSON = json.dumps({
     "symbol": "AAPL",
     "annualReports": [
