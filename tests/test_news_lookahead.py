@@ -255,3 +255,33 @@ def test_the_article_limit_still_caps_what_is_returned(monkeypatch):
     out = ynews.get_global_news_yfinance("2025-05-09", look_back_days=7, limit=3)
 
     assert out.count("### ") == 3
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field", ["title", "summary", "provider", "canonicalUrl", "pubDate"])
+def test_an_article_with_a_null_field_is_read_with_its_default(field):
+    """Yahoo sends some fields as null rather than leaving them out (#1458)."""
+    content = {"title": "T", "summary": "S", "provider": {"displayName": "P"},
+               "canonicalUrl": {"url": "https://x"}, "pubDate": "2026-09-22T10:00:00Z", field: None}
+    data = ynews._extract_article_data({"content": content})
+    assert isinstance(data["title"], str) and isinstance(data["summary"], str)
+    assert isinstance(data["publisher"], str) and isinstance(data["link"], str)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field", ["title", "summary", "publisher", "link"])
+def test_a_flat_article_with_a_null_field_is_read_with_its_default(field):
+    data = ynews._extract_article_data({"title": "T", "summary": "S", "publisher": "P", "link": "L",
+                                        "providerPublishTime": _epoch("2026-09-22"), field: None})
+    assert all(isinstance(data[k], str) for k in ("title", "summary", "publisher", "link"))
+
+
+@pytest.mark.unit
+def test_one_malformed_article_does_not_lose_the_feed(monkeypatch):
+    good = {"content": {"title": "Kept", "summary": "", "provider": {"displayName": "Wire"},
+                        "pubDate": "2026-09-22T10:00:00Z"}}
+    bad = {"content": {"title": "Also kept", "summary": None, "provider": None,
+                       "pubDate": "2026-09-22T11:00:00Z"}}
+    _ticker_with([good, bad], monkeypatch)
+    out = ynews.get_news_yfinance("ZS", "2026-09-20", "2026-09-23")
+    assert "Kept" in out and "Also kept" in out

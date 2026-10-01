@@ -13,48 +13,44 @@ from tradingagents.dataflows.vendors.yahoo.common import yf_retry
 
 
 def _extract_article_data(article: dict) -> dict:
-    """Extract article data from yfinance news format (handles nested 'content' structure)."""
-    if "content" in article:
-        content = article["content"]
-        title = content.get("title", "No title")
-        summary = content.get("summary", "")
-        provider = content.get("provider", {})
-        publisher = provider.get("displayName", "Unknown")
+    """Extract article data from yfinance news format (handles nested 'content' structure).
 
+    Yahoo sends some fields as null rather than leaving them out, so each falls
+    back to its default on a null as well as on a missing key (#1458).
+    """
+    content = article.get("content")
+    if isinstance(content, dict):
         url_obj = content.get("canonicalUrl") or content.get("clickThroughUrl") or {}
-        link = url_obj.get("url", "")
-
-        pub_date_str = content.get("pubDate", "")
+        pub_date_str = content.get("pubDate") or ""
         pub_date = None
         if pub_date_str:
             with contextlib.suppress(ValueError, AttributeError):
                 pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
 
         return {
-            "title": title,
-            "summary": summary,
-            "publisher": publisher,
-            "link": link,
+            "title": content.get("title") or "No title",
+            "summary": content.get("summary") or "",
+            "publisher": (content.get("provider") or {}).get("displayName") or "Unknown",
+            "link": url_obj.get("url") or "",
             "pub_date": pub_date,
         }
-    else:
-        # Fallback for flat structure. Parse the epoch publish time so flat
-        # articles are date-filterable too (otherwise they bypass the
-        # historical window and leak future news, #992/#1007).
-        pub_date = None
-        ts = article.get("providerPublishTime")
-        if ts:
-            # Epoch seconds are UTC; parse them as UTC-aware so filtering does
-            # not shift with the host timezone (#1126).
-            with contextlib.suppress(ValueError, OSError, TypeError):
-                pub_date = datetime.fromtimestamp(ts, tz=UTC)
-        return {
-            "title": article.get("title", "No title"),
-            "summary": article.get("summary", ""),
-            "publisher": article.get("publisher", "Unknown"),
-            "link": article.get("link", ""),
-            "pub_date": pub_date,
-        }
+    # Fallback for flat structure. Parse the epoch publish time so flat
+    # articles are date-filterable too (otherwise they bypass the
+    # historical window and leak future news, #992/#1007).
+    pub_date = None
+    ts = article.get("providerPublishTime")
+    if ts:
+        # Epoch seconds are UTC; parse them as UTC-aware so filtering does
+        # not shift with the host timezone (#1126).
+        with contextlib.suppress(ValueError, OSError, TypeError):
+            pub_date = datetime.fromtimestamp(ts, tz=UTC)
+    return {
+        "title": article.get("title") or "No title",
+        "summary": article.get("summary") or "",
+        "publisher": article.get("publisher") or "Unknown",
+        "link": article.get("link") or "",
+        "pub_date": pub_date,
+    }
 
 
 def get_news_yfinance(
