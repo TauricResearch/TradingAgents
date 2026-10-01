@@ -64,6 +64,28 @@ def test_invalid_key_not_mislabeled_as_rate_limit(monkeypatch):
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
 
 
+@pytest.mark.unit
+def test_a_rejected_request_is_unavailable_not_data(monkeypatch):
+    """Alpha Vantage answers a call it rejects with {"Error Message": ...}, for an
+    unknown symbol and for a malformed call alike, so it says nothing about the
+    instrument; served as data it reads as a one-line CSV or as "no data" (#1442)."""
+    from tradingagents.dataflows import router
+    from tradingagents.dataflows.config import set_config
+    from tradingagents.dataflows.errors import VendorUnavailableError
+
+    monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "k-secret")
+    body = '{"Error Message": "Invalid API call. Please retry or visit the documentation for TIME_SERIES_DAILY."}'
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
+
+    with pytest.raises(VendorUnavailableError) as raised:
+        av._make_api_request("TIME_SERIES_DAILY", {"symbol": "ZZZZ"})
+    assert "k-secret" not in str(raised.value)
+
+    set_config({"data_vendors": {"core_stock_apis": "alpha_vantage"}})
+    out = router.route_to_vendor("get_stock_data", "ZZZZ", "2026-01-02", "2026-01-09")
+    assert out.startswith("DATA_UNAVAILABLE"), out
+
+
 _FUNDAMENTALS_JSON = json.dumps({
     "symbol": "AAPL",
     "annualReports": [

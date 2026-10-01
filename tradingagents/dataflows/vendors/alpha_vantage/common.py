@@ -119,6 +119,15 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
             # a real, actionable failure rather than a mislabeled rate limit (#991).
             raise AlphaVantageNotConfiguredError(f"Alpha Vantage API key invalid or missing: {notice}")
 
+    # A call it rejects comes back as {"Error Message": ...}, for an unknown
+    # symbol and for a malformed call alike, so it says nothing about the
+    # instrument (#1442).
+    rejection = response_json.get("Error Message")
+    if rejection:
+        if api_key:
+            rejection = rejection.replace(api_key, "***")
+        raise VendorUnavailableError(f"Alpha Vantage rejected the request: {rejection}")
+
     return response_text
 
 
