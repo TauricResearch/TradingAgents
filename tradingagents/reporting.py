@@ -12,6 +12,11 @@ from pathlib import Path
 from tradingagents.agents.rating import run_rating
 
 
+def analyst_names(keys) -> list[str]:
+    """The analysts as users select them: the sentiment analyst's key is "social"."""
+    return ["sentiment" if key == "social" else key for key in keys or []]
+
+
 def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
     """The report's title and what produced it: analysis date, version, models, analysts, vendors."""
     lines = [f"# Trading Analysis Report: {ticker}", ""]
@@ -30,7 +35,7 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
             models = (f"deep {deep_provider} {s('deep_think_llm', '?')}, "
                       f"quick {quick_provider} {s('quick_think_llm', '?')}")
         lines.append(f"- TradingAgents {s('version', '?')}: {models}")
-        lines.append(f"- Analysts: {', '.join(s('analysts') or [])}; "
+        lines.append(f"- Analysts: {', '.join(analyst_names(s('analysts')))}; "
                      f"research debate rounds {s('max_debate_rounds', '?')}, "
                      f"risk debate rounds {s('max_risk_discuss_rounds', '?')}")
         vendors = {**(s("data_vendors") or {}), **(s("tool_vendors") or {})}
