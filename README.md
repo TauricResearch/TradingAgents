@@ -277,6 +277,15 @@ _, decision = ta.propagate("NVDA", "2026-09-01")
 print(decision)
 ```
 
+The quick model serves the analysts, researchers, debaters and trader; the deep model serves the research and portfolio managers. Each can run on its own provider, for example the managers on Claude while the rest run on OpenAI:
+
+```python
+config["deep_think_provider"] = "anthropic"
+config["deep_think_llm"] = "claude-opus-5-5"
+```
+
+A tier on its own provider uses that provider's key and default endpoint; set `quick_think_backend_url` or `deep_think_backend_url` for a local or relay endpoint. The `TRADINGAGENTS_DEEP_THINK_PROVIDER` and `TRADINGAGENTS_QUICK_THINK_PROVIDER` variables set them for the CLI, together with the tier's model variable.
+
 See `tradingagents/default_config.py` for all configuration options.
 
 ### Fundamentals as filed

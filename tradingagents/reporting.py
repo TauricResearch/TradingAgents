@@ -18,8 +18,14 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
     lines.append(f"- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     if settings:
         s = settings.get
-        lines.append(f"- TradingAgents {s('version', '?')}: {s('llm_provider', '?')}, "
-                     f"deep {s('deep_think_llm', '?')}, quick {s('quick_think_llm', '?')}")
+        deep_provider = s("deep_think_provider") or s("llm_provider", "?")
+        quick_provider = s("quick_think_provider") or s("llm_provider", "?")
+        if deep_provider == quick_provider:
+            models = f"{deep_provider}, deep {s('deep_think_llm', '?')}, quick {s('quick_think_llm', '?')}"
+        else:   # each tier on its own provider (#1440)
+            models = (f"deep {deep_provider} {s('deep_think_llm', '?')}, "
+                      f"quick {quick_provider} {s('quick_think_llm', '?')}")
+        lines.append(f"- TradingAgents {s('version', '?')}: {models}")
         lines.append(f"- Analysts: {', '.join(s('analysts') or [])}; "
                      f"research debate rounds {s('max_debate_rounds', '?')}, "
                      f"risk debate rounds {s('max_risk_discuss_rounds', '?')}")

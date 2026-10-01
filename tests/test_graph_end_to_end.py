@@ -124,7 +124,7 @@ def _graph(tmp_path, monkeypatch, model, debug=False, **config):
     cfg = copy.deepcopy(DEFAULT_CONFIG)
     cfg.update(results_dir=str(tmp_path / "results"), data_cache_dir=str(tmp_path / "cache"),
                memory_log_path=str(tmp_path / "log.md"), **config)
-    monkeypatch.setattr(trading_graph, "create_llm_client", lambda **k: _Client(model))
+    monkeypatch.setattr(trading_graph, "create_tier_client", lambda config, tier, **k: _Client(model))
     return trading_graph.TradingAgentsGraph(config=cfg, debug=debug)
 
 

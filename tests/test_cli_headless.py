@@ -185,3 +185,49 @@ def test_an_unknown_analyst_error_names_the_analysts_as_users_know_them():
     with pytest.raises(ValueError) as caught:
         prompts.parse_analysts("macro", AssetType.STOCK)
     assert "sentiment" in str(caught.value) and "social" not in str(caught.value)
+
+
+def _selections_with_env(monkeypatch, keys=None):
+    for name, value in UNATTENDED_ENV.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(selections, "fetch_announcements", lambda: None)
+    monkeypatch.setattr(selections, "display_announcements", lambda *a: None)
+    checked = keys if keys is not None else []
+    monkeypatch.setattr(selections, "ensure_api_key", lambda provider: checked.append(provider))
+    return checked
+
+
+@pytest.mark.unit
+def test_a_tier_on_another_provider_needs_its_own_model(monkeypatch, capsys):
+    """Otherwise the CLI would take the main provider's model for it (#1440)."""
+    _selections_with_env(monkeypatch)
+    monkeypatch.setitem(selections.DEFAULT_CONFIG, "deep_think_provider", "anthropic")
+    monkeypatch.delenv("TRADINGAGENTS_DEEP_THINK_LLM", raising=False)
+
+    with pytest.raises(typer.Exit):
+        selections._prompt_selections({}, FLAGS)
+    assert "TRADINGAGENTS_DEEP_THINK_LLM" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_each_tier_provider_s_key_is_checked_before_the_run(monkeypatch):
+    checked = _selections_with_env(monkeypatch)
+    monkeypatch.setitem(selections.DEFAULT_CONFIG, "deep_think_provider", "anthropic")
+    monkeypatch.setenv("TRADINGAGENTS_DEEP_THINK_LLM", "claude-opus-5-5")
+
+    selections._prompt_selections({}, FLAGS)
+
+    assert checked == ["openai", "anthropic"]
+
+
+@pytest.mark.unit
+def test_only_the_providers_the_tiers_use_need_a_key(monkeypatch):
+    """Both tiers on a local Ollama: the main provider's key is not needed."""
+    checked = _selections_with_env(monkeypatch)
+    for tier in ("quick", "deep"):
+        monkeypatch.setitem(selections.DEFAULT_CONFIG, f"{tier}_think_provider", "ollama")
+        monkeypatch.setenv(f"TRADINGAGENTS_{tier.upper()}_THINK_LLM", "llama3.1")
+
+    selections._prompt_selections({}, FLAGS)
+
+    assert checked == ["ollama"]
