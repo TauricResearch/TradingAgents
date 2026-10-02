@@ -7,14 +7,33 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+
+from scripts import report_guard
 
 ROOT = Path(__file__).resolve().parents[1]
 LAUNCHERS = [
     'run_missing_today_claude.sh', 'run_missing_today_gemini.sh',
     'run_missing_today_gpt.sh', 'run_all_today.sh',
 ]
+
+
+def test_worker_deadline_includes_time_asleep(monkeypatch):
+    wall_times = iter((100, 100, 3701))
+    monkeypatch.setattr(report_guard, 'time', SimpleNamespace(time=lambda: next(wall_times)))
+
+    class SuspendedWorker:
+        args = ['worker']
+
+        def wait(self, timeout=None):
+            assert timeout == 1
+            raise subprocess.TimeoutExpired(self.args, timeout)
+
+    with pytest.raises(subprocess.TimeoutExpired) as expired:
+        report_guard.wait_for_worker(SuspendedWorker(), 3600)
+    assert expired.value.timeout == 3600
 
 
 def write_complete_fixture(report):
@@ -167,6 +186,13 @@ def test_worker_deadline_stops_worker_and_releases_lock(repo, descendant):
     result = invoke(root, env, LAUNCHERS[0], 'NVDA')
     assert result.returncode == 0, result.stdout + result.stderr
     assert len((root / 'calls').read_text().splitlines()) == 2
+
+
+def test_worker_can_finish_before_deadline(repo):
+    root, env = repo
+    result = invoke(root, dict(env, TRADINGAGENTS_REPORT_MAX_SECONDS='10'), LAUNCHERS[0], 'NVDA')
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert '[TIMEOUT' not in result.stdout
 
 
 @pytest.mark.parametrize('limit', ['0', '-1', 'nan', 'inf'])
