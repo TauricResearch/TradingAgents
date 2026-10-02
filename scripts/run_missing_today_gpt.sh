@@ -141,7 +141,7 @@ run_pass() {
         --provider "$PROVIDER" \
         --deep-model "$DEEP_MODEL" --quick-model "$QUICK_MODEL" \
         --openai-reasoning-effort "$REASONING_EFFORT" \
-        --checkpoint --clear-checkpoints \
+        --checkpoint \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"
     ' _ {} "$DATE" "$LOGDIR" "$PROVIDER" "$BACKEND_URL" "$DEEP_MODEL" "$QUICK_MODEL" "$REASONING_EFFORT" "$ANALYSTS" "$DEPTH"
 }

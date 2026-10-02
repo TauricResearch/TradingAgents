@@ -145,7 +145,7 @@ run_pass() {
         --provider "$PROVIDER" \
         --deep-model "$DEEP_MODEL" --quick-model "$QUICK_MODEL" \
         --google-thinking-level "$GOOGLE_THINKING_LEVEL" \
-        --checkpoint --clear-checkpoints \
+        --checkpoint \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"
     ' _ {} "$DATE" "$LOGDIR" "$PROVIDER" "$DEEP_MODEL" "$QUICK_MODEL" "$GOOGLE_THINKING_LEVEL" "$ANALYSTS" "$DEPTH" "$BACKEND_URL"
 }

@@ -7,6 +7,7 @@ Removing a lock file could let two processes lock different inodes for one key.
 import argparse
 import fcntl
 import hashlib
+import math
 import os
 import re
 import signal
@@ -63,7 +64,7 @@ def report_complete(directory):
     )
 
 
-def run_guarded(reports, date, model, ticker, log, command):
+def run_guarded(reports, date, model, ticker, log, command, max_seconds=None):
     prefix = report_prefix(date, model)
     # Canonical docs paths make symlinked launchers share the same lock domain.
     reports = reports.resolve()
@@ -92,7 +93,18 @@ def run_guarded(reports, date, model, ticker, log, command):
                     os.killpg(child.pid, signum)
             previous = {s: signal.signal(s, forward_signal) for s in (signal.SIGINT, signal.SIGTERM)}
             try:
-                status = child.wait()
+                try:
+                    status = child.wait(timeout=max_seconds)
+                except subprocess.TimeoutExpired:
+                    print(f"[TIMEOUT {ticker}] worker exceeded {max_seconds:g}s; checkpoint retained", flush=True)
+                    forward_signal(signal.SIGTERM, None)
+                    with suppress(subprocess.TimeoutExpired):
+                        child.wait(timeout=10)
+                    # An exited parent can leave descendants holding the lock.
+                    # Stop the entire worker group even if child.wait succeeded.
+                    forward_signal(signal.SIGKILL, None)
+                    child.wait()
+                    return 124
             finally:
                 for signum, handler in previous.items():
                     signal.signal(signum, handler)
@@ -110,6 +122,8 @@ def main():
     parser.add_argument("--model", required=True)
     parser.add_argument("--ticker")
     parser.add_argument("--log", type=Path)
+    parser.add_argument("--max-seconds", type=float, default=os.environ.get("TRADINGAGENTS_REPORT_MAX_SECONDS"),
+                        help="Optional worker wall-clock limit; interrupted checkpoints remain available.")
     parser.add_argument("arguments", nargs="*")
     # Commands after -- must pass through without parsing uv/CLI options.
     argsv = sys.argv[1:]
@@ -118,6 +132,8 @@ def main():
         split = argsv.index("--")
         command, argsv = argsv[split + 1:], argsv[:split]
     args = parser.parse_args(argsv)
+    if args.max_seconds is not None and (not math.isfinite(args.max_seconds) or args.max_seconds <= 0):
+        parser.error("--max-seconds must be a finite positive number")
     if args.action == "missing":
         prefix = report_prefix(args.date, args.model)
         for ticker in dict.fromkeys(t.upper() for t in args.arguments + command):
@@ -126,7 +142,7 @@ def main():
         return 0
     if not args.ticker or args.log is None or not command:
         parser.error("run requires --ticker, --log, and a command after --")
-    return run_guarded(args.reports_dir, args.date, args.model, args.ticker.upper(), args.log, command)
+    return run_guarded(args.reports_dir, args.date, args.model, args.ticker.upper(), args.log, command, args.max_seconds)
 
 
 if __name__ == "__main__":

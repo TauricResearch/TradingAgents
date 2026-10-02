@@ -79,7 +79,7 @@ run_pass() {
         --provider anthropic \
         --deep-model "$DEEP_MODEL" --quick-model "$QUICK_MODEL" \
         --anthropic-effort low \
-        --checkpoint --clear-checkpoints \
+        --checkpoint \
         && echo "[OK $t] $(date +%T)" || echo "[FAIL $t] $(date +%T)"
     ' _ {} "$DATE" "$LOGDIR" "$DEEP_MODEL" "$QUICK_MODEL"
 }

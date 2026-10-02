@@ -9,6 +9,7 @@ clear/end) and prove state is saved and resumed.
 """
 from __future__ import annotations
 
+import sys
 import tempfile
 from typing import TypedDict
 
@@ -168,3 +169,45 @@ def test_clearing_removes_the_database_sidecars(tmp_path):
 
     assert cleared == 1
     assert list(cp.iterdir()) == []
+
+
+@pytest.mark.unit
+def test_cli_stream_recovers_saved_state_without_replaying_analyst(tmp_path, monkeypatch):
+    from cli.checkpoint import stream_with_checkpoint
+
+    selections = {"ticker": "AAPL", "analysis_date": "2026-05-08", "asset_type": "stock"}
+    args = {"stream_mode": "values", "config": {"recursion_limit": 20}}
+    first = _bare_graph(str(tmp_path))
+    monkeypatch.setattr(sys.modules[__name__], "_should_crash", True)
+    with pytest.raises(RuntimeError, match="mid-stream crash"):
+        list(stream_with_checkpoint(first, {"count": 0}, args, selections))
+    assert first._checkpointer_ctx is None
+    assert checkpoint_step(str(tmp_path), "AAPL", "2026-05-08", first._run_signature("stock")) is not None
+
+    monkeypatch.setattr(sys.modules[__name__], "_should_crash", False)
+    resumed = _bare_graph(str(tmp_path))
+    chunks = list(stream_with_checkpoint(resumed, {"count": 100}, args, selections))
+    assert chunks[-1][1] == {"count": 11}
+    assert resumed._checkpointer_ctx is None
+    assert args == {"stream_mode": "values", "config": {"recursion_limit": 20}}
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field", ["llm_provider", "deep_think_llm", "quick_think_llm", "backend_url"])
+def test_changed_model_identity_cannot_resume_other_model(tmp_path, monkeypatch, field):
+    from cli.checkpoint import stream_with_checkpoint
+
+    selections = {"ticker": "AAPL", "analysis_date": "2026-05-08", "asset_type": "stock"}
+    first = _bare_graph(str(tmp_path))
+    first.config.update({"llm_provider": "provider-a", "deep_think_llm": "deep-a",
+                         "quick_think_llm": "quick-a", "backend_url": "https://secret@example.com/v1"})
+    monkeypatch.setattr(sys.modules[__name__], "_should_crash", True)
+    with pytest.raises(RuntimeError):
+        list(stream_with_checkpoint(first, {"count": 0}, {}, selections))
+
+    other = _bare_graph(str(tmp_path))
+    other.config = dict(first.config, **{field: "different"})
+    monkeypatch.setattr(sys.modules[__name__], "_should_crash", False)
+    chunks = list(stream_with_checkpoint(other, {"count": 100}, {}, selections))
+    assert chunks[-1][1] == {"count": 111}  # fresh analyst; cannot reuse provider-a's count
+    assert "secret" not in first._run_signature("stock")
