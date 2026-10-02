@@ -78,6 +78,20 @@ _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 # investing trend more measured. Caller can override.
 DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 
+# Crypto is discussed in crypto communities, where a coin's own subreddit carries
+# most of it; the stock subreddits above barely mention it.
+CRYPTO_SUBREDDITS = ("CryptoCurrency", "CryptoMarkets")
+_COIN_SUBREDDITS = {"BTC": "Bitcoin", "ETH": "ethereum", "SOL": "solana"}
+
+
+def subreddits_for(ticker: str) -> tuple[str, ...]:
+    """The subreddits searched for ``ticker``: crypto communities for a crypto pair."""
+    base = crypto_base(ticker)
+    if not base:
+        return DEFAULT_SUBREDDITS
+    coin = _COIN_SUBREDDITS.get(base)
+    return ((coin,) if coin else ()) + CRYPTO_SUBREDDITS
+
 # Reddit's maximum page size. A week of posts for a ticker across the default
 # subreddits fits well inside one page, which keeps a high-volume subreddit from
 # crowding the others out of a combined search.
@@ -233,7 +247,7 @@ def _fetch_subreddit_rss(
 
 def fetch_reddit_posts(
     ticker: str,
-    subreddits: Iterable[str] = DEFAULT_SUBREDDITS,
+    subreddits: Iterable[str] | None = None,
     *,
     limit_per_sub: int = 5,
     timeout: float = 10.0,
@@ -242,7 +256,8 @@ def fetch_reddit_posts(
     screen=None,
 ) -> str:
     """Fetch recent Reddit posts mentioning ``ticker`` across finance
-    subreddits and return them as a formatted plaintext block.
+    subreddits (by default ``subreddits_for(ticker)``) and return them as a
+    formatted plaintext block.
 
     All subreddits are searched in one combined feed (``r/a+b+c``): anonymous
     RSS allows about one request per minute per IP, so a request per subreddit
@@ -257,10 +272,10 @@ def fetch_reddit_posts(
     flag per post and a note line that heads the block. It runs before the
     per-subreddit cut, so the posts it keeps fill the slots.
     """
+    subreddits = list(subreddits or subreddits_for(ticker))
     # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
     # ("BTC") so the query actually matches discussion instead of near-nothing.
     ticker = crypto_base(ticker) or ticker
-    subreddits = list(subreddits)
     label = ", ".join(f"r/{s}" for s in subreddits)
     fetched = _fetch_subreddit_rss(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
     if fetched is None:
