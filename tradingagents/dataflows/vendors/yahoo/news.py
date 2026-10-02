@@ -57,6 +57,23 @@ def _extract_article_data(article: dict) -> dict:
         }
 
 
+def _ticker_news(canonical: str, limit: int) -> tuple[list, bool]:
+    """Yahoo's articles about ``canonical``, and whether they came from its quote feed.
+
+    ``Ticker.get_news`` has answered every symbol with nothing since 2026-10-02
+    while Yahoo's search still serves the articles tagged with it (#1467), so an
+    empty feed falls back to a search for the symbol, kept to the articles that
+    name it among their related tickers.
+    """
+    news = yf_retry(lambda: yf.Ticker(canonical).get_news(count=limit)) or []
+    if news:
+        return news, True
+    found = yf_retry(lambda: yf.Search(query=canonical, news_count=limit).news) or []
+    symbol = canonical.upper()
+    return [a for a in found
+            if symbol in (t.upper() for t in a.get("relatedTickers") or [])], False
+
+
 def get_news_yfinance(
     ticker: str,
     start_date: str,
@@ -79,7 +96,7 @@ def get_news_yfinance(
     # returns no news. Keep the user's ticker in the report header.
     canonical = normalize_symbol(ticker)
     resolved = "" if canonical == ticker else f" (resolved to {canonical})"
-    news = yf_retry(lambda: yf.Ticker(canonical).get_news(count=article_limit)) or []
+    news, from_feed = _ticker_news(canonical, article_limit)
 
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
@@ -103,9 +120,11 @@ def get_news_yfinance(
         filtered_count += 1
 
     if filtered_count == 0:
+        # A search is ranked by relevance and trimmed to the tagged articles, so
+        # its oldest hit proves no continuous coverage; only the feed's does.
+        dates = (_extract_article_data(a)["pub_date"] for a in news) if from_feed else ()
         gap = coverage_gap(
-            (_extract_article_data(a)["pub_date"] for a in news),
-            start_date, end_date, "Yahoo Finance news", f"news for {ticker}{resolved}",
+            dates, start_date, end_date, "Yahoo Finance news", f"news for {ticker}{resolved}",
         )
         return gap or f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
 
