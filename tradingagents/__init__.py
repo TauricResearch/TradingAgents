@@ -1,3 +1,7 @@
+"""TradingAgents: multi-agent LLM financial trading framework."""
+
+__version__ = "0.5.2"
+
 try:
     import truststore
 

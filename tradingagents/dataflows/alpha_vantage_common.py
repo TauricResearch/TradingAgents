@@ -6,7 +6,7 @@ from io import StringIO
 import pandas as pd
 import requests
 
-from .errors import VendorNotConfiguredError, VendorRateLimitError
+from .errors import VendorNotConfiguredError, VendorUnavailableError
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -55,7 +55,7 @@ def format_datetime_for_api(date_input) -> str:
     else:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
-class AlphaVantageRateLimitError(VendorRateLimitError):
+class AlphaVantageRateLimitError(VendorUnavailableError):
     """Raised when the Alpha Vantage API rate limit is exceeded."""
     pass
 

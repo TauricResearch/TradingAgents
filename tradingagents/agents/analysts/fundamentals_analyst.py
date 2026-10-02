@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.analysts.turn import take_turn
 from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
 from tradingagents.agents.tools import (
     get_balance_sheet,
@@ -8,7 +9,6 @@ from tradingagents.agents.tools import (
     get_income_statement,
     get_insider_transactions,
 )
-from tradingagents.llm_clients.base_client import normalize_content, require_report_text
 
 # The tools this analyst is offered; its tool node is built from the same tuple.
 TOOLS = (
@@ -54,14 +54,7 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(TOOLS)
-
-        result = normalize_content(chain.invoke(state["messages"]))
-
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = require_report_text(result, 'Fundamentals Analyst')
+        result, report = take_turn(prompt, llm, TOOLS, state["messages"], "Fundamentals Analyst")
 
         return {
             "messages": [result],

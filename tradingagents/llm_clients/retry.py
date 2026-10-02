@@ -35,7 +35,7 @@ import os
 import random
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import TypeVar
 
@@ -125,7 +125,7 @@ def _retry_after_seconds(exc: BaseException) -> float | None:
         when = parsedate_to_datetime(str(value))
     except (TypeError, ValueError):
         return None
-    return (when - datetime.now(timezone.utc)).total_seconds()
+    return (when - datetime.now(UTC)).total_seconds()
 
 
 def call_with_rate_limit_retry(fn: Callable[[], T], *, description: str = "LLM call") -> T:

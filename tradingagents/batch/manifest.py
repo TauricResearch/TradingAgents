@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +12,7 @@ from langchain_core.messages.utils import convert_to_messages
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _json_default(value: Any) -> Any:
@@ -138,7 +138,7 @@ class BatchManifest:
         runs: dict[str, BatchRunState],
     ) -> BatchManifest:
         return cls(
-            run_id=datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+            run_id=datetime.now(UTC).strftime("%Y%m%d%H%M%S")
             + "-"
             + uuid.uuid4().hex[:8],
             provider=provider,

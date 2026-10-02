@@ -23,6 +23,7 @@ from rich.text import Text
 
 from cli.announcements import display_announcements, fetch_announcements
 from cli.models import AnalystType, AssetType
+from cli.prompts import parse_analysts
 from cli.report_headings import transform as _prune_report_headings
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
@@ -817,8 +818,8 @@ def display_complete_report(final_state):
             research.append(("Bull Researcher", debate["bull_history"]))
         if debate.get("bear_history"):
             research.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
-            research.append(("Research Manager", debate["judge_decision"]))
+        if final_state.get("investment_plan"):
+            research.append(("Research Manager", final_state["investment_plan"]))
         if research:
             console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
             for title, content in research:
@@ -844,10 +845,10 @@ def display_complete_report(final_state):
             for title, content in risk_reports:
                 console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
-        # V. Portfolio Manager Decision
-        if risk.get("judge_decision"):
-            console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
-            console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
+    # V. Portfolio Manager Decision
+    if final_state.get("final_trade_decision"):
+        console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
+        console.print(Panel(Markdown(final_state["final_trade_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):
@@ -1040,6 +1041,7 @@ def run_analysis(
     post_save_path: str | None = None,
     post_display: bool | None = None,
     portfolio=None,
+    flags: dict | None = None,
 ):
     """Run a full analysis.
 
@@ -1048,10 +1050,14 @@ def run_analysis(
     via flags and the menu is skipped. ``post_save`` / ``post_save_path``
     / ``post_display`` likewise turn the post-run "Save report? / Display
     full report?" prompts into no-ops when set explicitly.
+
+    A portfolio, or any of the default command's ``--ticker/--date/--analysts/
+    --save/--show`` ``flags``, hands the run to the upstream ``cli.run`` flow,
+    which implements them.
     """
-    if portfolio is not None:
-        from cli.run import run_analysis as run_portfolio_analysis
-        return run_portfolio_analysis(checkpoint=checkpoint, portfolio=portfolio)
+    if portfolio is not None or any(v is not None for v in (flags or {}).values()):
+        from cli.run import run_analysis as run_upstream_analysis
+        return run_upstream_analysis(checkpoint=checkpoint, portfolio=portfolio, flags=flags)
 
     # First get all user selections
     if selections is None:
@@ -1179,11 +1185,13 @@ def run_analysis(
         # (LLM tracking is handled separately via LLM constructor)
         args = graph.propagator.get_graph_args(callbacks=[stats_handler])
 
-        # Stream the analysis
+        # Stream the analysis. stream_run surfaces the analysts' own messages,
+        # which stay inside their subgraphs, and serves tool calls under the
+        # graph's config.
         trace = []
-        for chunk in graph.graph.stream(init_agent_state, **args):
+        for messages, chunk in graph.stream_run(init_agent_state, **args):
             # Process all messages in chunk, deduplicating by message ID
-            for message in chunk.get("messages", []):
+            for message in messages:
                 msg_id = getattr(message, "id", None)
                 if msg_id is not None:
                     if msg_id in message_buffer._processed_message_ids:
@@ -1201,6 +1209,10 @@ def run_analysis(
                         else:
                             message_buffer.add_tool_call(tool_call.name, tool_call.args)
 
+            if chunk is None:  # a step inside an analyst's graph: messages only
+                update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                continue
+
             # Update analyst statuses based on report state (runs on every chunk)
             update_analyst_statuses(
                 message_buffer,
@@ -1213,7 +1225,7 @@ def run_analysis(
                 debate_state = chunk["investment_debate_state"]
                 bull_hist = debate_state.get("bull_history", "").strip()
                 bear_hist = debate_state.get("bear_history", "").strip()
-                judge = debate_state.get("judge_decision", "").strip()
+                judge = (chunk.get("investment_plan") or "").strip()
 
                 # Only update status when there's actual content
                 if bull_hist or bear_hist:
@@ -1248,7 +1260,7 @@ def run_analysis(
                 agg_hist = risk_state.get("aggressive_history", "").strip()
                 con_hist = risk_state.get("conservative_history", "").strip()
                 neu_hist = risk_state.get("neutral_history", "").strip()
-                judge = risk_state.get("judge_decision", "").strip()
+                judge = (chunk.get("final_trade_decision") or "").strip()
 
                 if agg_hist:
                     if message_buffer.agent_status.get("Aggressive Analyst") != "completed":
@@ -1785,8 +1797,23 @@ def default_analysis(
         help="JSON file with current holdings and cash, so the trader, risk and "
         "portfolio agents size against your actual position.",
     ),
+    ticker: str = typer.Option(None, "--ticker", help="Ticker to analyze, e.g. NVDA or 0700.HK; skips the prompt"),
+    date: str = typer.Option(None, "--date", help="Analysis date, YYYY-MM-DD; skips the prompt"),
+    analysts: str = typer.Option(
+        None, "--analysts", help="Comma-separated analysts, e.g. market,news; skips the prompt"
+    ),
+    save: bool | None = typer.Option(
+        None, "--save/--no-save", help="Save the report under results_dir without asking"
+    ),
+    show: bool | None = typer.Option(
+        None, "--show/--no-show", help="Show the full report at the end without asking"
+    ),
 ):
-    """Run an analysis. This is what a bare `tradingagents` does."""
+    """Run an analysis. This is what a bare `tradingagents` does.
+
+    Flags answer their questions; with provider, models, depth and language also
+    set through TRADINGAGENTS_* variables, the run asks nothing.
+    """
     if ctx.invoked_subcommand is not None:
         return
     if clear_checkpoints:
@@ -1802,7 +1829,8 @@ def default_analysis(
             raise typer.Exit(code=1) from None
 
     try:
-        run_analysis(checkpoint=checkpoint, portfolio=portfolio_context)
+        flags = {"ticker": ticker, "date": date, "analysts": analysts, "save": save, "show": show}
+        run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags)
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit
@@ -1823,7 +1851,7 @@ def backtest(
     end: str = typer.Option(..., "--end", help="Last analysis date, YYYY-MM-DD"),
     every: int = typer.Option(7, "--every", help="Days between analysis dates"),
     analysts: str = typer.Option(
-        None, "--analysts", help="Comma-separated analysts to run; omit for all four"
+        None, "--analysts", help="Comma-separated analysts to run: market, sentiment, news, fundamentals; omit for all the asset type allows"
     ),
     asset_type: str = typer.Option("stock", "--asset-type", help="stock or crypto"),
     portfolio: str = typer.Option(
@@ -1838,6 +1866,11 @@ def backtest(
     try:
         dates = iter_grid(start, end, every)
         book = load_portfolio(portfolio) if portfolio else None
+        kind = AssetType(asset_type.strip().lower())
+        # The analysts are named and checked as for an analysis; without a
+        # choice, every analyst the asset type allows runs.
+        chosen = (parse_analysts(analysts, kind) if analysts
+                  else filter_analysts_for_asset_type(list(AnalystType), kind))
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None
@@ -1847,9 +1880,11 @@ def backtest(
         console.print("[red]No ticker to analyze; pass them comma-separated, e.g. NVDA,AAPL[/red]")
         raise typer.Exit(code=1)
 
-    kwargs = {"asset_type": asset_type, "portfolio": book, "run_id": run_id}
-    if analysts:
-        kwargs["selected_analysts"] = [a.strip().lower() for a in analysts.split(",") if a.strip()]
+    def show_progress(done, total, ticker, date):
+        console.print(f"[dim][{done}/{total}] {ticker} {date}[/dim]")
+
+    kwargs = {"asset_type": kind.value, "portfolio": book, "run_id": run_id, "progress": show_progress,
+              "selected_analysts": [a.value for a in chosen]}
 
     try:
         result = run_backtest(names, dates, DEFAULT_CONFIG, **kwargs)
@@ -1858,6 +1893,7 @@ def backtest(
         raise typer.Exit(code=1) from None
     console.print(summarize(result).render())
     console.print(f"\nRan {result.cells_run} cells, skipped {result.skipped}. Log: {result.log_path}")
+    console.print(f"Continue or settle this sweep: --run-id {result.run_id}")
     for ticker, date, reason in result.failures:
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
     for ticker, reason in result.settlement_failures:

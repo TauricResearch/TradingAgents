@@ -6,8 +6,6 @@ opt-in llm_max_retries knob forwarded to every provider chat client.
 """
 from __future__ import annotations
 
-import importlib
-
 import pytest
 
 import tradingagents.default_config as default_config_module
@@ -74,23 +72,24 @@ def test_invalid_config_value_fails_loudly():
 
 # --- env overlay -----------------------------------------------------------
 
-def _reload_with_env(monkeypatch, **overrides):
+def _config_with_env(monkeypatch, **overrides):
+    """The defaults as the environment given here would set them."""
     for key in list(default_config_module._ENV_OVERRIDES):
         monkeypatch.delenv(key, raising=False)
     for key, val in overrides.items():
         monkeypatch.setenv(key, val)
-    return importlib.reload(default_config_module)
+    return default_config_module.build_default_config()
 
 
 @pytest.mark.unit
 def test_default_is_none(monkeypatch):
-    dc = _reload_with_env(monkeypatch)
-    assert dc.DEFAULT_CONFIG["llm_max_retries"] is None
+    config = _config_with_env(monkeypatch)
+    assert config["llm_max_retries"] is None
 
 
 @pytest.mark.unit
 def test_env_override_sets_config(monkeypatch):
-    dc = _reload_with_env(monkeypatch, TRADINGAGENTS_LLM_MAX_RETRIES="8")
+    config = _config_with_env(monkeypatch, TRADINGAGENTS_LLM_MAX_RETRIES="8")
     # None-default key: env value arrives as a string and is coerced downstream.
-    assert dc.DEFAULT_CONFIG["llm_max_retries"] == "8"
-    assert _coerce_max_retries(dc.DEFAULT_CONFIG["llm_max_retries"]) == 8
+    assert config["llm_max_retries"] == "8"
+    assert _coerce_max_retries(config["llm_max_retries"]) == 8

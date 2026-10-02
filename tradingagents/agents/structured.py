@@ -66,6 +66,36 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
         return None
 
 
+def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) -> T | None:
+    """Run the structured call; ``None`` when there is none or it fails.
+
+    ``prompt`` is whatever the underlying LLM accepts (a string for chat
+    invocations, a list of message dicts for chat models that take that
+    shape), so a caller can forward the same value to its free-text fallback.
+    """
+    if structured_llm is None:
+        return None
+    try:
+        result = structured_llm.invoke(prompt)
+        if result is None:
+            # A thinking model can answer in plain text instead of calling
+            # the tool, leaving the parser with nothing to return. Treat it
+            # as a structured miss and fall back, with a clear reason.
+            raise ValueError("structured output returned no parsed result")
+        return result
+    except Exception as exc:
+        if is_rate_limit_error(exc):
+            # Capacity or billing, not an output-format problem: the
+            # free-text request would hit the same wall after another
+            # full retry cycle. Surface the real error instead.
+            raise
+        logger.warning(
+            "%s: structured-output invocation failed (%s); retrying once as free text",
+            agent_name, exc,
+        )
+        return None
+
+
 def invoke_structured_or_freetext(
     structured_llm: Any | None,
     plain_llm: Any,
@@ -78,35 +108,43 @@ def invoke_structured_or_freetext(
 ) -> str:
     """Run the structured call and render to markdown; fall back to free-text on any failure.
 
-    ``prompt`` is whatever the underlying LLM accepts (a string for chat
-    invocations, a list of message dicts for chat models that take that
-    shape). The same value is forwarded to the free-text path so the
-    fallback sees the same input the structured call did.
     When ``validate`` is supplied, it checks both paths. At most two model
     calls are made, using ``retry_prompt`` for the correction when provided.
     """
-    if structured_llm is not None:
+    return invoke_structured_decision(
+        structured_llm, plain_llm, prompt, render, agent_name,
+        validate=validate, retry_prompt=retry_prompt,
+    )[0]
+
+
+def invoke_structured_decision(
+    structured_llm: Any | None,
+    plain_llm: Any,
+    prompt: Any,
+    render: Callable[[T], str],
+    agent_name: str,
+    *,
+    validate: Callable[[str], None] | None = None,
+    retry_prompt: Any = None,
+) -> tuple[str, T | None]:
+    """Like ``invoke_structured_or_freetext``, also returning the typed result.
+
+    The typed result is ``None`` when the text came from the free-text fallback,
+    so a caller that needs a field of it (the Portfolio Manager's rating) reads
+    that field from the text instead.
+    """
+    result = invoke_structured(structured_llm, prompt, agent_name)
+    if result is not None:
         try:
-            result = structured_llm.invoke(prompt)
-            if result is None:
-                # A thinking model can answer in plain text instead of calling
-                # the tool, leaving the parser with nothing to return. Treat it
-                # as a structured miss and fall back, with a clear reason.
-                raise ValueError("structured output returned no parsed result")
             text = render(result)
             if not isinstance(text, str) or not text.strip():
                 raise EmptyModelResponseError(f"{agent_name}: structured output rendered an empty report")
             if validate is not None:
                 validate(text)
-            return text
+            return text, result
         except Exception as exc:
-            if is_rate_limit_error(exc):
-                # Capacity or billing, not an output-format problem: the
-                # free-text request would hit the same wall after another
-                # full retry cycle. Surface the real error instead.
-                raise
             logger.warning(
-                "%s: structured-output invocation failed (%s); retrying once as free text",
+                "%s: structured output was unusable (%s); retrying once as free text",
                 agent_name, exc,
             )
 
@@ -123,4 +161,4 @@ def invoke_structured_or_freetext(
             logger.warning("%s: incomplete decision; retrying once with the required fields", agent_name)
             text = require_report_text(plain_llm.invoke(correction), agent_name)
             validate(text)
-    return text
+    return text, None

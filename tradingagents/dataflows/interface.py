@@ -15,7 +15,7 @@ from .config import get_config
 from .errors import (
     NoMarketDataError,
     VendorNotConfiguredError,
-    VendorRateLimitError,
+    VendorUnavailableError,
 )
 from .fred import get_macro_data as get_fred_macro_data
 from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
@@ -200,7 +200,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except VendorRateLimitError:
+        except VendorUnavailableError:
             logger.warning("Vendor %r rate-limited for %s; trying next vendor.", vendor, method)
             continue
         except VendorNotConfiguredError as e:

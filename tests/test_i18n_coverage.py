@@ -46,6 +46,15 @@ class TestLanguageInstruction:
         assert "中文" in out
         assert "entire response" in out
 
+    def test_the_labelled_lines_stay_as_the_format_gives_them(self):
+        # The rating is read from its "**Rating**:" line; a translated label
+        # leaves the reader a translated negation ("不建议卖出 (Sell)") to find
+        # instead, and a Buy reads as Sell (#1435).
+        from tradingagents.dataflows.config import set_config
+        set_config({"output_language": "中文"})
+        out = get_language_instruction()
+        assert "**Rating**:" in out and "FINAL TRANSACTION PROPOSAL" in out
+
 
 @pytest.mark.unit
 @pytest.mark.parametrize("rel", REPORT_AGENTS)

@@ -8,13 +8,14 @@ day (#1330).
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 from yfinance.exceptions import YFRateLimitError
 
-from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
-from tradingagents.dataflows.vendors.yahoo import ohlcv
+from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
+from tradingagents.dataflows.vendors.yahoo import common, ohlcv
 
 NOW = pd.Timestamp("2026-07-18 12:00")
 STALE = ohlcv.OHLCV_CACHE_TTL_SECONDS + 60
@@ -37,7 +38,7 @@ def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026
 def _load(tmp_path, monkeypatch, curr_date, download):
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: NOW))
-    monkeypatch.setattr(ohlcv.yf, "download", download)
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(history=download))
     return ohlcv.load_ohlcv("AAPL", curr_date)
 
 
@@ -100,7 +101,8 @@ def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     frame = pd.DataFrame({"Date": pd.to_datetime(["2026-07-16", "2026-07-17"]), "Close": [1.0, 2.0]})
     downloads = []
-    monkeypatch.setattr(ohlcv.yf, "download", lambda *a, **k: downloads.append(1) or frame.set_index("Date"))
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(
+        history=lambda *a, **k: downloads.append(1) or frame.set_index("Date")))
 
     for day in ("2026-07-18 10:00", "2026-07-19 10:00", "2026-07-20 10:00"):
         now = pd.Timestamp(day)
@@ -117,7 +119,7 @@ def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
 def test_empty_refresh_uses_settled_cached_close(tmp_path, monkeypatch):
     cache = _write(tmp_path, age_seconds=13 * 3600, last_date="2026-07-16")
     before = cache.read_bytes()
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
 
     out = _load(tmp_path, monkeypatch, "2026-07-18", lambda *a, **k: pd.DataFrame())
 
@@ -129,7 +131,7 @@ def test_empty_refresh_uses_settled_cached_close(tmp_path, monkeypatch):
 @pytest.mark.unit
 def test_empty_refresh_rejects_intraday_cached_candle(tmp_path, monkeypatch):
     _write(tmp_path, age_seconds=STALE, last_date="2026-07-18")
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
 
     with pytest.raises(NoMarketDataError):
         _load(tmp_path, monkeypatch, "2026-07-18", lambda *a, **k: pd.DataFrame())
@@ -138,7 +140,7 @@ def test_empty_refresh_rejects_intraday_cached_candle(tmp_path, monkeypatch):
 @pytest.mark.unit
 def test_empty_refresh_rejects_old_cached_close(tmp_path, monkeypatch):
     _write(tmp_path, age_seconds=13 * 3600, last_date="2026-06-01")
-    monkeypatch.setattr(ohlcv, "vendor_reachable", lambda url: True)
+    monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
 
     with pytest.raises(NoMarketDataError, match="stale"):
         _load(tmp_path, monkeypatch, "2026-07-18", lambda *a, **k: pd.DataFrame())
@@ -149,5 +151,5 @@ def test_exhausted_yahoo_rate_limit_uses_vendor_error():
     def throttled():
         raise YFRateLimitError()
 
-    with pytest.raises(VendorRateLimitError, match="rate limited"):
+    with pytest.raises(VendorUnavailableError, match="rate limited"):
         ohlcv.yf_retry(throttled, max_retries=0)

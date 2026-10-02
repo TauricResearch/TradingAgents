@@ -4,7 +4,7 @@ from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import (
     NoMarketDataError,
     VendorNotConfiguredError,
-    VendorRateLimitError,
+    VendorUnavailableError,
 )
 from tradingagents.dataflows.vendors.alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
@@ -85,14 +85,6 @@ TOOLS_CATEGORIES = {
         ]
     }
 }
-
-VENDOR_LIST = [
-    "yfinance",
-    "sec_edgar",
-    "fred",
-    "polymarket",
-    "alpha_vantage",
-]
 
 # Optional enrichment categories. These add macro/event context to the news
 # analyst but are not core to a decision, so a vendor failure here degrades to a
@@ -181,6 +173,30 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 
+def vendor_unavailable(method: str, error: Exception) -> str:
+    """What a call returns when every vendor was throttled or unreachable."""
+    return (
+        f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
+        f"({error}). This says nothing about the instrument; report the "
+        f"data as unavailable and do not estimate or fabricate values."
+    )
+
+
+def no_data_available(error: NoMarketDataError) -> str:
+    """What a call returns when every vendor that answered had no usable data."""
+    resolved = "" if error.canonical == error.symbol else f" (resolved to '{error.canonical}')"
+    # Surface the typed error's detail (e.g. "latest row is 2025-06-11 ...
+    # stale") so the agent sees the specific reason — invalid symbol, no
+    # coverage, or stale data — not just a generic "unavailable".
+    reason = f" ({error.detail})" if error.detail else ""
+    return (
+        f"NO_DATA_AVAILABLE: No usable market data for '{error.symbol}'{resolved} from "
+        f"any configured vendor{reason}. The symbol may be invalid, delisted, "
+        f"not covered, or the vendor returned stale data. Do not estimate or "
+        f"fabricate values — report that data is unavailable for this symbol."
+    )
+
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
@@ -209,7 +225,8 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_chain = all_available_vendors
 
     last_no_data: NoMarketDataError | None = None
-    last_unavailable: VendorRateLimitError | None = None
+    last_unavailable: VendorUnavailableError | None = None
+    failed: Exception | None = None     # a vendor that raised something untyped
     first_error: Exception | None = None
     for vendor in vendor_chain:
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -217,7 +234,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except VendorRateLimitError as e:
+        except VendorUnavailableError as e:
             logger.warning("Vendor %r unavailable for %s: %s; trying next vendor.", vendor, method, e)
             # Kept so an all-unavailable chain can say the vendor was the
             # problem, rather than reporting nothing about the symbol.
@@ -238,9 +255,19 @@ def route_to_vendor(method: str, *args, **kwargs):
             logger.warning("Vendor %r failed for %s: %s", vendor, method, e)
             if first_error is None:
                 first_error = e
+            failed = e
             continue
 
-    # If any vendor reported "no data", the symbol is genuinely unavailable.
+    # A vendor that throttled or failed the request never said whether it has
+    # the symbol, so no other vendor's "no data" can speak for the whole chain:
+    # report the vendors as the problem, not the instrument. It must not end
+    # the run either.
+    if last_unavailable is not None:
+        return vendor_unavailable(method, last_unavailable)
+    if failed is not None and last_no_data is not None:
+        return vendor_unavailable(method, failed)
+
+    # Every vendor that answered reported "no data": the symbol is genuinely unavailable.
     # Return one explicit, instructive sentinel rather than a vendor-specific
     # empty string, so the agent reports "unavailable" instead of inventing a
     # value. This takes precedence over incidental fallback errors.
@@ -252,33 +279,12 @@ def route_to_vendor(method: str, *args, **kwargs):
                 "Returning NO_DATA for %s, but a vendor errored earlier: %s",
                 method, first_error,
             )
-        sym = last_no_data.symbol
-        canonical = last_no_data.canonical
-        resolved = "" if canonical == sym else f" (resolved to '{canonical}')"
-        # Surface the typed error's detail (e.g. "latest row is 2025-06-11 ...
-        # stale") so the agent sees the specific reason — invalid symbol, no
-        # coverage, or stale data — not just a generic "unavailable".
-        reason = f" ({last_no_data.detail})" if last_no_data.detail else ""
-        return (
-            f"NO_DATA_AVAILABLE: No usable market data for '{sym}'{resolved} from "
-            f"any configured vendor{reason}. The symbol may be invalid, delisted, "
-            f"not covered, or the vendor returned stale data. Do not estimate or "
-            f"fabricate values — report that data is unavailable for this symbol."
-        )
+        return no_data_available(last_no_data)
 
     # No vendor returned data and none reported clean "no data" — surface the
     # first real error (e.g. the primary vendor's network failure). Optional
     # enrichment categories degrade to a sentinel instead, so flavour data can't
     # abort the run.
-    # Every vendor was throttled or unreachable: that is a fact about the
-    # vendors, not about the instrument, and it must not end the run.
-    if last_unavailable is not None:
-        return (
-            f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
-            f"({last_unavailable}). This says nothing about the instrument; report the "
-            f"data as unavailable and do not estimate or fabricate values."
-        )
-
     if first_error is not None:
         if category in OPTIONAL_CATEGORIES:
             logger.warning("Optional %s unavailable for %s: %s", category, method, first_error)
