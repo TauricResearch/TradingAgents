@@ -35,14 +35,22 @@ def repo(tmp_path):
     for helper in ("__init__.py", "report_fields.py"):
         shutil.copy2(ROOT / "cli" / helper, root / "cli" / helper)
     worker = root / 'worker.py'
-    worker.write_text('''import os, sys, time
+    worker.write_text('''import os, subprocess, sys, time
 from pathlib import Path
 root = Path(os.environ['FIXTURE_ROOT'])
 value = lambda flag: sys.argv[sys.argv.index(flag) + 1]
 ticker, date, model = value('--ticker'), value('--date'), value('--deep-model')
+if os.environ.get('CHECK_RESUME_FLAGS'):
+    assert '--checkpoint' in sys.argv
+    assert '--clear-checkpoints' not in sys.argv
 with (root / 'calls').open('a') as f:
     f.write(f'{ticker} {date} {model}\\n')
 print('original worker log', flush=True)
+if os.environ.get('SPAWN_STUBBORN_DESCENDANT'):
+    subprocess.Popen([sys.executable, '-c',
+        'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)'],
+        close_fds=False)
+    time.sleep(0.1)
 (root / 'ready').touch()
 if os.environ.get('WAIT_FOR_RELEASE'):
     deadline = time.monotonic() + 15
@@ -136,6 +144,38 @@ def test_success_exit_without_a_complete_report_fails(repo):
     assert result.returncode == 1
     assert '[FAIL NVDA] worker exited without a complete report' in result.stdout
     assert '[OK NVDA]' not in result.stdout
+
+
+@pytest.mark.parametrize('launcher', LAUNCHERS)
+def test_launchers_preserve_checkpoints(repo, launcher):
+    root, env = repo
+    result = invoke(root, dict(env, CHECK_RESUME_FLAGS='1'), launcher, 'NVDA')
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize('descendant', [False, True])
+def test_worker_deadline_stops_worker_and_releases_lock(repo, descendant):
+    root, env = repo
+    limited = dict(env, WAIT_FOR_RELEASE='1', TRADINGAGENTS_REPORT_MAX_SECONDS='0.5')
+    if descendant:
+        limited['SPAWN_STUBBORN_DESCENDANT'] = '1'
+    result = invoke(root, limited,
+                    LAUNCHERS[0], 'NVDA')
+    assert result.returncode == 1
+    assert '[TIMEOUT NVDA]' in result.stdout
+    assert not (root / 'docs/NVDA').exists()
+    result = invoke(root, env, LAUNCHERS[0], 'NVDA')
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert len((root / 'calls').read_text().splitlines()) == 2
+
+
+@pytest.mark.parametrize('limit', ['0', '-1', 'nan', 'inf'])
+def test_invalid_worker_deadlines_fail_before_start(repo, limit):
+    root, env = repo
+    result = invoke(root, dict(env, TRADINGAGENTS_REPORT_MAX_SECONDS=limit), LAUNCHERS[0], 'NVDA')
+    assert result.returncode != 0
+    assert 'finite positive number' in result.stderr
+    assert not (root / 'calls').exists()
 
 
 def wait_until(predicate):

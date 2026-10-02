@@ -22,6 +22,7 @@ from rich.table import Table
 from rich.text import Text
 
 from cli.announcements import display_announcements, fetch_announcements
+from cli.checkpoint import stream_with_checkpoint
 from cli.models import AnalystType, AssetType
 from cli.prompts import parse_analysts
 from cli.report_headings import transform as _prune_report_headings
@@ -1189,7 +1190,7 @@ def run_analysis(
         # which stay inside their subgraphs, and serves tool calls under the
         # graph's config.
         trace = []
-        for messages, chunk in graph.stream_run(init_agent_state, **args):
+        for messages, chunk in stream_with_checkpoint(graph, init_agent_state, args, selections):
             # Process all messages in chunk, deduplicating by message ID
             for message in messages:
                 msg_id = getattr(message, "id", None)
@@ -1373,10 +1374,17 @@ def run_analysis(
         save_path = Path(save_path_str).expanduser()
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            graph.clear_checkpoint_on_success(
+                selections["ticker"], selections["analysis_date"], selections["asset_type"]
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
+    else:
+        graph.clear_checkpoint_on_success(
+            selections["ticker"], selections["analysis_date"], selections["asset_type"]
+        )
 
     # Prompt to display full report (skipped when caller passed an explicit choice)
     if post_display is None:

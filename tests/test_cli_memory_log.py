@@ -9,6 +9,9 @@ record their decision through the same graph methods.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from types import SimpleNamespace
+
 import pytest
 
 import cli.run as cli_run
@@ -211,3 +214,71 @@ def test_recording_a_run_writes_its_state_log(tmp_path):
     graph.record_decision("NVDA", "2026-09-23", state)
 
     assert list(tmp_path.glob("NVDA/TradingAgentsStrategy_logs/full_states_log_2026-09-23.json"))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("save_fails", [False, True])
+def test_flag_cli_resumes_and_clears_only_after_report_saved(tmp_path, monkeypatch, save_fails):
+    import cli.main as m
+    from cli.models import AnalystType
+
+    class ResumedGraph(_FakeGraph):
+        config = {"checkpoint_enabled": True}
+
+        def resolve_instrument_context(self, *args):
+            return "instrument"
+
+        def create_initial_state(self, *args, **kwargs):
+            return {"messages": []}
+
+        @contextmanager
+        def checkpoint_scope(self, *args):
+            self.calls.append(("begin",))
+            try:
+                yield "saved-thread"
+            finally:
+                self.calls.append(("end",))
+
+        def checkpoint_input(self, state):
+            return None
+
+        def stream_run(self, graph_input, **kwargs):
+            assert graph_input is None
+            assert kwargs["config"]["configurable"]["thread_id"] == "saved-thread"
+            yield [], {"final_trade_decision": "Rating: Buy\nPrice Target: 120"}
+
+        def get_state(self, config):
+            assert config["configurable"]["thread_id"] == "saved-thread"
+            return SimpleNamespace(values={
+                "market_report": "saved analyst work", "trader_investment_plan": "saved trade",
+                "final_trade_decision": "Rating: Buy\nPrice Target: 120",
+                "risk_debate_state": {"judge_decision": "Rating: Buy\nPrice Target: 120"},
+            })
+
+    fake = ResumedGraph()
+    monkeypatch.setattr(m, "TradingAgentsGraph", lambda *a, **k: fake)
+    monkeypatch.setattr(m, "message_buffer", _FakeBuffer())
+    monkeypatch.setattr(m, "create_layout", lambda: None)
+    monkeypatch.setattr(m, "update_display", lambda *a, **k: None)
+    monkeypatch.setattr(m, "Live", _NullLive)
+    monkeypatch.setattr(m, "_build_run_config", lambda *a: {
+        "results_dir": str(tmp_path / "results"), "reports_dir": str(tmp_path / "docs"),
+        "deep_think_llm": "model", "checkpoint_enabled": True,
+    })
+
+    def save(state, ticker, path):
+        assert state["market_report"] == "saved analyst work"
+        assert state["trader_investment_plan"] == "saved trade"
+        fake.calls.append(("save",))
+        if save_fails:
+            raise OSError("disk unavailable")
+        return path / "complete_report.md"
+
+    monkeypatch.setattr(m, "save_report_to_disk", save)
+    m.run_analysis(checkpoint=True, selections={
+        "ticker": "NVDA", "analysis_date": "2026-01-10", "asset_type": "stock",
+        "analysts": [AnalystType.MARKET],
+    }, post_save=True, post_display=False)
+    assert fake.calls == [("begin",), ("end",), ("save",)] + (
+        [] if save_fails else [("clear_checkpoint",)]
+    )
