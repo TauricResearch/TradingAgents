@@ -49,8 +49,14 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         fresh = get_config()
         self.assertEqual(fresh["data_vendors"]["core_stock_apis"], "alpha_vantage")
         self.assertEqual(fresh["data_vendors"]["technical_indicators"], "yfinance")
-        self.assertEqual(fresh["data_vendors"]["fundamental_data"], "sec_edgar,yfinance")
-        self.assertEqual(fresh["data_vendors"]["news_data"], "yfinance")
+        self.assertEqual(
+            fresh["data_vendors"]["fundamental_data"],
+            default_config.DEFAULT_CONFIG["data_vendors"]["fundamental_data"],
+        )
+        self.assertEqual(
+            fresh["data_vendors"]["news_data"],
+            default_config.DEFAULT_CONFIG["data_vendors"]["news_data"],
+        )
 
     def test_nested_dict_updates_merge_one_level_deep(self):
         set_config({"tool_vendors": {"get_stock_data": "alpha_vantage"}})

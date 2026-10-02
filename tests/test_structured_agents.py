@@ -445,6 +445,8 @@ class TestSentimentAnalystAgent:
 
         monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
         monkeypatch.setattr(sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
+        monkeypatch.setattr(sentiment, "fetch_x_posts", lambda *a, **k: "x")
+        monkeypatch.setattr(sentiment, "fetch_trump_truths", lambda *a, **k: "truth")
         monkeypatch.setattr(sentiment.get_news, "func", lambda *a, **k: "news", raising=False)
 
     def test_structured_path_produces_rendered_markdown(self):
