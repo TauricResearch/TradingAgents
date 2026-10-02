@@ -29,6 +29,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
+from tradingagents.llm_clients.base_client import require_report_text
 from tradingagents.llm_clients.retry import is_rate_limit_error
 
 logger = logging.getLogger(__name__)
@@ -97,5 +98,4 @@ def invoke_structured_or_freetext(
                 agent_name, exc,
             )
 
-    response = plain_llm.invoke(prompt)
-    return response.content
+    return require_report_text(plain_llm.invoke(prompt), agent_name)

@@ -17,6 +17,13 @@ LAUNCHERS = [
 ]
 
 
+def write_complete_fixture(report):
+    for stage in ("complete_report.md", "1_analysts/market.md", "3_trading/trader.md", "5_portfolio/decision.md"):
+        path = report / stage
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("Price Target: 120")
+
+
 @pytest.fixture
 def repo(tmp_path):
     root = tmp_path / 'repo with spaces'
@@ -24,6 +31,9 @@ def repo(tmp_path):
     (root / 'bin').mkdir()
     for name in LAUNCHERS + ['default_tickers.sh', 'report_guard.py']:
         shutil.copy2(ROOT / 'scripts' / name, root / 'scripts' / name)
+    (root / "cli").mkdir(exist_ok=True)
+    for helper in ("__init__.py", "report_fields.py"):
+        shutil.copy2(ROOT / "cli" / helper, root / "cli" / helper)
     worker = root / 'worker.py'
     worker.write_text('''import os, sys, time
 from pathlib import Path
@@ -42,8 +52,15 @@ if os.environ.get('WAIT_FOR_RELEASE'):
         time.sleep(0.02)
 if os.environ.get('FAIL_WORKER'):
     raise SystemExit(17)
+if os.environ.get('NO_REPORT'):
+    raise SystemExit(0)
 slug = model.strip().translate(str.maketrans({'/': '-', ':': '-', '.': '-'}))
-(root / 'docs' / ticker / (date.replace('-', '') + '_' + slug + '_20000102_030405')).mkdir(parents=True)
+report = root / 'docs' / ticker / (date.replace('-', '') + '_' + slug + '_20000102_030405')
+report.mkdir(parents=True, exist_ok=True)
+for stage in ("complete_report.md", "1_analysts/market.md", "3_trading/trader.md", "5_portfolio/decision.md"):
+    path = report / stage
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("Price Target: 120")
 ''')
     uv = root / 'bin/uv'
     uv.write_text(f'#!/bin/bash\nexec {shlex.quote(sys.executable)} {shlex.quote(str(worker))} "$@"\n')
@@ -76,7 +93,7 @@ def test_existing_tuple_skipped_but_other_tuples_generate(repo, launcher):
         ('NVDA', '20000101_provider-model-1-tag_other_20000102_030405'),
         ('AMD', '20000101_provider-model-1-tag_20000102_030405'),
     ]:
-        (root / 'docs' / ticker / folder).mkdir(parents=True)
+        write_complete_fixture(root / 'docs' / ticker / folder)
     result = invoke(root, env, launcher, 'nvda', 'NVDA', 'nvda')
     assert result.returncode == 0, result.stdout + result.stderr
     assert not result.stderr
@@ -89,6 +106,36 @@ def test_existing_tuple_skipped_but_other_tuples_generate(repo, launcher):
     assert 'Nothing to run' in result.stdout
     assert (root / 'calls').read_text().splitlines() == calls
     assert (root / 'logs/NVDA.log').read_text() == log
+
+
+@pytest.mark.parametrize('launcher', LAUNCHERS)
+def test_empty_analyst_reports_are_retried(repo, launcher):
+    root, env = repo
+    report = root / 'docs/NVDA/20000101_provider-model-1-tag_20000102_030405'
+    write_complete_fixture(report)
+    (report / '1_analysts/market.md').write_text(' \n')
+    result = invoke(root, env, launcher, 'NVDA')
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (root / 'calls').read_text().splitlines() == ['NVDA 2000-01-01 provider/model.1:tag']
+
+
+@pytest.mark.parametrize('launcher', LAUNCHERS)
+def test_missing_target_reports_are_retried(repo, launcher):
+    root, env = repo
+    report = root / 'docs/NVDA/20000101_provider-model-1-tag_20000102_030405'
+    write_complete_fixture(report)
+    (report / '5_portfolio/decision.md').write_text('Current Price: 100\nPrice Target: not provided')
+    result = invoke(root, env, launcher, 'NVDA')
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert len((root / 'calls').read_text().splitlines()) == 1
+
+
+def test_success_exit_without_a_complete_report_fails(repo):
+    root, env = repo
+    result = invoke(root, dict(env, NO_REPORT='1'), LAUNCHERS[0], 'NVDA')
+    assert result.returncode == 1
+    assert '[FAIL NVDA] worker exited without a complete report' in result.stdout
+    assert '[OK NVDA]' not in result.stdout
 
 
 def wait_until(predicate):

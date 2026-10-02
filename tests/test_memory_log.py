@@ -99,6 +99,7 @@ def _structured_pm_llm(captured: dict, decision: PortfolioDecision | None = None
             rating=PortfolioRating.HOLD,
             executive_summary="Hold the position; await catalyst.",
             investment_thesis="Balanced view; neither side carried the debate.",
+            price_target=215.0,
         )
     structured = MagicMock()
     structured.invoke.side_effect = lambda prompt: (
@@ -788,10 +789,10 @@ class TestPortfolioManagerInjection:
         """If a provider does not support with_structured_output, the agent
         falls back to a plain invoke and returns whatever prose the model
         produced, so the pipeline never blocks."""
-        plain_response = "**Rating**: Sell\n\nExit ahead of guidance."
+        plain_response = "**Rating**: Sell\n\nExit ahead of guidance.\n**Price Target**: 180"
         llm = MagicMock()
         llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
-        llm.invoke.return_value = MagicMock(content=plain_response)
+        llm.invoke.return_value = MagicMock(content=plain_response, tool_calls=[])
         pm_node = create_portfolio_manager(llm)
         result = pm_node(_make_pm_state())
         assert result["final_trade_decision"] == plain_response

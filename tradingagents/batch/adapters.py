@@ -352,7 +352,7 @@ class AnthropicBatchAdapter(BaseBatchAdapter):
         input_tokens = usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
         output_tokens = usage.get("output_tokens", 0)
         return AIMessage(
-            content=_text_from_content_blocks(content_blocks),
+            content=content_blocks if tool_calls else _text_from_content_blocks(content_blocks),
             tool_calls=tool_calls,
             usage_metadata={
                 "input_tokens": input_tokens,

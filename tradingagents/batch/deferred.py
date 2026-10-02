@@ -13,6 +13,7 @@ from pydantic import ConfigDict, Field
 
 from tradingagents.batch.adapters import BaseBatchAdapter
 from tradingagents.batch.manifest import BatchManifest, BatchRequest, BatchRunState
+from tradingagents.llm_clients.base_client import normalize_content
 
 try:
     from langchain_anthropic.chat_models import convert_to_anthropic_tool
@@ -83,7 +84,7 @@ class BatchRuntimeContext:
             kind="message",
             schema_name=None,
         )
-        return self.adapter.message_from_response(response)
+        return normalize_content(self.adapter.message_from_response(response))
 
     def request_structured(
         self,

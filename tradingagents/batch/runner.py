@@ -342,11 +342,13 @@ class BatchRunner:
     def _finish_analyst_step(self, run: BatchRunState, state: dict[str, Any]) -> None:
         index = int(run.progress.get("analyst_index", 0))
         spec = ANALYST_NODE_SPECS[self.manifest.selected_analysts[index]]
-        if not state.get(spec.report_key):
+        if getattr(state["messages"][-1], "tool_calls", None):
             update = self.tool_nodes[spec.key].invoke(state)
             self._apply_update(state, update)
             run.set_state(state)
             return
+        if not (state.get(spec.report_key) or "").strip():
+            raise ValueError(f"{spec.agent_node}: completed turn returned no report text")
         self._apply_update(state, self.clear_node(state))
         run.progress["analyst_index"] = index + 1
         run.set_state(state)

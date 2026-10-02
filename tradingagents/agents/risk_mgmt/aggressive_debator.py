@@ -5,6 +5,7 @@ from tradingagents.agents.context import (
     opponent_argument_or_opening,
     report_or_absent,
 )
+from tradingagents.llm_clients.base_client import require_report_text
 
 
 def create_aggressive_debator(llm):
@@ -60,7 +61,7 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
 
         response = llm.invoke([("system", system), ("human", human)])
 
-        argument = f"Aggressive Analyst: {response.content}"
+        argument = f"Aggressive Analyst: {require_report_text(response, 'Aggressive Analyst')}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,

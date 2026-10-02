@@ -16,6 +16,7 @@
 # TRADINGAGENTS_MODE defaults to proxy; TRADINGAGENTS_CLAUDE_MODE overrides it.
 # TRADINGAGENTS_OPENAI_REASONING_EFFORT also sets Claude effort (default high).
 # TRADINGAGENTS_LLM_RPM controls per-worker request pacing.
+# TRADINGAGENTS_MAX_TOKENS sets the output/reasoning budget (128000 for Claude 5.5).
 
 # Parse the complete body before running; edits during a batch must not shift
 # the file positions Bash reads after workers finish. Exit inside this block.
@@ -66,7 +67,14 @@ proxy_preflight() {
 }
 DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-claude-opus-5-5}"
 QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-claude-opus-5-5}"
-REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-max}"
+# Claude 5.5 tool workflows need room for thinking and the final answer; new
+# IDs can inherit the SDK's 4096-token fallback. Other models keep SDK defaults.
+case "$DEEP_MODEL/$QUICK_MODEL" in
+  claude-opus-5-5/claude-opus-5-5 | claude-opus-5-5/claude-sonnet-5-5 | \
+  claude-sonnet-5-5/claude-opus-5-5 | claude-sonnet-5-5/claude-sonnet-5-5)
+    export TRADINGAGENTS_MAX_TOKENS="${TRADINGAGENTS_MAX_TOKENS:-128000}" ;;
+esac
+REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-high}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
 DEPTH="${TRADINGAGENTS_DEPTH:-5}"
 model_slug() {

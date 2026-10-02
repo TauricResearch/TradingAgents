@@ -4,6 +4,7 @@ from tradingagents.agents.context import (
     opponent_argument_or_opening,
     report_or_absent,
 )
+from tradingagents.llm_clients.base_client import require_report_text
 
 
 def create_bull_researcher(llm):
@@ -58,7 +59,7 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 
         response = llm.invoke([("system", system), ("human", human)])
 
-        argument = f"Bull Analyst: {response.content}"
+        argument = f"Bull Analyst: {require_report_text(response, 'Bull Analyst')}"
 
         new_investment_debate_state = {
             "history": history + "\n" + argument,

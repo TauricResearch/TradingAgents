@@ -128,7 +128,7 @@ def test_decision_agents_see_the_portfolio(module, factory, monkeypatch):
         def invoke(self, prompt, *a, **k):
             seen.append(prompt if isinstance(prompt, str) else json.dumps(str(prompt)))
             from langchain_core.messages import AIMessage
-            return AIMessage("Rating: Hold\n\nnothing to do")
+            return AIMessage("Rating: Hold\nPrice Target: 120\n\nnothing to do")
 
         def with_structured_output(self, *a, **k):
             raise NotImplementedError  # force the free-text path

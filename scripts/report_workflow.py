@@ -10,6 +10,7 @@ and rendering logic:
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import shutil
 import subprocess
@@ -107,13 +108,21 @@ def require_full_coverage(
     selected: dict[tuple[str, str], site.Run],
     analysis_date: str,
 ) -> None:
-    selected_tickers = {ticker for ticker, _ in selected}
+    selected_tickers = {ticker for ticker, _ in runs_with_targets(selected)}
     missing = sorted(ticker for ticker in runs_by_ticker if ticker not in selected_tickers)
     if missing:
         tickers = ", ".join(missing)
         raise WorkflowError(
             f"Analysis date {analysis_date} is incomplete; missing tickers: {tickers}"
         )
+
+
+def runs_with_targets(selected: dict[tuple[str, str], site.Run]) -> dict[tuple[str, str], site.Run]:
+    return {
+        key: run for key, run in selected.items()
+        if site.extract_price_target(site.read_text(DOCS / run.ticker / run.folder_name / "5_portfolio/decision.md"))
+        is not None
+    }
 
 
 def report_path(run: site.Run) -> Path:
@@ -268,6 +277,7 @@ def validate_homepage(
     index_path = DOCS / "index.md"
     home_text = index_path.read_text(encoding="utf-8", errors="replace")
     rows = decision_summary_rows(home_text, normalized)
+    selected = runs_with_targets(selected)
 
     if len(rows) < len(selected):
         raise WorkflowError(
@@ -277,9 +287,30 @@ def validate_homepage(
     selected_tickers = {run.ticker for run in selected.values()}
     selected_folders = {run.folder_name for run in selected.values()}
     seen_selected: set[str] = set()
+
+    def valid_value(value, validator):
+        value = value.strip()
+        if value.lower() in site.SUMMARY_PLACEHOLDERS:
+            return allow_na
+        return validator(value)
+
     for row in rows:
-        if not allow_na and "n/a" in row.lower():
-            raise WorkflowError(f"Homepage summary row contains n/a: {row}")
+        cells = [cell.strip() for cell in row.split("|")[1:-1]]
+        complete = len(cells) == 9
+        if complete:
+            suggestion = cells[2].rsplit(" / ", 1)
+            complete = (
+                len(suggestion) == 2
+                and all(valid_value(part, bool) for part in suggestion)
+                and valid_value(cells[3], lambda v: site.parse_money(v) is not None)
+                and site.parse_money(cells[4]) is not None
+                and all(valid_value(cells[i], lambda v: re.fullmatch(r"[+-]?\d+(?:\.\d+)?%", v)
+                                    and math.isfinite(float(v[:-1]))) for i in (5, 6))
+                and valid_value(cells[7], lambda v: v.lower() in {"low", "medium", "high"})
+                and valid_value(cells[8], bool)
+            )
+        if not complete:
+            raise WorkflowError(f"Homepage summary row contains n/a or missing/invalid fields: {row}")
 
         match = SUMMARY_LINK_RE.search(row)
         if match is None:
@@ -387,7 +418,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--allow-summary-na",
         action="store_true",
-        help="Allow n/a fields in homepage summary rows.",
+        help="Allow unprovided fields other than the required numeric target in homepage summary rows.",
     )
     args = parser.parse_args(argv)
     try:

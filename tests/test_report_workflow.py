@@ -30,6 +30,8 @@ def make_run(
             f"# Trading Analysis Report: {ticker}\n",
             encoding="utf-8",
         )
+        (run_dir / "5_portfolio").mkdir()
+        (run_dir / "5_portfolio/decision.md").write_text("Price Target: 120", encoding="utf-8")
     for rel_path, body in (stage_files or {}).items():
         path = run_dir / rel_path
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -187,7 +189,8 @@ def test_strip_run_trailing_whitespace_cleans_report_and_stage_files(tmp_path, m
 
 
 @pytest.mark.unit
-def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
+@pytest.mark.parametrize("suggestion", ["Buy / Overweight", "Sell / Reduce / Underweight"])
+def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch, suggestion):
     workflow = load_workflow()
     docs = tmp_path / "docs"
     run_dir = make_run(docs, "AAPL", "20260602_opus_20260602_101010")
@@ -217,7 +220,7 @@ def test_homepage_validation_accepts_selected_date_links(tmp_path, monkeypatch):
             "## 2026-06-02 Decision Summary\n\n"
             "| Ticker | Model | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |\n"
             "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |\n"
-            "| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | `opus` | Buy / Overweight | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n"
+            f"| [AAPL](./AAPL/20260602_opus_20260602_101010/complete_report.md) | `opus` | {suggestion} | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n"
             "| [AAPL](./AAPL/20260602_gpt-5.5_20260602_111111/complete_report.md) | `gpt-5.5` | Hold / Neutral | $10.00 | $12.00 | +20.0% | +40.0% | High | 6m |\n\n"
             "</div>\n\n"
             "</div>\n\n"
@@ -272,6 +275,7 @@ def test_homepage_validation_rejects_bad_rows(
         "AAPL",
         "20260602_opus_20260602_101010",
         complete=create_report,
+        stage_files={"5_portfolio/decision.md": "Price Target: 120"},
     )
     make_run(docs, "AAPL", "20260601_opus_20260601_101010")
     run = workflow.site.parse_run_folder(run_dir.parent, run_dir)
@@ -314,6 +318,42 @@ def test_homepage_validation_can_allow_summary_na(tmp_path, monkeypatch):
     )
 
     workflow.validate_homepage("2026-06-02", {("AAPL", "opus"): run}, allow_na=True)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("column,value,allow_missing", [
+    (2, "No action stated / Buy", True), (2, "Buy / Not rated", True),
+    (2, "n/a  / Overweight", True),
+    (3, "No verified close", True), (4, "No target set", False), (5, "No target set", True),
+    (6, "No numeric horizon", True), (7, "Not assessed", True), (8, "Not specified", True),
+    (3, "", True), (4, "$0.00", False), (5, "NaN%", False), (6, "+Inf%", False),
+    (9, "Extra column", False),
+])
+def test_explicit_missing_labels_cannot_bypass_strict_validation(tmp_path, monkeypatch, column, value, allow_missing):
+    workflow = load_workflow()
+    docs = tmp_path / "docs"
+    run_dir = make_run(docs, "AAPL", "20260602_opus_20260602_101010")
+    run = workflow.site.parse_run_folder(run_dir.parent, run_dir)
+    assert run is not None
+    monkeypatch.setattr(workflow, "DOCS", docs)
+    cells = [f"[AAPL](./AAPL/{run.folder_name}/complete_report.md)", "`opus`", "Buy / Overweight",
+             "$10.00", "$12.00", "+20.0%", "+40.0%", "High", "6m"]
+    if column == len(cells):
+        cells.append(value)
+    else:
+        cells[column] = value
+    (docs / "index.md").write_text(
+        "## 2026-06-02 Decision Summary\n\n| " + " | ".join(cells) + " |\n",
+        encoding="utf-8",
+    )
+    selected = {("AAPL", "opus"): run}
+    with pytest.raises(workflow.WorkflowError, match="missing/invalid fields"):
+        workflow.validate_homepage("2026-06-02", selected)
+    if allow_missing:
+        workflow.validate_homepage("2026-06-02", selected, allow_na=True)
+    else:
+        with pytest.raises(workflow.WorkflowError, match="missing/invalid fields"):
+            workflow.validate_homepage("2026-06-02", selected, allow_na=True)
 
 
 @pytest.mark.unit

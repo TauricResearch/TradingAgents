@@ -3,6 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
 from tradingagents.agents.tools import get_indicators, get_stock_data, get_verified_market_snapshot
 from tradingagents.dataflows.indicator_registry import render_prompt_section
+from tradingagents.llm_clients.base_client import normalize_content, require_report_text
 
 # The tools this analyst is offered; its tool node is built from the same tuple.
 TOOLS = (
@@ -28,6 +29,8 @@ def create_market_analyst(llm):
 - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Pick at most one or two indicators per category and prefer a complementary spread — one trend, one momentum, one volatility, one volume, and one exhaustion/stretch signal. Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names.
 
 Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim. If another tool's output conflicts with the verified snapshot, flag the discrepancy rather than inventing a reconciled number. Do not claim historical validation, support/resistance bounces, or exact percentage moves unless they are directly supported by tool output with concrete dates and prices.
+
+Start the final report with **Current Price**: followed by the latest verified closing price as one absolute number in the quote currency, and **Price As Of**: followed by that bar's YYYY-MM-DD date. If the verified snapshot has no close, write not provided; never substitute a historical comparison or an entry level.
 
 Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
@@ -58,12 +61,12 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
 
         chain = prompt | llm.bind_tools(TOOLS)
 
-        result = chain.invoke(state["messages"])
+        result = normalize_content(chain.invoke(state["messages"]))
 
         report = ""
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            report = require_report_text(result, 'Market Analyst')
 
         return {
             "messages": [result],

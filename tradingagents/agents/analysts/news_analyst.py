@@ -7,6 +7,7 @@ from tradingagents.agents.tools import (
     get_news,
     get_prediction_markets,
 )
+from tradingagents.llm_clients.base_client import normalize_content, require_report_text
 
 # The tools this analyst is offered; its tool node is built from the same tuple.
 TOOLS = (
@@ -53,12 +54,12 @@ def create_news_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(TOOLS)
-        result = chain.invoke(state["messages"])
+        result = normalize_content(chain.invoke(state["messages"]))
 
         report = ""
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            report = require_report_text(result, 'News Analyst')
 
         return {
             "messages": [result],

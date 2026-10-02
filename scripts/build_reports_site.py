@@ -38,6 +38,10 @@ from pathlib import Path
 from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+
+from cli.report_fields import extract_price_target, field, parse_money  # noqa: E402
+
 DOCS_DIR = REPO_ROOT / "docs"
 
 TICKER_DIR_RE = re.compile(r"^[A-Za-z0-9.\-]+$")
@@ -88,6 +92,7 @@ class SummaryRow(NamedTuple):
 class DailySummary(NamedTuple):
     analysis_date: str
     rows: list[SummaryRow]
+    incomplete_count: int = 0
 
 
 def parse_run_folder(ticker_dir: Path, run_path: Path) -> Run | None:
@@ -119,49 +124,6 @@ def read_text(path: Path) -> str:
     if not path.is_file():
         return ""
     return path.read_text(encoding="utf-8", errors="replace")
-
-
-def field(text: str, name: str) -> str:
-    m = re.search(rf"^\*\*{re.escape(name)}\*\*:\s*(.+)$", text, flags=re.M)
-    if m:
-        return clean_field_value(m.group(1))
-    m = re.search(
-        rf"^\|\s*\*{{0,2}}{re.escape(name)}\*{{0,2}}\s*\|\s*(.+?)\s*\|",
-        text,
-        flags=re.I | re.M,
-    )
-    return clean_field_value(m.group(1)) if m else ""
-
-
-def clean_field_value(value: str) -> str:
-    return value.strip().strip("*").strip()
-
-
-def parse_money(value: str) -> float | None:
-    value = value.strip().replace(",", "")
-    m = re.search(r"\$?\s*([0-9]+(?:\.\d+)?)", value)
-    if m:
-        value = m.group(1)
-    try:
-        return float(value)
-    except ValueError:
-        return None
-
-
-def extract_price_target(decision_text: str) -> float | None:
-    for name in (
-        "Price Target",
-        "Target Price",
-        "Near-term target",
-        "Medium-term target",
-        "Base-case target",
-        "Fair Value",
-        "Valuation Target",
-    ):
-        value = field(decision_text, name)
-        if value:
-            return parse_money(value)
-    return None
 
 
 def extract_time_horizon(decision_text: str) -> str:
@@ -228,45 +190,152 @@ CURRENT_PRICE_PATTERNS = [
 ]
 
 CURRENT_PRICE_FALLBACK_PATTERNS = [
-    r"\bat\s+~\$([0-9][0-9,]*(?:\.\d+)?)\b",
     r"near\s+current\s+~?\$([0-9][0-9,]*(?:\.\d+)?)\b",
     r"current\s+~?\$([0-9][0-9,]*(?:\.\d+)?)\s+(?:strength|level|levels|print)",
 ]
 
 
-def extract_current_price(report_text: str, decision_text: str, trader_text: str) -> float | None:
+def extract_current_price(
+    report_text: str, decision_text: str, trader_text: str,
+    analysis_date: str | None = None,
+) -> float | None:
     # Current means the report-time latest close, not a live quote.
     decision_value = field(decision_text, "Current Price")
-    if decision_value:
+    if decision_value and decision_value.lower() != "not provided":
         return parse_money(decision_value)
 
-    market_text = report_text.split("### Sentiment Analyst", 1)[0]
+    market_text = re.split(
+        r"^### (?:Sentiment|News|Fundamentals) Analyst\b|^## II\.",
+        report_text, maxsplit=1, flags=re.M,
+    )[0][:35000]
+    canonical = parse_money(field(market_text, "Current Price"))
+    if canonical is not None:
+        return canonical
+    plain = market_text.replace("**", "").replace("`", "")
+
+    def date_is_relevant(match: re.Match, source: str) -> bool:
+        if not analysis_date:
+            return True
+        line_start = source.rfind("\n", 0, match.start()) + 1
+        # Match the date attached to the quote, not a later earnings/catalyst
+        # mentioned in the same line. Preserve comma-separated OHLCV numbers.
+        prefix = source[line_start:match.start(1)]
+        suffix = source[match.end(1):].split("\n", 1)[0]
+        suffix = re.split(r",(?!\s*\d{4}\b)|[;!?]|\.(?!\d)", suffix, maxsplit=1)[0]
+        context = prefix + match.group(1) + suffix
+        months = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+        quote_context = source[match.start():match.end(1)] + suffix
+        # An explicit quote date takes precedence over an unrelated date
+        # before the matched close (for example an upcoming earnings event).
+        if re.search(rf"\b(?:\d{{4}}-\d{{2}}-\d{{2}}|{months}\s+\d{{1,2}}\b)", quote_context, flags=re.I):
+            context = quote_context
+        dates = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", context)
+        for natural_date in re.finditer(
+            rf"\b{months}\s+(\d{{1,2}})(?:(?:,\s*|\s+)(\d{{4}}))?\b", context, flags=re.I,
+        ):
+            year = natural_date.group(3) or normalize_analysis_date(analysis_date)[:4]
+            try:
+                dates.append(datetime.strptime(
+                    f"{natural_date.group(1)} {natural_date.group(2)} {year}", "%B %d %Y"
+                ).strftime("%Y-%m-%d"))
+            except ValueError:
+                return False
+        if not dates:
+            return True
+        try:
+            for candidate in dates:
+                datetime.strptime(candidate, "%Y-%m-%d")
+        except ValueError:
+            return False
+        date = normalize_analysis_date(analysis_date)
+        if re.search(r"\b(?:latest|last|current|most recent)\b", context, flags=re.I):
+            # The latest close can precede the analysis date (weekends, market
+            # hours, holidays); it cannot come from a future session.
+            return all(candidate <= date for candidate in dates)
+        return all(candidate == date for candidate in dates)
+
+    def parse_candidate(match: re.Match, source: str) -> float | None:
+        line_end = source.find("\n", match.end(1))
+        value = source[match.start(1):line_end if line_end >= 0 else len(source)]
+        return parse_money(value.replace("`", ""))
+
+    # Keep the whole quote token: validating only the captured numeric prefix
+    # would turn a date, percentage or range into an apparent closing price.
+    number = (
+        r"((?:[$€£¥]\s*)?[0-9][0-9,]*(?:\.\d+)?)\b"
+        r"(?!\d|[.,]\d|\s*%|\s*(?:[-–—/]|to\b)\s*(?:[$€£¥]\s*)?\d)"
+    )
+    # Prefer explicit latest/verified evidence over historical price examples.
+    for pattern in (
+        rf"\b(?:latest|last|current|most recent)(?:\s+verified)?\s+close(?:\s+price)?\s*(?:was|is|of|at|:)\s*{number}",
+        rf"\bverified[^\n]{{0,80}}?\bclose\s*(?:was|is|of|at|:)\s*{number}",
+        rf"\b(?:latest|verified)[^\n]{{0,160}}?\bclosed?\s+(?:at\s+)?{number}",
+        rf"\bverified[^\n]{{0,100}}?\bO\s+[\d.,]+,\s*H\s+[\d.,]+,\s*L\s+[\d.,]+,\s*C\s+{number}",
+        rf"^[ \t]*(?:[-*][ \t]+)?(?:Last )?Close(?: Price)?\s*:\s*{number}",
+        rf"^\|\s*(?:Last |Current )?Close(?: Price)?\s*\|\s*{number}",
+    ):
+        for match in re.finditer(pattern, plain, flags=re.I | re.M):
+            if not date_is_relevant(match, plain):
+                continue
+            token = match.group(1)
+            # A bare year is ambiguous in prose. Canonical Current Price
+            # fields and prices with a currency/decimal remain unambiguous.
+            if re.fullmatch(r"(?:19|20|21)\d{2}", token):
+                continue
+            price = parse_candidate(match, plain)
+            if price is not None:
+                return price
+    if analysis_date:
+        date = datetime.strptime(normalize_analysis_date(analysis_date), "%Y-%m-%d")
+        # Natural-language dates often omit the year in the latest session.
+        day = rf"(?:{date:%Y-%m-%d}|{date:%B}\s+{date.day}(?:,?\s+{date.year})?(?!\d|,?\s+\d{{4}}))"
+        for pattern in (
+            rf"\bclosed?\s+(?:at\s+)?{number}\s+on\s+{day}",
+            rf"\b{day}[^\n]{{0,180}}?\bclosed?\s*(?:was|is|at|:)\s*{number}",
+        ):
+            for match in re.finditer(pattern, plain, flags=re.I):
+                price = parse_candidate(match, plain)
+                if price is not None:
+                    return price
     for pattern in CURRENT_PRICE_PATTERNS:
-        m = re.search(pattern, market_text[:35000], flags=re.I)
-        if m:
-            return parse_money(m.group(1))
+        # These legacy patterns were introduced for a May 29 report batch.
+        # They must not promote those historical examples in later reports.
+        if (analysis_date and ("May" in pattern or "5/29" in pattern or "05-29" in pattern)
+                and normalize_analysis_date(analysis_date)[5:] != "05-29"):
+            continue
+        for m in re.finditer(pattern, market_text, flags=re.I):
+            if not date_is_relevant(m, market_text):
+                continue
+            price = parse_candidate(m, market_text)
+            if price is not None:
+                return price
     decision_and_trader = f"{decision_text}\n{trader_text}"
     for pattern in CURRENT_PRICE_FALLBACK_PATTERNS:
-        m = re.search(pattern, decision_and_trader, flags=re.I)
-        if m:
-            return parse_money(m.group(1))
-    return parse_money(field(trader_text, "Entry Price"))
+        for m in re.finditer(pattern, decision_and_trader, flags=re.I):
+            price = parse_candidate(m, decision_and_trader)
+            if price is not None:
+                return price
+    # An entry price is a proposed execution level, not the observed close.
+    return None
 
 
 def extract_confidence(report_text: str) -> str:
+    value = field(report_text, "Confidence")
+    if value.lower() in {"low", "medium", "high"}:
+        return value.capitalize()
     for pattern in (
         r"^\*\*Confidence:\*\*\s*([A-Za-z]+)",
         r"Confidence is \*\*([A-Za-z]+)\*\*",
         r"Confidence:\s*([A-Za-z]+)",
     ):
         m = re.search(pattern, report_text, flags=re.I | re.M)
-        if m:
+        if m and m.group(1).lower() in {"low", "medium", "high"}:
             return m.group(1).capitalize()
     return "n/a"
 
 
 def horizon_months(horizon: str) -> float | None:
-    h = horizon.lower()
+    h = horizon.lower().replace("–", "-").replace("—", "-")
     if "4 quarters" in h:
         return 12.0
     if re.search(r"\bthrough\s+q[1-4]\s+\d{4}\s+earnings\b", h):
@@ -325,11 +394,12 @@ def build_summary_row(run: Run) -> SummaryRow:
     trader_text = read_text(run_dir / "3_trading" / "trader.md")
     report_text = read_text(run_dir / "complete_report.md")
 
-    current = extract_current_price(report_text, decision_text, trader_text)
+    current = extract_current_price(report_text, decision_text, trader_text, run.analysis_date)
     target = extract_price_target(decision_text)
-    if target is None and current is not None:
-        target = current
     horizon = extract_time_horizon(decision_text)
+    confidence = extract_confidence(decision_text)
+    if confidence == "n/a":
+        confidence = extract_confidence(report_text)
     target_uplift = None
     annualized_uplift = None
     if current is not None and target is not None and current != 0:
@@ -348,7 +418,7 @@ def build_summary_row(run: Run) -> SummaryRow:
         price_target=target,
         target_uplift=target_uplift,
         annualized_uplift=annualized_uplift,
-        confidence=extract_confidence(report_text),
+        confidence=confidence,
         horizon=horizon or "n/a",
     )
 
@@ -391,10 +461,13 @@ def build_daily_summaries(by_ticker: dict[str, list[Run]]) -> list[DailySummary]
     for analysis_date in analysis_dates(by_ticker):
         runs = latest_runs(by_ticker, analysis_date)
         if runs:
+            rows = [build_summary_row(run) for run in runs]
+            complete = [row for row in rows if row.price_target is not None]
             summaries.append(
                 DailySummary(
                     analysis_date=analysis_date,
-                    rows=[build_summary_row(run) for run in runs],
+                    rows=complete,
+                    incomplete_count=len(rows) - len(complete),
                 )
             )
     return summaries
@@ -404,9 +477,22 @@ def summary_sort_key(row: SummaryRow) -> tuple[str, str]:
     return (row.ticker, row.model)
 
 
-def format_price(value: float | None) -> str:
+SUMMARY_PLACEHOLDERS = frozenset({
+    "", "n/a", "na", "none", "null", "unknown", "not provided", "not available",
+    "no verified close", "no target set", "not calculated", "no numeric horizon",
+    "not assessed", "not specified", "not rated", "no action stated",
+})
+
+
+def summary_text(value: str, missing: str) -> str:
+    return missing if value.strip().lower() in SUMMARY_PLACEHOLDERS else value
+
+
+def format_price(value: float | None, missing: str = "Not provided") -> str:
     if value is None:
-        return "n/a"
+        return missing
+    if 0 < value < 0.01:
+        return f"${value:.8g}"
     if value >= 1000:
         return f"${value:,.0f}"
     if value >= 100:
@@ -414,9 +500,9 @@ def format_price(value: float | None) -> str:
     return f"${value:.2f}"
 
 
-def format_percent(value: float | None) -> str:
+def format_percent(value: float | None, missing: str = "Not calculated") -> str:
     if value is None:
-        return "n/a"
+        return missing
     return f"{value * 100:+.1f}%"
 
 
@@ -445,9 +531,9 @@ def build_decision_summary(
         else "## Latest Decision Summary"
     )
     note = (
-        f"_Uses the latest {analysis_date} run folder for each ticker/model pair. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
+        f"_Uses the latest {analysis_date} run folder for each ticker/model pair. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current − 1. Unprovided values are labeled explicitly; uplift requires a numeric target and verified close, and 1Y uplift also requires a numeric horizon. Confidence uses the final decision when supplied, otherwise the report's confidence. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
         if analysis_date
-        else "_Uses the latest run folder for each ticker/model pair. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
+        else "_Uses the latest run folder for each ticker/model pair. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current − 1. Unprovided values are labeled explicitly; uplift requires a numeric target and verified close, and 1Y uplift also requires a numeric horizon. Confidence uses the final decision when supplied, otherwise the report's confidence. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._"
     )
     lines = [
         heading,
@@ -458,12 +544,14 @@ def build_decision_summary(
         "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     for row in sorted(rows, key=summary_sort_key):
-        suggestion = f"{row.action} / {row.rating}"
+        suggestion = f"{summary_text(row.action, 'No action stated')} / {summary_text(row.rating, 'Not rated')}"
+        uplift_missing = "No target set" if row.price_target is None else "No verified close"
+        annualized_missing = uplift_missing if row.target_uplift is None else "No numeric horizon"
         lines.append(
             f"| [{row.ticker}]({row.report_link}) | `{row.model}` | {suggestion} | "
-            f"{format_price(row.current_price)} | {format_price(row.price_target)} | "
-            f"{format_percent(row.target_uplift)} | {format_percent(row.annualized_uplift)} | "
-            f"{row.confidence} | {short_horizon(row.horizon)} |"
+            f"{format_price(row.current_price, 'No verified close')} | {format_price(row.price_target, 'No target set')} | "
+            f"{format_percent(row.target_uplift, uplift_missing)} | {format_percent(row.annualized_uplift, annualized_missing)} | "
+            f"{summary_text(row.confidence, 'Not assessed')} | {short_horizon(summary_text(row.horizon, 'Not specified'))} |"
         )
     lines.append("")
     return lines
@@ -512,6 +600,11 @@ def build_daily_decision_summaries(
     )
     for summary in summaries:
         lines.extend(build_decision_summary(summary.rows, summary.analysis_date))
+        if summary.incomplete_count:
+            lines.extend([
+                f"_{summary.incomplete_count} incomplete decision(s) excluded: a supported numeric price target is required._",
+                "",
+            ])
     lines.extend(
         [
             "</div>",

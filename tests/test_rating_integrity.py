@@ -187,7 +187,7 @@ def test_a_decision_prompt_states_the_shape_of_its_answer(module, factory, must_
     class _LLM:
         def invoke(self, prompt, *a, **k):
             seen.append(prompt if isinstance(prompt, str) else str(prompt))
-            return AIMessage("**Rating**: Hold\n\nnothing to do")
+            return AIMessage("**Rating**: Hold\n**Price Target**: 120\n\nnothing to do")
 
         def with_structured_output(self, *a, **k):
             raise NotImplementedError  # force the free-text path

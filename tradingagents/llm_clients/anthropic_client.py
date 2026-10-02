@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from typing import Any
@@ -9,6 +10,7 @@ from .base_client import BaseLLMClient, normalize_content
 from .retry import call_with_rate_limit_retry
 from .validators import validate_model
 
+logger = logging.getLogger(__name__)
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "api_key", "max_tokens", "temperature",
     "callbacks", "http_client", "http_async_client", "effort",
@@ -114,9 +116,26 @@ class NormalizedChatAnthropic(ChatAnthropic):
 
     def invoke(self, input, config=None, **kwargs):
         parent_invoke = super().invoke
+
+        def invoke_with_compatible_tool_choice():
+            try:
+                return parent_invoke(input, config, **kwargs)
+            except Exception as exc:
+                # Some thinking models/proxies reject LangChain's forced
+                # schema tool. Retry with auto while retaining the schema,
+                # tool parser and all other request settings.
+                message = str(exc).lower()
+                choice = kwargs.get("tool_choice", {})
+                forced = isinstance(choice, dict) and choice.get("type") in {"tool", "any"}
+                if (getattr(exc, "status_code", None) != 400 or not forced
+                        or "tool_choice" not in message or "not supported" not in message):
+                    raise
+                logger.warning("%s: forced tool choice unsupported; retrying with auto", self.model)
+                return parent_invoke(input, config, **{**kwargs, "tool_choice": {"type": "auto"}})
+
         return normalize_content(
             call_with_rate_limit_retry(
-                lambda: parent_invoke(input, config, **kwargs),
+                invoke_with_compatible_tool_choice,
                 description=self.model,
             )
         )

@@ -5,6 +5,7 @@ from tradingagents.agents.context import (
     opponent_argument_or_opening,
     report_or_absent,
 )
+from tradingagents.llm_clients.base_client import require_report_text
 
 
 def create_conservative_debator(llm):
@@ -60,7 +61,7 @@ Engage by questioning their optimism and emphasizing the potential downsides the
 
         response = llm.invoke([("system", system), ("human", human)])
 
-        argument = f"Conservative Analyst: {response.content}"
+        argument = f"Conservative Analyst: {require_report_text(response, 'Conservative Analyst')}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,

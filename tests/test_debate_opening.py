@@ -30,7 +30,7 @@ def _capturing_llm(captured: dict):
     llm = MagicMock()
     llm.invoke.side_effect = lambda prompt: (
         captured.__setitem__("prompt", "\n".join(text for _, text in prompt))
-        or MagicMock(content="argument")
+        or MagicMock(content="argument", tool_calls=[])
     )
     return llm
 

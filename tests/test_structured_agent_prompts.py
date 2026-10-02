@@ -103,8 +103,13 @@ def test_portfolio_manager_prompt_states_constraint():
         "risk_debate_state": risk,
         "investment_plan": "plan",
         "trader_investment_plan": "trader plan",
+        "market_report": "Verified 2026-10-01 close: $189.5",
     })
-    assert NO_EXTERNAL_TOOLS in _prompt_text(captured["prompt"])
+    text = _prompt_text(captured["prompt"])
+    assert NO_EXTERNAL_TOOLS in text
+    assert "Verified 2026-10-01 close: $189.5" in text
+    for field in ("Current Price", "Price Target", "Confidence", "Time Horizon"):
+        assert f"**{field}**" in text
 
 
 @pytest.mark.unit

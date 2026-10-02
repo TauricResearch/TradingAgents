@@ -9,9 +9,13 @@ run produces the same on-disk report tree a CLI run does.
 from datetime import datetime
 from pathlib import Path
 
+from cli.report_fields import require_price_target
+
 
 def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path."""
+    decision = (final_state.get("risk_debate_state") or {}).get("judge_decision") or ""
+    require_price_target(decision)
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []

@@ -33,6 +33,9 @@ def test_edit_during_worker_preserves_completion(tmp_path, name, worker_fails):
     shutil.copy2(ROOT / "scripts" / name, script)
     shutil.copy2(ROOT / "scripts/default_tickers.sh", root / "scripts/default_tickers.sh")
     shutil.copy2(ROOT / "scripts/report_guard.py", root / "scripts/report_guard.py")
+    (root / "cli").mkdir(exist_ok=True)
+    for helper in ("__init__.py", "report_fields.py"):
+        shutil.copy2(ROOT / "cli" / helper, root / "cli" / helper)
     original = script.read_text()
 
     worker = root / "worker.py"
@@ -53,6 +56,10 @@ value = lambda flag: sys.argv[sys.argv.index(flag) + 1]
 slug = value("--deep-model").translate(str.maketrans({"/": "-", ":": "-", ".": "-"}))
 report = Path(os.environ["TRADINGAGENTS_REPORTS_DIR"]) / value("--ticker") / (value("--date").replace("-", "") + "_" + slug + "_20000102_030405")
 report.mkdir(parents=True)
+for stage in ("complete_report.md", "1_analysts/market.md", "3_trading/trader.md", "5_portfolio/decision.md"):
+    path = report / stage
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("Price Target: 120")
 ''')
     wrapper = f'#!/bin/bash\nexec {shlex.quote(sys.executable)} {shlex.quote(str(worker))} "$@"\n'
     programs = {

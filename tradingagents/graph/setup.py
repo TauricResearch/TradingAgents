@@ -19,6 +19,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.state import AgentState
+from tradingagents.llm_clients.base_client import EmptyModelResponseError
 
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
@@ -43,7 +44,11 @@ RISK_ANALYSIS_PATH_MAP = {
 def _tools_or_clear(spec):
     """Route an analyst's turn: run its tool calls, or finish its report."""
     def route(state) -> str:
-        return spec.tool_node if state["messages"][-1].tool_calls else spec.clear_node
+        if state["messages"][-1].tool_calls:
+            return spec.tool_node
+        if not (state.get(spec.report_key) or "").strip():
+            raise EmptyModelResponseError(f"{spec.agent_node}: completed turn returned no report text")
+        return spec.clear_node
     return route
 
 

@@ -18,6 +18,7 @@ so that:
 
 from __future__ import annotations
 
+import math
 from enum import Enum
 from typing import Literal
 
@@ -28,6 +29,7 @@ from pydantic import BaseModel, Field, field_validator
 # call validates instead of erroring (#1058). Pydantic still parses real numeric
 # strings ("189.5") to float.
 _NULLISH_FLOAT = {"", "none", "n/a", "na", "null", "nil", "-", "tbd", "unknown"}
+_NULLISH_TEXT = _NULLISH_FLOAT | {"not provided", "not available", "unavailable"}
 
 
 def _coerce_optional_float(value):
@@ -46,16 +48,25 @@ def _coerce_optional_float(value):
     validation, and discard the whole decision, losing every field the model got
     right along with the price.
     """
-    if not isinstance(value, str):
-        return value
-    text = value.strip()
-    if text.lower() in _NULLISH_FLOAT or text.endswith("%"):
+    if value is None or isinstance(value, bool):
         return None
-    cleaned = text.replace(",", "").lstrip("$€£¥").strip()
+    if isinstance(value, str):
+        text = value.strip()
+        if text.lower() in _NULLISH_FLOAT or text.endswith("%"):
+            return None
+        value = text.replace(",", "").lstrip("$€£¥").strip()
     try:
-        return float(cleaned)
-    except ValueError:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
         return None
+    return number if math.isfinite(number) and number > 0 else None
+
+
+def _require_narrative(value: str) -> str:
+    """A rating and generated headings cannot stand in for the model's report."""
+    if value.strip().lower() in _NULLISH_TEXT:
+        raise ValueError("Report narrative must contain nonblank explanatory text")
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +122,7 @@ class ResearchPlan(BaseModel):
         ),
     )
     rationale: str = Field(
+        min_length=1,
         description=(
             "Conversational summary of the key points from both sides of the "
             "debate, ending with which arguments led to the recommendation. "
@@ -118,6 +130,7 @@ class ResearchPlan(BaseModel):
         ),
     )
     strategic_actions: str = Field(
+        min_length=1,
         description=(
             "Concrete steps for the trader to implement the recommendation, "
             "including sizing guidance relative to a standard allocation. The "
@@ -125,6 +138,11 @@ class ResearchPlan(BaseModel):
             "portfolio manager apply the actual position."
         ),
     )
+
+    @field_validator("rationale", "strategic_actions")
+    @classmethod
+    def _nonblank_narrative(cls, value):
+        return _require_narrative(value)
 
 
 def render_research_plan(plan: ResearchPlan) -> str:
@@ -156,6 +174,7 @@ class TraderProposal(BaseModel):
         description="The transaction direction. Exactly one of Buy / Hold / Sell.",
     )
     reasoning: str = Field(
+        min_length=1,
         description=(
             "The case for this action, anchored in the analysts' reports and "
             "the research plan. Two to four sentences."
@@ -186,6 +205,11 @@ class TraderProposal(BaseModel):
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+    @field_validator("reasoning")
+    @classmethod
+    def _nonblank_narrative(cls, value):
+        return _require_narrative(value)
 
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
@@ -238,12 +262,14 @@ class PortfolioDecision(BaseModel):
         ),
     )
     executive_summary: str = Field(
+        min_length=1,
         description=(
             "A concise action plan covering entry strategy, position sizing, "
             "key risk levels, and time horizon. Two to four sentences."
         ),
     )
     investment_thesis: str = Field(
+        min_length=1,
         description=(
             "Detailed reasoning anchored in specific evidence from the analysts' "
             "debate. If prior lessons are referenced in the prompt context, "
@@ -252,17 +278,57 @@ class PortfolioDecision(BaseModel):
     )
     price_target: float | None = Field(
         default=None,
-        description="Optional target price in the instrument's quote currency.",
+        description=(
+            "Evidence-backed target price as one absolute number in the quote currency. "
+            "Explain its source or calculation in investment_thesis. A positive numeric "
+            "target is required to complete the report. Use null when no target can be "
+            "justified, leaving the run incomplete; do not substitute the current price."
+        ),
+    )
+    current_price: float | None = Field(
+        default=None,
+        description=(
+            "The latest verified closing price from the technical market report, "
+            "in the quote currency. Use null when the report provides no close; "
+            "do not use a proposed entry, stop or historical comparison price."
+        ),
+    )
+    confidence: Literal["low", "medium", "high"] | None = Field(
+        default=None,
+        description="Confidence in the final decision based on the supplied evidence and data quality.",
     )
     time_horizon: str | None = Field(
         default=None,
-        description="Optional recommended holding period, e.g. '3-6 months'.",
+        description=(
+            "Recommended decision horizon with numeric duration and units, e.g. '3-6 months'. "
+            "Use null when the evidence cannot support a concrete duration."
+        ),
     )
 
-    @field_validator("price_target", mode="before")
+    @field_validator("price_target", "current_price", mode="before")
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+    @field_validator("executive_summary", "investment_thesis")
+    @classmethod
+    def _nonblank_narrative(cls, value):
+        return _require_narrative(value)
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _optional_confidence(cls, value):
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().lower()
+        return normalized if normalized in {"low", "medium", "high"} else None
+
+    @field_validator("time_horizon", mode="before")
+    @classmethod
+    def _optional_horizon(cls, value):
+        if not isinstance(value, str) or value.strip().lower() in _NULLISH_TEXT:
+            return None
+        return value.strip()
 
 
 def render_pm_decision(decision: PortfolioDecision) -> str:
@@ -283,7 +349,10 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     # Named even when absent: a missing line reads as a field nobody asked for,
     # so a reader cannot tell "no target" from "target not reported".
     target = decision.price_target if decision.price_target is not None else "not provided"
+    current = decision.current_price if decision.current_price is not None else "not provided"
+    parts.extend(["", f"**Current Price**: {current}"])
     parts.extend(["", f"**Price Target**: {target}"])
+    parts.extend(["", f"**Confidence**: {decision.confidence.capitalize() if decision.confidence else 'not provided'}"])
     parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'not provided'}"])
     return "\n".join(parts)
 
@@ -348,6 +417,7 @@ class SentimentReport(BaseModel):
         ),
     )
     narrative: str = Field(
+        min_length=1,
         description=(
             "Full sentiment report covering, in order: "
             "(1) source-by-source breakdown with specific evidence (cite message "
@@ -361,6 +431,11 @@ class SentimentReport(BaseModel):
             "with concrete evidence so every point adds new signal for the trader."
         ),
     )
+
+    @field_validator("narrative")
+    @classmethod
+    def _nonblank_narrative(cls, value):
+        return _require_narrative(value)
 
 
 def render_sentiment_report(report: SentimentReport) -> str:

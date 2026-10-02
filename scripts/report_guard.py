@@ -15,6 +15,10 @@ import sys
 from contextlib import suppress
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from cli.report_fields import extract_price_target  # noqa: E402
+
 
 def report_prefix(date, model):
     slug = model.strip().replace("/", "-").replace(":", "-").replace(".", "-")
@@ -30,7 +34,32 @@ def report_exists(reports, ticker, prefix):
     return any(
         p.is_dir() and p.name.startswith(prefix)
         and re.fullmatch(r"[0-9]{8}_[0-9]{6}", p.name[len(prefix):])
+        and report_complete(p)
         for p in directory.iterdir()
+    )
+
+
+def report_complete(directory):
+    """A completed run needs populated stages and an absolute numeric target."""
+    def populated(path):
+        try:
+            return bool(path.read_text(encoding="utf-8").strip())
+        except (OSError, UnicodeError):
+            return False
+
+    try:
+        target = extract_price_target((directory / "5_portfolio/decision.md").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError):
+        return False
+    return (
+        target is not None
+        and
+        all(populated(directory / name) for name in (
+            "complete_report.md", "3_trading/trader.md", "5_portfolio/decision.md",
+        ))
+        and any(populated(directory / "1_analysts" / name) for name in (
+            "market.md", "sentiment.md", "news.md", "fundamentals.md",
+        ))
     )
 
 
@@ -67,6 +96,9 @@ def run_guarded(reports, date, model, ticker, log, command):
             finally:
                 for signum, handler in previous.items():
                     signal.signal(signum, handler)
+        if status == 0 and not report_exists(reports, ticker, prefix):
+            print(f"[FAIL {ticker}] worker exited without a complete report with a numeric target", flush=True)
+            return 1
         return status if status >= 0 else 128 - status
 
 

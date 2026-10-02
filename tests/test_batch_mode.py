@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from langchain_core.messages import HumanMessage, SystemMessage
+import json
+
+import pytest
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 from tradingagents.batch.adapters import AnthropicBatchAdapter, OpenAIBatchAdapter
 from tradingagents.batch.runner import BatchRunner
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients.base_client import normalize_content
 
 
 class FakeOpenAIAdapter(OpenAIBatchAdapter):
@@ -77,6 +81,27 @@ def test_anthropic_adapter_preserves_cache_markers(tmp_path):
     }
 
 
+def test_anthropic_batch_tool_followup_preserves_signed_thinking(tmp_path):
+    config = _config(tmp_path)
+    config["llm_provider"] = "anthropic"
+    config["max_tokens"] = 1024
+    adapter = AnthropicBatchAdapter(config)
+    thinking = {"type": "thinking", "thinking": "native reasoning", "signature": "signed_fixture"}
+    response = adapter.message_from_response({"content": [
+        thinking, {"type": "tool_use", "id": "call1", "name": "lookup", "input": {}},
+    ]})
+    payload = adapter.build_payload(
+        model="claude-sonnet-5-5",
+        messages=[HumanMessage("Use verified evidence."), normalize_content(response),
+                  ToolMessage(content="Verified evidence", tool_call_id="call1")],
+        request_kwargs={},
+    )
+    assistant = payload["messages"][1]["content"]
+    assert assistant[0] == thinking
+    assert assistant[1]["type"] == "tool_use"
+    assert assistant[1]["id"] == "call1"
+
+
 def test_openai_adapter_extracts_structured_function_arguments(tmp_path):
     adapter = OpenAIBatchAdapter(_config(tmp_path))
     args = adapter.structured_args_from_response(
@@ -140,7 +165,8 @@ def test_runner_submits_first_deferred_request(tmp_path, monkeypatch):
     assert request.provider_batch_id == "fake_batch_1"
 
 
-def test_runner_replays_result_and_advances_to_next_node(tmp_path, monkeypatch):
+@pytest.mark.parametrize("market_text", ["Market report.", ""])
+def test_runner_replays_result_and_advances_to_next_node(tmp_path, monkeypatch, market_text):
     import tradingagents.batch.runner as runner_mod
 
     monkeypatch.setattr(runner_mod, "resolve_instrument_identity", lambda ticker: {})
@@ -165,7 +191,7 @@ def test_runner_replays_result_and_advances_to_next_node(tmp_path, monkeypatch):
         "output": [
             {
                 "type": "message",
-                "content": [{"type": "output_text", "text": "Market report."}],
+                "content": [{"type": "output_text", "text": market_text}],
             }
         ],
         "usage": {"input_tokens": 10, "output_tokens": 2, "total_tokens": 12},
@@ -173,8 +199,69 @@ def test_runner_replays_result_and_advances_to_next_node(tmp_path, monkeypatch):
     runner.collect()
 
     run = runner.manifest.runs["AAPL"]
+    if not market_text:
+        assert run.status == "failed"
+        assert "empty response" in run.error
+        assert not run.decoded_state()["market_report"]
+        assert len(runner.manifest.requests) == 1
+        assert not runner.memory_log.load_entries()
+        return
     assert run.progress["phase"] == "debate"
     assert run.progress["active_node"] == "Bull Researcher"
     assert run.decoded_state()["market_report"] == "Market report."
     nodes = [request.node for request in runner.manifest.requests.values()]
     assert nodes == ["Market Analyst", "Bull Researcher"]
+
+
+@pytest.mark.parametrize("provider", ["openai", "anthropic"])
+@pytest.mark.parametrize("corrected", [True, False])
+def test_pm_target_correction_survives_batch_replay(tmp_path, monkeypatch, provider, corrected):
+    import tradingagents.batch.runner as runner_mod
+
+    monkeypatch.setattr(runner_mod, "resolve_instrument_identity", lambda ticker: {})
+    config = _config(tmp_path)
+    config.update(llm_provider=provider, memory_log_path=str(tmp_path / "memory.md"))
+    runner = BatchRunner.create(
+        provider=provider, tickers=["AAPL"], trade_date="2026-10-01",
+        asset_types={"AAPL": "stock"}, selected_analysts=["market"],
+        config=config, root=tmp_path / "batch",
+    )
+    run = runner.manifest.runs["AAPL"]
+    state = run.decoded_state()
+    state.update(market_report="Verified resistance objective: 120.",
+                 fundamentals_report="Valuation: 6 EPS times 20 multiple supports 120.",
+                 investment_plan="Hold.", trader_investment_plan="Action: Hold")
+    run.set_state(state)
+    run.progress["phase"] = "portfolio_manager"
+    runner.advance_all()
+    first = next(iter(runner.manifest.requests.values()))
+    assert first.kind == "structured"
+    missing = {"rating": "Hold", "executive_summary": "Retain current position.",
+               "investment_thesis": "Balanced evidence.", "price_target": None}
+    first.status = "succeeded"
+    first.response = (
+        {"output": [{"type": "function_call", "call_id": "pm", "name": "PortfolioDecision",
+                     "arguments": json.dumps(missing)}]} if provider == "openai" else
+        {"content": [{"type": "tool_use", "id": "pm", "name": "PortfolioDecision", "input": missing}]}
+    )
+    runner.advance_all()
+    assert run.status == "waiting"
+    assert len(runner.manifest.requests) == 2
+    # Resume while the correction is still pending: do not enqueue a third call.
+    runner.advance_all()
+    assert len(runner.manifest.requests) == 2
+    second = list(runner.manifest.requests.values())[1]
+    assert second.kind == "message"
+    text = "Rating: Hold\nInvestment Thesis: EPS 6 times multiple 20 supports 120.\nPrice Target: "
+    text += "120" if corrected else "not provided"
+    second.status = "succeeded"
+    second.response = (
+        {"output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+        if provider == "openai" else {"content": [{"type": "text", "text": text}]}
+    )
+    runner.advance_all()
+    assert run.status == ("completed" if corrected else "failed")
+    assert len(runner.manifest.requests) == 2
+    if not corrected:
+        assert "numeric Price Target" in run.error
+        assert not runner.memory_log.load_entries()

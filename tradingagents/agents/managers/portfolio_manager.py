@@ -10,6 +10,7 @@ back gracefully to free-text generation.
 
 from __future__ import annotations
 
+from cli.report_fields import require_price_target
 from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
@@ -34,6 +35,8 @@ def create_portfolio_manager(llm):
         risk_debate_state = state["risk_debate_state"]
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+        market_report = state.get("market_report") or "No technical market report supplied."
+        fundamentals_report = state.get("fundamentals_report") or "No fundamentals report supplied."
 
         past_context = state.get("past_context", "")
         lessons_line = (
@@ -60,6 +63,8 @@ def create_portfolio_manager(llm):
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
+- Technical Market Report (source for the latest verified close):\n{market_report}
+- Fundamentals Report (source for valuation evidence):\n{fundamentals_report}
 {lessons_line}
 **Risk Analysts Debate History:**
 {history}
@@ -74,7 +79,11 @@ Write these sections, in this order, starting with the rating on its own line:
 
 - **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
 - **Executive Summary**: the call and how to act on it
-- **Investment Thesis**: the evidence that decided it, and what would change it
+- **Investment Thesis**: the evidence that decided it, what would change it, and the source or calculation supporting the price target
+- **Current Price**: latest verified close from the technical market report, or not provided
+- **Price Target**: one positive numeric absolute target price supported by the supplied analyst evidence (valuation or technical objective). Never substitute a current price, entry, or stop just to fill this field. If the evidence cannot justify a target, state that explicitly; the report will remain incomplete.
+- **Confidence**: Low / Medium / High based on the final decision's evidence and data quality
+- **Time Horizon**: numeric duration and units (e.g. 3-6 months), or not provided if unsupported
 
 {NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
 
@@ -84,6 +93,13 @@ Write these sections, in this order, starting with the rating on its own line:
             prompt,
             render_pm_decision,
             "Portfolio Manager",
+            validate=require_price_target,
+            retry_prompt=prompt + "\n\nCorrection required: the previous attempt did not produce a valid "
+            "Price Target. Return the full decision with **Price Target**: one positive "
+            "absolute number and explain its supporting source or calculation in the "
+            "Investment Thesis. Use only the supplied analyst evidence. Do not invent "
+            "a target or copy the current/entry/stop price to satisfy validation. "
+            "If no target is supported, explain why; this run will remain incomplete.",
         )
 
         new_risk_debate_state = {

@@ -10,7 +10,9 @@ canonical pattern:
 2. At invocation, run the structured call and render the result back to
    markdown. If the structured call itself fails for an output-shaped
    reason (malformed JSON from a weak model, schema rejection), fall
-   back to a plain ``llm.invoke`` so the pipeline never blocks.
+   back to a plain ``llm.invoke``. Portfolio decisions additionally require a
+   numeric target on both paths; an unsuccessful correction leaves the run
+   incomplete.
    Rate-limit errors are the one exception: they re-raise instead of
    falling back, because by the time a 429/529 escapes the retry layer
    in ``llm_clients.retry`` the provider is saturated (or the account
@@ -29,6 +31,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
+from tradingagents.llm_clients.base_client import EmptyModelResponseError, require_report_text
 from tradingagents.llm_clients.retry import is_rate_limit_error
 
 logger = logging.getLogger(__name__)
@@ -69,6 +72,9 @@ def invoke_structured_or_freetext(
     prompt: Any,
     render: Callable[[T], str],
     agent_name: str,
+    *,
+    validate: Callable[[str], None] | None = None,
+    retry_prompt: Any = None,
 ) -> str:
     """Run the structured call and render to markdown; fall back to free-text on any failure.
 
@@ -76,6 +82,8 @@ def invoke_structured_or_freetext(
     invocations, a list of message dicts for chat models that take that
     shape). The same value is forwarded to the free-text path so the
     fallback sees the same input the structured call did.
+    When ``validate`` is supplied, it checks both paths. At most two model
+    calls are made, using ``retry_prompt`` for the correction when provided.
     """
     if structured_llm is not None:
         try:
@@ -85,7 +93,12 @@ def invoke_structured_or_freetext(
                 # the tool, leaving the parser with nothing to return. Treat it
                 # as a structured miss and fall back, with a clear reason.
                 raise ValueError("structured output returned no parsed result")
-            return render(result)
+            text = render(result)
+            if not isinstance(text, str) or not text.strip():
+                raise EmptyModelResponseError(f"{agent_name}: structured output rendered an empty report")
+            if validate is not None:
+                validate(text)
+            return text
         except Exception as exc:
             if is_rate_limit_error(exc):
                 # Capacity or billing, not an output-format problem: the
@@ -97,5 +110,17 @@ def invoke_structured_or_freetext(
                 agent_name, exc,
             )
 
-    response = plain_llm.invoke(prompt)
-    return response.content
+    correction = retry_prompt if retry_prompt is not None else prompt
+    plain_prompt = correction if structured_llm is not None and validate is not None else prompt
+    text = require_report_text(plain_llm.invoke(plain_prompt), agent_name)
+    if validate is not None:
+        try:
+            validate(text)
+        except ValueError:
+            # Structured -> plain already used the one correction attempt.
+            if structured_llm is not None:
+                raise
+            logger.warning("%s: incomplete decision; retrying once with the required fields", agent_name)
+            text = require_report_text(plain_llm.invoke(correction), agent_name)
+            validate(text)
+    return text

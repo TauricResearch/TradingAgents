@@ -28,14 +28,15 @@ TRADE_DATE = "2026-01-09"
 
 # Enough for every free-text reader: the PM's labelled rating and the trader's
 # closing proposal line.
-TEXT = "Report.\n\n**Rating**: Overweight\n\nFINAL TRANSACTION PROPOSAL: **BUY**"
+TEXT = "Report.\n\n**Rating**: Overweight\n**Price Target**: 120\n\nFINAL TRANSACTION PROPOSAL: **BUY**"
 
 STRUCTURED = {
     schemas.ResearchPlan: schemas.ResearchPlan(
         recommendation=schemas.PortfolioRating.OVERWEIGHT, rationale="r", strategic_actions="a"),
     schemas.TraderProposal: schemas.TraderProposal(action=schemas.TraderAction.BUY, reasoning="r"),
     schemas.PortfolioDecision: schemas.PortfolioDecision(
-        rating=schemas.PortfolioRating.OVERWEIGHT, executive_summary="s", investment_thesis="t"),
+        rating=schemas.PortfolioRating.OVERWEIGHT, executive_summary="s", investment_thesis="t",
+        price_target=120.0),
     schemas.SentimentReport: schemas.SentimentReport(
         overall_band=schemas.SentimentBand.NEUTRAL, overall_score=5.0, confidence="low", narrative="n"),
 }
@@ -121,8 +122,10 @@ def _graph(tmp_path, monkeypatch, model, **config):
 
 @pytest.mark.unit
 @pytest.mark.parametrize("structured", [False, True], ids=["free-text", "structured"])
-def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, structured):
-    graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=structured))
+@pytest.mark.parametrize("debate_rounds", [0, 1])
+def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, structured, debate_rounds):
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=structured),
+                   max_debate_rounds=debate_rounds, max_risk_discuss_rounds=debate_rounds)
 
     state, signal = graph.propagate("NVDA", TRADE_DATE)
 
@@ -136,6 +139,34 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
                     "get_insider_transactions", "ohlcv"}
     assert offline == tool_methods
     assert [e["rating"] for e in graph.memory_log.load_entries()] == ["Overweight"]
+
+
+@pytest.mark.unit
+def test_empty_analyst_cannot_reach_a_logged_decision(tmp_path, monkeypatch, offline):
+    from tradingagents.llm_clients.base_client import EmptyModelResponseError
+
+    class EmptyModel(ScriptedModel):
+        def _generate(self, *args, **kwargs):
+            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=""))])
+
+    graph = _graph(tmp_path, monkeypatch, EmptyModel())
+    with pytest.raises(EmptyModelResponseError, match="empty response"):
+        graph.propagate("NVDA", TRADE_DATE)
+    assert not graph.memory_log.load_entries()
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_missing_target_cannot_reach_a_logged_decision(tmp_path, monkeypatch, offline, structured):
+    from cli.report_fields import MissingPriceTargetError
+
+    monkeypatch.setattr(__import__(__name__, fromlist=["TEXT"]), "TEXT", "Rating: Hold\nPrice Target: not provided")
+    monkeypatch.setitem(STRUCTURED, schemas.PortfolioDecision, schemas.PortfolioDecision(
+        rating="Hold", executive_summary="Retain current position.", investment_thesis="No supported target."))
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=structured),
+                   max_debate_rounds=0, max_risk_discuss_rounds=0)
+    with pytest.raises(MissingPriceTargetError, match="remains incomplete"):
+        graph.propagate("NVDA", TRADE_DATE)
+    assert not graph.memory_log.load_entries()
 
 
 @pytest.mark.unit
