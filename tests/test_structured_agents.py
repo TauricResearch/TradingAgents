@@ -340,7 +340,6 @@ def _make_rm_state():
             "bull_history": "Bull says...",
             "bear_history": "Bear says...",
             "current_response": "",
-            "judge_decision": "",
             "count": 1,
         },
     }

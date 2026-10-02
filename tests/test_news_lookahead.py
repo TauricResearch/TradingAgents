@@ -6,7 +6,7 @@ news injected future articles), #993 (empty-after-filter returned a blank body),
 and #1126 (inclusive upper bound leaked the midnight-after article; host-local
 timestamp parsing made filtering machine-dependent).
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -16,7 +16,7 @@ from tradingagents.dataflows.date_window import in_window
 
 def _epoch(date_str):
     """Epoch seconds for UTC midnight of ``date_str`` (host-timezone independent)."""
-    return int(datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+    return int(datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
 
 
 @pytest.mark.unit
@@ -28,7 +28,7 @@ def test_flat_article_publish_time_is_parsed():
     )
     assert data["pub_date"] is not None
     assert data["pub_date"].tzinfo is not None
-    assert data["pub_date"] == datetime(2025, 5, 9, tzinfo=timezone.utc)
+    assert data["pub_date"] == datetime(2025, 5, 9, tzinfo=UTC)
 
 
 @pytest.mark.unit
@@ -45,7 +45,7 @@ def test_window_excludes_future_and_undated_in_backtest():
 @pytest.mark.unit
 def test_window_keeps_undated_in_live_window():
     # Live window (reaches today): undated articles can't be "future", so keep them.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert in_window(None, now, now) is True
 
 
@@ -55,8 +55,8 @@ def test_upper_bound_is_exclusive():
     # the old inclusive bound; the whole of end_date itself must still be kept.
     start = datetime(2025, 5, 1)
     end = datetime(2025, 5, 9)
-    midnight_after = datetime(2025, 5, 10, 0, 0, 0, tzinfo=timezone.utc)
-    last_moment = datetime(2025, 5, 9, 23, 59, 59, tzinfo=timezone.utc)
+    midnight_after = datetime(2025, 5, 10, 0, 0, 0, tzinfo=UTC)
+    last_moment = datetime(2025, 5, 9, 23, 59, 59, tzinfo=UTC)
     assert in_window(midnight_after, start, end) is False
     assert in_window(last_moment, start, end) is True
 
@@ -146,11 +146,11 @@ def test_ticker_news_covered_but_empty_window_is_a_real_absence(monkeypatch):
 @pytest.mark.parametrize("dates, expect_gap", [
     ([], True),                                              # empty feed: covers at most now
     ([None], True),                                          # undated only: same
-    ([datetime(2026, 5, 20, tzinfo=timezone.utc)], True),    # all after the window
-    ([datetime(2026, 5, 4, tzinfo=timezone.utc)], True),     # starts mid-window: partial
-    ([datetime(2026, 5, 1, 18, tzinfo=timezone.utc)], False),  # reaches the first day
-    ([datetime(2026, 5, 20, tzinfo=timezone.utc),
-      datetime(2026, 4, 1, tzinfo=timezone.utc)], False),    # coverage reaches back
+    ([datetime(2026, 5, 20, tzinfo=UTC)], True),    # all after the window
+    ([datetime(2026, 5, 4, tzinfo=UTC)], True),     # starts mid-window: partial
+    ([datetime(2026, 5, 1, 18, tzinfo=UTC)], False),  # reaches the first day
+    ([datetime(2026, 5, 20, tzinfo=UTC),
+      datetime(2026, 4, 1, tzinfo=UTC)], False),    # coverage reaches back
 ])
 def test_coverage_gap_boundaries(dates, expect_gap):
     from tradingagents.dataflows.date_window import coverage_gap
@@ -208,7 +208,7 @@ def test_coverage_gap_future_window_is_unavailable():
     from datetime import timedelta
 
     from tradingagents.dataflows.date_window import coverage_gap
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     out = coverage_gap([], str(today), str(today + timedelta(days=3)), "Feed", "items")
     assert out is not None and "past today" in out
 

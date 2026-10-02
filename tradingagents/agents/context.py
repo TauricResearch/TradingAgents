@@ -1,14 +1,11 @@
-"""Prompt context shared by the agents: instrument identity, output language,
-portfolio, and the message reset between analysts."""
+"""Prompt context shared by the agents: instrument identity, output language and portfolio."""
 
 import functools
 import logging
 from collections.abc import Mapping
 from typing import Any
 
-from langchain_core.messages import HumanMessage, RemoveMessage
-
-from tradingagents.dataflows.date_window import get_current_date
+from tradingagents.dataflows.date_window import is_historical
 from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
 
 logger = logging.getLogger(__name__)
@@ -27,7 +24,14 @@ def get_language_instruction() -> str:
     lang = get_config().get("output_language", "English")
     if lang.strip().lower() == "english":
         return ""
-    return f" Write your entire response in {lang}."
+    # The labelled lines are read by the program, so they keep their English
+    # label and value: a translated rating line leaves the reader prose to
+    # search, where a negated rating ("not a Sell") reads as the call (#1435).
+    return (
+        f" Write your entire response in {lang}, except the labelled lines the format"
+        f" asks for (the \"**Rating**:\" line, \"FINAL TRANSACTION PROPOSAL:\"):"
+        f" keep their label and value in English, exactly as specified."
+    )
 
 
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
@@ -54,7 +58,6 @@ def _clean_identity_value(value: Any) -> str | None:
     return cleaned
 
 
-@functools.lru_cache(maxsize=256)
 def resolve_instrument_identity(ticker: str) -> dict:
     """Resolve deterministic identity metadata (company name, sector, …) for a ticker.
 
@@ -66,18 +69,23 @@ def resolve_instrument_identity(ticker: str) -> dict:
 
     Best-effort by design: if yfinance is unavailable, rate-limited, or doesn't
     recognise the ticker, we return ``{}`` and the caller falls back to
-    ticker-only context rather than failing before analysis starts. Cached so
-    the lookup happens at most once per ticker per process.
+    ticker-only context rather than failing before analysis starts. An answer
+    is cached for the process; a failed lookup is asked again next time.
 
     Identity resolves for the same instrument the price path fetches
     (``XAUUSD`` -> ``GC=F``, #983).
     """
     try:
-        info = get_company_profile(ticker)
+        return _identity(ticker)
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}
 
+
+@functools.lru_cache(maxsize=256)
+def _identity(ticker: str) -> dict:
+    """The vendor's identity fields for ``ticker``; raises if the lookup fails."""
+    info = get_company_profile(ticker)
     identity: dict[str, str] = {}
     company_name = _clean_identity_value(info.get("longName")) or _clean_identity_value(
         info.get("shortName")
@@ -100,7 +108,7 @@ def build_instrument_context(
     ticker: str,
     asset_type: str = "stock",
     identity: Mapping[str, str] | None = None,
-    curr_date: str | None = None,
+    trade_date: str | None = None,
 ) -> str:
     """Describe the exact instrument so agents preserve identity and ticker.
 
@@ -110,23 +118,32 @@ def build_instrument_context(
     than pattern-matching the price chart to a wrong one (#814).
 
     That profile carries no historical vintage: it describes the company today.
-    For a run dated earlier, the context says so, since a company that has since
-    renamed or been reclassified would otherwise anchor the whole graph to an
-    identity it did not have on the analysis date.
+    A run dated earlier gets the current name alone, as a way to tell the
+    company apart from others rather than as what it was called then; a sector,
+    industry or exchange it holds today is not given, since it may not have held
+    on the analysis date.
     """
     is_crypto = asset_type == "crypto"
     instrument_label = "asset" if is_crypto else "instrument"
     context = (
         f"The {instrument_label} to analyze is `{ticker}`. "
-        "Use this exact ticker in every tool call, report, and recommendation, "
+        "The tools serve this instrument; refer to it by this exact ticker in every report and recommendation, "
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
     )
 
+    identity = identity or {}
+    name = identity.get("company_name") or identity.get("name")
+    label = "Name" if is_crypto else "Company"
     details = []
-    if identity:
-        name = identity.get("company_name") or identity.get("name")
+    if is_historical(trade_date):
         if name:
-            details.append(f"{'Name' if is_crypto else 'Company'}: {name}")
+            details.append(
+                f"{label}: {name} (its current name, given only to identify it; "
+                f"on {trade_date} it may have been named differently)"
+            )
+    else:
+        if name:
+            details.append(f"{label}: {name}")
         sector, industry = identity.get("sector"), identity.get("industry")
         if sector and industry:
             details.append(f"Business classification: {sector} / {industry}")
@@ -143,13 +160,6 @@ def build_instrument_context(
             "Do not substitute a different company or ticker unless a tool "
             "result explicitly disproves this resolved identity."
         )
-        today = get_current_date()
-        if curr_date and str(curr_date) < today:
-            context += (
-                f" This identity is how the vendor describes the instrument today, "
-                f"not necessarily on {curr_date}: a name or classification changed "
-                f"since then would read as the current one."
-            )
 
     if is_crypto:
         context += (
@@ -206,30 +216,3 @@ def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
         "holdings or cash, so do not assume a flat book; give direction and "
         "sizing guidance in terms the caller can apply to their own position."
     )
-
-
-def create_msg_delete():
-    def delete_messages(state):
-        """Clear messages and add a context-anchored placeholder.
-
-        The placeholder must not be a bare ``"Continue"``: some
-        OpenAI-compatible providers interpret that literally as the user task
-        and produce output about the word "continue" instead of analysing the
-        instrument (#888). Anchoring it to the resolved instrument context and
-        date keeps the next analyst on-task even if the provider treats the
-        placeholder as a standalone request.
-        """
-        messages = state["messages"]
-        removal_operations = [RemoveMessage(id=m.id) for m in messages]
-
-        instrument_context = get_instrument_context_from_state(state)
-        trade_date = state.get("trade_date", "the requested date")
-        placeholder = HumanMessage(
-            content=(
-                f"Proceed with your assigned analysis for this workflow. "
-                f"{instrument_context} The analysis date is {trade_date}."
-            )
-        )
-        return {"messages": removal_operations + [placeholder]}
-
-    return delete_messages

@@ -8,7 +8,7 @@ services:
       # and feed the MkDocs site directly.
       - TRADINGAGENTS_REPORTS_DIR=/workspace/docs
     volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
       - ./docs:/workspace/docs
     tty: true
     stdin_open: true
@@ -29,7 +29,7 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434/v1
       - TRADINGAGENTS_REPORTS_DIR=/workspace/docs
     volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
       - ./docs:/workspace/docs
     depends_on:
       - ollama

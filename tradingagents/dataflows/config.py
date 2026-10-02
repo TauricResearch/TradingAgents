@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import Context, ContextVar, copy_context
 from copy import deepcopy
 
 import tradingagents.default_config as default_config
@@ -49,6 +49,17 @@ def run_config(config: dict):
         yield
     finally:
         _run_config.reset(token)
+
+
+def run_config_context(config: dict) -> Context:
+    """A context serving ``config``, over the defaults, to every read run in it.
+
+    For a run that yields between steps, where a ``run_config`` block would
+    stay open in the caller's context while it holds the results.
+    """
+    context = copy_context()
+    context.run(_run_config.set, _merge(deepcopy(default_config.DEFAULT_CONFIG), config))
+    return context
 
 
 def get_config() -> dict:

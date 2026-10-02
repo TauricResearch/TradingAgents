@@ -12,10 +12,32 @@ from pathlib import Path
 from cli.report_fields import require_price_target
 
 
-def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
-    """Save a completed run's reports to ``save_path``; return the complete-report path."""
-    decision = (final_state.get("risk_debate_state") or {}).get("judge_decision") or ""
-    require_price_target(decision)
+def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
+    """The report's title and what produced it: analysis date, version, models, analysts, vendors."""
+    lines = [f"# Trading Analysis Report: {ticker}", ""]
+    if final_state.get("trade_date"):
+        lines.append(f"- Analysis date: {final_state['trade_date']}")
+    lines.append(f"- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if settings:
+        s = settings.get
+        lines.append(f"- TradingAgents {s('version', '?')}: {s('llm_provider', '?')}, "
+                     f"deep {s('deep_think_llm', '?')}, quick {s('quick_think_llm', '?')}")
+        lines.append(f"- Analysts: {', '.join(s('analysts') or [])}; "
+                     f"research debate rounds {s('max_debate_rounds', '?')}, "
+                     f"risk debate rounds {s('max_risk_discuss_rounds', '?')}")
+        vendors = {**(s("data_vendors") or {}), **(s("tool_vendors") or {})}
+        if vendors:
+            lines.append("- Data vendors: " + ", ".join(f"{k} {v}" for k, v in vendors.items()))
+    return "\n".join(lines) + "\n\n"
+
+
+def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict | None = None) -> Path:
+    """Save a completed run's reports to ``save_path``; return the complete-report path.
+
+    ``settings`` (``TradingAgentsGraph.run_settings()``) adds what produced the run
+    to the report's header.
+    """
+    require_price_target(final_state.get("final_trade_decision") or "")
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
@@ -56,10 +78,10 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             research_dir.mkdir(exist_ok=True)
             (research_dir / "bear.md").write_text(debate["bear_history"], encoding="utf-8")
             research_parts.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
+        if final_state.get("investment_plan"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "manager.md").write_text(debate["judge_decision"], encoding="utf-8")
-            research_parts.append(("Research Manager", debate["judge_decision"]))
+            (research_dir / "manager.md").write_text(final_state["investment_plan"], encoding="utf-8")
+            research_parts.append(("Research Manager", final_state["investment_plan"]))
         if research_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
             sections.append(f"## II. Research Team Decision\n\n{content}")
@@ -92,14 +114,15 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
             sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
 
-        # 5. Portfolio Manager
-        if risk.get("judge_decision"):
-            portfolio_dir = save_path / "5_portfolio"
-            portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+    # 5. Portfolio Manager
+    if final_state.get("final_trade_decision"):
+        portfolio_dir = save_path / "5_portfolio"
+        portfolio_dir.mkdir(exist_ok=True)
+        (portfolio_dir / "decision.md").write_text(final_state["final_trade_decision"], encoding="utf-8")
+        sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{final_state['final_trade_decision']}")
 
     # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
+    (save_path / "complete_report.md").write_text(
+        _header(ticker, final_state, settings) + "\n\n".join(sections), encoding="utf-8"
+    )
     return save_path / "complete_report.md"

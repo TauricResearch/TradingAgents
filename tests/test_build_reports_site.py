@@ -459,9 +459,10 @@ def test_structured_decision_survives_report_writer_and_summary(tmp_path, monkey
     )
     write_report_tree({
         "market_report": "Latest close: $100", "sentiment_report": "**Confidence:** High",
-        "investment_debate_state": {"judge_decision": "Retain a small allocation."},
+        "investment_debate_state": {"history": "Debate."},
+        "investment_plan": "Retain a small allocation.",
         "trader_investment_plan": render_trader_proposal(TraderProposal(action="Buy", reasoning="Evidence.")),
-        "risk_debate_state": {"judge_decision": render_pm_decision(decision)},
+        "final_trade_decision": render_pm_decision(decision),
     }, "AAPL", docs / "AAPL" / folder)
     monkeypatch.setattr(builder, "DOCS_DIR", docs)
 

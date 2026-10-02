@@ -1,9 +1,9 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.analysts.turn import take_turn
 from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
 from tradingagents.agents.tools import get_indicators, get_stock_data, get_verified_market_snapshot
 from tradingagents.dataflows.indicator_registry import render_prompt_section
-from tradingagents.llm_clients.base_client import normalize_content, require_report_text
 
 # The tools this analyst is offered; its tool node is built from the same tuple.
 TOOLS = (
@@ -59,14 +59,7 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(TOOLS)
-
-        result = normalize_content(chain.invoke(state["messages"]))
-
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = require_report_text(result, 'Market Analyst')
+        result, report = take_turn(prompt, llm, TOOLS, state["messages"], "Market Analyst")
 
         return {
             "messages": [result],

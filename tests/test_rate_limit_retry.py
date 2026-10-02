@@ -9,7 +9,7 @@ Covers the three pieces added after a deep run died on back-to-back 429s:
   burning its free-text fallback on a saturated provider.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -146,7 +146,7 @@ class TestCallWithRateLimitRetry:
         assert sleeps == [7.0]
 
     def test_retry_after_http_date(self, sleeps):
-        when = datetime.now(timezone.utc) + timedelta(seconds=60)
+        when = datetime.now(UTC) + timedelta(seconds=60)
         calls = []
 
         def fn():
