@@ -106,7 +106,11 @@ def test_global_news_empty_after_filter_is_informative(monkeypatch):
     assert "unavailable" in out and "not an absence" in out
 
 
-def _ticker_with(articles, monkeypatch):
+def _ticker_with(articles, monkeypatch, searched=()):
+    """Serve ``articles`` from the ticker feed and ``searched`` from a search;
+    return the queries the search was asked."""
+    queries = []
+
     class FakeTicker:
         def __init__(self, *a, **k):
             pass
@@ -114,7 +118,14 @@ def _ticker_with(articles, monkeypatch):
         def get_news(self, count=20):
             return articles
 
+    class FakeSearch:
+        def __init__(self, query, **k):
+            queries.append(query)
+            self.news = list(searched)
+
     monkeypatch.setattr(ynews.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(ynews.yf, "Search", FakeSearch)
+    return queries
 
 
 @pytest.mark.unit
@@ -174,6 +185,67 @@ def test_ticker_news_null_feed_is_handled(monkeypatch):
     _ticker_with(None, monkeypatch)
     out = ynews.get_news_yfinance("AAPL", "2026-08-07", "2026-08-14")
     assert "unavailable" in out and "Error" not in out
+
+
+def _tagged(title, date_str, *tickers):
+    return {"title": title, "publisher": "P", "link": "l",
+            "providerPublishTime": _epoch(date_str), "relatedTickers": list(tickers)}
+
+
+@pytest.mark.unit
+def test_an_empty_ticker_feed_falls_back_to_the_search_news_tagged_with_it(monkeypatch):
+    # #1467: Ticker.get_news answers every symbol with nothing while Yahoo's
+    # search still serves its articles; only those tagged with it are its news.
+    searched = [_tagged("ABOUT AAPL", "2026-08-10", "MSFT", "AAPL"),
+                _tagged("ABOUT MSFT", "2026-08-10", "MSFT"),
+                {"title": "UNTAGGED", "publisher": "P", "link": "l",
+                 "providerPublishTime": _epoch("2026-08-10")}]
+    queries = _ticker_with([], monkeypatch, searched=searched)
+
+    out = ynews.get_news_yfinance("AAPL", "2026-08-07", "2026-08-14")
+
+    assert queries == ["AAPL"]
+    assert "ABOUT AAPL" in out
+    assert "ABOUT MSFT" not in out and "UNTAGGED" not in out
+
+
+@pytest.mark.unit
+def test_a_ticker_feed_with_articles_is_not_searched(monkeypatch):
+    queries = _ticker_with([_tagged("FROM FEED", "2026-08-10")], monkeypatch,
+                           searched=[_tagged("FROM SEARCH", "2026-08-10", "AAPL")])
+
+    out = ynews.get_news_yfinance("AAPL", "2026-08-07", "2026-08-14")
+
+    assert queries == []
+    assert "FROM FEED" in out and "FROM SEARCH" not in out
+
+
+@pytest.mark.unit
+def test_a_failed_fallback_search_is_unavailable_not_absent(monkeypatch):
+    from tradingagents.dataflows.errors import VendorUnavailableError
+
+    _ticker_with([], monkeypatch)
+
+    def failing_search(*a, **k):
+        raise RuntimeError("yahoo hiccup")
+
+    monkeypatch.setattr(ynews.yf, "Search", failing_search)
+    with pytest.raises(VendorUnavailableError):
+        ynews.get_news_yfinance("AAPL", "2026-08-07", "2026-08-14")
+
+
+@pytest.mark.unit
+def test_search_hits_around_a_window_do_not_claim_it_was_covered(monkeypatch):
+    # The same articles from the ticker feed would make this a real absence
+    # (test_ticker_news_covered_but_empty_window_is_a_real_absence); a search
+    # is ranked by relevance, so an older hit says nothing about the days after it.
+    _ticker_with([], monkeypatch, searched=[_tagged("RECENT", "2026-09-10", "AAPL"),
+                                            _tagged("OLDER", "2026-07-01", "AAPL")])
+
+    out = ynews.get_news_yfinance("AAPL", "2026-08-07", "2026-08-14")
+
+    assert "unavailable" in out and "not an absence" in out
+    assert "No news found" not in out
 
 
 @pytest.mark.unit
