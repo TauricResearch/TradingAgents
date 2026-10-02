@@ -58,6 +58,25 @@ class FredResolutionTests(unittest.TestCase):
         self.assertEqual(fred._resolve_series_id("Fed Funds Rate"), "FEDFUNDS")
         self.assertEqual(fred._resolve_series_id("10y-treasury"), "DGS10")
 
+    def test_euro_area_aliases_map_to_series_ids(self):
+        # Euro-area context for non-US tickers (e.g. Euronext .PA): FRED mirrors
+        # the ECB policy rates, Eurostat HICP/GDP and OECD long-term yields.
+        expected = {
+            "ecb_deposit_rate": "ECBDFR",
+            "ecb_main_refi_rate": "ECBMRRFR",
+            "euro_hicp": "CP0000EZ19M086NEST",
+            "euro_core_hicp": "00XEFDEZ19M086NEST",
+            "euro_real_gdp": "CLVMNACSCAB1GQEA19",
+            "germany_10y": "IRLTLT01DEM156N",
+            "france_10y": "IRLTLT01FRM156N",
+            "eur_usd": "DEXUSEU",
+        }
+        for alias, series_id in expected.items():
+            with self.subTest(alias=alias):
+                self.assertEqual(fred._resolve_series_id(alias), series_id)
+        self.assertEqual(fred._resolve_series_id("ECB Deposit Rate"), "ECBDFR")
+        self.assertEqual(fred._resolve_series_id("euro-hicp"), "CP0000EZ19M086NEST")
+
     def test_unknown_alias_is_treated_as_raw_series_id(self):
         # Power users can pass any FRED series ID; we uppercase by convention.
         self.assertEqual(fred._resolve_series_id("dgs30"), "DGS30")

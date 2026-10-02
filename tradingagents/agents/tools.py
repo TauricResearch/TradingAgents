@@ -229,7 +229,9 @@ def get_macro_indicators(
         str,
         "Macro indicator: a friendly alias such as 'cpi', 'core_pce', "
         "'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve', "
-        "'real_gdp', 'vix', or a raw FRED series ID such as 'CPIAUCSL'.",
+        "'real_gdp', 'vix', euro-area aliases such as 'ecb_deposit_rate', "
+        "'euro_hicp', 'euro_core_hicp', 'euro_real_gdp', 'germany_10y', "
+        "'france_10y', 'eur_usd', or a raw FRED series ID such as 'CPIAUCSL'.",
     ],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format; the end of the window"],
     look_back_days: Annotated[
@@ -239,7 +241,8 @@ def get_macro_indicators(
 ) -> str:
     """
     Retrieve a macroeconomic indicator time series from FRED (Federal Reserve
-    Economic Data): policy rates, Treasury yields, inflation, labor, and growth.
+    Economic Data): policy rates, Treasury yields, inflation, labor, and growth,
+    for the US and, through FRED's mirrored series, the euro area.
     Returns the series title, units, frequency, the latest value, the change
     over the window, and a recent observation table. Uses the configured
     macro_data vendor.
