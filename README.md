@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
+  <img src="tradingagents/assets/tauric-logo.svg" width="60%" alt="Tauric Research">
 </p>
 
 <div align="center" style="line-height: 1;">
