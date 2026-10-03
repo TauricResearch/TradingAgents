@@ -75,8 +75,54 @@ _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
 # Default subreddits ordered roughly by signal density for ticker-specific
 # discussion. wallstreetbets has the most volume but most noise; stocks /
-# investing trend more measured. Caller can override.
+# investing trend more measured. Override via config / env (#1461).
 DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
+
+# A subreddit name is letters, digits and underscores. Reject anything that
+# could change the /r/{sub}/ path (slashes, dots, query characters).
+_SUBREDDIT_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def parse_subreddits(value: Iterable[str] | str) -> list[str]:
+    """Normalise a config or caller list into Reddit community names.
+
+    Accepts a comma-separated string or an iterable; strips an optional ``r/``
+    prefix; drops duplicates (case-insensitive). Raises ``ValueError`` when the
+    result is empty or a name is not a legal subreddit.
+    """
+    parts = value.split(",") if isinstance(value, str) else list(value)
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in parts:
+        name = str(raw).strip()
+        if name.lower().startswith("r/"):
+            name = name[2:].strip()
+        if not name:
+            continue
+        if not _SUBREDDIT_NAME_RE.fullmatch(name):
+            raise ValueError(f"invalid subreddit name {name!r}")
+        key = name.lower()
+        if key not in seen:
+            seen.add(key)
+            out.append(name)
+    if not out:
+        raise ValueError("reddit_subreddits is empty")
+    return out
+
+
+def resolve_reddit_subreddits(subreddits: Iterable[str] | str | None = None) -> list[str]:
+    """The communities to search: an explicit list, else the run's config."""
+    if subreddits is None:
+        from tradingagents.dataflows.config import get_config
+        configured = get_config().get("reddit_subreddits")
+        subreddits = DEFAULT_SUBREDDITS if configured is None else configured
+    return parse_subreddits(subreddits)
+
+
+def subreddit_label(subreddits: Iterable[str]) -> str:
+    """``r/a, r/b`` for prompt headings and unavailable placeholders."""
+    return ", ".join(f"r/{s}" for s in subreddits)
+
 
 # Reddit's maximum page size. A week of posts for a ticker across the default
 # subreddits fits well inside one page, which keeps a high-volume subreddit from
@@ -233,7 +279,7 @@ def _fetch_subreddit_rss(
 
 def fetch_reddit_posts(
     ticker: str,
-    subreddits: Iterable[str] = DEFAULT_SUBREDDITS,
+    subreddits: Iterable[str] | str | None = None,
     *,
     limit_per_sub: int = 5,
     timeout: float = 10.0,
@@ -260,8 +306,8 @@ def fetch_reddit_posts(
     # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
     # ("BTC") so the query actually matches discussion instead of near-nothing.
     ticker = crypto_base(ticker) or ticker
-    subreddits = list(subreddits)
-    label = ", ".join(f"r/{s}" for s in subreddits)
+    subreddits = resolve_reddit_subreddits(subreddits)
+    label = subreddit_label(subreddits)
     fetched = _fetch_subreddit_rss(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
     if fetched is None:
         return f"<Reddit unavailable: fetch failed ({label}); this is not an absence of discussion>"

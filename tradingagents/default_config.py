@@ -27,6 +27,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_REDDIT_SUBREDDITS":       "reddit_subreddits",
 }
 
 
@@ -54,6 +55,11 @@ def _coerce(value: str, reference):
         return int(value)
     if isinstance(reference, float):
         return float(value)
+    if isinstance(reference, list):
+        items = [part.strip() for part in value.split(",") if part.strip()]
+        if not items:
+            raise ValueError("expected a comma-separated list")
+        return items
     return value
 
 
@@ -130,6 +136,10 @@ def build_default_config() -> dict:
         "news_article_limit": 20,             # max articles per ticker (ticker-news)
         "global_news_article_limit": 10,      # max articles for global/macro news
         "global_news_lookback_days": 7,       # macro news lookback window
+        # Subreddits the Sentiment Analyst searches. Override with a Python list
+        # or TRADINGAGENTS_REDDIT_SUBREDDITS (comma-separated) for crypto or
+        # other communities the default trio does not cover (#1461).
+        "reddit_subreddits": ["wallstreetbets", "stocks", "investing"],
         # Search queries used by get_global_news for macro headlines. Extend or
         # replace to broaden geographic / sector coverage.
         "global_news_queries": [

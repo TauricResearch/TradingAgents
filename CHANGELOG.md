@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+## [Unreleased]
+
+### Added
+
+- **Configurable Reddit subreddits.** `reddit_subreddits` / `TRADINGAGENTS_REDDIT_SUBREDDITS` (comma-separated) choose which communities the Sentiment Analyst searches; the prompt names the same list. Defaults stay r/wallstreetbets, r/stocks, r/investing. (#1461)
+
 ## [0.5.2] — 2026-09-29
 
 Parallel analysts, unattended CLI runs, reports that record what produced them,
