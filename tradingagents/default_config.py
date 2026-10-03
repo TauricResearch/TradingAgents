@@ -112,6 +112,11 @@ def build_default_config() -> dict:
         # unbounded reasoning/output and hangs or trips a gateway idle timeout
         # (e.g. some deepseek-v4-flash deployments, #1204).
         "max_tokens": None,
+        # Extra HTTP headers sent on every LLM request, e.g. a run id for a
+        # gateway or proxy in front of the model to attribute or cap the cost
+        # of one analysis. Forwarded to the OpenAI-compatible, Azure and
+        # Anthropic clients; None sends none.
+        "llm_default_headers": None,
         # Checkpoint/resume: when True, LangGraph saves state after each node
         # so a crashed run can resume from the last successful step.
         "checkpoint_enabled": False,
