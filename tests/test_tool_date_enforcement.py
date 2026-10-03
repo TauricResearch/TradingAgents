@@ -135,6 +135,23 @@ def test_direct_call_without_state_is_unchanged():
     assert routed.call_args.args == ("get_news", "AAPL", "2026-09-01", "2026-09-08")
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize("tool", ["get_news", "get_stock_data"])
+def test_a_start_date_that_is_not_a_date_is_sent_back_to_the_model(tool):
+    # A model can append a stray character to a date (#1476). No window can be
+    # guessed from it, so the vendor is not called and the model is told the form.
+    with mock.patch.object(tools, "route_to_vendor", return_value="ok") as routed:
+        out = getattr(tools, tool).func("NVDA", "2026-09-26\u0629", "2026-10-03", trade_date="2026-10-03")
+    assert not routed.called
+    assert "YYYY-MM-DD" in out and "start_date" in out
+
+
+@pytest.mark.unit
+def test_a_window_whose_start_is_not_a_date_is_refused():
+    with pytest.raises(ValueError, match="start_date"):
+        as_of_window("2026-09-26\u0629", "2026-10-03", "2026-10-03")
+
+
 # --- the run date itself (#1319) -------------------------------------------------
 
 @pytest.mark.unit

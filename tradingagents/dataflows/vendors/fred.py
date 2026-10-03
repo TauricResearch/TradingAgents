@@ -76,6 +76,17 @@ MACRO_SERIES = {
     "consumer_sentiment": "UMCSENT",
     "housing_starts": "HOUST",
     "retail_sales": "RSAFS",
+    # Euro area (for non-US tickers such as Euronext .PA): FRED mirrors the ECB
+    # policy rates, Eurostat HICP and GDP, and OECD long-term government yields,
+    # so the same vintage pinning keeps euro-area data point-in-time.
+    "ecb_deposit_rate": "ECBDFR",
+    "ecb_main_refi_rate": "ECBMRRFR",
+    "euro_hicp": "CP0000EZ19M086NEST",
+    "euro_core_hicp": "00XEFDEZ19M086NEST",
+    "euro_real_gdp": "CLVMNACSCAB1GQEA19",
+    "germany_10y": "IRLTLT01DEM156N",
+    "france_10y": "IRLTLT01FRM156N",
+    "eur_usd": "DEXUSEU",
 }
 
 

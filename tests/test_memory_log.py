@@ -1133,3 +1133,168 @@ def test_a_close_that_is_not_a_price_is_skipped_not_scored(monkeypatch):
     raw, alpha, _, _ = settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY")
 
     assert raw == pytest.approx(105.0 / 100.0 - 1)   # the window opens on the first real close
+
+
+@pytest.mark.unit
+class TestSettleAll:
+    """A scheduler that stops analysing a ticker can still settle its decisions (#1445)."""
+
+    def _setup(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        log.store_decision("AAPL", "2026-01-05", DECISION_BUY)
+        log.store_decision("MSFT", "2026-01-05", DECISION_BUY)
+        idx = pd.bdate_range("2026-01-02", periods=12)
+        series = pd.Series([100.0 + i for i in range(12)], index=idx)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"AAPL": series, "MSFT": series, "SPY": series}))
+
+        class _Reflector:
+            def reflect_on_final_decision(self, **kwargs):
+                return "Held up."
+        return log, _Reflector()
+
+    def test_every_ticker_with_a_due_decision_is_settled(self, tmp_path, monkeypatch):
+        log, reflector = self._setup(tmp_path, monkeypatch)
+
+        result = settlement.settle_all_pending(log, reflector, {"holding_period_days": 5})
+
+        assert sorted(result.settled) == [("AAPL", "2026-01-05"), ("MSFT", "2026-01-05")]
+        assert result.failed == []
+        assert not log.get_pending_entries()
+
+    def test_a_failed_reflection_is_reported_and_left_pending(self, tmp_path, monkeypatch):
+        log, _ = self._setup(tmp_path, monkeypatch)
+
+        class _Down:
+            def reflect_on_final_decision(self, **kwargs):
+                raise RuntimeError("provider down")
+
+        result = settlement.settle_pending("AAPL", log, _Down(), {"holding_period_days": 5})
+
+        assert result.settled == [] and [f[:2] for f in result.failed] == [("AAPL", "2026-01-05")]
+        assert {e["ticker"] for e in log.get_pending_entries()} == {"AAPL", "MSFT"}
+
+
+@pytest.mark.unit
+def test_the_graph_settles_every_ticker_under_its_own_config(tmp_path, monkeypatch):
+    from tradingagents.dataflows.config import get_config
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"holding_period_days": 5, "output_language": "Deutsch"}
+    graph.memory_log, graph.reflector = make_log(tmp_path), object()
+    seen = []
+    monkeypatch.setattr(settlement, "settle_all_pending",
+                        lambda log, reflector, config, wait=True: seen.append(get_config()["output_language"])
+                        or settlement.Settlement(settled=[("AAPL", "2026-01-05")]))
+
+    assert graph.settle_all_pending().settled == [("AAPL", "2026-01-05")]
+    assert seen == ["Deutsch"]
+
+
+@pytest.mark.unit
+class TestSettlementOnceAndDurably:
+    """Settlement is paid for in reflection calls, so it runs once per decision and
+    keeps what it finished; what it could not do is reported (#1428, #1445)."""
+
+    def _log(self, tmp_path, monkeypatch, *dates):
+        log = make_log(tmp_path)
+        for date in dates:
+            log.store_decision("AAPL", date, DECISION_BUY)
+        series = pd.Series([100.0 + i for i in range(40)], index=pd.bdate_range("2026-01-02", periods=40))
+        monkeypatch.setattr(settlement, "get_closes", _closes({"AAPL": series, "SPY": series}))
+        return log
+
+    def test_two_runs_settling_at_once_reflect_once(self, tmp_path, monkeypatch):
+        import threading
+        import time
+
+        self._log(tmp_path, monkeypatch, "2026-01-05")
+        calls = []
+
+        class _Slow:
+            def reflect_on_final_decision(self, **kwargs):
+                calls.append(1)
+                time.sleep(0.2)
+                return "Held up."
+
+        results = []
+        threads = [threading.Thread(target=lambda: results.append(
+            settlement.settle_pending("AAPL", make_log(tmp_path), _Slow(), {"holding_period_days": 5})))
+            for _ in range(2)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+
+        assert len(calls) == 1
+        assert sorted(len(r.settled) for r in results) == [0, 1]
+
+    def test_an_interrupted_pass_keeps_the_outcomes_it_finished(self, tmp_path, monkeypatch):
+        log = self._log(tmp_path, monkeypatch, "2026-01-05", "2026-01-12")
+
+        class _Interrupted:
+            calls = 0
+
+            def reflect_on_final_decision(self, **kwargs):
+                _Interrupted.calls += 1
+                if _Interrupted.calls == 2:
+                    raise KeyboardInterrupt
+                return "Held up."
+
+        with pytest.raises(KeyboardInterrupt):
+            settlement.settle_pending("AAPL", log, _Interrupted(), {"holding_period_days": 5})
+
+        assert [e["date"] for e in log.get_pending_entries()] == ["2026-01-12"]
+
+    def test_a_price_request_that_fails_is_reported_not_taken_for_not_due(self, tmp_path, monkeypatch):
+        from tradingagents.dataflows.errors import VendorUnavailableError
+
+        log = self._log(tmp_path, monkeypatch, "2026-01-05")
+
+        def down(*args, **kwargs):
+            raise VendorUnavailableError("Yahoo Finance request failed: TimeoutError")
+
+        monkeypatch.setattr(settlement, "get_closes", down)
+
+        result = settlement.settle_pending("AAPL", log, object(), {"holding_period_days": 5})
+
+        assert result.settled == [] and "prices unavailable" in result.failed[0][2]
+
+
+@pytest.mark.unit
+def test_any_failure_to_price_a_decision_is_reported(tmp_path, monkeypatch):
+    log = make_log(tmp_path)
+    log.store_decision("AAPL", "2026-01-05", DECISION_BUY)
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("vendor outage")
+
+    monkeypatch.setattr(settlement, "get_closes", broken)
+
+    result = settlement.settle_pending("AAPL", log, object(), {"holding_period_days": 5})
+
+    assert result.settled == [] and "vendor outage" in result.failed[0][2]
+
+
+@pytest.mark.unit
+def test_a_run_does_not_wait_on_another_settlement_pass(tmp_path):
+    """The other pass settles the same log; a run's step goes on without waiting."""
+    import threading
+    import time
+
+    log = make_log(tmp_path)
+    log.store_decision("AAPL", "2026-01-05", DECISION_BUY)
+    held, release = threading.Event(), threading.Event()
+
+    def other_pass():
+        with make_log(tmp_path).settling():
+            held.set()
+            release.wait(5)
+
+    worker = threading.Thread(target=other_pass)
+    worker.start()
+    held.wait(5)
+    started = time.monotonic()
+    result = settlement.settle_all_pending(log, object(), {"holding_period_days": 5}, wait=False)
+    elapsed = time.monotonic() - started
+    release.set()
+    worker.join()
+
+    assert elapsed < 1 and result.settled == [] and result.failed == []
