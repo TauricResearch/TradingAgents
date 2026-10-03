@@ -56,6 +56,21 @@ _OPTION_SYMBOL = re.compile(
 _NUMERIC_JUNK = str.maketrans({",": "", "$": "", "€": "", "£": "", "+": ""})
 
 
+def _canonical_symbol(symbol: str) -> str:
+    """A broker's symbol as the data layer spells it.
+
+    US brokers write a share class with a slash (Schwab's ``BRK/B``); Yahoo,
+    which prices everything here, writes it with a hyphen (``BRK-B``). No Yahoo
+    symbol contains a slash, so the conversion is unambiguous and the raw
+    broker form would simply price nothing.
+
+    The dotted form (``BRK.B``) is deliberately left alone: a dot is also how
+    every exchange suffix is written, and rewriting it would turn Tokyo's
+    ``7203.T`` into a symbol that does not exist.
+    """
+    return symbol.strip().upper().replace("/", "-")
+
+
 @dataclass
 class ImportResult:
     """What a parse produced: the book, and an account of everything it did not import."""
@@ -189,7 +204,7 @@ def parse_positions_csv(text: str) -> ImportResult:
             skipped.append(f"{symbol}: options contract, not priced by the data layer")
             continue
 
-        key = symbol.upper()
+        key = _canonical_symbol(symbol)
         if key not in quantities:
             order.append(key)
             quantities[key] = 0.0

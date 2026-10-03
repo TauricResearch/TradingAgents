@@ -170,6 +170,10 @@ details.report[open] > summary::before { content: "▾ "; }
 }
 #transcript div { margin-bottom: 5px; overflow-wrap: anywhere; }
 #transcript .who { color: var(--accent); }
+code.path {
+  font-family: var(--mono); font-size: 12px; background: var(--panel-2);
+  padding: 1px 5px; border-radius: 4px; cursor: help;
+}
 .pending { color: var(--warn); }
 .alpha-pos { color: var(--good); }
 .alpha-neg { color: var(--bad); }

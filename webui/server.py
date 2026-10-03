@@ -26,6 +26,7 @@ from tradingagents.memory.log import TradingMemoryLog
 from tradingagents.portfolio import PortfolioContext
 from webui import store
 from webui.importers import parse_positions_csv
+from webui.paths import tilde
 from webui.runs import DISPLAY_ORDER, RunManager, available_analysts
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -123,7 +124,7 @@ def create_app(config: dict | None = None) -> FastAPI:
         book = store.load(config)
         return {
             "portfolio": json.loads(book.model_dump_json()) if book else None,
-            "path": str(store.portfolio_path(config)),
+            "path": tilde(store.portfolio_path(config)),
         }
 
     @app.put("/api/portfolio")
@@ -133,7 +134,7 @@ def create_app(config: dict | None = None) -> FastAPI:
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=exc.errors()) from None
         path = store.save(book, config)
-        return {"portfolio": json.loads(book.model_dump_json()), "path": str(path)}
+        return {"portfolio": json.loads(book.model_dump_json()), "path": tilde(path)}
 
     @app.delete("/api/portfolio")
     def delete_portfolio():
@@ -161,7 +162,7 @@ def create_app(config: dict | None = None) -> FastAPI:
             )
         path = None
         if save:
-            path = str(store.save(result.portfolio, config))
+            path = tilde(store.save(result.portfolio, config))
         return {
             "portfolio": json.loads(result.portfolio.model_dump_json()),
             "skipped": result.skipped,

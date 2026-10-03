@@ -133,3 +133,22 @@ def test_the_disclaimer_footer_is_not_reported_as_a_skipped_position():
     result = parse_positions_csv(SCHWAB)
     assert not any("Important" in note for note in result.skipped)
     assert len(result.skipped) == 1          # the options contract, and nothing else
+
+
+def test_a_slashed_share_class_becomes_the_symbol_the_data_layer_prices():
+    """Schwab writes Berkshire B as BRK/B; Yahoo, which prices it, wants BRK-B."""
+    book = parse_positions_csv('"Symbol","Quantity"\n"BRK/B","10"\n').portfolio
+    assert book.positions[0].ticker == "BRK-B"
+
+
+def test_a_dotted_suffix_is_left_alone():
+    """A dot is how every exchange suffix is written; rewriting it breaks Tokyo."""
+    book = parse_positions_csv('"Symbol","Quantity"\n"7203.T","100"\n').portfolio
+    assert book.positions[0].ticker == "7203.T"
+
+
+def test_the_two_spellings_of_one_holding_merge():
+    csv_text = '"Symbol","Quantity","Cost Basis"\n"BRK/B","10","$4,000.00"\n"BRK-B","10","$5,000.00"\n'
+    book = parse_positions_csv(csv_text).portfolio
+    assert len(book.positions) == 1
+    assert book.positions[0].quantity == 20

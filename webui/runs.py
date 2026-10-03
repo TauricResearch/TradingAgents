@@ -32,6 +32,7 @@ from cli.stats_handler import StatsCallbackHandler
 from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from webui.paths import tilde
 
 logger = logging.getLogger(__name__)
 
@@ -358,7 +359,7 @@ class RunManager:
             record.rating = rating
             record.needs_review = is_review(rating)
             try:
-                record.report_path = str(graph.save_reports(final_state, record.ticker))
+                record.report_path = tilde(graph.save_reports(final_state, record.ticker))
             except Exception as exc:                  # a saved report is not the run
                 logger.warning("could not save reports for %s: %s", record.ticker, exc)
                 record.emit("message", type="System", content=f"Report not saved: {exc}")

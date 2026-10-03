@@ -21,12 +21,35 @@ async function api(path, options = {}) {
   if (!res.ok) {
     let detail = res.statusText;
     try {
-      const body = await res.json();
-      detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
+      detail = describeError((await res.json()).detail);
     } catch { /* a non-JSON error body: the status text stands */ }
-    throw new Error(detail);
+    const error = new Error(detail);
+    error.status = res.status;
+    throw error;
   }
   return res.status === 204 ? null : res.json();
+}
+
+// FastAPI's `detail` is a string for our own errors, a dict for the import's
+// structured one, and a list for a validation failure. Flatten all three to
+// prose: a user reading "nothing could be read from this file" is being told
+// something, and the JSON it arrived in is not.
+function describeError(detail) {
+  if (detail == null) return 'something went wrong';
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => d.msg
+      ? `${(d.loc ?? []).filter((p) => p !== 'body').join('.') || 'input'}: ${d.msg}`
+      : describeError(d)).join('; ');
+  }
+  const parts = [detail.message].filter(Boolean);
+  for (const key of ['warnings', 'skipped', 'rejected']) {
+    const list = detail[key];
+    if (Array.isArray(list) && list.length) {
+      parts.push(list.map((v) => (typeof v === 'string' ? v : v.reason ?? JSON.stringify(v))).join('; '));
+    }
+  }
+  return parts.join(' — ') || JSON.stringify(detail);
 }
 
 function setStatus(el, text, kind = '') {
@@ -88,7 +111,16 @@ function readPortfolioForm() {
 async function loadPortfolio() {
   const data = await api('/api/portfolio');
   renderPortfolio(data.portfolio);
-  $('#portfolio-path').textContent = `Saved at ${data.path}`;
+  setPortfolioPath(data.path);
+}
+
+function setPortfolioPath(path) {
+  // The file name is the useful part; the directory is a tooltip away, and
+  // the whole path is what the CLI's --portfolio wants.
+  const name = String(path).split('/').pop();
+  $('#portfolio-path').innerHTML =
+    `Saved as <code class="path" title="${escapeHtml(path)}">${escapeHtml(name)}</code>` +
+    ` — pass <code class="path">--portfolio ${escapeHtml(path)}</code> to use it from the CLI.`;
 }
 
 $('#add-row').addEventListener('click', () => $('#positions tbody').appendChild(positionRow()));
@@ -351,7 +383,11 @@ function renderRunHeader(run) {
       it yourself, or run it again.</div>`);
   }
   if (run.error) parts.push(`<div class="note err">${escapeHtml(run.error)}</div>`);
-  if (run.report_path) parts.push(`<div class="meta">Report tree: <code>${escapeHtml(run.report_path)}</code></div>`);
+  if (run.report_path) {
+    const folder = run.report_path.replace(/\/[^/]*$/, '').split('/').pop();
+    parts.push(`<div class="meta">Report saved as
+      <code class="path" title="${escapeHtml(run.report_path)}">${escapeHtml(folder)}</code></div>`);
+  }
   if (run.status === 'queued' || run.status === 'running') {
     parts.push('<button id="cancel-run" class="danger" style="margin-top:10px">Stop this run</button>');
   }

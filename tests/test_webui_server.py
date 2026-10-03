@@ -267,3 +267,28 @@ def test_events_replay_from_the_start_of_the_run(client):
 
     assert payloads[0]["kind"] == "status"          # replayed from the first event
     assert any(p.get("content") == "hello" for p in payloads)
+
+
+# --- paths as they reach the browser ---
+
+
+def test_the_portfolio_path_is_written_relative_to_home(monkeypatch, tmp_path):
+    """An absolute path puts the user's directory layout on screen for no gain."""
+    from webui.paths import tilde
+
+    monkeypatch.setattr("pathlib.Path.home", classmethod(lambda cls: tmp_path))
+    assert tilde(tmp_path / ".tradingagents" / "portfolio.json") == "~/.tradingagents/portfolio.json"
+
+
+def test_a_path_outside_home_is_left_absolute():
+    from webui.paths import tilde
+
+    assert tilde("/etc/hosts") == "/etc/hosts"
+
+
+def test_a_path_that_merely_starts_with_the_home_string_is_not_abbreviated(monkeypatch, tmp_path):
+    """/home/ada-backup is not inside /home/ada."""
+    from webui.paths import tilde
+
+    monkeypatch.setattr("pathlib.Path.home", classmethod(lambda cls: tmp_path))
+    assert tilde(f"{tmp_path}-backup/x") == f"{tmp_path}-backup/x"
