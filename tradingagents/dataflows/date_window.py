@@ -92,10 +92,14 @@ def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, 
     """``[start, end]`` with its end clamped to the run date.
 
     A window wholly after the run date keeps its length and moves back to end there.
+    An unreadable end reads as the run date, but no window can be guessed from an
+    unreadable start, so it raises ValueError for the caller to send back (#1476).
     """
-    end = as_of(end_date, trade_date)
     start, old_end = _parse(start_date), _parse(end_date)
-    if end == end_date or start is None or start <= _parse(end):
+    if start is None:
+        raise ValueError(f"start_date {start_date!r} is not a date; give it as YYYY-MM-DD")
+    end = as_of(end_date, trade_date)
+    if end == end_date or start <= _parse(end):
         return start_date, end
     span = (old_end - start) if old_end is not None and old_end >= start else timedelta(0)
     return f"{_parse(end) - span:%Y-%m-%d}", end

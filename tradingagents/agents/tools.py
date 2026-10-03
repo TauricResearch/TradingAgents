@@ -31,7 +31,10 @@ def get_stock_data(
     Returns:
         str: A formatted dataframe containing the price data for the instrument over the date range.
     """
-    start_date, end_date = as_of_window(start_date, end_date, trade_date)
+    try:
+        start_date, end_date = as_of_window(start_date, end_date, trade_date)
+    except ValueError as e:
+        return str(e)
     return route_to_vendor("get_stock_data", symbol, start_date, end_date)
 
 
@@ -181,7 +184,10 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
-    start_date, end_date = as_of_window(start_date, end_date, trade_date)
+    try:
+        start_date, end_date = as_of_window(start_date, end_date, trade_date)
+    except ValueError as e:
+        return str(e)
     return route_to_vendor("get_news", ticker, start_date, end_date)
 
 
