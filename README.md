@@ -56,7 +56,7 @@ Full release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🖥️ [Web UI](#web-ui) | 🧭 [Setup guide](SETUP.md) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -326,7 +326,7 @@ An empty `positions` list means a flat book, which is different from passing not
 
 ## Web UI
 
-A browser front end over the same graph the CLI runs: keep a portfolio, start analyses, and watch them as they happen.
+A browser front end over the same graph the CLI runs: keep a portfolio, start analyses, and watch them as they happen. [SETUP.md](SETUP.md) walks through it from a clone to a first analysis of your own holdings; [`webui/README.md`](webui/README.md) describes how it is built.
 
 ```bash
 pip install ".[webui]"
