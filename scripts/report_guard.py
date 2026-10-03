@@ -13,6 +13,7 @@ import re
 import signal
 import subprocess
 import sys
+import time
 from contextlib import suppress
 from pathlib import Path
 
@@ -64,6 +65,22 @@ def report_complete(directory):
     )
 
 
+def wait_for_worker(child, max_seconds):
+    if max_seconds is None:
+        return child.wait()
+    # subprocess timeouts use a clock that pauses during sleep on macOS.
+    # Poll a wall deadline so a suspended machine cannot extend the run limit.
+    deadline = time.time() + max_seconds
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(child.args, max_seconds)
+        try:
+            return child.wait(timeout=min(remaining, 1))
+        except subprocess.TimeoutExpired:
+            continue
+
+
 def run_guarded(reports, date, model, ticker, log, command, max_seconds=None):
     prefix = report_prefix(date, model)
     # Canonical docs paths make symlinked launchers share the same lock domain.
@@ -94,7 +111,7 @@ def run_guarded(reports, date, model, ticker, log, command, max_seconds=None):
             previous = {s: signal.signal(s, forward_signal) for s in (signal.SIGINT, signal.SIGTERM)}
             try:
                 try:
-                    status = child.wait(timeout=max_seconds)
+                    status = wait_for_worker(child, max_seconds)
                 except subprocess.TimeoutExpired:
                     print(f"[TIMEOUT {ticker}] worker exceeded {max_seconds:g}s; checkpoint retained", flush=True)
                     forward_signal(signal.SIGTERM, None)
