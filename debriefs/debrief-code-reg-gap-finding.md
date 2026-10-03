@@ -69,6 +69,6 @@ This is an induced requirement — the system already has all the pieces (alert 
 
 The code registry worked. Reading `code/INDEX.jsonl` surfaced a real, actionable gap in under 30 minutes. The alert matching engine has no HTTP trigger — that's a concrete gap the system induced by existing.
 
-The brief is `briefs/brief-alert-fire-integration.md`. The system induced it.
+The brief is `.archive/briefs/brief-alert-fire-integration.md`. The system induced it.
 
 **Verdict: The registry enables induced requirements. It works.**

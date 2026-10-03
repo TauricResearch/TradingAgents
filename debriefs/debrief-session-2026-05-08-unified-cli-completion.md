@@ -135,8 +135,8 @@ trading --help       # shows all 19 commands
 - `AGENTS.md` — updated CLI documentation
 - `tests/test_server_lib.py` — fixed paths
 - `tests/test_currency_consistency.py` — skip on errors
-- `briefs/epic-unified-cli.md` — marked done
-- `briefs/epic-debate-mechanism-investigation.md` — marked done
+- `.archive/briefs/epic-unified-cli.md` — marked done
+- `.archive/briefs/epic-debate-mechanism-investigation.md` — marked done
 - `debriefs/plans/current.md` — updated
 - `docs/INDEX.jsonl` — added ig-api-client.md
 - `tradingagents/` — 9 Python files for debate fixes

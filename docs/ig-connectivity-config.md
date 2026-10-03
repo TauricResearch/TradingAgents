@@ -250,5 +250,5 @@ bash /tmp/ig-trade-close-v5.sh
 ## References
 
 - `playbooks/ig-api-playbook.md` — Full API reference
-- `briefs/epic-ig-api-validation.md` — Integration epic
+- `.archive/briefs/epic-ig-api-validation.md` — Integration epic
 - `docs/ig-trading-guide.md` — Order placement guide (S05)

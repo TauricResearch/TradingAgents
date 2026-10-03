@@ -200,7 +200,7 @@ Every problem above was discovered and solved in `scripts/lab/ig-client.ts` befo
 | `src/cli/commands/execute.ts` | Execute bridge command |
 | `src/cli/main.ts` | Wired `execute` and `ig` subcommands |
 | `scripts/lab/ig-client.ts` | Lab validation script |
-| `briefs/2026-05-08-brief-ig-api-client-integration.md` | Brief |
+| `.archive/briefs/2026-05-08-brief-ig-api-client-integration.md` | Brief |
 
 ---
 

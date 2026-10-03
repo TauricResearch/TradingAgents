@@ -62,7 +62,7 @@ environment: local
 ## Post-Debrief Checklist
 
 - [x] Debrief created in `debriefs/` with proper frontmatter (date, tags, agent, environment)
-- [x] Brief archived: `briefs/brief-dashboard-phase2-2026-05-02.md` remains for reference
+- [x] Brief archived: `.archive/briefs/brief-dashboard-phase2-2026-05-02.md` remains for reference
 - [x] Research summary created: `debriefs/research-summary-2026-05-02.md`
 - [x] Analysis cards created: `debriefs/analysis-cards-2026-05-02.md`
 - [ ] CHANGELOG.md update needed

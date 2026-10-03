@@ -10,7 +10,7 @@
 
 ### Epic DASH-001 — Dashboard v1
 
-All 7 stories from `briefs/epic-dashboard-v1.md`:
+All 7 stories from `.archive/briefs/epic-dashboard-v1.md`:
 
 | Story | Commit | Status |
 |---|---|---|
@@ -38,7 +38,7 @@ Commit: 32928d0
 
 ### Portfolio Intelligence Brief
 
-New brief: `briefs/brief-portfolio-intelligence.md` (11KB)
+New brief: `.archive/briefs/brief-portfolio-intelligence.md` (11KB)
 
 Key design decisions:
 - Accounts as delivery mechanisms (no per-account governance)

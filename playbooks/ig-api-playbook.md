@@ -327,4 +327,4 @@ IG_DEMO_BASE_URL=https://demo-api.ig.com/gateway/deal
 
 - [IG Labs REST API Guide](https://labs.ig.com/rest-trading-api-guide.html)
 - [IG API Reference](https://labs.ig.com/reference/)
-- `briefs/epic-ig-api-validation.md` — this project's IG integration epic
+- `.archive/briefs/epic-ig-api-validation.md` — this project's IG integration epic

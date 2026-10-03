@@ -188,7 +188,7 @@ Notable: this project's `flox.toml` includes a full tool availability map (nixpk
 - Reference: `flox.toml` at silo root (the canonical manifest for this project)
 - Playbook: `playbooks/just-playbook.md` — justfile facade relies on flox for tool availability
 - Playbook: `playbooks/conventions-playbook.md` — environment conventions
-- Brief: `briefs/2026-05-11-brief-code-registry.md` — mentions adding ast-grep to `flox.toml`
+- Brief: `.archive/briefs/2026-05-11-brief-code-registry.md` — mentions adding ast-grep to `flox.toml`
 - External: [flox.dev/docs](https://flox.dev/docs) — official documentation
 - External: [flox.dev/blog](https://flox.dev/blog) — tutorials and use cases (Node, Python, Go, Rust, CI/CD)
 - External: [hub.flox.dev/packages](https://hub.flox.dev/packages) — package search

@@ -55,7 +55,7 @@ ls canonicals/playbooks/  # verify 15 files
 
 ## Next Session Notes
 
-- Brief is at `briefs/2026-05-09-brief-canonical-registry.md`
+- Brief is at `.archive/briefs/2026-05-09-brief-canonical-registry.md`
 - S01 is complete and committed. Pick up S02: `reg-mine.ts`.
 - Lab script `scripts/lab/registry-design.ts` quantified the current state.
 - Design principle #6: tools must be project-agnostic (no hardcoded paths).

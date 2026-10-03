@@ -40,7 +40,7 @@ Session focused on defuddle vs. Browserbase comparison, template creation for br
 
 ## Related
 
-- Brief: `briefs/2026-05-09-brief-canonical-registry.md` (Superseded)
+- Brief: `.archive/briefs/2026-05-09-brief-canonical-registry.md` (Superseded)
 - Debrief: `debriefs/debrief-session-2026-05-09-s01-canonicals.md` (Superseded)
 - Decision: `decisions/008-defuddle-web-content.md` (analogy: lightweight external services over heavy infra)
 - Playbook: `playbooks/playbooks-playbook.md` (updated to remove canonicals model)

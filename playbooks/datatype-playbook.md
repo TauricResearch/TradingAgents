@@ -128,7 +128,7 @@ export function signalClass(signal: string): "buy" | "sell" | "hold" {
 | Exits | Distance-to-stop bar | bar `{b:...}` | `distanceToStopPct` from exit status |
 | Benchmark | Portfolio vs benchmark trend | sparkline `{l:...}` | After portfolio value wired |
 
-See `briefs/datatype-sparklines.md` for full implementation plan.
+See `.archive/briefs/datatype-sparklines.md` for full implementation plan.
 
 ## Troubleshooting
 

@@ -438,4 +438,4 @@ interface IGConfirmResponse {
 
 - `playbooks/ig-api-playbook.md` — Full API endpoint reference
 - `docs/ig-connectivity-config.md` — Authentication and account details
-- `briefs/epic-ig-api-validation.md` — Epic tracking
+- `.archive/briefs/epic-ig-api-validation.md` — Epic tracking

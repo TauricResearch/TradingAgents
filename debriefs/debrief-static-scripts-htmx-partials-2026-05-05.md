@@ -207,7 +207,7 @@ $ git status --short
 
 ## Post-Debrief Checklist
 
-- [x] Brief archived: `briefs/brief-static-assets-2026-05-05.md` updated to status "Done"
+- [x] Brief archived: `.archive/briefs/brief-static-assets-2026-05-05.md` updated to status "Done"
 - [x] Frontmatter tags present: `date`, `tags`, `agent`, `environment`
 - [ ] Update `CHANGELOG.md` — **pending merge**
 - [ ] Update `_CURRENT_TASK.md` — **pending next session**

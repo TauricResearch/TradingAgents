@@ -362,7 +362,7 @@ curl localhost:3000/health  # {"status":"ok","db":true}
 > > > -E ... pipeline) to use explicit anchors like ^\ M|^M\ |^A\ |^\?\? so only
 > > > intended status codes are captured.
 > > > ```
-> > briefs/epic-ig-api-validation.md-81-139 (1)
+> > .archive/briefs/epic-ig-api-validation.md-81-139 (1)
 > > 
 > > > `81-139`: *⚠️ Potential issue* | *🟡 Minor* | *⚡ Quick win*
 > > > 
@@ -381,7 +381,7 @@ curl localhost:3000/health  # {"status":"ok","db":true}
 > > > Verify each finding against current code. Fix only still-valid issues, skip the
 > > > rest with a brief reason, keep changes minimal, and validate.
 > > > 
-> > > In \`@briefs/epic-ig-api-validation.md\` around lines 81 - 139, Duplicate story ID
+> > > In \`@.archive/briefs/epic-ig-api-validation.md\` around lines 81 - 139, Duplicate story ID
 > > > IG-API-001-S02 is used for both "Connectivity Config (User Task)" and "Market
 > > > Data Fetch"; rename one of them (e.g., change the second occurrence to
 > > > IG-API-001-S02b or IG-API-001-S06) and update its header/title accordingly, then
@@ -995,7 +995,7 @@ curl localhost:3000/health  # {"status":"ok","db":true}
 > cached removal so the repo no longer tracks AGENTS.md while keeping the file
 > locally.
 > 
-> In \`@briefs/epic-ig-api-validation.md\`:
+> In \`@.archive/briefs/epic-ig-api-validation.md\`:
 > - Around line 81-139: Duplicate story ID IG-API-001-S02 is used for both
 > "Connectivity Config (User Task)" and "Market Data Fetch"; rename one of them
 > (e.g., change the second occurrence to IG-API-001-S02b or IG-API-001-S06) and
@@ -1196,9 +1196,9 @@ curl localhost:3000/health  # {"status":"ok","db":true}
 > 📒 Files selected for processing (47)
 > - `.gitignore`
 > - `.pi/defuddle-log.jsonl`
-> - `briefs/epic-ig-api-validation.md`
-> - `briefs/epic-trade-calculator.md`
-> - `briefs/epic-unified-cli.md`
+> - `.archive/briefs/epic-ig-api-validation.md`
+> - `.archive/briefs/epic-trade-calculator.md`
+> - `.archive/briefs/epic-unified-cli.md`
 > - `cli/trading/commands/help.ts`
 > - `cli/trading/commands/plan.ts`
 > - `cli/trading/lib/args.ts`
@@ -3427,7 +3427,7 @@ curl localhost:3000/health  # {"status":"ok","db":true}
 > Reviewing files that changed from the base of the PR and between [b62f0f6](https://github.com/pjsvis/TradingAgents/commit/b62f0f6eea9b3c022d8c21aff63e66e039d62e7d) and [b39e9d2](https://github.com/pjsvis/TradingAgents/commit/b39e9d26d819b8cf912840bbe7c0e05c0b36c92b).
 > 
 > 📒 Files selected for processing (9)
-> - `briefs/2026-05-07-brief-ascii-to-dot.md`
+> - `.archive/briefs/2026-05-07-brief-ascii-to-dot.md`
 > - `docs/just-command-runner-best-practices.md`
 > - `justfile`
 > - `playbooks/ci-cd-playbook.md`
@@ -3438,7 +3438,7 @@ curl localhost:3000/health  # {"status":"ok","db":true}
 > - `scripts/server-lifecycle.ts`
 > ✅ Files skipped from review due to trivial changes (2)
 > - scripts/lib/README.md
-> - briefs/2026-05-07-brief-ascii-to-dot.md
+> - .archive/briefs/2026-05-07-brief-ascii-to-dot.md
 > 🚧 Files skipped from review as they are similar to previous changes (1)
 > - justfile
 

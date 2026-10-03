@@ -49,7 +49,7 @@ Seeded: 14 positions (3 platforms: degiero, ibkr, test), 37 signals, 12 prospect
 Rewritten with current state: all 11 tabs working, 3 platforms documented, implementation notes, data layers table, updated commands.
 
 ### DataType Font Brief
-Written `briefs/datatype-sparklines.md` — scoped proposal to wire existing `DatatypeChart` component into signals, portfolio, governance, and exits views. Agreement: dashboard is a glance app, no interaction needed, sparklines only.
+Written `.archive/briefs/datatype-sparklines.md` — scoped proposal to wire existing `DatatypeChart` component into signals, portfolio, governance, and exits views. Agreement: dashboard is a glance app, no interaction needed, sparklines only.
 
 ---
 

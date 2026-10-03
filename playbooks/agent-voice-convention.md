@@ -105,5 +105,5 @@ Authored by pjsvis/ctx
 ## Related
 
 - `playbooks/td-playbook.md` — td coordination protocol
-- `briefs/2026-05-11-td-worktree-test-results.md` — E2E test format (good reference)
+- `.archive/briefs/2026-05-11-td-worktree-test-results.md` — E2E test format (good reference)
 - `debriefs/debrief-td-worktree-infrastructure-2026-05-11.md` — session retrospective

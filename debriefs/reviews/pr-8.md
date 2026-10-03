@@ -122,8 +122,8 @@ Closes: td-18e84e, td-bad98e, td-204e30, td-462ccc, td-a4899a, td-02ccec, td-ab3
 > 
 > 📒 Files selected for processing (8)
 > - `brew.txt`
-> - `briefs/epic-debate-mechanism-investigation.md`
-> - `briefs/upstream-issue-debate-state-logging.md`
+> - `.archive/briefs/epic-debate-mechanism-investigation.md`
+> - `.archive/.archive/briefs/upstream-issue-debate-state-logging.md`
 > - `debriefs/debrief-session-2026-05-06-hygiene.md`
 > - `docs/tidy-first-philosophy.md`
 > - `flox.toml`

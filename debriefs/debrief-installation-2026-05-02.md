@@ -14,7 +14,7 @@ environment: local
 - **CLI verification:** `tradingagents --help` confirmed the installed command works.
 - **End-to-end test run:** Successfully ran full analysis on TKA.DE (thyssenkrupp AG) — all 5 agent teams executed, final decision: Overweight.
 - **Created PLAYBOOK.md:** Comprehensive practical guide covering architecture, configuration, cost management, workflows, and troubleshooting.
-- **Created implementation brief:** `briefs/brief-dashboard-2026-05-02.md` — full spec for Bun/Hono dashboard with SSE streaming, portfolio tracking, and position-aware analysis.
+- **Created implementation brief:** `.archive/briefs/brief-dashboard-2026-05-02.md` — full spec for Bun/Hono dashboard with SSE streaming, portfolio tracking, and position-aware analysis.
 
 ## Problems
 

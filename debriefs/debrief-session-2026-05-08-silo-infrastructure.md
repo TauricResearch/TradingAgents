@@ -135,7 +135,7 @@ silo/
 ```
 
 **Documents**:
-- `briefs/2026-05-08-brief-just-silo-template.md`
+- `.archive/briefs/2026-05-08-brief-just-silo-template.md`
 - `playbooks/just-silo-playbook.md`
 - `docs/just-silo-manifest.md`
 - `docs/diagrams/silo-structure.svg`
@@ -390,8 +390,8 @@ should be at root level, unmissable, canonical.
 | `playbooks/just-silo-playbook.md` | Silo template with lexicon convention |
 | `playbooks/unified-registry-playbook.md` | Registry system documentation |
 | `docs/schema/unified-registry.md` | Schema spec + tag taxonomy |
-| `briefs/2026-05-08-brief-ctx-lexicon-upgrade.md` | CTX upgrade brief |
-| `briefs/2026-05-08-brief-just-silo-template.md` | Silo template brief |
+| `.archive/briefs/2026-05-08-brief-ctx-lexicon-upgrade.md` | CTX upgrade brief |
+| `.archive/briefs/2026-05-08-brief-just-silo-template.md` | Silo template brief |
 | `docs/just-silo-manifest.md` | Concise silo manifest |
 | `docs/diagrams/silo-structure.svg` | Directory compartment graph |
 | `docs/diagrams/just-silo.svg` | Justfile group graph |

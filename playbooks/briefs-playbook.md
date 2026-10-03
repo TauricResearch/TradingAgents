@@ -56,7 +56,17 @@ When all `[ ]` items are checked and verified.
 
 ## Archiving
 
-Completed briefs stay in `briefs/`. Keep them — they're a record of what was decided and why.
+Completed briefs move to `.archive/briefs/` — same filename, checked in to
+git, out of the default listing and search. `briefs/INDEX.jsonl` entries
+drop on move (`just reg-sync --fix`). Update any filename reference in
+debriefs, playbooks, and docs when moving — this silo has no callsign
+resolver, so references are paths: move the file, patch the pointer.
+
+A completed brief is work that shipped; keeping it in `briefs/` makes the
+open list a graveyard. The archive is the permanent record; the live list
+is the work queue. (Fleet policy, 2026-10-03 — supersedes "completed
+briefs stay in `briefs/`"; okuda's archive resolution tier is the
+reference model.)
 
 ## Epic Structure
 

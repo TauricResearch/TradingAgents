@@ -71,7 +71,7 @@ Investigated perceived "debate echo" in TradingAgents output. Three hypotheses:
 
 **Verification:** AAPL analysis state log now shows `count=2` (investment), `count=3` (risk), confirming correct debate execution.
 
-**Upstream report prepared:** `briefs/upstream-issue-debate-state-logging.md`
+**Upstream report prepared:** `.archive/.archive/briefs/upstream-issue-debate-state-logging.md`
 
 ---
 
@@ -86,8 +86,8 @@ Investigated perceived "debate echo" in TradingAgents output. Three hypotheses:
 
 **Documentation (4):**
 - `docs/tidy-first-philosophy.md` — operational philosophy
-- `briefs/epic-debate-mechanism-investigation.md` — DEBATE-001 epic
-- `briefs/upstream-issue-debate-state-logging.md` — upstream issue report
+- `.archive/briefs/epic-debate-mechanism-investigation.md` — DEBATE-001 epic
+- `.archive/.archive/briefs/upstream-issue-debate-state-logging.md` — upstream issue report
 - `debriefs/debrief-session-2026-05-06-wrapup.md` — this document
 
 **Modified files (7):**
@@ -138,7 +138,7 @@ From `debriefs/plans/current.md`:
 2. **Server tests** (`td-9dbbac`) — route health checks, positions query, hledger parsing
 3. **Settings extraction** (`td-56fd1b`) — `server/lib/settings.ts` consolidation
 4. **DEBATE-001 S03/S04** — downscoped: no prompt fix needed, but quality metrics (S04) still valid as nice-to-have
-5. **Upstream issue submission** — submit `briefs/upstream-issue-debate-state-logging.md` to `TauricResearch/TradingAgents`
+5. **Upstream issue submission** — submit `.archive/.archive/briefs/upstream-issue-debate-state-logging.md` to `TauricResearch/TradingAgents`
 
 ---
 

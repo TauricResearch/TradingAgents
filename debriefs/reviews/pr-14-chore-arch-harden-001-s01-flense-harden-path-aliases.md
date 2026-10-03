@@ -119,7 +119,7 @@ S02 (Python Bridge hardening) can start once this is approved. S02, S04, S05, S0
 > Reviewing files that changed from the base of the PR and between [7fa3d04](https://github.com/pjsvis/TradingAgents/commit/7fa3d042a415d9d62b89a56cb70a166d713929d2) and [ec70301](https://github.com/pjsvis/TradingAgents/commit/ec7030199cd90a74da9d6f5467cf9cba61f93dad).
 > 
 > 📒 Files selected for processing (5)
-> - `briefs/brief-add-bridge-tests-2026-05-14.md`
+> - `.archive/briefs/brief-add-bridge-tests-2026-05-14.md`
 > - `hledger.just`
 > - `justfile`
 > - `tests/bridge.test.ts`
@@ -786,7 +786,7 @@ S02 (Python Bridge hardening) can start once this is approved. S02, S04, S05, S0
 > 
 > 📒 Files selected for processing (23)
 > - `ARCHITECTURE.md`
-> - `briefs/brief-harden-python-bridge-2026-05-14.md`
+> - `.archive/briefs/brief-harden-python-bridge-2026-05-14.md`
 > - `code/INDEX.jsonl`
 > - `justfile`
 > - `scripts/barnacle-scan.ts`
@@ -811,7 +811,7 @@ S02 (Python Bridge hardening) can start once this is approved. S02, S04, S05, S0
 > 💤 Files with no reviewable changes (1)
 > - scripts/barnacle-scan.ts
 > ✅ Files skipped from review due to trivial changes (1)
-> - briefs/brief-harden-python-bridge-2026-05-14.md
+> - .archive/briefs/brief-harden-python-bridge-2026-05-14.md
 > 🚧 Files skipped from review as they are similar to previous changes (5)
 > - src/server/index.tsx
 > - src/cli/commands/import.ts

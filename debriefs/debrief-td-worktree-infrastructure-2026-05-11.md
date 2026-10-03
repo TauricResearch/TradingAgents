@@ -106,9 +106,9 @@ We set a soft limit of 3 (via `TD_MAX_WORKTREES` env var) to prevent repo sprawl
 | `scripts/agent-handoff.ts` | Structured handoffs |
 | `scripts/agent-sync.ts` | State sync + collision detection |
 | `playbooks/td-playbook.md` | Multi-agent coordination protocol |
-| `briefs/2026-05-11-td-worktree-feature-request.md` | Feature request document |
-| `briefs/2026-05-11-td-worktree-test-results.md` | E2E test evidence |
-| `briefs/2026-05-11-td-worktree-issue-draft.md` | Issue draft |
+| `.archive/briefs/2026-05-11-td-worktree-feature-request.md` | Feature request document |
+| `.archive/briefs/2026-05-11-td-worktree-test-results.md` | E2E test evidence |
+| `.archive/briefs/2026-05-11-td-worktree-issue-draft.md` | Issue draft |
 
 ### Modified
 
