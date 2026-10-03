@@ -23,6 +23,7 @@ from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, t
 from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
 from .setup import GraphSetup
+from .team_llms import TeamLLMs
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,21 @@ class TradingAgentsGraph:
         self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
         self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
 
+        def make_team_llm(model, base_url, api_key):
+            kwargs = dict(llm_kwargs)
+            if api_key:
+                kwargs["api_key"] = api_key
+            return create_llm_client(
+                provider=self.config["llm_provider"],
+                model=model,
+                base_url=base_url,
+                **kwargs,
+            ).get_llm()
+
+        self.team_llms = TeamLLMs(
+            self.config, self.quick_thinking_llm, self.deep_thinking_llm, make_team_llm,
+        )
+
         self.memory_log = TradingMemoryLog(self.config)
 
         self.conditional_logic = ConditionalLogic(
@@ -98,12 +114,13 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.conditional_logic,
             max_tool_rounds,
+            team_llms=self.team_llms,
         )
 
         self.propagator = Propagator(
             max_recur_limit=max_recur_limit,
         )
-        self.reflector = Reflector(self.quick_thinking_llm)
+        self.reflector = Reflector(self.team_llms.get("portfolio", "quick"))
 
         # Graph-shape-affecting run choices, kept for the checkpoint signature.
         self.selected_analysts = tuple(selected_analysts)

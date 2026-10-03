@@ -291,6 +291,19 @@ A tier on its own provider uses that provider's key and default endpoint; set `q
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Per-team models and keys
+
+By default every role shares one quick and one deep client. Set `team_llms` to give a team its own API key, endpoint, or models, for example to split spend by team on a gateway that bills by key, or to run the research debate on a stronger model. The teams are `analysts`, `research` (bull, bear, research manager), `trader`, `risk` (the three risk debaters), and `portfolio` (portfolio manager and reflector).
+
+```python
+config["team_llms"] = {
+    "research": {"api_key_env": "RESEARCH_API_KEY", "deep_think_llm": "gpt-6-sol"},
+    "risk": {"api_key_env": "RISK_API_KEY", "backend_url": "https://gateway.example.com/v1"},
+}
+```
+
+`api_key_env` names the environment variable that holds the key, so the key stays out of the config. Each entry can also set `backend_url`, `quick_think_llm`, and `deep_think_llm`, and anything left out falls back to the top-level settings. Teams you don't list use the shared clients. An unknown team or field, or a key variable that is unset, fails when the graph is built, before any model call.
+
 ### Fundamentals as filed
 
 US company statements come from SEC EDGAR, which records the date every figure was filed. A run dated in the past reads the statements exactly as they stood that day: a fiscal year that has ended but has not been filed yet is not served, and a figure restated later still reads as first reported. Apple's 2008 total assets were filed as $39.6B and restated to $36.2B in 2010, so a run dated in between reads $39.6B. EDGAR needs no account or API key.

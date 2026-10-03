@@ -99,12 +99,23 @@ class GraphSetup:
         deep_thinking_llm: Any,
         conditional_logic: ConditionalLogic,
         max_tool_rounds: int,
+        team_llms: Any = None,
     ):
-        """Initialize with required components."""
+        """Initialize with required components.
+
+        ``team_llms`` (a ``TeamLLMs``) picks each team's client; without it every
+        role uses the two shared clients.
+        """
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.conditional_logic = conditional_logic
         self.max_tool_rounds = max_tool_rounds
+        self.team_llms = team_llms
+
+    def _llm(self, team: str, tier: str) -> Any:
+        if self.team_llms is not None:
+            return self.team_llms.get(team, tier)
+        return self.quick_thinking_llm if tier == "quick" else self.deep_thinking_llm
 
     def setup_graph(
         self, selected_analysts=("market", "social", "news", "fundamentals"), memory_node=None
@@ -123,21 +134,21 @@ class GraphSetup:
         plan = build_analyst_execution_plan(selected_analysts)
 
         analyst_factories = {
-            "market": lambda: create_market_analyst(self.quick_thinking_llm),
-            "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
-            "news": lambda: create_news_analyst(self.quick_thinking_llm),
-            "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
+            "market": lambda: create_market_analyst(self._llm("analysts", "quick")),
+            "social": lambda: create_sentiment_analyst(self._llm("analysts", "quick")),
+            "news": lambda: create_news_analyst(self._llm("analysts", "quick")),
+            "fundamentals": lambda: create_fundamentals_analyst(self._llm("analysts", "quick")),
         }
 
-        bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
-        bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
-        research_manager_node = create_research_manager(self.deep_thinking_llm)
-        trader_node = create_trader(self.quick_thinking_llm)
+        bull_researcher_node = create_bull_researcher(self._llm("research", "quick"))
+        bear_researcher_node = create_bear_researcher(self._llm("research", "quick"))
+        research_manager_node = create_research_manager(self._llm("research", "deep"))
+        trader_node = create_trader(self._llm("trader", "quick"))
 
-        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
-        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
-        portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
+        aggressive_analyst = create_aggressive_debator(self._llm("risk", "quick"))
+        neutral_analyst = create_neutral_debator(self._llm("risk", "quick"))
+        conservative_analyst = create_conservative_debator(self._llm("risk", "quick"))
+        portfolio_manager_node = create_portfolio_manager(self._llm("portfolio", "deep"))
 
         workflow = StateGraph(AgentState)
 
