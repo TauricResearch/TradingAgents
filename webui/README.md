@@ -117,6 +117,19 @@ real preamble and footer — those are what break parsers, not the columns.
 the UI picks it up from `/api/config` automatically. `digitalocean` is the
 worked example.
 
+## If `tradingagents ui` says `No module named 'webui'`
+
+An editable install records the packages that existed when it was made, and
+`webui` is new in this branch. A checkout installed with `pip install -e .`
+beforehand will not see it. Reinstall:
+
+```bash
+pip install -e ".[webui]"
+```
+
+A normal (non-editable) install is unaffected; the wheel carries `webui` and
+`webui/static` through `packages.find` and `package-data`.
+
 ## Tests
 
 ```bash
