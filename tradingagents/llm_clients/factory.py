@@ -127,4 +127,12 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         key = "max_output_tokens" if provider == "google" else "max_tokens"
         kwargs[key] = _coerce_max_tokens(max_tokens)
 
+    # Extra request headers are cross-provider for the clients that support
+    # them (OpenAI-compatible, Azure, Anthropic); others ignore the kwarg.
+    headers = config.get("llm_default_headers")
+    if headers:
+        if not isinstance(headers, dict):
+            raise ValueError("llm_default_headers must be a dict of header name to value")
+        kwargs["default_headers"] = {str(k): str(v) for k, v in headers.items()}
+
     return kwargs
