@@ -37,49 +37,45 @@ _RATING_SET = {r.lower() for r in RATINGS_5_TIER}
 _RATING_LABEL_RE = re.compile(r"(?<![a-z])rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
                               re.IGNORECASE)
 
-# The same label opening its own line ("**Rating**: X", "## Final Rating - X",
-# "Our rating: X"): the shape the Portfolio Manager is asked to write its
-# decision in. Only emphasis and heading marks may precede it, so a list item,
-# table row or blockquote quoting someone else's rating is not one.
+# A decision line opens with its rating label, optionally under a heading or
+# emphasis. A list marker is stripped only from the first substantive line.
 _RATING_LINE_RE = re.compile(
-    r"[\s*_#]*(?:\w+\s+)?rating[^\w:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
+    r"\s*(?:#+\s*)?[*_]*(?:(?:final|our)\s+)?"
+    r"rating[^\w:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
     re.IGNORECASE,
 )
 
 # A line presenting the scale rather than a decision ("Rating Scale: Buy, ...").
+_LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d{1,2}[.)])\s+")
 _RATING_SCALE_RE = re.compile(r"rating\s*(scale|options|legend)", re.IGNORECASE)
 
 def extract_rating(text: str) -> str | None:
-    """Extract a 5-tier rating from its label, or ``None`` if there is none.
-
-    Reads an explicit "Rating: X" label (tolerant of markdown bold) in the
-    NFKC-normalized text, so fullwidth punctuation like ``Rating：Overweight``
-    matches as ASCII does: the first one opening its own line, else the last
-    one anywhere.
-    """
+    """Extract a 5-tier rating when the decision is unambiguous."""
     if not text:
         return None
     norm = unicodedata.normalize("NFKC", text)
 
-    # A decision is asked to open with its rating on its own line, so the first
-    # such line is the call; later ones may quote someone else's ("Consensus
-    # rating: Buy"). Without one, the last label anywhere wins: prose states its
-    # rating after discussing the alternatives. Lines presenting the scale itself
-    # are a legend the model echoed, not a call.
-    on_own_line = anywhere = None
+    own_lines = set()
+    labels = set()
+    first_substantive_line = True
     for line in norm.splitlines():
+        first_line = first_substantive_line
+        if line.strip():
+            first_substantive_line = False
         if _RATING_SCALE_RE.search(line):
             continue
-        m = _RATING_LINE_RE.match(line)
-        if on_own_line is None and m and m.group(1).lower() in _RATING_SET:
-            on_own_line = m.group(1).capitalize()
-        m = _RATING_LABEL_RE.search(line)
-        if m and m.group(1).lower() in _RATING_SET:
-            anywhere = m.group(1).capitalize()
-    # Without a label there is no call to read: a rating word in the prose may be
-    # one the text argues against ("not a Sell"), and reading it reports a
-    # direction nobody decided.
-    return on_own_line or anywhere
+
+        decision_line = _LIST_ITEM_RE.sub("", line, count=1) if first_line else line
+        match = _RATING_LINE_RE.match(decision_line)
+        if match and match.group(1).lower() in _RATING_SET:
+            own_lines.add(match.group(1).capitalize())
+
+        for match in _RATING_LABEL_RE.finditer(line):
+            if match.group(1).lower() in _RATING_SET:
+                labels.add(match.group(1).capitalize())
+
+    calls = own_lines or labels
+    return calls.pop() if len(calls) == 1 else None
 
 
 def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
