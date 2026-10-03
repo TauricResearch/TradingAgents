@@ -56,7 +56,7 @@ Full release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🖥️ [Web UI](#web-ui) | 🧭 [Setup guide](SETUP.md) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -183,6 +183,16 @@ export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For AWS Bedrock, install the extra with `pip install ".[bedrock]"`, set `llm_provider: "bedrock"`, configure AWS credentials (environment variables, `~/.aws/credentials`, or an IAM role) and `AWS_DEFAULT_REGION`, and use a Bedrock model ID, e.g. `us.anthropic.claude-opus-5-5`.
+
+For DigitalOcean Gradient serverless inference, set `llm_provider: "digitalocean"` and `DIGITALOCEAN_MODEL_ACCESS_KEY` to a model access key or a DigitalOcean personal access token. One endpoint (`https://inference.do-ai.run/v1`) and one key reach models from several vendors, each under a DO-namespaced ID — `anthropic-claude-opus-5.5`, `openai-gpt-6-sol`, `deepseek-v4-pro`, `glm-5.3` — so write DO's ID, not the vendor's own. The picker lists the reasoning and fast models worth running this pipeline on; any other model DO serves works through "Custom model ID", and none is rejected. Point `DIGITALOCEAN_INFERENCE_URL` at a gateway in front of it if you have one.
+
+```bash
+export DIGITALOCEAN_MODEL_ACCESS_KEY=...
+export TRADINGAGENTS_LLM_PROVIDER=digitalocean
+export TRADINGAGENTS_DEEP_THINK_LLM=anthropic-claude-opus-5.5
+export TRADINGAGENTS_QUICK_THINK_LLM=anthropic-claude-haiku-4.5
+tradingagents --ticker NVDA --date 2026-09-23
+```
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
@@ -313,6 +323,43 @@ _, decision = ta.propagate("NVDA", "2026-09-01", portfolio=portfolio)
 The CLI takes the same content as a JSON file: `tradingagents --portfolio my_book.json`.
 
 An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
+
+## Web UI
+
+A browser front end over the same graph the CLI runs: keep a portfolio, start analyses, and watch them as they happen. [SETUP.md](SETUP.md) walks through it from a clone to a first analysis of your own holdings; [`webui/README.md`](webui/README.md) describes how it is built.
+
+```bash
+pip install ".[webui]"
+tradingagents ui                  # http://localhost:8000, opens a browser
+tradingagents ui --port 9000 --no-open
+python -m webui                   # equivalent, without the installed command
+```
+
+It binds to loopback and has no authentication, because it holds your positions and spends your provider keys. For remote access, tunnel to it (`ssh -L 8000:localhost:8000 host`) rather than binding a public interface.
+
+### Importing positions from your broker
+
+Export your positions as CSV and drop the file on the Portfolio tab. Schwab's export (Accounts → Positions → Export) is the format this was written against; Fidelity's and Vanguard's differ mainly in column names and parse too. The file is read by the server on your own machine and is not uploaded anywhere.
+
+The importer reads the symbol, the quantity, and an average price derived from the cost basis — not the market price, so the agents see what you paid rather than what it is worth today. A symbol held in two accounts becomes one position at a blended cost, and every account's cash row adds to a single cash figure.
+
+What it does not import, it names rather than dropping quietly: options contracts (the data layer prices equities and crypto, not contracts) and any row with no readable quantity. A position whose cost basis the export withholds is imported without an average price, which the agents read as a holding with no entry price — not as an entry price of zero.
+
+An import is a preview. It fills the form, lists what it skipped, and waits for **Save book**, so a misread column cannot overwrite a book you entered by hand. The saved file is the same JSON `--portfolio` takes, so a book saved here runs from the CLI unchanged:
+
+```bash
+tradingagents --portfolio ~/.tradingagents/portfolio.json --ticker NVDA
+```
+
+Set `TRADINGAGENTS_PORTFOLIO_PATH` to keep it elsewhere.
+
+### Running analyses
+
+**Analyze ticker** runs one; **Analyze every holding** queues one run per position in the book. Runs execute one at a time rather than in parallel: each costs real money at your provider, and a whole book at once would multiply the spend per minute and collide with rate limits. The queue is visible, and a run can be stopped before or during execution.
+
+Reports appear as each agent files them, the final decision opens itself, and the transcript holds the agents' messages and tool calls. A reload mid-run replays the run from its first event rather than joining a stream already past the analyst reports. Every run also writes the same report tree and memory-log entry a CLI run does, so the two entry points share one history — which the History tab reads, with each past decision's realised return and alpha once its holding window has traded.
+
+The Runs list is held in memory and starts empty when the server restarts; what persists is what a CLI run persists — the report tree under `results_dir` and the memory log the History tab reads. A run in flight does not survive a restart either, so stop the server between runs rather than during one, or use `--checkpoint` to make an interrupted run resumable.
 
 ## Persistence and Recovery
 

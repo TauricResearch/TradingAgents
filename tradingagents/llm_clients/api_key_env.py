@@ -35,6 +35,11 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "kimi":       "MOONSHOT_API_KEY",
     "groq":       "GROQ_API_KEY",
     "nvidia":     "NVIDIA_API_KEY",
+    # DigitalOcean Gradient serverless inference. DO's own examples read the
+    # value from MODEL_ACCESS_KEY; the name is qualified here because this
+    # project holds keys for eighteen providers at once. A DigitalOcean
+    # personal access token works in its place.
+    "digitalocean": "DIGITALOCEAN_MODEL_ACCESS_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
     # Generic OpenAI-compatible endpoint: the client reads this when set (keyed

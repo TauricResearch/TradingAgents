@@ -97,6 +97,18 @@ def analyze(
 
 
 @app.command()
+def ui(
+    host: str = typer.Option("127.0.0.1", "--host", help="Interface to bind. The server has no authentication."),
+    port: int = typer.Option(8000, "--port", help="Port to serve on"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open a browser on start"),
+):
+    """Serve the browser UI: import a portfolio, run analyses, watch them live."""
+    from webui.serve import serve
+
+    serve(host=host, port=port, open_browser=open_browser)
+
+
+@app.command()
 def backtest(
     tickers: str = typer.Argument(..., help="Comma-separated tickers, e.g. NVDA,AAPL"),
     start: str = typer.Option(..., "--start", help="First analysis date, YYYY-MM-DD"),

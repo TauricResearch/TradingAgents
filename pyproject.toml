@@ -38,6 +38,12 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+# Browser UI (FastAPI + uvicorn). Optional so a CLI-only install stays lean:
+# pip install "tradingagents[webui]".
+webui = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
@@ -46,10 +52,11 @@ tradingagents = "cli.main:app"
 version = {attr = "tradingagents.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "webui*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+webui = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
