@@ -91,5 +91,12 @@ def invoke_structured_or_freetext(
     """Run the structured call and render to markdown; fall back to free-text on any failure."""
     result = invoke_structured(structured_llm, prompt, agent_name)
     if result is not None:
-        return render(result)
+        try:
+            return render(result)
+        except Exception as exc:
+            logger.warning(
+                "%s: structured-output rendering failed (%s); retrying once as free text",
+                agent_name,
+                exc,
+            )
     return plain_llm.invoke(prompt).content

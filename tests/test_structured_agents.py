@@ -545,3 +545,21 @@ def test_the_trader_names_the_levels_it_did_not_give():
     for field in ("Entry Price", "Stop Loss", "Position Sizing"):
         assert field in rendered
     assert rendered.lower().count("not provided") == 3
+
+
+@pytest.mark.unit
+def test_render_failure_falls_back_to_free_text():
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.return_value = {"parsed": "but not the schema"}
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREE TEXT")
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", lambda result: result.reasoning, "Trader"
+    )
+
+    assert out == "FREE TEXT"
+    structured.invoke.assert_called_once_with("prompt")
+    plain.invoke.assert_called_once_with("prompt")

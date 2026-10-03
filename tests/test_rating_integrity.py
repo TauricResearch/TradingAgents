@@ -251,3 +251,23 @@ def test_a_rating_the_text_quotes_does_not_replace_the_decision(quoted):
 def test_a_quoted_rating_in_a_list_table_or_quote_is_not_the_decision(quoted):
     text = f"Our rating: Hold\n\nWhat others say:\n{quoted}\n\nWe wait for margins."
     assert extract_rating(text) == "Hold"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "Consensus rating: Buy (28 of 35 analysts)\n\nRating: Sell\n\nExit.",
+            "Sell",
+        ),
+        ("- **Rating**: Sell\n\nConsensus rating: Buy", "Sell"),
+        ("* Rating: Buy\n\n**Rating**: Hold", None),
+        ("Rating: Hold\nConsensus rating: Buy", "Hold"),
+        ("Consensus rating: Buy\nStreet rating: Sell", None),
+        ("Street rating: Sell · Our rating: Buy", None),
+        ("## Final Rating - Hold\nConsensus rating: Buy", "Hold"),
+    ],
+)
+def test_only_agreed_decision_rating_lines_override_quoted_ratings(text, expected):
+    assert extract_rating(text) == expected
