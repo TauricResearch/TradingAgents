@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradingAgents</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header>
+  <h1>TradingAgents</h1>
+  <nav>
+    <button class="tab active" data-view="portfolio">Portfolio</button>
+    <button class="tab" data-view="analyze">Analyze</button>
+    <button class="tab" data-view="runs">Runs</button>
+    <button class="tab" data-view="history">History</button>
+  </nav>
+  <span id="disclaimer">Research tool — not financial advice</span>
+</header>
+
+<main>
+  <!-- ─── Portfolio ─────────────────────────────────────────── -->
+  <section id="view-portfolio" class="view active">
+    <div class="panel">
+      <h2>Import from your broker</h2>
+      <p class="hint">
+        Export your positions as CSV from Schwab (Accounts &rarr; Positions &rarr;
+        Export), Fidelity, or Vanguard, then drop the file here. Nothing is
+        uploaded anywhere — the file is parsed by the server running on this
+        machine.
+      </p>
+      <div id="dropzone">
+        <input type="file" id="csv-file" accept=".csv,text/csv" hidden>
+        <p>Drop a positions CSV here, or <button class="link" id="browse">choose a file</button></p>
+      </div>
+      <div id="import-report" hidden></div>
+    </div>
+
+    <div class="panel">
+      <h2>Your book</h2>
+      <p class="hint">
+        What the trader, the risk analysts and the portfolio manager see. With no
+        book saved, they write guidance for a reader who applies it to their own
+        position; an empty book means a flat one, which is a different thing.
+      </p>
+      <table id="positions">
+        <thead><tr><th>Ticker</th><th>Quantity</th><th>Average price</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <button class="link" id="add-row">+ Add a position</button>
+      <div class="row">
+        <label>Cash <input type="number" id="cash" step="0.01" placeholder="none"></label>
+        <label>Currency <input type="text" id="currency" size="5" placeholder="USD"></label>
+      </div>
+      <div class="actions">
+        <button id="save-portfolio" class="primary">Save book</button>
+        <button id="delete-portfolio" class="danger">Delete book</button>
+        <span id="portfolio-status" class="status"></span>
+      </div>
+      <p class="hint" id="portfolio-path"></p>
+    </div>
+  </section>
+
+  <!-- ─── Analyze ───────────────────────────────────────────── -->
+  <section id="view-analyze" class="view">
+    <div class="panel">
+      <h2>Run an analysis</h2>
+      <div class="grid">
+        <label>Ticker <input type="text" id="ticker" placeholder="NVDA" autocomplete="off"></label>
+        <label>Analysis date <input type="date" id="date"></label>
+        <label>Provider <select id="provider"></select></label>
+        <label>Deep model <select id="deep-model"></select></label>
+        <label>Quick model <select id="quick-model"></select></label>
+        <label>Research rounds <input type="number" id="debate-rounds" min="1" max="5"></label>
+        <label>Risk rounds <input type="number" id="risk-rounds" min="1" max="5"></label>
+      </div>
+      <fieldset>
+        <legend>Analysts</legend>
+        <div id="analyst-choices"></div>
+      </fieldset>
+      <label class="check">
+        <input type="checkbox" id="use-portfolio" checked>
+        Situate the decision in my saved book
+      </label>
+      <div class="actions">
+        <button id="run-one" class="primary">Analyze ticker</button>
+        <button id="run-book">Analyze every holding</button>
+        <span id="analyze-status" class="status"></span>
+      </div>
+      <p class="hint">
+        Each run costs real money at your provider, and holdings are analyzed one
+        at a time rather than in parallel, so a large book takes a while.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─── Runs ──────────────────────────────────────────────── -->
+  <section id="view-runs" class="view">
+    <div class="split">
+      <div class="panel list">
+        <h2>Runs</h2>
+        <ul id="run-list"></ul>
+      </div>
+      <div class="panel detail">
+        <div id="run-header"><p class="hint">Pick a run to follow it.</p></div>
+        <div id="agent-track"></div>
+        <div id="run-reports"></div>
+        <details id="transcript-wrap">
+          <summary>Transcript</summary>
+          <div id="transcript"></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── History ───────────────────────────────────────────── -->
+  <section id="view-history" class="view">
+    <div class="panel">
+      <h2>Past decisions</h2>
+      <p class="hint">
+        From the memory log. A decision stays pending until its holding window
+        has traded, after which it is scored on realised alpha against the
+        instrument's regional benchmark and fed back into later runs.
+      </p>
+      <table id="history-table">
+        <thead><tr><th>Date</th><th>Ticker</th><th>Rating</th><th>Return</th><th>Alpha</th><th>Outcome</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

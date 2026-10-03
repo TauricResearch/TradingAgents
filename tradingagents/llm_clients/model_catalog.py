@@ -219,6 +219,37 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
+    # DigitalOcean Gradient serverless inference. Source: the Foundation Models
+    # list at docs.digitalocean.com/products/inference/details/models (checked
+    # 2026-10-03). DO fronts several vendors behind one endpoint and namespaces
+    # every ID by vendor, so these are DO's IDs and not the vendors' own —
+    # "anthropic-claude-opus-5.5" here is "claude-opus-5-5" at Anthropic.
+    #
+    # A curated subset: DO serves thirty-odd models, including image, embedding
+    # and speech ones this pipeline cannot use. The deep list is the reasoning
+    # models worth handing a debate to; the quick list is the cheap, fast ones
+    # the analysts and tool loops run on. Anything else DO serves is reachable
+    # through "Custom model ID", and no model ID is rejected.
+    "digitalocean": {
+        "quick": [
+            ("Claude Haiku 4.5 - Fastest, 200K ctx", "anthropic-claude-haiku-4.5"),
+            ("GPT-6 Luna - Fast, 1M ctx", "openai-gpt-6-luna"),
+            ("DeepSeek V4.1 Flash - Fast, 1M ctx", "deepseek-v4.1-flash"),
+            ("GLM-5.3 Flash - Fast, 1M ctx", "glm-5.3-flash"),
+            ("GPT-OSS 120B - Open weights, 128K ctx", "openai-gpt-oss-120b"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Claude Opus 5.5 - Frontier reasoning, 1M ctx", "anthropic-claude-opus-5.5"),
+            ("Claude Fable 5.1 - Adaptive thinking, 1M ctx", "anthropic-claude-fable-5.1"),
+            ("Claude Sonnet 5.5 - Fast reasoning, 1M ctx", "anthropic-claude-sonnet-5.5"),
+            ("GPT-6 Sol - High-performance reasoning, 1M ctx", "openai-gpt-6-sol"),
+            ("DeepSeek V4 Pro - Max capability, 1M ctx", "deepseek-v4-pro"),
+            ("GLM-5.3 - Max context reasoning, 1M ctx", "glm-5.3"),
+            ("Qwen3.8 Max - Ultra-large, 1M ctx", "qwen3.8-max"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
 }

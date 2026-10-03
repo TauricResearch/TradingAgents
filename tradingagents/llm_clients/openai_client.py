@@ -224,6 +224,11 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "kimi":       ProviderSpec(base_url="https://api.moonshot.ai/v1"),
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
+    # DigitalOcean Gradient serverless inference: one endpoint and one key in
+    # front of models from several vendors, each under a DO-namespaced ID
+    # (e.g. anthropic-claude-opus-5.5). OpenAI-compatible chat completions.
+    "digitalocean": ProviderSpec(base_url="https://inference.do-ai.run/v1",
+                                 base_url_env="DIGITALOCEAN_INFERENCE_URL"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
                                key_optional=True, placeholder_key="ollama",
                                chat_class=LocalCompatibleChatOpenAI),
