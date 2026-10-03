@@ -5,7 +5,8 @@ prompt, so the model reports on data it was given rather than inventing posts:
 
   1. News headlines: Yahoo Finance
   2. StockTwits messages: the cashtag stream, with Bullish/Bearish tags
-  3. Reddit posts: r/wallstreetbets, r/stocks, r/investing
+  3. Reddit posts: the configured subreddits (default r/wallstreetbets,
+     r/stocks, r/investing)
 
 Each source is trimmed to the analysis window. With a TypeSafe key, the social
 posts are screened by Jev first (see post_screen). These feeds serve recent items
@@ -31,8 +32,20 @@ from tradingagents.agents.structured import (
     invoke_structured_or_freetext,
 )
 from tradingagents.agents.tools import get_news
-from tradingagents.dataflows.vendors.reddit import fetch_reddit_posts
+from tradingagents.dataflows.vendors.reddit import (
+    fetch_reddit_posts,
+    resolve_reddit_subreddits,
+    subreddit_label,
+)
 from tradingagents.dataflows.vendors.stocktwits import fetch_stocktwits_messages
+
+# Character notes for communities the default list still names. Unknown
+# subreddits are listed without a canned description.
+_SUBREDDIT_CHARACTER = {
+    "wallstreetbets": "r/wallstreetbets is often contrarian/exuberant",
+    "stocks": "r/stocks more measured",
+    "investing": "r/investing longer-term",
+}
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -65,7 +78,10 @@ def create_sentiment_analyst(llm):
         stocktwits_block = fetch_stocktwits_messages(
             ticker, limit=30, start_date=start_date, end_date=end_date, screen=screen
         )
-        reddit_block = fetch_reddit_posts(ticker, start_date=start_date, end_date=end_date, screen=screen)
+        reddit_subreddits = resolve_reddit_subreddits()
+        reddit_block = fetch_reddit_posts(
+            ticker, reddit_subreddits, start_date=start_date, end_date=end_date, screen=screen
+        )
 
         system_message = _build_system_message(
             ticker=ticker,
@@ -74,6 +90,7 @@ def create_sentiment_analyst(llm):
             news_block=news_block,
             stocktwits_block=stocktwits_block,
             reddit_block=reddit_block,
+            reddit_subreddits=reddit_subreddits,
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -118,6 +135,21 @@ def create_sentiment_analyst(llm):
     return sentiment_analyst_node
 
 
+def _reddit_source_blurb(subreddits) -> str:
+    """Heading and character notes for the communities this run actually searched."""
+    label = subreddit_label(subreddits)
+    notes = [
+        _SUBREDDIT_CHARACTER[name.lower()]
+        for name in subreddits
+        if name.lower() in _SUBREDDIT_CHARACTER
+    ]
+    heading = f"### Reddit posts — {label} (past 7 days)"
+    body = "Community discussion, without vote or comment counts."
+    if notes:
+        body += " Subreddit character matters (" + "; ".join(notes) + ")."
+    return f"{heading}\n{body}"
+
+
 def _build_system_message(
     *,
     ticker: str,
@@ -126,8 +158,10 @@ def _build_system_message(
     news_block: str,
     stocktwits_block: str,
     reddit_block: str,
+    reddit_subreddits=None,
 ) -> str:
     """Assemble the sentiment-analyst system message with structured data blocks."""
+    reddit_intro = _reddit_source_blurb(resolve_reddit_subreddits(reddit_subreddits))
     return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three complementary data sources that have already been collected for you.
 
 ## Data sources (pre-fetched, in this prompt)
@@ -146,8 +180,7 @@ Fast-moving signal. Each message carries a user-labeled sentiment tag (Bullish /
 {stocktwits_block}
 <end_of_stocktwits>
 
-### Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)
-Community discussion, without vote or comment counts. Subreddit character matters (r/wallstreetbets is often contrarian/exuberant; r/stocks more measured; r/investing longer-term).
+{reddit_intro}
 
 <start_of_reddit>
 {reddit_block}

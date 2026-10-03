@@ -26,6 +26,7 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert config["backend_url"] is None
     assert config["max_debate_rounds"] == 1
     assert config["checkpoint_enabled"] is False
+    assert config["reddit_subreddits"] == ["wallstreetbets", "stocks", "investing"]
 
 
 def test_string_overrides(monkeypatch):
@@ -127,6 +128,21 @@ def test_invalid_bool_raises(monkeypatch, bad):
     """A misspelled boolean must fail loudly (like ints) instead of silently False."""
     monkeypatch.setenv("TRADINGAGENTS_CHECKPOINT_ENABLED", bad)
     with pytest.raises(ValueError, match="TRADINGAGENTS_CHECKPOINT_ENABLED"):
+        default_config_module.build_default_config()
+
+
+def test_reddit_subreddits_comma_list(monkeypatch):
+    """TRADINGAGENTS_REDDIT_SUBREDDITS is a comma-separated community list (#1461)."""
+    config = _config_with_env(
+        monkeypatch,
+        TRADINGAGENTS_REDDIT_SUBREDDITS="CryptoCurrency, ethtrader, Bitcoin",
+    )
+    assert config["reddit_subreddits"] == ["CryptoCurrency", "ethtrader", "Bitcoin"]
+
+
+def test_empty_reddit_subreddits_list_raises(monkeypatch):
+    monkeypatch.setenv("TRADINGAGENTS_REDDIT_SUBREDDITS", " , , ")
+    with pytest.raises(ValueError, match="TRADINGAGENTS_REDDIT_SUBREDDITS"):
         default_config_module.build_default_config()
 
 
