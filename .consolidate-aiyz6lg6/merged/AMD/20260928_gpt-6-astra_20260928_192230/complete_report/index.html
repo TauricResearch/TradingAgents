@@ -1,0 +1,4455 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/AMD/20260928_gpt-6-astra_20260928_192230/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: AMD - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-amd" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: AMD
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amd-technical-report-september-28-2026-close" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD technical report — September 28, 2026 close
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trend-and-recent-price-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend and recent price action
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#momentum-participation-and-stretch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Momentum, participation and stretch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditional-trading-framework" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditional trading framework
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amd-sentiment-september-2128-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD sentiment | September 21–28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-by-source-breakdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source-by-source breakdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-source-alignment-and-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-source alignment and divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dominant-themes-catalysts-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dominant themes, catalysts and risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amd-trading-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD trading and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amd-the-weeks-decisive-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD: the week’s decisive development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macro-and-global-risk-backdrop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Macro and global risk backdrop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-amd-watchlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable AMD watchlist
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amd-fundamental-report-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMD fundamental report — 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#earnings-and-financial-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Earnings and financial history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-sheet-and-cash-flow-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance sheet and cash-flow quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valuation-and-market-sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valuation and market sensitivity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insider-activity-and-trader-watchpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insider activity and trader watchpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-amd">Trading Analysis Report: AMD<a class="headerlink" href="#trading-analysis-report-amd" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:22:30</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="amd-technical-report-september-28-2026-close">AMD technical report — September 28, 2026 close<a class="headerlink" href="#amd-technical-report-september-28-2026-close" title="Permanent link">&para;</a></h4>
+<p><strong>AMD remains in an uptrend across the weekly, monthly and daily SuperTrend timeframes, but its latest session calls for more caution on short-term entries.</strong> The verified close was <strong>$607.87</strong>, down from the <strong>$630.63 close on September 25</strong>. Momentum is still positive, while longer-timeframe stretch readings and today’s pullback argue against treating every dip as an automatic buying opportunity.</p>
+<p>This report uses eight complementary indicators: <strong>SuperTrend, 50-day SMA, MACD histogram, RSI, ATR, OBV, TD-9 and Z-Score</strong>. Latest price, volume and common indicator figures come from the verified market snapshot. The snapshot does not include multitimeframe SuperTrend, TD-9, Z-Score or OBV; those readings come from their indicator results.</p>
+<h4 id="trend-and-recent-price-action">Trend and recent price action<a class="headerlink" href="#trend-and-recent-price-action" title="Permanent link">&para;</a></h4>
+<p>AMD’s September 28 session opened at <strong>$624.90</strong>, reached <strong>$629.75</strong>, fell to <strong>$596.07</strong>, and closed at <strong>$607.87</strong> on <strong>21,995,500 shares</strong>. The close was below the open, although above the session low. That is evidence of a sharp intraday setback—not, by itself, proof that the broader uptrend has ended.</p>
+<p>The scale of the preceding advance matters. Verified closes rose from <strong>$456.16 on September 3</strong> to <strong>$630.63 on September 25</strong>, an approximately <strong>38.2%</strong> increase between those dates. September 28’s close was approximately <strong>3.6% below</strong> the September 25 close. Those moves help explain why a pullback and continued trend strength can coexist.</p>
+<p>SuperTrend is <strong>up on all three timeframes</strong>. Its daily trailing line is <strong>$558.12</strong>, weekly line <strong>$436.06</strong>, and monthly line <strong>$316.03</strong>. The weekly signal is the primary trend read; the monthly signal supplies regime context, while the daily line is more useful for monitoring a near-term change. The weekly and monthly stops are far below today’s price and should <strong>not</strong> be mistaken for tight short-term risk controls. AMD also closed above its verified <strong>50-day SMA of $506.96</strong>, supporting a favorable medium-term trend reading. A move below a reference level would be a new signal to assess, not evidence that the level has previously acted as support.</p>
+<h4 id="momentum-participation-and-stretch">Momentum, participation and stretch<a class="headerlink" href="#momentum-participation-and-stretch" title="Permanent link">&para;</a></h4>
+<p>The verified <strong>MACD histogram is +11.27</strong>: upward momentum remains positive, but the indicator history shows it easing from its late-September highs. Verified <strong>RSI is 65.62</strong>; it has moved back below the conventional 70 overbought threshold after exceeding it on recent sessions. Together, these suggest <strong>cooling momentum rather than a confirmed bearish reversal</strong>. Neither warrants an automatic short position against the higher-timeframe trend.</p>
+<p><strong>OBV rose through much of September and retreated on September 28.</strong> Its direction indicates that participation generally accompanied the advance, while the latest decline merits watching. The absolute OBV number has no useful standalone interpretation; a renewed rise alongside price would offer better confirmation than price alone.</p>
+<p>The exhaustion gauges are more cautionary than the daily momentum gauges. <strong>Weekly Z-Score is +2.02 and monthly Z-Score +2.01</strong>, both just beyond the indicator’s +2 stretch threshold; daily Z-Score is <strong>+1.15</strong>. Thus AMD remains statistically stretched on the higher timeframes even though its daily reading is less extreme. Stretch is a <em>mean-reversion watch</em>, not a prediction of when a reversal must occur.</p>
+<p><strong>TD-9 reads −4 weekly, −6 monthly and +1 daily.</strong> Under this indicator’s convention, the negative weekly and monthly counts are developing <em>sell-setups</em>, but neither has reached a completed −9. The daily +1 is only an early buy-setup count following the pullback; it does not override the higher-timeframe readings. Because September 28 is early in the trading week and before month-end, the weekly and monthly readings can change before those bars close.</p>
+<h4 id="conditional-trading-framework">Conditional trading framework<a class="headerlink" href="#conditional-trading-framework" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>For continuation:</strong> Watch for a <strong>daily close above $630.63</strong>, the verified September 25 closing price, rather than relying on an intraday move through it. Improving MACD-histogram momentum and a renewed rise in OBV would make that close more convincing. Reclaiming a prior <em>closing</em> price should not be described as clearing every recent intraday high.</li>
+<li><strong>For near-term weakness:</strong> <strong>$596.07</strong> is the September 28 session low and a clear, newly observed price reference—not an established support level. A subsequent close below it would strengthen the case for a deeper pullback. The <strong>$558.12 daily SuperTrend line</strong> is the more consequential daily trend reference: a close through that line would flip the daily signal under the indicator’s rules. Reassess the line each session because trailing stops can change.</li>
+<li><strong>For risk sizing:</strong> Verified <strong>ATR is $25.42</strong>, roughly <strong>4.2% of the latest close</strong>, indicating substantial ordinary price movement. At a <em>hypothetical</em> fill of $607.87, the distance to today’s $558.12 daily SuperTrend line is <strong>$49.75 per share</strong>, or about <strong>8.2% of that fill</strong>. That is a wide stop for a short-term trade. Position size should be calculated using the <strong>actual</strong> entry, the trader’s loss limit and an updated stop; gaps and slippage can cause losses beyond a planned stop.</li>
+</ul>
+<p><strong>Bottom line:</strong> The tool evidence favors describing AMD as a <strong>strong but stretched uptrend undergoing a short-term momentum test</strong>. The next useful distinction is whether price can reclaim the recent closing high with participation, or whether weakness progresses from the latest session low toward a daily SuperTrend flip. These are conditional observations, not a guaranteed trade outcome.</p>
+<table>
+<thead>
+<tr>
+<th>Indicator / reference</th>
+<th style="text-align: right;">Latest reading</th>
+<th>Practical interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SuperTrend</strong></td>
+<td style="text-align: right;">Weekly <strong>up / $436.06</strong>; monthly <strong>up / $316.03</strong>; daily <strong>up / $558.12</strong></td>
+<td>All trends remain up; watch the daily line for a nearer-term flip, while weighting the weekly trend more heavily.</td>
+</tr>
+<tr>
+<td><strong>50-day SMA</strong></td>
+<td style="text-align: right;"><strong>$506.96</strong></td>
+<td>Close of <strong>$607.87</strong> is above this medium-term trend benchmark.</td>
+</tr>
+<tr>
+<td><strong>MACD histogram</strong></td>
+<td style="text-align: right;"><strong>+11.27</strong></td>
+<td>Momentum is positive but has eased from recent highs; look for renewed expansion to confirm continuation.</td>
+</tr>
+<tr>
+<td><strong>RSI</strong></td>
+<td style="text-align: right;"><strong>65.62</strong></td>
+<td>Below 70 after recent overbought readings; momentum has cooled without becoming oversold.</td>
+</tr>
+<tr>
+<td><strong>ATR</strong></td>
+<td style="text-align: right;"><strong>$25.42</strong></td>
+<td>Allow for sizable price movement when setting risk and position size.</td>
+</tr>
+<tr>
+<td><strong>OBV</strong></td>
+<td style="text-align: right;">Rose through much of September; fell September 28</td>
+<td>Participation broadly supported the advance, but confirmation should be renewed after the pullback.</td>
+</tr>
+<tr>
+<td><strong>TD-9</strong></td>
+<td style="text-align: right;">Weekly <strong>−4</strong>; monthly <strong>−6</strong>; daily <strong>+1</strong></td>
+<td>Higher-timeframe sell-setups are developing, not complete; the daily count is too early to establish a reversal.</td>
+</tr>
+<tr>
+<td><strong>Z-Score</strong></td>
+<td style="text-align: right;">Weekly <strong>+2.02</strong>; monthly <strong>+2.01</strong>; daily <strong>+1.15</strong></td>
+<td>Higher timeframes are stretched; avoid treating that alone as a sell trigger.</td>
+</tr>
+<tr>
+<td><strong>Price levels to monitor</strong></td>
+<td style="text-align: right;"><strong>$630.63</strong> prior closing reference; <strong>$596.07</strong> latest session low</td>
+<td>A close above the former supports continuation; a close below the latter increases near-term pullback concern. Neither is a historically validated support or resistance bounce.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mixed</strong> (Score: 5.0/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="amd-sentiment-september-2128-2026">AMD sentiment | September 21–28, 2026<a class="headerlink" href="#amd-sentiment-september-2128-2026" title="Permanent link">&para;</a></h4>
+<h4 id="source-by-source-breakdown">Source-by-source breakdown<a class="headerlink" href="#source-by-source-breakdown" title="Permanent link">&para;</a></h4>
+<p><strong>News (Yahoo Finance headline collection):</strong> The dominant AMD-specific development is the September 28 announcement of an <strong>$8.2 billion all-stock agreement to acquire World Labs</strong>, co-founded by Fei-Fei Li. Reuters, The Wall Street Journal, Fortune, Barron's, AFP and TechCrunch describe a potential expansion into spatial or physical AI, 3D world models and robotics; TechCrunch reports that Li would join AMD as executive vice president and chief scientist. This is a constructive long-term strategic narrative for AMD, but the multiple articles largely cover <strong>one transaction</strong>, not multiple independent wins. A Yahoo Finance headline speculates about eventual succession; that is commentary, not an announced succession plan. The deal's cost and all-stock structure raise execution and potential shareholder-dilution questions; the supplied excerpts do not quantify dilution, integration costs, or expected revenue. Near-term coverage is less favorable: Zacks reports AMD closed at $608.2, down <strong>3.56%</strong> in its latest session, while a Stocktwits news article says the stock dropped <strong>4%</strong> following the acquisition announcement. These are different reported measurements, not two independently verified closes; an Investing.com excerpt says shares barely moved <em>after hours</em>, which can differ from a regular-session decline. Separately, StockStory attributes an AMD/peer sell-off to OpenAI pausing frontier-model training after a security breach, citing concern about near-term hardware demand. That demand impact is a <strong>concern</strong>, not an established fall in AMD sales. Headlines about Nvidia packaging, Broadcom custom silicon and AI-centric HP workstations co-engineered with AMD add competitive or product context but provide no direct AMD financial result. Several other collected headlines focus on other companies and should not be counted as AMD sentiment votes.</p>
+<p><strong>StockTwits:</strong> Only <strong>3</strong> recent AMD messages are supplied: <strong>1 Bullish (33% of all messages), 0 Bearish and 2 unlabeled</strong>. The labeled bullish post says merely “boop,” with no investment thesis. An unlabeled post links to a service calling AMD undervalued but supplies no supporting valuation inputs. The other unlabeled post links to a CNBC item and mentions AMD briefly surpassing $1 trillion in market value after a nearly 13% rally the prior week; this is a user's shared excerpt, not a verified price series or a tagged bullish view. Thus <strong>1 of 1 labeled posts</strong> is bullish, but calling retail sentiment 100% bullish would misrepresent the three-message sample. The sample weakly suggests retail interest in upside while being far too small for a reliable Bullish/Bearish ratio.</p>
+<p><strong>Reddit:</strong> Reddit was <strong>disabled by configuration</strong>. No r/wallstreetbets, r/stocks or r/investing posts are available; no claim about sentiment or engagement on those forums is supported.</p>
+<h4 id="cross-source-alignment-and-divergence">Cross-source alignment and divergence<a class="headerlink" href="#cross-source-alignment-and-divergence" title="Permanent link">&para;</a></h4>
+<p>News outlets broadly agree that the World Labs acquisition could strengthen AMD's longer-term AI capabilities, and the limited StockTwits sample contains no explicit bearish tag. However, reported same-day share declines and the OpenAI-related hardware-demand concern contrast with the favorable strategic framing. The after-hours ‘barely flinched’ description also differs from regular-session drop reports, without necessarily contradicting them because they refer to different trading windows. Retail's apparent optimism is too thin and weakly reasoned to resolve the divergence. <strong>Mixed</strong> reflects the tension between potential long-term strategic upside and adverse near-term market and demand signals; it is not a forecast for AMD shares.</p>
+<h4 id="dominant-themes-catalysts-and-risks">Dominant themes, catalysts and risks<a class="headerlink" href="#dominant-themes-catalysts-and-risks" title="Permanent link">&para;</a></h4>
+<p>The recurring story is AMD's $8.2 billion World Labs/Fei-Fei Li bet on physical AI, spatial intelligence and robotics in competition with Nvidia. Potential catalysts include further disclosure about deal completion and economics, Li's role and research-to-product roadmap, and evidence that AMD can turn world-model capabilities into hardware, software or systems demand. Relevant risks are integration and execution, potential dilution from an all-stock deal, uncertainty over commercial returns, competition from Nvidia and Broadcom, and any persistent AI-training disruption following the reported OpenAI security breach. The supplied data provide <strong>no verified AMD earnings date, transaction close date, deal dilution estimate, Reddit discussion, or measured demand impact</strong>; these should not be inferred.</p>
+<table>
+<thead>
+<tr>
+<th>AMD sentiment signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence / qualification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>World Labs strategic expansion</td>
+<td>Bullish longer term</td>
+<td>Reuters; WSJ; Fortune; Barron's; AFP; TechCrunch</td>
+<td>One $8.2 billion all-stock acquisition repeatedly covered; potential physical-AI and 3D-world-model capability, not proven earnings.</td>
+</tr>
+<tr>
+<td>Immediate share-price reaction</td>
+<td>Bearish near term</td>
+<td>Zacks; Stocktwits news article; Investing.com</td>
+<td>Zacks reports a 3.56% close-to-close fall; Stocktwits news reports a 4% drop; Investing.com describes limited <em>after-hours</em> movement. Timing/measurements differ.</td>
+</tr>
+<tr>
+<td>AI hardware demand disruption</td>
+<td>Bearish risk</td>
+<td>StockStory</td>
+<td>Reports AMD and peers down after OpenAI paused frontier-model training following a security breach; AMD-specific demand loss not established.</td>
+</tr>
+<tr>
+<td>Retail positioning</td>
+<td>Weakly bullish / inconclusive</td>
+<td>StockTwits</td>
+<td>1 Bullish, 0 Bearish, 2 unlabeled among just 3 posts; sole labeled bullish post has no substantive rationale.</td>
+</tr>
+<tr>
+<td>Competitive AI landscape</td>
+<td>Mixed / risk</td>
+<td>24/7 Wall St.; Motley Fool; HP-focused Simply Wall St.</td>
+<td>Nvidia packaging and Broadcom custom silicon suggest competition; an HP workstation co-engineered with AMD suggests an adjacent opportunity, without measured sales.</td>
+</tr>
+<tr>
+<td>Community corroboration</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>Collection disabled; no posts, votes or comments to assess.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Assessment:</strong> AMD has a significant strategic AI headline, but the reported immediate trading response and hardware-demand worries offset it. <strong>Confidence is low</strong> because StockTwits has fewer than five observations, Reddit is unavailable, and most AMD news items repeat the same acquisition. This sentiment snapshot is context for a trader to weigh against independent fundamentals and technicals, not a trade recommendation or predictive price call.</p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="amd-trading-and-macro-report-september-28-2026">AMD trading and macro report — September 28, 2026<a class="headerlink" href="#amd-trading-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Bottom line:</strong> AMD faces a consequential company-specific catalyst in a difficult rate environment. Its announced <strong>$8.2 billion all-stock agreement to acquire World Labs</strong> expands its ambitions in physical AI, but the immediate trading question is whether the potential long-term benefit outweighs share dilution, integration risk and rising bond yields. I would <strong>avoid treating the announcement alone as a buy signal</strong>; the next useful evidence is the deal filing, management’s commercialization plan and whether AMD stabilizes relative to other semiconductor stocks.</p>
+<h4 id="amd-the-weeks-decisive-development">AMD: the week’s decisive development<a class="headerlink" href="#amd-the-weeks-decisive-development" title="Permanent link">&para;</a></h4>
+<p>On September 28, <a href="https://finance.yahoo.com/news/amd-acquires-world-labs-8-203900428.html">Reuters reported</a> that AMD agreed to acquire Fei-Fei Li’s World Labs in an <strong>$8.2 billion all-stock deal</strong>. World Labs works on spatial or “physical AI”—systems that can understand or generate representations of the physical world. <a href="https://finance.yahoo.com/technology/ai/articles/amd-acquire-fei-fei-li-203933879.html">TechCrunch reported</a> that Li would join AMD as executive vice president and chief scientist.</p>
+<p>The <strong>bull case</strong> is that research talent and world-model capabilities could help AMD develop differentiated hardware, software and systems for robotics and simulation. The <strong>bear case</strong> is more immediate: an all-stock purchase can dilute existing holders, while the available reports do not establish when, or how profitably, World Labs’ research will translate into AMD revenue. An agreement to acquire is <strong>not evidence that the transaction has closed</strong>.</p>
+<p>Early reaction appears cautious. A <a href="https://finance.yahoo.com/markets/stocks/articles/advanced-micro-devices-amd-suffers-204502750.html">Zacks summary</a> reported AMD down <strong>3.56%</strong> in its latest session; a separate <a href="https://stocktwits.com/news-articles/markets/equity/amd-bolsters-ai-vision-with-8-2-b-acquisition-of-fei-fei-li-s-world-labs-stock-drops-4/cZMjIGORBXQ">Stocktwits report</a> described a roughly <strong>4%</strong> decline. These are article-reported moves, <strong>not a verified live quote</strong>.</p>
+<p>A separate <a href="https://finance.yahoo.com/markets/stocks/articles/amd-intel-western-digital-vishay-225436808.html">StockStory account</a> attributed weakness across several hardware stocks to a reported pause in OpenAI frontier-model training following a security breach. Because the supplied results do not independently corroborate the pause or quantify its effect on chip orders, traders should treat any AMD demand implication as <strong>unconfirmed</strong> rather than extrapolate a broad AI-spending slowdown. Competition remains relevant: <a href="https://www.fool.com/investing/2026/09/28/not-nvidia-not-amd-broadcoms-custom-silicon-busine/">reporting on Broadcom’s custom silicon business</a> highlights that AMD must compete for AI infrastructure spending on more than GPU specifications alone.</p>
+<h4 id="macro-and-global-risk-backdrop">Macro and global risk backdrop<a class="headerlink" href="#macro-and-global-risk-backdrop" title="Permanent link">&para;</a></h4>
+<p><a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">September 28 market coverage</a> described falling major U.S. indexes as Treasury yields climbed; <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">bond-market coverage</a> emphasized higher-for-longer rate expectations. That matters to AMD because higher discount rates can weigh on growth-stock valuations even when the company’s longer-term opportunity improves. The relationship is not mechanical: <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-081738529.html">Friday’s coverage</a> reported weekly index gains despite a bond sell-off.</p>
+<p>Prediction markets add context, <strong>not a substitute for Fed futures or economic releases</strong>. Polymarket priced <strong>no Fed cuts during 2026 at 97%</strong> on approximately <strong>$8.6 million</strong> traded volume. A separately worded market priced <strong>another 2026 hike at 90%</strong>, but on only about <strong>$185,000</strong> volume; its contract wording and thinner trading make it less suitable as a stand-alone policy forecast. The market for a <strong>U.S. recession by end-2026 stood at 8%</strong>. These odds indicate risks being priced, not outcomes assured.</p>
+<p>Taiwan is a low-probability, high-impact semiconductor supply-chain risk. Polymarket priced a <strong>Chinese invasion of Taiwan by end-2026 at 4%</strong> on approximately <strong>$43 million</strong> volume, and a military clash before 2027 at <strong>6%</strong>. Neither probability captures the full range of trade, logistics or semiconductor disruptions short of those contract definitions.</p>
+<p><strong>Data limitation:</strong> The FRED macro tool returned <code>DATA_UNAVAILABLE</code> for inflation, unemployment, the Fed funds rate, Treasury yields, the yield curve and VIX. Accordingly, this report makes <strong>no claim about their current numerical levels or changes</strong>. The company-news feed also did not provide reliable coverage for September 21–27; that is a retrieval limitation, not evidence that nothing happened during those days.</p>
+<h4 id="actionable-amd-watchlist">Actionable AMD watchlist<a class="headerlink" href="#actionable-amd-watchlist" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Validate the deal economics before increasing exposure.</strong> Check AMD’s transaction filing for expected shares issued, closing conditions, retention costs and any concrete revenue or product milestones. The <strong>$8.2 billion purchase price alone</strong> cannot establish dilution per share or a return on investment.</li>
+<li><strong>Separate AMD-specific selling from a rate-driven sell-off.</strong> If yields keep rising and AMD falls alongside growth peers, position size and rate exposure matter. If AMD remains weak while peers stabilize, scrutinize the market’s assessment of the acquisition.</li>
+<li><strong>Require confirmation on AI-demand headlines.</strong> Look for an independently confirmed OpenAI update and, more importantly, changes to customer orders or AMD guidance before changing a hardware-demand forecast.</li>
+<li><strong>Keep supply-chain tail risk in position sizing.</strong> A low invasion-market probability is not a reason to ignore a potentially severe Taiwan-related disruption.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>Evidence as of Sept. 28</th>
+<th>AMD trading implication</th>
+<th>What would change the assessment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>World Labs agreement</td>
+<td><a href="https://finance.yahoo.com/news/amd-acquires-world-labs-8-203900428.html">$8.2B all-stock deal reported by Reuters</a></td>
+<td>Potential physical-AI upside; dilution and execution risk now</td>
+<td>Filing details, product milestones, credible customer economics</td>
+</tr>
+<tr>
+<td>Initial reaction</td>
+<td><a href="https://finance.yahoo.com/markets/stocks/articles/advanced-micro-devices-amd-suffers-204502750.html">Zacks reported a 3.56% AMD decline</a></td>
+<td>Cautious reception; do not infer a durable trend from one session</td>
+<td>Verified price action and performance versus semiconductor peers</td>
+</tr>
+<tr>
+<td>Rates</td>
+<td><a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Yields rose as U.S. indexes fell Monday</a>; no verified FRED levels</td>
+<td>Growth-valuation headwind; avoid assigning every move to the deal</td>
+<td>Confirmed yield trend and upcoming inflation, labor and Fed data</td>
+</tr>
+<tr>
+<td>Fed and growth expectations</td>
+<td>Polymarket: <strong>97%</strong> no 2026 cuts; <strong>8%</strong> U.S. recession</td>
+<td>Higher-for-longer risk, without a high priced recession probability</td>
+<td>Liquid rate-market pricing and realized economic data</td>
+</tr>
+<tr>
+<td>Taiwan supply-chain tail</td>
+<td>Polymarket: <strong>4%</strong> invasion by end-2026</td>
+<td>Low-probability risk with potentially outsized consequences</td>
+<td>Escalation, export restrictions or demonstrable supply disruption</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="amd-fundamental-report-2026-09-28">AMD fundamental report — 2026-09-28<a class="headerlink" href="#amd-fundamental-report-2026-09-28" title="Permanent link">&para;</a></h4>
+<p><strong>Advanced Micro Devices, Inc. (AMD)</strong> is a semiconductor designer serving data-center, client-computing, graphics/gaming, and embedded markets. The available statements do not break out revenue by business segment, so they cannot establish which product line drove the latest growth.</p>
+<p><strong>Coverage limitation:</strong> The tools provide a fundamental snapshot, annual statements through 2025, quarterly statements through June 2026, and insider transactions through September 15. They provide neither filing dates nor company announcements for the past week. Consequently, this report <strong>cannot verify a new fundamental development during September 21–28</strong>; it assesses the latest available data as of the analysis date rather than attributing older results to this week. Dollar figures below are USD.</p>
+<h4 id="earnings-and-financial-history">Earnings and financial history<a class="headerlink" href="#earnings-and-financial-history" title="Permanent link">&para;</a></h4>
+<p>AMD’s latest reported quarter in the dataset, <strong>Q2 2026</strong>, shows substantial growth and better operating leverage:</p>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th style="text-align: right;">Q2 2026</th>
+<th style="text-align: right;">Q1 2026</th>
+<th style="text-align: right;">Q2 2025</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td style="text-align: right;">$11.536bn</td>
+<td style="text-align: right;">$10.253bn</td>
+<td style="text-align: right;">$7.685bn</td>
+</tr>
+<tr>
+<td>Gross profit</td>
+<td style="text-align: right;">$6.203bn</td>
+<td style="text-align: right;">$5.416bn</td>
+<td style="text-align: right;">$3.059bn</td>
+</tr>
+<tr>
+<td>Gross margin, calculated</td>
+<td style="text-align: right;">53.8%</td>
+<td style="text-align: right;">52.8%</td>
+<td style="text-align: right;">39.8%</td>
+</tr>
+<tr>
+<td>Operating income/(loss)</td>
+<td style="text-align: right;">$1.990bn</td>
+<td style="text-align: right;">$1.476bn</td>
+<td style="text-align: right;">$(0.134)bn</td>
+</tr>
+<tr>
+<td>Net income</td>
+<td style="text-align: right;">$2.297bn</td>
+<td style="text-align: right;">$1.383bn</td>
+<td style="text-align: right;">$0.872bn</td>
+</tr>
+<tr>
+<td>Diluted EPS</td>
+<td style="text-align: right;">$1.38</td>
+<td style="text-align: right;">$0.84</td>
+<td style="text-align: right;">$0.54</td>
+</tr>
+<tr>
+<td>Operating cash flow</td>
+<td style="text-align: right;">$2.366bn</td>
+<td style="text-align: right;">$2.955bn</td>
+<td style="text-align: right;">$2.011bn</td>
+</tr>
+<tr>
+<td>Capital expenditure</td>
+<td style="text-align: right;">$0.808bn</td>
+<td style="text-align: right;">$0.389bn</td>
+<td style="text-align: right;">$0.282bn</td>
+</tr>
+<tr>
+<td>Free cash flow</td>
+<td style="text-align: right;">$1.558bn</td>
+<td style="text-align: right;">$2.566bn</td>
+<td style="text-align: right;">$1.729bn</td>
+</tr>
+</tbody>
+</table>
+<p>Q2 revenue grew <strong>50.1% year over year</strong> and <strong>12.5% quarter over quarter</strong>. Calculated operating margin reached <strong>17.3%</strong>, versus 14.4% in Q1 2026. Research and development spending rose to <strong>$2.528bn</strong>, up from $1.894bn a year earlier, but grew more slowly than revenue. The Q2 2025 EPS comparison warrants care: that quarter had an operating loss yet benefited from an <strong>$834m tax credit</strong>.</p>
+<p>Growth did not translate fully into near-term cash generation. Q2 2026 operating cash flow fell <strong>20% sequentially</strong>, and free cash flow fell <strong>39%</strong>, as capex more than doubled from Q1. Working capital used <strong>$730m</strong> of cash: receivables and inventory were notable uses, partially offset by higher payables. Q2 operating cash flow nevertheless remained positive at $2.366bn. Comparisons with 2025 cash flow also require care because the annual statement includes <strong>$1.216bn of cash from discontinued operating activities</strong>.</p>
+<p>The longer-term record puts the acceleration in context:</p>
+<table>
+<thead>
+<tr>
+<th>Fiscal year</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Gross profit</th>
+<th style="text-align: right;">Operating income</th>
+<th style="text-align: right;">Net income</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Free cash flow</th>
+<th style="text-align: right;">Diluted EPS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">$23.601bn</td>
+<td style="text-align: right;">$10.603bn</td>
+<td style="text-align: right;">$1.264bn</td>
+<td style="text-align: right;">$1.320bn</td>
+<td style="text-align: right;">$3.565bn</td>
+<td style="text-align: right;">$3.115bn</td>
+<td style="text-align: right;">$0.84</td>
+</tr>
+<tr>
+<td>2023</td>
+<td style="text-align: right;">$22.680bn</td>
+<td style="text-align: right;">$10.460bn</td>
+<td style="text-align: right;">$0.401bn</td>
+<td style="text-align: right;">$0.854bn</td>
+<td style="text-align: right;">$1.667bn</td>
+<td style="text-align: right;">$1.121bn</td>
+<td style="text-align: right;">$0.53</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">$25.785bn</td>
+<td style="text-align: right;">$12.725bn</td>
+<td style="text-align: right;">$2.086bn</td>
+<td style="text-align: right;">$1.641bn</td>
+<td style="text-align: right;">$3.041bn</td>
+<td style="text-align: right;">$2.405bn</td>
+<td style="text-align: right;">$1.00</td>
+</tr>
+<tr>
+<td>2025</td>
+<td style="text-align: right;">$34.639bn</td>
+<td style="text-align: right;">$17.152bn</td>
+<td style="text-align: right;">$3.694bn</td>
+<td style="text-align: right;">$4.335bn</td>
+<td style="text-align: right;">$7.709bn</td>
+<td style="text-align: right;">$6.735bn</td>
+<td style="text-align: right;">$2.65</td>
+</tr>
+</tbody>
+</table>
+<p>FY2025 revenue rose <strong>34.3%</strong> over 2024, operating income rose approximately <strong>77%</strong>, and free cash flow increased from $2.405bn to $6.735bn. Gross margin was approximately <strong>49.5%</strong> in 2025, against <strong>46.1%</strong> in 2023. These are substantial improvements, though FY2025 operating cash flow includes the discontinued-operations amount noted above.</p>
+<h4 id="balance-sheet-and-cash-flow-quality">Balance sheet and cash-flow quality<a class="headerlink" href="#balance-sheet-and-cash-flow-quality" title="Permanent link">&para;</a></h4>
+<p>At June 30, 2026, AMD had <strong>$84.464bn of assets</strong>, <strong>$17.240bn of liabilities</strong>, and <strong>$67.224bn of stockholders’ equity</strong>. Cash plus short-term investments totaled <strong>$13.111bn</strong>, against <strong>$4.276bn of reported total debt</strong>, implying approximately <strong>$8.835bn of net cash on that definition</strong>. Its <strong>2.61 current ratio</strong> and <strong>$19.441bn of working capital</strong> indicate ample near-term liquidity.</p>
+<p>Two balance-sheet trends deserve monitoring. Receivables increased from <strong>$6.035bn to $7.281bn</strong> during Q2—about <strong>21%</strong>, faster than the quarter’s 12.5% revenue growth. Inventory increased to <strong>$8.468bn</strong> from $8.045bn. Neither movement alone establishes a collection or demand problem, but further divergence between sales and receivables would weaken the quality of reported growth. Meanwhile, <strong>goodwill and other intangibles totaled $41.105bn</strong>, approximately <strong>49% of assets</strong>, making acquisition-related valuations material to book equity.</p>
+<p>Reported debt rose $405m sequentially; approximately $403m of that increase was in capital-lease obligations rather than a comparable rise in stated long-term borrowings. The snapshot’s “debt to equity: 6.361” is best read as <strong>6.361%</strong>, not 6.361 times: $4.276bn divided by $67.224bn is approximately <strong>0.064 times</strong>.</p>
+<h4 id="valuation-and-market-sensitivity">Valuation and market sensitivity<a class="headerlink" href="#valuation-and-market-sensitivity" title="Permanent link">&para;</a></h4>
+<p>The vendor snapshot lists a <strong>$992.3bn market capitalization</strong>, <strong>$3.91 trailing EPS</strong>, <strong>155.5× trailing P/E</strong>, <strong>39.0× forward P/E</strong>, <strong>14.76× price/book</strong>, <strong>10.2% return on equity</strong>, and <strong>2.48 beta</strong>. The P/E and EPS imply a share price near <strong>$608</strong>; this is a <em>derived snapshot price, not a verified live quote</em>. At that valuation, AMD trades at roughly <strong>24 times trailing revenue</strong>. The quoted <strong>$15.58 forward EPS</strong> is nearly four times trailing EPS: the lower forward multiple depends on a very large earnings increase being achieved.</p>
+<p>The derived price is about <strong>4.9% below</strong> the snapshot’s $639 52-week high and approximately <strong>20% above</strong> its 50-day average. Together with the elevated beta and valuation, that raises the risk of a sharp repricing if future earnings or guidance disappoint.</p>
+<p><strong>Vendor reconciliation matters.</strong> The four available quarters sum to <strong>$41.305bn of revenue</strong>, matching the snapshot, but their gross profits sum to <strong>$21.976bn</strong>, versus the snapshot’s <strong>$23.017bn</strong>. Four-quarter free cash flow sums to <strong>$8.403bn</strong>, versus <strong>$8.841bn</strong> in the snapshot. The snapshot’s $6.469bn net-income figure matches four-quarter <em>continuing-operations</em> income; four-quarter total net income is <strong>$6.434bn</strong>. For period comparisons above, this report uses the individual statement figures and flags the differing snapshot definitions rather than treating them as interchangeable.</p>
+<h4 id="insider-activity-and-trader-watchpoints">Insider activity and trader watchpoints<a class="headerlink" href="#insider-activity-and-trader-watchpoints" title="Permanent link">&para;</a></h4>
+<p><strong>No insider transaction is dated within September 21–28 in the supplied feed.</strong> The latest listed sale was <strong>17,261 shares for $8.68m by officer Forrest Norrod on September 15</strong>, accompanied by a separately listed derivative-security exercise. CEO Lisa Su sold <strong>95,000 shares for $48.15m on September 10</strong>; her separately listed <strong>35,000-share gift</strong> was not a sale. The feed shows no identified open-market purchase in 2026. Insider selling merits monitoring, but exercises, gifts, and unknown individual circumstances prevent these entries from establishing a bearish trading signal by themselves.</p>
+<p>For traders evaluating <strong>AMD</strong>, the clearest <em>fundamental confirmation</em> would be another period of strong revenue growth accompanied by operating margin near or above Q2’s <strong>17.3%</strong>, receivables growing no faster than sales, and a recovery in free cash flow as capex is absorbed. Conversely, persistently faster receivables growth, falling gross margin, or further free-cash-flow compression would matter especially at the current valuation. The available tools support those monitoring conditions, <strong>not a claim that a new event this week warrants an immediate trade</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Key point for AMD</th>
+<th>Evidence as of 2026-09-28</th>
+<th>Trading relevance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latest-week visibility</td>
+<td>No dated company update supplied for September 21–28; statements end June 2026</td>
+<td>Check actual filings and announcements before attributing a move to fresh fundamentals</td>
+</tr>
+<tr>
+<td>Sales and margins</td>
+<td>Q2 revenue <strong>+50.1% YoY</strong>; gross margin <strong>53.8%</strong>; operating margin <strong>17.3%</strong></td>
+<td>Strong operating momentum; test whether it persists</td>
+</tr>
+<tr>
+<td>Cash conversion</td>
+<td>Q2 FCF <strong>$1.558bn</strong>, down <strong>39% QoQ</strong>; capex <strong>$808m</strong></td>
+<td>Watch whether investment begins to generate proportionate cash flow</td>
+</tr>
+<tr>
+<td>Working capital</td>
+<td>Q2 receivables <strong>+21% QoQ</strong> versus revenue <strong>+12.5%</strong></td>
+<td>Monitor collection and the quality of sales growth</td>
+</tr>
+<tr>
+<td>Financial resilience</td>
+<td><strong>$13.111bn</strong> cash/investments; <strong>$4.276bn</strong> total debt; <strong>2.61</strong> current ratio</td>
+<td>Liquidity provides a buffer despite heavier spending</td>
+</tr>
+<tr>
+<td>Valuation</td>
+<td><strong>155.5× trailing P/E</strong>; <strong>39.0× forward P/E</strong>; approximately <strong>24× trailing sales</strong></td>
+<td>High sensitivity to whether expected earnings growth materializes</td>
+</tr>
+<tr>
+<td>Insiders</td>
+<td>Latest listed sale September 15; no listed transaction in the past week</td>
+<td>Context for monitoring, not a standalone signal</td>
+</tr>
+<tr>
+<td>Data caution</td>
+<td>Snapshot gross profit and FCF differ from sums of quarterly statements</td>
+<td>Use consistent definitions when setting earnings or valuation thresholds</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case is bullish on AMD—but not because every AI headline deserves a higher stock price.</strong> Bear, the strongest reason to own AMD is that its growth is already showing up in operating results. Q2 2026 revenue rose <strong>50.1% year over year to $11.536 billion</strong>, gross margin climbed to <strong>53.8% from 39.8%</strong>, and operating income reached <strong>$1.990 billion</strong>, versus a loss a year earlier. That combination matters more than revenue growth alone: it shows AMD generating substantially more profit as it scales.</p>
+<p>AMD also has room to pursue that growth without betting its balance sheet. It ended June with <strong>$13.111 billion in cash and short-term investments against $4.276 billion of debt</strong>. Q2 free cash flow remained positive at <strong>$1.558 billion</strong>, even as capital expenditure more than doubled sequentially. Its established reach across data-center, client, gaming and embedded computing gives it several ways to participate in demand; the announced <strong>$8.2 billion all-stock World Labs acquisition</strong> could add physical-AI and robotics capabilities. I would treat that deal as <em>potential upside</em>, not as revenue already won or a transaction already closed.</p>
+<p>Your valuation objection is real. At <strong>155.5× trailing earnings and 39× forward earnings</strong>, AMD has little room for disappointing execution. Q2 free cash flow fell <strong>39% sequentially</strong>, and receivables grew faster than sales; an all-stock deal also raises an unquantified dilution risk. But those concerns are reasons to demand continued margin strength and better cash conversion—not to dismiss the growth and operating leverage already reported. The bull thesis does <strong>not</strong> require World Labs to pay off immediately or AMD to displace every competitor.</p>
+<p>Nor would I call September 28’s <strong>3.6% decline to $607.87</strong> a broken thesis. Daily, weekly and monthly SuperTrend readings remain up, though cooling momentum and stretched longer-term readings argue for disciplined entries. A close back above <strong>$630.63</strong>, accompanied by renewed participation, would strengthen the near-term case; a close below <strong>$596.07</strong> would call for reassessment.</p>
+<p><strong>My recommendation: bullish on AMD for investors who can tolerate valuation and volatility risk.</strong> The case rests on sustaining the demonstrated revenue-and-margin gains. If those gains fade or cash conversion keeps deteriorating, the bear case gets much stronger.
+Bull Analyst: <strong>Bear, I agree AMD is expensive. I disagree that the only rational response is to wait until every risk has been resolved.</strong> The distinction is that investors are paying for growth that is already visible in the business, not just for the World Labs announcement. FY2025 revenue grew <strong>34.3%</strong>, and Q2 2026 revenue grew <strong>50.1% year over year</strong>. More importantly, Q2 gross margin rose to <strong>53.8% from 39.8%</strong> a year earlier, while operating income reached <strong>$1.99 billion</strong> versus an operating loss. That is meaningful evidence of operating leverage, even if its durability still needs testing.</p>
+<p>Your <strong>39× forward-earnings</strong> objection is the hardest one to answer. The <strong>$15.58 forward EPS</strong> estimate is a demanding leap from <strong>$3.91 trailing EPS</strong>; I would not treat it as a guaranteed outcome. But there is room for substantial sales growth without assuming another acceleration: <em>if</em> Q3 and Q4 merely matched Q2’s $11.536 billion in revenue, FY2026 revenue would be about <strong>$44.86 billion</strong>, roughly <strong>30% above FY2025</strong>. That is an illustration, <strong>not guidance or an EPS forecast</strong>. Nvidia and Broadcom are serious competitors, but their presence does not erase AMD’s reported margin gains or its opportunities across data-center, client, gaming and embedded computing. The supplied figures do not establish which segment drove the latest growth, so I would not claim a particular AI product has already won the market.</p>
+<p>On cash flow, you are right to flag the <strong>39% sequential FCF decline</strong> and receivables rising faster than sales. Yet Q2 still produced <strong>$2.366 billion of operating cash flow and $1.558 billion of FCF after $808 million of capex</strong>. Operating cash flow was higher year over year; capex was also substantially higher. That does <strong>not</strong> excuse the <strong>$730 million working-capital cash use</strong>—it makes receivables and cash conversion the next tests of the thesis, rather than proof today that the earnings growth is hollow.</p>
+<p>I also would not ask shareholders to count World Labs earnings that have not materialized. The <strong>$8.2 billion all-stock agreement</strong> carries dilution and execution risk, and we need the filing to judge it. But the bull case can stand on AMD’s existing growth without assigning the acquisition immediate revenue. Its <strong>$8.835 billion net-cash position</strong> gives it financial flexibility; the large goodwill and intangible balance warrants scrutiny, not an inference that current operating cash flow has disappeared. Likewise, the reported OpenAI training pause has <strong>no established AMD order impact</strong>.</p>
+<p><strong>My recommendation remains a measured bullish position in AMD, built in stages rather than bought indiscriminately at $607.87.</strong> The September 28 decline, rising-yield backdrop and stretched weekly and monthly readings argue for smaller sizing. A close above <strong>$630.63</strong> with renewed participation would strengthen the trading case, not prove the valuation; a close below <strong>$596.07</strong> would prompt a near-term reassessment. Over the longer term, if margins weaken or receivables keep outpacing sales while FCF deteriorates, I would change my view. But waiting for perfect confirmation also means declining to invest while the revenue growth and operating leverage are already being reported.
+Bull Analyst: <strong>Bear, your margin-of-safety objection is the strongest argument against AMD.</strong> At roughly 22× even your hypothetical FY2026 sales and a 0.85% trailing free-cash-flow yield, this is not a cheap stock. I would not justify it by assuming the vendor’s $15.58 forward EPS will arrive. My disagreement is with staying underweight until cash flow has already caught up: AMD’s operating improvement is substantial enough to warrant a <em>measured</em> position while that test plays out.</p>
+<p>The distinction is visible in Q2. Revenue grew <strong>50.1% year over year</strong>, but gross profit grew by roughly <strong>103%</strong>, and operating income swung from a <strong>$134 million loss to a $1.990 billion profit</strong>. That does not prove AMD can maintain those gains against Nvidia and Broadcom; without segment results, I cannot claim a particular product is winning. It does show that competition has not prevented significant operating leverage in the results we have.</p>
+<p>You are also right that free cash flow fell to <strong>$1.558 billion</strong> from <strong>$1.729 billion</strong> a year earlier. But the components matter: operating cash flow <strong>rose $355 million</strong>, while capex <strong>rose $526 million</strong>—more than the entire $171 million free-cash-flow decline. The <strong>$730 million working-capital use</strong> and faster receivables growth remain genuine warnings. They make future cash conversion a decisive test, not grounds to dismiss the operating gains already reported.</p>
+<p>I would not use World Labs to fill an earnings forecast. The <strong>$8.2 billion all-stock agreement</strong> brings strategic possibilities in physical AI, but no established payoff. For scale, its stated consideration is about <strong>0.8% of AMD’s reported $992.3 billion market value</strong>; that is <em>not</em> a verified dilution estimate, which requires the deal terms. Nor does it remove execution risk.</p>
+<p><strong>My recommendation remains a small, staged bullish position in AMD</strong>, not an indiscriminate purchase at the September 28 close of <strong>$607.87</strong>. Rising yields, a stretched chart and the valuation justify restraint. I would add conviction only if margins hold and receivables and free cash flow improve; a close above <strong>$630.63</strong> with renewed participation would help the trading case, not settle the valuation debate. If cash conversion continues to lag while margins soften, your underweight call will have won the more important argument.
+Bull Analyst: <strong>Bear, your cash-flow objection is the right test for AMD.</strong> Q2 operating-cash-flow margin fell to about 20.5% from 26.2% a year earlier, and the trailing free-cash-flow yield is thin even under your doubling illustration. I am not calling AMD cheap or arguing that higher capex will automatically earn a good return.</p>
+<p>Where we differ is how much weight to put on that cash-flow setback <em>now</em>. Q2 gross profit roughly doubled year over year, and operating income improved by <strong>$2.124 billion</strong> to <strong>$1.990 billion</strong>, even as AMD increased R&amp;D spending. Operating cash flow still rose <strong>$355 million</strong>; the <strong>$526 million</strong> increase in capex more than accounts for the <strong>$171 million</strong> year-over-year decline in free cash flow. That does not excuse the <strong>$730 million working-capital cash use</strong> or receivables growing faster than sales. It does mean the weak free-cash-flow comparison coexists with substantial, already reported operating leverage—not merely a hoped-for payoff from World Labs. Nor do the available figures prove which product lines drove that improvement or that AMD has secured an advantage over Nvidia and Broadcom.</p>
+<p>I agree the <strong>$8.2 billion all-stock World Labs agreement</strong> cannot be credited with earnings before its economics are known. My case for a position rests on AMD’s existing sales and margin growth, with its <strong>$8.835 billion net-cash position</strong> providing flexibility—not protection against overpaying for the stock.</p>
+<p><strong>I remain bullish on AMD through a small, staged position, not an aggressive purchase at $607.87.</strong> Your underweight call wins if receivables keep outrunning sales, free cash flow fails to recover as investment continues, or margins soften. At this valuation, I would reduce the position if those tests fail. But I would not wait to own <em>any</em> AMD until all three have already been resolved.
+Bull Analyst: <strong>Bear, your $467 scenario is the strongest reason to keep an AMD position small.</strong> At 30× the vendor’s $15.58 forward EPS estimate, the shares would be about 23% below the September 28 close of $607.87. In fact, at 30× earnings, AMD would need roughly <strong>$20.26 EPS</strong> just to support that close. I would not treat the forward estimate—or today’s 39× forward multiple—as assured.</p>
+<p>But that scenario establishes <em>valuation risk</em>, not that remaining underweight is the better choice. The reason I’m willing to own some AMD before the cash-flow test is complete is the scale of improvement already reported. <strong>First-half 2026 operating income was $3.466 billion—about 94% of AMD’s full-year 2025 operating income.</strong> Q2 revenue grew 50.1% year over year, gross margin rose to 53.8% from 39.8%, and operating income reached $1.990 billion despite higher R&amp;D spending. Those results do not prove AMD can sustain its margins against Nvidia or Broadcom, and the available data do not identify which segment drove the gains. They do show that competitive pressure has not prevented substantial operating leverage so far.</p>
+<p>You are right to insist that profit turn into cash. Q2 free cash flow fell year over year to $1.558 billion, receivables outgrew sales sequentially, and the $730 million working-capital cash use needs explaining through subsequent results. Higher capex accounts for more than the year-over-year free-cash-flow decline, but <strong>it does not prove that spending will earn an adequate return</strong>. Nor am I assigning earnings to the unclosed World Labs agreement or assuming its dilution will be negligible.</p>
+<p>So my recommendation is <strong>a small, staged bullish position in AMD, not an aggressive buy at $607.87</strong>. The case for owning it now is that reported operating growth may continue while investors wait for cash conversion to catch up; the case for restraint is that the multiple could compress first. I would increase conviction only with sustained margins and better receivables and free-cash-flow trends, and cut exposure if those measures deteriorate. A chart recovery alone would not answer your valuation objection.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: <strong>Bear Analyst:</strong> I agree that AMD’s Q2 results were strong. Revenue grew <strong>50.1% year over year</strong>, gross margin reached <strong>53.8%</strong>, and operating income turned positive. My objection is to the price investors must pay <em>before</em> we know whether that performance is durable.</p>
+<p>You say the bull thesis does not require World Labs to pay off immediately or AMD to beat every competitor. Fair—but at roughly <strong>24× trailing sales and 155.5× trailing earnings</strong>, AMD does need exceptional growth to continue. Even the apparently more reasonable <strong>39× forward earnings</strong> relies on a vendor estimate of <strong>$15.58 EPS</strong>, nearly four times its <strong>$3.91 trailing EPS</strong>. Nvidia and Broadcom’s custom-silicon efforts make it harder to assume AMD can sustain today’s growth and margins without intense competition.</p>
+<p>The cash-flow trend is why I would not simply “demand continued margin strength” and buy now. Despite higher Q2 revenue and profit, <strong>operating cash flow fell 20% sequentially and free cash flow fell 39% to $1.558 billion</strong>. Receivables rose about <strong>21%</strong>, faster than revenue’s <strong>12.5%</strong> sequential gain. That does not prove weak collections, but it means reported growth needs better cash-conversion confirmation. AMD’s <strong>$8.835 billion net-cash position</strong> makes this a valuation risk, not a solvency argument.</p>
+<p>Nor is an all-stock acquisition free. The <strong>$8.2 billion World Labs agreement</strong> preserves cash but may dilute existing holders; the supplied reports give no share-issuance figure or commercial-return timetable. AMD already has <strong>$41.105 billion in goodwill and other intangibles</strong>, about half its assets. Talent and research could be valuable, but they are not yet demonstrated earnings.</p>
+<p>Finally, I agree that the <strong>3.6% September 28 decline</strong> does not break the uptrend. It does, however, matter when weekly and monthly stretch readings are just above <strong>+2</strong>, momentum is cooling, and rising yields threaten growth-stock multiples. A close above <strong>$630.63</strong> might improve the chart; it would not validate the forward earnings estimate or the acquisition economics.</p>
+<p><strong>My recommendation on AMD: avoid new purchases or remain underweight at this price—not an automatic short against an uptrend.</strong> I would reconsider if subsequent results sustain margins <em>and</em> restore cash conversion, while the deal filing makes dilution and a credible product path clearer. Waiting for that evidence risks missing some upside; buying now risks paying for it twice.
+Bear Analyst: Bull, I agree that AMD’s growth is real. Q2’s <strong>50.1% revenue increase</strong> and <strong>53.8% gross margin</strong> are strong results. My objection is not that investors must wait for <em>perfect</em> confirmation; it is that the current price leaves little room for ordinary setbacks.</p>
+<p>Take your useful illustration: if the next two quarters merely match Q2 sales, FY2026 revenue would reach about <strong>$44.86 billion</strong>. At the reported <strong>$992.3 billion market capitalization</strong>, AMD would still trade at roughly <strong>22× those hypothetical annual sales</strong>. And sales alone do not deliver the <strong>$15.58 forward EPS</strong> embedded in the apparently cheaper <strong>39× forward P/E</strong>—an estimate nearly four times trailing EPS of <strong>$3.91</strong>. That is a demanding earnings bridge even after an excellent quarter. Nvidia’s position and Broadcom’s custom-silicon efforts make sustained pricing and margin gains harder to take for granted; the available segment data do not tell us which AMD businesses are carrying the growth.</p>
+<p>Cash conversion is the more immediate test. Q2 free cash flow was <strong>$1.558 billion</strong>, <em>below the $1.729 billion generated a year earlier</em> despite that 50% sales increase, and down <strong>39% sequentially</strong>. Higher capex explains part of the decline, but there was also a <strong>$730 million working-capital cash use</strong>; receivables rose about <strong>21% quarter over quarter</strong>, versus <strong>12.5%</strong> revenue growth. None of that proves collections are failing. It does mean the reported operating leverage has not yet produced comparable free-cash-flow leverage. Using the four reported quarters’ <strong>$8.403 billion</strong> of free cash flow, AMD’s yield at that market cap is only about <strong>0.85%</strong>.</p>
+<p>I grant that <strong>$8.835 billion in net cash</strong> gives AMD flexibility. It does not protect shareholders from paying too much or from possible dilution under the <strong>$8.2 billion all-stock World Labs agreement</strong>. The deal may create valuable capabilities, but neither its share issuance nor its commercial payoff is established.</p>
+<p>Finally, an uptrend is not a valuation defense. AMD closed <strong>3.6% lower on September 28</strong> while weekly and monthly stretch readings remained above <strong>+2</strong>; rising yields add another risk to an expensive growth multiple. I would not short solely on that pullback, and I would not mistake a close above <strong>$630.63</strong> for proof that earnings expectations are achievable.</p>
+<p><strong>My recommendation remains to avoid new AMD purchases or stay underweight.</strong> I would reconsider on evidence that free cash flow catches up with growth, receivables stop outpacing sales, and the World Labs filing clarifies what existing shareholders will give up. That is not asking for certainty—it is asking for a better margin of safety.
+Bear Analyst: <strong>Bear Analyst:</strong> Bull, your capex explanation is fair—but it explains <em>why</em> free cash flow fell, not whether shareholders will earn an adequate return on that spending. AMD’s Q2 gross-profit growth was impressive. Yet operating cash flow rose just <strong>$355 million year over year</strong> on <strong>$3.851 billion of additional revenue</strong>. Operating cash-flow margin fell from about <strong>26% to 21%</strong>, and free-cash-flow margin from about <strong>22.5% to 13.5%</strong>. Capex may pay off later; the <strong>$730 million working-capital cash use</strong> and receivables growing faster than sales mean that payoff is not visible in cash flow yet.</p>
+<p>That distinction matters at this price. At the reported market capitalization, even <strong>doubling</strong> the last four quarters’ <strong>$8.403 billion</strong> of free cash flow would produce a yield of only about <strong>1.7%</strong>, assuming the share price stayed unchanged. I am not forecasting that cash flow will double; I am illustrating how much improvement investors are paying for in advance.</p>
+<p>I also take your point that World Labs’ <strong>$8.2 billion</strong> price is only about <strong>0.8% of AMD’s market value</strong>. But it is nearly equal to a year of reported free cash flow. Because the consideration is stock, it preserves cash while potentially diluting existing holders; neither the share issuance nor the target’s earnings contribution is established. The small percentage of market value does not establish a good return on the deal.</p>
+<p>AMD’s operating leverage is real, and I would not short it simply because it is expensive or had one down day. But a staged purchase still pays today’s valuation before we know whether cash conversion improves or whether those margins endure against Nvidia and custom-silicon competitors. <strong>I remain underweight AMD and would avoid new purchases at this price.</strong> Sustained cash-flow improvement, receivables tracking sales more closely, and clear deal economics would give me reason to reconsider—not perfect certainty.
+Bear Analyst: <strong>Bear Analyst:</strong> Bull, I’m not asking to wait until every uncertainty is resolved. I’m asking whether AMD offers enough upside <em>at this price</em> to compensate for the risks we can already see. A small, staged position limits dollars at risk, but it does not make the entry valuation less demanding.</p>
+<p>Consider a scenario that gives your operating thesis considerable credit: AMD achieves the vendor’s <strong>$15.58 forward EPS estimate</strong>, nearly four times its <strong>$3.91 trailing EPS</strong>. At <strong>30×</strong> those earnings rather than today’s roughly <strong>39× forward multiple</strong>, the share price would be about <strong>$467—roughly 23% below</strong> the September 28 close of $607.87. That is a valuation illustration, not a price target. It shows why strong execution alone may not protect the stock if rising yields or competitive pressure compress the multiple.</p>
+<p>Your capex explanation for the free-cash-flow decline is valid, but the cash test is broader than capex. Q2 operating cash flow rose just <strong>$355 million year over year</strong> while revenue rose <strong>$3.851 billion</strong>; operating-cash-flow margin fell from about <strong>26% to 21%</strong>. Receivables also grew faster than sales sequentially. None of this proves the reported growth is unsound. It does mean shareholders are being asked to pay for operating leverage before comparable cash-flow leverage has appeared. Nvidia’s competition and Broadcom’s custom-silicon efforts make assuming that gap will close especially consequential.</p>
+<p>I agree AMD’s net cash supports the business, and I would not short an intact uptrend on one down session. But net cash does not insure a nearly <strong>$992 billion</strong> equity valuation, and the World Labs deal has no established earnings payoff or quantified dilution yet. Your plan to reduce the position if cash conversion or margins fail is disciplined; my concern is that the share price may reprice before those failures are clear in a quarterly report.</p>
+<p><strong>I remain underweight AMD and would avoid new purchases at this price.</strong> I would reconsider with better cash conversion, margins that hold up, and deal terms that let shareholders assess what they are paying for.
+Bear Analyst: <strong>Bull, AMD’s operating improvement is real. The question is whether it is enough at this price.</strong> First-half operating income reaching 94% of full-year 2025 is impressive, but it compares against last year’s earnings—not the roughly <strong>$992 billion</strong> investors are paying for AMD today. Even if Q2’s <strong>$1.99 billion</strong> of operating income repeated every quarter, the resulting annualized figure would be about <strong>$7.96 billion</strong>. Against roughly <strong>$983 billion</strong> of enterprise value, that is about <strong>124× operating income</strong>. That is a run-rate illustration, not a forecast, but it shows how much further improvement the valuation demands.</p>
+<p>Your staged position limits exposure; it does not improve the entry price. At <strong>30× earnings</strong>, AMD would need about <strong>$20.26 in EPS</strong> merely to support the September 28 close of <strong>$607.87</strong>—roughly <strong>30% above</strong> the already ambitious <strong>$15.58 forward EPS</strong> estimate. Strong results can continue while the stock falls if expectations or the multiple reset.</p>
+<p>I also would not equate operating leverage with durable shareholder returns yet. Q2 free cash flow fell <strong>39% sequentially</strong>, working capital consumed <strong>$730 million</strong>, and receivables grew faster than sales. Higher capex explains part of the cash-flow decline, but its return remains to be demonstrated. With no segment breakdown, we cannot tell how broadly based the margin gains are or assume they will hold against Nvidia and Broadcom. Rising yields add pressure to an expensive multiple, while World Labs’ unquantified share issuance could raise the per-share earnings hurdle.</p>
+<p><strong>I remain underweight AMD and would avoid new purchases at this price—not short an intact uptrend.</strong> Sustained margins <em>and</em> improving cash conversion would make your measured-position case more persuasive. For now, shareholders are paying for both before the evidence is in.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For AMD, the bear case wins on entry valuation and cash conversion, not on whether the business is growing. Using only the supplied figures and September 28 reference close of $607.87, the operating improvement is substantial: Q2 revenue grew 50.1% year over year, gross margin reached 53.8%, and operating income reached $1.990 billion. AMD also has $8.835 billion in net cash, positive free cash flow, and an intact reported uptrend. The bull correctly explains that higher capex more than accounts for the year-over-year FCF decline; that decline does not establish that earnings are hollow.</p>
+<p>Nevertheless, AMD's roughly 24x trailing sales valuation and 0.85% trailing FCF yield already demand considerable improvement. Cash generation is not scaling with sales: operating-cash-flow margin fell from about 26.2% to 20.5%, receivables grew roughly 21% sequentially versus revenue growth of 12.5%, and working capital consumed $730 million. Higher capex explains part of the cash burden but does not establish an adequate return on that investment. Even achieving the vendor's $15.58 forward EPS would imply about $467 at a 30x multiple, approximately 23% below the supplied close. That is a sensitivity illustration, not a target, a probability-weighted forecast, or a claim that 30x is fair value.</p>
+<p>The forward EPS estimate's accounting basis and horizon are not supplied, so its comparison with $3.91 trailing EPS does not establish like-for-like fourfold earnings growth. Segment-level drivers and World Labs share-issuance and commercial-return details are also missing. Assign no acquisition earnings benefit without evidence. Overall, the demonstrated operating leverage warrants retaining limited exposure, but the valuation and weaker cash-conversion margins outweigh the argument for adding now. This supports a moderate reduction, not a full exit or an outright short.</p>
+<p><strong>Strategic Actions</strong>: AMD exposure: Set a ceiling of 0.50x a standard AMD allocation, meaning half the normal position budget, not half the portfolio. The trader and portfolio manager should map this ceiling to actual holdings and portfolio constraints. If exposure is already at or below the ceiling, do not automatically top it up; avoid fresh AMD purchases at the supplied valuation. Do not initiate an outright short or use leverage for this plan.</p>
+<p>Execution: If AMD exposure exceeds the ceiling, trim half the required reduction at the next liquid trading opportunity and complete the balance within five trading sessions. Prefer rebounds for the second tranche, including toward the supplied $630.63 reference level, but do not leave the reduction indefinitely contingent on a rally. Confirm executable quotes and that the supplied price levels remain relevant before placing orders; $607.87 is a debate reference close, not a verified live quote.</p>
+<p>Risk controls: While those reference levels remain applicable, a daily close below $596.07 triggers a further reduction to a ceiling of 0.25x standard AMD allocation at the next liquid opportunity. A recovery above $630.63 alone does not authorize adding; chart strength cannot validate the earnings estimate or acquisition economics. These are exposure rules, not guaranteed execution prices.</p>
+<p>Fundamental review: Reassess AMD at the next quarterly release and when acquisition terms are available. Consider relaxing the exposure ceiling only with gross margin holding near Q2's 53.8%, receivables growth no longer exceeding revenue growth on the same comparison basis, and improving operating-cash-flow and FCF conversion from Q2's approximately 20.5% and 13.5% margins. Also require either a more defensible valuation at the execution price or a credible, like-for-like per-share earnings bridge; operational improvement alone is not enough at any price. Obtain the acquisition issuance terms and commercial milestones before crediting any World Labs earnings. If margins materially weaken or cash conversion deteriorates further, reduce the ceiling to 0.25x even if the chart remains constructive.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: AMD’s underweight plan supports a measured reduction of exposure above 0.50x a standard AMD allocation: roughly 24x trailing sales, a 0.85% trailing FCF yield and weakening cash conversion outweigh strong growth and an intact uptrend. The $607.87 reference close is below the prior $630.63 close, while $25.42 ATR makes a rebound toward $630.63 preferable for the second sale tranche, without delaying the reduction beyond five trading sessions. A daily close below $596.07, the latest session low rather than established support, triggers a further reduction to at most 0.25x standard allocation; this is not a guaranteed stop execution price.</p>
+<p><strong>Entry Price</strong>: 630.63</p>
+<p><strong>Stop Loss</strong>: 596.07</p>
+<p><strong>Position Sizing</strong>: For AMD, cap residual exposure at 0.50x the caller’s standard AMD allocation (not half the portfolio); if above that ceiling, sell half of the excess at the next liquid opportunity and the rest within five trading sessions, preferably on a rebound. If already at or below 0.50x, do not add automatically; on a daily close below $596.07, trim further to at most 0.25x. No short or leverage; verify executable quotes and levels.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: I favor SELL for AMD, but not because the growth story has failed. The aggressive move is to reduce an oversized position while the long-term uptrend is still intact, rather than wait for the market to settle whether today’s pullback is temporary. AMD grew Q2 revenue 50.1% year over year, reached a 53.8% gross margin, and could gain a meaningful physical-AI capability through the proposed World Labs acquisition. Those are reasons to retain upside exposure—not reasons to ignore the price being paid for it.</p>
+<p>At roughly 24 times trailing sales and a 0.85% trailing free-cash-flow yield using the summed quarterly figures, AMD leaves little room for imperfect execution. Q2 free cash flow fell 39% sequentially, while receivables grew about 21% against 12.5% revenue growth. The quoted forward P/E of 39 assumes earnings rise dramatically from the trailing level. The $8.2 billion all-stock World Labs agreement may eventually justify a richer business, but its dilution and commercial returns are not yet quantified. Taking some exposure off now is a high-conviction bet that capital and risk capacity have value before those questions are answered.</p>
+<p>I would push back on two tempting forms of caution. Selling every AMD share because it fell to $607.87 from the prior $630.63 close would discard a real growth engine: weekly, monthly and daily SuperTrend remain up, and MACD is still positive. But waiting passively for a confirmed trend reversal could be expensive too. AMD rose about 38% from its September 3 close to September 25, its weekly and monthly Z-scores are both just above +2, and the daily SuperTrend reference was $558.12—well below the latest close. A trader need not wait for that much potential downside before resizing an expensive holding. Neither the developing TD-9 sell-setups nor the single-day decline proves a reversal; together with the valuation, they make early reduction worth the risk of selling before another rally.</p>
+<p>The best expression is the proposed staged SELL, not a bearish all-or-nothing call. If the caller holds more than 0.50x their own standard AMD allocation, sell half the excess at the next liquid opportunity and the remainder within five trading sessions, favoring a rebound toward $630.63 without requiring one. Keep up to 0.50x to participate if World Labs and AMD’s operating growth deliver. If already at or below that size, do not sell automatically; a subsequent daily close below $596.07 calls for trimming to at most 0.25x. That low is a new reference, not established support, and the close-based rule is not a guaranteed stop fill. Verify executable quotes; $630.63 is a prior close, not an available sale price. No short or leverage is needed.</p>
+<p>That is the high-reward case for reducing AMD: preserve a stake in its innovation upside, but stop giving a full allocation to a valuation that demands near-flawless results.
+Aggressive Analyst: Conservative Analyst, I agree that $630.63 is a prior close, not an executable target. But removing the rebound preference altogether gives up a tactical opportunity without materially improving the first step of the plan: sell half of any excess AMD exposure at the next liquid opportunity. From the verified $607.87 close, a move back toward $630.63 is about 3.7%, less than AMD’s $25.42 ATR. That does not make a bounce likely, but with the weekly, monthly and daily trends still up, it makes a brief window for the second tranche worth considering. Five trading sessions is a deadline, not permission to ignore deteriorating prices or a portfolio risk limit that calls for faster selling.</p>
+<p>You are also right that 0.50x is not automatically safe for an unknown portfolio. It is a ceiling relative to the caller’s standard AMD allocation, not a required holding. If their prudent risk limit is lower, use the lower limit. But treating World Labs solely as a reason to monitor misses the reward side of retaining a suitably sized stake: AMD’s Q2 revenue grew 50.1% year over year, gross margin reached 53.8%, and the proposed acquisition could open a differentiated physical-AI opportunity. The aggressive decision is to keep that upside option while refusing to give an expensive stock a full allocation. I agree with you that waiting for the $558.12 daily SuperTrend line to break could surrender too much ground.</p>
+<p>Neutral Analyst, “high conviction” describes the sizing decision, not certainty that AMD’s cash conversion is permanently impaired. Capex and working capital help explain one weak free-cash-flow quarter. Yet at roughly 24 times trailing sales and a roughly 0.85% trailing FCF yield using the summed quarters, investors are already paying for a substantial improvement. The quoted 39-times forward P/E likewise depends on earnings rising dramatically from their trailing level. Strong growth and an intact trend justify the residual position; they do not justify leaving an oversized one untouched while that improvement remains unproven.</p>
+<p>I agree with your distinction between a broad rate-driven decline and AMD-specific weakness, but either can hurt a richly valued holding. The deal’s dilution and returns are still unquantified, and the mixed, low-confidence sentiment sample cannot resolve the question. Checking total semiconductor exposure is sensible; it should determine whether to sell faster, not become a reason to defer the first tranche.</p>
+<p>My recommendation remains SELL for AMD, conditional on the caller’s actual position: reduce exposure above the lower of 0.50x their standard AMD allocation and their prudent portfolio limit, selling half the excess promptly and the rest within five trading sessions, preferably on a rebound but without requiring one. If already within that limit, do not sell mechanically on this one session. A subsequent daily close below $596.07 calls for trimming to at most 0.25x; that recent low is not established support, and a close-based trigger cannot guarantee a fill. Verify executable quotes, and use neither a short nor leverage.
+Aggressive Analyst: Conservative Analyst, you’re right that ATR does not tell us a rebound is likely, and $630.63 is a prior close, not an executable quote. But selling every modest excess immediately gives up execution flexibility after AMD’s 3.6% one-session decline. Selling half the excess at the next liquid opportunity cuts risk now. With the weekly, monthly and daily trends still up, a bounded window for the second tranche is worth keeping: the $22.76 move back to the prior close is less than AMD’s $25.42 ATR. That is a reason to <em>allow</em> a rebound, not to count on one. If the holding breaches a hard portfolio limit, complete the reduction promptly instead.</p>
+<p>I also agree that a rate-driven sell-off can hurt AMD regardless of its cause. That strengthens the case for SELL before a confirmed reversal, not for abandoning all upside exposure. Waiting for the $558.12 daily SuperTrend line would leave substantial room for losses from the verified $607.87 close. Yet AMD’s 50.1% year-over-year Q2 revenue growth, 53.8% gross margin and proposed World Labs physical-AI expansion make a suitably sized residual stake more than a passive item to monitor.</p>
+<p>Neutral Analyst, one quarter of weaker cash flow does not prove lasting deterioration, and ATR offers no bounce probability. My conviction is in <strong>resizing an oversized holding</strong>, not forecasting the next five sessions. At roughly 24 times trailing sales and a 0.85% trailing free-cash-flow yield, AMD needs exceptional execution; Q2 free cash flow fell 39% sequentially, receivables outgrew revenue, and the $8.2 billion all-stock deal’s dilution and returns remain unquantified. Strong growth justifies keeping an upside option. It does not justify leaving the full excess exposed while awaiting clearer filings or rate data.</p>
+<p>My recommendation remains SELL for AMD, applied to the caller’s actual holding and broader semiconductor exposure. If it exceeds the lower of 0.50x their standard AMD allocation and their prudent portfolio limit, sell half the excess at the next liquid opportunity and the rest within five trading sessions—sooner to satisfy any hard limit or if conditions worsen. Prefer a rebound for the second sale, but never require it. If already within the limit, do not sell solely on September 28’s decline. A subsequent daily close below $596.07 calls for reducing any holding above the lower of 0.25x standard allocation and the portfolio limit; that low is not established support or a guaranteed fill price. Verify executable quotes. No short or leverage.
+Aggressive Analyst: Conservative Analyst, the five-session window is a wager—but so is selling every modest excess immediately after AMD’s 3.6% decline. I am not claiming that the $25.42 ATR predicts a rebound to $630.63. I am saying that selling half the excess at the next liquid opportunity cuts exposure now, while a short, firm deadline preserves the chance to execute the rest more favorably in a stock whose weekly, monthly and daily trends remain up. If that remaining excess breaches the caller’s risk budget, I agree: sell it promptly. The rebound is a preference, never a condition.</p>
+<p>Neutral Analyst, your requirement to budget the interim risk is right; I would make it an explicit constraint, not a reason to abandon the staged plan altogether. Nor does the SELL depend on proving that one weak quarter marks a lasting cash-flow problem, or that rising yields caused AMD’s decline. At roughly 24 times trailing sales and a roughly 0.85% trailing free-cash-flow yield, AMD is priced for exceptional execution. Q2 free cash flow fell 39% sequentially, receivables grew faster than sales, and the $8.2 billion all-stock World Labs deal has no quantified dilution or commercial return in the supplied evidence. Waiting for certainty can mean surrendering the chance to resize before those uncertainties are priced more harshly.</p>
+<p>The upside is why this is a <strong>staged SELL, not an exit call</strong>. AMD’s 50.1% year-over-year Q2 revenue growth, 53.8% gross margin and potential physical-AI expansion justify keeping a suitably sized stake. Reducing an oversized holding frees risk capacity while preserving participation if that promise pays off.</p>
+<p>For AMD, compare the actual holding with the lower of 0.50x the caller’s standard AMD allocation and their prudent portfolio limit, including other semiconductor exposure. If above it, sell half the excess at the next liquid opportunity and the rest within five trading sessions; finish sooner if the interim exposure exceeds the risk budget or conditions worsen. Prefer a rebound for the second tranche, but do not wait for one. If already within the limit, do not sell merely because of September 28. A later daily close below $596.07 calls for reducing any holding above the lower of 0.25x standard allocation and the portfolio limit. That recent low is not established support or a guaranteed fill; $630.63 is a prior close, not an executable quote. Verify quotes, and use no short or leverage.
+Aggressive Analyst: Conservative Analyst, I agree that the unsold excess carries risk and that AMD’s $25.42 ATR does not predict a rebound. But immediate liquidation also makes a bet: that giving up execution flexibility after a 3.6% down day is worth more than a brief chance to sell into strength. Selling half the excess at the next liquid opportunity reduces risk now. AMD’s weekly, monthly and daily trends remain up, so I would allow a tightly bounded window for the rest—not wait five sessions by default, and not hold above a hard portfolio limit. The $630.63 prior close is an opportunity if offered, never an execution target.</p>
+<p>Your valuation case strengthens the SELL, not an indiscriminate exit. Roughly 24 times trailing sales and a 0.85% trailing free-cash-flow yield leave little room for disappointment, especially after Q2’s cash-flow decline and faster receivables growth. But AMD also delivered 50.1% year-over-year revenue growth and a 53.8% gross margin. The proposed World Labs deal could extend that growth into physical AI, though its dilution and returns are unknown. Keeping a <em>suitably sized</em> stake preserves that high-reward possibility while reducing exposure to a repricing.</p>
+<p>Neutral Analyst, I accept your condition on the second tranche: “half now, half later” is appropriate only if the caller can budget the interim risk alongside other semiconductor and growth holdings. One ATR against the deferred shares is a useful stress scenario, not a worst-case loss; gaps could be larger. I also agree that one weak cash-flow quarter proves no lasting deterioration. The reason to resize before proof arrives is that AMD’s valuation already demands exceptional results.</p>
+<p>My recommendation remains SELL for AMD if the actual holding exceeds the lower of 0.50x the caller’s standard AMD allocation and their portfolio-adjusted limit. Sell half that excess at the next liquid opportunity and the rest within five trading sessions, sooner if an interim or hard risk limit requires it or conditions worsen. Do not require a rebound. If already within the limit, do not sell merely because of September 28. A later daily close below $596.07 calls for reducing any holding above the lower of 0.25x standard allocation and the portfolio limit. That recent low is not established support or a guaranteed fill. Verify executable quotes; no short or leverage.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: Aggressive Analyst, I agree with SELL for AMD, but I would remove the bet on a rebound from the execution plan. Selling half the excess now while leaving the rest for as long as five trading sessions keeps risk on the books in the hope of reaching $630.63. That was a prior close, not an executable price. If AMD is above the caller’s risk-appropriate allocation, I would start reducing the excess at the next liquid opportunity and complete the reduction promptly, using verified quotes rather than making a rebound a condition.</p>
+<p>You are right that AMD’s 50.1% year-over-year Q2 revenue growth, 53.8% gross margin and intact uptrend argue against an indiscriminate exit. They do not, however, establish that retaining 0.50x is safe for this particular portfolio. At roughly 24 times trailing sales, AMD has little valuation cushion if growth disappoints. Q2 free cash flow fell 39% sequentially, receivables grew faster than revenue, and the $8.2 billion all-stock World Labs agreement has no quantified dilution or commercial return in the supplied evidence. Its strategic promise is a reason to monitor the investment, not to give it a preset amount of risk capacity.</p>
+<p>The Neutral Analyst has not offered a counterpoint, so I would not attribute one to them. But waiting for a confirmed trend reversal would be an expensive form of caution here: the daily SuperTrend reference is $558.12, about 8% below the verified $607.87 close. Conversely, $596.07 is only the latest session low; a close below it is a reassessment trigger, not a guaranteed stop-loss execution price.</p>
+<p>My adjustment is therefore a risk-budgeted SELL for AMD: reduce any exposure above the smaller of 0.50x the caller’s standard AMD allocation and the amount their portfolio can prudently absorb, without waiting for $630.63. If already below that limit, do not sell mechanically on one down day, but review concentration and trim further if a close below $596.07 or new deal and cash-flow evidence worsens the risk case. No short or leverage.
+Conservative Analyst: Aggressive Analyst, a rebound toward $630.63 is possible, but its distance from the last verified $607.87 close being less than AMD’s $25.42 ATR does not make it a dependable execution opportunity. ATR also describes how quickly the remaining excess could lose value. With AMD trading at roughly 24 times trailing sales, I would not leave an oversized position in place for up to five sessions to seek a better price. Reduce it at the next liquid opportunity and complete the move to the risk limit promptly, using verified executable quotes and sensible order execution rather than a rebound target.</p>
+<p>Neutral Analyst, I agree that one quarter of weaker free cash flow does not prove a lasting problem, and one down day does not prove the uptrend has ended. But a broad, rate-driven decline would still hurt a richly valued AMD holding; identifying the cause does not reduce the portfolio loss. Q2 free cash flow fell 39% sequentially, receivables grew faster than revenue, and the proposed $8.2 billion all-stock World Labs acquisition has no quantified dilution or commercial return in the supplied evidence. AMD’s strong revenue growth, margins and liquidity support keeping a <em>suitably sized</em> stake, not extending the time spent above a prudent limit.</p>
+<p>My recommendation remains SELL for AMD if the caller’s holding exceeds the lower of 0.50x their standard AMD allocation and their own portfolio risk limit, after accounting for other semiconductor and growth-stock exposure. Bring any excess within that limit promptly; a severe concentration calls for faster action, not an automatic half-now, half-later schedule. If AMD is already within the limit, do not sell mechanically because of September 28 alone. A subsequent daily close below $596.07 warrants prompt reassessment and, if the holding exceeds it, a reduction to no more than the lower of 0.25x the standard allocation and the prudent portfolio limit. That recent low is not established support, and a close-based trigger cannot guarantee a sale at $596.07, particularly after a gap. No short or leverage.
+Conservative Analyst: Aggressive Analyst, I agree with resizing rather than declaring AMD’s growth story over. But the proposed five-session window is still a wager with the portion you have already decided is excess. The $22.76 distance from the last verified $607.87 close to $630.63 being less than one $25.42 ATR does not favor a rebound; that volatility can work just as quickly against the unsold shares. AMD’s intact uptrend and strong Q2 growth support considering a residual stake, not keeping exposure above a prudent limit while seeking a better exit.</p>
+<p>Neutral Analyst, a bounded delay may be manageable if the excess is small, but “below a hard limit” is not the same as <em>within a prudent allocation</em>. At roughly 24 times trailing sales and a trailing free-cash-flow yield near 0.85% using the summed quarters, AMD has little cushion for disappointing growth or higher discount rates. One weaker cash-flow quarter does not establish a lasting problem, yet Q2 free cash flow fell 39% sequentially and receivables grew faster than revenue. The $8.2 billion all-stock World Labs agreement may create value, but neither dilution nor commercial returns are quantified. Waiting for clarification leaves that uncertainty with shareholders.</p>
+<p>I would keep SELL conditional on the caller’s actual holdings. After accounting for other semiconductor and growth-stock exposure, bring any AMD position above the lower of 0.50x the caller’s standard AMD allocation and their prudent portfolio limit within that limit promptly, using verified quotes and sensible execution—not a hoped-for $630.63 rebound. If already within the limit, do not sell mechanically on one down day; even retaining 0.50x is a ceiling, not an obligation. A later close below $596.07 warrants reassessment and reduction of any holding above the lower of 0.25x standard allocation and the prudent limit. That level is a recent low, not established support or a guaranteed sale price; a gap or a breached risk limit may require action before a closing signal. No short or leverage.
+Conservative Analyst: Aggressive Analyst, selling a modest excess promptly after AMD’s decline does risk missing a rebound. But retaining shares you have already judged excessive is a different wager: it leaves avoidable downside on the books to seek a better exit. The $25.42 ATR does not favor a move back to $630.63 over a further decline. AMD’s uptrend supports keeping a prudently sized stake; it does not justify a default five-session wait for the rest of an oversized one.</p>
+<p>Neutral Analyst, I agree that one weak free-cash-flow quarter and one down day do not prove AMD’s growth has failed. They need not prove it for a sizing decision. At roughly 24 times trailing sales and a trailing free-cash-flow yield near 0.85%, the valuation offers little cushion if expected earnings growth falls short. Q2 free cash flow fell 39% sequentially, receivables outgrew sales, and the proposed $8.2 billion all-stock World Labs deal has neither quantified dilution nor demonstrated commercial returns in the supplied evidence. A broad, rate-driven sell-off would still impose losses on an oversized holding.</p>
+<p>My recommendation is a conditional SELL for AMD: compare the actual position with the lower of 0.50x the caller’s standard AMD allocation and a prudent limit that includes other semiconductor and growth exposure. If it exceeds that level, bring it within the limit promptly at verified executable prices, without making a rebound the plan. Use sensible execution rather than a rushed order at any price. If already within the limit, do not sell solely because of September 28. A later close below $596.07 warrants reassessment and reduction of any holding above the lower of 0.25x standard allocation and the prudent limit; that recent low is not established support or a guaranteed stop price. No short or leverage.
+Conservative Analyst: Aggressive Analyst, selling AMD exposure already judged excessive is not a bet that the next move will be down. It is a decision not to keep an avoidable loss on the books while hoping for a better exit. The move from the verified $607.87 close back to $630.63 is about 3.7%; AMD’s $25.42 ATR is about 4.2% of that close. That volatility offers no particular reason to expect the rebound before another decline, and a gap could be larger. The intact uptrend supports a prudently sized residual holding, not a default five-session wait for shares above the intended allocation.</p>
+<p>Neutral Analyst, I accept that a modest remainder need not be sold recklessly into an unsettled market. But an interim limit should be a real, portfolio-wide loss budget—not simply room below a hard ceiling. Otherwise the execution window quietly becomes additional risk-taking. AMD’s 50.1% Q2 revenue growth and 53.8% gross margin are substantial; one weaker cash-flow quarter does not prove they will fade. Yet at roughly 24 times trailing sales and a trailing free-cash-flow yield near 0.85%, disappointing cash conversion or earnings could be costly. The $8.2 billion all-stock World Labs agreement adds possible upside, but its dilution and commercial return remain unquantified. AMD’s liquidity protects the business more directly than it protects shareholders from a valuation reset.</p>
+<p>I would keep the conditional SELL for AMD. Compare the actual holding with the lower of 0.50x the caller’s standard AMD allocation and a prudent limit that accounts for other semiconductor and growth exposure. If above it, reduce the excess promptly using verified executable quotes and sensible order execution; allow a brief second tranche only if its interim downside is explicitly budgeted, never because $630.63 might return. If already within the limit, do not sell mechanically on one down day. A subsequent daily close below $596.07 warrants reassessment and reduction of any holding above the lower of 0.25x standard allocation and the portfolio limit. That recent low is neither established support nor a guaranteed stop price; a breached risk limit may require action sooner. No short or leverage.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: Aggressive Analyst, I agree that AMD’s valuation makes an oversized position worth reducing, but I would challenge the “high-conviction” label. Q2 free cash flow fell 39% sequentially partly as capital spending and working-capital needs rose; one quarter does not establish lasting cash-conversion trouble. Revenue grew 50.1% year over year, gross margin reached 53.8%, and the longer-term trend remains up. Those facts justify retaining some exposure, even though roughly 24 times trailing sales and uncertain returns from the $8.2 billion all-stock World Labs agreement leave little room for disappointment.</p>
+<p>Conservative Analyst, your portfolio-aware ceiling is the stronger risk control. But completing every sale immediately could lock in a decision based partly on one sharp down day. Rising yields may be pressuring growth stocks broadly, and the evidence does not yet isolate an AMD-specific deterioration. Equally, the intact trend is no reason to leave an oversized holding untouched: AMD’s $25.42 ATR signals substantial ordinary volatility.</p>
+<p>I favor a conditional SELL. First compare the actual AMD holding with both the caller’s standard AMD allocation and their total semiconductor and growth-stock exposure. If it exceeds the smaller of 0.50x the standard AMD allocation or the portfolio’s prudent risk limit, sell half the excess at the next liquid opportunity and complete the reduction within five trading sessions—or sooner if concentration is severe. A rebound toward $630.63 would be welcome, not required; it is a prior close, not a promised sale price. If already within the limit, do not sell merely because of one session. Under the proposed plan, a subsequent close below $596.07 calls for trimming to at most 0.25x, while recognizing that this recent low is not established support and a close-based rule cannot guarantee an execution price. Keep the remaining stake diversified and reassess it as deal terms, cash conversion, and the rate backdrop become clearer.
+Neutral Analyst: Aggressive Analyst, I agree that selling half of an oversized AMD position promptly while retaining a smaller stake is more defensible than calling a top. But the fact that $630.63 is less than one $25.42 ATR above the $607.87 close says little about the odds of getting that price; the same volatility could move against the unsold tranche. I would treat a rebound as an execution opportunity, never as a reason to miss the five-session deadline or remain above a firm portfolio risk limit.</p>
+<p>Conservative Analyst, your insistence on respecting that limit is right. Where I differ is on selling every modest excess immediately regardless of circumstances. AMD’s 50.1% year-over-year Q2 revenue growth, 53.8% gross margin and intact weekly and daily uptrends leave a credible upside case. A short, bounded window for a second tranche can be reasonable if the position does not breach the caller’s hard risk budget. Neither that growth nor the proposed World Labs acquisition, however, cancels out roughly 24 times trailing sales, weaker recent free cash flow and unquantified deal dilution. Rising-yield coverage adds a valuation concern, without giving us verified yield levels or proof that rates caused AMD’s decline.</p>
+<p>My recommendation remains a conditional SELL for AMD. Compare the actual holding with the lower of 0.50x the caller’s standard AMD allocation and their prudent limit after other semiconductor and growth-stock exposure. If above it, sell at least half the excess at the next liquid opportunity; complete the reduction within five trading sessions, sooner if concentration breaches a hard limit or conditions worsen. Do not require a rebound to $630.63. If already within the limit, do not sell solely on one down day. Under the proposed plan, a subsequent daily close below $596.07 calls for reducing any remaining holding above the lower of 0.25x standard allocation and the portfolio limit. That low is a new reference, not established support or a guaranteed stop price. Verify executable quotes; use no short or leverage.
+Neutral Analyst: Aggressive Analyst, I agree with reducing an oversized AMD holding before the uptrend breaks. But the distance from $607.87 back to $630.63 being less than AMD’s $25.42 ATR gives us no reason to expect a rebound within five sessions. The second tranche should remain exposed only if the caller has explicitly budgeted for that interim risk—not simply because the price might improve.</p>
+<p>Conservative Analyst, you are right that being below a hard limit is not the same as reaching a prudent allocation. Still, promptly selling every modest excess after one down day can sacrifice execution flexibility without new evidence that AMD’s growth has failed. Q2 revenue rose 50.1% year over year, gross margin reached 53.8%, and the weekly and daily trends remain up. Against that, roughly 24 times trailing sales, weaker quarterly free cash flow, and unquantified returns and dilution from the all-stock World Labs agreement justify a smaller position. Rising-yield reports add a valuation risk, but the supplied data do not establish how much of AMD’s decline rates caused.</p>
+<p>I support a conditional SELL for AMD. Compare the actual holding with the lower of 0.50x the caller’s standard AMD allocation and a prudent limit that accounts for other semiconductor and growth-stock exposure. If above it, sell at least half the excess at the next liquid opportunity. Complete the rest promptly if the remaining excess breaches the caller’s interim risk budget; otherwise finish within five trading sessions, taking a rebound if offered but never requiring $630.63. If already within the limit, do not sell solely because of September 28. A later daily close below $596.07 calls for reducing any holding above the lower of 0.25x standard allocation and the portfolio limit. That recent low is a reassessment trigger, not established support or a guaranteed sale price. Verify quotes and deal disclosures; use no short or leverage.
+Neutral Analyst: Aggressive Analyst, I agree with reducing oversized AMD exposure before a trend break, but I would not make “half now, half later” automatic. The remaining excess still carries risk, and AMD’s $25.42 ATR says nothing about the likelihood of a rebound to $630.63. Keep a second tranche briefly only if the caller can explicitly tolerate its potential loss alongside their other semiconductor and growth-stock exposure. Five sessions should be the latest completion date, not a reason to wait.</p>
+<p>Conservative Analyst, you are right that a prudent allocation matters more than a hoped-for price. But “promptly” need not mean selling a modest remainder into one unsettled session if a short execution window fits a separately set interim risk limit. AMD’s 50.1% year-over-year Q2 revenue growth, 53.8% gross margin and intact uptrend support retaining a suitably sized stake. Equally, roughly 24 times trailing sales, weaker Q2 free cash flow and unquantified returns and dilution from the World Labs agreement argue against leaving a full allocation untouched. One cash-flow quarter does not prove lasting deterioration; the deal’s promise does not prove future profits.</p>
+<p>My recommendation is a conditional SELL for AMD. If the actual holding exceeds the lower of 0.50x the caller’s standard AMD allocation or their portfolio-adjusted limit, sell at least half the excess at the next liquid opportunity. Finish promptly if the remainder breaches an interim risk limit; otherwise finish within five trading sessions, accepting a rebound if offered but never requiring one. If already within the limit, do not sell solely on September 28’s decline. A later daily close below $596.07 calls for reducing any holding above the lower of 0.25x standard allocation or the portfolio limit, though that recent low is not established support or a guaranteed fill. Verify executable quotes and the deal disclosures; use no short or leverage.
+Neutral Analyst: Aggressive Analyst, I agree with selling oversized AMD exposure before a trend break, but I would not call keeping the second tranche an execution advantage unless its downside is budgeted. A rebound toward $630.63 is possible; the $25.42 ATR gives us no reason to expect it. At the verified $607.87 close, one ATR is about 4.2% of the deferred shares’ value, and a gap could cost more.</p>
+<p>Conservative Analyst, that does not mean every modest excess must be sold in one unsettled session. AMD’s 50.1% year-over-year Q2 revenue growth, 53.8% gross margin and intact uptrend support a measured execution window—and a suitably sized residual stake. Still, the company’s net cash is a business buffer, not protection against a shareholder loss if roughly 24 times trailing sales proves too demanding. Q2’s weaker free cash flow warrants monitoring, not a conclusion that growth has failed. The all-stock World Labs agreement offers upside, but its dilution and commercial returns remain unquantified.</p>
+<p>My recommendation remains a conditional SELL for AMD. Compare the actual holding with the lower of 0.50x the caller’s standard AMD allocation and a prudent portfolio limit that includes correlated semiconductor and growth exposure. If above it, sell at least half the excess at the next liquid opportunity. Keep any remainder briefly only if its potential loss—including a move larger than one ATR—fits an explicit portfolio-wide risk budget; otherwise finish promptly, and in all cases within five trading sessions. Do not require $630.63. If already within the limit, do not sell solely on one down day. A later daily close below $596.07 calls for reducing any holding above the lower of 0.25x standard allocation and the portfolio limit, while a breached risk limit may require earlier action. Neither reference price guarantees a fill. Verify executable quotes; use no short or leverage.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: For AMD, reduce exposure above the lower of 0.50x your standard AMD position budget and your portfolio’s prudent risk limit; this is a ceiling, not a target or 50% of portfolio assets. Sell at least half the excess at the next liquid opportunity and finish promptly, allowing a deferred tranche only within an explicit interim loss budget and a five-trading-session deadline. Do not add at the supplied valuation; a daily close below $596.07, while that reference remains applicable, lowers the ceiling to the smaller of 0.25x standard AMD allocation and your portfolio limit. Verify executable quotes, use no short or leverage, and review remaining AMD exposure at the next quarterly release or earlier if deal disclosures, fundamentals, or risk limits warrant.</p>
+<p><strong>Investment Thesis</strong>: The reduction case wins on valuation and cash conversion, not on proof that AMD’s growth has failed. The analysts’ conditional selling recommendations support Underweight under the supplied rating scale: reduce excessive exposure, rather than automatically exit an appropriately sized holding.</p>
+<p>Valuation and cash conversion: At the supplied September 28 reference close of $607.87, AMD is valued at roughly 24x trailing sales with a trailing FCF yield near 0.85%. Against that demanding valuation, operating-cash-flow margin weakened from about 26.2% to 20.5%, receivables grew roughly 21% sequentially versus revenue growth of 12.5%, and working capital consumed $730 million. Q2 FCF fell 39% sequentially. Capex and working-capital needs help explain the cash burden; the Research Manager separately notes that higher capex more than explains the year-over-year FCF decline. These figures do not prove hollow earnings or permanent deterioration, but they show that cash conversion has not kept pace with growth and that returns on additional investment remain unproven.</p>
+<p>Why retain limited exposure: AMD’s Q2 revenue grew 50.1% year over year, gross margin reached 53.8%, operating income reached $1.990 billion, and net cash was $8.835 billion. Positive FCF and the reported daily, weekly, and monthly uptrends support the neutral and aggressive analysts’ case for a suitably sized residual stake. They do not make a full allocation attractive at any price; net cash protects business resilience more directly than shareholders against multiple compression.</p>
+<p>Unresolved earnings and acquisition assumptions: The vendor’s $15.58 forward EPS versus $3.91 trailing EPS does not establish like-for-like fourfold earnings growth because the forward estimate’s accounting basis and horizon are unspecified. The proposed $8.2 billion all-stock World Labs transaction may add physical-AI capability, but issuance terms, dilution, commercial milestones, and earnings returns are missing. Assign no acquisition earnings benefit and no defensible price target from the supplied evidence.</p>
+<p>Execution judgment: The conservative analyst’s portfolio-aware ceiling and the neutral analyst’s explicit interim loss budget are the strongest controls. Assess total semiconductor and growth-stock exposure before allowing a deferred tranche; absent an explicit budget for that risk, complete the excess reduction promptly. AMD’s $25.42 ATR is about 4.2% of the reference close, not a rebound probability or a maximum possible loss; stress the deferred shares for larger moves and gaps. A rebound toward the $630.63 prior close is merely an opportunity, never a required sale price or reason to delay. If already within the ceiling, do not sell mechanically on one down day or automatically top up. The $596.07 reference is a recent session low, not established support or a guaranteed stop fill; a qualifying close triggers reduction only of exposure above the lower 0.25x ceiling, at the next liquid opportunity. A breached portfolio risk limit can require action before the close or the five-session deadline. Actual holdings, cash, portfolio constraints, and live quotes are not supplied; confirm both executable prices and continued relevance of all reference levels before trading.</p>
+<p>What would change the decision: At the next quarterly release, look for gross margin holding near 53.8%, receivables no longer outgrowing revenue on the same comparison basis, and improving operating-cash-flow and FCF margins from approximately 20.5% and 13.5%. Relax the exposure ceiling only if those improvements are accompanied by a more defensible valuation or a credible, like-for-like per-share earnings bridge. Verify World Labs issuance terms and commercial milestones before crediting earnings benefits. Material margin weakening or further deterioration in cash conversion warrants a ceiling no greater than the lower of 0.25x standard AMD allocation and the prudent portfolio limit, even if the chart remains constructive. A recovery above $630.63 alone does not authorize adding.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Complete AMD reductions promptly and no later than five trading sessions; reassess residual exposure at the next quarterly release or earlier on acquisition disclosures or risk triggers.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

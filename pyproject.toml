@@ -44,6 +44,12 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+docs = [
+    "beautifulsoup4>=4.12",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5",
+    "pymdown-extensions>=10.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

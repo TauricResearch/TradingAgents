@@ -1,0 +1,3725 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/KGC/20261001_claude-opus-5-5_20261001_150824/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: KGC - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-kgc" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: KGC
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bear Researcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-kgc-is-a-levered-gold-bet-not-a-company-specific-edge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. KGC is a levered gold bet, not a company-specific edge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-margin-expansion-is-cyclical-and-costs-chase-prices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Margin expansion is cyclical, and costs chase prices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-jurisdictional-risk-is-not-theoretical-for-this-company" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Jurisdictional risk is not theoretical for this company
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-kgc">Trading Analysis Report: KGC<a class="headerlink" href="#trading-analysis-report-kgc" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-10-01 15:08:24</p>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst:
+Bull Analyst:
+Bull Analyst:
+Bull Analyst:
+Bull Analyst:</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: # Bear Case on KGC (Kinross Gold)</p>
+<p><strong>A note first.</strong> Your last turn came through empty, and none of the research reports (market, sentiment, news, fundamentals) were available for this run. I won't cite margins, price targets, or sentiment readings
+Bear Analyst:
+Bear Analyst:
+Bear Analyst: # Bear Case on KGC (Kinross Gold Corporation)</p>
+<p><strong>Housekeeping first.</strong> The bull's last turn came through empty, and no market, sentiment, news, or fundamentals reports were available for this run. There is no specific claim to rebut, and I won't invent margins, price targets, or sentiment readings to fill the gap. Instead I'll lay out the structural bear case and pre-empt the arguments a KGC bull will almost certainly make. Company-specific facts below come from my background knowledge, not this run's data, and may be stale. Bull, correct me where I'm out of date.</p>
+<h4 id="1-kgc-is-a-levered-gold-bet-not-a-company-specific-edge">1. KGC is a levered gold bet, not a company-specific edge<a class="headerlink" href="#1-kgc-is-a-levered-gold-bet-not-a-company-specific-edge" title="Permanent link">&para;</a></h4>
+<p>If your thesis is "gold is going up," you don't need KGC for it. You can own bullion or a bullion ETF without operating risk, jurisdiction risk, or cost risk. A miner's premium over gold has to be earned through operational alpha, and I haven't seen the bull make that case. Operating leverage also cuts both ways. If gold pulls back, the equity falls harder than the metal.</p>
+<h4 id="2-margin-expansion-is-cyclical-and-costs-chase-prices">2. Margin expansion is cyclical, and costs chase prices<a class="headerlink" href="#2-margin-expansion-is-cyclical-and-costs-chase-prices" title="Permanent link">&para;</a></h4>
+<p>The standard bull line is that a higher gold price drops straight to free cash flow. In practice, energy, labor, consumables, and royalties all rise with the gold price, and some are linked to it directly. Extrapolating peak-cycle margins into a valuation is the classic miner mistake. The relevant question is what free cash flow looks like on a conservative gold deck with realistic cost inflation, not at spot.</p>
+<h4 id="3-jurisdictional-risk-is-not-theoretical-for-this-company">3. Jurisdictional risk is not theoretical for this company<a class="headerlink" href="#3-jurisdictional-risk-is-not-theoretical-for-this-company" title="Permanent link">&para;</a></h4>
+<p>Kinross has already lived through it. Its 2022 exit from Russia was a forced, value-destroying event. Its current footprint includes Mauritania (Tasiast), Brazil (Paracatu), and Chile, alongside the US and Canada. When metal prices are high, governments reach for windfalls through royalty hikes, tax changes, and permitting friction. The bull should quantify how much production and NAV sit in the higher-risk jur
+Bear Analyst:</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Hold</p>
+<p><strong>Rationale</strong>: There wasn't a real debate on KGC this round. All five bull turns were empty. Only two of the bear's five turns had content, and both were cut off mid-argument. The market, sentiment, news and fundamentals reports didn't arrive either. So we have no share price, no valuation multiples, no AISC (all-in sustaining cost), production or guidance figures, no balance sheet, no gold-price assumptions, no sentiment and no news. I won't fill those gaps from memory.</p>
+<p>The bear handled this well. They didn't invent numbers, and they said their company facts came from memory and might be out of date. They made three general points:
+(1) KGC is a leveraged bet on gold with no proven company-specific edge. If the thesis is "gold goes up," bullion gives you that without operating, cost or country risk, and the leverage also works against you when gold falls.
+(2) Margins move with the cycle because costs follow the gold price. Energy, labor, materials and gold-linked royalties all rise with gold, so valuing a miner on peak margins is a classic mistake.
+(3) Country risk is real for Kinross. It was forced out of Russia in 2022, and it now operates in Mauritania (Tasiast), Brazil (Paracatu) and Chile, where governments tend to raise taxes and royalties when metal prices are high.</p>
+<p>These are the right questions, and the bull answered none of them. That puts the burden of proof on the long side. Nobody explained why you'd own KGC rather than the metal, so there's no case for adding. But an unanswered argument isn't a proven one, and none of the three points shows KGC is mispriced today:
+- Leverage works both ways. It tells you how far the stock can move, not which direction.
+- "Costs follow prices" only supports selling if the current share price already assumes spot gold and peak margins. With no price or multiple, we can't check that.
+- Country risk has been part of the Kinross story for years, and we can't tell how much of it the market already prices in. The Russia exit shows the risk is real, but it says nothing about today's valuation.
+- The bear assumes gold prices and margins are near a peak. Nothing in this run shows that.</p>
+<p>Bottom line: the bear wins by default, but on general sector risks that would apply at almost any price. Cutting the position on that basis would be inventing a direction, and there is no bull case at all to support buying. The bull's silence was a pipeline failure, not information about the market. This falls under the "evidence too thin to make a call" exception, not two strong cases cancelling out. So the rating is Hold. The bear's points still shape how we hold: no new money without a thesis, size KGC as leveraged gold, and focus the re-run on the bear's three questions.</p>
+<p><strong>Strategic Actions</strong>: Sizes below are relative to a standard allocation, since we can't see actual holdings. Don't treat the one-sided debate as a trading signal in either direction.</p>
+<ol>
+<li>
+<p>Existing KGC holders: keep the position, capped at 1.0x standard. If price gains have pushed it above 1.0x, trim back to 1.0x. Anything above standard is an overweight nobody argued for, and trimming it is risk control that needs no view on price. If you're below 1.0x, don't add until the data-backed review is done, because adding is a new bet that needs a thesis we don't have.</p>
+</li>
+<li>
+<p>No position: don't open one. There's no bull thesis and no price or valuation to buy against.</p>
+</li>
+<li>
+<p>Size it as leveraged gold. When checking total precious-metals exposure (bullion plus other miners), count KGC as more than its nominal weight. If the position exists only for gold exposure, the PM should confirm the miner leverage and company-specific risk are intended.</p>
+</li>
+<li>
+<p>Re-run the full process with all four reports and a working bull before changing the rating. Treat this Hold as provisional for one review cycle at most, and report the empty turns and missing reports so they get fixed. The re-run must answer:</p>
+</li>
+<li>Valuation: share price, P/NAV, EV/EBITDA, free-cash-flow yield, and the gold price the share price implies, compared with spot and with a conservative gold-price assumption. This tests the peak-margin claim.</li>
+<li>Costs: AISC trend and guidance against realized gold prices, plus sensitivity to gold-linked royalties and energy. This tests whether costs are catching up with prices.</li>
+<li>Country exposure: production and NAV split across Mauritania, Brazil and Chile versus the US and Canada, plus any pending royalty, tax or permitting changes.</li>
+<li>Capital allocation and balance sheet: net debt or cash, buybacks, dividends and project pipeline. This is where the bull has to show the company adds value beyond owning bullion.</li>
+<li>
+<p>Relative performance: KGC against gold and against other miners. Is it delivering extra upside, or lagging the metal?</p>
+</li>
+<li>
+<p>Rules for the re-run:</p>
+</li>
+<li>Move to Overweight (build to 1.25-1.5x standard in 2-3 tranches) if the share price implies a gold price at or below the conservative assumption, AISC margins are steady or widening, free cash flow is going to buybacks, dividends or debt reduction, and country exposure is stable. Move to Buy only if the bull also makes a specific case for owning KGC over bullion.</li>
+<li>
+<p>Move to Underweight (trim to about 0.5x) if the valuation assumes spot gold or peak margins, AISC is rising faster than realized gold, or a key country makes an adverse tax, royalty or permitting move. Move to Sell (exit) if two or more of these are confirmed together.</p>
+</li>
+<li>
+<p>Triggers before the re-run: a royalty, tax or permitting action in Mauritania, Brazil or Chile; a cut to production or AISC guidance; or a sharp gold sell-off that KGC amplifies. If any of these happens, don't average down, and bring the review forward immediately. A confirmed adverse change to a key country's tax or royalty rules justifies cutting to about 0.5x pending full analysis, because that is the bear's thesis actually happening.</p>
+</li>
+</ol>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Hold</p>
+<p><strong>Reasoning</strong>:
+The plan's Hold is a "not enough evidence" call, not a split verdict. I agree with it, but it means "no new decision," not a mildly positive or negative view of KGC.</p>
+<ul>
+<li><strong>No directional evidence was supplied.</strong> The prompt has no share price, valuation multiples, AISC, production or guidance figures, balance sheet, gold-price assumption, sent</li>
+</ul>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst:
+Aggressive Analyst:
+Aggressive Analyst:
+Aggressive Analyst:
+Aggressive Analyst:</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst:
+Conservative Analyst:
+Conservative Analyst: I'll start with what I actually have. The aggressive and neutral analysts' last turns came through blank, so there's nothing specific to rebut, and I won't put words in their mouths. I'll answer the arguments they'd most plausibly make. None of us has market data, sentiment, news, or fundamentals on KGC in this run, and the trader's reasoning cuts off mid-sentence. Its core is still clear: no directional evidence was supplied, so Hold means no new decision. That isn't a bearish call on Kinross, just a refusal to act blind.</p>
+<p>I agree with Hold and would defend it harder than the trader did. If the aggressive side argues that gold miners are leveraged to the metal and KGC deserves an overweight, my answer is that leverage is the problem when you don't know the inputs. A producer's earnings swing far more than the gold price, because many costs are fixed in the short run. That cuts both ways. From general sector history, not anything verified here, gold equities have suffered drawdowns of 30 to 50 percent or more, often while the metal itself fell much less. There are also risks a gold chart never shows: jurisdiction and permitting risk where a miner operates, cost inflation in labor, energy and consumables, grade and reserve surprises, and project execution. We don't know KGC's price, valuation, all-in sustaining cost, guidance, balance sheet, or the gold price assumption anyone is using. Conviction without those inputs is a guess, and guesses shouldn't get capital.</p>
+<p>If the neutral side says to take a small starter position and add as evidence arrives, I'd push back too. A starter position still needs a thesis
+Conservative Analyst:
+Conservative Analyst:</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst:
+Neutral Analyst:
+Neutral Analyst:
+Neutral Analyst:
+Neutral Analyst:</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Hold</p>
+<p><strong>Executive Summary</strong>: Hold KGC because the evidence is too thin to make a call, not because I have a neutral or slightly directional view; treat this as provisional for one review cycle at most. If you own it, keep it at or below standard weight: trim back to 1.0x if gains have pushed it higher, don't add if you're below, and count it as leveraged gold rather than 1:1 gold in your precious-metals exposure. If you don't own it, don't open a position, not even a starter. There's no price data, so there are no price stops; instead, cut to about 0.5x on a confirmed adverse tax or royalty change (or a permitting action that curtails a key operation) in a key jurisdiction, and if guidance is cut or a gold sell-off hits KGC harder than gold, don't average down and bring the full-data re-run forward.</p>
+<p><strong>Investment Thesis</strong>: WHAT THE RECORD CONTAINS. Almost nothing that points in a direction. In the risk debate, 14 of 15 turns are blank. The Aggressive and Neutral analysts said nothing in any of their five turns. The only substantive turn is the Conservative's third, and it cuts off mid-sentence. Upstream, all five bull turns were empty, the bear's two turns with content were both truncated, and the market, sentiment, news and fundamentals reports never arrived. The trader's reasoning is also cut off. So I have no share price, valuation multiples, AISC, production or guidance figures, balance sheet or gold-price assumption for KGC. I won't fill those gaps from memory, and for the same reason I'm not setting a price target.</p>
+<p>THE ONE RISK ARGUMENT, WEIGHED ON ITS MERITS. The Conservative supports Hold and accepts the trader's description of it as "not a bearish call on Kinross, just a refusal to act blind." Its two pre-emptive rebuttals hold up:
+- Against the likely aggressive case (miners are leveraged to gold, so go overweight): costs that are fixed in the short run magnify moves both ways, and miners carry risks a gold chart doesn't show: jurisdiction and permitting, inflation in labor, energy and consumables, grade and reserve surprises, and project execution. Leverage tells you how big the move will be, not which way it goes. Without inputs, "conviction ... is a guess, and guesses shouldn't get capital."
+- Against the likely neutral case (take a small starter position): "A starter position still needs a thesis." A starter is the same unsupported bet at a smaller size.
+Two caveats. These rebuttals answer arguments nobody actually made, so nothing was won in debate; the reasoning just stands on its own. And the Conservative's sector-history figure (gold equities falling 30-50%+ while the metal fell much less) is flagged by the Conservative itself as unverified. I use it only to justify counting KGC as leveraged gold, not as a forecast.</p>
+<p>WHY NOT UNDERWEIGHT OR SELL. The only bearish material is the bear's three general points: KGC is a gold proxy with no proven company-specific edge, costs rise with gold so margins are cyclical, and country risk is real (the 2022 Russia exit; Mauritania, Brazil and Chile today). As the Research Manager noted, these apply at almost any share price. Nothing in the record shows that gold or margins are at a peak, or that the share price already assumes spot gold. The bear also said its company facts came from memory and may be out of date. Most tellingly, the most risk-averse analyst asked only for no new risk. It did not ask for a cut. And our lack of data is a pipeline failure, not a market event: KGC's actual risk didn't change because our reports failed to load. Not knowing is a reason not to trade, not a reason to sell. Cutting below standard weight would be as unsupported a bet as adding above it.</p>
+<p>WHY NOT OVERWEIGHT OR BUY. Ten long-side turns (five bull, five aggressive) produced nothing. Nobody answered the central question of why you'd own KGC rather than bullion, and there's no valuation to buy against. The burden of proof wasn't met.</p>
+<p>CLASSIFICATION AND SIZING. This is a Hold because the evidence is too thin, not because two strong cases cancelled out. It keeps whatever allocation you already have and makes no new bet. The cautious arguments affect sizing, not direction:
+- Cap the position at 1.0x standard and trim any excess. An overweight nobody argued for is unmanaged risk, and trimming it requires no view on price.
+- Don't add below 1.0x, and don't open a new position.
+- Count KGC as leveraged gold when adding up precious-metals exposure, using your own measured beta to gold, since none is available here.</p>
+<p>TRIGGERS BEFORE THE RE-RUN (these replace price levels):
+- A confirmed adverse tax or royalty change, or a permitting action that curtails a key operation, in a key jurisdiction (the bear named Mauritania, Brazil and Chile; the re-run must confirm the current mix): cut to about 0.5x pending full analysis. That would be company-specific evidence of the bear's thesis actually happening, which is exactly what's missing today. That's why a downside trigger can act before the re-run while adding still has to wait for a thesis.
+- A cut to production or AISC guidance, or a sharp gold sell-off that KGC amplifies: don't average down, and bring the review forward.</p>
+<p>WHAT CHANGES THE RATING. A full re-run with all four reports and working bull and aggressive analysts must answer five questions:
+- Valuation: P/NAV, EV/EBITDA, free-cash-flow yield, and the gold price implied by the share price, compared with spot and with a conservative gold-price assumption.
+- Costs: AISC trend against realized gold prices, plus sensitivity to royalties and energy.
+- Country exposure: production and NAV by country, plus any pending tax or royalty changes.
+- Balance sheet and capital returns.
+- Relative performance: KGC against gold and against other miners.
+Decision rules for the re-run:
+- Overweight (build to 1.25-1.5x in 2-3 tranches) if the implied gold price is at or below the conservative assumption, AISC margins are steady or widening, free cash flow is going to buybacks, dividends or debt reduction, and country exposure is stable. Buy only if, in addition, there's a specific case for owning KGC over bullion.
+- Underweight (about 0.5x) if the valuation assumes spot gold or peak margins, AISC is rising faster than realized gold, or a key country makes an adverse tax, royalty or permitting move. Sell if two or more of these are confirmed.
+The empty turns and missing reports should be reported as a process failure. This Hold expires after one review cycle.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Provisional: one review cycle at most, until a full-data re-run</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

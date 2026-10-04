@@ -1,0 +1,4486 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/SE/20260928_gpt-6-astra_20260928_195545/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: SE - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-se" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: SE
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#se-technical-analysis-as-of-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SE — technical analysis as of September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trend-daily-weakness-inside-a-mixed-higher-timeframe-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend: daily weakness inside a mixed higher-timeframe picture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#momentum-participation-and-exhaustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Momentum, participation, and exhaustion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditional-trading-framework" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditional trading framework
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#se-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SE sentiment, 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-by-source-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source-by-source evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-source-alignment-and-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-source alignment and divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dominant-narratives-possible-catalysts-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dominant narratives, possible catalysts, and risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#se-sea-limited-trading-and-macro-brief" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SE — Sea Limited: trading and macro brief
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-this-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed this week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-watchlist-for-se" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable watchlist for SE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#se-fundamental-research-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SE — fundamental research report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scope-and-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope and timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#business-and-valuation-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Business and valuation snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#financial-history-a-strong-turnaround-with-a-more-demanding-2026-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial history: a strong turnaround, with a more demanding 2026 comparison
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latest-quarter-growth-remains-high-credit-costs-are-rising-faster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latest quarter: growth remains high; credit costs are rising faster
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-sheet-and-liquidity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance sheet and liquidity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-flow-data-quality-exception" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash-flow data-quality exception
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insider-activity-and-what-changed-in-the-past-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insider activity and what changed in the past week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-implications-for-se" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading implications for SE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-se">Trading Analysis Report: SE<a class="headerlink" href="#trading-analysis-report-se" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:55:45</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="se-technical-analysis-as-of-september-28-2026">SE — technical analysis as of September 28, 2026<a class="headerlink" href="#se-technical-analysis-as-of-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>SE (Sea Limited) is weakening on the daily chart, but the weekly trend has not yet flipped.</strong> The verified September 28 close was <strong>$98.91</strong>, down from <strong>$113.33 on September 8</strong>. Recent closes have continued lower: $103.29 on September 23, $100.73 on September 24, $99.55 on September 25, and $98.91 on September 28. This is a bearish near-term sequence, not yet proof that every timeframe has turned down.</p>
+<p>I selected <strong>eight complementary indicators</strong>: <code>supertrend</code> and <code>close_50_sma</code> for trend and potential decision levels; <code>adx</code> for trend strength; <code>rsi</code> for momentum; <code>atr</code> for risk sizing; <code>obv</code> for volume participation; and <code>td_9</code> and <code>z_score</code> for exhaustion and price stretch. This avoids stacking several indicators that measure essentially the same momentum signal.</p>
+<h4 id="trend-daily-weakness-inside-a-mixed-higher-timeframe-picture">Trend: daily weakness inside a mixed higher-timeframe picture<a class="headerlink" href="#trend-daily-weakness-inside-a-mixed-higher-timeframe-picture" title="Permanent link">&para;</a></h4>
+<p>The multi-timeframe <code>supertrend</code> is the central distinction:</p>
+<ul>
+<li><strong>Weekly: UP</strong>, with a trailing stop at <strong>$87.26</strong>. The September 28 close remains above it, so the primary weekly signal has not flipped.</li>
+<li><strong>Monthly: DOWN</strong>, with its trend line at <strong>$160.86</strong>. This is adverse regime context, not a nearby trading target.</li>
+<li><strong>Daily: DOWN</strong>, with its trend line at <strong>$109.16</strong>. SE closed <strong>$10.25 below</strong> that line.</li>
+</ul>
+<p>The higher-priority weekly UP reading argues against calling this an unqualified downtrend across all horizons. Equally, it does <strong>not</strong> negate the active daily weakness, particularly while the monthly reading is DOWN. Weekly and monthly readings are as of September 28; their developing bars can change before their respective periods finish.</p>
+<p>The verified <strong>50-day SMA is $110.86</strong>, above the $98.91 close. Its indicator history shows it easing from approximately $111.98 on September 15. Together, the <strong>$109.16 daily SuperTrend line and $110.86 50-day SMA</strong> form a useful <em>recovery test</em>: a rally into that area would need to hold, rather than merely touch it, before the daily bearish assessment materially improves. These are indicator levels, <strong>not historically validated resistance bounces</strong>.</p>
+<p><code>adx</code> reached <strong>27.26</strong>, up from <strong>23.74 on September 25</strong>. Under this tool’s convention, a reading above 25 suggests the trend is gaining strength. ADX does not specify direction by itself; the falling closes and DOWN daily SuperTrend supply the bearish directional evidence. This tool uses an EMA-6 smoothing convention, so its value may differ from a classic Wilder ADX displayed elsewhere.</p>
+<h4 id="momentum-participation-and-exhaustion">Momentum, participation, and exhaustion<a class="headerlink" href="#momentum-participation-and-exhaustion" title="Permanent link">&para;</a></h4>
+<p><strong>RSI is 33.93</strong>: weak and nearing, but <strong>not below</strong>, the conventional 30 oversold threshold. It does not yet provide a clear reversal signal. Likewise, the daily <code>z_score</code> is <strong>−1.44</strong>, versus <strong>−0.30 weekly</strong> and <strong>−0.93 monthly</strong>. The daily price is below its 20-period mean, but none of these readings reaches the stated <strong>|z| ≥ 2</strong> stretch threshold. Weakness alone is therefore a poor basis for assuming an imminent mean-reversion rally.</p>
+<p><code>td_9</code> shows <strong>+5 weekly</strong>, <strong>−3 monthly</strong>, and <strong>+3 daily</strong>. The positive weekly and daily counts are <em>buy-setup counts</em> tracking potential downside exhaustion; they are <strong>not buy signals</strong>, and neither has completed a 9. The contrary monthly count reinforces the mixed-timeframe assessment.</p>
+<p>Volume offers a useful caution against overstating either case. <code>obv</code> fell from <strong>−74.98 million on September 8</strong> to <strong>−83.13 million on September 28</strong>, broadly supporting the decline over that interval. But its September 28 reading is <em>higher</em> than its <strong>−86.50 million on September 15</strong>, even though SE closed lower on September 28 (<strong>$98.91</strong>) than on September 15 (<strong>$102.65</strong>). That is a <strong>tentative positive divergence</strong>, not confirmation of a bottom: OBV has fallen again since September 22. Its <em>direction and comparisons</em>, not its arbitrary absolute level, matter here.</p>
+<h4 id="conditional-trading-framework">Conditional trading framework<a class="headerlink" href="#conditional-trading-framework" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Bearish continuation:</strong> September 28’s observed low was <strong>$96.36</strong>. A subsequent daily close below that low, especially with renewed OBV deterioration, would add evidence that the decline is continuing. Avoid treating $96.36 as proven support. The <strong>$87.26 weekly SuperTrend stop</strong> is the consequential lower-timeframe decision point: a weekly close through it would change the currently UP weekly signal.</li>
+<li><strong>Early stabilization:</strong> A recovery above the <strong>$103.67 September 22 close</strong>, accompanied by improving RSI and OBV, would be an initial sign that immediate selling pressure is easing. By itself, it would <strong>not</strong> reverse the DOWN daily SuperTrend.</li>
+<li><strong>Stronger recovery:</strong> A sustained daily close above <strong>$109.16</strong>, followed by a reclaim of the <strong>$110.86 50-day SMA</strong>, would make the bearish daily assessment less compelling. Confirming volume participation would improve the quality of that signal; the monthly DOWN reading would still warrant caution.</li>
+</ul>
+<p>The verified <code>atr</code> is <strong>$3.67</strong>. That is a measure of recent movement, <strong>not a maximum possible loss</strong>. For any contemplated position, size shares against a preselected exit and the dollar risk between entry and exit; allow for gaps and slippage. In particular, the weekly stop at $87.26 is <strong>$11.65 below</strong> the latest close—too distant to treat casually as a tight stop for a new position near $98.91.</p>
+<p><strong>Bottom line:</strong> The tools support a <strong>bearish daily bias with strengthening trend pressure</strong>, tempered by an <strong>intact weekly UP signal</strong> and unconfirmed hints of exhaustion. The cleaner evidence would come from either a confirmed break below the latest low or a sustained recovery through the daily trend line and 50-day average—not from RSI approaching oversold on its own.</p>
+<table>
+<thead>
+<tr>
+<th>Focus</th>
+<th>SE evidence as of September 28, 2026</th>
+<th>Practical reading</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Verified price</td>
+<td>Close <strong>$98.91</strong>; day’s low <strong>$96.36</strong></td>
+<td>Use $96.36 as an observed breakdown trigger, not proven support.</td>
+</tr>
+<tr>
+<td><code>supertrend</code></td>
+<td>Weekly <strong>UP / $87.26</strong>; monthly <strong>DOWN / $160.86</strong>; daily <strong>DOWN / $109.16</strong></td>
+<td>Daily weakness is real, but the primary weekly signal has not flipped.</td>
+</tr>
+<tr>
+<td><code>close_50_sma</code></td>
+<td><strong>$110.86</strong>, above price</td>
+<td>A reclaim would be a more meaningful recovery test than a small bounce.</td>
+</tr>
+<tr>
+<td><code>adx</code></td>
+<td><strong>27.26</strong>, versus <strong>23.74</strong> on September 25</td>
+<td>Trend strength has risen; direction comes from price and SuperTrend.</td>
+</tr>
+<tr>
+<td><code>rsi</code></td>
+<td><strong>33.93</strong></td>
+<td>Weak momentum, not yet conventionally oversold.</td>
+</tr>
+<tr>
+<td><code>atr</code></td>
+<td><strong>$3.67</strong></td>
+<td>Size for volatility and possible gaps; it is not a loss cap.</td>
+</tr>
+<tr>
+<td><code>obv</code></td>
+<td>Lower than September 8, but above its September 15 reading despite a lower close</td>
+<td>Downside participation overall; tentative divergence remains unconfirmed.</td>
+</tr>
+<tr>
+<td><code>td_9</code></td>
+<td>Weekly <strong>+5</strong>; monthly <strong>−3</strong>; daily <strong>+3</strong></td>
+<td>Mixed, incomplete exhaustion setups; no completed 9.</td>
+</tr>
+<tr>
+<td><code>z_score</code></td>
+<td>Weekly <strong>−0.30</strong>; monthly <strong>−0.93</strong>; daily <strong>−1.44</strong></td>
+<td>Daily weakness, but no **</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mildly Bearish</strong> (Score: 3.9/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="se-sentiment-2026-09-21-to-2026-09-28">SE sentiment, 2026-09-21 to 2026-09-28<a class="headerlink" href="#se-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="source-by-source-evidence">Source-by-source evidence<a class="headerlink" href="#source-by-source-evidence" title="Permanent link">&para;</a></h4>
+<p><strong>News (six supplied headlines):</strong> The clearest company-specific item is Zacks reporting that SE closed one session at $100.73, down 2.48% from the previous trading day and underperforming the broader market. That is evidence of negative price action, not an explanation of its cause. Two MT Newswires headlines describe Asian ADRs falling and one describes them rising; these are mixed, broad-market context rather than evidence of a new SE-specific development. A headline about MercadoLibre's expanding advertising business describes another company and does not establish a direct change in SE's prospects. The Motley Fool snippet describes a 2,400-share sale under a pre-established trading plan, equal to 0.21% of an executive's holding, but does <strong>not</strong> identify SE as the company in the supplied text; neither the sale nor its accompanying one-year stock-performance claim can be attributed to SE. Overall, the directly relevant news is modestly negative, and the supplied headlines contain no verified SE-specific fundamental catalyst.</p>
+<p><strong>StockTwits (30 recent messages):</strong> User tags show 2 Bullish (7% of all messages), 7 Bearish (23%), and 21 unlabeled (70%). Among the nine <em>tagged</em> messages, the split is 2/9 bullish versus 7/9 bearish; the 21 unlabeled messages must not be counted as neutral votes. Bearish tags include an unfavorable comparison with another stock, a changed decision to hold long, and two identical '$80 coming' calls by the same account on September 25 and 28. Unlabeled posts repeatedly complain about declines, an absence of management communication, and perceived management inaction; one asks why SE has fallen after what the writer calls strong Q2 results and a move to $130. Countervailing posts say SE is 'too cheap,' report adding at 97.88, invoke approximately $20 of cash per share, or call for 150+. These are poster opinions or unverified assertions, not established financial figures, trades, price targets, or confirmed results. One post primarily discusses another company. Ten of the 30 messages come from a single prolific, often frustrated account; repeated posts and the duplicate $80 call reduce independence of the sample. Taken together, the retail conversation is bearish-leaning, with scattered value and rebound optimism rather than a uniformly bearish consensus.</p>
+<p><strong>Reddit:</strong> Skipped because Reddit collection was disabled. No posts, subreddit-level evidence, engagement data, or directional Reddit signal are available; this is not evidence that Reddit discussion was neutral or absent.</p>
+<h4 id="cross-source-alignment-and-divergence">Cross-source alignment and divergence<a class="headerlink" href="#cross-source-alignment-and-divergence" title="Permanent link">&para;</a></h4>
+<p>SE's reported down session and the prevailing StockTwits frustration align on recent weakness, but neither identifies a confirmed business reason for the move. Broader Asian-ADR headlines point in both directions, and isolated bullish StockTwits posts about value, cash, and a rebound contrast with the more common complaints about price and management. There is no usable Reddit third-source check. This is a mildly bearish overall <em>sentiment</em> read, not a claim that fundamentals have deteriorated.</p>
+<h4 id="dominant-narratives-possible-catalysts-and-risks">Dominant narratives, possible catalysts, and risks<a class="headerlink" href="#dominant-narratives-possible-catalysts-and-risks" title="Permanent link">&para;</a></h4>
+<p>The dominant narrative is a perceived sustained slide in SE despite a retail belief that it has underlying cash and good results, coupled with dissatisfaction over a perceived lack of management updates or capital deployment. Potential upside triggers discussed by posters are renewed management communication, demonstrated use of cash, and a reversal of selling pressure; none is announced or independently verified in the supplied evidence. Downside concerns are continuing weak price action, shareholder disenchantment, and bearish retail expectations around $80, which are predictions rather than validated targets. A poster speculates about lower inflation and interest rates following developments involving Iran; the data establish no macro event or SE-specific linkage. The competitor's advertising headline may merit monitoring but does not substantiate a direct threat to SE from this feed. No verified forthcoming SE earnings date, product launch, insider sale, or management action is documented.</p>
+<table>
+<thead>
+<tr>
+<th>Sentiment signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence / qualification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reported SE session underperformance</td>
+<td>Bearish</td>
+<td>Zacks news headline</td>
+<td>Close $100.73, down 2.48% versus prior trading day; one session, not a trend measurement.</td>
+</tr>
+<tr>
+<td>Asian ADR backdrop</td>
+<td>Mixed</td>
+<td>Three MT Newswires headlines</td>
+<td>Two falling and one rising; group-wide coverage, not SE-specific.</td>
+</tr>
+<tr>
+<td>Labeled retail split</td>
+<td>Bearish</td>
+<td>StockTwits</td>
+<td>7 Bearish versus 2 Bullish among 9 tagged messages; 21 of 30 have no tag.</td>
+</tr>
+<tr>
+<td>Management and selling-pressure complaints</td>
+<td>Bearish</td>
+<td>StockTwits message bodies</td>
+<td>Repeated reports of falling prices, scarce updates and inaction; unusually high contribution from one account.</td>
+</tr>
+<tr>
+<td>Value and rebound arguments</td>
+<td>Bullish counter-signal</td>
+<td>StockTwits message bodies</td>
+<td>'Too cheap,' an asserted cash-per-share figure, a reported add, and 150+ aspirations; claims unverified.</td>
+</tr>
+<tr>
+<td>Reddit corroboration</td>
+<td>Unavailable</td>
+<td>Reddit feed</td>
+<td>Disabled by configuration; no evidence to evaluate.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Assessment limit:</strong> Confidence is <strong>low</strong> because Reddit was disabled, most StockTwits messages are unlabeled and the sample is concentrated, and most headlines concern the broader market or other companies. Historical sentiment is a signal to weigh with independent fundamentals and technicals, not a forecast or a trade recommendation for SE.</p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="se-sea-limited-trading-and-macro-brief">SE — Sea Limited: trading and macro brief<a class="headerlink" href="#se-sea-limited-trading-and-macro-brief" title="Permanent link">&para;</a></h4>
+<p><strong>As of September 28, 2026 | News window: September 21–28</strong></p>
+<p><strong>Bottom line:</strong> The near-term setup for SE is cautious. This week’s coverage points to pressure on Asian ADRs and rising U.S. bond yields, but provides little new evidence of a change in Sea Limited’s operating outlook. For a trade, the rate backdrop and the next company update matter more than the week’s opinion pieces.</p>
+<h4 id="what-changed-this-week">What changed this week<a class="headerlink" href="#what-changed-this-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Rates became a sharper equity risk.</strong> <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Yahoo Finance reported</a> that U.S. stocks fell on Monday as Treasury yields climbed; <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">separate coverage</a> described a higher-for-longer Fed outlook. Higher yields can weigh on growth-stock valuations and, potentially, consumer spending and financing conditions relevant to SE. The available data do <strong>not</strong> establish how much of SE’s move rates caused.</li>
+<li><strong>Forward rate expectations shifted hawkishly.</strong> Polymarket priced a <strong>25-basis-point Fed increase at the October meeting at 68%</strong>, up 16 percentage points over one week, versus <strong>30% for no change</strong>. A separate market priced <strong>no Fed cuts in 2026 at 97%</strong>. These are traded probabilities, not Fed guidance or certain outcomes.</li>
+<li><strong>The SE-specific feed was light on fundamentals.</strong> It contained Asian-ADR market recaps and commentary, but no identified new earnings release or guidance. One <a href="https://finance.yahoo.com/markets/stocks/articles/heres-why-sea-limited-sponsored-204506116.html">Zacks report</a> cited a <strong>$100.73 close, down 2.48%</strong> in its referenced session. That is a reported historical close, <strong>not a verified live quote</strong>.</li>
+<li><strong>Insider activity needs proportion.</strong> Outside the seven-day window, a <a href="https://www.fool.com/coverage/filings/2026/09/17/sea-limited-coo-gang-ye-sells-usd4-2-million-in-shares/">September 17 report</a> described COO Gang Ye’s planned sale of 40,000 shares, worth about $4.2 million, while retaining a much larger stake. On the information available, it is not evidence by itself of deteriorating operations.</li>
+</ul>
+<h4 id="actionable-watchlist-for-se">Actionable watchlist for SE<a class="headerlink" href="#actionable-watchlist-for-se" title="Permanent link">&para;</a></h4>
+<p><strong>Avoid treating a pullback alone as a buy signal.</strong> Confirm the current quote and volume first. A sustained move below the <strong>$100 round-number area</strong> alongside continued yield increases would be a reason to tighten risk or wait; $100 is a <em>watch level</em>, not a verified technical support level. A stronger long setup would pair stabilizing yields with company evidence that e-commerce profitability, gaming monetization, and fintech credit performance remain sound.</p>
+<p>The main alternative scenario is a rate-driven relief rally: yields retreat or October hike expectations ease, lifting growth equities even without SE-specific news. Conversely, weaker consumer demand, heavier e-commerce promotions, or worsening fintech credit losses would make a market-led rebound less convincing. Polymarket priced a <strong>U.S. recession by year-end at 8%</strong>, but that probability should not substitute for incoming economic or company data.</p>
+<p><strong>Data limit:</strong> FRED’s rate, inflation, and labor-market series were unavailable because the macro-data connection lacked an API key. This report therefore does <strong>not</strong> assert current yield levels, inflation readings, or unemployment figures.</p>
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>Evidence available September 28</th>
+<th>Implication for SE</th>
+<th>What to check next</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>U.S. rates</td>
+<td>Rising yields in <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">market coverage</a>; October +25 bp priced at 68%</td>
+<td>Near-term valuation headwind</td>
+<td>Live yields and changes in October Fed odds</td>
+</tr>
+<tr>
+<td>SE price action</td>
+<td><a href="https://finance.yahoo.com/markets/stocks/articles/heres-why-sea-limited-sponsored-204506116.html">Zacks</a> reported a $100.73 close, down 2.48%</td>
+<td>Weakness, but not a standalone signal</td>
+<td>Timestamped quote, volume, and behavior around $100</td>
+</tr>
+<tr>
+<td>Company fundamentals</td>
+<td>No new earnings or guidance identified in the seven-day feed</td>
+<td>Limited basis for a new fundamental thesis</td>
+<td>Shopee margins, gaming monetization, fintech credit metrics</td>
+</tr>
+<tr>
+<td>Recession risk</td>
+<td>Prediction market priced U.S. recession by year-end at 8%</td>
+<td>Downside scenario remains relevant, not the market’s base case</td>
+<td>Consumer and credit data; subsequent company disclosures</td>
+</tr>
+<tr>
+<td>Data quality</td>
+<td>FRED series unavailable</td>
+<td>Absolute macro claims cannot be verified here</td>
+<td>Confirm official releases before sizing a rate-sensitive trade</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="se-fundamental-research-report">SE — fundamental research report<a class="headerlink" href="#se-fundamental-research-report" title="Permanent link">&para;</a></h4>
+<p><strong>Sea Limited | NYQ | Consumer Cyclical / Internet Retail</strong>
+<strong>Analysis date: September 28, 2026.</strong> Dollar amounts are USD unless stated otherwise.</p>
+<h4 id="scope-and-timing">Scope and timing<a class="headerlink" href="#scope-and-timing" title="Permanent link">&para;</a></h4>
+<p>The available financial-statement data for <strong>SE</strong> extend through the quarter ended <strong>June 30, 2026</strong>, with annual comparisons through 2025. The data vendor supplies period-end dates but <strong>not publication or filing dates</strong>. Consequently, this report cannot establish that a financial statement or earnings release was published during the past week, September 21–28. The insider feed shows one transaction dated within that week; it likewise provides no filing date or source-document link.</p>
+<h4 id="business-and-valuation-snapshot">Business and valuation snapshot<a class="headerlink" href="#business-and-valuation-snapshot" title="Permanent link">&para;</a></h4>
+<p>Sea Limited operates the <strong>Shopee</strong> e-commerce platform, <strong>Garena</strong> digital entertainment business, and digital financial services associated with <strong>Monee/SeaMoney</strong>. These activities expose SE to online-shopping growth, advertising and fulfillment economics, gaming demand, and consumer-credit performance. The supplied statements do <strong>not</strong> provide segment revenue or profit, so they cannot establish which business drove the latest consolidated results.</p>
+<p>The fundamentals snapshot reports a <strong>$60.58 billion market capitalization</strong>, <strong>38.49× trailing P/E</strong>, <strong>19.06× forward P/E</strong>, <strong>4.87× price-to-book</strong>, <strong>2.57 trailing EPS</strong>, and <strong>5.19 forward EPS</strong>. Forward EPS is an estimate, not an achieved result: the lower forward multiple depends on substantial earnings growth. Reported beta is <strong>1.52</strong>, indicating above-market historical price sensitivity. The snapshot lists a <strong>$193.48/$77.05</strong> 52-week high/low and <strong>$110.86/$103.44</strong> 50-/200-day averages. Its valuation figures imply a price near <strong>$98.91</strong>, but the feed does not timestamp a September 28 closing price; do not use that implied price as a verified live quote.</p>
+<h4 id="financial-history-a-strong-turnaround-with-a-more-demanding-2026-comparison">Financial history: a strong turnaround, with a more demanding 2026 comparison<a class="headerlink" href="#financial-history-a-strong-turnaround-with-a-more-demanding-2026-comparison" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Fiscal year</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Operating income</th>
+<th style="text-align: right;">Net income attributable to common shareholders</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Free cash flow*</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">$12.45bn</td>
+<td style="text-align: right;"><strong>−$1.13bn</strong></td>
+<td style="text-align: right;"><strong>−$1.65bn</strong></td>
+<td style="text-align: right;"><strong>−$1.06bn</strong></td>
+<td style="text-align: right;"><strong>−$2.03bn</strong></td>
+</tr>
+<tr>
+<td>2023</td>
+<td style="text-align: right;">$13.06bn</td>
+<td style="text-align: right;">$0.34bn</td>
+<td style="text-align: right;">$0.15bn</td>
+<td style="text-align: right;">$2.08bn</td>
+<td style="text-align: right;">$1.82bn</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">$16.82bn</td>
+<td style="text-align: right;">$0.66bn</td>
+<td style="text-align: right;">$0.44bn</td>
+<td style="text-align: right;">$3.28bn</td>
+<td style="text-align: right;">$2.96bn</td>
+</tr>
+<tr>
+<td>2025</td>
+<td style="text-align: right;"><strong>$22.94bn</strong></td>
+<td style="text-align: right;"><strong>$1.99bn</strong></td>
+<td style="text-align: right;"><strong>$1.58bn</strong></td>
+<td style="text-align: right;"><strong>$5.02bn</strong></td>
+<td style="text-align: right;"><strong>$4.50bn</strong></td>
+</tr>
+</tbody>
+</table>
+<p>*Annual free cash flow reconciles to operating cash flow less reported capital expenditure.</p>
+<p><strong>2025 revenue grew 36.4%</strong> from 2024, while operating income approximately tripled. Operating margin increased from <strong>3.9% to 8.7%</strong>; net margin rose from roughly <strong>2.6% to 6.9%</strong>. This follows a 2022 operating loss and is material evidence that SE has moved beyond its earlier cash-burning phase. Annual operating cash flow grew approximately <strong>53%</strong> in 2025, and annual free cash flow grew approximately <strong>52%</strong>.</p>
+<p>That cash conversion deserves qualification. The 2025 operating-cash-flow statement includes <strong>$1.37 billion of provisions and write-offs</strong>, <strong>$1.10 billion of positive working-capital change</strong>, and <strong>$625 million of stock-based compensation</strong>. These items matter when judging how much of the $5.02 billion reflects repeatable, freely distributable cash generation.</p>
+<h4 id="latest-quarter-growth-remains-high-credit-costs-are-rising-faster">Latest quarter: growth remains high; credit costs are rising faster<a class="headerlink" href="#latest-quarter-growth-remains-high-credit-costs-are-rising-faster" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Consolidated measure</th>
+<th style="text-align: right;">Q2 2026</th>
+<th style="text-align: right;">Q1 2026</th>
+<th style="text-align: right;">Q2 2025</th>
+<th style="text-align: right;">Q2 year-on-year</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td style="text-align: right;"><strong>$7.79bn</strong></td>
+<td style="text-align: right;">$7.10bn</td>
+<td style="text-align: right;">$5.26bn</td>
+<td style="text-align: right;"><strong>+48.1%</strong></td>
+</tr>
+<tr>
+<td>Gross profit</td>
+<td style="text-align: right;">$3.55bn</td>
+<td style="text-align: right;">$3.15bn</td>
+<td style="text-align: right;">$2.41bn</td>
+<td style="text-align: right;">+47.3%</td>
+</tr>
+<tr>
+<td>Operating income</td>
+<td style="text-align: right;">$650m</td>
+<td style="text-align: right;">$593m</td>
+<td style="text-align: right;">$488m</td>
+<td style="text-align: right;">+33.3%</td>
+</tr>
+<tr>
+<td>Net income</td>
+<td style="text-align: right;">$441m</td>
+<td style="text-align: right;">$428m</td>
+<td style="text-align: right;">$406m</td>
+<td style="text-align: right;"><strong>+8.6%</strong></td>
+</tr>
+<tr>
+<td>Selling and marketing expense</td>
+<td style="text-align: right;">$1.66bn</td>
+<td style="text-align: right;">$1.41bn</td>
+<td style="text-align: right;">$1.01bn</td>
+<td style="text-align: right;"><strong>+64.5%</strong></td>
+</tr>
+<tr>
+<td>Provision for doubtful accounts</td>
+<td style="text-align: right;"><strong>$555m</strong></td>
+<td style="text-align: right;">$466m</td>
+<td style="text-align: right;">$324m</td>
+<td style="text-align: right;"><strong>+71.5%</strong></td>
+</tr>
+<tr>
+<td>Operating cash flow</td>
+<td style="text-align: right;"><strong>$1.51bn</strong></td>
+<td style="text-align: right;">$1.06bn</td>
+<td style="text-align: right;">$1.62bn</td>
+<td style="text-align: right;"><strong>−6.8%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Q2 gross margin was approximately <strong>45.6%</strong>, versus <strong>45.8%</strong> a year earlier. Operating margin declined from approximately <strong>9.3% to 8.4%</strong> despite the 48% revenue increase. Marketing expense grew faster than sales, while the doubtful-accounts provision increased to <strong>7.1% of revenue</strong>, from <strong>6.2%</strong> in Q2 2025. Tax expense also rose to <strong>$251 million</strong> from <strong>$144 million</strong>. These figures help explain why the increase in net income was much smaller than the increase in revenue.</p>
+<p>Sequentially, Q2 revenue grew <strong>9.7%</strong> from Q1, but the doubtful-accounts provision grew <strong>19.3%</strong> and marketing expense grew approximately <strong>17.4%</strong>. The principal question for the next earnings report is whether growth can continue without further pressure on credit costs and operating margin.</p>
+<p>The four latest quarters sum to approximately <strong>$27.72 billion of revenue</strong>, <strong>$12.29 billion of gross profit</strong>, and <strong>$2.28 billion of operating income</strong>. The fundamentals snapshot’s trailing revenue agrees with that calculation. Some other snapshot and statement measures differ modestly, so derived figures should not be mistaken for company-issued guidance.</p>
+<h4 id="balance-sheet-and-liquidity">Balance sheet and liquidity<a class="headerlink" href="#balance-sheet-and-liquidity" title="Permanent link">&para;</a></h4>
+<p>At June 30, 2026, SE reported <strong>$32.01 billion in assets</strong>, <strong>$18.96 billion in liabilities</strong>, and <strong>$12.91 billion in common shareholders’ equity</strong>. Current assets of <strong>$24.05 billion</strong> against current liabilities of <strong>$16.09 billion</strong> give a current ratio of about <strong>1.49</strong> and working capital of <strong>$7.96 billion</strong>. Working capital has nevertheless fallen from <strong>$8.57 billion</strong> at year-end 2025.</p>
+<p>Cash and cash equivalents plus short-term investments were <strong>$9.10 billion</strong>, versus <strong>$4.13 billion of total reported debt, including leases</strong>. On those stated definitions, that is roughly <strong>$4.97 billion of net cash</strong>. It is down from approximately <strong>$7.20 billion at year-end 2025</strong>: liquid holdings decreased while debt rose. Separately, the balance sheet lists <strong>$2.41 billion of restricted cash</strong>; it should not be treated as unrestricted corporate liquidity. Short-term investments may also have different access or risk characteristics from cash.</p>
+<p>The largest emerging balance-sheet watch item is <strong>loans receivable</strong>, which reached <strong>$8.90 billion</strong>, up <strong>59.3%</strong> from $5.59 billion a year earlier and <strong>13.2%</strong> from the preceding quarter. Loans now represent about <strong>28% of total assets</strong>. The combination of loan growth, faster-growing doubtful-account provisions, and Q2 operating cash flow below the prior-year quarter makes credit quality a more important part of the SE thesis. The supplied data contain no delinquency, charge-off, or loan-vintage statistics; they do <strong>not</strong> establish that losses will materialize at any particular rate.</p>
+<p>Common shares outstanding increased from approximately <strong>592.0 million in Q2 2025 to 612.5 million in Q2 2026</strong>, or about <strong>3.5%</strong>. Monitor per-share results alongside company-wide profit growth.</p>
+<h4 id="cash-flow-data-quality-exception">Cash-flow data-quality exception<a class="headerlink" href="#cash-flow-data-quality-exception" title="Permanent link">&para;</a></h4>
+<p><strong>Do not rely on the vendor’s quarterly “free cash flow” series for 2026 without checking capital spending.</strong> It reports free cash flow exactly equal to operating cash flow in both Q1 and Q2 2026, while supplying no quarterly capital-expenditure amounts. It also assigns a <strong>$524 million</strong> operating-cash-flow/free-cash-flow difference to Q4 2025—the same amount as <strong>all of 2025’s reported annual capital expenditure</strong>. The fundamentals snapshot separately lists just <strong>$66 million of free cash flow</strong>, inconsistent with the annual 2025 statement’s reconciled <strong>$4.50 billion</strong>. Annual figures are therefore the sounder historical comparison; a reliable <strong>2026 trailing free-cash-flow yield cannot be established</strong> from these feeds.</p>
+<p>For context, the reported <strong>2025</strong> free cash flow of $4.50 billion divided by the snapshot’s $60.58 billion market capitalization is about <strong>7.4%</strong>. That is a <em>historical-year-to-snapshot</em> comparison, not a verified current trailing yield.</p>
+<h4 id="insider-activity-and-what-changed-in-the-past-week">Insider activity and what changed in the past week<a class="headerlink" href="#insider-activity-and-what-changed-in-the-past-week" title="Permanent link">&para;</a></h4>
+<p>The insider feed’s <strong>only September 21–28 transaction</strong> is a <strong>September 22 sale of 60,000 shares</strong>, valued at approximately <strong>$6.17 million</strong>, by officer <strong>Jingye David Chen</strong>. Looking beyond the week, the feed records approximately <strong>595,000 shares sold for $63.46 million</strong> by Chen, COO Gang Ye, and CFO Tianyu Hou across <strong>September 1–22</strong>. It lists no open-market insider purchase in that span. A separate <strong>September 16 conversion/exercise of a derivative security</strong> by Chen, covering 150,000 shares at $15 per share, should <strong>not</strong> be counted as an open-market purchase.</p>
+<p>The pattern warrants monitoring, but sales alone do not reveal motive: planned trading, compensation, and tax needs cannot be assessed from these rows. <strong>Filing dates and original documents are unavailable</strong>, so the feed cannot prove precisely when each trade became public.</p>
+<h4 id="trading-implications-for-se">Trading implications for SE<a class="headerlink" href="#trading-implications-for-se" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Constructive case:</strong> SE has delivered four years of markedly improving profitability and cash generation, while Q2 2026 revenue still grew <strong>48%</strong> year on year. A subsequent report showing a stable or falling provision-to-revenue ratio and renewed operating-margin expansion would strengthen the argument that this growth is economically durable.</li>
+<li><strong>Reasons for caution:</strong> Q2 provisions grew <strong>71.5%</strong>, marketing grew <strong>64.5%</strong>, operating margin fell year on year, and reported net cash contracted by about <strong>$2.22 billion</strong> since year-end. At <strong>38.49× trailing earnings</strong>, a disappointment in credit performance or anticipated forward-EPS growth could matter substantially to valuation.</li>
+<li><strong>Next checks before adding exposure:</strong> Seek the original SE filing and segment disclosures; compare subsequent loan balances with delinquencies and charge-offs; verify quarterly capital expenditure and free cash flow; and confirm any insider trades against source filings. The supplied tools establish neither a new financial release in the past week nor a September 28 closing price.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Key point for SE</th>
+<th>Evidence as of September 28, 2026</th>
+<th>Trader takeaway</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Growth and turnaround</td>
+<td>2025 revenue <strong>$22.94bn</strong>, operating income <strong>$1.99bn</strong>; Q2 2026 revenue <strong>+48.1% YoY</strong></td>
+<td>Strong fundamental momentum, but test its durability</td>
+</tr>
+<tr>
+<td>Margin pressure</td>
+<td>Q2 operating margin approximately <strong>8.4%</strong>, down from <strong>9.3%</strong> a year earlier</td>
+<td>Watch whether spending and credit costs continue to outpace sales</td>
+</tr>
+<tr>
+<td>Credit exposure</td>
+<td>Loans receivable <strong>$8.90bn</strong>, <strong>+59.3% YoY</strong>; Q2 provision <strong>$555m</strong>, <strong>+71.5% YoY</strong></td>
+<td>Prioritize future credit-quality disclosures</td>
+</tr>
+<tr>
+<td>Liquidity</td>
+<td><strong>$9.10bn</strong> cash and short-term investments versus <strong>$4.13bn</strong> debt including leases; calculated net cash <strong>$4.97bn</strong></td>
+<td>Substantial cushion, though smaller than at year-end</td>
+</tr>
+<tr>
+<td>Cash-flow confidence</td>
+<td>2025 annual FCF <strong>$4.50bn</strong>; quarterly 2026 FCF lacks identifiable capex</td>
+<td>Do not trade on the feed’s unverified 2026 FCF figure</td>
+</tr>
+<tr>
+<td>Valuation and dilution</td>
+<td><strong>38.49×</strong> trailing P/E; shares outstanding <strong>+3.5% YoY</strong></td>
+<td>Forward earnings and per-share execution must support valuation</td>
+</tr>
+<tr>
+<td>Past-week insider signal</td>
+<td>September 22: <strong>60,000-share, $6.17m sale</strong>; no source filing date supplied</td>
+<td>Monitor, but do not infer motive or treat it as a standalone sell signal</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case: I’m bullish on SE over a multi-quarter horizon, though I would build a position gradually rather than call a bottom today.</strong> The central question is whether recent spending and credit costs are overwhelming the business’s growth. So far, the evidence says they are pressuring profits—not erasing them.</p>
+<p>SE grew 2025 revenue <strong>36.4% to $22.94 billion</strong>, nearly tripled operating income to <strong>$1.99 billion</strong>, and generated <strong>$4.50 billion in annual free cash flow</strong>, compared with negative free cash flow in 2022. Growth then accelerated: Q2 2026 revenue rose <strong>48.1% year over year to $7.79 billion</strong>, while operating income still rose <strong>33.3% to $650 million</strong>. That is a stronger foundation than the old “growth at any cost” bear case.</p>
+<p>The opportunity is scalable, even if the supplied data do not quantify a total addressable market. Shopee has an established e-commerce platform with potential buyer-and-merchant network effects; financial services offer a way to serve commerce users more deeply; and Garena adds a separate monetization avenue. I would <strong>not</strong> claim every segment is accelerating—the provided statements lack segment results. But consolidated growth at this scale, alongside positive operating profit, gives SE several ways to expand earnings if execution improves.</p>
+<p>The bear’s best objection is <strong>credit quality</strong>, not a falling chart. Loans receivable rose <strong>59.3%</strong> year over year to <strong>$8.90 billion</strong>, and Q2 doubtful-account provisions rose <strong>71.5%</strong>; marketing expense also outpaced revenue growth, pulling operating margin down from roughly <strong>9.3% to 8.4%</strong>. Those are real costs. Yet gross margin remained roughly stable at <strong>45.6%</strong>, and SE held <strong>$9.10 billion</strong> in cash and short-term investments against <strong>$4.13 billion</strong> of reported debt, including leases. Rising provisions demand scrutiny, but without delinquency or loan-vintage data, they do not establish that a credit-loss spiral is underway. Nor should the balance-sheet cushion be mistaken for proof that lending risk is harmless.</p>
+<p>Valuation makes this an <strong>execution-dependent</strong> bull case: SE trades at <strong>38.49× trailing earnings</strong>, versus <strong>19.06× estimated forward earnings</strong>. The forward multiple is attractive <em>if</em> earnings deliver; it is not a guarantee. Likewise, I won’t dress up weak price action: the September 28 close was <strong>$98.91</strong>, below the <strong>$109.16</strong> daily SuperTrend and <strong>$110.86</strong> 50-day average, although the weekly SuperTrend remained UP. Bearish retail sentiment has low evidentiary confidence and no verified new SE-specific fundamental catalyst behind it.</p>
+<p><strong>My recommendation is a measured long-term buy in SE, with additions contingent on proof.</strong> I want the next report to show a stabilizing provision-to-revenue ratio and improving operating margin. A sustained recovery above <strong>$109.16–$110.86</strong> would strengthen the entry case; a weekly break through <strong>$87.26</strong>, or worsening disclosed credit performance, would force me to reassess. The bull argument is not that the risks are imaginary—it is that SE’s demonstrated growth, profitability turnaround, and liquidity give it a credible path to earn through them.
+Bull Analyst: <strong>I agree with your standard: SE needs to deliver per-share earnings, not just revenue growth. Where I disagree is that investors must wait for every cost metric to improve before taking any position.</strong> The latest quarter shows a business under margin pressure, but still growing operating profit substantially while funding that growth.</p>
+<p>You’re right that Q2 revenue rose <strong>48.1%</strong> while operating income rose a slower <strong>33.3%</strong>. Marketing and credit provisions are absorbing too much of the incremental revenue, and I would not call that operating leverage. But operating income still reached <strong>$650 million</strong>, up from <strong>$488 million</strong> a year earlier. Consolidated gross margin was nearly unchanged at <strong>45.6% versus 45.8%</strong>. That does not prove Shopee’s network effects are paying off, especially without segment results; it does show that the current pressure is concentrated in spending and provisions rather than a collapse in gross margin. The much smaller <strong>8.6%</strong> increase in net income also needs context: Q2 tax expense rose <strong>$107 million</strong> year over year. Credit and marketing remain the key operating tests, but net-income growth alone overstates the extent of the operating slowdown.</p>
+<p>On lending, your caution is justified. <strong>$8.90 billion</strong> of loans receivable and a provision rising to <strong>7.1% of revenue</strong> make credit quality central to this thesis. I am not assuming provisioning is sufficient. Equally, the provision increase is not evidence, on its own, of realized losses at a particular rate; we lack the delinquency, charge-off and vintage disclosures needed to make that judgment. SE enters that test with <strong>$9.10 billion</strong> of cash and short-term investments against <strong>$4.13 billion</strong> of reported debt, including leases. The calculated net-cash cushion has shrunk, as you note, but it has not disappeared.</p>
+<p>Your valuation objection is the hardest one. <strong>$5.19 of forward EPS is an estimate, not an achievement</strong>, and share-count growth of <strong>3.5%</strong> raises the bar for per-share returns. My case does not require treating the <strong>19.06× forward P/E</strong> as guaranteed cheap. It rests on the possibility that a company which grew 2025 revenue <strong>36.4%</strong>, nearly tripled operating income that year, and then grew Q2 2026 revenue <strong>48.1%</strong> can retain meaningful earnings growth even if the forward estimate proves optimistic. Shopee’s commerce platform, financial services and Garena provide multiple monetization paths, though the supplied data cannot establish each segment’s contribution or quantify its market opportunity.</p>
+<p>I also grant you the chart. At <strong>$98.91</strong>, SE was below its daily SuperTrend and 50-day average, with rising yields a potential valuation headwind. That is an argument against declaring a bottom or buying a full position today—not, in my view, against any multi-quarter exposure while the weekly trend remains UP and no new SE-specific fundamental deterioration has been verified in the recent news.</p>
+<p><strong>My recommendation remains a small, staged buy in SE rather than a full-size bet or a call for an immediate rebound.</strong> Waiting for stable credit quality, expanding margins and verified 2026 free cash flow would reduce uncertainty; it could also mean paying more if those results arrive. I would add only as disclosures support the thesis, and reassess if credit performance worsens, margins keep compressing, or the weekly trend breaks below <strong>$87.26</strong>. That is the real disagreement between us: not whether the risks exist, but whether SE’s demonstrated scale, profitability and liquidity justify beginning to own it before every risk is resolved.
+Bull Analyst: You’re right about the mismatch in Q2, and I wouldn’t buy SE on the claim that operating leverage has already returned. Marketing and doubtful-account provisions absorbed roughly <strong>$881 million of the $1.14 billion increase in gross profit</strong>. That is the strongest bear evidence. My disagreement is over whether it makes <em>any</em> purchase premature.</p>
+<p>SE still produced <strong>$650 million of Q2 operating income, up $162 million year over year, after recording those higher costs</strong>. This is not the earlier growth-at-any-cost business: operating income went from a <strong>$1.13 billion loss in 2022</strong> to <strong>$1.99 billion of profit in 2025</strong>, while 2025 revenue grew <strong>36.4%</strong>. Q2 2026 revenue then grew <strong>48.1%</strong>. The current quarter shows poor incremental leverage, but the longer record shows SE can scale profitably. Neither fact cancels the other.</p>
+<p>On credit, I accept your point that missing delinquency and vintage data should limit conviction. I would not call the <strong>$555 million Q2 provision</strong> sufficient without them. But it is also important not to treat that expense as an undisclosed future charge: it is already reflected in reported operating profit. The forward risk is that losses prove worse than provided for as the <strong>$8.90 billion</strong> loan book grows. That is a reason for a small position and a firm review threshold, not yet evidence that the lending business has overwhelmed SE’s earnings or its approximately <strong>$4.97 billion calculated net-cash position</strong>. The decline in that cash cushion makes the review more urgent.</p>
+<p>I also would not sell this as a sure <strong>19.06×</strong> stock. The <strong>$5.19 forward EPS</strong> is an estimate. Even at an illustrative <strong>$3.90 EPS—about 25% below that estimate—$98.91 would represent roughly 25× earnings</strong>. That would not be an obvious bargain, and it would still require substantial growth from trailing EPS of $2.57. But it explains why I think the valuation merits monitoring through execution rather than dismissing SE solely because the full estimate is demanding. Rising yields and dilution could still compress the multiple.</p>
+<p>You’re right that <strong>2026 free cash flow cannot be verified</strong> from the supplied quarterly capex data; I am not annualizing Q2 operating cash flow or recycling 2025’s <strong>$4.50 billion</strong> as this year’s run rate. Nor am I claiming Shopee’s network effects are proven by the consolidated figures. Shopee, financial services and Garena offer several possible growth paths, but segment results are needed to show which are creating shareholder value.</p>
+<p>So my recommendation remains a <strong>small, staged multi-quarter buy in SE—not a full position and not a technical bottom call</strong>. I would reserve additions for evidence that provisions stop rising faster than revenue, operating margin recovers, and reported cash flow survives a proper capex check. If credit disclosures worsen or margin compression persists, the bull case loses its basis. Your wait-for-proof approach lowers execution risk; mine accepts limited initial risk because SE has already demonstrated substantial growth <em>and</em> a real profitability turnaround.
+Bull Analyst: You’re right: <strong>a small position is not a substitute for a reason to buy SE</strong>. And Q2’s roughly <strong>6.4% incremental operating margin</strong> is the strongest reason to hesitate. My reason to begin buying is narrower: SE’s growth is still producing more operating profit <em>after</em> the spending and provisions you identify, while its recent share-price decline offers an entry before we know whether those costs are persistent.</p>
+<p>The distinction matters. Q2 operating income rose <strong>$162 million to $650 million</strong> despite marketing and provisions absorbing much of the additional gross profit. There is also a measurable path to better economics—not proof it will happen. Marketing was about <strong>21.3% of Q2 revenue</strong>, versus <strong>19.2%</strong> a year earlier; provisions were <strong>7.1%</strong>, versus <strong>6.2%</strong>. At Q2’s sales level, a return to those earlier expense ratios would represent roughly <strong>$240 million in additional quarterly operating profit before tax</strong>. I would <em>not</em> put that in a forecast: reduced marketing might slow growth, and higher credit provisions may be necessary. It shows why the cost trend is consequential in both directions.</p>
+<p>I agree with you on the valuation hurdle. <strong>$5.19 forward EPS is an estimate</strong>, not my base-case certainty; even the illustrative <strong>$3.90 EPS</strong> would leave SE around <strong>25× earnings</strong> at the September 28 close of <strong>$98.91</strong>. The bull case requires sustained revenue growth to translate into <em>per-share</em> profit, not merely a modest margin rebound. That is why I want the next disclosures on credit performance, segment economics, dilution and actual 2026 capital spending before adding materially.</p>
+<p>So why not wait entirely? SE was about <strong>12.7% below its September 8 close</strong>, yet the latest reported quarter still showed <strong>48.1% revenue growth and 33.3% operating-income growth</strong>; the recent news feed identified no new SE-specific operating disclosure explaining the selloff. That does <strong>not</strong> prove the stock is cheap. Alongside SE’s profitability turnaround and remaining <strong>$4.97 billion calculated net-cash cushion</strong>, it makes a <em>limited</em> multi-quarter investment reasonable to me before confirmation—provided the buyer can bear further downside. Shopee, financial services and Garena offer several possible growth paths, though the missing segment data prevent me from assigning profits to any one of them.</p>
+<p><strong>My recommendation remains a small, staged buy in SE, not a full position or a bottom call.</strong> I would add only if provision intensity stabilizes, operating margin improves and 2026 free cash flow becomes verifiable. If credit performance deteriorates or net cash keeps eroding, I would change the thesis rather than defend the starter buy on position size.
+Bull Analyst: You’re right about the earnings bridge. Restoring last year’s marketing and provision ratios would be worth roughly <strong>$960 million annually before tax</strong> at Q2’s sales level—not the roughly <strong>$1.6 billion in additional annual after-tax earnings</strong> implied by moving from $2.57 to $5.19 in EPS at a fixed share count. I would not cut credit provisions in a forecast without evidence that loan quality supports it. <strong>The $5.19 estimate is an upside test for SE, not the premise of my starter buy.</strong></p>
+<p>Where I think your case is too static is in treating Q2’s weak <em>year-over-year</em> incremental margin as the whole trajectory. From Q1 to Q2 2026, revenue rose from <strong>$7.10 billion to $7.79 billion</strong>, gross margin improved from about <strong>44.4% to 45.6%</strong>, and operating income rose from <strong>$593 million to $650 million</strong>. Operating margin held near <strong>8.4%</strong> sequentially despite higher marketing and provisions. That does not erase the decline from <strong>9.3% a year earlier</strong>, or prove Shopee’s network effects. It does show that rising costs have not caused a continuing sequential collapse in consolidated operating economics.</p>
+<p>I also grant that <strong>38.49× trailing earnings is demanding</strong>. Even an illustrative $3.90 EPS—well short of the forward estimate—would leave SE near <strong>25×</strong> at $98.91, hardly an automatic bargain. My reason to own a <em>small</em> amount now is the combination of demonstrated scale and an established profitability turnaround: 2025 revenue grew <strong>36.4%</strong>, Q2 revenue grew <strong>48.1% year over year</strong>, and SE earned <strong>$650 million of operating profit in Q2 after</strong> the spending and provisions we are debating. Shopee, financial services and Garena offer multiple ways to monetize that scale, although segment results are needed before crediting any one of them with future earnings.</p>
+<p>The balance sheet gives SE room to prove the case, not a pass on risk: calculated net cash was <strong>$4.97 billion</strong>, down from about <strong>$7.20 billion</strong> at year-end. Q2 operating cash flow remained positive at <strong>$1.51 billion</strong> but fell year over year, and missing capex prevents a reliable 2026 free-cash-flow claim. I agree that the loan book’s growth makes delinquency and charge-off disclosures essential.</p>
+<p>So I would <strong>begin a small, staged multi-quarter buy in SE</strong>, not call the September pullback a bottom or buy a full position on a forward P/E estimate. You would pay more for confirmation; I accept limited early exposure because growth and profitability are already observable, while further purchases must be earned through stable credit costs, better per-share earnings and verifiable cash generation. If those fail to appear, your wait-for-proof case wins.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: <strong>I would wait rather than buy SE here.</strong> I agree with you that the 2025 turnaround was real, and rising provisions do not prove a credit-loss spiral. But “profits haven’t been erased” is too low a bar for a stock at <strong>38.49× trailing earnings</strong>. The question is whether SE can turn rapid growth into the much higher <em>per-share</em> earnings its valuation anticipates.</p>
+<p>That conversion is weakening. In Q2 2026, revenue grew <strong>48.1%</strong>, but operating income grew <strong>33.3%</strong> and net income just <strong>8.6%</strong>. Operating margin fell from about <strong>9.3% to 8.4%</strong>. Your stable gross-margin point is fair; it also makes the rise in costs harder to dismiss. Marketing expense increased <strong>64.5%</strong> and doubtful-account provisions <strong>71.5%</strong>, both faster than sales. If Shopee’s network effects are producing operating leverage, it is not showing up in these consolidated margins. Without segment results, we cannot assume Garena or financial services will offset that pressure.</p>
+<p>Credit is the risk I would not pay in advance to resolve. Loans receivable reached <strong>$8.90 billion</strong>, up <strong>59.3%</strong> year over year and now about <strong>28% of assets</strong>. Q2 provisions rose to <strong>7.1% of revenue</strong>, from <strong>6.2%</strong> a year earlier. You are right that we lack delinquency and loan-vintage data; that uncertainty cuts against confidently buying on the assumption that current provisioning is sufficient. The <strong>$4.97 billion calculated net-cash cushion</strong> helps, but it has fallen from roughly <strong>$7.20 billion</strong> at year-end. Nor can the impressive <strong>$4.50 billion of 2025 free cash flow</strong> establish a current run rate when the supplied 2026 quarterly capex data are incomplete.</p>
+<p>The <strong>19.06× forward P/E</strong> is the crux of our disagreement: it rests on estimated EPS of <strong>$5.19</strong>, roughly double trailing EPS of <strong>$2.57</strong>. With margin pressure, growing credit exposure and shares outstanding up <strong>3.5%</strong> year over year, I would require evidence of that per-share improvement before calling the forward multiple attractive. Rising yields add a potential valuation headwind, though they do not explain SE’s decline by themselves.</p>
+<p>The chart reinforces patience rather than proving the business is broken: SE closed September 28 at <strong>$98.91</strong>, below its <strong>$109.16</strong> daily SuperTrend and <strong>$110.86</strong> 50-day average; the weekly trend remains UP. <strong>My recommendation is to avoid new SE buys for now</strong>, not to predict a credit collapse. Show me stable credit quality, renewed operating-margin expansion and verifiable 2026 free cash flow, and I would revisit the case. Until then, a gradual purchase is still a bet that those improvements arrive.
+Bear Analyst: You’re right that investors don’t need every cost metric to improve before owning SE. My objection is narrower: <strong>the two costs most important to the growth thesis are rising faster than revenue, while the stock already prices in a large earnings improvement.</strong> Making the initial buy small limits the dollars at risk; it doesn’t resolve that mismatch.</p>
+<p>Consider what SE kept from Q2’s growth. Revenue rose <strong>48.1%</strong>, but operating income rose <strong>33.3%</strong>. Of roughly <strong>$1.14 billion in additional gross profit</strong> year over year, approximately <strong>$881 million</strong> was matched by increases in marketing expense and doubtful-account provisions alone. Stable gross margin is good news, but it makes the lack of operating leverage more conspicuous. And while the <strong>$107 million</strong> increase in tax expense helps explain weak net-income growth, it doesn’t explain away those operating costs.</p>
+<p>I agree that provisions are not proof of realized credit losses. The problem for a buyer is that loans receivable reached <strong>$8.90 billion</strong>, up <strong>59.3%</strong>, while provisions grew <strong>71.5%</strong>—and we lack the delinquency and vintage data needed to judge whether the risk is adequately priced. The liquidity cushion is real, but calculated net cash fell from about <strong>$7.20 billion</strong> at year-end to <strong>$4.97 billion</strong>. Meanwhile, Q2 operating cash flow declined <strong>6.8%</strong> year over year, and missing quarterly capex prevents us from verifying a 2026 free-cash-flow run rate. I would not extrapolate the excellent 2025 cash figure into this year.</p>
+<p>Your multiple-monetization argument is plausible, not yet demonstrated by the supplied segment data. Nor does marketing growth of <strong>64.5%</strong> establish that Shopee’s network effects are making growth cheaper to obtain; it raises the question of how much SE must keep spending to sustain it. I’m not claiming a competitor has taken share—the evidence doesn’t show that.</p>
+<p>That matters at <strong>38.49× trailing earnings</strong>. The apparently cheaper <strong>19.06× forward multiple</strong> relies on estimated EPS of <strong>$5.19</strong>, roughly double trailing EPS of <strong>$2.57</strong>, even as shares outstanding have risen <strong>3.5%</strong>. Waiting might mean paying more if SE delivers. It also avoids paying today for per-share improvement that has not yet appeared.</p>
+<p>Finally, an UP weekly SuperTrend is a fair counterpoint to the bearish daily chart, not an entry signal. At the <strong>$98.91</strong> September 28 close, SE remained below its <strong>$109.16</strong> daily trend line and <strong>$110.86</strong> 50-day average; the weekly <strong>$87.26</strong> stop was about <strong>11.8%</strong> lower. Rising yields add a possible valuation headwind, though they do not prove why SE fell.</p>
+<p><strong>My recommendation remains to avoid new SE buys for now.</strong> I don’t require perfection—just credible evidence that credit costs are stabilizing, operating margins can expand, and current free cash flow can be verified. That is a more useful threshold than buying a small stake solely because confirmation might cost more later.
+Bear Analyst: You’re right that SE’s <strong>$650 million of Q2 operating profit</strong> distinguishes it from the business that lost money in 2022. But a small starter position still needs a reason to buy <em>now</em>. Profitability proves the turnaround happened; it does not prove the next dollar of growth will earn an attractive return.</p>
+<p>In Q2, SE added about <strong>$2.53 billion of revenue</strong> year over year but only <strong>$162 million of operating income</strong>—an incremental operating margin of roughly <strong>6.4%</strong>. Higher marketing expense and credit provisions consumed about <strong>77% of the additional gross profit</strong>. Marketing rising <strong>64.5%</strong> against <strong>48.1%</strong> revenue growth does not prove Shopee is losing share, but it challenges the idea that its scale is making growth cheaper to obtain. Without segment results, the hoped-for offset from Garena or financial services remains unquantified.</p>
+<p>I take your point that the <strong>$555 million provision is already in reported profit</strong>. The risk is what happens next as the loan book grows: receivables reached <strong>$8.90 billion</strong>, or about <strong>28% of assets</strong>, and provisions rose <strong>71.5%</strong> year over year. We lack the delinquency and vintage data needed to assess whether current provisions are enough. The balance-sheet cushion helps, but calculated net cash has fallen from about <strong>$7.20 billion to $4.97 billion</strong> since year-end, Q2 operating cash flow declined year over year, and missing capex prevents a reliable 2026 free-cash-flow check.</p>
+<p>Your illustrative <strong>$3.90 EPS</strong> case sharpens my valuation objection. It would still put SE near <strong>25× earnings</strong> at $98.91 and require EPS roughly <strong>52% above</strong> the trailing $2.57, while the latest quarter delivered only <strong>8.6% net-income growth</strong> and the share count rose <strong>3.5%</strong>. Rising yields could further pressure that multiple; they need not be the proven cause of the recent decline to be a risk.</p>
+<p><strong>I would avoid initiating SE here</strong>, not short it on the chart alone. The weekly trend remains UP, but the daily trend is DOWN, and the weekly <strong>$87.26</strong> stop sits roughly <strong>11.8% below</strong> the September 28 close—not a tight safeguard for a starter buy. I’m willing to pay more later for evidence of stabilizing credit costs, expanding operating margin, and verifiable current free cash flow. Buying small limits exposure; it does not make those missing proofs less important.
+Bear Analyst: You’ve identified the real reason to consider a starter position in SE: the business is profitable despite higher spending and provisions, and waiting for confirmation could mean paying more. I agree. But the September decline does not, by itself, improve the <em>earnings</em> case. At <strong>$98.91</strong>, SE still traded at <strong>38.49× trailing earnings</strong> while Q2 delivered only about <strong>6.4% incremental operating margin</strong> on its added revenue.</p>
+<p>Your <strong>$240 million quarterly upside</strong> from restoring last year’s marketing and provision ratios is useful as a measure of what has gone wrong—not yet a credible bridge to the forward valuation. Even sustained for four quarters at Q2 sales, that is about <strong>$960 million before tax</strong>. At roughly <strong>612.5 million shares</strong>, moving from <strong>$2.57 trailing EPS to $5.19 estimated forward EPS</strong> implies about <strong>$1.6 billion more annual earnings after tax</strong>, holding the share count fixed. Revenue growth could help close the gap, of course. But cutting marketing might slow that growth, while cutting provisions without supporting credit-quality evidence could merely bring profit forward at the expense of future losses.</p>
+<p>That is why the absence of a new SE-specific headline does not reassure me much. The known Q2 figures already give investors something to reassess: loans receivable rose <strong>59.3%</strong> year over year, provisions rose <strong>71.5%</strong>, and operating cash flow fell <strong>6.8%</strong>. The <strong>$4.97 billion calculated net-cash cushion</strong> is meaningful, but it has shrunk, and incomplete quarterly capex data leave current free cash flow unverified. None of this proves a credit crisis; it does make the optimistic earnings path harder to underwrite.</p>
+<p>I also wouldn’t treat a <strong>12.7% pullback</strong> as an entry signal while the daily trend is down and the weekly trend, though still up, has not confirmed a recovery. <strong>My recommendation remains to avoid initiating SE for now.</strong> I would reconsider on disclosed credit-quality evidence, margin improvement that does not sacrifice growth, and verifiable 2026 cash generation. A small position limits the cost of being early; it does not establish that being early is worth paying for.
+Bear Analyst: Your sequential point is fair: SE’s operating margin did <strong>not</strong> collapse from Q1 to Q2. But it also did not improve, despite the gross-margin recovery. That is why I still would not start a position.</p>
+<p>Q2 added about <strong>$400 million of gross profit</strong> over Q1. Marketing expense rose roughly <strong>$250 million</strong> and doubtful-account provisions another <strong>$89 million</strong>—together absorbing about <strong>85%</strong> of that gain. Operating income increased only <strong>$57 million</strong>, from $593 million to $650 million, while operating margin stayed near <strong>8.4%</strong>. Net income rose just <strong>$13 million</strong>. The sequential figures do not erase the year-over-year concern; they show the same spending-and-credit bottleneck in a quarter with better gross margin.</p>
+<p>I agree that the <strong>$650 million operating profit</strong> and the 2025 turnaround make SE a stronger business than it was in 2022. The question for a new buyer is what price to pay for the <em>next</em> stage. If <strong>$5.19 forward EPS is not the premise</strong> of your starter buy, what earnings path gives you a margin of safety at <strong>38.49× trailing earnings</strong>? Even your illustrative <strong>$3.90 EPS</strong> leaves the shares near <strong>25× earnings</strong> at the September 28 close of $98.91. A smaller purchase reduces exposure, but it does not make that valuation undemanding.</p>
+<p>Nor does liquidity settle the credit question. Loans receivable rose <strong>13.2% sequentially</strong> to $8.90 billion, while the quarterly provision rose about <strong>19%</strong>. That does not establish inadequate provisioning; without delinquency and vintage data, neither of us can establish adequacy. Calculated net cash of <strong>$4.97 billion</strong> provides room to absorb setbacks, but it is down from roughly <strong>$7.20 billion</strong> at year-end, and missing quarterly capex still prevents a reliable 2026 free-cash-flow assessment.</p>
+<p>So I accept your strongest point: waiting may mean paying more if SE proves it can grow profitably. <strong>My recommendation remains to avoid initiating SE for now.</strong> I would rather pay for disclosed credit quality and renewed operating leverage than pay today for the possibility of both. A quarter showing stable provision intensity, improving margins without sacrificing growth, and verifiable free cash flow would give your staged-buy case a firmer foundation.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For SE, the bear case wins moderately on earnings conversion and valuation, not on a claim that the business is failing. The bull is right that the turnaround matters: Q2 revenue grew 48.1%, operating income grew 33.3% to $650 million after the higher marketing and provisioning expenses, gross margin was resilient, and operating margin held near 8.4% sequentially. The approximately $4.97 billion calculated net-cash cushion also argues for retaining some exposure rather than an outright exit. But year-over-year operating margin declined from about 9.3% to 8.4%; marketing and provisions absorbed about 77% of incremental gross profit, leaving roughly 6.4% incremental operating margin. Sequential margin stability is reassuring, but it is not renewed operating leverage. Credit provisions grew 71.5% against 59.3% loan growth. That does not establish inadequate provisioning or a credit crisis, but missing delinquency, charge-off and vintage data prevent us from underwriting the risk confidently. At the supplied $98.91 reference price, 38.49 times trailing earnings is demanding, while the 19.06 times forward multiple depends on estimated EPS of $5.19 versus $2.57 trailing EPS. No convincing bridge to that per-share improvement was established. The tax-expense increase partly explains weak net-income growth, so I would not treat it as a pure operating signal. Nevertheless, declining operating cash flow, a smaller cash cushion and unverified 2026 free cash flow weaken the argument for paying ahead of confirmation. The decisive point is that observable spending and credit-cost pressure outweigh the plausible but unproven margin recovery; position size and a price pullback do not resolve that valuation problem.</p>
+<p><strong>Strategic Actions</strong>: Treat 1.0x as the portfolio's standard SE allocation. For now, cap SE at 0.5x: trim any excess, but do not add to positions already below that ceiling. If SE is unowned, defer initiation. This is reduced long exposure, not a short recommendation. Use staged limit orders for reductions without making a rebound a prerequisite. The $98.91 close and all technical levels are from the supplied September 28 snapshot, not live quotes; the trader should revalidate them before execution. Reassess at the next earnings disclosure. Require stable or improving disclosed delinquency, charge-off and vintage performance; provision intensity stabilizing around or below Q2's 7.1% of revenue without unsupported reserve reductions; operating-margin recovery above approximately 8.4% alongside continued growth and better per-share earnings; and verifiable positive current free cash flow using complete capex data. Also reconcile the decline in calculated net cash from approximately $7.20 billion to $4.97 billion. When those conditions support the thesis, increase only in 0.25x steps, up to 0.75x after initial confirmation and 1.0x only after sustained confirmation. For an unowned position, the first qualifying step is 0.25x, not a full allocation. A sustained recovery above the quoted $109.16-$110.86 resistance zone is secondary confirmation, not a substitute for the fundamental conditions. Further material deterioration in disclosed credit quality, or concurrent margin and cash-generation deterioration, warrants reducing exposure to 0-0.25x. A weekly close below the quoted $87.26 level triggers an immediate risk review; it is not a guaranteed exit price. Do not average down solely because SE becomes cheaper. Segment economics, credit-performance disclosures and complete 2026 capex remain missing; this plan uses only the supplied evidence.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: Underweight SE by trimming excess long exposure rather than shorting: marketing and provisioning absorbed about 77% of incremental gross profit, while credit performance and the EPS improvement implied by its valuation remain unverified. At the supplied $98.91 close, SE is below its $109.16 daily SuperTrend and $110.86 50-day SMA, with rising ADX signaling stronger trend pressure; the weekly UP signal and net cash argue for retaining some exposure. Use $98.91 only as a snapshot-based reference for staged reductions, revalidating the quote before execution rather than waiting for a rebound. The $87.26 weekly SuperTrend level triggers a risk review on a weekly close below it, not a guaranteed stop-loss execution price.</p>
+<p><strong>Entry Price</strong>: 98.91</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Trim SE exposure above 0.5x the portfolio's standard SE allocation to no more than 0.5x; do not add if already at or below that level, and defer initiation if unowned. Use staged limit orders, with no rebound prerequisite, and revalidate the September 28 snapshot before trading.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: I favor the SELL, but as an aggressive reallocation, not a verdict that SE is broken. From September 8 to September 28, SE fell about 12.7%. At the $98.91 snapshot close, it was below both its $109.16 daily SuperTrend and $110.86 50-day average, while ADX rose to 27.26. Waiting for a rebound before trimming risks keeping excess capital in a strengthening decline. Waiting for a close below the observed $96.36 low could mean selling only after another leg down.</p>
+<p>The upside case is real: Q2 revenue grew 48.1%, 2025 free cash flow was $4.50 billion, and SE had roughly $4.97 billion of net cash at June 30. That is why I would <strong>underweight, not short or liquidate</strong>. But marketing and doubtful-account provisions consumed about 77% of the year-over-year increase in Q2 gross profit. Loans receivable grew 59.3% year over year, while provisions grew 71.5%; net income rose only 8.6%. At 38.49 times trailing earnings, the much lower forward multiple depends on earnings growth that has yet to be delivered.</p>
+<p>The weekly UP signal makes a full exit too blunt, and the mildly bearish retail sentiment is too weak and noisy to justify one. Equally, the $87.26 weekly SuperTrend is $11.65 below the snapshot close; waiting until a weekly close crosses it would surrender substantial room before even triggering a review, not a guaranteed exit.</p>
+<p>So I would recheck the live quote, then use staged limit orders to trim any SE position above 0.5 times its standard allocation to no more than 0.5 times. If already at or below that size, don’t add; if unowned, defer initiation. That retains meaningful participation if SE recovers while freeing excess exposure for a stronger opportunity—without requiring a rebound that may never come.
+Aggressive Analyst: Conservative Analyst, you’re right that we have not identified a better investment. I should not call the proceeds earmarked for one. But cash is an option, not merely a retreat: trimming excess SE exposure now leaves room to act on a <em>subsequently verified</em> opportunity while keeping a stake in SE’s upside. Your fundamental cautions strengthen the case for that trim. Q2 revenue grew 48.1%, yet marketing and provisions absorbed roughly 77% of incremental gross profit, and net income grew only 8.6%. At 38.49 times trailing earnings, I would rather reduce an overweight before credit performance and forward earnings are tested than wait for proof of damage.</p>
+<p>Neutral Analyst, I agree that faster provisions do not prove future credit losses will accelerate. That is precisely why this is an underweight, not a short or liquidation. SE’s roughly $4.97 billion of June net cash and weekly UP signal preserve a credible upside case. But uncertainty cuts both ways: neither an unconfirmed OBV divergence nor the possibility of a rate-driven rally offsets the September 28 close of $98.91 below the $109.16 daily SuperTrend and $110.86 50-day average, with ADX rising to 27.26. Waiting for a close below $96.36—or for the weekly $87.26 level to trigger a review—could mean carrying excess exposure through another leg down.</p>
+<p>Both of you are right that 0.5 times a standard allocation is a ceiling, not a declaration of safety. If the caller has concentrated growth or consumer-credit exposure, use a lower ceiling. I also accept that staged orders must not become stale orders: verify the current SE quote and liquidity, then pursue the reduction promptly with price-aware limits and reassessment if they do not fill. I would challenge the conservative requirement for <em>both</em> a full technical recovery and definitive operating proof before ever increasing exposure again; that could forfeit a meaningful part of a turnaround. Reassess as evidence improves, rather than making certainty the price of participation.</p>
+<p>My call remains conditional SELL: trim SE above 0.5 times the caller’s standard SE allocation to no more than that level; do not add if already at or below it, and defer initiation if unowned. That is the bolder trade here—cut the exposure the current evidence does not justify, but retain enough to benefit if SE’s growth wins out.
+Aggressive Analyst: Conservative Analyst, I agree that we cannot name a better investment or declare half a standard SE allocation safe without seeing the portfolio. But that is not an argument for treating cash as dead weight. Selling an <em>overweight</em> creates room to act when a better opportunity is actually verified, while a risk-budgeted residual keeps us exposed to SE’s upside. If the caller already has substantial growth-stock or consumer-credit exposure, use a lower ceiling. Without that evidence, I would not make a near-zero SE position the default: Q2 revenue grew 48.1%, June reported net cash was about $4.97 billion, and the weekly trend remains UP.</p>
+<p>You are also right that missing delinquency data and unreliable 2026 quarterly free-cash-flow figures make credit quality hard to judge. That uncertainty is exactly why I want the overweight sold <em>before</em> those questions are answered. Marketing and provisions absorbed roughly 77% of Q2’s incremental gross profit, operating margin slipped, and the 19.06-times forward P/E depends on estimated earnings—not earnings already delivered. Yet requiring both a recovered chart and proven margin and credit improvement before even reconsidering the underweight could concede much of a turnaround. Reassessment can begin with earlier evidence; it need not mean adding today.</p>
+<p>Neutral Analyst, I am not claiming the decline must continue. Marketing could support future growth, and provisions are not realized losses. But spending that rises faster than revenue has not yet demonstrated the payoff needed to justify <em>excess</em> exposure. Nor would I promote the tentative OBV divergence into a bottom signal: OBV remains below its September 8 reading, while SE’s $98.91 snapshot close sits below the $109.16 daily SuperTrend and $110.86 50-day average, with ADX up to 27.26. An easing-yield rally is a genuine possibility—and a reason to retain some SE, not a reason to keep an overweight through an unverified recovery.</p>
+<p>My call is still a conditional SELL. Recheck the current SE quote and liquidity, then promptly use staged, price-aware orders with a defined execution window to bring any holding above 0.5 times the caller’s standard SE allocation to no more than that ceiling; go lower if correlated holdings require it. Do not add if already at or below the ceiling, and defer initiation if unowned. The $98.91 close is a reference, not an executable price. A daily close below the observed $96.36 low or worsening credit disclosures warrants reassessment; a weekly close below $87.26 triggers a risk review, not a guaranteed exit there. This is the assertive trade: remove exposure SE has not yet earned, without forfeiting participation if its growth ultimately wins.
+Aggressive Analyst: Conservative Analyst, you’re right: we cannot name a better investment or declare half a standard SE allocation safe without seeing the portfolio. But 0.5 times is a ceiling, not a prescribed holding. The advantage of trimming now is two-sided flexibility: cash is available if a better opportunity is later verified, while a risk-budgeted SE stake still participates if its growth pays off. Q2 revenue rose 48.1%, June net cash was about $4.97 billion, and the weekly trend remained UP. Those facts make an indiscriminate exit less compelling than an assertive overweight trim.</p>
+<p>Your credit and cash-flow objections strengthen the case for selling <em>excess</em> exposure, not for waiting. Loans receivable rose 59.3% year over year, provisions rose 71.5%, and marketing plus provisions absorbed about 77% of incremental Q2 gross profit. Net income grew only 8.6%. The $4.50 billion of 2025 free cash flow is real historical evidence, but the supplied 2026 data cannot establish that run rate. At 38.49 times trailing earnings, with the 19.06-times forward multiple dependent on estimated earnings, I would cut the overweight before those uncertainties are resolved.</p>
+<p>Neutral Analyst, I agree that marketing may generate future returns and provisions are not realized losses. That is precisely why I would retain some SE where the portfolio permits. But potential payoff is not yet demonstrated payoff. Neither the tentative OBV divergence nor a possible easing-yield rally outweighs the September 28 close of $98.91 below the $109.16 daily SuperTrend and $110.86 50-day average; rising ADX indicates stronger trend pressure, with falling prices supplying its direction. Your case for reconsidering early as evidence improves is sound. It is not a case for carrying an overweight until that evidence arrives.</p>
+<p>My call remains conditional SELL for SE: verify the current quote and liquidity, then promptly use staged, price-aware orders with a defined execution window to bring any holding above 0.5 times its standard SE allocation to no more than that ceiling—lower if correlated exposures require it. Reassess unfilled orders. Do not add if already at or below the appropriate ceiling; defer initiation if unowned. A weekly close below $87.26 triggers a risk review, not a guaranteed exit at that price.
+Aggressive Analyst: Conservative Analyst, I agree that 0.5 times a standard SE allocation is a ceiling, not a target. Check correlated holdings and the portfolio’s loss budget; set a lower ceiling if they warrant it. But the absence of portfolio details is not a reason to leave a known overweight untouched. June net cash had fallen from roughly $7.20 billion at year-end to $4.97 billion, and the weekly UP signal offers no loss protection. A weekly close below $87.26 would prompt a review, not deliver a sale at that price. Selling excess exposure now creates flexibility without making an unevaluated bet on where the proceeds go.</p>
+<p>Your fundamental objections make the trim more urgent, not a full exit inevitable. Marketing and provisions absorbed about 77% of Q2’s incremental gross profit, and the 19.06-times forward P/E relies on earnings still to be delivered. Yet SE grew revenue 48.1% year over year; spending could eventually pay off, and provisions do not establish realized losses. The high-reward choice is to keep a risk-budgeted stake in that possibility while removing exposure the current evidence has not earned.</p>
+<p>Neutral Analyst, I am not forecasting that SE must keep falling. I am arguing that an overweight should not depend on a rebound arriving first. At the $98.91 September 28 snapshot, SE was below its $109.16 daily SuperTrend and $110.86 50-day average; ADX had risen to 27.26, while the OBV divergence remained tentative. An easing-yield rally is possible, but so is another leg down before operating evidence arrives. Retaining a smaller stake lets us participate in the first outcome without carrying excess risk through the second. I agree that improving price and volume can justify <em>reassessing</em> the underweight before every credit question is settled—not adding on an isolated bounce today.</p>
+<p>My call remains conditional SELL for SE. Verify the current quote and liquidity, then promptly use staged, price-aware orders within a defined execution window to reduce any holding above 0.5 times its standard SE allocation to no more than that ceiling, lower if the portfolio requires it. Reassess unfilled orders rather than waiting for a rebound. If already at or below the appropriate ceiling, do not add; if unowned, defer initiation. The $98.91 close is a historical reference, and $87.26 is a weekly risk-review trigger, not a guaranteed exit price.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the Aggressive Analyst’s SELL direction, but not with describing this as capital for a “stronger opportunity.” We have no evidence about another investment or the portfolio’s existing exposures. The defensible objective is to reduce SE risk, not to justify taking new risk elsewhere.</p>
+<p>SE’s growth and roughly $4.97 billion of June net cash argue against calling the business broken. They do not make the current position safe. In Q2, marketing and doubtful-account provisions absorbed about 77% of the year-over-year increase in gross profit; loans receivable rose 59.3%, while provisions rose 71.5%. Net income grew only 8.6%, operating cash flow fell year over year, and the reported net-cash cushion has shrunk since December. The 2025 free-cash-flow figure is encouraging, but the supplied 2026 quarterly free-cash-flow data cannot reliably establish that the same pace continues. That matters at 38.49 times trailing earnings.</p>
+<p>The Aggressive Analyst is right not to wait for a rebound, but staged limit orders should not become an excuse to leave excess exposure in place through a fast decline. Recheck the live SE quote and liquidity, then make reasonably prompt, price-disciplined reductions. The $98.91 close is a historical reference, not an execution price. A half-standard allocation is a ceiling, not proof of safety: if the portfolio is already concentrated in similar growth or consumer-credit risks, a smaller residual position may be warranted.</p>
+<p>The Neutral Analyst has not made a case yet. If the argument is to wait for more confirmation, I would distinguish confirmation before buying from confirmation before reducing an overweight. The daily trend is down, and $96.36 is an observed low, not dependable support. The weekly UP signal and tentative OBV divergence justify retaining some exposure where the risk budget permits; they do not justify postponing an overweight trim until a weekly close below $87.26. That level is about 11.8% below the snapshot close and triggers a review, not a guaranteed sale at that price. Conversely, weak, low-confidence social sentiment is not a reason to liquidate SE.</p>
+<p>My low-risk adjustment is therefore conditional SELL: if SE exceeds the caller’s standard allocation by enough to sit above 0.5 times that allocation, reduce it to no more than 0.5 times, subject to an even tighter portfolio risk limit. If it is already at or below that level, do not add; if unowned, defer initiation. Reassess the residual position if price breaks down further or subsequent disclosures show worsening credit quality. Consider increasing exposure only after both a sustained technical recovery and credible evidence that credit costs and margins are stabilizing.
+Conservative Analyst: Aggressive Analyst, I agree that cash preserves flexibility, but I would not let a possible future opportunity justify the size of the SE stake we keep today. Half a standard allocation is a ceiling, not a target. If the portfolio already has substantial growth-stock or consumer-credit exposure, even that residual may be too large. We do not have the holdings needed to declare it safe.</p>
+<p>Neutral Analyst, you are right that rising provisions do not prove future credit losses will accelerate. The risk is that we lack the delinquency and charge-off data needed to test that possibility while SE’s loans receivable have grown 59.3% year over year and provisions 71.5%. June’s roughly $4.97 billion of reported net cash is a cushion, but it is smaller than at year-end. Likewise, 2025’s $4.50 billion of free cash flow is encouraging, but the supplied 2026 quarterly data cannot verify that pace. At 38.49 times trailing earnings, waiting for proof of damage before reducing an overweight puts too much weight on the upside case.</p>
+<p>I am not asking for certainty before any future increase. I am asking for credible evidence that both the price decline and the pressure on margins and credit costs are stabilizing. A rally driven only by easing yields could lift SE without resolving those operating questions; the weekly UP signal is a reason to retain a risk-budgeted stake, not to postpone a trim.</p>
+<p>My recommendation remains a conditional SELL. Check the current SE quote, then promptly and price-consciously reduce any holding above 0.5 times the caller’s standard SE allocation to no more than that ceiling, lower if correlated exposure warrants it. Do not add if already below it, and defer initiation if unowned. Reassess a remaining stake on a break below the observed $96.36 low or worsening credit disclosures. A weekly close below $87.26 calls for a risk review, not an assumed exit at that price.
+Conservative Analyst: Aggressive Analyst, I agree that trimming an overweight SE position preserves flexibility. But the possibility of a better investment later does not tell us how much SE risk to retain now. Nor is the choice between half an allocation and a near-zero position: without the caller’s holdings, we cannot know whether even half a standard allocation fits the portfolio’s growth-stock and consumer-credit risk budget. Your case for selling excess exposure is stronger than your case for any particular residual size.</p>
+<p>Neutral Analyst, you are right that provisions are not realized losses and marketing could support future growth. The problem is that we cannot yet verify the payoff. SE’s loans receivable rose 59.3% year over year to $8.90 billion, provisions rose 71.5%, and marketing and provisions together absorbed roughly 77% of Q2’s incremental gross profit. Revenue grew 48.1%, but net income grew only 8.6% and operating margin fell. June’s roughly $4.97 billion of reported net cash is a meaningful cushion, though smaller than at year-end; the supplied 2026 quarterly free-cash-flow figures cannot establish that 2025’s $4.50 billion pace continues. At 38.49 times trailing earnings, that uncertainty matters before losses are proven.</p>
+<p>I also would not use the weekly UP signal, tentative OBV divergence, or a possible easing-yield rally to set the position size. They justify keeping a stake <em>if the risk budget permits</em>, not assuming a rebound. At the September 28 snapshot, SE closed at $98.91 below its $109.16 daily SuperTrend and $110.86 50-day average. The $96.36 observed low is not a floor, and waiting for a weekly close below $87.26 could leave considerable further loss—and still would not guarantee execution at that level.</p>
+<p>My recommendation remains a conditional SELL: verify the current SE quote and liquidity, then promptly reduce any holding above 0.5 times the caller’s standard SE allocation to no more than that ceiling, using price-aware orders with a defined execution window. Set a lower ceiling if the actual portfolio’s correlated exposures or loss budget require it; reassess unfilled orders rather than leaving the overweight in place indefinitely. If already at or below the appropriate ceiling, do not add; if unowned, defer initiation rather than shorting. Reconsidering the underweight can begin as evidence improves, but a price bounce alone is not evidence that SE’s credit costs and margins have stabilized.
+Conservative Analyst: Aggressive Analyst, I agree with trimming promptly, but preserving upside and keeping cash available for a future opportunity do not tell us how much SE risk to retain. Half a standard allocation is a ceiling, not a default holding. Before leaving that much in place, I would check the portfolio’s combined growth-stock and consumer-credit exposure and the loss it can absorb. SE’s roughly $4.97 billion of June net cash is meaningful, but it has fallen from about $7.20 billion at year-end. The weekly UP signal does not cap losses: $87.26 is about 11.8% below the $98.91 snapshot close and would trigger a review, not an exit at that price.</p>
+<p>Neutral Analyst, marketing may produce future returns, and provisions are not realized credit losses. Neither possibility establishes that today’s spending is earning an adequate return. Loans receivable reached $8.90 billion, up 59.3% year over year, while provisions rose 71.5%; we lack the delinquency and charge-off data needed to judge where that leads. Despite 48.1% revenue growth, operating margin fell and net income rose only 8.6%. The lower forward P/E relies on earnings growth not yet delivered, and the supplied 2026 quarterly free-cash-flow data cannot verify a repeat of 2025’s strong result. A yield-driven rally or tentative OBV divergence could lift the shares without answering those questions.</p>
+<p>My call remains a conditional SELL for SE, not a short or an automatic liquidation. Verify the current quote and liquidity, then use prompt, price-aware orders within a defined window to reduce any holding above 0.5 times its standard allocation to no more than that ceiling—and lower if the actual portfolio’s risk budget requires it. Reassess unfilled orders rather than leaving an overweight untouched. If already at or below the appropriate ceiling, do not add; if unowned, defer initiation. A daily close below the observed $96.36 low or worsening credit disclosures warrants renewed review. I would reconsider an increase as evidence improves, but a price bounce alone is not proof that SE’s margins and credit risk have stabilized.
+Conservative Analyst: Aggressive Analyst, I agree that an overweight should be trimmed without waiting for a rebound. I disagree with calling the remaining stake the “high-reward choice.” That framing can turn a risk ceiling into a target. Without the caller’s holdings and loss budget, we cannot know whether even half a standard SE allocation is prudent. June net cash and strong revenue growth are meaningful, but net cash has declined, loans receivable grew 59.3% year over year, and the supplied 2026 free-cash-flow data cannot verify a repeat of 2025’s result. The estimated 19.06-times forward P/E depends on earnings SE has not yet delivered.</p>
+<p>Neutral Analyst, sustained improvement in price and volume would justify reassessing the underweight; I am not demanding certainty before a review. But a rally—particularly one driven by easing yields—would not by itself answer whether faster-growing provisions and marketing spending are producing durable returns. Nor does the weekly UP signal protect a position: $87.26 is about 11.8% below the $98.91 snapshot close and is a weekly risk-review trigger, not an executable stop.</p>
+<p>My recommendation remains a conditional SELL for SE. Verify the current quote and liquidity, then promptly reduce any holding above 0.5 times its standard SE allocation to no more than that ceiling, using price-aware orders and reassessing unfilled orders within a defined window. Set a lower ceiling if correlated exposures or a plausible loss—including gaps and slippage—would breach the portfolio’s risk budget. If already at or below the appropriate limit, do not add; if unowned, defer initiation. The September 28 price is a reference, not today’s execution price.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: Aggressive Analyst, I agree that waiting for a rebound before trimming excess SE exposure is a poor risk plan. The September 28 snapshot shows SE below its daily SuperTrend and 50-day average, with trend strength rising. But calling the proceeds capital for a “stronger opportunity” assumes an alternative we have not evaluated. Nor does the proposed 0.5-times allocation make the residual position safe by itself. Your fundamental concern is substantial—marketing and provisions took up roughly 77% of the year-over-year increase in Q2 gross profit—but rising provisions do not, without delinquency and charge-off data, prove that credit losses will keep accelerating.</p>
+<p>Conservative Analyst, you are right to make the sale conditional on the caller’s actual holdings and correlated exposures. I would push back on treating a smaller residual position, or requiring both full technical recovery and new fundamental proof before <em>any</em> future increase, as the default. SE still grew Q2 revenue 48.1%, had about $4.97 billion of reported net cash in June, and retained a weekly UP signal. Those facts do not cancel the risk, but an investor with room in their risk budget could miss meaningful upside by applying the tightest limit regardless of portfolio context. Rising yields are a valuation headwind; easing yields could also produce a rally without new SE news.</p>
+<p>My recommendation remains a conditional SELL, not a liquidation. After checking a current SE quote and liquidity, promptly trim any holding above 0.5 times the caller’s standard SE allocation to no more than that level, using price-disciplined orders with a defined execution window—not stale limits that leave an intended reduction undone. Use a lower ceiling if existing holdings create concentrated growth or consumer-credit risk. If SE is already at or below that size, do not add on this evidence; if unowned, defer initiation. Reassess on a daily close below the observed $96.36 low, a weekly close below $87.26, or new credit-quality disclosures. The weekly level triggers a review, not a guaranteed exit price. Conversely, sustained recovery through $109.16 and $110.86 alongside improving operating evidence would warrant reconsidering the underweight.
+Neutral Analyst: Aggressive Analyst, I agree that an overweight SE position should not wait for a rebound before being trimmed. But the case for selling is a case for controlling exposure, not for assuming the decline will continue. The weekly trend is still UP, and OBV offers a tentative, unconfirmed counter-signal. Your 77% figure is a serious warning about margins, but marketing spending may support future growth, and higher provisions alone do not establish realized credit losses. Those distinctions matter when deciding how much SE to retain.</p>
+<p>Conservative Analyst, you are right that half a standard allocation is a ceiling, not a safe target for every portfolio. I would challenge making simultaneous technical and fundamental improvement a rigid prerequisite for <em>reconsidering</em> the underweight. SE’s 48.1% Q2 revenue growth and roughly $4.97 billion of June net cash leave a credible upside case, including a possible rally if yields ease. That does not justify adding now: loans and provisions are growing quickly, net cash has declined, and the lower forward P/E depends on earnings that have not yet been delivered.</p>
+<p>My call remains a conditional SELL for SE. Recheck the current quote and liquidity, then use staged, price-aware orders within a defined execution window to reduce any holding above 0.5 times the caller’s standard SE allocation to no more than that ceiling; use less if correlated exposures warrant it. Do not add if already at or below the ceiling, and defer initiation if unowned. The $98.91 close is only a September 28 reference. Review a daily close below the observed $96.36 low or worsening credit disclosures; a weekly close below $87.26 calls for a further risk review, not an assumed sale at that price. That preserves participation without letting an unverified recovery carry an oversized position.
+Neutral Analyst: Aggressive Analyst, I agree that excess SE exposure should be trimmed without waiting for a rebound. But the 77% figure describes current margin pressure, not necessarily permanent damage: marketing may support future growth, and provisions are not realized credit losses. SE’s 48.1% Q2 revenue growth and roughly $4.97 billion of June net cash make a risk-budgeted residual defensible. Cash preserves flexibility, but it is not evidence that another investment will outperform SE.</p>
+<p>Conservative Analyst, you are right that half a standard allocation is a ceiling, not a safe target. I would not, though, dismiss the weekly UP trend and continuing growth when deciding whether a diversified portfolio can retain a modest stake. They do not outweigh the falling daily trend or unresolved credit questions, but they matter to the balance of risks. I agree that a price bounce alone would not validate credit quality; improving participation or operating disclosures could justify <em>reconsidering</em> the underweight gradually, without demanding certainty first.</p>
+<p>My call remains a conditional SELL. Verify the current SE quote and liquidity, then promptly use price-aware orders within a defined window to reduce any holding above 0.5 times its standard SE allocation to no more than that ceiling—lower if correlated holdings or the loss budget require it. Reassess unfilled orders rather than leaving the overweight untouched. If already at or below the appropriate ceiling, do not add; if unowned, defer initiation. The $98.91 close is a historical reference. A daily close below the observed $96.36 low or worsening credit disclosures warrants review; a weekly close below $87.26 triggers a further risk review, not a guaranteed exit price.
+Neutral Analyst: Aggressive Analyst, I agree that an overweight SE position should not wait for a rebound before being trimmed. But the flexibility created by selling does not itself establish that the remaining stake is appropriately sized. SE’s June net cash and weekly UP signal support retaining exposure where the portfolio permits; neither protects against a further decline or resolves the fast growth in loans and provisions. Your case is strongest as an exposure-control decision, not a prediction that the daily downtrend will continue.</p>
+<p>Conservative Analyst, your insistence on checking correlated holdings and the loss budget is right. I would be less rigid about what it takes to <em>reconsider</em> the underweight. A sustained improvement in price and volume participation could justify a fresh assessment before both the chart and credit data are fully reassuring. That is different from adding because of a bounce: SE’s 48.1% Q2 revenue growth offers upside, but weaker operating margin and unverified 2026 free cash flow still demand caution. Higher yields add valuation risk; easing yields could lift SE without fixing those operating questions.</p>
+<p>My call remains a conditional SELL. Verify the current SE quote and liquidity, then reduce any holding above 0.5 times the caller’s standard SE allocation to no more than that ceiling, promptly but with price-aware orders and a defined window for reassessing unfilled orders. Set a lower ceiling if the actual portfolio has concentrated growth or consumer-credit exposure. Do not add if already at or below the appropriate ceiling; defer initiation if unowned. The $98.91 September 28 close is a reference, not an execution price. Review a daily close below the observed $96.36 low or worsening credit disclosures; a weekly close below $87.26 calls for a risk review, not an assumed sale at that price.
+Neutral Analyst: Aggressive Analyst, trimming an overweight SE position without waiting for a rebound is sensible. I would push back on calling the residual stake the “high-reward choice,” though. Half a standard allocation is a risk ceiling, not a target, and cash raised by selling is flexibility—not evidence that another investment will do better. The 77% figure shows real pressure on incremental profit, but marketing may support future growth, and provisions are not the same as realized credit losses.</p>
+<p>Conservative Analyst, your insistence on checking correlated holdings and plausible gap losses is important. The caution could become excessive if it keeps a diversified investor from retaining a modest stake or <em>reassessing</em> it when evidence improves. SE’s 48.1% Q2 revenue growth, June net cash and still-UP weekly signal leave a credible upside case. A sustained price recovery with improving volume would merit a fresh look, even before every credit question is resolved; it would not, by itself, justify adding.</p>
+<p>My recommendation remains a conditional SELL for SE: verify the current quote and liquidity, then trim holdings above 0.5 times the caller’s standard SE allocation to no more than that ceiling, or lower if the portfolio’s risk budget requires it. Use price-aware orders over a defined window and revisit unfilled orders rather than relying on the stale $98.91 close. If already at or below the appropriate ceiling, do not add; if unowned, defer initiation. Review a daily close below $96.36 or worsening credit disclosures. A weekly close below $87.26 calls for a risk review, not an assumed sale at that price.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: Underweight SE by capping exposure at 0.5x the caller’s standard SE allocation—or lower if correlated exposures and loss limits require—and trimming any excess. Do not add at or below the applicable ceiling; if unowned, defer initiation rather than shorting. Verify current pricing and liquidity, then use prompt, staged limit orders without waiting for a rebound, reviewing unfilled orders within the same trading session. Reassess at the next earnings disclosure or sooner on worsening credit disclosures, a daily close below $96.36, or a weekly close below $87.26; these September 28 snapshot levels require revalidation and are review triggers, not guaranteed exit prices.</p>
+<p><strong>Investment Thesis</strong>: The bearish case for SE wins moderately on earnings conversion, valuation and unresolved credit risk—not on evidence that the business is failing. The analysts’ proposed sales are conditional partial reductions, so Underweight is the appropriate position rating rather than an outright exit. The 0.5x allocation is a ceiling, not a target or assurance of safety; actual growth-stock and consumer-credit concentration, including plausible gaps and slippage, may require less exposure.</p>
+<p>Profit conversion is the decisive operating concern. Q2 revenue grew 48.1%, and operating income increased 33.3% to $650 million after marketing and provisioning expenses, demonstrating genuine progress. However, marketing and provisions absorbed approximately 77% of incremental gross profit; operating margin declined from about 9.3% to 8.4% year over year, with approximately 6.4% incremental operating margin. Sequential stability near 8.4% and resilient gross margin are encouraging but do not establish renewed operating leverage. Net-income growth of 8.6% is also weak relative to revenue, although higher tax expense partly explains the difference and prevents treating it as a purely operating signal.</p>
+<p>Credit uncertainty strengthens the case for smaller exposure without proving a credit crisis. Loans receivable reached $8.90 billion, up 59.3%, while provisions increased 71.5%. As the Neutral Analyst emphasizes, provisions are not realized losses, and marketing may generate future returns. Nevertheless, missing delinquency, charge-off and vintage data prevent verification of credit performance or the spending payoff. The Conservative Analyst is therefore right that the remaining position must fit the actual portfolio rather than default automatically to half an allocation.</p>
+<p>Valuation requires an earnings improvement that the supplied evidence does not bridge. At the historical $98.91 reference, SE traded at 38.49x trailing earnings and 19.06x estimated forward earnings, based on EPS of $2.57 and $5.19 respectively. That implies roughly a doubling of EPS despite current conversion pressure. Operating cash flow declined year over year, and calculated net cash fell from approximately $7.20 billion at year-end to $4.97 billion at June 30. The supplied $4.50 billion of 2025 free cash flow is favorable historical evidence, but incomplete 2026 capex and quarterly cash-flow information cannot verify continuation of that pace.</p>
+<p>The upside case argues against blanket liquidation. Strong revenue growth, higher operating income, the remaining net-cash cushion and the weekly UP signal support retaining a risk-budgeted position. However, at the September 28 snapshot, SE was below its $109.16 daily SuperTrend and $110.86 50-day average. ADX of 27.26 indicates trend strength, not direction by itself; falling prices supply the bearish direction. Tentative OBV divergence, low-confidence sentiment and a possible easing-yield rally do not establish a bottom or resolve the operating questions. This supports the Aggressive Analyst’s prompt reductions without assuming that prices must keep falling or that another investment will outperform SE.</p>
+<p>For risk management, a daily close below the observed $96.36 low warrants review; that low is not dependable support. A weekly close below $87.26 warrants an immediate risk review, not an assumed execution there. Further material deterioration in disclosed credit quality, or concurrent deterioration in margins and cash generation, would justify reducing the ceiling toward 0–0.25x. Do not wait for these triggers to trim exposure already above the applicable ceiling.</p>
+<p>Reconsider the underweight as evidence improves; sustained recovery through the historical $109.16–$110.86 zone with better participation can prompt earlier reassessment, but is secondary confirmation rather than a mandatory prerequisite or a substitute for operating evidence. Actual increases should be supported by stable or improving delinquency, charge-off and vintage performance; provision intensity stabilizing around or below Q2’s 7.1% of revenue without unsupported reserve reductions; operating margin recovering above approximately 8.4% alongside continued growth and better per-share earnings; and verifiable positive current free cash flow using complete capex data. Reconcile the net-cash decline as well. After initial fundamental confirmation, add in steps no larger than 0.25x, up to 0.75x, with 1.0x reserved for sustained confirmation and portfolio capacity; an unowned position starts at 0.25x. Do not average down solely because SE becomes cheaper. Current holdings, a live quote, detailed segment economics and the specified credit and capex disclosures are missing; no defensible price target can be established from the supplied evidence.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Until SE’s next earnings disclosure, with earlier reassessment on price or credit-risk triggers.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,4519 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/MELI/20260928_gpt-6-astra_20260928_195545/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: MELI - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-meli" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: MELI
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#meli-technical-outlook-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MELI technical outlook — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trend-and-momentum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend and momentum
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exhaustion-is-a-watch-not-a-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exhaustion is a watch, not a trigger
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#levels-and-conditional-trade-plans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Levels and conditional trade plans
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#meli-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MELI sentiment | 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-source-by-source-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Source-by-source assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cross-source-divergences-and-alignments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cross-source divergences and alignments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dominant-narrative-themes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dominant narrative themes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-catalysts-risks-and-evidentiary-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Catalysts, risks and evidentiary boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#meli-news-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MELI news and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-over-the-past-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed over the past week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-trading-read-through" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable trading read-through
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#meli-fundamental-report-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MELI fundamental report — 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executive-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Executive assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#business-and-financial-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Business and financial history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latest-operating-results-quarter-ended-2026-06-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latest operating results: quarter ended 2026-06-30
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-sheet-lending-exposure-and-liquidity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance sheet, lending exposure, and liquidity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-flow-substantial-but-assess-its-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash flow: substantial, but assess its composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valuation-and-insider-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valuation and insider activity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-monitoring-framework-for-meli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable monitoring framework for MELI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-meli">Trading Analysis Report: MELI<a class="headerlink" href="#trading-analysis-report-meli" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:55:45</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="meli-technical-outlook-september-28-2026">MELI technical outlook — September 28, 2026<a class="headerlink" href="#meli-technical-outlook-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>MELI is in a clear short-term decline, but a completed daily exhaustion signal makes a rebound possible.</strong> The distinction matters: a rebound would not, by itself, reverse the prevailing trend. The verified September 28 close was <strong>$1,712.41</strong>, below the 10-day EMA (<strong>$1,794.04</strong>), 200-day SMA (<strong>$1,843.30</strong>), and 50-day SMA (<strong>$1,868.62</strong>). The close has fallen from <strong>$2,006.58 on September 2</strong>, while the 50-day SMA has recently turned down after reaching <strong>$1,877.47 on September 18</strong>.</p>
+<p>I selected eight complementary indicators: <strong>SuperTrend and the 50-day SMA</strong> for trend and its time horizons; <strong>MACD histogram and RSI</strong> for directional momentum versus oversold risk; <strong>ATR</strong> for risk sizing; <strong>OBV</strong> for participation; and <strong>TD-9 and z-score</strong> to distinguish a possible exhaustion event from a statistically extreme price.</p>
+<h4 id="trend-and-momentum">Trend and momentum<a class="headerlink" href="#trend-and-momentum" title="Permanent link">&para;</a></h4>
+<p>The multi-timeframe SuperTrend readings are mixed, not uniformly bearish:</p>
+<ul>
+<li><strong>Weekly: down</strong>, with its line at <strong>$2,061.81</strong>. This is the primary trend tier and weighs against treating a short-term bounce as a new sustained uptrend.</li>
+<li><strong>Monthly: up</strong>, with its line at <strong>$1,550.73</strong>. The longer-horizon regime has not flipped down under this measure, although that line is too distant to serve as a tight trading stop.</li>
+<li><strong>Daily: down</strong>, with its line at <strong>$1,883.79</strong>. A recovery through the nearby averages would be an improvement, but the daily SuperTrend would still need attention.</li>
+</ul>
+<p>Momentum confirms the near-term weakness. The verified <strong>MACD histogram is −19.30</strong> on September 28, versus <strong>−17.76 on September 25</strong>; MACD itself is <strong>−38.15</strong>, below its <strong>−18.85</strong> signal line. <strong>RSI is 32.55</strong>, down from <strong>62.22 on September 2</strong>. That is close to, but <em>not below</em>, the conventional 30 oversold threshold. Neither reading establishes a bullish turn yet.</p>
+<p>Participation also warrants caution. The OBV indicator has declined over the September lookback, consistent with selling pressure rather than a price decline unsupported by volume. The verified <strong>September 18 volume was 1,161,900 shares</strong>, compared with <strong>544,200 on September 28</strong>: selling has been evident, but the latest session was not itself the highest-volume day in this comparison. OBV’s <em>direction</em>, not its arbitrary cumulative level, is the useful signal.</p>
+<h4 id="exhaustion-is-a-watch-not-a-trigger">Exhaustion is a watch, not a trigger<a class="headerlink" href="#exhaustion-is-a-watch-not-a-trigger" title="Permanent link">&para;</a></h4>
+<p>The <strong>daily TD-9 has completed a +9 buy setup</strong>, a reason to watch for a reversal or relief rally. The higher tiers temper that signal: <strong>weekly is only +3</strong> in its buy setup, while <strong>monthly is −3</strong> in a sell setup. Similarly, the z-scores are <strong>−1.81 daily, −0.61 weekly, and −1.19 monthly</strong>. The daily price is depressed, but it has not reached the indicator’s <strong>−2</strong> statistical-stretch threshold, and the weekly reading is much nearer its mean. Taken together, these measures argue against <em>chasing</em> the decline, not for buying solely because it has fallen.</p>
+<h4 id="levels-and-conditional-trade-plans">Levels and conditional trade plans<a class="headerlink" href="#levels-and-conditional-trade-plans" title="Permanent link">&para;</a></h4>
+<p>The verified September 28 <strong>low of $1,685.55</strong> sits just below the current <strong>lower Bollinger Band at $1,696.66</strong>; the close remained above both. A subsequent close below that area would be a more persuasive continuation signal than an intraday dip alone. Traders considering a bearish entry could instead wait for a rebound that fails to hold above the <strong>10-day EMA at $1,794.04</strong>, while checking whether momentum and OBV remain weak. Neither outcome is assured.</p>
+<p>For a bullish <em>countertrend</em> trade, a close back above <strong>$1,794.04</strong>, accompanied by improving MACD histogram and OBV, would be an initial sign of stabilization. The <strong>200-day SMA at $1,843.30</strong>, <strong>50-day SMA at $1,868.62</strong>, and <strong>daily SuperTrend at $1,883.79</strong> form successive tests. Clearing the first does not clear the others; the weekly downtrend remains a separate, higher-tier obstacle.</p>
+<p>Finally, the verified <strong>ATR is $59.11</strong>—about <strong>3.5% of the latest close</strong>. Stops placed very close to an entry may be vulnerable to ordinary price movement, while a stop as distant as the daily or weekly SuperTrend can require a substantially smaller position. Set the invalidation level and position size together rather than treating any indicator line as an automatic order.</p>
+<p><em>Exact OHLCV, moving-average, MACD, RSI, Bollinger and ATR figures above use the verified market snapshots. Multi-timeframe SuperTrend, TD-9, z-score and OBV observations come from their dedicated indicator outputs; those fields are not included in the verification snapshot.</em></p>
+<table>
+<thead>
+<tr>
+<th>Focus</th>
+<th>MELI evidence</th>
+<th>Trading implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Primary trend</td>
+<td>Weekly SuperTrend <strong>down</strong>; monthly <strong>up</strong>; daily <strong>down</strong></td>
+<td>Favor the weekly bearish reading for trend trades, while recognizing the monthly regime has not flipped.</td>
+</tr>
+<tr>
+<td>Medium-term benchmark</td>
+<td>September 28 close <strong>$1,712.41</strong> versus 50-day SMA <strong>$1,868.62</strong></td>
+<td>A bounce below the average remains a recovery within weakness, not confirmed trend repair.</td>
+</tr>
+<tr>
+<td>Directional momentum</td>
+<td>MACD histogram <strong>−19.30</strong>; RSI <strong>32.55</strong></td>
+<td>Bearish momentum persists, but proximity to oversold territory raises rebound risk.</td>
+</tr>
+<tr>
+<td>Participation</td>
+<td>OBV declining over the September lookback</td>
+<td>Look for an OBV turn to help confirm any price recovery.</td>
+</tr>
+<tr>
+<td>Exhaustion and stretch</td>
+<td>Daily TD-9 <strong>+9</strong>; daily z-score <strong>−1.81</strong>; weekly TD-9 <strong>+3</strong></td>
+<td>Watch for a reversal, but require price and momentum confirmation before acting on it.</td>
+</tr>
+<tr>
+<td>Downside test</td>
+<td>September 28 low <strong>$1,685.55</strong>; lower Bollinger Band <strong>$1,696.66</strong></td>
+<td>A close below the area would strengthen the bearish continuation case; an intraday breach alone is less decisive.</td>
+</tr>
+<tr>
+<td>Recovery tests</td>
+<td>10-day EMA <strong>$1,794.04</strong>; 200-day SMA <strong>$1,843.30</strong>; 50-day SMA <strong>$1,868.62</strong>; daily SuperTrend <strong>$1,883.79</strong></td>
+<td>Treat a reclaim as a sequence of confirmations, not one all-clear signal.</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>ATR <strong>$59.11</strong></td>
+<td>Size positions for meaningful daily movement and place stops at a clearly defined trade-invalidation level.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mixed</strong> (Score: 5.3/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="meli-sentiment-2026-09-21-to-2026-09-28">MELI sentiment | 2026-09-21 to 2026-09-28<a class="headerlink" href="#meli-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="1-source-by-source-assessment">1. Source-by-source assessment<a class="headerlink" href="#1-source-by-source-assessment" title="Permanent link">&para;</a></h4>
+<p><strong>News (Yahoo Finance headlines): mixed, with a growth-positive business narrative and valuation/price-action reservations.</strong> Of 16 supplied headlines, 10 focus on MELI, one mentions MELI as an eBay peer, and five do not establish a material MELI connection in their supplied text. On the positive side, Motley Fool contrasts MELI's nearly doubled revenue over two years with Chewy's flat revenue, and another comparison describes 39% MELI revenue growth. Trefis attributes 46% trailing-12-month revenue growth and free cash flow equal to 13.7% of market value to MELI, while arguing management is intentionally holding down profit to fund growth. These are <em>publisher claims</em>, and the 39% and 46% figures need not describe the same measurement period or basis. Zacks reports that MELI's advertising business gained momentum in Q2 2026, exceeding 10% of Latin America's digital-ad market as AI tools and video inventory expanded. The $1 billion issuance of senior unsecured notes due in 2036 reportedly drew demand from more than 100 institutional investors, supporting a funding-access narrative, though debt is not unambiguously positive for equity holders.</p>
+<p>Offsetting those positives, Simply Wall St says MELI looks expensive relative to earnings; Trefis compares eBay's stronger operating-profit conversion and lower price per dollar of profit with MELI; and Motley Fool characterizes MELI as trading near-term profit for Latin American market share. Another Zacks headline reports a 2.51% daily decline that outpaced the broader market. Its statement that MELI closed at '$1' is implausible alongside the supplied posts discussing prices in the thousands, so <strong>do not use '$1' as an observed share price</strong>; even the reported percentage decline is a headline claim rather than independently verified market data. Peer-comparison articles establish competing investment narratives, not a consensus recommendation. The Burry/semiconductor headlines and generic large-cap article do not substantiate a MELI-specific position or catalyst.</p>
+<p><strong>StockTwits: strongly bullish on user labels, substantially less clear in the message bodies.</strong> In 27 most-recent messages, 14 are tagged Bullish (52% of all), one Bearish (4%), and 12 unlabeled (44%); the tagged-only split is 14:1, or approximately 93% bullish. Multiple posters say they are buying or adding on weakness, including a Sept. 28 message claiming an add at $1,689 and repeat additions from @Flatflounder7. But the lone Sept. 25 post tagged Bullish saying 'This stock is a scam' is plainly negative in content; several unlabeled messages likewise call the chart 'horrible,' MELI 'red every day' or a 'disaster ticker.' Another unlabeled poster says they closed a 19-year position, while the tagged Bearish poster argues '$2000 was probably the exit.' The Sept. 22 claim that $1,795 was a 'new bottom' contrasts with a later claimed $1,689 purchase, illustrating why social price levels and predictions are not validated technical evidence. Repeated posts by the same accounts and ticker-only bullish tags further weaken the apparent 14:1 signal. Retail dip-buying conviction is real as an expression of opinion, but the labeled ratio overstates unanimity and could indicate contrarian positioning risk within this small, self-selected sample. An unlabeled message alleges Michael Burry added MELI as a long; none of the supplied MELI-specific news verifies that position, so it remains an unconfirmed social claim.</p>
+<p><strong>Reddit: no data.</strong> The r/wallstreetbets, r/stocks and r/investing feed was disabled by configuration; there are no posts or engagement measures to assess. Silence in this feed is not neutral Reddit sentiment.</p>
+<h4 id="2-cross-source-divergences-and-alignments">2. Cross-source divergences and alignments<a class="headerlink" href="#2-cross-source-divergences-and-alignments" title="Permanent link">&para;</a></h4>
+<p>The main divergence is bullish retail <em>buy-the-dip</em> language versus news coverage simultaneously praising growth and questioning MELI's earnings valuation and near-term profitability. Retail complaints about a weak chart and selling after a long holding period, however, align with the reported negative trading-day headline and make the social feed more divided than its labels imply. On fundamentals, bullish retail descriptions of an undervalued MELI align with the Trefis free-cash-flow argument, whereas the earnings-based valuation critique and eBay profitability comparison point the other way. The unverified Burry-long assertion cannot resolve that disagreement. With Reddit unavailable, there is no third independent community read to arbitrate the split.</p>
+<h4 id="3-dominant-narrative-themes">3. Dominant narrative themes<a class="headerlink" href="#3-dominant-narrative-themes" title="Permanent link">&para;</a></h4>
+<p>The recurring question for MELI is <strong>whether rapid Latin American commerce/fintech growth and expanding advertising justify its valuation while management prioritizes market share over current earnings</strong>. The accompanying trading narrative is that some retail participants view recent weakness as an opportunity, while others regard the share-price trend as broken. Comparisons with Shopify, Alibaba, Chewy, Target, Coupang and eBay frame the growth-versus-profitability/valuation choice rather than documenting a newly lost or won competitive position.</p>
+<h4 id="4-catalysts-risks-and-evidentiary-boundaries">4. Catalysts, risks and evidentiary boundaries<a class="headerlink" href="#4-catalysts-risks-and-evidentiary-boundaries" title="Permanent link">&para;</a></h4>
+<p>Potential supportive developments mentioned in the supplied material are advertising growth with AI/video inventory, longer-dated financing demand, and continued commerce/fintech expansion; these should be weighed against earnings-valuation sensitivity, deliberate margin pressure, credit/debt exposure inherent in funding growth, and social reports of weak trading. A Sept. 24 unlabeled StockTwits message claims a Brazil prescription-pharmacy launch in September and marketplace integration in October; without a corroborating supplied news item, treat this only as an <strong>unverified potential catalyst</strong>, not a confirmed launch. Likewise, the 13.7% free-cash-flow-to-market-value claim does not by itself establish a durable cash yield without methodology. No confirmed earnings date, reliable price series, or verified MELI holding by Burry was supplied. This is a current sentiment snapshot for the trader to weigh with independently checked fundamentals and technicals, <strong>not a price forecast or trade recommendation</strong>. Confidence is <strong>low</strong> because Reddit was disabled, the StockTwits sample is only 27 messages with inconsistent self-labels and repeated posters, and some supplied headlines are peripheral or contain an anomalous price.</p>
+<table>
+<thead>
+<tr>
+<th>Sentiment signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence / qualification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Commerce and fintech growth</td>
+<td>Bullish</td>
+<td>Motley Fool; Trefis; Zacks</td>
+<td>MELI revenue described as nearly doubling over two years; 39% and 46% growth claims on unspecified/different bases; expanding commerce/fintech ecosystem.</td>
+</tr>
+<tr>
+<td>Advertising expansion</td>
+<td>Bullish</td>
+<td>Zacks</td>
+<td>Q2 2026 ad momentum and reported share above 10% of Latin America's digital-ad market, with AI/video inventory.</td>
+</tr>
+<tr>
+<td>Cash generation versus valuation</td>
+<td>Mixed</td>
+<td>Trefis; Simply Wall St</td>
+<td>Trefis claims free cash flow of 13.7% of market value; Simply Wall St questions price relative to earnings. Cash-flow methodology not supplied.</td>
+</tr>
+<tr>
+<td>Profitability and competition</td>
+<td>Bearish caution</td>
+<td>Motley Fool; Trefis</td>
+<td>MELI described as sacrificing current profit for market share; eBay comparison says MELI has weaker operating-profit conversion and a higher profit multiple.</td>
+</tr>
+<tr>
+<td>Institutional debt demand</td>
+<td>Mildly bullish, with risk</td>
+<td>Simply Wall St</td>
+<td>$1 billion of senior unsecured notes due 2036 reportedly attracted more than 100 institutional investors; still creates debt obligations.</td>
+</tr>
+<tr>
+<td>User-tagged retail stance</td>
+<td>Bullish, low reliability</td>
+<td>StockTwits</td>
+<td>14 Bullish, one Bearish, 12 unlabeled among 27; one Bullish-tagged message explicitly calls MELI a 'scam,' and posters recur.</td>
+</tr>
+<tr>
+<td>Negative chart/holder frustration</td>
+<td>Bearish</td>
+<td>StockTwits; Zacks</td>
+<td>Several posts complain of persistent red days or a broken chart; one says they sold after 19 years; Zacks reports a 2.51% daily dip but supplies an implausible '$1' close.</td>
+</tr>
+<tr>
+<td>Pharmacy expansion / Burry-long rumors</td>
+<td>Unconfirmed</td>
+<td>StockTwits</td>
+<td>Unlabeled posts allege a Brazil pharmacy rollout and Burry MELI long; no confirming MELI-specific news is provided.</td>
+</tr>
+<tr>
+<td>Reddit corroboration</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>Feed disabled; no subreddit posts or votes to score.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="meli-news-and-macro-report-september-28-2026">MELI news and macro report — September 28, 2026<a class="headerlink" href="#meli-news-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Trading assessment: cautious, with a constructive longer-term case.</strong> MercadoLibre, Inc. (<code>MELI</code>) retains reported growth opportunities in commerce, payments, credit and advertising. For the next trading week, however, rising U.S. bond yields, questions about the cost of that growth, and an imminent Brazil political catalyst argue against treating a dip as an automatic buying opportunity.</p>
+<h4 id="what-changed-over-the-past-week">What changed over the past week<a class="headerlink" href="#what-changed-over-the-past-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Higher yields are the clearest market-wide headwind.</strong> September 28 reporting described <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">climbing Treasury yields and falling major U.S. equity indexes</a>, alongside a <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">higher-for-longer Fed outlook</a>. Higher discount rates can pressure the valuation of a growth stock such as <code>MELI</code>, even without a deterioration in its operations. The previous <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-081738529.html">weekly equity gains despite a bond sell-off</a> show that this relationship is not automatic.</li>
+<li><strong>The rate-cut market offers little near-term relief in its current pricing.</strong> A Polymarket contract put <strong>97% implied odds</strong> on <em>no Fed rate cuts in 2026</em>, up one percentage point over the week. That is a market price—not a Fed forecast or a verified policy-rate reading.</li>
+<li><strong>Company coverage highlights a growth-versus-margin trade-off.</strong> A <a href="https://www.fool.com/coverage/better-buy/2026/09/26/mercadolibre-vs-shopify-which-stock-is-a-better-buy-in-2026/">September 26 comparison</a> describes <code>MELI</code> as prioritizing Latin American market share over current profit. <a href="https://finance.yahoo.com/markets/stocks/articles/mercadolibre-meli-stock-looks-rich-011401553.html">Valuation commentary</a> raises the corresponding question: when will that investment translate into earnings? These are analysts’ interpretations, not a new company earnings release.</li>
+<li><strong>Advertising and financing are useful developments to monitor.</strong> <a href="https://finance.yahoo.com/media-advertising/articles/mercadolibres-advertising-business-keeps-gaining-141900946.html">Zacks reports</a> momentum in <code>MELI</code>’s advertising business, citing its Q2 2026 performance. Separately, <a href="https://finance.yahoo.com/markets/stocks/articles/why-mercadolibre-meli-raising-1-081141668.html">reporting on $1 billion of notes due in 2036</a> points to long-term funding capacity. Investors should verify the notes’ coupon and intended use before judging their effect on financing costs.</li>
+<li><strong>Brazil adds an imminent event risk.</strong> Prediction-market contracts supplied by the tool showed <strong>58% implied odds for Flávio Bolsonaro</strong> and <strong>42% for Luiz Inácio Lula da Silva</strong> in markets listing an October 4 resolution date. These are contract prices, <strong>not election forecasts or confirmed results</strong>; contract resolution rules matter. For <code>MELI</code>, the practical exposure is potential volatility in Brazilian currency, consumer demand, rates and financial regulation.</li>
+</ul>
+<h4 id="actionable-trading-read-through">Actionable trading read-through<a class="headerlink" href="#actionable-trading-read-through" title="Permanent link">&para;</a></h4>
+<p><strong>For a new <code>MELI</code> long:</strong> wait for evidence that yields have stabilized and assess Brazilian currency and election-related moves alongside the stock. A lower share price alone does not resolve a valuation concern if discount rates keep rising.</p>
+<p><strong>For an existing position:</strong> focus on whether commerce and payments growth is accompanied by improving margins and credit quality. Watch advertising monetization, fulfillment and promotional spending, credit losses, and funding costs in the next company disclosures. Strong volume growth with worsening unit economics would weaken the bull case; sustained growth with improving profitability would strengthen it.</p>
+<p><strong>Evidence limits:</strong> FRED inflation, employment, policy-rate, Treasury-yield and volatility series were unavailable because the macro-data connection lacks an API key. This report therefore gives <strong>no numerical macro readings</strong>. The supplied company-news feed also contains an implausible “$1” <code>MELI</code> closing-price snippet; it should <strong>not</strong> be used as a quote or trade level. The broader news feed is heavily weighted toward U.S. technology and metals, so its lack of Latin American headlines is not evidence that regional risks are absent.</p>
+<table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>Evidence as of Sept. 28</th>
+<th><code>MELI</code> implication</th>
+<th>What to do or watch</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>U.S. rates</td>
+<td>Reports of rising yields; no Fed cuts in 2026 priced at 97% on one prediction-market contract</td>
+<td>Potential pressure on growth-stock valuation and financing costs</td>
+<td>Avoid assuming rate-cut support; watch yields before adding exposure</td>
+</tr>
+<tr>
+<td>Growth versus profit</td>
+<td>Recent coverage describes investment in market share alongside earnings-valuation concerns</td>
+<td>Revenue strength may not immediately support the share price</td>
+<td>Check margins and spending alongside growth in the next disclosure</td>
+</tr>
+<tr>
+<td>Advertising</td>
+<td>Zacks cites Q2 advertising momentum</td>
+<td>Possible higher-value revenue stream</td>
+<td>Check whether monetization improves profitability</td>
+</tr>
+<tr>
+<td>Debt funding</td>
+<td>Reporting describes $1 billion of notes due 2036</td>
+<td>Longer-dated liquidity, with an associated interest cost</td>
+<td>Verify coupon, use of proceeds and future funding needs</td>
+</tr>
+<tr>
+<td>Brazil politics and FX</td>
+<td>October 4 resolution dates listed on election prediction-market contracts</td>
+<td>Possible currency and policy-driven volatility</td>
+<td>Keep position size consistent with event risk; monitor actual results and FX</td>
+</tr>
+<tr>
+<td>Data quality</td>
+<td>FRED series unavailable; one news snippet contains an implausible price</td>
+<td>No reliable macro levels or <code>MELI</code> entry price from these tools</td>
+<td>Confirm live prices, yields and company filings before placing a trade</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="meli-fundamental-report-2026-09-28">MELI fundamental report — 2026-09-28<a class="headerlink" href="#meli-fundamental-report-2026-09-28" title="Permanent link">&para;</a></h4>
+<p><strong>Company:</strong> MercadoLibre, Inc. (<code>MELI</code>)
+<strong>Exchange / classification:</strong> NMS; Consumer Cyclical / Internet Retail
+<strong>Currency:</strong> USD unless noted</p>
+<h4 id="executive-assessment">Executive assessment<a class="headerlink" href="#executive-assessment" title="Permanent link">&para;</a></h4>
+<p><code>MELI</code> is growing revenue rapidly, but earnings have not kept pace. In the latest quarter available in the supplied financial data, ended <strong>2026-06-30</strong>, revenue rose about <strong>50% year over year</strong> to <strong>$10.17 billion</strong>, while operating income fell <strong>17%</strong> to <strong>$683 million</strong> and net income fell <strong>11%</strong> to <strong>$466 million</strong>. A substantially higher provision for doubtful accounts and a lower gross margin are central issues for traders to monitor.</p>
+<p>Cash generation is strong <em>as reported</em>, but it requires care in a business with payments and lending activity: changes in payables and working capital contributed materially to operating cash flow. Debt and the loan-receivables balance have also grown. The supplied valuation snapshot puts <code>MELI</code> at <strong>46.5× trailing earnings</strong> and <strong>30.6× forward earnings</strong>—a meaningful expectation of future profit growth despite the latest year-over-year earnings decline.</p>
+<p><strong>Past-week limitation:</strong> The tools supply financial periods, not filing or publication dates, and no news feed. They therefore do <strong>not</strong> establish that <code>MELI</code> released a financial document or experienced a fundamental change during <strong>2026-09-21 through 2026-09-28</strong>. The most recent insider transaction <em>listed</em> is dated June 2026; absence of a September transaction in that list is not proof that none occurred.</p>
+<h4 id="business-and-financial-history">Business and financial history<a class="headerlink" href="#business-and-financial-history" title="Permanent link">&para;</a></h4>
+<p>MercadoLibre operates a Latin American commerce ecosystem encompassing its marketplace, payments and other financial services, logistics, and advertising. The supplied tools do not provide segment results, geographic revenue, loan-delinquency cohorts, management guidance, or direct 10-Q/10-K documents, so the financial statements below support a company-wide rather than a segment-level assessment.</p>
+<table>
+<thead>
+<tr>
+<th>Fiscal year</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Operating income</th>
+<th style="text-align: right;">Net income</th>
+<th style="text-align: right;">Diluted EPS</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Capital expenditure</th>
+<th style="text-align: right;">Reported free cash flow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">$10.78bn</td>
+<td style="text-align: right;">$1.07bn</td>
+<td style="text-align: right;">$0.48bn</td>
+<td style="text-align: right;">$9.53</td>
+<td style="text-align: right;">$2.94bn</td>
+<td style="text-align: right;">$0.46bn</td>
+<td style="text-align: right;">$2.49bn</td>
+</tr>
+<tr>
+<td>2023</td>
+<td style="text-align: right;">$15.11bn</td>
+<td style="text-align: right;">$2.21bn</td>
+<td style="text-align: right;">$0.99bn</td>
+<td style="text-align: right;">$19.46</td>
+<td style="text-align: right;">$5.14bn</td>
+<td style="text-align: right;">$0.51bn</td>
+<td style="text-align: right;">$4.63bn</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">$20.78bn</td>
+<td style="text-align: right;">$2.63bn</td>
+<td style="text-align: right;">$1.91bn</td>
+<td style="text-align: right;">$37.69</td>
+<td style="text-align: right;">$7.92bn</td>
+<td style="text-align: right;">$0.86bn</td>
+<td style="text-align: right;">$7.06bn</td>
+</tr>
+<tr>
+<td>2025</td>
+<td style="text-align: right;">$28.89bn</td>
+<td style="text-align: right;">$3.20bn</td>
+<td style="text-align: right;">$2.00bn</td>
+<td style="text-align: right;">$39.40</td>
+<td style="text-align: right;">$12.12bn</td>
+<td style="text-align: right;">$1.34bn</td>
+<td style="text-align: right;">$10.77bn</td>
+</tr>
+</tbody>
+</table>
+<p>Revenue increased approximately <strong>39% in 2025</strong>, following approximately <strong>38% growth in 2024</strong>. Yet 2025 net income increased only <strong>4.5%</strong>: operating expenses and credit provisions grew substantially. The provision for doubtful accounts was <strong>$3.09 billion in 2025</strong>, versus <strong>$1.86 billion in 2024</strong>. Revenue growth alone is thus an insufficient test of the earnings outlook.</p>
+<h4 id="latest-operating-results-quarter-ended-2026-06-30">Latest operating results: quarter ended 2026-06-30<a class="headerlink" href="#latest-operating-results-quarter-ended-2026-06-30" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">2026 Q2</th>
+<th style="text-align: right;">2025 Q2</th>
+<th style="text-align: right;">Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td style="text-align: right;">$10.169bn</td>
+<td style="text-align: right;">$6.790bn</td>
+<td style="text-align: right;"><strong>+49.8%</strong></td>
+</tr>
+<tr>
+<td>Gross profit</td>
+<td style="text-align: right;">$4.159bn</td>
+<td style="text-align: right;">$3.094bn</td>
+<td style="text-align: right;"><strong>+34.4%</strong></td>
+</tr>
+<tr>
+<td>Gross margin, calculated</td>
+<td style="text-align: right;"><strong>40.9%</strong></td>
+<td style="text-align: right;"><strong>45.6%</strong></td>
+<td style="text-align: right;"><strong>−4.7 percentage points</strong></td>
+</tr>
+<tr>
+<td>Operating expenses</td>
+<td style="text-align: right;">$3.476bn</td>
+<td style="text-align: right;">$2.269bn</td>
+<td style="text-align: right;"><strong>+53.2%</strong></td>
+</tr>
+<tr>
+<td>Provision for doubtful accounts</td>
+<td style="text-align: right;">$1.276bn</td>
+<td style="text-align: right;">$0.690bn</td>
+<td style="text-align: right;"><strong>+84.9%</strong></td>
+</tr>
+<tr>
+<td>Operating income</td>
+<td style="text-align: right;">$0.683bn</td>
+<td style="text-align: right;">$0.825bn</td>
+<td style="text-align: right;"><strong>−17.2%</strong></td>
+</tr>
+<tr>
+<td>Operating margin, calculated</td>
+<td style="text-align: right;"><strong>6.7%</strong></td>
+<td style="text-align: right;"><strong>12.2%</strong></td>
+<td style="text-align: right;"><strong>−5.4 percentage points</strong></td>
+</tr>
+<tr>
+<td>Net income</td>
+<td style="text-align: right;">$0.466bn</td>
+<td style="text-align: right;">$0.523bn</td>
+<td style="text-align: right;"><strong>−10.9%</strong></td>
+</tr>
+<tr>
+<td>Diluted EPS</td>
+<td style="text-align: right;"><strong>$9.19</strong></td>
+<td style="text-align: right;"><strong>$10.31</strong></td>
+<td style="text-align: right;"><strong>−10.9%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Revenue added <strong>$3.38 billion</strong> year over year, generating <strong>$1.07 billion</strong> more gross profit. But operating expenses rose <strong>$1.21 billion</strong>, more than offsetting that gain. The doubtful-accounts provision alone increased <strong>$586 million</strong>; it represented approximately <strong>12.5% of quarterly revenue</strong>, versus <strong>10.2%</strong> a year earlier. The tool does not supply the loan performance data needed to determine whether this reflects worsening credit quality, planned credit expansion, accounting assumptions, or a combination.</p>
+<p>Sequentially, 2026 Q2 revenue rose about <strong>15%</strong> from Q1’s $8.845 billion, and net income rose from <strong>$417 million to $466 million</strong>. Nonetheless, operating margin slipped slightly from approximately <strong>6.9% to 6.7%</strong>. The Q2 provision-to-revenue ratio <em>improved</em> from approximately <strong>14.1% in Q1</strong> to <strong>12.5%</strong>, a useful early indicator to watch rather than proof of a lasting credit-cost reversal.</p>
+<p>Summing the four reported quarters through 2026 Q2 yields approximately <strong>$35.18 billion in trailing revenue</strong>, <strong>$2.91 billion in operating income</strong>, and <strong>$1.86 billion in net income</strong>. The calculated trailing operating margin is <strong>8.3%</strong>, versus <strong>11.1% for full-year 2025</strong>.</p>
+<h4 id="balance-sheet-lending-exposure-and-liquidity">Balance sheet, lending exposure, and liquidity<a class="headerlink" href="#balance-sheet-lending-exposure-and-liquidity" title="Permanent link">&para;</a></h4>
+<p>At <strong>2026-06-30</strong>, <code>MELI</code> reported <strong>$51.36 billion of assets</strong>, <strong>$43.52 billion of liabilities</strong>, and <strong>$7.83 billion of stockholders’ equity</strong>. Total debt, including the obligations captured by the vendor’s debt line, was <strong>$13.18 billion</strong>, up from <strong>$8.98 billion</strong> a year earlier; reported net debt increased from <strong>$4.18 billion to $6.86 billion</strong>.</p>
+<ul>
+<li><strong>Credit exposure is expanding:</strong> Current loans receivable reached <strong>$11.41 billion</strong>, up approximately <strong>73%</strong> from <strong>$6.61 billion</strong> at 2025 Q2 and approximately <strong>29%</strong> from year-end 2025. Its growth alongside the <strong>85%</strong> year-over-year rise in quarterly doubtful-accounts provision warrants review of future credit disclosures.</li>
+<li><strong>Liquidity is positive but has tightened:</strong> Current assets of <strong>$40.78 billion</strong> exceeded current liabilities of <strong>$36.37 billion</strong> by <strong>$4.41 billion</strong>. The calculated current ratio was <strong>1.12</strong>, versus approximately <strong>1.20</strong> a year earlier.</li>
+<li><strong>Cash is not all interchangeable:</strong> The balance sheet separately lists <strong>$13.32 billion of restricted cash</strong> and <strong>$5.53 billion of cash, cash equivalents and short-term investments</strong>. Restricted cash should not be assumed available to repay corporate debt or fund shareholders.</li>
+<li><strong>Near-term obligations matter:</strong> Current debt and capital-lease obligations totaled <strong>$7.00 billion</strong>, above the <strong>$5.53 billion</strong> cash-and-short-term-investment figure. This comparison is a monitoring prompt, not a standalone solvency conclusion; the supplied data do not detail debt maturities, customer-fund obligations, or available facilities.</li>
+<li><strong>Leverage:</strong> Total debt is approximately <strong>1.68× book equity</strong>, broadly consistent with the vendor’s debt-to-equity figure of about <strong>169%</strong>.</li>
+</ul>
+<h4 id="cash-flow-substantial-but-assess-its-composition">Cash flow: substantial, but assess its composition<a class="headerlink" href="#cash-flow-substantial-but-assess-its-composition" title="Permanent link">&para;</a></h4>
+<p>For 2026 Q2, operating cash flow was <strong>$3.66 billion</strong>, capital expenditure was <strong>$441 million</strong>, and reported free cash flow was <strong>$3.22 billion</strong>, up approximately <strong>23%</strong> year over year. First-half 2026 reported free cash flow totaled <strong>$5.03 billion</strong>.</p>
+<p>The quality-of-cash-flow qualification is important: <strong>$2.13 billion</strong> of Q2 operating cash flow came from a positive working-capital change, including a <strong>$3.26 billion increase in payables and accrued expenses</strong>, partly offset by receivables and other uses. In 2025, positive working-capital changes contributed <strong>$5.92 billion</strong> to <strong>$12.12 billion</strong> of annual operating cash flow. Traders should not automatically equate all reported free cash flow with recurring cash available for debt reduction or buybacks, particularly without a breakdown of payments-related balances and lending cash flows.</p>
+<p>Capital expenditure increased from <strong>$287 million in 2025 Q2</strong> to <strong>$441 million in 2026 Q2</strong>. Net property, plant and equipment stood at <strong>$5.29 billion</strong> at the latest balance-sheet date, versus <strong>$3.46 billion</strong> a year earlier.</p>
+<h4 id="valuation-and-insider-activity">Valuation and insider activity<a class="headerlink" href="#valuation-and-insider-activity" title="Permanent link">&para;</a></h4>
+<p>The supplied fundamentals snapshot reports a <strong>$86.81 billion market capitalization</strong>, <strong>46.5× trailing P/E</strong>, <strong>30.6× forward P/E</strong>, <strong>11.1× price-to-book</strong>, <strong>$36.80 trailing EPS</strong>, and <strong>$55.90 forward EPS</strong>. Forward EPS is roughly <strong>52% above trailing EPS</strong>. That forecast may be achieved, but the latest quarterly earnings and margins do not yet demonstrate it; <code>MELI</code> appears sensitive to changes in the expected pace of credit-cost and margin improvement. The snapshot also reports <strong>1.31 beta</strong>, <strong>27.5% return on equity</strong>, and a <strong>$1,495–$2,548.50</strong> 52-week trading range. These are vendor snapshot figures, <strong>not a verified 2026-09-28 live quote</strong>.</p>
+<p>The insider list’s most recent <em>purchases</em> are an officer’s <strong>124-share purchase</strong> on <strong>2026-06-11</strong> (listed at approximately <strong>$200,000</strong>), a director’s <strong>600-share purchase</strong> on <strong>2026-05-22</strong> (approximately <strong>$994,000</strong>), and an officer’s <strong>57-share purchase</strong> on <strong>2026-02-27</strong> (approximately <strong>$100,000</strong>). June 12 director stock awards were <strong>zero-price grants</strong>, not open-market purchases. The latest listed sales were in <strong>December 2025</strong>. These modest, dated purchases are not evidence of buying in the past week.</p>
+<h4 id="actionable-monitoring-framework-for-meli">Actionable monitoring framework for <code>MELI</code><a class="headerlink" href="#actionable-monitoring-framework-for-meli" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>For a stronger bullish fundamental case:</strong> Look for the next verified filing to show revenue growth accompanied by operating-margin recovery from <strong>6.7%</strong>, a sustained reduction in the <strong>12.5%</strong> Q2 provision-to-revenue ratio, and positive year-over-year EPS growth. Confirm that improved operating cash flow is not predominantly another increase in payables.</li>
+<li><strong>For a more cautious case:</strong> Treat continued provision growth faster than revenue, further gross-margin compression, a current ratio moving toward <strong>1.0</strong>, or net debt rising beyond <strong>$6.86 billion</strong> without corresponding durable earnings growth as reasons to reassess the valuation.</li>
+<li><strong>Before relying on forward P/E or free-cash-flow multiples:</strong> Check a dated primary filing and current market price. The supplied snapshot’s <strong>$353 million free-cash-flow figure conflicts</strong> with both the quarterly cash-flow statement (<strong>$3.22 billion in 2026 Q2</strong>) and the <strong>$12.41 billion</strong> obtained by summing the latest four reported quarters. Its <strong>$16.80 billion gross-profit figure</strong> likewise differs from the <strong>$15.01 billion</strong> sum of those quarters. Definitions or reporting timestamps may differ; these figures cannot be reconciled from the provided tools, so a mechanical snapshot-based FCF valuation would be unreliable.</li>
+</ol>
+<p><strong>Source and timing note:</strong> Figures come from the supplied fundamental, annual and quarterly statement, and insider-transaction tools for <code>MELI</code>. Quarterly periods are dated by fiscal <strong>period end</strong>, not verified filing date. Calculated margins, changes and trailing sums are identified above; rounding may affect totals.</p>
+<table>
+<thead>
+<tr>
+<th>Key point for <code>MELI</code></th>
+<th>Evidence as of available data</th>
+<th>Trading relevance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fast sales growth, weaker earnings conversion</td>
+<td>2026 Q2 revenue <strong>+49.8% YoY</strong>; operating income <strong>−17.2%</strong>; EPS <strong>−10.9%</strong></td>
+<td>Require margin and EPS confirmation, not sales growth alone.</td>
+</tr>
+<tr>
+<td>Credit costs are pivotal</td>
+<td>Q2 doubtful-accounts provision <strong>$1.276bn</strong>, <strong>+84.9% YoY</strong>; loans receivable <strong>$11.41bn</strong>, <strong>+73% YoY</strong></td>
+<td>Scrutinize the next filing’s lending and loss disclosures.</td>
+</tr>
+<tr>
+<td>Liquidity remains positive, with rising obligations</td>
+<td>Current ratio <strong>1.12</strong>; net debt <strong>$6.86bn</strong>; restricted cash <strong>$13.32bn</strong></td>
+<td>Distinguish restricted funds from deployable liquidity.</td>
+</tr>
+<tr>
+<td>Reported cash flow needs context</td>
+<td>Q2 FCF <strong>$3.22bn</strong>; positive working-capital change <strong>$2.13bn</strong></td>
+<td>Test whether cash generation persists without large payable inflows.</td>
+</tr>
+<tr>
+<td>Valuation anticipates recovery</td>
+<td>Snapshot P/E <strong>46.5× trailing / 30.6× forward</strong>; forward EPS <strong>$55.90</strong> vs trailing <strong>$36.80</strong></td>
+<td>Earnings disappointment could matter despite revenue strength.</td>
+</tr>
+<tr>
+<td>No verified past-week catalyst</td>
+<td>No filing dates or news supplied; latest listed insider event <strong>June 2026</strong></td>
+<td>Do not infer a September filing or insider signal from these tools.</td>
+</tr>
+<tr>
+<td>Vendor metrics conflict</td>
+<td>Snapshot FCF <strong>$0.35bn</strong> vs latest-quarter statement <strong>$3.22bn</strong></td>
+<td>Reconcile with primary filings before using an FCF multiple.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: ## MELI bull case: the earnings setback is real, but so is the growth engine</p>
+<p>I’d make the long-term bull case for <strong>MELI</strong> without pretending the recent sell-off is over. In the latest reported quarter, revenue grew <strong>49.8% year over year to $10.17 billion</strong>. That follows annual revenue growth of roughly <strong>38% in 2024</strong> and <strong>39% in 2025</strong>. This is not a company asking investors to pay for an opportunity that has yet to produce sales; it has already scaled a substantial Latin American commerce and financial-services business.</p>
+<p>The competitive argument is that MELI can serve a transaction through its marketplace, payments and logistics operations, then potentially monetize merchant demand through advertising. Those businesses can reinforce one another, though the supplied data do not establish the size of any network-effect advantage. Advertising is particularly interesting: Zacks reports Q2 momentum and a share above <strong>10% of Latin America’s digital-ad market</strong>. That is a publisher claim to verify, not a reported segment result, but it points to another avenue for growth beyond transaction volume.</p>
+<p><strong>Bear, your strongest point is earnings quality—not revenue.</strong> Q2 operating income fell <strong>17.2%</strong> despite nearly 50% sales growth, and the doubtful-accounts provision rose <strong>84.9%</strong>. I would not call that harmless “investment spending.” But I also would not conclude from the provision alone that credit quality has definitively deteriorated: loans receivable grew <strong>73%</strong>, the data lack delinquency cohorts, and the provision-to-revenue ratio eased from approximately <strong>14.1% in Q1 to 12.5% in Q2</strong>. That sequential improvement is a reason to investigate, not proof that the problem is solved.</p>
+<p>The upside case is <strong>earnings conversion on an already large revenue base</strong>. MELI’s trailing operating margin is about <strong>8.3%</strong>, versus <strong>11.1% for full-year 2025</strong>. At the current trailing revenue of roughly <strong>$35.18 billion</strong>, recovering that 2.8-percentage-point gap would represent nearly <strong>$1 billion of additional annual operating income</strong>, <em>before</em> taxes and financing effects and with no assumed sales growth. That is an illustration of sensitivity, not a forecast. It shows why the margin debate matters so much to the stock.</p>
+<p>I agree that <strong>46.5× trailing earnings and 30.6× forward earnings</strong> leave little room for a prolonged credit or margin disappointment. Reported Q2 free cash flow of <strong>$3.22 billion</strong> supports the case that MELI can fund growth, but <strong>$2.13 billion of operating cash flow came from a positive working-capital change</strong>; I would not value the company as though every dollar were recurring cash available to shareholders. Nor would I count its <strong>$13.32 billion of restricted cash</strong> as freely available liquidity.</p>
+<p>Finally, I would separate <em>investing</em> from <em>calling a bottom</em>. MELI closed September 28 at <strong>$1,712.41</strong>, below key moving averages, with a declining weekly trend. The completed daily TD-9 setup raises the possibility of a rebound, not confirmation of one. Rising yields and Brazil-related event risk add reasons to size an entry carefully.</p>
+<p><strong>My recommendation is a selective, staged long-term buy in MELI, not an all-in short-term trade.</strong> The bear wins if the next disclosures show credit provisions continuing to outrun growth and the <strong>6.7% Q2 operating margin</strong> failing to recover. The bull wins if rapid sales growth persists while credit costs stabilize and more of that growth reaches earnings. Given MELI’s demonstrated scale and multiple ways to monetize its ecosystem, I think that upside is worth underwriting—while demanding evidence on those two tests.
+Bull Analyst: Bear, I agree that <strong>MELI has not earned a clean bill of health</strong>. Nearly 50% Q2 revenue growth alongside a 17% decline in operating income is exactly why this is a <em>staged</em> buy, not an all-clear signal. But your “wait until the recovery is proven” approach has a cost too: by the time margins, credit performance and cash-flow quality all look reassuring, investors may no longer be buying into the same uncertainty—or at the same price.</p>
+<p>The bull case does <strong>not</strong> require an immediate return to 2025’s 11.1% operating margin. MELI generated about <strong>$35.18 billion of trailing revenue</strong> and <strong>$2.91 billion of operating income</strong> at an 8.3% margin. As an illustration, if revenue grew 20% and that <em>trailing</em> margin merely held, operating income would be roughly <strong>$3.5 billion</strong>. That is not a forecast: Q2’s <strong>6.7% margin</strong> shows even holding 8.3% must be earned. It does show why growth across an already large marketplace, payments and logistics ecosystem matters before assuming a full margin rebound. Advertising offers another potential monetization path, though I agree the reported ad-market-share claim is no substitute for segment profits.</p>
+<p>On credit, your year-over-year comparison is the right challenge: provisions rose <strong>84.9%</strong>, faster than the <strong>73%</strong> increase in loans receivable. I would not label that healthy lending. Yet the provision-to-revenue ratio moved from about <strong>14.1% in Q1 to 12.5% in Q2</strong> while revenue rose roughly <strong>15% sequentially</strong>. One quarter cannot establish better credit quality, especially without delinquency cohorts, but it is a measurable reason not to assume that Q1’s cost intensity must persist.</p>
+<p>I also would not sell this as a simple free-cash-flow bargain. Subtracting Q2’s <strong>$2.13 billion positive working-capital change</strong> from its <strong>$3.22 billion reported free cash flow</strong> leaves roughly <strong>$1.09 billion</strong>—a mechanical check, <em>not</em> a validated recurring-cash-flow figure. And <strong>$6.86 billion of net debt</strong> plus restricted cash that cannot be treated as freely deployable remain real constraints. The reported demand for $1 billion of 2036 notes suggests funding access, not that debt is costless.</p>
+<p>So here is our actual disagreement: you want confirmation <em>before</em> buying; I am willing to buy <strong>a limited position while seeking it</strong>. At <strong>46.5× trailing and 30.6× forward earnings</strong>, MELI needs earnings to catch up, and rising yields, Brazil event risk and a down-trending chart argue against an aggressive entry. But Q2 revenue growth of <strong>49.8%</strong> gives the company a substantial base from which even partial earnings conversion could matter. I would stage purchases rather than call the September 28 close of <strong>$1,712.41</strong> a bottom.</p>
+<p><strong>My MELI recommendation remains a selective, staged long-term buy</strong>, contingent on the next disclosures. If provisions keep outrunning growth, margins fail to recover from 6.7%, and cash generation continues to depend heavily on payables, I would reassess—not invoke “scale” to explain away the evidence.
+Bull Analyst: Bear, your <strong>MELI</strong> calculation is right: 20% revenue growth at Q2’s 6.7% operating margin would leave operating income slightly below its current trailing level. But it also identifies a less demanding hurdle than my earlier 8.3% example. On that hypothetical <strong>$42.2 billion</strong> revenue base, MELI would need a margin of about <strong>6.9%</strong> to match today’s <strong>$2.91 billion</strong> in trailing operating income. At <strong>7.5%</strong>—still below the 8.3% trailing margin—operating income would be about <strong>$3.17 billion</strong>. None of those outcomes is a forecast, and a modest operating-income gain would <strong>not</strong> by itself justify a forward EPS estimate 52% above trailing EPS. My point is that shareholders do not need an immediate return to 2025’s 11.1% margin for growth to begin reaching earnings.</p>
+<p>There is also a reason to keep investigating that possibility rather than treating Q2 as proof the model cannot scale. Despite the gross-margin decline, <strong>gross profit rose $1.07 billion year over year</strong>. Of the <strong>$1.21 billion</strong> increase in operating expenses, roughly <strong>$586 million</strong> was the increase in doubtful-accounts provision. Gross profit therefore grew about <strong>$444 million more than other operating expenses</strong>. That is not “earnings excluding a problem”: credit losses are a real cost of MELI’s financial-services growth. It shows precisely where the earnings-conversion test lies. Historically, conversion has happened: operating income rose from <strong>$1.07 billion in 2022 to $3.20 billion in 2025</strong>, before this year’s setback.</p>
+<p>I accept your correction on provisions. <strong>Dollar provisions rose sequentially</strong>, so the lower provision-to-revenue ratio is not a credit turnaround. We need loan-performance disclosures to judge whether the expanding book is earning an adequate return. The marketplace, payments, logistics and advertising combination gives MELI several ways to serve and monetize a merchant, but the reported advertising momentum is an opportunity—not demonstrated segment profit or proof of a moat.</p>
+<p>So I would not dismiss your valuation, cash-flow or chart objections. The supplied <strong>46.5× trailing P/E</strong> requires better earnings conversion; reported cash flow benefited substantially from working capital; and the September 28 close remained below key averages. Those facts argue for <strong>a small, staged long-term MELI purchase, not an aggressive call that the decline is over</strong>. I would add only as disclosures show margin improvement and credit costs stabilizing relative to growth, and reassess if provisions keep outpacing the business or cash generation remains heavily reliant on payables. You prefer the first clear earnings confirmation before buying; I think MELI’s demonstrated scale and historical profit growth justify limited exposure while we wait for it.
+Bull Analyst: Bear, your objection to my 7.5% example is fair: <strong>9% operating-income growth in one hypothetical year does not justify MELI’s valuation on its own.</strong> My case is not that one modest margin improvement delivers the forward EPS estimate. It is that MELI has enough demonstrated sales growth for <em>several years</em> of earnings conversion to matter—and that there is a measurable, if incomplete, sign of operating leverage beneath the credit pressure.</p>
+<p>In Q2, operating expenses <strong>excluding the doubtful-accounts provision</strong> were about <strong>21.6% of revenue</strong>, down from <strong>23.3%</strong> a year earlier. Those expenses grew roughly <strong>39%</strong>, versus <strong>49.8% revenue growth</strong>. You are right that this did not save reported earnings: gross margin fell, and credit costs more than offset the benefit. But it means the entire cost base is not deteriorating in lockstep. The investment question is whether that expense discipline can persist while gross margins and credit costs stabilize—not whether we can pretend credit is incidental.</p>
+<p>Your one-year example also undersells the potential effect of time. Suppose, purely illustratively, trailing revenue of <strong>$35.18 billion</strong> grew <strong>20% annually for two years</strong>, slower than MELI’s recent reported growth. At a <strong>7.5% operating margin</strong>—below today’s 8.3% trailing margin—that would produce roughly <strong>$3.80 billion</strong> of operating income, about <strong>31% above</strong> the current trailing $2.91 billion. That is neither guidance nor a justification for forward EPS 52% above trailing EPS; financing costs, taxes and a lower valuation multiple could still disappoint shareholders. It explains why I am willing to own <em>some</em> MELI before every uncertainty clears.</p>
+<p>I agree the decisive risk is credit. Provisions rising <strong>84.9%</strong> against <strong>73%</strong> loan growth cannot be waved away as expansion, and the sequential decline in provisions <em>as a share of revenue</em> is not proof of better borrowers. Nor am I assigning advertising profits that have not been reported. If the next disclosures show persistent gross-margin compression, provisions continuing to outrun the loan book, and no recovery from Q2’s <strong>6.7% operating margin</strong>, I would stop adding and revisit the thesis.</p>
+<p>So our recommendations remain different, but narrowly so. <strong>I favor a small, staged long-term buy in MELI</strong>, with additional purchases dependent on earnings and credit evidence. You would pay a potentially higher price for confirmation; I would accept limited exposure now to a growth business that has already shown some expense leverage, while recognizing that the weak chart, rising yields and demanding P/E make a full-sized purchase premature.
+Bull Analyst: Bear, your multiple-compression example is the right stress test for <strong>MELI</strong>. If its P/E fell from <strong>46.5× to 30×</strong>, earnings would need to rise about <strong>55%</strong> just to keep the share price flat. I’m not claiming Q2’s <strong>6.7% operating margin</strong> puts MELI on that path today. Your constant-margin scenario shows why revenue growth alone is not enough.</p>
+<p>But the hurdle is not a return to peak profitability. On the illustrative two-year revenue base we’ve discussed—about <strong>$50.7 billion</strong> after 20% annual growth—operating income would need to reach roughly <strong>$4.5 billion</strong> to rise 55% from its current <strong>$2.91 billion</strong> trailing level. That implies an <strong>8.9% operating margin</strong>: materially above Q2’s 6.7%, but below 2025’s 11.1%. Operating income will not necessarily translate proportionately into EPS, so this is a test of <em>operating plausibility</em>, not a price forecast.</p>
+<p>Why take any exposure before that test is passed? Because MELI has demonstrated both demand and some ability to scale: Q2 revenue rose <strong>49.8%</strong>, while noncredit operating expenses grew roughly <strong>39%</strong>. From 2022 to 2025, annual operating income rose from <strong>$1.07 billion to $3.20 billion</strong>. Marketplace, payments, logistics and advertising give MELI several ways to monetize activity on its platform. Reported advertising momentum is promising, though it is <strong>not</strong> proof of segment profits or a quantified moat.</p>
+<p>I agree with your decisive objection: <strong>credit costs count</strong>. The provision rose <strong>84.9%</strong> year over year, and gross margin fell <strong>4.7 points</strong>. Unless those pressures stabilize, the 8.9% illustration is just arithmetic. I also would not use headline free cash flow—heavily aided by working capital—as a shortcut around that problem.</p>
+<p>That leaves us with a genuine timing disagreement. <strong>I favor a small, staged long-term buy in MELI</strong>, not a full position or a call that the downtrend has ended. I would reserve additional capital until reported margins improve from 6.7%, credit disclosures clarify the cost of loan growth, and cash generation holds up without another large payables boost. If those tests fail, the bear case wins; if they improve while sales continue to scale, waiting for <em>all</em> the evidence may mean missing part of the earnings turn.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: ## Bear response: MELI’s growth is real, but the earnings case is still a forecast</p>
+<p>Bull, I agree that <strong>MELI</strong> has built a substantial business. That makes the latest quarter more concerning, not less. Revenue grew <strong>49.8%</strong>, yet operating income fell <strong>17.2%</strong> and EPS fell <strong>10.9%</strong>. Gross margin dropped from <strong>45.6% to 40.9%</strong>, while operating expenses grew faster than sales. Scale is valuable to shareholders only if more of that growth reaches earnings.</p>
+<p>Your credit caveat is fair: without delinquency cohorts, we cannot conclude that borrowers are performing worse. But we cannot call the rising provision harmless expansion, either. The Q2 provision grew <strong>84.9%</strong> year over year, versus <strong>73%</strong> growth in loans receivable, and rose from <strong>10.2% to 12.5% of revenue</strong>. Its improvement from Q1’s <strong>14.1%</strong> is encouraging, but it has not resolved the year-over-year pressure.</p>
+<p>I also accept your arithmetic: restoring the trailing operating margin from <strong>8.3% to 11.1%</strong> would add nearly <strong>$1 billion</strong> in annual operating income at today’s revenue base. The disagreement is whether investors should pay for that restoration <em>before it happens</em>. The marketplace-payments-logistics-advertising combination may be powerful, but the supplied data do not establish that advertising profits will outweigh the costs of winning commerce share, funding credit, and building fulfillment capacity. The reported ad-market-share figure is not a segment earnings result.</p>
+<p>Cash flow deserves the same discipline. Q2 reported free cash flow was <strong>$3.22 billion</strong>, but <strong>$2.13 billion</strong> of operating cash flow came from a positive working-capital change. That does not make the cash flow fictitious; it makes a simple recurring-cash-yield argument premature. Meanwhile, net debt reached <strong>$6.86 billion</strong>. There is no demonstrated liquidity crisis, but restricted cash should not be treated as a cushion available to equity holders.</p>
+<p><strong>My call is to avoid new MELI purchases for now, rather than short it on an exhaustion signal.</strong> A staged entry reduces timing risk; it does not remove the risk of paying <strong>46.5× trailing earnings</strong> for a recovery not yet visible in earnings. With the stock below its key moving averages, the weekly trend down, and rising yields adding valuation pressure, I would wait for sustained margin improvement, clearer credit performance, and cash generation less dependent on working-capital inflows. Those results—not revenue growth alone—would change my view.
+Bear Analyst: Bull, you’re right that waiting for perfect clarity could mean buying <strong>MELI</strong> at a higher price. I’m not asking for perfect clarity. I’m asking for the first convincing sign that sales growth is becoming earnings growth. Staging a purchase limits how much you commit at once; it does not make the earnings assumptions behind today’s valuation less demanding.</p>
+<p>Your 20% revenue-growth example illustrates the gap. On roughly <strong>$35.18 billion</strong> of trailing sales, 20% growth would produce about <strong>$42.2 billion</strong> in revenue. At Q2’s <strong>6.7% operating margin</strong>, that would yield approximately <strong>$2.83 billion</strong> in operating income—<em>less</em> than the current trailing <strong>$2.91 billion</strong>. Reaching your roughly $3.5 billion illustration requires holding the higher <strong>8.3% trailing margin</strong>. That may happen, but Q2 did not show it: gross margin fell <strong>4.7 percentage points</strong>, and operating expenses grew <strong>53.2%</strong>, faster than revenue.</p>
+<p>I also wouldn’t mistake the sequential decline in provisions <em>as a share of revenue</em> for a credit turn. Using the rounded Q1 ratio, the provision was about <strong>$1.25 billion</strong> in Q1 versus <strong>$1.276 billion</strong> in Q2. The ratio improved as revenue grew; dollar provisions did not fall. We lack the borrower data to call credit quality worse, but we likewise lack evidence that the expanding loan book is becoming less costly to support. Advertising may eventually help margins, but the reported ad-market-share claim is not evidence of ad profits today.</p>
+<p>That uncertainty matters at <strong>46.5× trailing earnings</strong>. The <strong>30.6× forward</strong> figure incorporates forward EPS roughly <strong>52% above trailing EPS</strong>, while Q2 EPS fell <strong>10.9%</strong> year over year. Strong reported cash flow and access to debt markets are positives, but neither settles whether that earnings recovery will arrive—particularly with rising yields pressuring growth-stock valuations.</p>
+<p>So my recommendation remains <strong>avoid new MELI purchases for now, not short the stock</strong>. I’d accept missing part of a rebound in exchange for evidence that operating margin is recovering from 6.7%, credit costs are stabilizing, and cash generation is less reliant on working-capital inflows. Those are attainable tests, not a demand for certainty.
+Bear Analyst: Bull, I agree that <strong>MELI</strong> does not need to regain its 2025 operating margin for earnings to grow. But your 6.9% hurdle would merely keep operating income flat on a <em>hypothetical</em> 20% larger revenue base. Even at your 7.5% margin, operating income would rise only about <strong>9%</strong> from the current trailing <strong>$2.91 billion</strong>. That is progress, but it does not, by itself, make a comfortable case for a stock priced at <strong>46.5× trailing earnings</strong> with forward EPS estimated roughly <strong>52% above trailing EPS</strong>. Those are different measures, not a direct forecast comparison; the point is that modest operating improvement leaves a lot of the valuation case still to be earned.</p>
+<p>Your “excluding the provision increase” calculation identifies the risk rather than containing it. Gross profit grew faster than <em>other</em> operating expenses, but the extra <strong>$586 million</strong> in doubtful-accounts provision more than erased that advantage. Credit is part of the business MELI is scaling, not an incidental charge we can set aside. We cannot tell from the supplied data whether borrowers are performing worse, yet loans receivable rose <strong>73%</strong> year over year while provisions rose <strong>84.9%</strong>. Nor was 2025 an unqualified earnings-conversion success: revenue grew about <strong>39%</strong>, but net income grew only <strong>4.5%</strong>, as annual provisions increased from <strong>$1.86 billion to $3.09 billion</strong>.</p>
+<p>I also accept MELI’s historical profit growth and the possibility that advertising improves its economics. But the reported ad-market-share claim is not segment profit, while Q2’s <strong>4.7-percentage-point gross-margin decline</strong> is an observed company-wide result. The question is not whether the ecosystem can generate sales; it is what MELI must spend—and how much credit risk it must assume—to sustain them.</p>
+<p>A small purchase limits the dollars exposed, not the risk of buying before that question is answered. Q2’s <strong>$3.22 billion</strong> of reported free cash flow included <strong>$2.13 billion</strong> of positive working-capital change, and net debt stood at <strong>$6.86 billion</strong>. Those figures do not imply a funding crisis, but they weaken the argument that growth can be valued on headline cash flow alone. With the weekly trend down and rising yields adding valuation pressure, I would not treat a possible technical rebound as fundamental confirmation.</p>
+<p><strong>My MELI recommendation remains: avoid new purchases for now, rather than short it.</strong> I do not need perfect clarity. I would reconsider when a disclosure shows operating margin improving from <strong>6.7%</strong>, credit costs stabilizing alongside loan growth, and cash generation holding up without another large payable-driven boost. That is a reasonable price to pay in missed upside for evidence that growth is reaching shareholders.
+Bear Analyst: Bull, the improvement in <strong>MELI’s noncredit expenses</strong> is the strongest new point in your case. But shareholders own the whole business, not that cost line. Those expenses fell about <strong>1.7 percentage points as a share of revenue</strong> year over year; gross margin fell <strong>4.7 points</strong>, and the doubtful-accounts provision rose about <strong>2.3 points as a share of revenue</strong>. The net result was an operating-margin decline from <strong>12.2% to 6.7%</strong>. If credit helps MELI grow its ecosystem, its cost is part of the economics of that growth—not a temporary exception we can assume away.</p>
+<p>Your two-year illustration also asks investors to underwrite <em>both</em> 20% annual revenue growth and a <strong>7.5% margin</strong>, above the latest quarter’s 6.7%. On your hypothetical revenue base of about <strong>$50.7 billion</strong>, holding the margin at 6.7% would produce roughly <strong>$3.39 billion</strong> of operating income—about <strong>17% above</strong> today’s trailing figure, rather than 31%. That would be progress, but valuation matters. As a scenario, even if net income rose 31% and the supplied <strong>46.5× trailing P/E</strong> fell to <strong>30×</strong>, the share price would be roughly <strong>15% lower</strong>. Net income need not track operating income, and this is not a price target; it shows how multiple compression could defeat a respectable growth outcome.</p>
+<p>I’m not arguing that MELI’s advertising opportunity is imaginary or that its borrowers have demonstrably worsened. We lack the segment-profit and loan-performance data to make either claim. That uncertainty cuts against buying ahead of evidence, especially when Q2 reported free cash flow benefited from <strong>$2.13 billion of positive working-capital change</strong> and the weekly share-price trend remains down.</p>
+<p><strong>My MELI recommendation remains to avoid new purchases, not short it.</strong> A small staged position limits dollars at risk, but it does not make the margin, credit and valuation assumptions easier to meet. I would reconsider when MELI shows that growth is lifting reported earnings—not just the expense line that looks best before credit costs.
+Bear Analyst: Bull, <strong>8.9% is below MELI’s 2025 operating margin</strong>, but it is still <strong>2.2 percentage points above Q2’s 6.7%</strong>. Your illustration needs that recovery <em>and</em> 20% annual revenue growth for two years. Even then, roughly 55% operating-income growth would only offset a fall from 46.5× to 30× earnings <strong>if net income kept pace</strong>. That is a useful plausibility test, not much of a margin of safety for buying now.</p>
+<p>I take your noncredit-expense point seriously. Those costs grew more slowly than revenue in Q2. But the observed result was a gross-margin decline of <strong>4.7 points</strong>, an <strong>84.9%</strong> increase in the doubtful-accounts provision, and a <strong>17.2%</strong> drop in operating income. The marketplace, payments, logistics and advertising businesses may reinforce one another; the supplied results do not yet show that their combined growth is becoming more profitable. Reported advertising momentum is not a segment-profit figure or proof of a durable moat.</p>
+<p>Nor does funding access settle the question. Q2’s <strong>$3.22 billion</strong> in reported free cash flow included <strong>$2.13 billion</strong> of positive working-capital change, while net debt was <strong>$6.86 billion</strong>. That is not a liquidity-crisis claim. It is a reason not to use headline cash flow to dismiss the earnings risk.</p>
+<p>You’re right that I could miss the first leg of a recovery. But I’m not waiting for <em>every</em> uncertainty to disappear. I want a disclosure showing that reported margin is improving from 6.7% while credit costs are no longer outrunning the business—not another illustration of what could happen if they do. With MELI below its key moving averages, its weekly trend down, and rising yields threatening growth-stock multiples, <strong>I would avoid new MELI purchases for now, rather than short it</strong>. A small position limits exposure; it does not make the assumptions behind the entry less demanding.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For MELI, the bear case wins on current position sizing, although the long-term growth thesis is not disproved. The bull's strongest evidence is 49.8% Q2 revenue growth, historical operating-income growth, and noncredit operating expenses growing roughly 39%, slower than revenue. Those are genuine positives and argue against exiting entirely or shorting. But shareholders bear credit costs too: Q2 operating income fell 17.2%, EPS fell 10.9%, gross margin declined 4.7 percentage points, and operating margin reached 6.7%. Provisions grew 84.9% against 73% growth in loans receivable. That comparison flags pressure, not proven borrower deterioration; delinquency and cohort data are missing, and the sequential provision-to-revenue improvement occurred despite rising dollar provisions. At the supplied 46.5x trailing and 30.6x forward earnings multiples, the valuation already relies on a substantial earnings improvement. The bull's margin-recovery scenarios establish possibility, not a forecast or a margin of safety. Q2 reported free cash flow of $3.22 billion also benefited from $2.13 billion of positive working-capital change; subtracting that mechanically would not establish recurring free cash flow, and restricted cash is not freely deployable. The supplied downtrend supports cautious execution but does not decide the fundamental call. Using only this supplied snapshot, observed deterioration in earnings conversion and demanding valuation outweigh the unproven recovery; that supports Underweight for MELI, with residual exposure recognizing the credible growth opportunity.</p>
+<p><strong>Strategic Actions</strong>: For MELI, use the next earnings release as the initial review point. Set an interim ceiling of 0.5x the portfolio's standard single-name allocation for existing exposure. If exposure exceeds that ceiling, trim the excess: execute approximately half of the required reduction in the first suitable liquid window and the remainder over the following two to three trading sessions, subject to portfolio execution limits. If already at or below 0.5x, do not top up; if uninvested, remain uninvested for now. Do not initiate a short or average down because of a technical rebound signal. At the next release, reassess reported operating-margin improvement from 6.7% and a return to operating-income growth, credit costs relative to loan growth supported by delinquency/cohort disclosures, and cash generation without another comparably large working-capital boost. Provision growth relative to period-end receivables is only a screening metric, not a credit-loss rate. If these measures improve together, reconsider one 0.25x-standard increment after reassessing the earnings assumptions embedded in valuation; do not restore full weight on a price bounce alone. If operating margin remains at or below 6.7% and provisions again grow faster than loans, reduce existing exposure further toward 0.25x standard, or retain a smaller existing position, pending a fresh review. Actual holdings, live prices, volatility, detailed credit performance, advertising segment profits, and a validated normalized cash-flow estimate are not supplied. The September 28 close of $1,712.41 is a historical reference, not an executable quote; the evidence does not support a numerical price target or stop.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: Trim MELI to underweight rather than exit entirely or short: despite 49.8% Q2 revenue growth, operating income and EPS fell, provisions grew faster than loans, and the supplied earnings multiples demand an unproven recovery. The historical September 28 close of $1,712.41 was below the $1,794.04 10-day EMA and $1,868.62 50-day SMA, while the weekly trend was down; the completed TD-9 buy setup and $59.11 ATR caution against chasing the decline. Without a live quote or holdings, the evidence does not support an executable sale price or protective stop; review the thesis after the next earnings release.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Cap any existing MELI exposure at 0.5x the portfolio's standard single-name allocation. If above the cap, sell approximately half the excess in the first suitable liquid window and the balance over the following 2–3 trading sessions, subject to execution limits; if at or below the cap, do not add, and if uninvested, remain uninvested.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: Neither the conservative nor the neutral analyst has spoken yet, so I’d open with this: MELI’s upside is real, but the bold move here is to sell down an oversized position—not to defend it simply because the growth story is compelling.</p>
+<p>MELI grew Q2 revenue 49.8% year over year, and advertising may become a valuable higher-margin business. Yet operating income fell 17.2%, EPS fell 10.9%, and doubtful-account provisions rose 84.9% against 73% growth in loans receivable. That does not prove credit quality has deteriorated, but it leaves a lot for the next earnings release to establish. At 46.5 times trailing earnings and 30.6 times forward earnings, the supplied valuation already anticipates a substantial profit recovery. I would rather preserve capital to press the advantage <em>when that recovery is visible</em> than pay for it while margins are moving the other way. Reported Q2 free cash flow is encouraging, but $2.13 billion of operating cash flow came from working-capital changes; it is not a clean answer to the earnings concern.</p>
+<p>I’d push back on two tempting responses. A full exit would discard MELI’s long-term commerce, payments and advertising upside while its monthly trend remains up. But doing nothing until earnings would leave an oversized position exposed to another disappointment: the September 28 close of $1,712.41 was below the 10-day EMA, 50-day SMA and 200-day SMA, with the weekly trend down. The completed TD-9 buy setup and $59.11 ATR warn against dumping shares indiscriminately into a sharp decline; they do not establish a reversal. Mixed, low-confidence social sentiment is no substitute for confirmation.</p>
+<p>So my recommendation is SELL <strong>only the exposure above 0.5 times your standard single-name allocation</strong>: sell roughly half that excess in the first suitable liquid window and the rest over the following 2–3 sessions, subject to execution limits. If you are already at or below the cap, do not add; if uninvested, stay uninvested. Do not short MELI. With no live quote or holdings information, I cannot set an executable sale price or stop. Reassess after the next earnings release for improving margins, credit costs and price momentum—then the retained stake gives you a way to participate if the growth thesis starts converting into profit.
+Aggressive Analyst: I still favor SELL, but the high-reward case is for a deliberate trim, not a retreat from MELI. The opportunity is to stop giving an unproven earnings recovery an oversized claim on the portfolio while retaining a stake in a business whose Q2 revenue grew 49.8%.</p>
+<p>To the conservative analyst: you’re right that 0.5 times a normal single-name allocation is a cap, not a guarantee of safety. If concentration or loss tolerance demands less, sell more; if even a small position is intolerable, exit. But making a full exit equally attractive for a portfolio that <em>can</em> bear a smaller position gives up meaningful upside. MELI’s provision growth is concerning, yet it does not establish worsening loan quality from the data supplied, and provision expense fell from about 14.1% of revenue in Q1 to 12.5% in Q2. The monthly trend remains up, while reported advertising momentum offers another potential route to better earnings conversion. Those are not reasons to keep an oversized position; they are reasons not to discard the entire growth option.</p>
+<p>I also agree that the proposed 2–3-session sale is not a promise to carry risk through deteriorating conditions. It is a way to avoid making one poorly timed sale in a volatile stock. With MELI’s $59.11 ATR and completed daily TD-9 buy setup, a relief rally is plausible even though the weekly trend is down. Sell excess exposure in suitable liquid windows after checking a live quote; accelerate if market or Brazil-related event risk makes delay unacceptable. Don’t wait <em>for</em> a TD-9 bounce, and don’t mistake one for trend repair.</p>
+<p>To the neutral analyst: your concentration and loss-budget test improves the sizing rule, but it should sharpen the SELL decision rather than turn it into an indefinite conditional discussion. Q2 operating margin fell from 12.2% to 6.7%, EPS fell 10.9%, and the supplied 30.6-times forward earnings multiple anticipates roughly 52% higher EPS than the trailing figure. Reported Q2 free cash flow of $3.22 billion is encouraging, but $2.13 billion of operating cash flow came from working-capital changes. That is too much unresolved earnings and cash-flow risk to leave excess MELI exposure untouched. You’re also right that waiting for unmistakable recovery could miss a repricing—that is precisely why I would retain a tolerable stake rather than sell everything. Mixed, low-confidence social sentiment does not strengthen the case for holding more.</p>
+<p>My recommendation is SELL MELI exposure above the lesser of 0.5 times your standard single-name allocation and your actual risk limit: aim to sell roughly half the excess in the first suitable liquid window and the remainder over the following 2–3 sessions, adjusting to conditions. If already within that limit, do not sell mechanically or add; if uninvested, remain uninvested. The September 28 close of $1,712.41, below the cited moving averages, supports the direction—not an executable price or stop. Reassess after verified earnings show whether growth is finally converting into margins and sound credit performance.
+Aggressive Analyst: Conservative analyst, cash gives you the option to buy MELI later, but it does not guarantee you can rebuild a position before a sharp repricing. Q2 revenue grew 49.8%, and reported advertising momentum offers a plausible route to better earnings conversion. Neither proves a turnaround. They do, however, make a small, tolerable stake more valuable than a default full exit. Your credit warning strengthens the case for selling <em>excess</em> exposure: provisions rose 84.9% year over year, and Q2’s provision-to-revenue ratio remained above last year’s. But the decline from 14.1% in Q1 to 12.5% in Q2—and the absence of loan-performance detail—also mean the supplied data do not establish a credit collapse.</p>
+<p>Neutral analyst, I agree that concentration and gap-loss tolerance must override a half-allocation cap. Where I push back is on letting execution become open-ended. MELI’s September 28 close was below the cited moving averages, the weekly trend was down, operating margin had fallen to 6.7%, and the 30.6-times forward earnings multiple priced in a substantial recovery. Those are reasons to reduce an oversized position now, not merely to keep discussing whether to do so. The daily TD-9 setup and $59.11 ATR justify orderly execution—not waiting for a bounce.</p>
+<p>My recommendation remains <strong>SELL MELI exposure above the lesser of 0.5 times your standard single-name allocation and your portfolio’s actual loss limit</strong>. After checking holdings, a live quote and liquidity, aim to sell roughly half the excess in the first suitable window and the balance over the next 2–3 sessions <em>if conditions permit</em>. Accelerate if event risk or market conditions make delay imprudent; sell further or exit if even the retained stake breaches your risk budget. If already within the limit, do not sell mechanically or add; if uninvested, remain uninvested. That is the bolder trade-off: free capital from an unproven earnings recovery while keeping a measured claim on MELI’s growth upside.
+Aggressive Analyst: Conservative analyst, you’re right that no MELI stake is worth keeping if the portfolio cannot withstand a sharp loss. But for a portfolio that <em>can</em> bear a small position, cash and a retained stake are not equivalent. Cash can be redeployed later; it cannot participate in a sudden repricing if MELI’s commerce growth and reported advertising momentum start converting into earnings. The monthly trend was still up as of September 28. That is not proof of a turnaround, but it makes a full exit a costly default rather than the boldest response to risk.</p>
+<p>Your credit objection is the strongest reason to sell the <em>excess</em>. Q2 provisions rose 84.9% year over year against 73% growth in the loan balance, and provisions were 12.5% of revenue versus 10.2% a year earlier. The decline from 14.1% in Q1 does not establish improving loan quality without performance data. Equally, the available data do not establish a credit collapse. I would pay for that uncertainty by cutting position size, not by automatically surrendering every claim on MELI’s upside.</p>
+<p>Neutral analyst, I agree that a small stake is not inherently better than cash and that ATR cannot bound an earnings or Brazil-related gap. But “sell in suitable windows, with no timetable” risks becoming permission to leave an oversized position untouched. MELI added $3.38 billion of revenue year over year in Q2, yet the $1.07 billion increase in gross profit was more than consumed by $1.21 billion of additional operating expenses. Operating margin fell from 12.2% to 6.7%, while the supplied forward EPS figure is roughly 52% above trailing EPS. That mismatch calls for a decision on excess exposure now, not an open-ended wait for perfect conditions.</p>
+<p>The technicals reinforce urgency without justifying a rushed order. The September 28 close of $1,712.41 was below the 10-day EMA, 50-day SMA and 200-day SMA, with the weekly trend down. The completed daily TD-9 buy setup and $59.11 ATR mean a bounce could make a single indiscriminate sale costly; they do <strong>not</strong> justify holding excess MELI in hope of one. Likewise, $3.22 billion of reported Q2 free cash flow deserves attention, but $2.13 billion of operating cash flow came from working-capital changes. Neither bullish retail labels nor that cash-flow figure resolves the earnings question.</p>
+<p>My recommendation is SELL MELI exposure above the lesser of 0.5 times your standard single-name allocation and what your portfolio can tolerate through a sharp adverse move. Check holdings, a live quote and liquidity first. Aim to sell roughly half the excess in the first suitable liquid window and the rest over the following 2–3 sessions <em>only if conditions permit</em>; accelerate rather than carry excess through a material event. If even the retained stake exceeds your loss budget, sell further or exit. If already within the limit, do not sell mechanically or add; if uninvested, remain uninvested. No historical level here supplies an executable price or protective stop. The high-reward choice is to free capital from an unproven recovery while keeping a tolerable stake in MELI’s growth if that recovery arrives quickly.
+Aggressive Analyst: Conservative analyst, I agree that a retained MELI stake is not a free option, and I am not calling half an allocation safe. Test the position against the whole portfolio and a sharp gap, not the $59.11 historical ATR; sell further or exit if it fails that test. But for a portfolio that can bear a small stake, cash and continued participation are not interchangeable. MELI’s 49.8% Q2 revenue growth and reported advertising momentum give it a credible route to a rapid repricing, even though neither has yet produced the margin recovery investors need. Selling the excess while retaining tolerable exposure is the bolder allocation decision than making an all-or-nothing bet on when that recovery appears.</p>
+<p>Your credit and balance-sheet objections strengthen the case for the sale, not necessarily for a full exit. Q2 provisions were 12.5% of revenue, above the year-earlier 10.2%, and loan-performance detail is missing. The 1.12 current ratio, $6.86 billion of net debt and restricted cash deserve scrutiny; they do not, without more detail, establish a liquidity crisis. Nor would I use the $3.22 billion of reported Q2 free cash flow to dismiss the risk when $2.13 billion of operating cash flow came from working-capital changes. The point is to stop giving those unresolved questions an oversized claim on the portfolio while keeping a measured claim on MELI’s growth.</p>
+<p>Neutral analyst, you are right that selling only half the excess first could be too slow ahead of an event. That is a reason to <strong>accelerate when the risk warrants it</strong>, not to leave the sale without a working timetable. MELI’s September 28 close was below the cited moving averages, the weekly trend was down, and operating margin had fallen from 12.2% to 6.7%. At the supplied 30.6-times forward earnings multiple, leaving excess exposure in place while waiting for an ideal window is itself a consequential risk decision. The TD-9 setup argues against a careless order, not for waiting for a bounce.</p>
+<p>I recommend <strong>SELL MELI exposure above the lesser of 0.5 times your normal single-name allocation and the amount your portfolio can withstand through a plausible sharp loss</strong>. Check holdings, a live quote and liquidity; aim to reduce roughly half the excess in the first suitable window and the balance over the next 2–3 sessions only if conditions permit. Accelerate rather than carry excess through material event risk. If even the retained stake breaches the loss budget, sell more or exit. If already within the limit, do not sell mechanically or add; if uninvested, remain uninvested. The September 28 price is historical, not an executable sale price or stop.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the aggressive analyst’s SELL direction, but I would not treat 0.5 times a standard single-name allocation as automatically safe. Nor would I commit in advance to carrying excess MELI exposure for another 2–3 sessions. If a position is above that cap, reduce the excess in orderly, liquid windows after checking the live quote and execution conditions; do not wait for a rebound solely because the daily TD-9 suggests one is possible. Avoid dumping shares into a poor market, but avoid a fixed schedule that leaves unnecessary exposure to Brazil-related event risk. If the retained position still exceeds the portfolio’s tolerable loss in a sharp move, reduce it further. A full exit is reasonable where that risk cannot be borne; it is not ruled out by an upward monthly trend.</p>
+<p>The aggressive case correctly recognizes that 49.8% Q2 revenue growth has not translated into earnings. I would put more weight on the downside than on the optionality of a retained stake: operating margin fell from 12.2% to 6.7%, while the 30.6-times forward earnings multiple assumes a substantial recovery. Provisions rising faster than the loan balance do not prove credit deterioration—the measures cover different periods—but they make credit performance essential to verify. Likewise, reported free cash flow is not a clean rebuttal when $2.13 billion of Q2 operating cash flow came from working-capital changes.</p>
+<p>The neutral analyst has not spoken, but a wait-for-earnings case based on advertising growth, cash flow or a possible technical bounce would leave these risks unresolved. MELI’s September 28 close was below the cited moving averages, with the weekly trend down; a TD-9 signal does not repair that trend. For an existing position at or below the cap, I would not add, and I would reassess whether its size fits the actual risk budget. If uninvested, remain uninvested. Without a live quote, holdings or a defined loss limit, the historical close cannot serve as an executable sale price or protective stop.
+Conservative Analyst: I agree with both of you that an oversized MELI position should be sold down. Where I differ is the presumption that retaining a stake is worth the risk simply to preserve upside. Cash preserves the ability to buy MELI later, too. The cost of missing some of a rebound has to be weighed against carrying an earnings and credit risk the portfolio may not need.</p>
+<p>Aggressive analyst, the improvement in provisions from 14.1% of revenue in Q1 to 12.5% in Q2 is worth watching, but Q2’s ratio was still above the 10.2% recorded a year earlier. Provisions rose 84.9% year over year, while the loan balance rose 73%; those figures do not prove credit deterioration, but without loan-performance detail they do not establish safety either. MELI’s 49.8% revenue growth coincided with a fall in operating margin from 12.2% to 6.7% and a 10.9% decline in EPS. Advertising momentum and an upward monthly trend are possible reasons for future upside, not evidence that the recovery implied by the supplied 30.6-times forward earnings multiple has arrived. Reported cash flow also needs scrutiny: $2.13 billion of Q2 operating cash flow came from working-capital changes.</p>
+<p>Neutral analyst, I agree that a full exit should not be the default merely because the weekly trend is down. But being below a half-sized allocation should not automatically make a MELI holding acceptable. A portfolio already exposed to growth stocks or Latin American risk may have little room for another loss. The completed TD-9 setup and $59.11 ATR argue for careful execution, not for holding excess exposure for a preset 2–3 sessions in hopes of a bounce. Brazil-related event risk adds a reason to test that timetable rather than assume it is prudent.</p>
+<p>My recommendation remains to SELL MELI exposure above the smaller of half the normal single-name allocation and the position the portfolio can tolerate through a sharp gap. Check the live quote, holdings and liquidity, then reduce in orderly windows without committing to a fixed schedule. If even the retained stake exceeds the loss budget, sell further or exit; if already within budget, do not add or sell mechanically. If uninvested, remain uninvested. The historical close is neither an executable sale price nor a protective stop. Reassess after verified results show whether margin, credit performance and cash-flow quality are improving.
+Conservative Analyst: Aggressive analyst, the risk of missing a sharp MELI rebound is real, but it is an opportunity cost—not a reason to retain exposure the portfolio cannot withstand. Advertising momentum is promising, yet it has not offset the fall in Q2 operating margin from 12.2% to 6.7%. And while provisions fell from 14.1% of revenue in Q1 to 12.5% in Q2, they were still above the 10.2% recorded a year earlier. Without loan-performance detail, that sequential improvement cannot establish that credit risk has stabilized. I would not let a possible TD-9 bounce dictate how long an oversized position remains on the books.</p>
+<p>Neutral analyst, I agree that a full exit should not be automatic. But a small MELI holding is not automatically safer or more valuable than cash, especially in a portfolio already exposed to growth stocks or Latin America. The $59.11 ATR describes ordinary historical movement; it does not bound a gap around earnings or a Brazil-related event. Reported Q2 free cash flow also deserves a discount in this decision: $2.13 billion of operating cash flow came from working-capital changes, while the forward earnings multiple assumes a substantial recovery.</p>
+<p>My recommendation is to SELL MELI exposure above the smaller of half a normal single-name allocation and what the portfolio can tolerate through a sharp adverse move. Check actual holdings, a live quote and liquidity, then reduce excess exposure in orderly windows without committing to a 2–3-session timetable. If even the smaller stake breaches that loss budget, sell further or exit; if it fits, do not sell mechanically or add. If uninvested, remain uninvested. Reconsider exposure when verified results show improving margins, credible credit performance and cash generation less dependent on payables—not merely a price rebound.
+Conservative Analyst: Aggressive analyst, I agree that cash could miss a sharp MELI rebound. But a retained stake is not a free option: it also participates in a sharp decline. Reported advertising momentum and an upward monthly trend have not yet translated into stronger earnings. Q2 operating margin fell from 12.2% to 6.7%, while the supplied forward earnings multiple assumes substantial EPS growth. The improvement in provisions as a share of revenue from Q1 is worth watching, but the ratio remained above its year-earlier level, and we lack the loan-performance detail needed to judge credit quality. That uncertainty argues against treating even a half-sized allocation as inherently safe.</p>
+<p>Neutral analyst, I agree that a small holding can be reasonable if the portfolio can absorb a sharp loss; I am not proposing a full exit by default. But “tolerable” must be tested against the whole portfolio, not MELI’s $59.11 historical ATR. A gap around earnings or Brazil-related developments could be much larger. The balance sheet adds reason for care: the current ratio was 1.12, net debt was $6.86 billion, and $13.32 billion of cash was restricted. Those figures do not establish a liquidity crisis, but they weaken the case for relying on reported free cash flow as reassurance, especially when $2.13 billion of Q2 operating cash flow came from working-capital changes.</p>
+<p>My recommendation remains to SELL MELI exposure above the lesser of half the normal single-name allocation and the amount the portfolio can withstand through a plausible sharp loss. Check holdings, a live quote and liquidity, then reduce excess promptly in orderly windows—not on a fixed 2–3-session schedule or in anticipation of a TD-9 bounce. If even the smaller stake breaches the loss budget, reduce further or exit; if already within budget, do not sell mechanically or add. If uninvested, remain uninvested. The September 28 close is historical, not an executable sale price or protective stop.
+Conservative Analyst: Aggressive analyst, MELI’s 49.8% Q2 revenue growth and reported advertising momentum make a rebound possible, but they do not make a retained stake the safer choice. Operating margin fell from 12.2% to 6.7%, EPS declined 10.9%, and the supplied 30.6-times forward earnings multiple assumes a recovery not yet visible in those results. Cash may miss a sudden repricing; a retained position also bears the full downside of a sudden gap. Preserving capital is valuable when the portfolio does not need to take that risk.</p>
+<p>I also would not use “half the excess now, the rest over 2–3 sessions” as the working rule. If MELI is above the portfolio’s loss limit, the priority is to get within it promptly through suitable liquid windows, not to carry excess exposure because a TD-9 bounce is possible. The $59.11 ATR helps with ordinary execution risk; it cannot bound an earnings or Brazil-related gap.</p>
+<p>Neutral analyst, I agree that neither faster provision growth nor the 1.12 current ratio proves a credit or liquidity crisis, and a full exit should not be automatic. But uncertainty is precisely why a small holding must earn its place in the <em>whole portfolio</em>. Q2 provisions were 12.5% of revenue, still above 10.2% a year earlier, and $2.13 billion of operating cash flow came from working-capital changes. Without loan-performance detail, those are not risks that position size alone resolves.</p>
+<p>My recommendation is to SELL MELI exposure above the lesser of half the normal single-name allocation and a limit tested against a plausible sharp loss, including existing growth-stock and Latin American exposure. Check holdings, a live quote and liquidity before executing; reduce excess without waiting for a rebound or committing to a fixed schedule. If even the smaller stake exceeds the loss budget, sell further or exit. If already within it, do not sell mechanically or add; if uninvested, remain uninvested. Reassess after verified results clarify margins, credit performance and cash-flow quality.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: I agree with the direction to trim MELI, but I would make the sizing and timing conditional rather than automatic.</p>
+<p>The aggressive analyst is right not to let 49.8% Q2 revenue growth obscure falling operating income and EPS. Still, “sell to 0.5 times the standard allocation” is not a universal risk limit. MELI’s $59.11 ATR was about 3.5% of its September 28 close, and a portfolio already concentrated in growth stocks or Latin American exposure may need a smaller position. The proposed 2–3-session schedule is sensible for avoiding a rushed sale, but it should not become a commitment to carry excess risk through a material event or deteriorating market conditions. Conversely, waiting until a profit recovery is unmistakable could mean missing part of the repricing; the retained stake has a purpose.</p>
+<p>I would also push back on the conservative analyst’s tilt toward a full exit. The earnings deterioration is serious, but it has not settled the long-term case. Q2 revenue grew strongly, the provision-to-revenue ratio improved from about 14.1% in Q1 to 12.5% in Q2, and the monthly technical trend was still up. None proves a durable turnaround—particularly without loan-performance detail, and with reported cash flow benefiting materially from working-capital changes—but they argue against treating a complete sale as the default. A full exit makes sense if even a small MELI position exceeds the caller’s loss tolerance, not simply because the weekly trend is down.</p>
+<p>My moderate recommendation is to SELL excess MELI exposure, using the lesser of 0.5 times the portfolio’s normal single-name allocation and a limit that fits its actual loss budget and existing concentrations. Check the live quote and liquidity first; reduce in suitable liquid windows, accelerating if event risk makes delay unacceptable, without forcing a sale into a poor market. If MELI is already within that risk limit, do not add or sell mechanically; if uninvested, remain uninvested. The September 28 close and technical levels are historical reference points, not an executable price or stop.</p>
+<p>At the next verified earnings release, I would look for operating-margin improvement from 6.7%, evidence on credit losses relative to lending growth, and cash generation less dependent on payables. I would also watch yields, Brazil-related currency moves, and whether any price recovery is supported by momentum and participation rather than the TD-9 signal alone. That keeps room for MELI’s growth case without making the portfolio depend on an unproven earnings recovery.
+Neutral Analyst: Aggressive analyst, I agree that excess MELI exposure should be sold, but I would not anchor execution to “half now, the rest over 2–3 sessions.” That schedule limits the risk of one poorly timed sale, yet it can leave an oversized position exposed to a material event. The daily TD-9 buy setup suggests a bounce is possible, not that waiting for one is prudent. Nor does the decline in provisions from 14.1% of revenue in Q1 to 12.5% in Q2 establish improving credit quality: Q2 was still above the 10.2% recorded a year earlier, and loan-performance detail is missing.</p>
+<p>Conservative analyst, cash does preserve the option to buy MELI later. But a full exit also risks missing a rapid repricing if its strong commerce growth and reported advertising momentum begin to produce better margins. That upside is uncertain, not irrelevant. With Q2 revenue up 49.8% but operating margin down to 6.7%, the case for a <em>small, tolerable</em> holding is stronger than the case for either an oversized bet or an automatic exit.</p>
+<p>My recommendation remains <strong>SELL MELI exposure above the smaller of half the portfolio’s normal single-name allocation and the amount its concentration and loss budget can withstand</strong>. Check holdings, a live quote and liquidity first; reduce excess exposure in suitable windows without committing to a fixed timetable or waiting for a technical bounce. If even the smaller holding is too risky, sell further or exit. If already within the risk limit, do not sell mechanically or add; if uninvested, remain uninvested. Reassess using verified margin, credit-loss and cash-flow disclosures, alongside yields and Brazil-related developments. The September 28 levels and $59.11 ATR inform risk, but neither supplies an executable price or protection against a gap.
+Neutral Analyst: Aggressive analyst, I agree that excess MELI exposure calls for action, but I would not assume a small stake is always more valuable than cash. The supplied 30.6-times forward earnings multiple depends on a recovery that Q2’s 6.7% operating margin has not demonstrated. A conditional 2–3-session selling plan can also leave excess risk in place during a volatile event. The TD-9 signal and $59.11 ATR support careful execution, not waiting for a bounce.</p>
+<p>Conservative analyst, cash preserves flexibility, but requiring clear earnings recovery before retaining any MELI exposure could mean rebuilding only after a repricing. Revenue grew 49.8%, advertising may improve monetization, and the monthly trend remained up. Those points do not justify an oversized holding; they justify considering a small one if the portfolio can absorb a sharp loss. The sequential decline in provisions as a share of revenue is worth monitoring, but without loan-performance detail it is not proof that credit risk has improved.</p>
+<p>My recommendation is to SELL MELI exposure above the smaller of half the normal single-name allocation and a limit set by portfolio concentration and plausible gap-loss tolerance. Check holdings, a live quote and liquidity, then reduce excess in suitable windows without waiting for a rebound or committing to a fixed timetable. If even that smaller stake exceeds the loss budget, sell further or exit. If already within it, do not sell mechanically or add; if uninvested, remain uninvested. Reassess after verified margin, credit and cash-flow disclosures, while watching yields and Brazil-related currency risk. The September 28 price and ATR are historical risk references, not an executable price or protection against a gap.
+Neutral Analyst: Aggressive analyst, I agree that MELI exposure above a sensible limit calls for a sale, not more discussion. But selling only half the excess in the first window could leave the portfolio overexposed through an event. The daily TD-9 signal and $59.11 ATR argue against a careless order, not for carrying risk while waiting for a bounce. Q2 revenue growth of 49.8% is impressive, but a 6.7% operating margin and falling EPS have not yet earned the recovery implied by the supplied forward multiple.</p>
+<p>Conservative analyst, your gap-risk test is essential, but I would not turn caution into a default full exit. The 1.12 current ratio, rising net debt and restricted cash warrant scrutiny; without details of maturities and payments-related balances, they do not establish a liquidity crisis. Nor does faster provision growth than loan-balance growth, by itself, prove deteriorating credit quality. A small position can preserve participation in MELI’s commerce and advertising growth—provided the portfolio can absorb a sharp loss. Cash is the better choice when it cannot.</p>
+<p>My recommendation remains to SELL MELI exposure above the lesser of half the normal single-name allocation and a limit tested against a plausible gap, existing growth-stock concentration and Latin American exposure. Check actual holdings, a live quote and liquidity, then start reducing excess in suitable liquid windows; do not commit to a 2–3-session schedule or wait for a rebound. If already within that limit, do not sell mechanically or add; if uninvested, remain uninvested. Reassess after verified results clarify margins, loan performance and cash-flow quality, alongside yields and Brazilian currency risk. The September 28 price is a historical reference, not an executable sale price or stop.
+Neutral Analyst: Aggressive analyst, I agree that excess MELI exposure warrants a sale, but “half the excess first” is too rigid even as a working plan. If that first sale leaves the portfolio above its loss limit, orderly execution should aim to bring it within the limit promptly—not stretch the reduction over 2–3 sessions. The completed TD-9 setup raises the possibility of a bounce; it does not make waiting for one a risk control.</p>
+<p>Conservative analyst, you are right that cash may be preferable to even a small MELI stake in a portfolio already concentrated in growth stocks or Latin America. But the evidence does not require a full exit for everyone. Q2 revenue rose 49.8%, and advertising could improve earnings conversion; at the same time, the fall in operating margin to 6.7% and the high forward earnings multiple make that outcome uncertain. A tolerable holding preserves some participation without making the portfolio depend on a recovery. Neither the sequential decline in provisions as a share of revenue nor the 1.12 current ratio settles the credit or liquidity question.</p>
+<p>My recommendation is to SELL any MELI exposure above the lesser of half a normal single-name allocation and a limit tested against the portfolio’s existing concentrations and a plausible sharp loss. Check holdings, a live quote, liquidity and whether the reported Brazil-related event risk is still ahead; reduce excess in suitable windows without waiting for a bounce or following a fixed timetable. Sell further or exit if the smaller stake still fails that test. If already within the limit, do not sell mechanically or add; if uninvested, remain uninvested. Reassess on verified margins, loan performance and cash-flow quality—not a price rebound alone. The September 28 close and ATR are historical references, not an executable price or protection against a gap.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: For MELI, cap existing exposure at the lesser of 0.5x the portfolio's normal single-name allocation and a stricter concentration- and gap-loss-tested limit, exiting only if no residual position is tolerable. Verify holdings, live pricing, liquidity and event timing, then reduce excess promptly in orderly windows without waiting for a rebound or imposing a fixed 2–3-session schedule. If already within the limit, do not add or sell mechanically; if uninvested, remain uninvested, and do not initiate a short. Review at MELI's next verified earnings release or sooner on material developments, using 6.7% operating margin as a fundamental checkpoint; the supplied data do not support an executable trade price, numerical price target or protective stop.</p>
+<p><strong>Investment Thesis</strong>: MELI's weaker earnings conversion and demanding supplied valuation outweigh its credible growth opportunity for position sizing. The analysts' sale recommendations principally concern excess exposure, not universal liquidation, making Underweight the appropriate portfolio rating.</p>
+<p>Earnings conversion decides the direction. Q2 revenue rose 49.8%, yet operating income fell 17.2%, EPS fell 10.9%, gross margin declined 4.7 percentage points, and operating margin fell from 12.2% to 6.7%. Noncredit operating expenses growing approximately 39%, slower than revenue, are a genuine positive, but shareholders also bear credit costs. At the supplied 46.5x trailing and 30.6x forward earnings multiples, the position depends on an earnings recovery that Q2 has not demonstrated; advertising momentum and margin-recovery scenarios are possibilities, not verified profit forecasts.</p>
+<p>Credit pressure is unresolved, not a proven credit collapse. Provisions grew 84.9% versus 73% growth in loans receivable. This expense-flow versus period-end-balance comparison is a screening flag, not a credit-loss rate. Provisions declined from 14.1% of revenue in Q1 to 12.5% in Q2, but remained above 10.2% a year earlier, while dollar provisions increased sequentially. Missing delinquency and cohort data prevent concluding either deterioration or stabilization in borrower performance.</p>
+<p>Reported cash generation does not settle the earnings concern. Q2 free cash flow was $3.22 billion, while operating cash flow benefited from $2.13 billion of positive working-capital changes. Mechanically subtracting that benefit would not establish normalized recurring free cash flow. The supplied 1.12 current ratio, $6.86 billion net debt and $13.32 billion restricted cash warrant scrutiny; restricted cash is not freely deployable, but absent maturity and payments-related balance details these figures do not establish a liquidity crisis.</p>
+<p>Residual exposure is conditional, not obligatory. Strong commerce growth, reported advertising momentum and the historical upward monthly trend support retaining an existing, genuinely tolerable stake rather than automatically exiting. The conservative and neutral analysts' portfolio-wide concentration and gap-loss tests nevertheless outweigh the aggressive analyst's preference for a preset sale schedule. Half a normal allocation is a ceiling, not a target or a safety guarantee; growth-stock and Latin American concentrations can require materially less exposure.</p>
+<p>Technicals inform execution, not valuation or gap protection. The historical September 28 close of $1,712.41 was below the cited moving averages and the weekly trend was down. The completed TD-9 buy setup makes a rebound possible, not dependable, and the historical $59.11 ATR does not bound an earnings or Brazil-related gap. Start reducing excess at the first suitable liquid opportunity after verifying current conditions; do not wait for a bounce, and prioritize getting within the risk limit rather than automatically spreading sales over 2–3 sessions. Confirm whether the cited events remain pending.</p>
+<p>What would change the decision: At MELI's next verified release, look for operating margin improving from 6.7%, a return to operating-income growth, credible delinquency/cohort evidence supporting credit costs relative to lending growth, and cash generation less reliant on a similarly large working-capital benefit. If these improve together and updated valuation supports the earnings assumptions, consider at most one 0.25x-normal-allocation increase, still subject to the portfolio risk budget. If operating margin remains at or below 6.7% and provisions again outgrow loans, reassess reducing the ceiling toward 0.25x normal allocation or lower, while retaining the distinction between that screening flag and verified credit deterioration. A price bounce alone changes neither decision. Actual holdings, loss limits, live prices, current volatility, a verified earnings date, detailed credit performance, advertising profits and validated normalized cash flow are missing.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Until MELI's next verified earnings release, with earlier review for material developments.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

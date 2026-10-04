@@ -67,7 +67,7 @@ proxy_preflight() {
     echo "Direct OpenAI API selected; proxy preflight does not apply."
   fi
 }
-DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-gpt-6-astra}"
+DEEP_MODEL="${TRADINGAGENTS_DEEP_MODEL:-gpt-6-sol}"
 QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-gpt-6-sol}"
 REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-max}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"

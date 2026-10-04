@@ -1,0 +1,4337 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/CRDO/20260928_gpt-6-astra_20260928_192301/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: CRDO - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-crdo" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: CRDO
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#crdo-technical-outlook-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRDO technical outlook — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eight-complementary-indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eight complementary indicators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditional-trading-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditional trading plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#crdo-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRDO sentiment | 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-source-by-source-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Source-by-source assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cross-source-alignment-and-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cross-source alignment and divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dominant-narratives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dominant narratives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-catalysts-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Catalysts and risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-key-sentiment-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Key sentiment signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#crdo-trading-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRDO trading and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-for-crdo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed for CRDO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-trading-backdrop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The trading backdrop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-watchlist-for-crdo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable watchlist for CRDO
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#crdo-fundamental-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRDO fundamental report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#financial-history-and-operating-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial history and operating performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-flow-acquisition-and-balance-sheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash flow, acquisition and balance sheet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shareholder-costs-valuation-and-insiders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shareholder costs, valuation and insiders
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-crdo">Trading Analysis Report: CRDO<a class="headerlink" href="#trading-analysis-report-crdo" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:23:01</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="crdo-technical-outlook-september-28-2026">CRDO technical outlook — September 28, 2026<a class="headerlink" href="#crdo-technical-outlook-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>CRDO (Credo Technology Group Holding Ltd) has a positive higher-timeframe trend, but its September rebound has lost momentum at an important medium-term hurdle.</strong> The latest verified close was <strong>$192.67</strong>, below the <strong>50-day SMA of $209.76</strong>. The September 25 close of <strong>$210.97</strong> had briefly cleared that average; CRDO then fell to $192.67 on September 28. That is a reason to require renewed confirmation before treating the rebound as a sustained breakout, not proof that the broader uptrend is over.</p>
+<p>September 28’s verified trading range was <strong>$189.44–$208.10</strong>, with a <strong>$206.12</strong> open and <strong>9,077,600</strong> shares traded. Closing near the session low after opening above $206 points to a difficult day for short-term buyers. The move also follows a sharp recovery from the verified <strong>$150.09 close on September 14</strong> to <strong>$210.97 on September 25</strong>; both the rebound and the subsequent reversal matter when judging the latest signals.</p>
+<h4 id="eight-complementary-indicators">Eight complementary indicators<a class="headerlink" href="#eight-complementary-indicators" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>SuperTrend — timeframe and trailing-risk context.</strong> Its indicator output remains <strong>up</strong> on all three tiers: <strong>weekly stop $159.83</strong>, <strong>monthly stop $109.85</strong>, and <strong>daily stop $165.70</strong>. Those are indicator-derived trailing levels, not guaranteed floors. The weekly reading deserves more weight than the daily reading; conversely, the distant monthly stop is too wide to serve as a practical short-term exit for many traders.</li>
+<li><strong>50-day SMA — medium-term trend test.</strong> At the verified <strong>$209.76</strong>, it sits above the latest close. Its indicator history shows it declining from approximately <strong>$236.40 on September 1</strong>. Thus, the positive SuperTrend readings coexist with a deteriorated medium-term price trend rather than confirming a clean advance.</li>
+<li><strong>MACD histogram — direction of momentum change.</strong> The verified histogram is <strong>+5.91</strong>, while MACD itself is <strong>−5.06</strong> and its signal is <strong>−10.97</strong>. The positive histogram says MACD remains above its signal, consistent with the rebound, but MACD below zero tempers that interpretation. The histogram eased from approximately <strong>+6.50 on September 25</strong>: momentum has not produced a new negative crossover, yet it weakened on the latest decline.</li>
+<li><strong>RSI — momentum without duplicating the trend measure.</strong> Verified RSI is <strong>49.63</strong>, near neutral rather than overbought or oversold. The indicator reading was approximately <strong>57.86 on September 25</strong>, so the latest session substantially reduced short-term momentum. A return above 50 would be constructive, but RSI alone would not establish a breakout.</li>
+<li><strong>ATR — position-risk scale.</strong> Verified ATR is <strong>$14.15</strong>, roughly <strong>7.3% of the latest close</strong>. Although its indicator reading has fallen from approximately <strong>$20.85 on September 2</strong>, CRDO still has a large dollar trading range. A stop only a few dollars below the latest close could be vulnerable to ordinary price movement; position size should reflect the dollar risk of the chosen stop.</li>
+<li><strong>OBV — participation.</strong> The indicator’s OBV rose from approximately <strong>118.1 million on September 14</strong> to <strong>200.5 million on September 25</strong>, then fell to <strong>191.5 million on September 28</strong>. The <em>slope</em>, not the absolute OBV number, suggests participation improved during the rebound but did not confirm the latest session. Watch whether OBV resumes rising on any renewed price advance.</li>
+<li><strong>TD-9 — possible exhaustion, not a trade trigger.</strong> The indicator reports <strong>weekly −1</strong>, <strong>monthly +1</strong>, and a <strong>completed daily −9</strong>, which it labels a sell-setup reversal watch. The daily completion warrants attention after the rapid rebound and reversal, but the higher-tier counts are only at one and disagree in sign. It is not a standalone prediction of the next move.</li>
+<li><strong>20-period z-score — check for statistical stretch.</strong> Readings are <strong>weekly −0.94</strong>, <strong>monthly +0.77</strong>, and <strong>daily +0.67</strong>. None meets the stated <strong>±2</strong> stretch threshold. Despite CRDO’s dramatic recent path, this measure does not currently provide a strong mean-reversion signal; the weekly reading takes priority when the timeframes differ.</li>
+</ul>
+<h4 id="conditional-trading-plan">Conditional trading plan<a class="headerlink" href="#conditional-trading-plan" title="Permanent link">&para;</a></h4>
+<p><strong>For a bullish continuation</strong>, look for CRDO to <em>close back above</em> both the verified <strong>$209.76 50-day SMA</strong> and the <strong>$210.97 September 25 close</strong>, preferably with OBV rising again and the MACD histogram strengthening rather than merely staying positive. Those levels are confirmation tests, not price targets. September 28’s high was only <strong>$208.10</strong>, so the latest session did not itself reclaim either hurdle.</p>
+<p><strong>For a failed rebound</strong>, first watch the latest verified low at <strong>$189.44</strong> and the <strong>$187.27 September 21 close</strong>. A close below them would weaken the near-term recovery case. The verified <strong>$175.89 September 18 close</strong> and indicator-derived <strong>$165.70 daily SuperTrend line</strong> are further downside reference points, not proven support. If the daily SuperTrend line changes on subsequent sessions, use the updated value rather than treating $165.70 as fixed.</p>
+<p><strong>Risk matters more than a precise prediction here.</strong> The latest close is <strong>$26.97 above</strong> the daily SuperTrend stop—about <strong>1.9 current ATRs</strong>. A position using that line as its exit reference must be small enough to tolerate that distance and possible gaps. Overall, the tools support a <strong>cautious, confirmation-dependent stance</strong>: higher-timeframe trend readings remain positive, while the falling 50-day average and September 28 reversal argue against assuming the rebound has already resumed.</p>
+<table>
+<thead>
+<tr>
+<th>CRDO focus</th>
+<th>Evidence as of September 28, 2026</th>
+<th>Trading implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latest session</td>
+<td>Verified close <strong>$192.67</strong>; range <strong>$189.44–$208.10</strong></td>
+<td>Close near the low makes immediate continuation less convincing.</td>
+</tr>
+<tr>
+<td>Medium-term trend</td>
+<td>Close below verified <strong>50-day SMA $209.76</strong></td>
+<td>Require a sustained reclaim rather than relying on September 25’s brief close above it.</td>
+</tr>
+<tr>
+<td>Higher-timeframe trend</td>
+<td>SuperTrend <strong>weekly up / $159.83</strong>; <strong>monthly up / $109.85</strong>; <strong>daily up / $165.70</strong></td>
+<td>Positive trend context remains, but stops are distant and can change.</td>
+</tr>
+<tr>
+<td>Momentum</td>
+<td>Verified <strong>RSI 49.63</strong>; <strong>MACD histogram +5.91</strong>, with MACD <strong>−5.06</strong></td>
+<td>Rebound momentum survives on one measure but weakened on the latest day.</td>
+</tr>
+<tr>
+<td>Participation</td>
+<td>OBV rose through September 25, then declined September 28</td>
+<td>Seek renewed volume confirmation on an upside attempt.</td>
+</tr>
+<tr>
+<td>Volatility</td>
+<td>Verified <strong>ATR $14.15</strong></td>
+<td>Size positions for substantial dollar swings and gap risk.</td>
+</tr>
+<tr>
+<td>Exhaustion and stretch</td>
+<td>TD-9 <strong>weekly −1 / monthly +1 / daily −9</strong>; z-scores <strong>−0.94 / +0.77 / +0.67</strong></td>
+<td>Daily reversal watch merits caution; no higher-tier TD-9 completion or ±2 z-score signal.</td>
+</tr>
+<tr>
+<td>Decision levels</td>
+<td>Upside confirmation: <strong>$209.76–$210.97</strong>; downside watch: <strong>$189.44</strong>, then <strong>$187.27</strong></td>
+<td>Let a subsequent close and participation determine which scenario gains evidence.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mildly Bullish</strong> (Score: 6.1/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="crdo-sentiment-2026-09-21-to-2026-09-28">CRDO sentiment | 2026-09-21 to 2026-09-28<a class="headerlink" href="#crdo-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="1-source-by-source-assessment">1. Source-by-source assessment<a class="headerlink" href="#1-source-by-source-assessment" title="Permanent link">&para;</a></h4>
+<p><strong>News (16 supplied Yahoo Finance headlines/excerpts): Constructive, but conditional.</strong> Two identifiable company developments support the growth narrative: CRDO expanded its ZeroFlap optical lineup with 224G-based products targeting 1.6T AI-network ports, and its Toucan Gen6x16 PCIe retimer was added to the PCI-SIG Integrators List after 64.0 GT/s compliance testing. These are product and interoperability milestones, <strong>not evidence that forecast sales have occurred</strong>. Zacks reports a management target of more than $600 million in fiscal 2027 optical revenue and a target of over 85% fiscal 2027 revenue growth; separate coverage describes revenue more than doubling year over year. The counterweight is material: Motley Fool says 10 customers account for 90% of sales; Trefis cites 67.7 times trailing earnings versus 22.4 for the S&amp;P 500; Zacks describes a 20.3% monthly decline, while another article cites a 43% retreat from prior highs. Those declines refer to different lookback periods and should not be combined. Fund-letter summaries and a Cramer headline add positive framing, but the excerpts do not establish new institutional buying; Cramer's quoted exchange occurred September 17, before this analysis window. Broad sector articles and a vaguely described photonics stock are weak CRDO-specific evidence. Much of this news is commentary or forward-looking analysis rather than independently verified results in the supplied material.</p>
+<p><strong>StockTwits (29 most-recent CRDO messages, all shown from September 28): Optimistic retail positioning with visible nerves.</strong> User tags are 12 Bullish (41% of all messages), zero Bearish, and 17 unlabeled (59%); <strong>12/12 labeled messages</strong> are bullish, but that is not a 100%-bullish reading of the whole sample. Five of the 12 bullish-tagged posts are by the same account, reducing the independence of that signal. Posters describe buying dips, re-entering and expecting a rebound; one cites strong earnings figures, but those particular figures are a user's claims, not verified company disclosures here. Unlabeled posts also show concern about another drop, reluctance to add before a possible retest, and frustration with the session. Even bullish-tagged posters discuss buying puts ahead of purported Wednesday MU earnings, watching $190 support and using stop losses. Stated chart levels, individual price targets and alleged market manipulation are opinions, not validated technical or market facts. This is a concentrated recent snapshot, not a seven-day retail time series.</p>
+<p><strong>Reddit: No usable signal.</strong> The feed was disabled by configuration, so no posts or engagement measures were supplied. This does not establish that discussion was absent. Because one of the three requested sources is unavailable, confidence is <strong>low</strong>, despite the substantive news and 29 StockTwits messages.</p>
+<h4 id="2-cross-source-alignment-and-divergence">2. Cross-source alignment and divergence<a class="headerlink" href="#2-cross-source-alignment-and-divergence" title="Permanent link">&para;</a></h4>
+<p>News and retail broadly align on CRDO's AI-infrastructure growth opportunity and on recent weakness potentially creating an entry point. Their emphasis differs: news repeatedly qualifies growth with premium valuation, customer concentration and execution risk, whereas StockTwits' explicit tags are uniformly bullish and dip-buying is prominent. Retail's unlabeled worries and bullish-tagged hedging narrow that divergence; the sources do not point in clearly opposite directions.</p>
+<h4 id="3-dominant-narratives">3. Dominant narratives<a class="headerlink" href="#3-dominant-narratives" title="Permanent link">&para;</a></h4>
+<p>The primary constructive theme is translating AI networking demand into optical-transceiver and high-speed connectivity revenue, supported by the new 1.6T lineup and PCIe 6.0 compliance milestone. The main opposing theme is whether rapid growth can justify CRDO's valuation and concentrated customer base after a sharp share-price pullback. Short-term social discussion focuses more on dip-buying, support levels and macro-driven volatility than on evidence of new orders.</p>
+<h4 id="4-catalysts-and-risks">4. Catalysts and risks<a class="headerlink" href="#4-catalysts-and-risks" title="Permanent link">&para;</a></h4>
+<p>Potential catalysts to <strong>monitor, not assume</strong>: commercial adoption of the new optics lineup; evidence of progress toward the reported fiscal 2027 optical and total-revenue targets; and customer demand following the retimer's compliance listing. Near-term StockTwits posters speculate about sympathy moves around MU earnings on Wednesday and a Friday jobs report; neither timing nor effect is independently confirmed by the supplied news. Risks include customer concentration, the cited earnings multiple, delivery against ambitious growth targets, recent volatility, and the higher-rate backdrop described in news coverage. Posters also attribute moves to energy, geopolitical and rate developments, but those causal claims are unverified here. Sentiment is a contemporaneous signal, not a price forecast or trade recommendation.</p>
+<h4 id="5-key-sentiment-signals">5. Key sentiment signals<a class="headerlink" href="#5-key-sentiment-signals" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.6T optical expansion</td>
+<td>Bullish</td>
+<td>Insider Monkey; Zacks news</td>
+<td>New 224G-based ZeroFlap lineup; reported fiscal 2027 optical-revenue target above $600 million is prospective.</td>
+</tr>
+<tr>
+<td>PCIe retimer validation</td>
+<td>Bullish</td>
+<td>Insider Monkey news</td>
+<td>Toucan Gen6x16 listed after PCI-SIG 6.x compliance testing at 64.0 GT/s.</td>
+</tr>
+<tr>
+<td>Rapid growth expectations</td>
+<td>Bullish, execution-dependent</td>
+<td>Zacks; Trefis news</td>
+<td>Revenue described as more than doubling; reported target above 85% fiscal 2027 growth.</td>
+</tr>
+<tr>
+<td>Valuation and concentration</td>
+<td>Bearish risk</td>
+<td>Trefis; Motley Fool news</td>
+<td>67.7x trailing earnings versus 22.4x S&amp;P 500; 10 customers reportedly provide 90% of sales.</td>
+</tr>
+<tr>
+<td>Recent price weakness</td>
+<td>Cautious</td>
+<td>Zacks; 24/7 Wall St. news</td>
+<td>Reported 20.3% one-month slide and, over a different period, 43% decline from highs.</td>
+</tr>
+<tr>
+<td>Retail dip-buying, tempered by hedges</td>
+<td>Mildly bullish</td>
+<td>StockTwits</td>
+<td>12/29 bullish-tagged, 0/29 bearish-tagged, 17/29 unlabeled; repeated buys alongside support-break and put-hedge concerns.</td>
+</tr>
+<tr>
+<td>Reddit coverage gap</td>
+<td>Unknown</td>
+<td>Reddit</td>
+<td>Disabled feed; no posts available to assess.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="crdo-trading-and-macro-report-september-28-2026">CRDO trading and macro report — September 28, 2026<a class="headerlink" href="#crdo-trading-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Bottom line:</strong> CRDO has credible product-level exposure to faster AI data-center connections, but the past week’s coverage does not establish new customer orders or revenue from those products. Rising Treasury yields are a headwind for a highly valued growth stock. The actionable distinction is between <strong>technical validation</strong>, which has been reported, and <strong>commercial adoption</strong>, which still needs confirmation.</p>
+<h4 id="what-changed-for-crdo">What changed for CRDO<a class="headerlink" href="#what-changed-for-crdo" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Optical opportunity:</strong> Recent coverage says Credo Technology Group Holding Ltd expanded its 224G-based ZeroFlap lineup for <strong>1.6T optical connections</strong>. A <a href="https://finance.yahoo.com/technology/articles/why-credos-1-6t-optics-162100736.html">Zacks report</a> says management targets <strong>more than $600 million in fiscal 2027 optical revenue</strong>. That is a consequential claim, but it comes through a third-party article here; traders should check company guidance and subsequent orders before treating it as secured revenue.</li>
+<li><strong>Interoperability milestone:</strong> <a href="https://finance.yahoo.com/technology/ai/articles/credo-technology-crdo-just-cleared-112133583.html">Insider Monkey reports</a> that the Toucan Gen6x16 PCIe retimer reached the PCI-SIG Integrators List after PCIe 6.x compliance testing at <strong>64.0 GT/s</strong>. Compliance can remove an adoption hurdle; it is <strong>not</strong> evidence of a design win or shipment volume.</li>
+<li><strong>The bar remains high:</strong> A <a href="https://finance.yahoo.com/markets/stocks/articles/crdo-down-20-3-month-151700526.html">Zacks article</a> described CRDO as down <strong>20.3% over a month</strong>, despite strong growth. <a href="https://www.trefis.com/articles/616633/what-makes-credo-technology-stock-a-buy-today/2026-09-25">Trefis</a> cited a <strong>67.7× trailing earnings multiple</strong> in its September 25 analysis. These are published snapshots, not verified September 28 quotes. A <a href="https://www.fool.com/coverage/better-buy/2026/09/25/credo-vs-nvidia-ai-chip-stock-better-buy-2026/">Motley Fool comparison</a> also says ten customers account for roughly <strong>90% of sales</strong>, making customer concentration an important check on any growth thesis.</li>
+</ul>
+<h4 id="the-trading-backdrop">The trading backdrop<a class="headerlink" href="#the-trading-backdrop" title="Permanent link">&para;</a></h4>
+<p>September 28 <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">market coverage</a> reported falling major U.S. equity indexes as Treasury yields climbed; other <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">bond-market coverage</a> emphasized a higher-for-longer Fed outlook. That combination can compress semiconductor growth-stock multiples even when AI infrastructure demand remains healthy. Relative strength in selected AI names does not eliminate that rate risk for CRDO.</p>
+<p>Prediction markets reinforce the need to watch rates, <strong>not</strong> the certainty of a particular Fed decision. Polymarket priced <em>no Fed cuts in 2026</em> at <strong>97%</strong> on approximately <strong>$8.6 million</strong> traded. A separate <em>another Fed hike in 2026</em> contract showed <strong>90%</strong>, but on only about <strong>$185,000</strong> traded; its wording and resolution terms should not be conflated with the no-cuts contract. Its <em>U.S. recession by end-2026</em> market stood at <strong>8%</strong> on roughly <strong>$2.2 million</strong> traded. These are contract prices, not official forecasts.</p>
+<p>For semiconductor supply-chain tail risk, a Polymarket contract priced a <strong>China invasion of Taiwan by end-2026 at 4%</strong> on about <strong>$43 million</strong> traded. Low probability does not mean low impact, but the contract alone is not evidence of an imminent disruption.</p>
+<p><strong>Data limitation:</strong> FRED requests for inflation, unemployment, the policy rate and Treasury yields failed because the macro-data service lacked an API key. Accordingly, this report does <strong>not</strong> assign numerical current yields or inflation readings, or infer their magnitude from headlines.</p>
+<h4 id="actionable-watchlist-for-crdo">Actionable watchlist for CRDO<a class="headerlink" href="#actionable-watchlist-for-crdo" title="Permanent link">&para;</a></h4>
+<p>A more constructive CRDO setup would pair <strong>verified optical orders or customer design wins</strong> with evidence that Treasury yields have stabilized. Watch whether reported fiscal 2027 optical ambitions become shipments and revenue, and whether customer concentration improves. Conversely, further yield increases, weaker customer spending, or product announcements without commercial follow-through would argue for <strong>smaller exposure and greater selectivity</strong>, rather than buying solely because the stock has fallen. Without a verified current CRDO quote or yield series, a precise entry price or stop would be false precision.</p>
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>Evidence as of September 28</th>
+<th>Trading implication for CRDO</th>
+<th>Next check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.6T optics</td>
+<td>Expanded ZeroFlap lineup; third-party report of a &gt;$600m fiscal 2027 optical target</td>
+<td>Potential growth catalyst, <strong>not booked sales</strong></td>
+<td>Company guidance, orders and optical revenue</td>
+</tr>
+<tr>
+<td>PCIe 6.x retimer</td>
+<td>Reported PCI-SIG listing at 64.0 GT/s</td>
+<td>Reduces technical-adoption uncertainty</td>
+<td>Design wins and shipments</td>
+</tr>
+<tr>
+<td>Valuation and concentration</td>
+<td>Published 67.7× trailing earnings snapshot; report that ten customers generate ~90% of sales</td>
+<td>Leaves little room for execution misses</td>
+<td>Updated valuation and customer mix</td>
+</tr>
+<tr>
+<td>Rates and equities</td>
+<td>September 28 reports of higher yields and weaker broad indexes; FRED values unavailable</td>
+<td>Multiple-compression risk can outweigh good product news</td>
+<td>Verified Treasury yields and incoming inflation/jobs data</td>
+</tr>
+<tr>
+<td>Forward risks</td>
+<td>Prediction markets: 97% no 2026 Fed cuts; 8% end-2026 recession; 4% Taiwan invasion</td>
+<td>Size positions for uncertainty; do not treat contract prices as forecasts</td>
+<td>Market repricing and confirmed policy or supply-chain developments</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="crdo-fundamental-report-september-28-2026">CRDO fundamental report — September 28, 2026<a class="headerlink" href="#crdo-fundamental-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Credo Technology Group Holding Ltd (CRDO)</strong> is classified by the supplied data as a technology-sector semiconductor company listed on NMS. Its business is broadly associated with high-speed connectivity for data-center and networking applications. The available financial feed does not break out products, customers, or end markets, so traders should verify those exposures in CRDO’s filings rather than infer them from industry classification.</p>
+<p><strong>Past-week finding:</strong> The insider feed shows one transaction dated September 21: officer James L. Laufman sold 5,000 CRDO shares for approximately <strong>$925,000</strong>. The supplied tools do not establish that CRDO issued a financial filing, earnings release, or other fundamental announcement during September 21–28. The financial analysis below therefore describes the latest <em>periods in the vendor dataset</em>, not necessarily information first disclosed this week. In particular, the vendor supplies fiscal-period end dates but <strong>no filing dates</strong>; confirm that the July 31, 2026 quarter was publicly filed before using it for an as-of-date trade.</p>
+<h4 id="financial-history-and-operating-performance">Financial history and operating performance<a class="headerlink" href="#financial-history-and-operating-performance" title="Permanent link">&para;</a></h4>
+<p>CRDO’s fiscal year ends April 30. Revenue rose from <strong>$184.2 million in FY2023</strong> to <strong>$193.0 million in FY2024</strong>, <strong>$436.8 million in FY2025</strong>, and <strong>$1.335 billion in FY2026</strong>. FY2026 growth was approximately <strong>206%</strong> year over year. Gross profit reached <strong>$908.3 million</strong> in FY2026, a gross margin of approximately <strong>68.0%</strong>, versus <strong>64.8%</strong> in FY2025. Operating income improved from a <strong>$37.1 million loss in FY2024</strong> to <strong>$37.1 million profit in FY2025</strong> and <strong>$445.0 million profit in FY2026</strong>. Net income followed the same turn: a <strong>$28.4 million loss</strong>, then <strong>$52.2 million profit</strong>, then <strong>$472.3 million profit</strong>, respectively. FY2026 diluted EPS was <strong>$2.51</strong>, versus <strong>$0.29</strong> in FY2025.</p>
+<p>The vendor’s latest quarterly period, ended <strong>July 31, 2026</strong>—the first quarter of FY2027—shows <strong>$479.0 million revenue</strong>, up <strong>9.6% sequentially</strong> and <strong>114.7%</strong> from July 2025. Revenue growth remains substantial, but profitability did not keep pace sequentially:</p>
+<ul>
+<li><strong>Gross margin fell to 64.5%</strong>, from <strong>68.2%</strong> in the April 2026 quarter and <strong>67.4%</strong> a year earlier.</li>
+<li><strong>Operating expenses rose 32.5% sequentially</strong> to <strong>$188.4 million</strong>, substantially faster than revenue. That includes <strong>$114.5 million of R&amp;D</strong> and <strong>$73.9 million of selling, general and administrative expense</strong>.</li>
+<li><strong>Operating income declined to $120.7 million</strong> from <strong>$155.8 million</strong> in April; operating margin fell from <strong>35.7% to 25.2%</strong>. Net income declined from <strong>$169.1 million to $129.4 million</strong>. July-quarter diluted EPS was <strong>$0.67</strong>, versus <strong>$0.34</strong> a year earlier; the vendor omits April-quarter EPS.</li>
+</ul>
+<p>Adding the four supplied quarters through July gives approximately <strong>$1.591 billion trailing revenue</strong>, <strong>$1.067 billion gross profit</strong>, <strong>$505.0 million operating income</strong>, and <strong>$538.3 million net income</strong>. The latest-quarter operating margin of <strong>25.2%</strong> matches the vendor’s headline “operating margin,” while the four-quarter operating margin is approximately <strong>31.7%</strong>. Traders should not treat every headline ratio in the fundamentals feed as having the same measurement period.</p>
+<p><strong>Trading implication:</strong> CRDO’s case is no longer just whether sales can grow rapidly; it is whether gross margin and expense leverage recover after July’s sequential deterioration. The supplied data do not separate organic growth from acquired revenue.</p>
+<h4 id="cash-flow-acquisition-and-balance-sheet">Cash flow, acquisition and balance sheet<a class="headerlink" href="#cash-flow-acquisition-and-balance-sheet" title="Permanent link">&para;</a></h4>
+<p>Cash generation improved markedly over the fiscal-year history. FY2026 operating cash flow was <strong>$464.3 million</strong>, versus <strong>$65.1 million in FY2025</strong>; after <strong>$57.3 million</strong> of capital expenditure, FY2026 free cash flow was <strong>$407.0 million</strong>, versus <strong>$29.0 million</strong> a year earlier.</p>
+<p>The July 2026 quarter produced <strong>$90.2 million operating cash flow</strong> and <strong>$82.9 million free cash flow</strong>, down from <strong>$182.2 million</strong> and <strong>$177.5 million</strong>, respectively, in April. Operating cash flow equaled about <strong>70% of July net income</strong>, compared with about <strong>108%</strong> in April. A <strong>$151.3 million working-capital outflow</strong> was a principal headwind; the cash-flow statement shows approximately <strong>$61.5 million absorbed by inventory</strong> and <strong>$54.5 million by receivables</strong>. On the balance sheet, inventory rose <strong>24.8%</strong> and receivables <strong>23.7%</strong> from April, against <strong>9.6%</strong> sequential revenue growth. Acquisition effects may complicate those comparisons, but collections and inventory turnover warrant attention.</p>
+<p>The July cash-flow statement reports <strong>$735.6 million spent on a business purchase</strong>. Cash plus short-term investments fell from <strong>$1.443 billion in April to $764.3 million in July</strong>; this decline should <strong>not</strong> be mistaken for an operating cash burn. Goodwill plus other intangibles rose from <strong>$122.1 million to $1.365 billion</strong>. The available statements do not identify the acquired business or explain the full purchase-price allocation and any noncash consideration. Those are important items to check in the acquisition disclosures, particularly when assessing how much future revenue or earnings came with the purchase.</p>
+<p>Despite that spending, July current assets of <strong>$1.466 billion</strong> versus current liabilities of <strong>$198.2 million</strong> imply a <strong>7.4× current ratio</strong>. Reported total debt was <strong>$26.2 million</strong>, identified in the balance sheet as capital-lease obligations; cash and short-term investments exceeded it by approximately <strong>$738.1 million</strong>. Stockholders’ equity was <strong>$2.728 billion</strong>, although tangible book value was lower at <strong>$1.363 billion</strong> following the increase in goodwill and intangibles. The headline debt-to-equity figure of <strong>0.96</strong> should not be read uncritically as <strong>0.96×</strong>: reported debt divided by reported equity is approximately <strong>0.96%</strong>.</p>
+<h4 id="shareholder-costs-valuation-and-insiders">Shareholder costs, valuation and insiders<a class="headerlink" href="#shareholder-costs-valuation-and-insiders" title="Permanent link">&para;</a></h4>
+<p>Stock-based compensation is material. It was <strong>$182.6 million in FY2026</strong> and <strong>$88.0 million in the July quarter</strong>—about <strong>18.4% of that quarter’s revenue</strong> and slightly more than its <strong>$82.9 million free cash flow</strong>. Ordinary shares outstanding rose from <strong>172.9 million in July 2025 to 187.9 million in July 2026</strong>, approximately <strong>8.6%</strong>. FY2026 financing cash flow also reports <strong>$736.3 million of common-stock issuance</strong>. When assessing per-share growth, traders should account for both compensation-related dilution and capital raised.</p>
+<p>The vendor quotes a <strong>$36.21 billion market capitalization</strong>, <strong>67.6× trailing P/E</strong>, <strong>19.9× forward P/E</strong>, <strong>13.3× price-to-book</strong>, and <strong>3.23 beta</strong>. Market capitalization divided by four-quarter revenue is approximately <strong>22.8× sales</strong>. Dividing market capitalization by the <strong>$438.6 million</strong> free cash flow calculated from the four supplied quarters gives approximately <strong>82.6×</strong>. The headline fundamentals feed instead lists <strong>$248.3 million free cash flow</strong>, which would imply roughly <strong>145.8×</strong>; the feed does not explain the discrepancy. Its <strong>$9.70 forward EPS</strong> is also more than three times its <strong>$2.85 trailing EPS</strong>, so the forecast period and earnings definition need verification before relying on the forward multiple. These are vendor valuation fields, <strong>not a verified live CRDO quote</strong>.</p>
+<p>The September 21 Laufman sale is the <strong>only transaction dated within the past week</strong> in the supplied insider feed. For context, it also lists September 17 sales of <strong>27,500 shares by CTO Chi Fung Cheng</strong> for approximately <strong>$4.58 million</strong>, and September 14 sales of <strong>16,672 shares by CEO William Joseph Brennan III</strong> for approximately <strong>$2.53 million</strong>. The feed provides transaction dates but not Form 4 filing dates, trading-plan details, or links; repeated sales alone do not establish insiders’ outlook.</p>
+<p><strong>Actionable read-through:</strong> CRDO has demonstrated exceptional revenue and profit growth and retains substantial liquidity, but its valuation leaves limited room for an extended margin or cash-conversion setback. Before paying a growth multiple, look for a filed explanation of the acquisition and organic revenue contribution, stabilization of gross margin after July’s <strong>64.5%</strong>, and improvement in operating cash flow relative to earnings. If receivables and inventory continue to outgrow sales while expenses rise faster than revenue, the <strong>~22.8× trailing-sales</strong> valuation becomes harder to support. CRDO’s reported <strong>3.23 beta</strong> also argues for position sizing that can withstand large price moves.</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Key CRDO evidence</th>
+<th>What to monitor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Past week</td>
+<td>One listed insider sale dated Sept. 21: <strong>5,000 shares, ~$925,000</strong>; no financial-release date supplied</td>
+<td>Verify Form 4 and any newly published company filings</td>
+</tr>
+<tr>
+<td>FY2026 growth</td>
+<td>Revenue <strong>$1.335B</strong>, up <strong>~206%</strong>; net income <strong>$472.3M</strong></td>
+<td>Durability of growth and its organic/acquired split</td>
+</tr>
+<tr>
+<td>July 2026 quarter</td>
+<td>Revenue <strong>$479.0M</strong>, <strong>+9.6% QoQ</strong>, <strong>+114.7% YoY</strong></td>
+<td>Whether subsequent sales growth remains profitable</td>
+</tr>
+<tr>
+<td>Margins</td>
+<td>Gross margin <strong>64.5%</strong>, down from <strong>68.2% QoQ</strong>; operating margin <strong>25.2%</strong>, down from <strong>35.7%</strong></td>
+<td>Gross-margin stabilization and expense leverage</td>
+</tr>
+<tr>
+<td>Cash conversion</td>
+<td>Quarterly operating cash flow <strong>$90.2M</strong>; FCF <strong>$82.9M</strong>; working-capital outflow <strong>$151.3M</strong></td>
+<td>Collections, inventory and cash flow versus net income</td>
+</tr>
+<tr>
+<td>Acquisition</td>
+<td><strong>$735.6M</strong> quarterly business-purchase cash outflow; goodwill plus intangibles <strong>$1.365B</strong></td>
+<td>Purchase-price allocation and acquired contribution</td>
+</tr>
+<tr>
+<td>Financial strength</td>
+<td>Cash plus short-term investments <strong>$764.3M</strong>; lease debt <strong>$26.2M</strong>; current ratio <strong>7.4×</strong></td>
+<td>Liquidity after integration spending</td>
+</tr>
+<tr>
+<td>Dilution</td>
+<td>Quarterly stock-based compensation <strong>$88.0M</strong>; shares outstanding <strong>+8.6% YoY</strong></td>
+<td>Growth in earnings and FCF <strong>per share</strong></td>
+</tr>
+<tr>
+<td>Valuation/data quality</td>
+<td><strong>~22.8× trailing sales</strong>; calculated four-quarter FCF <strong>$438.6M</strong> differs from headline <strong>$248.3M</strong></td>
+<td>Reconcile vendor figures and verify forward-EPS basis before trading</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case for CRDO is that its growth is already showing up in revenue, profit and cash flow—not just in AI-networking product announcements.</strong> I’m bullish over a multiyear horizon, though the September 28 reversal makes me selective about entry size and timing.</p>
+<p>Credo’s revenue rose <strong>206% to $1.335 billion in FY2026</strong>. In the vendor-reported July 2026 quarter, revenue reached <strong>$479 million, up 114.7% year over year</strong>; net income was <strong>$129.4 million</strong>, and free cash flow remained positive at <strong>$82.9 million</strong>. The filing date for that quarter is not supplied, so I would verify it before trading on the figures. Still, this is a substantially stronger starting point than a company asking investors to fund growth before it can earn money.</p>
+<p>The product opportunity is also concrete. CRDO has expanded its <strong>224G-based ZeroFlap lineup for 1.6T optical connections</strong>, while its <strong>Toucan Gen6x16 retimer</strong> reportedly passed PCIe 6.x compliance testing at <strong>64.0 GT/s</strong> and reached the PCI-SIG Integrators List. Neither milestone proves orders. Together, though, they put Credo in contention for faster AI data-center connectivity spending across optics and retimers. Its <strong>68.0% FY2026 gross margin</strong> suggests the existing business has attractive economics; it does not, by itself, prove a durable moat.</p>
+<p>A bear will rightly point to <strong>67.6× trailing earnings, roughly 22.8× trailing sales, and reports that ten customers supply about 90% of revenue</strong>. I wouldn’t dismiss any of that. My counter is that the valuation question depends on whether earnings can continue catching up with sales: July-quarter diluted EPS was <strong>$0.67 versus $0.34 a year earlier</strong>, even as shares outstanding rose. A third-party report attributes to management a target of <strong>over 85% FY2027 revenue growth</strong> and <strong>more than $600 million in optical revenue</strong>. Those are ambitious targets, <em>not booked sales</em>, and I would not use the unverified <strong>19.9× forward P/E</strong> as proof the stock is cheap.</p>
+<p>The other bear objections deserve equally direct answers. July gross margin fell to <strong>64.5%</strong>, operating expenses rose faster than revenue, and stock compensation of <strong>$88 million exceeded quarterly free cash flow</strong>. Receivables and inventory also grew faster than sales. Those are reasons to demand better cash conversion and per-share growth in coming quarters, not reasons to ignore a business that still produced a <strong>25.2% operating margin</strong> in a weaker sequential quarter. After a <strong>$735.6 million business purchase</strong>, Credo still reported <strong>$764.3 million in cash and short-term investments against $26.2 million of lease debt</strong>. The acquisition’s contribution and integration risks need disclosure; the cash decline should not be confused with operating cash burn.</p>
+<p><strong>My recommendation: bullish on CRDO, but build a modest position rather than chase a bounce.</strong> The last verified close, <strong>$192.67</strong>, was below the <strong>$209.76 50-day average</strong> after a sharp reversal, even though weekly and monthly SuperTrend readings remained up. I would gain conviction from a close back above <strong>$209.76–$210.97</strong>, rising participation, and—more importantly—evidence of optical orders, margin stabilization and improving cash conversion. If those arrive, today’s premium can be earned through growth. If they do not, the bear’s valuation argument gets stronger.
+Bull Analyst: Bear, your arithmetic on the FY2027 target is right: after a reported $479 million first quarter, exceeding $2.47 billion for the year would require the remaining quarters to average more than $663 million. <strong>I would not buy CRDO on the assumption that it hits that target.</strong> I would buy a <em>modest</em> position because the growth already achieved gives the product opportunity a stronger foundation than an announcement alone: FY2026 revenue rose 206% to $1.335 billion, with $407 million of free cash flow, and the vendor-reported July quarter grew revenue 114.7% year over year while remaining profitable.</p>
+<p>You’re also right that July was not a clean operating-leverage quarter. Expenses rose faster than sales, gross margin fell to 64.5%, and free cash flow dropped to $82.9 million. That is the central test for my thesis, not a footnote. But the weaker quarter still delivered a <strong>25.2% operating margin</strong>, and diluted EPS rose from $0.34 to $0.67 year over year. That per-share increase matters when you rightly raise the 8.6% rise in shares outstanding. It does <em>not</em> excuse $88 million of quarterly stock compensation or the $151.3 million working-capital outflow; both need to improve before I would increase exposure.</p>
+<p>On the acquisition, I agree: neither the $735.6 million purchase nor the jump in goodwill proves organic demand. I would require the acquisition disclosures and an organic-growth bridge before crediting future revenue gains to existing products. But this is not a company forced to finance that uncertainty from a weak balance sheet: after the purchase, it reported $764.3 million of cash and short-term investments against $26.2 million of lease debt. Likewise, PCIe compliance and the 1.6T optics expansion remove or address technical hurdles; they do <strong>not</strong> yet prove design wins, a moat, or the reported optical-revenue target.</p>
+<p>So where do we differ? At roughly <strong>67.6× trailing earnings and 22.8× sales</strong>, CRDO is unquestionably expensive, especially with concentrated customers and rising-yield pressure. You would wait until commercial adoption, margins, cash conversion <em>and</em> the chart are confirmed. That reduces uncertainty, but it may also mean paying after the evidence has changed expectations. I favor a small, volatility-sized starter position in an already profitable, fast-growing business, with no automatic averaging down. I would add only on verified orders and better per-share cash conversion, ideally alongside a sustained reclaim of <strong>$209.76–$210.97</strong>. If margins and working capital keep deteriorating, or the reported growth proves acquisition-led rather than organic, your valuation objection wins.</p>
+<p><strong>My recommendation remains cautiously bullish on CRDO—not a chase, and not a bet that the FY2027 target is secured.</strong> The July figures’ filing date is absent from the supplied feed, so I would verify their public availability and the acquisition details before acting.
+Bull Analyst: Bear, I agree that <strong>a small position does not make CRDO cheap</strong>. At roughly 67.6× trailing earnings and 22.8× sales, a lasting margin or cash-conversion problem would be costly. Where we differ is whether July’s weaker sequential quarter outweighs the operating record that came <em>before</em> the July acquisition.</p>
+<p>In FY2026, CRDO grew revenue <strong>206% to $1.335 billion</strong> and generated <strong>$407 million of free cash flow</strong>. Even subtracting that year’s <strong>$182.6 million of stock compensation</strong> as a rough shareholder-cost check leaves about <strong>$224 million</strong>; that is <em>not</em> a formal cash-flow metric, but it shows why I would not treat the business as merely profitable on paper. July’s $88 million of stock compensation exceeding $82.9 million of free cash flow is a serious warning, not something I expect investors to overlook. It needs to reverse alongside the margin decline.</p>
+<p>You’re right that the reported FY2027 target demands a steep ramp. My starter-position case does <strong>not</strong> require it. Holding July’s $479 million quarterly revenue flat for four quarters would produce $1.916 billion for FY2027—about <strong>43% above FY2026</strong>, though well short of the reported target. At the vendor’s <em>unchanged</em> $36.21 billion market-cap snapshot, that would still be a demanding <strong>~19× sales</strong>. The point is not that this scenario makes CRDO cheap; it is that meaningful growth is possible without assuming the &gt;85% target or treating the new optics lineup as booked revenue.</p>
+<p>I also accept your distinction between technical qualification and commercial success. <strong>ZeroFlap’s 1.6T expansion and the retimer’s reported PCI-SIG listing create opportunities, not design wins or a proven moat.</strong> Concentrated customers could accelerate adoption or disrupt it. That is why I would demand orders, an acquired-versus-organic revenue bridge, and better cash generation <em>per share</em> before adding—not award CRDO credit for them today.</p>
+<p>So I would <strong>verify that the July results and acquisition disclosures were publicly available before acting</strong>, then consider only a modest CRDO starter, with no automatic averaging down. The September 28 close below the falling 50-day average argues against chasing; a sustained reclaim of <strong>$209.76–$210.97</strong> would strengthen the entry case. Your approach waits for more proof and may avoid a costly mistake. Mine accepts limited early exposure because CRDO has already demonstrated substantial pre-acquisition growth and cash generation, while reserving conviction—and more capital—for evidence that the next leg benefits shareholders rather than just the revenue line.
+Bull Analyst: Bear, your <strong>~162× check on FY2026 free cash flow after a rough stock-compensation adjustment</strong> is fair. CRDO is not cheap, and a smaller position does not change that. Where I disagree is treating the flat-at-July revenue scenario as the most useful basis for an <em>avoid</em> decision. It assumes sequential growth stops after a quarter with <strong>114.7% year-over-year revenue growth</strong>. That could happen, particularly if July’s growth includes acquired revenue—but it is a downside test, not evidence that demand has stalled.</p>
+<p>The reason I’m willing to take limited exposure is the record <strong>before the July acquisition</strong>: FY2026 revenue grew <strong>206%</strong>, operating income reached <strong>$445 million</strong>, and free cash flow reached <strong>$407 million</strong>. July’s decline to a <strong>64.5% gross margin</strong> and <strong>$82.9 million of free cash flow</strong> is a serious challenge to that record, not a detail to dismiss. Yet diluted EPS still rose from <strong>$0.34 to $0.67 year over year</strong>, despite the increase in shares outstanding. That does not erase the <strong>$88 million of stock compensation</strong> or the working-capital outflow; it does show why one weaker sequential quarter has not settled the per-share growth question against CRDO.</p>
+<p>I also agree that the <strong>1.6T ZeroFlap expansion and PCI-SIG retimer listing are not orders or a proven moat</strong>. They do, however, give an already profitable high-speed-connectivity business credible ways to compete for the next generation of AI-networking spending. The reported <strong>90% of sales from ten customers</strong> makes a lost program consequential, but it does not tell us how dependent CRDO is on any <em>single</em> buyer. That is a risk to investigate, not proof that adoption will fail. Likewise, the post-acquisition <strong>$764.3 million of cash and short-term investments</strong> provides flexibility, not a defense of the valuation.</p>
+<p>So our disagreement is about <em>when</em> to take risk, not whether proof matters. <strong>I remain cautiously bullish on a small CRDO starter position, conditional on verifying that the July results and acquisition disclosures were publicly available.</strong> I would not average down automatically or treat the last verified <strong>$192.67</strong> close as a bargain simply because it is below the <strong>$209.76</strong> 50-day average. I would add only after evidence of orders or organic growth, improving cash conversion <strong>per share</strong>, and preferably a sustained reclaim of <strong>$209.76–$210.97</strong>. If margins and dilution keep overwhelming growth, your avoid call wins. Until then, I think CRDO’s demonstrated earnings and cash-generation capacity warrant limited exposure rather than none.
+Bull Analyst: Bear, your <strong>$42 million of added revenue, $11 million of added gross profit and $46 million of added operating expenses</strong> is the sharpest challenge to my CRDO case. July’s incremental economics were poor. But I would not treat one sequential quarter as the new earnings model without weighing the record before the July purchase: in FY2026, revenue rose by about <strong>$898 million</strong> and operating income by about <strong>$408 million</strong>. That roughly <strong>45% incremental operating margin</strong> is historical evidence of operating leverage, not a forecast that it will recur.</p>
+<p>I agree that <strong>~83× calculated trailing free cash flow</strong> leaves little room for disappointment, and I would not defend CRDO with the unverified forward P/E. What makes limited exposure worth considering is that the business had already generated <strong>$407 million of FY2026 free cash flow</strong> before the July acquisition, while July still produced <strong>$120.7 million of operating profit</strong> despite the margin squeeze. The <strong>$151.3 million working-capital outflow</strong> helps explain weaker cash conversion; it does not excuse faster expense growth or guarantee a reversal. Likewise, July EPS rising from <strong>$0.34 to $0.67 year over year</strong> shows per-share progress, but the <strong>$88 million of stock compensation</strong> and <strong>8.6% share-count increase</strong> remain serious tests.</p>
+<p>On customers and products, I’m not assuming diversification or awarding CRDO a moat. Ten customers reportedly supplying 90% of sales is material risk. The 1.6T ZeroFlap expansion and PCIe retimer qualification give CRDO two specific ways to pursue faster data-center connectivity spending—not verified orders. That combination of demonstrated earnings and identifiable opportunities is why I differ from your <em>zero-exposure</em> call, not because the reported FY2027 targets are assured.</p>
+<p><strong>My CRDO call remains a modest, volatility-sized starter, conditional on verifying that the July results were publicly available and reviewing the acquisition disclosures—not an automatic dip buy.</strong> I would add only with evidence of organic demand, stabilizing margins and better cash flow <em>per share</em>, preferably alongside a sustained reclaim of <strong>$209.76–$210.97</strong>. The last verified <strong>$192.67</strong> close below the falling 50-day average gives you a valid timing objection. If the next results repeat July’s expense growth and dilution without better conversion, your avoid call wins.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: Bull, I agree that CRDO is a profitable growth company, not an AI story waiting for its first sale. My disagreement is about <strong>what investors are being asked to pay for the next stage of growth</strong>. At the vendor’s valuation snapshot—<strong>67.6× trailing earnings and roughly 22.8× trailing sales</strong>—strong historical results are not enough. CRDO needs to keep growing rapidly <em>and</em> show that growth translates into durable margins and cash flow per share.</p>
+<p>Your July-quarter numbers illustrate the risk. Revenue rose <strong>9.6% sequentially</strong>, but operating expenses rose <strong>32.5%</strong>. Gross margin fell from <strong>68.2% to 64.5%</strong>, operating margin from <strong>35.7% to 25.2%</strong>, and free cash flow from <strong>$177.5 million to $82.9 million</strong>. Positive cash flow is welcome; a roughly halved quarterly figure while sales grow is not the operating leverage I would want to see at this valuation. Receivables and inventory also grew faster than sales, although the acquisition may complicate that comparison. The July quarter’s filing date is unavailable in the supplied feed, so I would verify it before trading on these figures.</p>
+<p>And while I accept your point that the <strong>$735.6 million acquisition was not operating cash burn</strong>, it creates a different question: how much of future growth will be organic? Goodwill and intangibles rose to <strong>$1.365 billion</strong>, while cash and short-term investments stood at <strong>$764.3 million</strong>. The balance sheet remains liquid, but investors need the purchase-price details and acquired contribution before treating the next jump in revenue as proof of CRDO’s existing products gaining share.</p>
+<p>The product milestones make CRDO a contender, as you say. They do <strong>not</strong> establish design wins, shipment volumes, or a moat. That distinction matters when ten customers reportedly account for about <strong>90% of sales</strong>: a small number of buyers can have an outsized effect on both growth and pricing. The reported target of <strong>more than 85% FY2027 revenue growth</strong> would imply over <strong>$2.47 billion</strong> in annual revenue; after the vendor-reported <strong>$479 million</strong> first quarter, the remaining quarters would need to average more than <strong>$663 million</strong> each. That may happen, but it is a demanding path, not a conservative assumption.</p>
+<p>I also would not wave away dilution because EPS rose year over year. Shares outstanding increased about <strong>8.6%</strong>, and quarterly stock compensation was <strong>$88 million—more than reported quarterly free cash flow</strong>. Stock compensation is noncash and already reflected in accounting earnings, but shareholders still need to judge the results <em>per share</em>.</p>
+<p>Finally, your caution on entry timing is more persuasive to me than your buy recommendation. CRDO closed September 28 at <strong>$192.67</strong>, back below its <strong>$209.76</strong> 50-day average after briefly clearing it; the average itself has been falling. Weekly and monthly trend signals remain positive, so I am <strong>not calling for an indiscriminate short</strong>. My recommendation is to <strong>avoid new CRDO purchases for now</strong>. I would reconsider after verified orders and organic growth disclosure, recovering margins and cash conversion, and a sustained reclaim of <strong>$209.76–$210.97</strong>. Buying a modest position before those tests still pays a premium for improvements that have yet to be demonstrated.
+Bear Analyst: Bull, I agree that CRDO’s past growth is real. My objection to your starter position is that <strong>the price asks investors to underwrite the <em>next</em> leg of growth just as the latest vendor-reported quarter raises questions about its quality</strong>. At roughly <strong>67.6× trailing earnings and 22.8× trailing sales</strong>, “profitable today” is a starting point, not enough of a margin of safety.</p>
+<p>You point to July’s 25.2% operating margin and higher year-over-year EPS. Both are strengths. But sequentially, revenue grew <strong>9.6%</strong> while operating expenses grew <strong>32.5%</strong>; gross margin fell from <strong>68.2% to 64.5%</strong>, and operating income fell from <strong>$155.8 million to $120.7 million</strong>. Free cash flow fell from <strong>$177.5 million to $82.9 million</strong>. One quarter does not establish a trend, but at this multiple, investors need evidence that scale is <em>improving</em> economics—not merely that the business remains profitable.</p>
+<p>Nor does the strong balance sheet answer that valuation question. I agree the <strong>$735.6 million acquisition was not operating cash burn</strong>, and <strong>$764.3 million</strong> of cash and short-term investments against <strong>$26.2 million</strong> of lease debt provides flexibility. But without an acquired-versus-organic revenue bridge, future growth could look impressive while telling us less about demand for CRDO’s existing products. Meanwhile, July’s <strong>$88 million in stock compensation exceeded free cash flow</strong>, shares outstanding were up <strong>8.6% year over year</strong>, and receivables and inventory grew faster than sequential sales. Stock compensation is already reflected in earnings; the separate shareholder question is whether cash generation and growth will outrun dilution.</p>
+<p>Your product case is plausible, but technical qualification is not a design win. That gap matters more when <strong>ten customers reportedly provide about 90% of sales</strong>: a delayed program or tougher pricing from a major buyer could have an outsized effect. You say you are <em>not</em> betting on the reported FY2027 target, yet the premium valuation leaves little room if growth moderates or margins stay below FY2026 levels. Rising-yield coverage adds another possible source of multiple pressure, even without a verified numerical yield series.</p>
+<p>I don’t need every uncertainty resolved before reconsidering CRDO. I would want the July figures and acquisition disclosures verified, then credible evidence of commercial orders or organic growth <strong>and</strong> stabilizing margins or cash conversion. The September 28 close of <strong>$192.67</strong>, back below the falling <strong>$209.76</strong> 50-day average, gives me no urgency to pay for that evidence in advance; the positive weekly and monthly trend readings also mean I am <strong>not recommending a short</strong>. My recommendation remains <strong>avoid new CRDO purchases for now</strong>. A small position limits dollars at risk, but it does not improve the entry’s risk-reward.
+Bear Analyst: Bull, your FY2026 record is the strongest argument for CRDO: revenue rose 206%, and free cash flow reached $407 million before the July acquisition. But <strong>a strong past year does not make the next year cheap</strong>. Your own flat-at-July scenario produces roughly 43% annual revenue growth and still leaves CRDO at about <strong>19× sales</strong> using the vendor’s unchanged market-cap snapshot. That is a high price to pay for a scenario with no further sequential revenue growth.</p>
+<p>The cash-flow comparison is less reassuring than it first appears. Your roughly $224 million figure after subtracting FY2026 stock compensation is a useful <em>rough shareholder-cost check</em>, not a formal cash-flow measure; against the same $36.21 billion valuation snapshot, it implies about <strong>162×</strong> that amount. In July, stock compensation of <strong>$88 million exceeded $82.9 million of free cash flow</strong>, while gross and operating margins fell sequentially. I agree one quarter cannot establish a trend. It does establish what CRDO needs to disprove before I pay this multiple: that faster sales growth will again produce stronger economics <strong>per share</strong>.</p>
+<p>I also hear your case for getting in before orders are confirmed. The trade-off is real. But with ten customers reportedly supplying about 90% of sales, technical qualification still short of a design win, and no acquired-versus-organic revenue bridge, a starter position is paying upfront for several favorable outcomes. The September 28 close at <strong>$192.67</strong>, back below the falling <strong>$209.76</strong> 50-day average, gives me little reason to rush; rising-yield coverage adds valuation risk even if demand remains healthy.</p>
+<p><strong>I would avoid new CRDO purchases, not short it.</strong> I would reconsider after verifying the July results and acquisition disclosures, then seeing commercial orders or organic-growth evidence alongside stabilizing margins and cash conversion. A chart reclaim would help with timing, but it would not substitute for those business results.
+Bear Analyst: Bull, I’m not arguing that July’s <strong>114.7% year-over-year revenue growth</strong> proves demand has stalled. I’m arguing that growth alone is the wrong test for a stock priced at roughly <strong>67.6× trailing earnings</strong>. Sequentially, revenue rose about <strong>$42 million</strong>, but gross profit rose only about <strong>$11 million</strong> while operating expenses rose about <strong>$46 million</strong>. Operating income consequently fell about <strong>$35 million</strong>. One quarter cannot establish a lasting margin problem, but it does show why I wouldn’t buy before seeing whether the next dollar of sales produces better returns.</p>
+<p>Your pre-acquisition FY2026 record is impressive. The valuation, though, depends on what comes next. At the vendor’s <strong>$36.21 billion</strong> market-cap snapshot, CRDO trades at about <strong>83×</strong> the free cash flow calculated from the supplied four quarters. The quoted <strong>19.9× forward P/E</strong> is no easy answer: its <strong>$9.70 forward EPS</strong> is more than three times the quoted <strong>$2.85 trailing EPS</strong>, and the forecast basis has not been verified. CRDO need not stop growing for investors to be disappointed; growth merely has to fall short of what this price anticipates.</p>
+<p>I take your point that we don’t know any <em>single</em> customer’s share of sales. But with ten customers reportedly accounting for <strong>90%</strong>, that missing detail is a reason to demand disclosure, not to assume the risk is diversified. The optics expansion and PCIe qualification establish technical opportunity, not orders or pricing power. The acquisition adds another unanswered question: how much of the next revenue increase will be organic? Meanwhile, July’s <strong>$88 million of stock compensation exceeded $82.9 million of free cash flow</strong>, and shares outstanding were up <strong>8.6%</strong> year over year.</p>
+<p>I agree that waiting for proof could mean paying a higher price. It could also prevent paying today’s premium for improvements that never arrive. With CRDO last closing at <strong>$192.67</strong>, below its falling <strong>$209.76</strong> 50-day average, I see no urgency to take even a starter position. <strong>My call remains: avoid new CRDO purchases, not short the stock.</strong> I’d revisit it after verifying the July filing and acquisition details, then seeing organic demand, margin and per-share cash-flow improvement.
+Bear Analyst: Bull, I agree that CRDO’s roughly <strong>45% incremental operating margin in FY2026</strong> shows it <em>can</em> scale. My concern is that July offers a sharply different, more recent test: roughly <strong>$42 million</strong> of additional sequential revenue coincided with about <strong>$11 million</strong> more gross profit, <strong>$46 million</strong> more operating expense, and <strong>$35 million less operating income</strong>. Acquisition effects or timing may explain part of that reversal. Without the disclosures, though, neither of us can assume the FY2026 economics will return.</p>
+<p>The <strong>$151.3 million working-capital outflow</strong> helps explain weaker cash flow; it does not establish that the cash will promptly come back. Receivables rose <strong>23.7%</strong> and inventory <strong>24.8%</strong> while revenue rose <strong>9.6%</strong> sequentially. That deserves scrutiny when ten customers reportedly account for about <strong>90% of sales</strong>. The optics expansion and PCIe qualification create opportunities, but neither yet demonstrates orders that would resolve the question.</p>
+<p>Your strongest point remains the <strong>$407 million of FY2026 free cash flow</strong>. But July free cash flow was <strong>$82.9 million</strong>, slightly below <strong>$88 million of stock compensation</strong>, and shares outstanding were up <strong>8.6%</strong> year over year. I’m not calling stock compensation a cash expense; I’m asking whether future cash generation will improve <em>per share</em> enough to justify a valuation near <strong>83× calculated trailing free cash flow</strong>.</p>
+<p>Waiting for proof may cost me a higher entry. Buying now risks paying that premium before CRDO shows that July’s weaker economics were temporary. With the last verified <strong>$192.67</strong> close below the falling <strong>$209.76</strong> 50-day average—despite positive higher-timeframe trend readings—I still favor <strong>avoiding new CRDO purchases, not shorting it</strong>. I’d revisit that call after verifying the July filing and acquisition details, then seeing organic orders, steadier margins, and better per-share cash conversion.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For CRDO, the bear wins on valuation and the quality of incremental growth, not on whether the business has real demand. The bull's strongest evidence is substantial: supplied FY2026 revenue grew 206% to $1.335 billion, free cash flow reached $407 million, and the vendor-reported July quarter still delivered 114.7% year-over-year revenue growth and diluted EPS of $0.67 versus $0.34. Reported post-acquisition liquidity also argues against a distress thesis. But at roughly 67.6 times trailing earnings, 22.8 times trailing sales and 83 times the debate's calculated trailing free cash flow, the latest sequential deterioration matters. Revenue grew 9.6% while operating expenses grew 32.5%; gross margin fell from 68.2% to 64.5%, operating margin from 35.7% to 25.2%, and free cash flow from $177.5 million to $82.9 million. Stock compensation of $88 million is not a cash expense, but alongside an 8.6% increase in shares outstanding it raises the hurdle for shareholder-level returns. The $735.6 million acquisition is not operating cash burn, yet its undisclosed revenue contribution prevents a clean organic-growth assessment. Reported customer concentration and product qualifications without verified orders add execution risk. One weak quarter does not prove lasting deterioration, and waiting may mean paying more later. Nevertheless, a small starter position limits exposure without fixing the demanding entry valuation. CRDO's historical close below its falling 50-day average reinforces caution but does not decide the business case. These are supplied, unverified snapshots: the July filing/public-release date, acquisition contribution, forward EPS basis and current market data are missing. I would not underwrite the reported FY2027 targets or the unverified forward P/E. The stronger bear case supports moderately reduced exposure rather than a full exit or a short.</p>
+<p><strong>Strategic Actions</strong>: For an existing CRDO position, reduce exposure above 0.5 times a standard single-stock allocation to that cap; 1.0 times means the trader's normal allocation, not the current position size. If already at or below 0.5 times, do not top up; if unowned, do not initiate. Actual holdings, portfolio constraints and volatility limits are not supplied, so the trader and portfolio manager must translate this cap into shares and may size lower. Before sending orders, validate current CRDO prices and the public availability and accuracy of the July results and acquisition disclosures; this plan has not independently verified them. If the inputs check out, execute necessary reductions with staged limit orders in liquid trading conditions. Do not wait for a rebound or treat the supplied $192.67 close as a live quote. Avoid automatic averaging down and do not establish a short from this debate. Reassess at the next verified results or material acquisition/customer disclosure. Consider restoring exposure first toward 0.75 times standard only after credible organic-demand or commercial-order evidence accompanies stable or recovering margins and improved free cash flow per diluted share, with acquisition-related working-capital effects reconciled. Require subsequent confirmation before returning toward 1.0 times. The historical $209.76–$210.97 reclaim zone can support timing if still relevant after updating the chart, but cannot replace business evidence. Further margin compression and weakening per-share cash generation in another verified quarter, or a material customer/order setback, should trigger reassessment and further reduction of the residual position. No defensible price target or numerical trading stop can be derived from the supplied evidence alone.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: For CRDO, the underweight plan supports trimming, not exiting or shorting: demanding trailing valuation, sequential margin and free-cash-flow deterioration, dilution, and uncertain acquisition contribution outweigh strong reported growth. The last verified $192.67 close fell below the declining $209.76 50-day SMA after a brief move above $210.97; $189.44 and $187.27 are downside checkpoints, while the $14.15 ATR argues against a tight stop. Validate the current CRDO quote and the July disclosures before staging limit-order reductions; these historical levels do not establish a live sale price or a defensible fixed stop.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: For an existing CRDO holding above 0.5× the normal single-stock allocation, sell only the excess to reach at most 0.5×; size lower if portfolio constraints require. If already at or below that cap, do not add; if unowned, do not initiate or short.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: No conservative or neutral analyst has weighed in yet, so I’ll open with the case for the proposed CRDO sale: trim an oversized position, but keep enough exposure to benefit if the growth story delivers. That is a more opportunistic use of risk than either abandoning CRDO or simply waiting through an outsized holding.</p>
+<p>The upside is real. CRDO grew FY2026 revenue about 206%, and the vendor’s July-quarter figure was up 114.7% year over year. Its 1.6T optical lineup and PCIe retimer compliance milestone give it ways to pursue AI-networking demand. But product milestones are not booked orders, and the reported fiscal 2027 optical target is not secured revenue. Keeping up to half a normal single-stock allocation preserves meaningful participation if those ambitions convert into sales.</p>
+<p>The reason to sell the excess now is that CRDO is asking shareholders to absorb unusually high risk while that conversion remains unproven. The last verified $192.67 close was $18.30 below the September 25 close of $210.97, after only a brief reclaim of the declining $209.76 50-day average. That reversal does not kill the higher-timeframe uptrend, but it makes an oversized bet harder to defend. July revenue rose sequentially while gross margin fell from 68.2% to 64.5%, free cash flow fell from $177.5 million to $82.9 million, and $88.0 million of stock-based compensation exceeded that quarter’s free cash flow. A published roughly 67.6× trailing earnings multiple leaves little tolerance for those trends to persist.</p>
+<p>A conservative case for exiting altogether would miss CRDO’s growth and the possibility that its product work becomes a substantial business. A neutral case for waiting until every uncertainty is resolved would miss the value of acting on position size before a volatile stock forces the decision. With a $14.15 ATR and a reported 3.23 beta, reducing excess exposure is an active way to retain upside without letting one uncertain outcome dominate the portfolio.</p>
+<p>My recommendation is the trader’s SELL, precisely sized: if the existing CRDO holding exceeds 0.5× the normal single-stock allocation, sell only enough to reach at most that cap; if it is already at or below the cap, do not add or sell solely on this plan. Do not initiate or short CRDO if unowned. Verify the current quote and whether the July results and acquisition disclosures were publicly available before placing limit-order reductions. The September levels are decision context, not a live sale price or a defensible fixed stop.
+Aggressive Analyst: The Conservative Analyst is right that 0.5× a normal allocation is a ceiling, not a promise of safety. But making it smaller by default risks solving volatility by giving away CRDO’s upside. FY2026 revenue grew about 206%, July-quarter revenue was up 114.7% year over year in the vendor data, and CRDO still reported substantial cash after the acquisition. The 1.6T optics expansion and PCIe retimer compliance do not prove orders, but they do put CRDO in contention for them. Waiting for shipments, margins, and customer diversification to be fully proven could mean waiting until much of the opportunity is already priced in. Customer concentration raises the stakes; it does not, by itself, make a full exit the better bet.</p>
+<p>I also would not dismiss the Conservative Analyst’s margin, cash-flow, dilution, or valuation concerns. July gross margin fell to 64.5%, free cash flow fell to $82.9 million, and $88 million of stock-based compensation is a real per-share cost. Those are compelling reasons to sell an <em>oversized</em> holding, especially against a published roughly 67.6× trailing earnings multiple. They are not yet proof that one weaker quarter has overturned a business that generated $407 million of FY2026 free cash flow. Receivables, inventory, and the acquisition’s contribution need verification and follow-through, not an assumption in either direction.</p>
+<p>The Neutral Analyst’s distinction between portfolio sizing and predicting CRDO is exactly why I favor acting now rather than waiting for a chart verdict. September 28’s verified $192.67 close was below the declining $209.76 50-day average after a sharp reversal; with a $14.15 ATR, an oversized position can consume risk budget quickly. Yet weekly and monthly SuperTrend readings remained positive, and the MACD histogram was still positive. That combination argues for trimming excess exposure, not declaring the upside finished. I agree that rising yields, semiconductor concentration, and a reported 3.23 beta may require a lower cap in some portfolios. Without knowing this portfolio, though, lowering the cap reflexively would surrender participation without showing that its loss budget requires it. Mildly bullish retail sentiment is too thin to settle that question.</p>
+<p>So I support the proposed CRDO SELL as the more ambitious trade-off: reduce any existing holding above 0.5× a normal single-stock allocation to no more than that ceiling, or lower if actual portfolio constraints demand it, while retaining exposure to a potentially powerful growth outcome. If already at or below the applicable cap, this plan calls for no sale or addition; if unowned, do not initiate or short CRDO. Verify the current quote and that the July results and acquisition disclosures were public before staging limit-order reductions. The September levels are historical checkpoints, not live order prices or dependable fixed stops.
+Aggressive Analyst: Conservative, you’re right that 0.5× a normal allocation is a ceiling, not a safety certificate. But I would not cut below it <em>by default</em>. CRDO’s reported FY2026 revenue grew about 206%, and the vendor’s July-quarter revenue was up 114.7% year over year. The 1.6T optics expansion and PCIe compliance milestone are not orders, but they put CRDO in contention for a potentially valuable growth market. Waiting until every shipment and margin is proven may also mean forfeiting much of the reward. Customer concentration and the published roughly 67.6× trailing earnings multiple make that a risky bet—not one to abandon automatically.</p>
+<p>Your cash-flow challenge is the strongest reason to sell the <em>excess</em>. July’s lower margin, $151.3 million working-capital outflow, and $88 million of stock-based compensation against $82.9 million of free cash flow put real pressure on per-share returns. Inventory and receivables must turn into cash. Still, one quarter does not settle whether those balances reflect trouble or growth in progress; CRDO generated $407 million of FY2026 free cash flow and had substantial reported liquidity after the acquisition. That combination argues for a smaller bet with upside intact, not complacency and not a reflexive exit.</p>
+<p>Neutral, I agree that beta, correlated AI exposure, and the portfolio’s loss budget—not enthusiasm—must determine the residual size. The mildly bullish retail sample is too thin to override that judgment, and the published valuation is not a live quote. But requiring confirmed orders and cleaner per-share results <em>before retaining meaningful exposure</em> would turn risk control into a late-entry strategy. The better aggressive move is to resize now: the last verified $192.67 close was below the declining $209.76 average after a sharp reversal, while positive higher-timeframe trend readings leave the upside case open. Neither those indicators nor the $14.15 ATR guarantees an exit.</p>
+<p>I support the proposed CRDO SELL only for an existing position above its appropriate cap: after verifying the current quote and that the July results and acquisition disclosures were public, stage limit-order sales of the excess to reach <strong>no more than 0.5× a normal single-stock allocation</strong>. Use a lower cap if actual portfolio exposure or loss limits require it, not merely because CRDO is volatile. If already within that cap, this plan calls for no trade; if unowned, do not initiate or short CRDO. That is the high-reward compromise: stop an oversized position from dictating the portfolio’s outcome while keeping a stake in growth that may yet justify the risk.
+Aggressive Analyst: Conservative, I agree that CRDO’s 1.6T optics and PCIe milestones are not orders, and that a reportedly concentrated customer base raises the cost of an execution miss. But those facts argue for selling an oversized position, not automatically cutting the remainder below the half-allocation ceiling. The vendor reports FY2026 revenue growth of about 206% and July-quarter growth of 114.7% year over year. That pace does not guarantee future sales, but waiting for every order and margin improvement to be established could mean surrendering much of the upside we are trying to preserve. Reported liquidity gives CRDO room to execute; it is not insurance against a falling share price. That distinction is precisely why I favor a trim rather than an exit.</p>
+<p>Your July cash-flow objection is substantive. The $151.3 million working-capital outflow, weaker margins, and $88 million of stock-based compensation against $82.9 million of free cash flow demand scrutiny of collections and per-share returns. Yet one quarter does not tell us whether inventory and receivables signal trouble or sales still working through the cycle. CRDO also reported $407 million of FY2026 free cash flow. A published roughly 67.6× trailing multiple makes carrying <em>excess</em> exposure unattractive while that question is unresolved; it does not settle the growth outcome.</p>
+<p>Neutral, you are right that neither a $14.15 historical ATR nor positive higher-timeframe indicators protects against a gap, and that a portfolio already heavy in AI may need a lower cap. But making a smaller residual the default without knowing the portfolio would treat volatility alone as a reason to forfeit participation. September 28’s $192.67 close below the declining $209.76 average makes trimming timely, while the positive weekly and monthly trend readings leave the upside case open. Mildly bullish retail sentiment is too thin to decide either way.</p>
+<p>My CRDO call remains SELL, but only the excess: verify the current quote and that the July results and acquisition disclosures were public, then stage limit-order reductions if an existing holding exceeds the smaller of 0.5× a normal single-stock allocation and its portfolio-specific risk limit. If already within that limit, this plan calls for no sale or addition; if unowned, do not initiate or short CRDO. The September levels are review points, not live prices or dependable stops.
+Aggressive Analyst: Conservative, you’re right that CRDO’s 0.5× ceiling is not a target or a safety certificate. But making the residual smaller by default would give up upside without establishing that this portfolio needs the extra reduction. The published roughly 67.6× trailing multiple, customer concentration and uncertain acquisition contribution are strong reasons to sell an <em>oversized</em> holding. They are not proof that the growth opportunity has failed. In the vendor data, July revenue rose 114.7% year over year and diluted EPS rose from $0.34 to $0.67 despite dilution. The 1.6T optics and PCIe milestones are not orders, but retaining a controlled stake before commercial adoption is fully proven is how an investor can participate if that adoption accelerates.</p>
+<p>Your cash-flow challenge is the best argument for the sale, not for reflexively cutting further. July’s lower margins, $151.3 million working-capital outflow and $88 million of stock-based compensation against $82.9 million of free cash flow demand follow-up. Inventory and receivables are not cash collected. Equally, one quarter does not establish that they will <em>fail</em> to convert: CRDO generated $407 million of FY2026 free cash flow and, in the vendor’s July data, retained $764.3 million in cash and short-term investments after the acquisition. Liquidity cannot prevent a valuation decline, but it gives the company room to pursue the opportunity while shareholders limit their exposure.</p>
+<p>Neutral, I agree that the historical $192.67 close says nothing about today’s attainable sale price, and that a half-allocation could be too large alongside correlated AI holdings. But waiting for a more attractive quote or for confirmed orders before fixing a known concentration problem confuses timing with sizing. The sharp reversal below the declining $209.76 average makes excess exposure harder to defend; positive higher-timeframe readings leave a reason to retain some. Neither the $14.15 historical ATR nor mildly bullish, low-confidence retail sentiment should determine the residual stake.</p>
+<p>My CRDO call is the proposed conditional SELL: compare the actual holding with the smaller of 0.5× a normal single-stock allocation and the portfolio’s loss-budget limit, including correlated losses. If it exceeds that cap, verify the current quote and whether the July and acquisition disclosures were public, then stage limit-order sales only of the amount needed to reach the cap; monitor unfilled orders rather than assuming protection. If already within the cap, this plan calls for no sale or addition. If unowned, do not initiate or short CRDO. That is the bolder risk decision: stop an oversized position from dictating the portfolio’s outcome without surrendering the potential reward.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the Aggressive Analyst’s direction on CRDO, but I would not treat half a normal allocation as automatically safe. It is a ceiling, not an upside-participation target. FY2026 revenue growth was exceptional, and the reported 1.6T optics and PCIe compliance milestones matter. Neither milestone establishes orders or shipments, though, and the fiscal 2027 optical target is prospective. A reportedly concentrated customer base makes any shortfall more consequential.</p>
+<p>The risk is not just September’s reversal. The vendor’s July figures show revenue rising while gross margin fell from 68.2% to 64.5%, free cash flow fell to $82.9 million, and $88.0 million of stock-based compensation exceeded that free cash flow. Receivables and inventory also grew faster than sales, while the acquisition’s contribution remains unclear. Those figures must be confirmed as publicly disclosed before they inform a trade. CRDO’s strong liquidity argues against an automatic full exit, but it does not make a published roughly 67.6× trailing earnings multiple forgiving of weaker cash conversion or execution.</p>
+<p>No Neutral Analyst has spoken, so I would not attribute a position to them. If the neutral case is to wait for CRDO to reclaim $209.76–$210.97 before changing exposure, that confuses a possible bullish confirmation with a portfolio-risk decision. The last verified $192.67 close was below the declining 50-day average; the $14.15 ATR and reported 3.23 beta mean an oversized holding can do damage while an investor waits. Conversely, $189.44 and $187.27 are historical checkpoints, not reliable stop prices.</p>
+<p>My low-risk adjustment is to keep the proposed CRDO SELL conditional on actual holdings: verify the current quote and public disclosures, then use staged limit orders to reduce any position above 0.5× a normal single-stock allocation to no more than that cap. Use a lower ceiling if sector concentration or the portfolio’s loss budget requires it. If already at or below the applicable cap, this plan alone does not call for a sale or an addition; if unowned, do not initiate or short CRDO.
+Conservative Analyst: Aggressive, I agree that CRDO’s growth deserves attention, but preserving upside is not a reason to treat half a normal allocation as the preferred holding. The reported 1.6T optics expansion and PCIe compliance put CRDO in contention for business; they do not establish orders or shipments. At a published roughly 67.6× trailing earnings multiple, the firm would be paying for substantial execution before it is verified. A smaller position may miss some upside, but it also preserves capital if customer concentration, acquisition integration, or rising yields turn a promising product story into a poor investment outcome.</p>
+<p>Neutral, you are right that one weaker quarter does not prove lasting deterioration. It does, however, change the risk we should be willing to carry now. In the vendor’s July figures, revenue rose 9.6% sequentially while gross margin fell from 68.2% to 64.5%, operating expenses rose 32.5%, and free cash flow fell to $82.9 million. The $151.3 million working-capital outflow is an explanation for weaker cash conversion, not yet reassurance: inventory and receivables need to become sales and cash. The $88 million in stock-based compensation also exceeded quarterly free cash flow, making per-share progress particularly important. CRDO’s remaining liquidity is substantial, so this is not an insolvency argument; it is an argument against letting an uncertain outcome consume too much risk budget.</p>
+<p>Nor would I rely on the positive weekly SuperTrend or MACD histogram to protect the position. The last verified $192.67 close was below a declining 50-day average, and the $14.15 ATR implies large ordinary swings. The indicator levels and September price checkpoints are not guaranteed exits.</p>
+<p>I support the conditional CRDO SELL: verify the current quote and that the July results and acquisition details were publicly disclosed, then stage limit-order sales of any holding above 0.5× a normal single-stock allocation. Treat 0.5× as a ceiling, and set it lower where correlated AI exposure or the portfolio’s loss budget warrants—not merely because the stock is volatile. If already within the applicable cap, this plan alone calls for no trade; if unowned, do not initiate or short CRDO. That is a way to retain optionality without making the firm’s stability depend on unverified commercial follow-through.
+Conservative Analyst: Aggressive, I agree that selling all of CRDO would ignore a substantial growth opportunity. But preserving upside is not a reason to use the full half-allocation allowance. The 1.6T optics expansion and PCIe compliance milestone do not establish orders, and a reported ten customers generating roughly 90% of sales leaves growth vulnerable to a few purchasing decisions. Strong FY2026 free cash flow and reported liquidity reduce balance-sheet risk; they do not prevent a sharp share-price decline if yields rise, an acquisition disappoints, or a major customer slows spending.</p>
+<p>Neutral, one weaker quarter does not prove lasting deterioration. Still, the vendor’s July figures raise a question we should resolve before taking more risk: revenue rose 9.6% sequentially while gross margin fell, receivables and inventory grew faster than sales, and $88 million of stock-based compensation exceeded $82.9 million of free cash flow. The working-capital outflow may reverse, but that is not yet cash collected. Positive higher-timeframe indicators offer no protection against a gap; the historical $14.15 ATR shows why a tight stop would be unreliable.</p>
+<p>My CRDO recommendation remains a conditional SELL. Verify the current quote and whether the July results and acquisition details were publicly disclosed. Then, if the holding exceeds its portfolio-specific risk limit, stage limit-order sales to bring it to <strong>no more than 0.5×</strong> a normal single-stock allocation. Set that limit lower if a plausible CRDO drawdown, alongside correlated semiconductor losses, would exceed the portfolio’s loss budget—not simply because volatility is uncomfortable. If already within the applicable limit, this proposal alone calls for no trade or addition; if unowned, do not initiate or short CRDO. The September price levels are review points, not live sale prices or guaranteed exits.
+Conservative Analyst: Aggressive, the risk of missing CRDO’s upside is real, but it does not make the full half-allocation the right residual holding. Reported FY2026 growth and product milestones support keeping the opportunity under review; they do not tell us what price the firm can safely pay for it. At a published roughly 67.6× trailing earnings multiple, reported customer concentration, dilution and acquisition uncertainty leave little room for disappointment. CRDO’s liquidity helps the business withstand a setback, but it cannot protect shareholders from a valuation decline.</p>
+<p>Neutral, I agree that one quarter does not establish lasting deterioration. It does establish risk that needs funding: in the vendor’s July figures, revenue rose 9.6% sequentially while gross margin fell, operating expenses rose 32.5%, and free cash flow fell to $82.9 million. The $151.3 million working-capital outflow may reverse, but inventory and receivables have not yet turned into collected cash. FY2026’s $407 million of free cash flow does not resolve that question, especially with $88 million of quarterly stock-based compensation. We need not demand perfect results before retaining CRDO; we should demand a position small enough to withstand results that fall short.</p>
+<p>I therefore support the conditional CRDO SELL, with 0.5× a normal single-stock allocation as a maximum, not a target. Check the actual holding against a plausible CRDO drawdown and simultaneous losses in correlated AI and semiconductor positions; use a lower cap if that combined loss would exceed the portfolio’s budget. Verify the current CRDO quote and the public July and acquisition disclosures before staging limit-order sales of any excess. If the holding is already within its applicable cap, this plan alone calls for no sale or addition; if unowned, do not initiate or short CRDO. The September levels and positive longer-term indicators are useful review points, not dependable exits.
+Conservative Analyst: Aggressive, CRDO’s growth makes a full exit hard to justify, but the possibility of missing upside does not make half a normal allocation the right residual position. July’s year-over-year EPS growth is encouraging; it does not resolve the sequential fall in margins and free cash flow, or the cost of $88 million in quarterly stock-based compensation. The 1.6T launch and PCIe compliance milestone are not orders. With sales reportedly concentrated among ten customers, the acquisition’s contribution unclear, and a published—but not live—roughly 67.6× trailing earnings multiple, shareholders have little protection against an execution miss. CRDO’s cash protects its ability to operate, not its share price.</p>
+<p>Neutral, I agree that one quarter does not prove lasting deterioration. But we need not wait for proof before limiting the capital exposed to it. In the vendor’s July figures, revenue rose 9.6% sequentially while gross margin fell, expenses rose 32.5%, and free cash flow dropped from $177.5 million to $82.9 million. The $151.3 million working-capital outflow may reverse, but inventory and receivables are not yet collected cash. Likewise, positive longer-term trend readings do not protect against a gap: the last verified CRDO close was below the declining 50-day average, and its $14.15 ATR was about 7.3% of that close.</p>
+<p>I support the conditional CRDO SELL, with a stricter interpretation of the sizing rule: 0.5× a normal single-stock allocation is a maximum, not a participation target. Compare the actual holding with the smaller of that ceiling and the size the portfolio can withstand in a plausible CRDO drawdown alongside correlated semiconductor losses. If the holding exceeds that limit, verify the current CRDO quote and that the July and acquisition disclosures were public, then stage limit-order sales of the excess and monitor unfilled orders. If it is already within the limit, this plan alone calls for no sale or addition; if unowned, do not initiate or short CRDO. September’s prices are review points, not live sale prices or dependable stops.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: I agree with both analysts on the direction, but I would separate the portfolio decision from the prediction about CRDO. If the holding is oversized, reducing it is sensible even if the stock rebounds. That does not mean the September 28 close of $192.67 proves the growth story has failed.</p>
+<p>The Aggressive Analyst is right to preserve some upside, but “half a normal allocation” is not automatically a comfortable residual position. CRDO’s $14.15 ATR, reported 3.23 beta, customer concentration, and exposure to rising yields could make even that amount too large in a portfolio already heavy in semiconductors or AI infrastructure. Product launches and PCIe compliance strengthen the opportunity; they do not yet establish orders. Mildly bullish retail sentiment is also weak evidence here: the sample is small, includes repeated posts from one account, and lacks Reddit coverage.</p>
+<p>The Conservative Analyst is right that 0.5× is a ceiling, not a target. I would push back, though, against treating one weaker quarter as a settled deterioration. The vendor figures still show July revenue up 114.7% year over year, FY2026 free cash flow of $407 million, and substantial cash after the acquisition. July’s cash-flow decline included a large working-capital outflow, while the acquired business’s contribution is unclear. Those facts warrant scrutiny, not an automatic exit or an indefinitely shrinking allocation. The higher-timeframe SuperTrend readings also remain positive, even though the falling 50-day average and sharp reversal weaken the near-term case.</p>
+<p>My adjustment to the proposed SELL is therefore risk-led and conditional: verify a current CRDO quote and the public filing dates before relying on the July figures, then trim only an existing holding above the appropriate cap to at most 0.5× a normal single-stock allocation. Set a lower cap if the portfolio’s sector exposure or loss budget calls for it, rather than lowering it reflexively. If CRDO is already within that cap, this plan alone calls for neither a sale nor an addition; if unowned, do not initiate or short it.</p>
+<p>After resizing, let evidence—not a fixed stop—govern the next decision. Confirmed orders, improving margins and cash conversion per share, and a sustained reclaim of the historical $209.76–$210.97 area would strengthen the case for retaining exposure. Further operating weakness or a sustained breakdown would justify reassessing it. Those September prices, including $189.44 and $187.27 on the downside, are historical checkpoints, not live order prices or guaranteed protection.
+Neutral Analyst: Aggressive, I agree that trimming an oversized CRDO holding preserves a chance to benefit if the growth story delivers. But “giving away upside” is not, by itself, a reason to keep the full 0.5× allowance. Product milestones are not orders, and even strong sales growth may not translate into comparable per-share gains if margins weaken and dilution continues. With a reported 3.23 beta and exposure to the same rate and AI-spending risks as other semiconductor holdings, the right residual size depends on the portfolio, not just on CRDO’s potential.</p>
+<p>Conservative, the July figures make a strong case for limiting risk, but they do not yet establish a lasting deterioration. CRDO generated $407 million of FY2026 free cash flow and still had substantial cash and short-term investments in the vendor’s July data. The working-capital outflow needs follow-up: inventory and receivables could precede sales and collections, or signal a problem. Nor should the published 67.6× trailing multiple be treated as a verified live valuation. These uncertainties justify a ceiling, not a reflexively smaller position in every portfolio.</p>
+<p>I would keep the proposed CRDO SELL conditional on actual exposure. First verify the current quote and that the July results and acquisition details were publicly disclosed. If an existing holding exceeds the appropriate cap, stage limit-order sales of the excess to reach <strong>no more than 0.5× a normal single-stock allocation</strong>. Make that cap lower if a plausible CRDO drawdown would breach the portfolio’s loss budget or compound heavy AI and semiconductor exposure; diversification should address correlated risks, not merely add another ticker. If already within the applicable cap, this plan alone calls for no sale or addition. If unowned, do not initiate or short CRDO.</p>
+<p>After resizing, I would look for verified orders, margin recovery, better cash conversion and per-share progress before increasing conviction. The September reversal argues against assuming an immediate breakout, while the positive higher-timeframe trend argues against calling the opportunity finished. The historical $209.76–$210.97 and $189.44–$187.27 areas can guide a review, but neither they nor the $14.15 ATR provide a live order price or protection against a gap.
+Neutral Analyst: Aggressive, I agree that selling all of CRDO could forfeit substantial upside. But the full half-allocation should not be the default simply because it preserves participation. CRDO’s product milestones are not orders, its customer base is reportedly concentrated, and $88 million of quarterly stock-based compensation puts pressure on per-share returns even though it is not a cash operating loss. The last verified $14.15 ATR describes ordinary volatility, not the potential loss from a gap or a broader semiconductor selloff. A portfolio already heavy in AI stocks may need a smaller residual stake.</p>
+<p>Conservative, those are reasons to limit exposure, not to assume the growth case has failed. Reported FY2026 free cash flow was $407 million, July revenue was up 114.7% year over year in the vendor data, and liquidity remained substantial after the acquisition. July’s working-capital outflow could reflect either growth awaiting collection or a developing problem; one quarter cannot settle that question. Requiring perfect margins and confirmed orders before retaining any stake could be overly cautious.</p>
+<p>I would keep the proposed CRDO SELL, but make it a portfolio-risk decision. Verify a current quote and whether the July results and acquisition details were publicly disclosed, then use staged limit orders to sell only an existing holding above the smaller of 0.5× a normal single-stock allocation and the limit your portfolio can bear alongside correlated semiconductor losses. If already within that limit, this plan calls for no trade or addition; if unowned, do not initiate or short CRDO. Reassess the remaining stake as orders, margins, cash conversion and dilution become clearer. September’s chart levels are review points, not live prices or reliable stops.
+Neutral Analyst: Aggressive, I agree that a full exit could sacrifice meaningful upside: CRDO’s reported growth and product milestones make the opportunity worth monitoring. But “preserve participation” does not justify treating half a normal allocation as the preferred holding. Sales growth matters less to shareholders if margins, cash conversion, and dilution keep per-share returns from following it. The September reversal strengthens the case for controlling an oversized position; it does not establish that today offers an attractive sale price. The last verified quote is historical.</p>
+<p>Conservative, your caution about the July figures is warranted, but I would not treat one quarter’s working-capital outflow as proof that growth is deteriorating. Inventory and receivables need to turn into collections, yet CRDO also reported strong FY2026 free cash flow and substantial liquidity after the acquisition. Likewise, the published trailing earnings multiple is a valuation warning, not a verified live multiple. Rising-yield reports add a plausible headwind, but we lack a confirmed yield series to quantify it. Those uncertainties argue for a controlled stake rather than an automatic exit or a smaller cap in every portfolio.</p>
+<p>I would keep the conditional CRDO SELL: compare the actual holding with the smaller of 0.5× a normal single-stock allocation and the amount the portfolio can withstand in a CRDO drawdown alongside correlated AI and semiconductor losses. If it exceeds that limit, verify the current quote, then stage limit-order sales of the excess; recognize that limits may not fill. Confirm the July filing and acquisition disclosures before using those figures as a trading premise, but do not let that verification delay obscure a separately identifiable concentration problem. If already within the limit, this plan alone calls for no trade or addition; if unowned, do not initiate or short CRDO. Reassess the retained stake against orders, margins, collections, and per-share progress—not a fixed stop derived from September prices or ATR.
+Neutral Analyst: Aggressive, I agree that selling all of CRDO could sacrifice meaningful upside. But the case for retaining a stake is not a case for using the full half-allocation. July revenue and diluted EPS grew strongly year over year, yet margins and free cash flow fell sequentially, and $88 million of stock-based compensation exceeded quarterly free cash flow. Product milestones are promising, not orders. If the portfolio is already exposed to AI spending and rising-rate risk, even a half-allocation may be too much.</p>
+<p>Conservative, limiting that risk is sensible, but one quarter does not establish a lasting decline. The working-capital outflow needs to turn into collections, while FY2026’s $407 million of free cash flow and the substantial reported liquidity argue against treating an exit as inevitable. The roughly 67.6× earnings multiple is a warning from a published snapshot, not a verified live valuation. Caution should determine the size of the remaining stake, not rule out participation by default.</p>
+<p>I support a conditional CRDO SELL based on portfolio risk rather than a prediction from September’s reversal. Compare the existing holding with the smaller of 0.5× a normal single-stock allocation and the amount the portfolio can bear in a substantial CRDO drawdown alongside correlated holdings. Sell only any excess, using staged limit orders after checking the current quote; monitor orders that do not fill. Verify that the July results and acquisition details were public before using them as a trading premise, though an independently oversized position can warrant a trim regardless. If already within the applicable limit, this plan calls for no trade or addition; if unowned, do not initiate or short CRDO. Review the retained stake as orders, margins, collections and per-share results become clearer—not against a fixed stop drawn from historical prices or ATR.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: CRDO is Underweight: trim only exposure above the smaller of 0.5× your normal single-stock allocation and your portfolio-specific risk cap; 0.5× is a ceiling, not a target or half the current holding. If already within that limit, this plan calls for no sale or addition; if unowned, do not initiate or short CRDO. Validate the current CRDO quote and the accuracy and public-release dates of the July results and acquisition disclosures before fundamentals-based trading, then stage limit-order reductions in liquid conditions and monitor unfilled orders. Reassess at the next verified results or material customer/acquisition disclosure, sooner for a risk-budget breach; $189.44–$187.27 and $209.76–$210.97 are historical review zones, not stops or live order prices.</p>
+<p><strong>Investment Thesis</strong>: The stronger CRDO case is for moderately reduced exposure, not an automatic exit. The Conservative and Neutral Analysts make the more persuasive argument about valuation, cash conversion and portfolio loss capacity; the Aggressive Analyst's growth and liquidity evidence limits how far that conclusion should go. The trader's proposed SELL is an execution instruction for excess exposure, not a full-exit portfolio rating. Disagreement over the residual position does not justify Hold, because all three analysts identify reasons not to carry a normal-sized allocation on the supplied evidence.</p>
+<p>Valuation makes weaker incremental economics consequential. The supplied, unverified snapshot puts CRDO at roughly 67.6× trailing earnings. In the vendor's July figures, sequential revenue growth of 9.6% was outpaced by operating-expense growth of 32.5%; gross margin declined from 68.2% to 64.5%, and the Research Manager's figures show operating margin falling from 35.7% to 25.2%. These figures support caution about paying a demanding multiple for growth that is becoming less profitable at the margin, without establishing that deterioration is permanent.</p>
+<p>Cash conversion and dilution strengthen the reduction case. Quarterly free cash flow fell from $177.5 million to $82.9 million, alongside a reported $151.3 million working-capital outflow and receivables and inventory growing faster than sales. Working capital may convert to cash later, so one quarter is not proof of structural failure. The $88 million of stock-based compensation is noncash, but together with the supplied 8.6% increase in shares outstanding it raises the hurdle for per-share returns. The $735.6 million acquisition is not operating cash burn; its undisclosed revenue contribution instead prevents a clean organic-growth assessment.</p>
+<p>The countercase argues against an automatic full exit. Supplied FY2026 revenue grew approximately 206% to $1.335 billion and free cash flow reached $407 million. Vendor-reported July revenue grew 114.7% year over year, diluted EPS rose from $0.34 to $0.67, and post-acquisition cash and short-term investments were reportedly $764.3 million. Those figures indicate substantial demand and financial capacity, although liquidity does not protect the share price from multiple compression. The 1.6T optics expansion and PCIe retimer compliance milestone support opportunity, not verified orders; the reported concentration of roughly 90% of sales among ten customers amplifies execution risk.</p>
+<p>Size CRDO against the actual portfolio, which is not supplied. Stress a substantial CRDO drawdown together with correlated AI and semiconductor losses, and use a cap below 0.5× normal allocation if that combined loss would exceed the portfolio's budget; do not lower it reflexively or top up to the ceiling. The historical $192.67 close below the falling $209.76 50-day average supports near-term caution, while positive higher-timeframe readings argue against declaring the opportunity finished. The historical $14.15 ATR and reported 3.23 beta reinforce the need for sizing discipline but provide neither a reliable stop nor gap protection. Do not wait for a rebound to correct an independently established concentration problem, and do not assume unfilled limit orders have reduced exposure.</p>
+<p>Increase conviction only after credible organic-demand evidence or verified commercial orders accompanies stable or recovering margins and better free cash flow per diluted share, with acquisition and working-capital effects reconciled. Subject to portfolio limits, that could support staged restoration first toward 0.75× normal allocation, with subsequent confirmation before approaching 1.0×. Another verified quarter of further margin compression and weaker per-share cash generation, or a material customer/order setback, should trigger reassessment and possible further reduction. Historical chart reclaims can support timing but cannot replace business evidence.</p>
+<p>All financial and market figures here are supplied snapshots, not independently verified current information. The current CRDO quote, confirmed filing/public-release dates, acquisition revenue contribution, forward-EPS basis, and actual portfolio holdings and risk budget are missing. Do not underwrite the prospective FY2027 targets or an unverified forward P/E. Validate the disclosures before using them as a trading premise; an independently demonstrated concentration problem can warrant reduction without relying on those figures. No defensible numerical price target or fixed stop follows from the supplied evidence.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Until the next verified CRDO results or material customer/acquisition disclosure; reassess sooner if portfolio risk limits are breached.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -5,6 +5,14 @@ from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 
+try:  # private helper; keep working if a langchain-anthropic release drops it
+    from langchain_anthropic.chat_models import _supports_forced_tool_choice
+except ImportError:  # pragma: no cover - depends on installed version
+    def _supports_forced_tool_choice(model: str) -> bool:
+        return not model.startswith(
+            ("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5")
+        )
+
 from .api_key_env import is_anthropic_setup_token
 from .base_client import BaseLLMClient, normalize_content
 from .retry import call_with_rate_limit_retry
@@ -138,6 +146,29 @@ class NormalizedChatAnthropic(ChatAnthropic):
                 invoke_with_compatible_tool_choice,
                 description=self.model,
             )
+        )
+
+    def _can_force_tool_choice(self) -> bool:
+        thinking = self.thinking or {}
+        if thinking.get("type") in ("enabled", "adaptive"):
+            return False
+        return _supports_forced_tool_choice(self.model)
+
+    def with_structured_output(self, schema, *, include_raw=False, method=None, **kwargs):
+        """Default to native JSON-schema output when the schema tool can't be forced.
+
+        LangChain's default ``function_calling`` path cannot force the schema
+        tool with thinking enabled or on Claude 5.5-class models; it only hopes
+        the model calls it (and warns at bind time). ``json_schema`` sends
+        ``output_config.format`` so the final answer is constrained instead.
+        Callers that pass ``method`` explicitly keep their choice. A provider
+        or proxy that rejects the format still lands in the agents' free-text
+        fallback (``agents.structured``).
+        """
+        if method is None:
+            method = "function_calling" if self._can_force_tool_choice() else "json_schema"
+        return super().with_structured_output(
+            schema, include_raw=include_raw, method=method, **kwargs
         )
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):

@@ -1,0 +1,4478 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/BE/20260928_gpt-6-astra_20260928_192329/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: BE - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-be" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: BE
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#be-technical-report-as-of-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BE — technical report as of September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trend-positive-at-longer-horizons-less-convincing-for-a-fresh-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend: positive at longer horizons, less convincing for a fresh entry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#momentum-and-participation-today-weakened-the-recovery-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Momentum and participation: today weakened the recovery case
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stretch-and-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stretch and risk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#levels-and-conditional-setups-to-monitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Levels and conditional setups to monitor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#be-bloom-energy-corporation-nyq-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BE — Bloom Energy Corporation (NYQ): sentiment, 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-source-by-source-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Source-by-source evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cross-source-alignments-and-divergences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cross-source alignments and divergences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dominant-narrative-themes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dominant narrative themes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-catalysts-and-risks-to-monitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Catalysts and risks to monitor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#be-trading-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BE trading and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#be-what-changed-this-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BE: what changed this week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macro-and-world-backdrop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Macro and world backdrop
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#be-fundamental-research-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BE — fundamental research report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scope-and-data-freshness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope and data freshness
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#earnings-and-operating-trajectory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Earnings and operating trajectory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#financial-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-generation-and-balance-sheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash generation and balance sheet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valuation-and-insider-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valuation and insider activity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading implications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-be">Trading Analysis Report: BE<a class="headerlink" href="#trading-analysis-report-be" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:23:29</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="be-technical-report-as-of-september-28-2026">BE — technical report as of September 28, 2026<a class="headerlink" href="#be-technical-report-as-of-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>BE closed at $262.87 after a sharp reversal, but its broader trend has not yet flipped.</strong> The verified market snapshot shows an open of $282.51, a high of $286.26, a low of $259.46 and volume of 15.522 million shares. The close was $25.83, or about 8.95%, below the September 25 close of $288.70. It also finished near the day’s low. That makes the immediate trading picture substantially weaker than the still-positive weekly and monthly trend readings.</p>
+<p>I selected <strong>eight complementary indicators</strong>: SuperTrend and the 50-day SMA for trend; ADX for trend strength; the MACD histogram and RSI for momentum; ATR for risk; OBV for participation; and the multi-timeframe Z-score for stretch. Current price and single-series indicator figures below use the verified snapshot where available. Multi-timeframe readings and indicators absent from that snapshot come from their individual indicator reports.</p>
+<h4 id="trend-positive-at-longer-horizons-less-convincing-for-a-fresh-entry">Trend: positive at longer horizons, less convincing for a fresh entry<a class="headerlink" href="#trend-positive-at-longer-horizons-less-convincing-for-a-fresh-entry" title="Permanent link">&para;</a></h4>
+<p>SuperTrend remains <strong>UP on all three timeframes</strong>: weekly with a current trailing line at <strong>$178.81</strong>, monthly at <strong>$156.41</strong>, and daily at <strong>$225.15</strong>. The weekly reading is the primary trend signal, with the monthly reading providing regime context. BE also closed above its <strong>50-day SMA of $230.63</strong>, which has risen from $225.43 on September 18.</p>
+<p>Those are constructive trend facts, not proof that today’s decline is over. The current <strong>ADX is 14.04</strong>, below the 20 level commonly associated with a weak or range-bound <em>daily</em> trend. ADX measures strength, not direction: it does not contradict the upward SuperTrend readings, but it cautions against treating one rebound or one breakdown as an established new daily trend. This ADX calculation uses EMA-6 smoothing of DX-14 and may differ from a conventional Wilder ADX.</p>
+<p>The wider price history reinforces the need for care. BE closed at <strong>$345.85 on June 22</strong>, <strong>$163.75 on July 29</strong>, and <strong>$288.70 on September 25</strong> before today’s $262.87 close. The recovery from July has been substantial, but it has also involved large reversals; an UP trend label is not a low-volatility label.</p>
+<h4 id="momentum-and-participation-today-weakened-the-recovery-case">Momentum and participation: today weakened the recovery case<a class="headerlink" href="#momentum-and-participation-today-weakened-the-recovery-case" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>MACD histogram:</strong> <strong>−0.04</strong>, versus <strong>+1.45 on September 25</strong>. It has just turned slightly negative. Because the reading is so close to zero, this is an early loss-of-momentum warning, not strong evidence of a sustained bearish trend.</li>
+<li><strong>RSI:</strong> <strong>52.72</strong>, down from <strong>62.80 on September 25</strong>. Momentum has cooled to near neutral; RSI is neither at a conventional overbought nor oversold threshold.</li>
+<li><strong>OBV:</strong> Approximately <strong>369.89 million</strong> now, compared with <strong>442.67 million on September 17</strong>. There was a participation warning even before today: BE’s closing price rose from <strong>$280.76 on September 17</strong> to <strong>$288.70 on September 25</strong>, while OBV was lower at approximately <strong>385.41 million</strong> on September 25. That is a <em>closing-price/OBV divergence</em>, not evidence that every intervening session lacked buying. OBV’s absolute level has no standalone meaning, and the exceptionally large down-volume session on September 18 materially affects its path.</li>
+</ul>
+<p>Taken together, these readings support a <strong>cautious, wait-for-confirmation interpretation</strong>: longer-horizon direction remains up, while short-term momentum and volume participation do not yet confirm another sustained advance.</p>
+<h4 id="stretch-and-risk">Stretch and risk<a class="headerlink" href="#stretch-and-risk" title="Permanent link">&para;</a></h4>
+<p>The <strong>Z-scores</strong> are <strong>+0.32 weekly, +1.34 monthly and +0.16 daily</strong>. None reaches the ±2 threshold for a statistically stretched-price watch. In particular, today’s drop does not by itself create a strong Z-score-based oversold case. As with SuperTrend, the weekly reading deserves more weight than the daily reading when assessing the broader setup.</p>
+<p><strong>ATR is $19.91</strong>, roughly <strong>7.6% of the latest close</strong>. Today’s $26.80 high-to-low range exceeded one current ATR. Stops placed only a few dollars from an entry could therefore be vulnerable to ordinary volatility, while wider stops require smaller positions. For illustration—not a proposed trade—an entry at the reported $262.87 close with a stop one current ATR lower would put the stop at <strong>$242.96</strong> and risk <strong>$19.91 per share before slippage</strong>. A $1,000 risk allowance would permit about <strong>50 shares</strong> at that distance. A future entry must use its actual price and an updated ATR; a stop cannot guarantee execution at its specified price.</p>
+<h4 id="levels-and-conditional-setups-to-monitor">Levels and conditional setups to monitor<a class="headerlink" href="#levels-and-conditional-setups-to-monitor" title="Permanent link">&para;</a></h4>
+<p><strong>For renewed upside:</strong> First look for BE to stabilize rather than immediately assume today’s selloff has been absorbed. The <strong>September 25 high of $292.72</strong> is an observable breakout hurdle, not historically validated resistance. A close above that high would be more persuasive if the MACD histogram improves, OBV rises with price, and ADX begins to show a stronger daily trend. Without those confirmations, a brief move above the prior high could be another whipsaw.</p>
+<p><strong>For further downside:</strong> Today’s <strong>$259.46 low</strong> is the nearest observable failure level. The <strong>September 24 low of $251.30</strong> is a subsequent dated reference, not proven support. Below those, the current <strong>50-day SMA at $230.63</strong> and <strong>daily SuperTrend line at $225.15</strong> mark the more consequential trend area. A future close through the <em>then-current</em> daily SuperTrend line would flip its daily reading; today’s $225.15 line should not be treated as a fixed future stop. The weekly and monthly readings would need to be assessed separately rather than assumed to flip with the daily one.</p>
+<p><strong>Bottom line:</strong> BE retains an upward higher-timeframe technical regime, but the September 28 close, near-zero negative MACD histogram, weaker RSI, low ADX and unconfirmed OBV favor <strong>confirmation and volatility-aware sizing over assuming an immediate continuation</strong>. These tools describe price behavior; they do not establish the cause of today’s move.</p>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Evidence as of Sept. 28</th>
+<th>Trading implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latest session</td>
+<td><strong>$262.87 close</strong>; <strong>$259.46–$286.26</strong> range; <strong>15.522m</strong> shares</td>
+<td>Sharp reversal closed near the session low.</td>
+</tr>
+<tr>
+<td>Higher-timeframe trend</td>
+<td>SuperTrend <strong>UP</strong> weekly, stop <strong>$178.81</strong>; <strong>UP</strong> monthly, stop <strong>$156.41</strong></td>
+<td>Broader bullish regime remains intact; neither line is a suitable tight daily stop.</td>
+</tr>
+<tr>
+<td>Daily trend</td>
+<td>SuperTrend <strong>UP</strong>, current line <strong>$225.15</strong>; 50-day SMA <strong>$230.63</strong></td>
+<td>Watch the <em>then-current</em> lines if weakness persists; do not presume support will hold.</td>
+</tr>
+<tr>
+<td>Trend strength</td>
+<td>ADX <strong>14.04</strong></td>
+<td>Daily trend-following signals have elevated whipsaw risk.</td>
+</tr>
+<tr>
+<td>Momentum</td>
+<td>MACD histogram <strong>−0.04</strong>; RSI <strong>52.72</strong></td>
+<td>Momentum has weakened, but neither reading alone establishes a major reversal.</td>
+</tr>
+<tr>
+<td>Participation</td>
+<td>OBV about <strong>369.89m</strong>, below its Sept. 17 reading despite a higher Sept. 25 close</td>
+<td>Seek renewed volume confirmation before relying on an upside breakout.</td>
+</tr>
+<tr>
+<td>Stretch</td>
+<td>Z-score: weekly <strong>+0.32</strong>, monthly <strong>+1.34</strong>, daily <strong>+0.16</strong></td>
+<td>No ±2 statistical-stretch signal to justify a mean-reversion trade on its own.</td>
+</tr>
+<tr>
+<td>Volatility</td>
+<td>ATR <strong>$19.91</strong></td>
+<td>Size positions against realistic stop distance and allow for gap/slippage risk.</td>
+</tr>
+<tr>
+<td>Conditional price tests</td>
+<td>Sept. 25 high <strong>$292.72</strong>; Sept. 28 low <strong>$259.46</strong>; Sept. 24 low <strong>$251.30</strong></td>
+<td>Use dated highs and lows as confirmation or failure tests, <strong>not</strong> as guaranteed resistance or support.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mixed</strong> (Score: 4.8/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="be-bloom-energy-corporation-nyq-sentiment-2026-09-21-to-2026-09-28">BE — Bloom Energy Corporation (NYQ): sentiment, 2026-09-21 to 2026-09-28<a class="headerlink" href="#be-bloom-energy-corporation-nyq-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="1-source-by-source-evidence">1. Source-by-source evidence<a class="headerlink" href="#1-source-by-source-evidence" title="Permanent link">&para;</a></h4>
+<p><strong>News:</strong> The 18 supplied Yahoo Finance headlines and excerpts show a sharp change in emphasis within the week, rather than a consistent bullish or bearish trend. The structural bull case is AI data-center demand for on-site power: MarketBeat highlights revenue growth, raised guidance and analyst support among AI-infrastructure plays; Investor's Business Daily described BE as breaking out near a buy point on Friday; and Zacks named BE among opportunities in an AI-led market. Reports from Simply Wall St. and Barron's say Oracle remained committed to an approximately 2.4 GW Project Jupiter fuel-cell arrangement and that an analyst reassured investors following Oracle's force majeure notice. Those reports accompanied an approximately 8.7% rise described in a headline. However, the notice was reportedly tied to delays in a supporting natural-gas pipeline, and the Simply Wall St. excerpt explicitly leaves timing and possible payment deferrals in question. By Monday, Investor's Business Daily called BE one of the S&amp;P 500's biggest losers; Zacks reported a latest close of $262.87, down 8.95%, and 24/7 Wall St. characterized the approximately 8% decline as an unwinding of a sharp run. Insider Monkey questions whether AI-power demand justifies an approximately $85 billion valuation after a reported ninefold gain since July 2025. Trefis reports that BE had fallen 13.8% over the preceding three months against a 5.0% S&amp;P 500 gain, a different measurement window from the Friday rebound and Monday selloff. Broad midterm-election, AI-fatigue, jobs-data and bond-yield pieces are contextual, not independent BE-specific developments. Reported index admission on Sept. 21 adds visibility but did not prevent Monday's decline.</p>
+<p><strong>StockTwits:</strong> There are 24 most-recent messages, concentrated on Sept. 28 between approximately 21:06 and 23:50 UTC, not a representative seven-day sample. Six are user-tagged Bullish, three Bearish and 15 unlabeled: the tagged split is 6:3, or about 67% bullish <em>among nine tagged posts</em>, not 67% of all messages. Dip-buying, a proposed $335 level and prospective rebounds or short squeezes support speculative optimism. Other posts question whether Oracle headline risk persists, point to the roughly 9% fall and speculate about further downside. The tags themselves require caution: one Bullish-tagged user describes profiting from a short-term option trade around a drop, rather than providing a clear fundamental bull thesis. Several posts come from repeat users, so the 24 messages are not 24 independent opinions. A claimed $3.99 million January 2027 $250 put block, a purported securities class action, a claimed partnership and individual price targets are <strong>unverified social posts</strong>, not confirmed events or validated trading signals.</p>
+<p><strong>Reddit:</strong> The feed was explicitly skipped because Reddit sentiment collection was disabled. There are no r/wallstreetbets, r/stocks or r/investing posts to assess; silence cannot be interpreted as neutral sentiment or lack of interest.</p>
+<h4 id="2-cross-source-alignments-and-divergences">2. Cross-source alignments and divergences<a class="headerlink" href="#2-cross-source-alignments-and-divergences" title="Permanent link">&para;</a></h4>
+<p>Both the news and StockTwits focus on the same collision: durable AI-power demand and reported Oracle commitment versus near-term execution uncertainty and abrupt price weakness. News that framed Friday's Oracle reassurances and breakout positively contrasts with Monday's documented 8.95% drop. Tagged StockTwits posts lean bullish, and some users want to buy that dip, even as the latest BE-specific price headlines are negative. That is a tentative retail-versus-price/news divergence, <strong>not</strong> evidence that the selloff must reverse: most messages lack stance tags, some unlabeled messages are plainly cautious, and the social sample covers only Monday evening. Even the favorable Oracle headlines do not establish an unchanged delivery or payment timetable.</p>
+<h4 id="3-dominant-narrative-themes">3. Dominant narrative themes<a class="headerlink" href="#3-dominant-narrative-themes" title="Permanent link">&para;</a></h4>
+<p>The dominant theme is whether BE can supply meaningful power for AI data centers fast enough to justify expectations already embedded in the stock. The roughly 2.4 GW Oracle arrangement provides a concrete scale reference; the pipeline delay shifts attention from demand and commitment to infrastructure dependencies, implementation and cash-flow timing. A second theme is momentum instability: Friday's reported jump and breakout narrative gave way to Monday's outsized loss, prompting both dip-buying and warnings that BE is richly valued. References to other fuel-cell shares' weakness suggest some of Monday's move was sector-wide, although the supplied material does not isolate a cause or quantify BE-specific fundamental damage.</p>
+<h4 id="4-catalysts-and-risks-to-monitor">4. Catalysts and risks to monitor<a class="headerlink" href="#4-catalysts-and-risks-to-monitor" title="Permanent link">&para;</a></h4>
+<p>A verified update on Oracle's force majeure scope, gas-pipeline progress, delivery milestones and payment timetable would directly clarify the main BE-specific uncertainty. Continued AI data-center investment, additional disclosed deployments or analyst reassessment could bolster the long-run thesis; these are possibilities, not events established for the next week. Conversely, project slippage or deferrals, valuation sensitivity after the reported ninefold longer-run gain, and sharp momentum reversals remain risks. Supplied macro headlines identify September jobs data, Federal Reserve commentary, borrowing costs and possible AI-trade fatigue as market-wide influences, without demonstrating a specific BE earnings or demand impact. Social-media claims about litigation or put trading require independent confirmation before use.</p>
+<table>
+<thead>
+<tr>
+<th>Key sentiment signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Oracle project commitment</td>
+<td>Positive, qualified</td>
+<td>Simply Wall St.; Barron's</td>
+<td>Reported continued commitment to approximately 2.4 GW despite force majeure; analyst reassurances and a reported share-price rebound.</td>
+</tr>
+<tr>
+<td>Oracle infrastructure/timing uncertainty</td>
+<td>Negative</td>
+<td>Simply Wall St.; Barchart</td>
+<td>Supporting gas-pipeline delay; questions about project timing and potential payment deferrals.</td>
+</tr>
+<tr>
+<td>AI-power demand thesis</td>
+<td>Positive</td>
+<td>MarketBeat; Zacks; Investor's Business Daily</td>
+<td>AI-infrastructure opportunity, analyst support and Friday breakout/buy-point framing.</td>
+</tr>
+<tr>
+<td>Sharp reversal</td>
+<td>Negative</td>
+<td>Zacks; Investor's Business Daily; 24/7 Wall St.</td>
+<td>Latest reported $262.87 close, down 8.95%; among Monday's biggest S&amp;P 500 losers after a prior run.</td>
+</tr>
+<tr>
+<td>Expectations and valuation</td>
+<td>Negative/risk</td>
+<td>Insider Monkey; Trefis</td>
+<td>Approximately $85 billion valuation questioned after a reported ninefold gain since July 2025; separate three-month relative underperformance.</td>
+</tr>
+<tr>
+<td>Tagged retail dip-buying</td>
+<td>Tentatively positive</td>
+<td>StockTwits</td>
+<td>Six Bullish versus three Bearish tags, but 15 of 24 posts unlabeled and multiple posts by the same users.</td>
+</tr>
+<tr>
+<td>Retail headline/downside concerns</td>
+<td>Negative</td>
+<td>StockTwits</td>
+<td>Posts question Oracle risk and the steep fall; options/litigation assertions are unverified.</td>
+</tr>
+<tr>
+<td>Reddit corroboration</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>Collection disabled; no posts supplied.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Assessment:</strong> Mixed, 4.8/10, with a modest near-term negative tilt: the substantive long-term AI-power and Oracle-commitment narrative is counterbalanced by delivery uncertainty, valuation concerns and Monday's selloff. Confidence is <strong>low</strong> because Reddit is unavailable, the StockTwits sample is small and Monday-heavy with 15 unlabeled posts, and several news items are broad-market context rather than BE-specific evidence. This is a sentiment input for the trader, not a price forecast or trade recommendation.</p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="be-trading-and-macro-report-september-28-2026">BE trading and macro report — September 28, 2026<a class="headerlink" href="#be-trading-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Bottom line:</strong> BE has a strong long-term demand narrative—power for AI data centers—but its near-term trade is dominated by execution risk, a sharp reversal after last week’s rally, and rising-rate pressure on growth stocks. The most useful distinction for traders is <strong>whether Oracle’s reported commitment converts into an unchanged delivery and payment schedule</strong>. Commitment alone does not settle that question.</p>
+<h4 id="be-what-changed-this-week">BE: what changed this week<a class="headerlink" href="#be-what-changed-this-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>The Oracle project drove a rebound, then renewed uncertainty.</strong> <a href="https://finance.yahoo.com/markets/stocks/articles/bloom-energy-8-7-oracle-220801648.html">Simply Wall St</a> reported that Oracle remained committed to a roughly <strong>2.4 GW</strong> BE fuel-cell arrangement for its Project Jupiter data center despite a force-majeure notice tied to delays in a supporting natural-gas pipeline. <a href="https://www.barrons.com/articles/bloom-energy-stock-oracle-ai-50802d99?siteid=yhoof2&amp;yptr=yahoo">Barron’s</a> attributed a BE rally to an analyst’s reassurance about the notice. These are secondary reports, not a verified revised project timetable or payment schedule.</li>
+<li><strong>Price action turned abruptly.</strong> BE joined the S&amp;P 500 on September 21, according to <a href="https://www.investors.com/news/sp-500-stocks-bloom-energy-stock-biggest-loser/?src=A00220&amp;yptr=yahoo">Investor’s Business Daily</a>. After coverage of a Friday breakout, <a href="https://finance.yahoo.com/markets/stocks/articles/bloom-energy-sees-more-significant-210002478.html">Zacks</a> reported BE at <strong>$262.87, down 8.95%</strong> on its latest trading day; IBD described it as among Monday’s biggest index losers. Index inclusion and enthusiasm for AI power have not prevented a substantial reversal. The quoted price is a news-reported close, <strong>not a live quote</strong>.</li>
+<li><strong>Valuation raises the cost of delays.</strong> An <a href="https://finance.yahoo.com/technology/ai/articles/ai-power-boom-justify-bloom-204558114.html">Insider Monkey</a> article framed the debate around an approximately <strong>$85 billion valuation</strong> after a major rally. Treat that figure as the article’s characterization, not a verified current market capitalization. At a demanding valuation, a slip in commissioning or cash receipts may matter even if the customer ultimately proceeds.</li>
+</ul>
+<p><strong>Actionable BE watchlist:</strong> Seek a primary BE or Oracle disclosure specifying pipeline completion, phased deployment, contractual payments during any delay, and any change to delivery or revenue-recognition guidance. A reaffirmed contract <strong>plus unchanged milestones</strong> would be more constructive than a general statement of commitment. If dates or payments move out, avoid treating the selloff as merely technical. For short-term entries, wait for BE to stabilize after Monday’s decline rather than assuming Friday’s breakout remains intact; size positions for unusually large daily moves.</p>
+<h4 id="macro-and-world-backdrop">Macro and world backdrop<a class="headerlink" href="#macro-and-world-backdrop" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Rates are the immediate cross-asset headwind.</strong> <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">Yahoo Finance</a> reported rising bond yields and higher-for-longer Fed concerns; its <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">September 28 market coverage</a> reported stocks falling as yields climbed. Higher yields can compress valuations for long-duration growth stories such as BE and increase financing costs for infrastructure projects. Conversely, a sustained yield retreat would ease that pressure; a one-day move need not persist.</li>
+<li><strong>Market-implied easing is scarce, but contract wording matters.</strong> Polymarket priced a <strong>Fed cut by the October 2026 meeting at 1%</strong> and a <strong>U.S. recession by year-end at 8%</strong> when queried. One separately worded contract priced <em>“another Fed rate hike in 2026”</em> at <strong>90%</strong>. Other hike contracts returned apparently inconsistent odds, so these should <strong>not</strong> be combined into a precise forecast without checking their settlement rules. Prediction-market prices are tradable opinions, not Fed guidance.</li>
+<li><strong>Energy security cuts both ways for BE.</strong> A Polymarket market assigned only <strong>22%</strong> odds that Strait of Hormuz traffic returns to <em>normal</em> by December 31, on roughly <strong>$13.5 million</strong> of traded volume. That is a measure of perceived disruption risk—not evidence that traffic has stopped. Persistent fuel-price or logistics volatility could complicate the economics of gas-dependent on-site generation, depending on who bears fuel costs; it could also strengthen customers’ interest in resilient power. BE’s reported Oracle pipeline issue makes <strong>site-specific gas availability</strong> especially important.</li>
+<li><strong>Next catalyst: labor data and Fed commentary.</strong> <a href="https://www.investors.com/research/investing-action-plan/stock-market-week-ahead-rockets-roadsters-talking-heads/?src=A00220&amp;yptr=yahoo">IBD’s week-ahead preview</a> highlights September jobs data and Fed speeches. Watch whether those events push yields further up or reverse them before extrapolating BE’s Monday move.</li>
+</ul>
+<p><strong>Data limitation:</strong> FRED requests for policy rates, Treasury yields, inflation, unemployment, natural-gas prices, and the VIX failed because the macro-data service lacked an API key. Accordingly, this report does <strong>not</strong> assign numerical levels or changes to those series. The older BE news query was also unavailable; it should not be read as evidence that nothing happened before this week.</p>
+<table>
+<thead>
+<tr>
+<th>Theme</th>
+<th>Evidence as of Sept. 28</th>
+<th>Trading implication for BE</th>
+<th>What would change the view</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Oracle execution</td>
+<td>Secondary reports say the roughly 2.4 GW commitment remains, but cite a gas-pipeline delay</td>
+<td><strong>Cautious until timing and cash terms are clear</strong></td>
+<td>Primary confirmation of commissioning dates, payments, and guidance</td>
+</tr>
+<tr>
+<td>Price and positioning</td>
+<td>Reported $262.87 close, down 8.95%, following a breakout and recent S&amp;P 500 entry</td>
+<td>Avoid assuming the prior breakout still offers support; manage gap and volatility risk</td>
+<td>Sustained price stabilization alongside favorable project news</td>
+</tr>
+<tr>
+<td>Interest rates</td>
+<td>News reports rising yields; October-cut market priced at 1%</td>
+<td>Higher discount rates challenge BE’s growth valuation</td>
+<td>Jobs data or Fed remarks that produce a sustained yield retreat</td>
+</tr>
+<tr>
+<td>Energy and geopolitics</td>
+<td>Hormuz-normalization market priced at 22% by year-end</td>
+<td>Monitor fuel costs <strong>and</strong> data-center demand for reliable on-site power</td>
+<td>Clearer fuel-price data, shipping improvement, or BE customer cost disclosures</td>
+</tr>
+<tr>
+<td>Evidence quality</td>
+<td>FRED series unavailable; project details chiefly from secondary coverage</td>
+<td>Do not anchor a BE trade to unverified macro levels or an assumed Oracle payment schedule</td>
+<td>Direct filings, company statements, and verified market data</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="be-fundamental-research-report">BE — fundamental research report<a class="headerlink" href="#be-fundamental-research-report" title="Permanent link">&para;</a></h4>
+<p><strong>Bloom Energy Corporation | NYQ | Industrials / Electrical Equipment &amp; Parts</strong>
+<strong>Analysis date: 2026-09-28</strong></p>
+<h4 id="scope-and-data-freshness">Scope and data freshness<a class="headerlink" href="#scope-and-data-freshness" title="Permanent link">&para;</a></h4>
+<p>The available financial-statement data for BE runs through the <strong>quarter ended 2026-06-30</strong>. The insider feed’s latest transaction is dated <strong>2026-09-01</strong>. These tools provide neither filing dates nor a current trading quote, and they show <strong>no transaction dated during the past week</strong>; that is not confirmation that BE made no disclosures or trades during that week. The June figures should be checked against the underlying filing before execution.</p>
+<p>Bloom Energy supplies on-site power-generation equipment and related services. The financial data supports analysis of growth, profitability and liquidity, but does not establish current order backlog, customer concentration, contract economics or guidance.</p>
+<h4 id="earnings-and-operating-trajectory">Earnings and operating trajectory<a class="headerlink" href="#earnings-and-operating-trajectory" title="Permanent link">&para;</a></h4>
+<p>BE’s growth and profitability accelerated sharply in the latest reported quarter:</p>
+<table>
+<thead>
+<tr>
+<th>Income-statement measure</th>
+<th style="text-align: right;">Q2 2026</th>
+<th style="text-align: right;">Q1 2026</th>
+<th style="text-align: right;">Q2 2025</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td style="text-align: right;">$1,065.4m</td>
+<td style="text-align: right;">$751.1m</td>
+<td style="text-align: right;">$401.2m</td>
+</tr>
+<tr>
+<td>Gross profit</td>
+<td style="text-align: right;">$355.6m</td>
+<td style="text-align: right;">$225.5m</td>
+<td style="text-align: right;">$107.1m</td>
+</tr>
+<tr>
+<td>Gross margin</td>
+<td style="text-align: right;"><strong>33.38%</strong></td>
+<td style="text-align: right;">30.03%</td>
+<td style="text-align: right;">26.70%</td>
+</tr>
+<tr>
+<td>Operating income</td>
+<td style="text-align: right;"><strong>$182.2m</strong></td>
+<td style="text-align: right;">$72.2m</td>
+<td style="text-align: right;">−$3.5m</td>
+</tr>
+<tr>
+<td>Net income attributable to common shareholders</td>
+<td style="text-align: right;"><strong>$196.3m</strong></td>
+<td style="text-align: right;">$70.7m</td>
+<td style="text-align: right;">−$42.6m</td>
+</tr>
+<tr>
+<td>Diluted EPS</td>
+<td style="text-align: right;"><strong>$0.62</strong></td>
+<td style="text-align: right;">$0.23</td>
+<td style="text-align: right;">−$0.18</td>
+</tr>
+</tbody>
+</table>
+<p>Q2 revenue rose <strong>165.5% year over year</strong> and <strong>41.9% sequentially</strong>. Gross margin expanded <strong>6.7 percentage points</strong> year over year. Operating expenses also grew—from $110.6m to $173.3m—but much more slowly than revenue, producing substantial operating leverage. First-half 2026 revenue was <strong>$1.816bn</strong>, roughly <strong>150% above</strong> first-half 2025 revenue inferred from the annual and quarterly statements.</p>
+<p>The last four reported quarters sum to <strong>$3.113bn revenue, $972.7m gross profit, $349.8m operating income and $244.9m common-shareholder net income</strong>. That implies a <strong>31.2% gross margin, 11.2% operating margin and 7.9% net margin</strong>. Profitability has improved, but the scale of the recent jump makes the next quarter especially important for judging whether these margins are sustainable.</p>
+<h4 id="financial-history">Financial history<a class="headerlink" href="#financial-history" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Fiscal year</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Gross margin</th>
+<th style="text-align: right;">Common-shareholder net income</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Free cash flow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">$1.199bn</td>
+<td style="text-align: right;">12.4%</td>
+<td style="text-align: right;">−$301.4m</td>
+<td style="text-align: right;">−$191.7m</td>
+<td style="text-align: right;">−$308.5m</td>
+</tr>
+<tr>
+<td>2023</td>
+<td style="text-align: right;">$1.333bn</td>
+<td style="text-align: right;">14.8%</td>
+<td style="text-align: right;">−$302.1m</td>
+<td style="text-align: right;">−$372.5m</td>
+<td style="text-align: right;">−$456.3m</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">$1.474bn</td>
+<td style="text-align: right;">27.5%</td>
+<td style="text-align: right;">−$29.2m</td>
+<td style="text-align: right;">$92.0m</td>
+<td style="text-align: right;">$33.1m</td>
+</tr>
+<tr>
+<td>2025</td>
+<td style="text-align: right;">$2.024bn</td>
+<td style="text-align: right;">29.0%</td>
+<td style="text-align: right;">−$88.4m</td>
+<td style="text-align: right;">$113.9m</td>
+<td style="text-align: right;">$57.2m</td>
+</tr>
+</tbody>
+</table>
+<p>Revenue grew <strong>37.3% in 2025</strong>, following <strong>10.5% in 2024</strong>. Although 2025 operating income rose to <strong>$72.8m</strong> from $22.9m, its net loss widened from 2024. The 2025 income statement includes <strong>$98.6m of special charges</strong> and a <strong>$40.4m equity-interest loss</strong>. This history argues against treating the strong Q2 2026 result as an established long-run earnings rate.</p>
+<h4 id="cash-generation-and-balance-sheet">Cash generation and balance sheet<a class="headerlink" href="#cash-generation-and-balance-sheet" title="Permanent link">&para;</a></h4>
+<p>Q2 2026 produced <strong>$226.4m operating cash flow</strong> and <strong>$174.8m free cash flow</strong> after <strong>$51.6m capital expenditure</strong>. The comparable Q2 2025 figures were <strong>−$213.1m</strong> and <strong>−$220.4m</strong>. Summing the last four quarterly cash-flow statements yields <strong>$737.8m operating cash flow, $113.1m capital expenditure and $624.7m free cash flow</strong>.</p>
+<p>There are qualifications to that improvement:</p>
+<ul>
+<li>Q2 operating cash flow included a <strong>$224.3m receivables-related outflow</strong>, partly offset by a <strong>$193.7m inflow from payables and accrued expenses</strong>. Conversion of rapid sales growth into collected cash deserves close monitoring.</li>
+<li>Q2 stock-based compensation was <strong>$57.2m</strong>; the four-quarter sum was <strong>$182.4m</strong>. It is added back in operating cash flow, but shareholders bear potential dilution.</li>
+<li>Q2 capital spending nearly doubled from Q1’s <strong>$26.2m</strong>. Sustained investment could reduce future free cash flow even if earnings remain strong.</li>
+</ul>
+<p>At 2026-06-30, BE reported <strong>$2.717bn cash, equivalents and short-term investments</strong>, <strong>$2.812bn total debt including lease obligations</strong>, and <strong>$1.612bn stockholders’ equity</strong>. Cash and short-term investments were therefore about <strong>$95m below debt including leases</strong>. Excluding <strong>$334m lease obligations</strong>, borrowings were below cash and short-term investments. Both conventions matter when discussing “net debt.” The <strong>current ratio was 4.09</strong>, still strong but down from approximately <strong>5.03</strong> at March 2026 as current liabilities grew.</p>
+<p>Liquidity did not arise solely from operations: BE issued <strong>$2.5bn debt</strong> and repaid approximately <strong>$987m debt</strong> during 2025, materially contributing to the increase in cash that year. In Q2 2026, shares outstanding rose from <strong>284.2m to 293.4m</strong>—about <strong>3.2% in one quarter</strong> and <strong>25.5% above Q2 2025</strong>. Q2 diluted weighted-average shares of <strong>323.3m</strong> exceeded basic weighted-average shares of <strong>287.3m</strong>. Dilution is a material consideration when translating company growth into per-share value.</p>
+<p>Several Q2 balance-sheet movements merit a filing-level check: <strong>$215.5m of goodwill and other intangibles</strong> appears where the preceding quarter shows none; additional paid-in capital rose approximately <strong>$496.9m</strong>; and reported total debt fell approximately <strong>$137.5m</strong>, versus only <strong>$5.2m</strong> of debt repayments shown in the quarterly cash-flow extract. The supplied data does not explain those changes. Current deferred revenue also rose from <strong>$194.1m to $327.1m</strong> sequentially—a potential indicator of customer commitments, but <strong>not a substitute for verified backlog or future revenue</strong>.</p>
+<h4 id="valuation-and-insider-activity">Valuation and insider activity<a class="headerlink" href="#valuation-and-insider-activity" title="Permanent link">&para;</a></h4>
+<p>The fundamentals snapshot reports a <strong>$77.42bn market capitalization</strong>, <strong>337.0× trailing P/E</strong>, <strong>53.3× forward P/E</strong>, <strong>47.8× price/book</strong>, <strong>0.78 trailing EPS</strong>, <strong>4.93 forward EPS</strong>, and <strong>3.81 beta</strong>. Against reported four-quarter revenue, market capitalization is approximately <strong>24.9× sales</strong>. Against the <strong>$624.7m</strong> free cash flow reconstructed from quarterly statements, its implied free-cash-flow yield is approximately <strong>0.81%</strong>. These are demanding multiples: BE needs substantial, durable growth and cash conversion to support them. Forward EPS is a forecast, not an achieved result.</p>
+<p><strong>Vendor consistency warning:</strong> the snapshot’s <strong>17.11% “operating margin” matches Q2 2026</strong>, whereas the four-quarter operating margin is approximately <strong>11.24%</strong>. Its gross profit, EBITDA and free-cash-flow figures also do not equal sums of the four displayed quarters. For period comparisons here, the report uses the identifiable statement periods and shows its calculations rather than mixing snapshot definitions.</p>
+<p>The insider feed shows <strong>no listed open-market insider purchase</strong>. Its latest entry, on September 1, is a <strong>9,688-share CEO derivative-security conversion at $30.96</strong>, not a market purchase; an August 31 <strong>300,000-share CEO gift</strong> is not a cash sale. Listed August cash sales total approximately <strong>69,625 shares and $16.3m</strong>, including director Jeffrey Immelt’s <strong>30,000-share, $7.17m sale</strong> on August 17. Sales can have reasons unrelated to business prospects, but this feed provides no recent buying to offset that signal.</p>
+<h4 id="trading-implications">Trading implications<a class="headerlink" href="#trading-implications" title="Permanent link">&para;</a></h4>
+<p><strong>The central test for BE is repeatability, not whether Q2 was strong—it was.</strong> A constructive fundamental case would gain support if the next reported quarters sustain revenue near or above Q2’s <strong>$1.065bn</strong>, gross margins around <strong>30% or better</strong>, and positive free cash flow <em>without</em> comparably rapid share-count growth or worsening receivables collection. Those are monitoring benchmarks based on recent results, not company guidance.</p>
+<p>Conversely, a reversal in gross margin or cash conversion would carry unusual valuation risk at roughly <strong>25× trailing sales</strong>. Traders should reconcile the flagged Q2 balance-sheet changes and confirm the publication and terms of the underlying statements before relying on leverage or per-share forecasts. With reported <strong>3.81 beta</strong>, exposure sizing should account for substantial volatility; the tools do not supply a live price suitable for an entry level.</p>
+<table>
+<thead>
+<tr>
+<th>Key point for BE</th>
+<th>Supporting evidence</th>
+<th>Trader takeaway</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exceptional latest-quarter growth</td>
+<td>Q2 revenue <strong>$1.065bn</strong>, <strong>+165.5% YoY</strong>; gross margin <strong>33.38%</strong></td>
+<td>Watch whether the next results sustain scale and margin.</td>
+</tr>
+<tr>
+<td>Stronger, but newly established, profitability</td>
+<td>Q2 operating income <strong>$182.2m</strong>; 2025 full-year net loss <strong>$88.4m</strong></td>
+<td>Do not extrapolate one quarter without confirmation.</td>
+</tr>
+<tr>
+<td>Positive cash flow with collection risk</td>
+<td>Q2 FCF <strong>$174.8m</strong>; receivables-related cash outflow <strong>$224.3m</strong></td>
+<td>Monitor receivables and operating-cash conversion.</td>
+</tr>
+<tr>
+<td>Liquidity and dilution both matter</td>
+<td><strong>$2.717bn</strong> cash/investments; <strong>$2.812bn</strong> debt incl. leases; shares <strong>+3.2% QoQ</strong></td>
+<td>Assess financing and results <strong>per share</strong>, not just revenue growth.</td>
+</tr>
+<tr>
+<td>High expectations in valuation</td>
+<td>Market cap <strong>$77.42bn</strong>; approximately <strong>24.9×</strong> four-quarter sales</td>
+<td>A growth or margin miss could be costly.</td>
+</tr>
+<tr>
+<td>No fresh weekly confirmation in these feeds</td>
+<td>Financial period ends <strong>June 30</strong>; latest insider entry <strong>September 1</strong></td>
+<td>Check primary filings and any newer disclosures before trading.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case for BE:</strong> the stock is expensive and volatile, but the business is now showing the revenue growth, operating leverage and cash generation that a serious bull thesis requires. I would not mistake Monday’s selloff for evidence that those operating gains disappeared.</p>
+<p>Start with the numbers. Q2 2026 revenue reached <strong>$1.065 billion, up 165.5% year over year</strong>. Gross margin rose from <strong>26.7% to 33.4%</strong>, operating income improved from a <strong>$3.5 million loss to a $182.2 million profit</strong>, and free cash flow swung from <strong>negative $220.4 million to positive $174.8 million</strong>. That is more than a promising demand story: BE has demonstrated that substantially higher sales can translate into better margins and cash flow. As an illustration, <em>if</em> each of the next two quarters merely matched Q2 revenue, full-year 2026 revenue would be about <strong>$3.95 billion</strong>, versus <strong>$2.02 billion in 2025</strong>. That is a scenario, not guidance.</p>
+<p>The opportunity is credible, too. AI data centers need large amounts of dependable power, and BE’s on-site fuel-cell systems offer customers a way to address that need where site infrastructure permits. Secondary reports say Oracle remains committed to an approximately <strong>2.4 GW</strong> arrangement. I would not call all 2.4 GW guaranteed near-term revenue, but it demonstrates the scale of demand BE is being considered to serve. BE’s strongest competitive argument is its ability to deliver on-site generation at scale; the financial results suggest it is gaining operating leverage as it grows. They do <strong>not</strong> yet prove a durable moat or establish its backlog.</p>
+<p><strong>The bear’s best objection is execution, not demand.</strong> The reported gas-pipeline delay could move Oracle delivery or payments, and a statement of commitment does not resolve that risk. I want a primary update on milestones and cash terms. But a site-specific pipeline problem is not, by itself, proof that Oracle has abandoned the project or that BE’s broader market has vanished.</p>
+<p>On valuation, I agree with the bear that roughly <strong>25 times trailing sales</strong> leaves little room for disappointment. Dilution—shares outstanding rose about <strong>3.2% in Q2</strong>—and receivables collection also deserve scrutiny. The counterpoint is that trailing sales capture a business growing far more slowly than its latest quarter; meanwhile, BE has <strong>$2.72 billion in cash and short-term investments</strong> and <strong>$625 million in reconstructed trailing free cash flow</strong>. Those facts do not make the stock cheap. They make the bull case testable rather than purely speculative.</p>
+<p>Finally, the <strong>8.95% September 28 drop</strong> matters for an entry, not for rewriting the Q2 results. BE remains above its <strong>$230.63 50-day average</strong>, although weakening momentum and volume argue against chasing an immediate rebound. <strong>I’m bullish on BE over a multi-year horizon, but would add with volatility-aware sizing and look for price stabilization and clearer Oracle milestones before becoming more aggressive.</strong>
+Bull Analyst: <strong>Bear, I agree BE has not earned a full-sized position at this valuation. But “wait until everything is proven” sets a higher bar than I think the operating evidence requires for a small, long-term investment.</strong></p>
+<p>This is no longer a thesis resting on one good quarter. BE reported gross margins above <strong>30% in both Q1 and Q2 2026</strong>, with operating income rising from <strong>$72.2 million to $182.2 million</strong>. First-half revenue was roughly <strong>150% above</strong> the comparable 2025 period, and the last four reported quarters generated <strong>$624.7 million of free cash flow</strong>. Those figures do not establish a permanent earnings rate; they do show that growth has begun translating into profits and cash across more than one reporting period.</p>
+<p>Your valuation point remains the strongest objection. Even if BE merely matches Q2 revenue in each remaining 2026 quarter, the reported market value would be about <strong>20× that hypothetical year’s sales</strong>—hardly cheap. The bull answer is not to dismiss that multiple. It is that waiting for several more quarters of confirmation could mean waiting until the market has already repriced a business sustaining this growth. A <em>starter position</em> buys exposure to that possibility without pretending the outcome is certain.</p>
+<p>I also take your cash-flow and dilution concerns seriously. The cited Q2 receivables outflow exceeded the payables-and-accruals inflow by about <strong>$31 million</strong>; those two movements, taken together, were not a cash-flow boost. But <strong>$57.2 million of stock-based compensation</strong> and <strong>3.2% sequential share growth</strong> are real costs to shareholders. For me, continued free cash flow must be accompanied by better collection and per-share results before adding substantially.</p>
+<p>On Oracle, reported commitment to roughly <strong>2.4 GW</strong> supports the scale of potential demand, <strong>not</strong> a guaranteed delivery or payment schedule. The pipeline delay may affect timing and could expose a broader deployment constraint; it has not, on the supplied evidence, shown that the customer walked away. BE’s case is its demonstrated ability to scale on-site generation profitably—not a proven moat immune to infrastructure delays.</p>
+<p>So my answer to “why add yet?” is <strong>measured participation, not an all-clear signal</strong>. BE’s September 28 reversal, weak participation and rising-yield backdrop argue against chasing it. I would keep any initial position small, look for price stabilization, and reserve meaningful additions for primary Oracle milestone disclosures and another quarter of strong margins, collected cash and per-share progress.
+Bull Analyst: <strong>Bear, I agree that a small position does not make BE’s valuation cheap.</strong> At roughly 25× trailing sales, the stock needs sustained growth. Where we differ is whether investors must wait for the Oracle timetable <em>and</em> another quarter of results before taking any exposure. BE already has evidence of demand converting into earnings beyond that one project.</p>
+<p>First-half 2026 revenue was <strong>$1.816 billion—nearly 90% of BE’s revenue for all of 2025</strong>. Gross margin exceeded 30% in both Q1 and Q2, while operating income rose from <strong>$72.2 million to $182.2 million</strong>. Q2 diluted EPS reached <strong>$0.62</strong>, versus a <strong>$0.18 loss</strong> a year earlier. Even with dilution, that is meaningful per-share progress. The roughly <strong>$186 million year-over-year increase in Q2 operating income</strong> on <strong>$664 million of additional revenue</strong> also shows why continued scale could matter so much to the bull case. I would not assume that incremental profitability repeats indefinitely.</p>
+<p>Your cash objection is fair, but the two working-capital figures you cite cut both ways: the <strong>$224.3 million receivables outflow</strong> and <strong>$193.7 million payables-and-accruals inflow</strong> were a <em>net outflow</em> of about $31 million, not a net boost from those items. BE still generated <strong>$174.8 million of Q2 free cash flow</strong>. Collections, stock compensation and share growth remain tests—not reasons to dismiss the cash already generated.</p>
+<p>On Oracle, I won’t turn a reported <strong>2.4 GW commitment</strong> into a guaranteed revenue schedule. The pipeline delay reveals a genuine dependency of on-site generation. But it establishes neither a lost customer nor a failure of BE’s equipment. BE’s opportunity is to supply large-scale power where customers can secure fuel and need an alternative to waiting for grid capacity; its recent sales and margins show that this opportunity is already translating into business. They do not yet prove an unassailable moat.</p>
+<p>So <strong>why consider BE before every uncertainty clears?</strong> Because the operating inflection is visible now, while a favorable milestone update could remove some uncertainty before a new investor gets exposure. That does <strong>not</strong> justify buying into September 28’s sharp reversal. I would consider only a small, long-term starter <strong>after price stabilizes</strong>, then require clearer Oracle dates and payments, collected cash, sustained margins and improved per-share results before adding. If those tests fail, the valuation makes the bull thesis much weaker.
+Bull Analyst: <strong>Bear, your 10× sales example is a fair downside stress test.</strong> If BE reaches the illustrative $3.95 billion in 2026 revenue and its multiple immediately falls to 10×, the implied market value is roughly half the reported $77.42 billion. I would not buy BE on the assumption that today’s premium lasts forever.</p>
+<p>The bull case is that growth can <em>partly replace</em> that premium over time. At 10× sales, BE would need about <strong>$7.74 billion in annual revenue</strong> to support the reported market value—nearly double that illustrative 2026 figure, or roughly <strong>25% annual growth for three years</strong>. That is a demanding scenario, not a forecast. But it is why I take the opportunity seriously: revenue grew <strong>37.3% in 2025</strong> and <strong>165.5% year over year in Q2 2026</strong>, while gross margin exceeded 30% in both reported 2026 quarters. Demand is already showing up in sales and operating leverage, not just in a proposed project.</p>
+<p>You are also right that Q2 supplied about 80% of trailing common-shareholder profit. That makes repeatability essential. But Q1 had already produced <strong>$70.7 million in common-shareholder profit</strong> and <strong>$72.2 million in operating income</strong>. Q2 was an acceleration of an improving first half, not the sole profitable quarter propping up the argument.</p>
+<p>On dilution, <strong>25.5% year-over-year share growth is a serious cost</strong>; a small position does not cure it. Still, Q2 revenue grew substantially faster than the share count, and diluted EPS moved from <strong>negative $0.18 to positive $0.62</strong> year over year. Those are signs that shareholders have participated in the operating improvement <em>so far</em>. I would require that per-share progress and cash collection continue; the $224.3 million receivables-related outflow cannot be waved away.</p>
+<p>Nor am I calling Oracle a secured revenue timetable or claiming a proven moat. The reported <strong>2.4 GW commitment</strong> supports the scale of the opportunity; the pipeline delay shows why deployment and payment dates must be verified. BE’s emerging advantage is demonstrated ability to grow on-site power sales with improving margins—not immunity to site infrastructure constraints.</p>
+<p>So I would <strong>not buy BE simply because it fell 8.95%</strong>, or treat price stabilization as a substitute for Oracle disclosure. I favor only a small, volatility-aware long-term entry <em>after</em> stabilization, with meaningful additions contingent on verified milestones, collected cash and sustained per-share gains. Your downside case is real; my disagreement is that the operating evidence is already strong enough to justify measured exposure before every test is complete.
+Bull Analyst: <strong>Bear, your 10× sales calculation is the right challenge to the BE bull case:</strong> reaching roughly $7.74 billion in annual revenue would support the <em>reported</em> $77.42 billion market value at that multiple, not deliver a return by itself. For a 20% increase in market value at 10× sales, BE would need about <strong>$9.3 billion in revenue</strong>—roughly <strong>33% annual growth for three years</strong> from our illustrative $3.95 billion 2026 scenario, before any further dilution. That is a demanding hurdle, not my forecast.</p>
+<p>Why do I still favor measured exposure? Because BE has begun to show the operating leverage that could make that hurdle achievable. Revenue grew <strong>37.3% in 2025</strong>; in Q2 2026, revenue rose <strong>165.5% year over year</strong>, while gross margin expanded to <strong>33.4%</strong> and operating income swung from a loss to <strong>$182.2 million</strong>. Q1 was profitable too. I would not project Q2’s growth rate forward, but I also would not treat the 5× sales stress case as an inevitable destination when the business is scaling sales, margins and cash generation together. The reported 2.4 GW Oracle arrangement points to the size of the on-site power opportunity; it does <strong>not</strong> establish its delivery dates or economics.</p>
+<p>Your per-share objection is the condition that keeps this a <em>starter-position</em> thesis. Q2 diluted EPS improved to <strong>$0.62 from a loss of $0.18</strong> despite share growth, but the <strong>$224.3 million receivables outflow</strong>, stock compensation and dilution could erode that progress. I need to see collections and per-share gains persist. Likewise, Oracle’s reported commitment does not settle the pipeline or payment timetable, and BE has not yet proved a durable cost advantage over other power options.</p>
+<p>So I’m <strong>bullish on BE, not bullish on buying Monday’s reversal blindly</strong>. The 8.95% drop and weak participation call for stabilization before even a small entry. I would make meaningful additions only if primary Oracle disclosures clarify milestones and later results sustain margins, collected cash and per-share growth. Waiting for all of those tests before taking <em>any</em> exposure is defensible; I think BE’s already-demonstrated operating inflection makes a carefully sized, long-term position after stabilization defensible too.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: <strong>Bear Analyst:</strong> I agree with you that BE’s Q2 was impressive. Revenue of $1.065 billion and a 33.4% gross margin are real progress, and Monday’s selloff does not erase them. My objection is that investors are being asked to pay for that quarter becoming a durable earnings stream <em>before</em> BE has shown it can repeat it.</p>
+<p>Take your $3.95 billion 2026 revenue scenario. Even if both remaining quarters match Q2, the reported $77.42 billion market value would be roughly <strong>20 times that hypothetical full-year sales figure</strong>. That is a demanding price for a company that lost $88.4 million in 2025 and whose last four quarters produced $244.9 million in common-shareholder net income. The $625 million of trailing free cash flow helps your case, but it represents only about a <strong>0.8% yield</strong> at that valuation. Exceptional growth is not just the upside case here; it is what the price requires.</p>
+<p>I also would not treat cash flow as settled. Q2 operating cash flow came alongside a <strong>$224.3 million receivables-related outflow</strong> and a <strong>$193.7 million inflow from payables and accruals</strong>. Collections matter as sales accelerate. Shareholders must also account for $57.2 million of Q2 stock-based compensation and a <strong>3.2% sequential increase in shares outstanding</strong>. The $2.72 billion cash-and-investments balance is reassuring for liquidity, but BE had $2.81 billion of debt including leases, and substantial debt issuance contributed to its earlier cash buildup.</p>
+<p>On Oracle, you’re right: a pipeline delay does <strong>not</strong> mean the roughly 2.4 GW arrangement is cancelled. But “the customer remains committed” is not the same as “BE will deliver and collect on the timetable embedded in investors’ expectations.” It also exposes a weakness in the rapid-on-site-power pitch: BE can build its equipment, yet a site may still depend on gas infrastructure outside its control. Nor do the supplied results establish a moat against customers’ other power options.</p>
+<p>Finally, I would not call the September 28 decline a fundamental verdict. I <em>would</em> call it a warning against paying a premium while execution is unresolved: BE fell <strong>8.95%</strong>, finished near the session low, and its momentum and volume readings weakened despite the longer-term uptrend. Rising yields add pressure to an expensive growth stock.</p>
+<p>So my answer to your “add with careful sizing” is: <strong>why add BE yet?</strong> I would avoid a new investment until primary disclosures clarify Oracle’s delivery and payment milestones, and subsequent quarters demonstrate repeatable margins, collected cash and better per-share growth. The demand opportunity may be substantial; at this valuation, being early and being right about demand are not enough.
+Bear Analyst: <strong>Bear Analyst:</strong> I’m not asking you to wait until everything is proven. I’m asking why BE is worth buying <em>before the specific uncertainties that matter most at this price are resolved</em>. A starter position limits the dollars at risk; it does not make the entry valuation more forgiving.</p>
+<p>You’re right to push back on “one good quarter.” BE had gross margins above 30% in both Q1 and Q2 2026, and operating income rose in each. But investors are paying roughly <strong>25× trailing sales</strong> for that progress. Even your scenario in which both remaining quarters match Q2 revenue leaves BE at about <strong>20× hypothetical 2026 sales</strong> using the reported $77.42 billion market value. The last four quarters’ <strong>$624.7 million of free cash flow</strong> amount to a yield of only about <strong>0.8%</strong> at that value. Strong growth is not a bonus to the thesis; a great deal of it is already required.</p>
+<p>I accept your correction on working capital: the cited receivables outflow and payables inflow were a <em>net outflow</em>, not a net cash-flow boost. The concern remains that <strong>$224.3 million flowed out through receivables in Q2</strong> while sales surged. That makes collections a test of the growth story. And free cash flow does not settle the <em>per-share</em> question when Q2 stock-based compensation was <strong>$57.2 million</strong> and shares outstanding increased <strong>3.2% sequentially</strong>. BE had just <strong>$57.2 million of free cash flow for all of 2025</strong>; the recent improvement is substantial, but still young.</p>
+<p>The Oracle distinction matters for the same reason. I am not claiming its reported <strong>2.4 GW</strong> commitment has disappeared. I’m saying a gas-pipeline delay shows that delivering on-site power can depend on infrastructure BE does not control. Until there are verified commissioning and payment milestones, the arrangement demonstrates potential scale—not the timing or economics needed to support today’s valuation. Nor do the supplied results establish that BE has a defensible cost or delivery advantage over customers’ other power options.</p>
+<p>Finally, your plan to wait for price stabilization before taking even a small position implicitly acknowledges the trading risk. BE fell <strong>8.95% on September 28</strong>, closed near its low, and showed weaker momentum and volume participation. Its longer-term trend is still up, but that is not a reason to pay a premium while project timing is unresolved and rising yields pressure growth valuations.</p>
+<p>So I would <strong>avoid a new BE position for now</strong>, not wait for certainty forever. A primary Oracle update on dates and payments, followed by another quarter of strong margins, collected cash and per-share progress, would give us evidence worth paying for. I might miss the first leg of a rebound. At roughly 20× sales <em>even under your favorable revenue scenario</em>, I prefer that risk to buying an execution problem before I know its cost.
+Bear Analyst: <strong>Bear Analyst:</strong> You’re right that BE has moved beyond a demand story. Two quarters of gross margins above 30%, rising operating income and Q2 diluted EPS of $0.62 deserve credit. But “more than one good quarter” is not yet the same as a durable earnings base: Q2’s <strong>$196.3 million of common-shareholder profit accounted for about 80% of the last four quarters’ $244.9 million</strong>. The question at this price is whether that unusually strong quarter becomes normal.</p>
+<p>That is why I’m unconvinced by the starter-position argument. Even if BE reaches your illustrative <strong>$3.95 billion</strong> in 2026 sales, the reported <strong>$77.42 billion</strong> market value would still be nearly <strong>20× those sales</strong>. As a sensitivity test, <em>if</em> investors then valued those achieved sales at 10× instead, the implied market value would be about <strong>$39.5 billion—roughly half</strong> the reported figure. That is not a price forecast; it shows that meeting your revenue scenario may not protect a buyer from multiple compression. Meanwhile, Q2 stock compensation was <strong>$57.2 million</strong>, roughly a third of that quarter’s $174.8 million free cash flow, and shares outstanding rose <strong>25.5% year over year</strong>. Cash generation is real, but shareholders need to see how much of the growth they retain per share.</p>
+<p>Oracle illustrates the same gap between opportunity and investable certainty. I agree the reported <strong>2.4 GW</strong> commitment has not been shown to disappear. But a fuel-cell deployment that depends on an unfinished gas pipeline cannot yet establish <em>when</em> BE delivers or collects. Nor have we seen evidence that BE has a defensible advantage over other ways customers might secure power. A stabilizing share price would address Monday’s trading reversal, not those questions.</p>
+<p>So I’m not demanding certainty or dismissing Q2. I would <strong>avoid a new BE position for now</strong> and reconsider on verified Oracle dates and payment terms, sustained collected cash and stronger per-share results—or a valuation that better compensates for the uncertainty. A small position limits exposure; it does not improve the odds embedded in the purchase price.
+Bear Analyst: <strong>Bear Analyst:</strong> I agree BE’s operating turnaround is real. But your own growth math is a reason to be selective, not a reason to buy a starter position.</p>
+<p>To support the <strong>reported $77.42 billion market value at 10× sales</strong>, BE would need roughly <strong>$7.74 billion in annual revenue</strong>—about <strong>25% annual growth for three years</strong> from your illustrative $3.95 billion 2026 figure. That gets an investor back to today’s valuation, not necessarily to a return. And <strong>10× sales would still be a substantial multiple</strong>. At a lower 5× sales, supporting that same value would require about <strong>$15.5 billion in revenue</strong>. These are sensitivities, not forecasts, but they show how much success the purchase price already assumes.</p>
+<p>You’re right that Q1 was profitable, so I won’t dismiss Q2 as a one-quarter anomaly. Still, Q2 supplied about <strong>80% of trailing common-shareholder profit</strong>. The per-share improvement must persist while BE collects its sales: Q2’s <strong>$224.3 million receivables-related cash outflow</strong> warrants attention, and <strong>$57.2 million of stock-based compensation</strong> came alongside <strong>3.2% sequential share-count growth</strong>. Revenue outgrowing dilution so far does not establish what shareholders will retain over the next several years.</p>
+<p>The same distinction applies to Oracle. A reported <strong>2.4 GW commitment</strong> supports potential demand; it does not tell us when equipment can be commissioned or BE gets paid while the supporting gas pipeline is delayed. The delay is not evidence of cancellation or equipment failure. It <em>is</em> evidence that BE’s on-site-power opportunity depends in part on infrastructure it cannot control. The supplied record also does not establish a durable advantage over customers’ other power options.</p>
+<p>So I understand the appeal of buying before favorable news arrives. But after BE’s <strong>8.95% September 28 decline</strong>, price stabilization alone would not resolve the delivery, cash-collection or valuation questions. <strong>I would avoid a new BE position for now</strong> and reconsider when primary Oracle milestones and another set of per-share, cash-conversion results make the price easier to defend—or when the price better compensates for those risks.
+Bear Analyst: <strong>Bear Analyst:</strong> Bull, I agree BE’s operating inflection is real. Q1 was profitable, Q2 revenue rose 165.5% year over year, and a $0.62 diluted EPS result deserves credit. My disagreement is about what an investor earns <em>from this price</em>, not whether the business has improved.</p>
+<p>Your own 20% upside illustration makes the hurdle clear: at an assumed <strong>10× sales</strong> in three years, BE would need roughly <strong>$9.3 billion of annual revenue</strong>, versus about <strong>$3.95 billion</strong> in your illustrative 2026 scenario. That requires approximately <strong>33% annual growth for three years</strong>, <em>before dilution</em>. And 10× sales would still be a substantial valuation. I’m not predicting a fall to 5×; I’m saying the supplied evidence does not yet establish the durable competitive advantage that would make a premium multiple dependable.</p>
+<p>Operating leverage cuts both ways. If Q2 revenue and operating expenses had stayed unchanged but gross margin had been <strong>five percentage points lower</strong>, gross profit—and therefore operating income—would have been about <strong>$53 million lower</strong>, roughly <strong>29% of reported Q2 operating income</strong>. That is a sensitivity, not a forecast. It matters because Q2 contributed about <strong>80% of BE’s trailing common-shareholder profit</strong>. A strong quarter must become repeatable before I’m comfortable pricing in years of it.</p>
+<p>I also accept that BE generated real free cash flow, including <strong>$174.8 million in Q2</strong>. But the <strong>$224.3 million receivables-related outflow</strong> makes collection worth watching, while <strong>$57.2 million of stock-based compensation</strong> and <strong>3.2% sequential share growth</strong> complicate the return <em>per share</em>. The reported Oracle commitment may signal substantial demand, but without verified commissioning dates, payment terms or project economics, its <strong>2.4 GW</strong> cannot be translated into the revenue needed for your upside case. The pipeline delay also highlights a dependency BE cannot solve merely by producing more equipment.</p>
+<p>So I understand why you would want exposure before good news is fully priced in. I would still <strong>avoid a new BE position for now</strong>. The September 28 <strong>8.95% decline</strong> does not undo Q2, but a stabilized chart would not resolve the questions about delivery, cash collection and valuation. I would reconsider on primary Oracle milestones, another quarter of collected cash and per-share progress, or a price that offers more room for those tests to disappoint.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For BE (Bloom Energy Corporation), the bear case wins at the reported valuation—not because the operating turnaround is unconvincing, but because the price already demands substantial, sustained success. Using only the supplied figures, BE delivered Q2 revenue of $1.065 billion, up 165.5%, a 33.4% gross margin, $182.2 million of operating income and $174.8 million of free cash flow. Q1 was profitable too, and gross margins exceeded 30% in both quarters. Those improvements justify retaining limited exposure rather than recommending an outright exit.</p>
+<p>The decisive objection is the prospective shareholder return. The reported $77.42 billion equity value is approximately 25 times trailing sales and 19.6 times the illustrative $3.95 billion 2026 revenue scenario; that scenario is not company guidance. Reconstructed trailing free cash flow of $624.7 million implies only about a 0.8% yield. Even achieving the revenue scenario would not protect investors from multiple compression: at an assumed 10 times sales, equity value would be $39.5 billion, approximately 49% below the reported figure. This is a sensitivity, not a forecast or fair-value target. A small starter position reduces exposure, but does not fix that valuation hurdle.</p>
+<p>Execution and per-share economics reinforce the caution. The reported Oracle arrangement of roughly 2.4 GW indicates potential scale, not verified delivery or payment timing; the pipeline delay is not evidence of cancellation or equipment failure. Cash generation is real: the cited receivables and payables/accruals movements together were a roughly $31 million outflow, not a cash-flow boost. Nevertheless, collections need scrutiny, and reported share-count growth of 3.2% sequentially and 25.5% year over year makes dilution material. The operating gains keep the stance measured, but valuation and unresolved conversion of demand into collected, per-share cash outweigh the argument for buying before favorable news.</p>
+<p><strong>Strategic Actions</strong>: For BE, set an interim exposure ceiling of 0.5 times the portfolio's standard allocation. The trader and portfolio manager should apply this to actual holdings: trim only the amount above that ceiling; do not automatically sell half of every existing holding. If already below the ceiling, do not top up; if unowned, defer a new position. This is a reduced long-exposure plan, not a short recommendation.</p>
+<p>Execute necessary reductions in two tranches using limit orders and prevailing liquidity: half of the excess at the next normal-liquidity opportunity, and the remainder over the following three to five trading sessions. Favor a rebound for the second tranche if available, but do not make de-risking conditional on one. The reported September 28 decline of 8.95% supports disciplined execution, not a conclusion that the business has failed.</p>
+<p>Reassess after primary disclosure of Oracle delivery/commissioning milestones and payment terms, or a material valuation reset. Before rebuilding toward a standard allocation, seek another quarter with gross margins remaining above 30%, positive free cash flow supported by collections, continued per-share progress and moderating dilution. Re-underwrite valuation as well: favorable news or chart stabilization alone is not an add signal, and the 10-times-sales sensitivity is not an automatic buy threshold.</p>
+<p>Reduce the remaining exposure further if verified updates materially worsen delivery or payment timing, or if results show sustained margin deterioration, weaker cash conversion and dilution overwhelming per-share improvement. Do not average down solely because the price falls.</p>
+<p>The supplied record contains no current tradable quote, primary Oracle milestone/payment disclosure or company revenue guidance. Consequently, no precise order price, price target or price-based stop is justified from this record; use portfolio risk limits and the fundamental review triggers above.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: Underweight BE by trimming only holdings above half the portfolio's standard allocation: strong recent operating results justify retaining limited exposure, but the reported valuation, dilution, and unverified Oracle delivery and payment timing argue against a full-sized position. BE's September 28 close of $262.87 followed an 8.95% fall near the $259.46 session low; weakening MACD and OBV, alongside a $19.91 ATR, support measured reductions rather than assuming an immediate rebound, although higher-timeframe trends remain up. The snapshot is not a current tradable quote, so it does not support a specific sell-limit or price-based stop.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Cap BE at 0.5× the portfolio's standard allocation; sell half of any excess at the next normal-liquidity opportunity and the rest over the following 3–5 trading sessions using limit orders. If already at or below the cap, do not sell solely to meet this plan or add; if unowned, defer entry.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: Neither analyst has made a case yet, so I’ll draw the distinction myself: selling BE down to half a standard allocation is a more ambitious risk decision than either abandoning the opportunity or passively carrying an oversized position.</p>
+<p>A conservative full exit would overlook what could drive the next leg higher. BE’s latest reported quarter delivered 165.5% year-over-year revenue growth, a 33.38% gross margin and $174.8 million in free cash flow. Reports say Oracle remains committed to an approximately 2.4 GW arrangement, though they do not verify delivery or payment timing. With weekly and monthly SuperTrend readings still up, retaining a limited stake preserves meaningful exposure if execution is confirmed.</p>
+<p>But a neutral “wait and see” approach is too passive <em>if BE is above the proposed cap</em>. At the September 28 snapshot, BE fell 8.95% and closed near its session low; the MACD histogram slipped just below zero and OBV had weakened. Those signals do not prove the uptrend is over, but a $19.91 ATR and a reported valuation near 25 times trailing sales make excess exposure expensive to carry while Oracle timing remains unresolved. Shares outstanding also rose about 3.2% in the latest quarter. The bold move is to cut the marginal exposure now while keeping a position that can benefit from favorable news.</p>
+<p>I support the proposed <strong>SELL</strong>, conditional on actual holdings: if BE exceeds half your standard allocation, sell half the excess at the next normal-liquidity opportunity and the remainder over the following 3–5 trading sessions using limit orders. If it is already at or below that cap, do not sell solely for this plan or add; if unowned, defer entry. The September 28 close is not a live quote and cannot justify a specific limit price or stop.
+Aggressive Analyst: Conservative Analyst, you’re right that 0.5× a standard allocation is a ceiling, not a guarantee of safety. A $19.91 ATR cannot bound a gap on adverse Oracle news, and correlated AI-power holdings could make even that ceiling too high. But that argues for checking the portfolio’s loss budget and cutting excess BE exposure—not for waiting until the Oracle timetable is settled before deciding what to retain. Markets can reprice before a formal update. BE’s Q2 revenue rose 165.5% year over year, gross margin reached 33.38%, and free cash flow was $174.8 million. Reported Oracle commitment to roughly 2.4 GW is not a payment schedule, but it is a substantial opportunity worth keeping some exposure to if the risk budget permits.</p>
+<p>Your objections to the quarter are material: the $224.3 million receivables-related cash outflow, roughly 3.2% quarterly share-count increase and valuation near 25× trailing sales all raise the cost of a delay. They strengthen the case for selling the <em>marginal</em> shares now. They do not, by themselves, show that BE’s growth has stalled or that zero exposure offers the better payoff. Likewise, September 28’s 8.95% fall near the low and weaker OBV argue against carrying an oversized position; a MACD histogram of −0.04, neutral RSI and still-up weekly and monthly SuperTrend readings do not establish a lasting downtrend. I agree there is no oversold signal that justifies adding.</p>
+<p>Neutral Analyst, much of your conditional SELL is the right action, so I would not describe your actual position as passive. Where I would push harder is on timing: estimating a plausible gap and every correlated exposure should guide the size of the retained stake, but it should not become a reason to leave a known excess untouched. The recent reversal, $19.91 ATR and unresolved delivery and payment terms make prompt, orderly reduction more valuable than waiting for perfect certainty. Conversely, treating every uncertainty as grounds to abandon the residual stake would give up the potential benefit of an Oracle clarification or sustained operating growth while the broader technical trend remains up.</p>
+<p>My recommendation remains <strong>SELL BE conditionally</strong>. If holdings exceed 0.5× the portfolio’s standard allocation, sell half the excess at the next normal-liquidity opportunity and the rest over the following 3–5 trading sessions with executable limit orders; accelerate if the portfolio’s loss budget is breached or verified news worsens. The cap is a maximum, not a target: retain less if portfolio-wide risk requires it. If already at or below the cap, do not sell solely to implement this plan or add; if unowned, defer entry. The September 28 close is historical, not a live order price or a basis for a stop.
+Aggressive Analyst: Conservative Analyst, you’re right that half a standard allocation is not inherently safe, and I’m not arguing for a default holding regardless of the portfolio’s loss tolerance. But the unknown portfolio cuts both ways: it does not establish that zero BE exposure is the best risk-adjusted choice. BE’s Q2 revenue grew 165.5% year over year, gross margin reached 33.38%, and free cash flow was $174.8 million. The $224.3 million receivables-related cash outflow and 3.2% quarterly share-count increase demand scrutiny; they do not erase the operating improvement. Nor does reported Oracle commitment establish delivery or payment dates. At roughly 25 times trailing sales, that uncertainty is a strong reason to sell <em>excess</em> shares now—not automatically to surrender every share before a favorable clarification can be priced in.</p>
+<p>Your technical caution is also well placed, but it argues for a smaller bet rather than proving the bet has failed. BE’s 8.95% September 28 decline and weaker OBV make an oversized position hard to defend. Yet the MACD histogram was only −0.04, while weekly and monthly SuperTrend readings remained up. There is no compelling oversold signal to justify adding, but neither is there confirmation of a lasting downtrend. If a portfolio-wide stress test supports no BE exposure, I agree that exiting is defensible.</p>
+<p>Neutral Analyst, we largely agree on the trade. A move beyond one ATR, a possible Oracle-related gap, and correlated AI-power holdings must constrain the retained stake; the $19.91 ATR is not a worst-case loss estimate. My challenge is to make that test an <strong>execution constraint</strong>, not a reason to postpone reducing a known excess while trying to quantify an unknowable gap. Likewise, waiting for verified Oracle milestones is prudent before adding, but a risk-budgeted residual position can capture upside if confirmation arrives before there is an attractive chance to re-enter. The mixed, low-confidence social sentiment is not a reason to override either the operating results or the price reversal.</p>
+<p>I support <strong>SELL BE</strong>, conditional on actual holdings. If the position exceeds 0.5× the portfolio’s standard allocation, sell half the excess at the next normal-liquidity opportunity and the rest over the following 3–5 trading sessions with executable limit orders—<strong>faster</strong> if the interim position breaches the portfolio’s loss budget or verified news worsens. Treat 0.5× as a ceiling, not a target. If already at or below it, do not sell solely for this plan or add, but reassess any exposure that exceeds the loss budget; if unowned, defer entry. The September 28 close is historical, not a live limit price or stop.
+Aggressive Analyst: Conservative Analyst, the receivables outflow, 3.2% quarterly share-count increase and valuation near 25 times trailing sales make a strong case for selling BE’s excess exposure. They do not make a full exit the best default for a portfolio we have not seen. Q2 revenue grew 165.5% year over year, gross margin reached 33.38%, and free cash flow was $174.8 million. Those results are not a dependable long-run run rate, and Oracle’s reported 2.4 GW commitment is not a payment timetable. But waiting for every term to be verified could mean giving up the upside from a favorable clarification before it is possible to re-enter. If a stressed loss is beyond the portfolio’s allowance, exit; otherwise, a smaller stake keeps that opportunity alive without defending an oversized bet.</p>
+<p>You are also right that September 28’s 8.95% fall and $19.91 ATR are not measures of the worst possible gap. But they support cutting exposure, not treating the broader advance as already broken. Weekly and monthly SuperTrend readings remained up, while the MACD histogram was only slightly negative. I see no oversold case for adding BE—just a case for retaining risk-budgeted upside rather than making zero exposure the automatic answer to uncertainty.</p>
+<p>Neutral Analyst, I agree the staged schedule must answer to the <em>interim</em> risk limit. My challenge is not to let an unknowable gap estimate become a reason to delay a known excess sale. Sell half that excess at the next normal-liquidity opportunity and the remainder over the following 3–5 sessions only if the position left throughout fits a portfolio-wide stress allowance, including correlated holdings. If it does not, reduce faster. Use executable limit orders and confirm fills; an unfilled order has removed no risk.</p>
+<p>My recommendation is <strong>SELL BE conditionally</strong>: cap it at the lesser of 0.5× the standard allocation and what the portfolio can withstand, with zero permissible if the loss budget requires it. If already within that limit, do not sell solely for this plan or add; if unowned, defer entry. The September 28 close is historical, not a live limit price or stop.
+Aggressive Analyst: Conservative Analyst, you’re right: keeping BE is a risk-taking choice, not protection, and the $19.91 September 28 ATR cannot bound an Oracle-related gap. But waiting in cash for a verified timetable has a cost too: a favorable update could be reflected in BE’s price before an investor can re-enter. The upside case is more than a hoped-for rebound. Q2 revenue rose 165.5% year over year, gross margin reached 33.38%, and free cash flow was $174.8 million. Reported Oracle commitment to roughly 2.4 GW suggests substantial potential scale, though it establishes neither delivery dates nor payment terms. The roughly 25-times-sales valuation, $224.3 million receivables-related cash outflow, and 3.2% quarterly share-count increase make <em>excess</em> exposure hard to justify; they do not, on their own, make a risk-budgeted residual stake unattractive.</p>
+<p>Neutral Analyst, your execution objection is decisive. If selling only half the excess leaves BE above a hard portfolio loss limit, that is not a sensible first step. Cut enough promptly, at normal liquidity, to get within the limit; stage only the further reduction that the portfolio can afford to carry. Still, “wait for better evidence” should govern <strong>adding</strong>, not prevent a modest existing stake from participating if the upside arrives first. BE’s weekly and monthly trends remained up, while the MACD histogram at −0.04 did not establish a lasting reversal. Neither signal cancels the sharp September 28 decline or weaker OBV, so I would not buy the dip.</p>
+<p>I support <strong>SELL BE conditionally</strong>: reduce holdings above the lesser of 0.5× the standard allocation and the portfolio-wide stressed-loss limit, accounting for gaps and correlated positions. If interim risk permits, sell half the excess at the next normal-liquidity opportunity and the rest over 3–5 sessions; otherwise reduce faster, using workable limit orders and confirming fills. The permissible holding may be zero. If already within the applicable limit, do not sell mechanically or add; if unowned, defer entry. The September 28 close is historical, not a live order price or stop.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: Aggressive Analyst, I agree that an oversized BE position should be reduced rather than passively carried. But calling half a standard allocation “limited” does not establish that it is safe. We do not know the portfolio’s holdings, other AI-power exposure, or loss tolerance. With BE’s September 28 ATR at $19.91—about 7.6% of that day’s close—even a half-sized position could produce an outsized portfolio loss, particularly if adverse Oracle news causes a gap.</p>
+<p>The strong quarter is real, but it is not yet a dependable earnings base. Q2 revenue grew 165.5% year over year and free cash flow reached $174.8 million; meanwhile, receivables consumed $224.3 million of operating cash, shares outstanding rose roughly 3.2% in one quarter, and the reported valuation was about 25 times trailing sales. Oracle’s reported commitment does not verify when equipment will be delivered or paid for. Preserving upside is worthwhile only if the remaining exposure fits a defensible loss budget; investors can reassess after those terms are confirmed rather than pay today for an uncertain timetable.</p>
+<p>The weekly and monthly uptrends also deserve respect, but they do not protect capital through another sharp reversal. BE fell 8.95% and closed near its low on September 28. The slightly negative MACD is an early warning, not proof of a downtrend; equally, neither the neutral RSI nor the daily Z-score supplies a compelling oversold case for keeping excess shares.</p>
+<p>The Neutral Analyst has not offered a position yet. If “wait and see” means leaving BE above a risk limit, I would oppose it. My adjustment to the proposed SELL is to treat 0.5× standard allocation as a ceiling, not a required holding. Check the actual position, current liquidity and portfolio-wide risk first; reduce any excess at normal liquidity, accelerating rather than mechanically waiting 3–5 sessions if the loss budget is breached or verified project news worsens. Use limits that can reasonably execute, since an unfilled order does not reduce risk. Even at or below the cap, reassess whether a smaller position—or none—better protects the firm. The September 28 close is not a live price from which to set an order or stop.
+Conservative Analyst: Aggressive Analyst, I agree that BE’s growth makes a residual position worth considering. But “worth considering” is not the same as “worth retaining” for this portfolio. Q2 revenue growth of 165.5% and $174.8 million of free cash flow are strong results, yet receivables consumed $224.3 million of cash, shares outstanding rose about 3.2% in the quarter, and the valuation was roughly 25 times trailing sales. Reported Oracle commitment to approximately 2.4 GW does not establish when BE will deliver or collect payment. Markets can reprice before an update—as you say—but that cuts both ways. We need not prove growth has stalled before reducing exposure to a potentially large loss.</p>
+<p>Neutral Analyst, I am not proposing an automatic full exit. I am saying that half a standard allocation must not become a default holding merely because weekly and monthly trends remain up. The September 28 decline of 8.95%, $19.91 ATR and weaker OBV make downside meaningful even though the slightly negative MACD does not prove a lasting downtrend. Possible easing in yields or an eventual Oracle clarification is not protection against a gap in the meantime. If a realistic loss allowance supports no BE exposure, a full exit is a defensible risk decision without waiting for worse news.</p>
+<p>My adjustment is to SELL BE down to the lesser of half the standard allocation and the amount the portfolio can withstand under a stress that includes a move beyond one ATR, a possible gap and any correlated holdings. If BE is already below half allocation, reassess it against that same loss allowance rather than automatically keeping it. Reduce a known excess promptly; use the proposed 3–5-session schedule only while it keeps risk within limits, and verify that orders fill. If unowned, defer entry. The September 28 close is not a live price for a limit order or stop.
+Conservative Analyst: Aggressive Analyst, I agree that BE’s operating improvement is real. But “we cannot prove zero exposure is optimal” is not a reason to retain shares regardless of the downside. Q2 free cash flow was $174.8 million, yet receivables consumed $224.3 million of cash, shares outstanding rose about 3.2%, and the reported valuation was roughly 25 times trailing sales. Reported Oracle commitment to approximately 2.4 GW still does not establish delivery dates or payment terms. A favorable clarification could lift BE before we can re-enter; an unfavorable one could also reprice it before a staged sale is complete. For a capital-preservation mandate, missing some upside can be preferable to carrying a loss the portfolio cannot absorb.</p>
+<p>Neutral Analyst, I agree that a full exit should not be automatic. But a small stake is not automatically safe because the weekly and monthly trends remain up. BE fell 8.95% and closed near its low on September 28; its $19.91 ATR describes recent volatility, not the limit of an Oracle-related gap. The slightly negative MACD does not prove a lasting reversal, but neither it nor the neutral RSI provides a reason to treat that decline as a buying opportunity. Portfolio concentration matters more than the label “half allocation.”</p>
+<p>I would SELL BE down to the lesser of 0.5× the standard allocation and a position the portfolio can withstand under a stressed move, including correlated holdings. If that loss allowance supports no exposure, exit; if BE is already below half allocation, reassess it rather than automatically retain it. Reduce any excess promptly at normal liquidity. Use the proposed 3–5-session schedule only if the exposure left in the meantime remains within limits, and check that limit orders fill. If unowned, defer entry. The September 28 close is historical, not a live order price or a basis for a stop.
+Conservative Analyst: Aggressive Analyst, keeping a stake to capture a favorable Oracle update is a choice to take risk, not a form of protection. BE’s Q2 results were strong, but the reported valuation was about 25 times trailing sales while receivables consumed $224.3 million of cash and shares outstanding rose roughly 3.2% in the quarter. Oracle’s reported commitment still leaves delivery and payment timing unresolved. Your point that markets can reprice before formal news cuts both ways: an adverse update could arrive before a staged sale is complete. The weekly and monthly uptrends do not limit that loss, and the $19.91 September 28 ATR is not a gap-risk estimate.</p>
+<p>Neutral Analyst, I agree that one severe session does not require every investor to exit. But an <em>affordable</em> stressed loss is only a necessary condition for retaining BE, not proof that the potential return justifies it. A position below half allocation can still be unattractive if correlated holdings, uncertain cash collection, or project delays leave too little margin for error. Keeping cash available for reassessment after primary confirmation is a legitimate alternative to paying for upside exposure now.</p>
+<p>I would <strong>SELL BE</strong> to the lesser of 0.5× the standard allocation and a portfolio-wide, stress-tested limit. That limit may be zero. Reduce a known excess promptly at normal liquidity; use the proposed 3–5-session schedule only if the exposure remaining throughout is acceptable, and verify that limit orders fill. Reassess holdings already below the ceiling rather than retaining them by default. If unowned, defer entry. The September 28 close is historical, not a usable order price or stop.
+Conservative Analyst: Aggressive Analyst, the possibility that a favorable Oracle update lifts BE before we can re-enter is real, but it is the cost of avoiding an unpriced execution risk—not a reason to keep a stake by default. BE’s Q2 growth and cash flow were strong, yet the reported valuation was roughly 25 times trailing sales, receivables consumed $224.3 million of cash, and shares outstanding rose about 3.2% in the quarter. A reported commitment to roughly 2.4 GW says little about when equipment will be delivered or payments collected. At that valuation, even a delay without a lost contract could be costly.</p>
+<p>Neutral Analyst, I agree that a full exit should not follow automatically from one bad session. But passing a stressed-loss test only tells us a position is affordable; it does not tell us it is attractive. BE’s weekly and monthly trends remain up, while the September 28 fall near the session low and weaker OBV show that those trends offer no protection against a sudden repricing. The $19.91 historical ATR is useful for sizing ordinary volatility, not for bounding an Oracle-related gap. For a capital-preservation mandate, holding cash until primary disclosures clarify milestones and payment terms is a reasonable choice even if BE later costs more to buy.</p>
+<p>I would SELL BE to the lesser of half the standard allocation and a portfolio-wide limit that accounts for a move beyond one ATR, a gap, and correlated holdings. That limit may be zero. If the current position breaches a hard risk limit, reduce enough to get within it promptly at normal liquidity; do not leave the breach in place merely to follow a 3–5-session schedule. Stage only further reductions whose interim exposure is acceptable, and confirm that limit orders fill. If BE is already below the ceiling, reassess whether its prospective return justifies keeping any of it rather than retaining it automatically. If unowned, defer entry. The September 28 close is not a live order price or a basis for a stop.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: Aggressive Analyst, I agree that “wait and see” is not a sound reason to leave BE above a risk limit. But half a standard allocation is not automatically a safe size. BE’s September 28 decline of 8.95% and $19.91 ATR show how quickly exposure can matter, particularly if the portfolio already holds correlated AI-power stocks. Q2’s 165.5% revenue growth and $174.8 million free cash flow support retaining some upside, but receivables consumed $224.3 million of cash, shares outstanding rose about 3.2%, and a valuation near 25 times trailing sales leaves little room for execution delays. Reported Oracle commitment is not confirmation of delivery or payment dates.</p>
+<p>Conservative Analyst, I agree that 0.5× should be a ceiling, not a target. But moving from that caution to a full exit without a breached risk budget or materially worse evidence could sacrifice the benefit of BE’s still-up weekly and monthly trends. The slightly negative MACD and weak daily ADX warrant caution; they do not establish a lasting downtrend. A verified Oracle timetable or easing yields could improve the outlook, just as further pipeline delays or higher rates could worsen it.</p>
+<p>My recommendation remains a conditional SELL: if the current BE position exceeds the lesser of 0.5× the standard allocation and what the portfolio’s loss budget can withstand—including a plausible gap and correlated holdings—reduce the excess. The proposed half-now, remainder-over-3–5-sessions schedule is reasonable in normal liquidity, but accelerate if risk limits are breached or verified news deteriorates; check that limit orders actually fill. At or below that risk-adjusted cap, do not sell mechanically or add pending better execution evidence. If unowned, defer entry. The September 28 close is not a current order price or a basis for a stop.
+Neutral Analyst: Aggressive Analyst, I agree that leaving a known excess untouched is not a neutral choice. But the proposed 3–5-session schedule is sensible only if the position left after the first sale remains within the portfolio’s risk limit. BE’s $19.91 ATR at the September 28 snapshot describes ordinary volatility, not the size of a possible gap on adverse Oracle news. And the strong Q2 results do not yet show that cash collection and per-share growth will keep pace: receivables consumed $224.3 million of cash, while shares outstanding rose about 3.2% in the quarter.</p>
+<p>Conservative Analyst, you’re right that a full exit can be appropriate if the portfolio cannot absorb a plausible stressed loss. I would not make that the default simply because the gap cannot be predicted. BE’s weekly and monthly trends remained up, and its slightly negative MACD did not establish a lasting reversal. A small position can preserve upside from sustained operating growth or a verified Oracle timetable—provided it fits alongside other correlated holdings. Equally, reported commitment alone is not a verified delivery or payment schedule, and higher yields could keep pressuring a valuation near 25 times trailing sales.</p>
+<p>I support a conditional SELL of BE: compare the current position with the lesser of half the portfolio’s standard allocation and a limit that accommodates a move beyond one ATR, a possible gap, and correlated exposures. Reduce any excess at normal liquidity. Use the proposed half-now, remainder-over-3–5-sessions approach only while the interim position stays within that limit; otherwise reduce faster and confirm that limit orders fill. If BE is already below the ceiling, reassess rather than sell or retain it mechanically; if the loss allowance supports no exposure, exit. If unowned, defer entry. Before adding later, look for primary confirmation of Oracle milestones and payments, plus durable cash conversion without excessive dilution. The September 28 close is not a live order price or a basis for a stop.
+Neutral Analyst: Aggressive Analyst, I agree that BE’s operating growth makes a risk-budgeted residual stake defensible. But your half-now, rest-over-3–5-sessions schedule should not become the default before checking the interim risk. BE’s $19.91 September 28 ATR describes recent volatility, not the loss from adverse Oracle news or a gap. At roughly 25 times trailing sales, a delivery or payment delay could matter even if Oracle remains committed. And if limit orders do not fill, the intended reduction has not happened.</p>
+<p>Conservative Analyst, your loss-budget test is essential, but uncertainty does not automatically make zero exposure the better choice. BE’s Q2 revenue growth, 33.38% gross margin and positive free cash flow are substantive, while its weekly and monthly trends remained up. A full exit is appropriate if a stressed loss is unacceptable—not simply because the September 28 decline looked severe. The slightly negative MACD and weaker OBV warrant caution, but do not establish a durable downtrend. Rising yields could pressure the valuation further; a verified Oracle timetable or sustained cash conversion could support it. Neither outcome is assured.</p>
+<p>I support a conditional SELL of BE. Compare the actual holding with the lesser of half the standard allocation and a portfolio-wide risk limit that accounts for a move beyond one ATR, a possible gap and correlated positions. Reduce any excess promptly at normal liquidity; use the staged schedule only if the position left after the first sale remains within that limit, and confirm fills. If the risk budget supports no BE exposure, exit. If already within it, do not sell mechanically or add while delivery, payment and per-share cash-generation questions remain open. If unowned, defer entry. The September 28 close is historical, not an order price or stop.
+Neutral Analyst: Aggressive Analyst, I agree that BE’s operating growth makes a small position worth considering. But retaining shares to catch a favorable Oracle update is a risk-taking choice, not a reason by itself to hold them. Q2 revenue grew 165.5% year over year and free cash flow reached $174.8 million, yet receivables consumed $224.3 million of cash, shares outstanding rose about 3.2%, and the reported valuation was roughly 25 times trailing sales. A delivery or payment delay could be costly even if Oracle remains committed.</p>
+<p>I’d also challenge the proposed timing. If the portfolio’s hard loss limit is what sets the BE cap, selling only half the excess leaves the position above that limit. In that case, reduce enough to get within it promptly at normal liquidity; reserve the 3–5-session schedule for further trimming that the portfolio can afford to carry in the meantime.</p>
+<p>Conservative Analyst, you’re right that an affordable loss does not prove an attractive investment. But uncertainty does not prove that zero BE exposure is better, either. The strong quarter and still-up weekly and monthly trends leave a plausible upside case for a modest stake. They do not justify adding after the September 28 reversal: the weaker OBV and slightly negative MACD warrant caution, while neither proves a lasting downtrend. Rising yields could further pressure BE’s valuation; a verified Oracle timetable and sustained per-share cash generation could improve the case.</p>
+<p>My recommendation is a conditional SELL of BE. Compare the actual holding with both half the standard allocation and a portfolio-wide stress limit that allows for a move beyond the $19.91 historical ATR, a possible gap, and correlated positions. Cut any breach of the hard limit promptly; stage only an affordable remaining reduction, and confirm limit orders fill. Below those ceilings, retain BE only if its potential return still justifies the risk—otherwise a smaller position or full exit is reasonable. Do not add pending better evidence; if unowned, defer entry. The September 28 close is not a current order price or a basis for a stop.
+Neutral Analyst: Aggressive Analyst, I agree that BE’s strong Q2 results make a modest stake defensible, but the chance to catch a favorable Oracle update is not, by itself, a reason to retain one. At roughly 25 times trailing sales, much of the growth case may already be priced in. Reported commitment to the approximately 2.4 GW project still leaves delivery and payment timing unresolved. The September 28 decline and weaker OBV argue against treating the still-up weekly and monthly trends as protection.</p>
+<p>Conservative Analyst, your distinction between an affordable loss and an attractive investment is important. Still, waiting for complete confirmation has a cost: BE’s operating improvement is substantial, and a favorable timetable could be reflected in the price before a later entry. A full exit is reasonable for a capital-preservation mandate or an unattractive risk–reward judgment, but uncertainty alone does not make it the default for every portfolio.</p>
+<p>I would keep the conditional SELL, with two tests. First, is the current BE holding within a portfolio-wide loss allowance that includes a move beyond its historical $19.91 ATR, a possible gap, and correlated positions? If not, reduce enough to meet that hard limit promptly at normal liquidity. Second, does the remaining exposure merit its risk given valuation, cash-collection questions, dilution and possible rate pressure? If not, trim further or exit; if so, a position no larger than half the standard allocation preserves some upside. Stage only reductions whose interim exposure is acceptable, and verify limit-order fills. Do not add merely because BE fell; if unowned, defer entry. The September 28 close is not a live order price or stop.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: Reduce BE long exposure to no more than the lesser of 0.5× the portfolio’s standard allocation and its portfolio-wide stress-tested exposure limit; this is a ceiling, not a target or a short recommendation. Correct hard-limit breaches promptly at normal liquidity, then stage only risk-permitted further reductions—half of the remaining excess at the next normal-liquidity opportunity and the rest over 3–5 trading sessions—using executable limit orders and confirming fills. If already within the ceiling, reassess rather than sell mechanically, do not add, and defer entry if unowned; exit if the loss allowance permits no BE exposure. Reassess at the next quarterly report or earlier primary Oracle disclosure, using portfolio and fundamental risk triggers rather than an unsupported price stop.</p>
+<p><strong>Investment Thesis</strong>: Valuation decides the call. The bearish case wins for BE at the supplied valuation, even after crediting the operating improvement. The reported $77.42 billion equity value is approximately 25× trailing sales, while reconstructed trailing free cash flow of $624.7 million implies a yield of only about 0.8%. The illustrative $3.95 billion 2026 revenue scenario—not company guidance—still implies approximately 19.6× sales. Applying an assumed 10× equity-value-to-sales multiple to that scenario produces $39.5 billion of equity value, approximately 49% below the reported figure. This is a multiple-compression sensitivity, not a forecast, price target or automatic buying threshold. Strong business growth does not by itself establish attractive shareholder returns at this starting valuation.</p>
+<p>Operating progress argues against a blanket exit. The aggressive analyst’s strongest evidence is substantive: reported Q2 revenue of $1.065 billion, growth of 165.5%, gross margin of approximately 33.4%, and free cash flow of $174.8 million. The supplied plan also reports Q1 profitability and gross margins above 30% in both quarters. These results support considering a small existing position, rather than concluding that the business has failed. Nevertheless, retaining exposure to a favorable Oracle update is risk-taking, not protection, and an affordable loss alone does not prove an attractive investment. This supports an Underweight rating for BE rather than treating every conditional reduction order as a universal full-exit instruction.</p>
+<p>Execution, collections and dilution remain material. Oracle’s reported approximately 2.4 GW arrangement indicates potential scale, not verified delivery, commissioning or payment timing; the reported pipeline delay does not establish cancellation or equipment failure. The analysts correctly flag $224.3 million of receivables-related cash use, but the supplied reconstruction shows that receivables and payables/accruals together were roughly a $31 million cash outflow, not a cash-flow boost. Reported free cash flow therefore deserves credit while collections remain under scrutiny. Share-count growth of approximately 3.2% sequentially and 25.5% year over year makes sustained per-share improvement essential.</p>
+<p>Hard risk limits take precedence over staging. The conservative and neutral analysts’ execution objection is decisive: selling only half an excess is inadequate if the remaining BE position still breaches a hard portfolio limit. The historical September 28 decline of 8.95%, weaker OBV and $19.91 ATR—about 7.6% of that snapshot’s close—support disciplined risk reduction. The slightly negative MACD does not establish a lasting downtrend, and still-up weekly and monthly trends do not protect against gaps. Size the residual using a stress beyond one historical ATR, possible adverse-news gaps and correlated holdings. Reduce any hard-limit breach promptly; stage only an affordable remaining reduction. The 0.5× allocation ceiling is not an instruction to sell half of every existing holding, nor a reason to retain a residual whose prospective return does not justify its risk.</p>
+<p>What would change the decision. Before rebuilding BE exposure, seek primary confirmation of Oracle milestones and payment terms, another quarter with gross margin above 30%, positive free cash flow supported by collections, improving per-share results and moderating dilution. Re-underwrite valuation as well: favorable news, chart stabilization or a lower price alone is insufficient. A material valuation reset warrants review, not automatic entry. Reduce further if verified delivery or payment timing materially worsens, or if sustained margin deterioration, weaker cash conversion or dilution overwhelms per-share progress; do not average down solely because BE falls.</p>
+<p>Information limits. Actual holdings, the standard allocation, loss tolerance, current tradable quote and current liquidity are not supplied. Primary Oracle milestone/payment disclosures and company revenue guidance are also absent. Accordingly, no absolute portfolio weight, share count, precise order price, numerical price target or price-based stop is justified from this record; the September 28 snapshot is historical.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: BE: event-driven review at the next quarterly results or earlier primary Oracle milestone/payment disclosure; reduce excess over 3–5 trading sessions only where interim risk permits.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

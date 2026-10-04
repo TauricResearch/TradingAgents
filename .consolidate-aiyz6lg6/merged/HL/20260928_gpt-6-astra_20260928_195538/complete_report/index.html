@@ -1,0 +1,4408 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/HL/20260928_gpt-6-astra_20260928_195538/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: HL - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-hl" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: HL
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hl-technical-report-as-of-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HL — technical report as of September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trend-and-momentum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend and momentum
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#participation-stretch-and-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Participation, stretch, and risk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditional-trading-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditional trading plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hl-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HL sentiment | 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-by-source-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source-by-source evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alignment-and-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alignment and divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dominant-themes-potential-catalysts-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dominant themes, potential catalysts and risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hl-news-and-macro-trading-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HL — news and macro trading report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading view
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-over-the-past-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed over the past week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forward-looking-signalsand-their-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forward-looking signals—and their limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-hl-watchlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable HL watchlist
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hl-hecla-mining-company-fundamental-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HL — Hecla Mining Company: fundamental review
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scope-and-company-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope and company profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#financial-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latest-operating-and-balance-sheet-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latest operating and balance-sheet evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valuation-ownership-and-data-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valuation, ownership, and data checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading implications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-hl">Trading Analysis Report: HL<a class="headerlink" href="#trading-analysis-report-hl" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:55:38</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="hl-technical-report-as-of-september-28-2026">HL — technical report as of September 28, 2026<a class="headerlink" href="#hl-technical-report-as-of-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>HL (Hecla Mining Company) has a bearish trend across the daily, weekly, and monthly SuperTrend timeframes.</strong> The immediate caution is that the decline is approaching a short-term stretch reading, while trend strength has not yet crossed the selected ADX confirmation threshold. That combination favors waiting for a defined trigger rather than treating either a further drop or a rebound as inevitable.</p>
+<p>HL closed at <strong>$17.01</strong> on September 28, near the day’s <strong>$16.95 low</strong>, after closing at <strong>$18.19</strong> on September 25. September 28 volume was <strong>39,735,900 shares</strong>. Those OHLCV figures, and the RSI, MACD-histogram, and ATR figures below, come from the verified market snapshot; the other selected indicators come from their indicator reports. The eight indicators selected are <strong>SuperTrend, ADX, MACD histogram, RSI, ATR, OBV, TD-9, and Z-score</strong>. They cover trend direction and strength, momentum, volatility, participation, and potential exhaustion without using overlapping oscillators.</p>
+<h4 id="trend-and-momentum">Trend and momentum<a class="headerlink" href="#trend-and-momentum" title="Permanent link">&para;</a></h4>
+<p><strong>SuperTrend is down on all three timeframes:</strong> the current weekly line is <strong>$21.67</strong>, monthly <strong>$25.35</strong>, and daily <strong>$20.30</strong>. The weekly and monthly readings matter most for the broader bias; a brief daily rebound would not, by itself, reverse them. These lines are <em>moving</em> thresholds, so traders should recalculate them before acting on a later session.</p>
+<p><strong>ADX is 22.77</strong>, up from <strong>19.67 on September 25</strong>. The increase suggests the recent move is gaining strength, but it remains below the stated <strong>25</strong> trend-confirmation guide. ADX does not identify direction on its own; the aligned down SuperTrends and falling closes supply that context. This is a developing bearish trend-strength signal, not yet an unequivocal one.</p>
+<p>The verified <strong>MACD histogram is −0.34</strong>: the MACD line (<strong>−0.27</strong>) is below its signal (<strong>+0.07</strong>), consistent with negative momentum. <strong>RSI is 38.94</strong>, weaker than its September 25 reading of <strong>45.25</strong>, but not below the conventional <strong>30</strong> oversold threshold. Thus, neither indicator currently supplies a convincing reversal signal.</p>
+<h4 id="participation-stretch-and-risk">Participation, stretch, and risk<a class="headerlink" href="#participation-stretch-and-risk" title="Permanent link">&para;</a></h4>
+<p><strong>OBV has declined alongside price</strong> over the recent lookback, including a further drop on September 28. Its absolute value is not useful as a trading level; the relevant observation is that volume participation has not yet shown a sustained upward divergence from price.</p>
+<p><strong>Daily Z-score is −1.93</strong>, close to—but not through—the <strong>−2</strong> stretch threshold. The <strong>weekly reading is −0.06</strong> and the <strong>monthly reading +0.54</strong>. HL is therefore close to statistically stretched on the <em>daily</em> measure, not uniformly stretched across timeframes. A short-term rebound is plausible, but stretch alone is a poor reason to fade three down SuperTrends.</p>
+<p><strong>TD-9 counts are weekly +3, monthly +1, and daily +4</strong> in the indicator’s buy-setup convention. These are early counts, not completed nines; they flag a developing exhaustion watch, <strong>not</strong> a reversal trigger. Together, Z-score and TD-9 argue against complacently chasing weakness, while providing insufficient evidence for a countertrend long.</p>
+<p><strong>ATR is about $1.00 per share</strong>, roughly <strong>5.9% of the $17.01 close</strong>. That is material movement relative to price. Position size should follow the actual entry-to-stop distance and an allowance for slippage or gaps—not an assumption that a nearby intraday level will hold. An ATR-sized move is a risk-planning reference, not a forecast.</p>
+<h4 id="conditional-trading-plan">Conditional trading plan<a class="headerlink" href="#conditional-trading-plan" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Bearish continuation:</strong> Watch whether HL <em>closes</em> below the September 28 intraday low of <strong>$16.95</strong>, with OBV still weakening and ADX moving above <strong>25</strong>. That combination would offer stronger confirmation than an intraday break alone. The $16.95 figure is an observed low, <strong>not proven support</strong>.</li>
+<li><strong>Relief rebound:</strong> A move back above the September 28 high of <strong>$17.63</strong>, followed by the September 25 close of <strong>$18.19</strong>, would show improved short-term price action. It would still be a countertrend move while the daily SuperTrend remains down. A sustained close through its <strong>currently reported $20.30</strong> line would be more consequential; the weekly line is higher at <strong>$21.67</strong>.</li>
+<li><strong>No clear trigger:</strong> If price neither confirms a break below $16.95 nor regains the nearer upside checkpoints, waiting avoids forcing a trade between bearish trend evidence and a near-stretched daily reading.</li>
+</ul>
+<p>These are <strong>prospective checkpoints, not historically validated support or resistance</strong>. HL’s mining exposure also leaves any technical setup vulnerable to metals-price moves and company-specific news.</p>
+<table>
+<thead>
+<tr>
+<th>Selected indicator</th>
+<th>September 28 reading</th>
+<th>What it contributes</th>
+<th>Practical interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SuperTrend</strong></td>
+<td>Weekly <strong>down, $21.67</strong>; monthly <strong>down, $25.35</strong>; daily <strong>down, $20.30</strong></td>
+<td>Direction across three horizons</td>
+<td>Bearish alignment; update the moving lines before using them as reversal thresholds.</td>
+</tr>
+<tr>
+<td><strong>ADX</strong></td>
+<td><strong>22.77</strong>, versus <strong>19.67</strong> on Sep. 25</td>
+<td>Strength, independent of direction</td>
+<td>Strength is rising but below the <strong>25</strong> confirmation guide.</td>
+</tr>
+<tr>
+<td><strong>MACD histogram</strong></td>
+<td><strong>−0.34</strong></td>
+<td>Momentum relative to its signal</td>
+<td>Negative momentum; look for improvement before trusting a rebound.</td>
+</tr>
+<tr>
+<td><strong>RSI</strong></td>
+<td><strong>38.94</strong></td>
+<td>Momentum and oversold check</td>
+<td>Weak, but not conventionally oversold below <strong>30</strong>.</td>
+</tr>
+<tr>
+<td><strong>ATR</strong></td>
+<td><strong>$1.00</strong></td>
+<td>Volatility and position-risk scale</td>
+<td>Allow for substantial price movement and possible slippage.</td>
+</tr>
+<tr>
+<td><strong>OBV</strong></td>
+<td>Falling over the recent lookback</td>
+<td>Volume participation</td>
+<td>Has not yet confirmed sustained accumulation.</td>
+</tr>
+<tr>
+<td><strong>TD-9</strong></td>
+<td>Weekly <strong>+3</strong>; monthly <strong>+1</strong>; daily <strong>+4</strong></td>
+<td>Sequential exhaustion watch</td>
+<td>No completed nine; do not treat the counts as a buy signal.</td>
+</tr>
+<tr>
+<td><strong>Z-score</strong></td>
+<td>Weekly <strong>−0.06</strong>; monthly <strong>+0.54</strong>; daily <strong>−1.93</strong></td>
+<td>Stretch across timeframes</td>
+<td>Daily price nears the <strong>−2</strong> watch level, but higher timeframes are not similarly stretched.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mildly Bullish</strong> (Score: 6.1/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="hl-sentiment-2026-09-21-to-2026-09-28">HL sentiment | 2026-09-21 to 2026-09-28<a class="headerlink" href="#hl-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="source-by-source-evidence">Source-by-source evidence<a class="headerlink" href="#source-by-source-evidence" title="Permanent link">&para;</a></h4>
+<p><strong>News — modestly positive for HL, but thin.</strong> Of three supplied headlines, only the 2026-09-28 MarketBeat item directly concerns HL. It reports that Hecla Mining outlined an organic-growth strategy targeting <strong>more than 20 million silver ounces</strong>, emphasizing North American operations, long reserve lives and relatively low-capital-intensity projects. It describes a debt-free balance sheet building cash and <em>potential</em> greater shareholder returns if suitable investments do not emerge. These are favorable financial and growth themes, but the production figure is a target and shareholder returns are conditional, not completed outcomes or announced distributions. The other two items cover peers, not HL: a 2026-09-24 Trefis article describes Coeur Mining's 5.7% September 23 share-price drop and execution questions around its acquired mines, a cautionary sector-adjacent signal that does <strong>not</strong> establish an HL decline or comparable execution problems; a Pan American Silver item discusses reserves and exploration, supporting interest in sector growth without establishing an HL-specific catalyst.</p>
+<p><strong>StockTwits — bullish labels, more qualified message bodies.</strong> The 22 most-recent messages contain <strong>9 Bullish (41% of all messages), 0 Bearish and 13 unlabeled (59%)</strong>. Thus all nine <em>tagged</em> posts are bullish, but the other 13 must not be counted as bullish. A September 28 Bullish post shares the HL growth/balance-sheet article; other bullish-tagged posts call HL a buy or say they are adding shares. However, a Bullish-tagged September 25 user says they would prefer another decline toward $13–$14 before buying, and a Bullish-tagged September 24 user says they are holding off purchases amid FOMC and political uncertainty. Three unlabeled posts from the same user discuss silver potentially needing to fall, HL and other miners near support, a break of short-term structure, the need for a bounce, and the risk of further bearish pressure if support fails. These are opinions and chart interpretations, not verified price events. A user-quoted HL share price of $18.16 and silver price of $65.22 on September 25, plus an advertised call-option setup, are unverified posts, not independent market data or evidence of actual options flows. Repeated authors, cross-ticker posts, bare-ticker bullish tags and promotional material limit how much conviction the label ratio supports.</p>
+<p><strong>Reddit — no usable observation.</strong> The supplied r/wallstreetbets, r/stocks and r/investing feed was <strong>disabled by configuration</strong>. There are no post bodies, vote counts or comments from which to infer Reddit sentiment; absence of posts is not neutral sentiment.</p>
+<h4 id="alignment-and-divergence">Alignment and divergence<a class="headerlink" href="#alignment-and-divergence" title="Permanent link">&para;</a></h4>
+<p>The direct HL news item and tagged StockTwits activity both lean positive on silver-led growth and balance-sheet strength. The main divergence is <strong>within retail discussion</strong>: no one selected a Bearish label, yet several message bodies flag a commodity pullback or broken near-term chart structure. The Coeur headline adds indirect sector caution rather than contradictory HL-specific reporting. There is no independent Reddit read to confirm or challenge either signal. Accordingly, the evidence supports <strong>mild</strong>, not overwhelming, bullishness.</p>
+<h4 id="dominant-themes-potential-catalysts-and-risks">Dominant themes, potential catalysts and risks<a class="headerlink" href="#dominant-themes-potential-catalysts-and-risks" title="Permanent link">&para;</a></h4>
+<p>The recurring thesis is that silver may strengthen or catch up to gold, benefiting HL as a North American silver producer; some users also cite favorable mining jurisdiction and broader precious-metals demand. The clearest company-specific potential catalyst is progress toward HL's outlined 20M-plus-ounce silver ambition and sustained cash generation; greater shareholder returns remain conditional. A silver-price rebound and a technical bounce are retail-proposed, unconfirmed catalysts. Principal risks surfaced are sensitivity to silver and gold prices, failure of near-term chart support, sector execution concerns illustrated by a <em>different</em> miner, and a user's stated FOMC/political uncertainty. The supplied material gives no verified HL price history, production timetable, earnings date, options positioning or corroborated commodity prices. These sentiment signals are context for a trader, not a price forecast or trade recommendation.</p>
+<table>
+<thead>
+<tr>
+<th>Signal for HL</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence and limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Organic growth and financial flexibility</td>
+<td>Positive</td>
+<td>MarketBeat, September 28</td>
+<td>HL outlines &gt;20M silver-ounce ambition, debt-free balance sheet and possible future returns; ambitions and returns are not realized commitments.</td>
+</tr>
+<tr>
+<td>Tagged retail sentiment</td>
+<td>Positive, sample-limited</td>
+<td>StockTwits</td>
+<td>9 Bullish, 0 Bearish, 13 unlabeled among 22; tagged-only ratio excludes most messages.</td>
+</tr>
+<tr>
+<td>Short-term support and commodity pullback</td>
+<td>Cautious</td>
+<td>StockTwits</td>
+<td>Repeated unlabeled posts mention broken structure, need for a bounce and silver potentially falling; subjective and partly from one author.</td>
+</tr>
+<tr>
+<td>Peer-sector backdrop</td>
+<td>Mixed, indirect</td>
+<td>Yahoo Finance news digest</td>
+<td>Coeur drop/execution questions contrast with Pan American Silver reserve-growth framing; neither reports HL operating results.</td>
+</tr>
+<tr>
+<td>Independent community confirmation</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>Feed disabled by configuration; no Reddit sentiment can be assessed.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Confidence: low</strong> because the Reddit source is unavailable, only one of three news items directly covers HL, and the 22-message StockTwits sample is heavily unlabeled and partly repetitive.</p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="hl-news-and-macro-trading-report">HL — news and macro trading report<a class="headerlink" href="#hl-news-and-macro-trading-report" title="Permanent link">&para;</a></h4>
+<p><strong>As of September 28, 2026 | Hecla Mining Company (NYQ)</strong></p>
+<h4 id="trading-view">Trading view<a class="headerlink" href="#trading-view" title="Permanent link">&para;</a></h4>
+<p><strong>Near-term stance: cautious on HL despite a constructive company story.</strong> The clearest development this week is a sell-off in precious metals alongside rising Treasury yields. That is an immediate headwind for a silver-focused miner. By contrast, a September 28 <a href="https://www.marketbeat.com/instant-alerts/event-hecla-mining-eyes-20m-silver-ounces-as-debt-free-balance-sheet-builds-cash-2026-09-28/">MarketBeat report</a> describes HL’s longer-term case: North American silver growth, long reserve lives, relatively low-capital-intensity projects, and a debt-free balance sheet that could eventually permit greater shareholder returns. Its <strong>20-million-plus-ounce figure is an ambition, not verified current production or a near-term forecast</strong>.</p>
+<h4 id="what-changed-over-the-past-week">What changed over the past week<a class="headerlink" href="#what-changed-over-the-past-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Rates are dominating metals trading.</strong> On September 28, <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Yahoo Finance reported</a> that major U.S. stock indexes fell as Treasury yields climbed. The <a href="https://finance.yahoo.com/m/ea204044-cc48-36ca-a171-0c737524fde4/gold-falls-to-seven-week-low.html">Wall Street Journal reported</a> gold at a seven-week low amid rate-hike bets; <a href="https://finance.yahoo.com/personal-finance/investing/article/silver-prices-today-monday-september-28-2026-silver-prices-slump-as-oil-prices-and-higher-rate-expectations-rise-111836731.html">Yahoo’s silver coverage</a> reported a silver slump, and <a href="https://finance.yahoo.com/m/71dd3621-dbc7-3d8f-9c10-fc4df9746ed8/mining-stocks-slide-as-metals.html">Barron’s</a> reported falling mining shares. Higher yields increase the opportunity cost of holding non-yielding precious metals; weaker silver prices can also pressure HL’s expected revenue and margins.</li>
+<li><strong>The bond sell-off has not produced a uniform equity response.</strong> <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-081738529.html">Friday’s market recap</a> reported weekly gains for major U.S. indexes despite rising yields. For HL, watch the metals and miners specifically rather than assuming a broad-index move will dictate the trade.</li>
+<li><strong>HL’s company-specific news is favorable but thinly sourced.</strong> The growth and balance-sheet claims come from one secondary report in the available week’s results. Before treating them as an earnings catalyst, verify production targets, debt, project spending, and any shareholder-return plans against HL’s filings or company statements. The other ticker-search results primarily concern peers, not new HL disclosures.</li>
+</ul>
+<h4 id="forward-looking-signalsand-their-limits">Forward-looking signals—and their limits<a class="headerlink" href="#forward-looking-signalsand-their-limits" title="Permanent link">&para;</a></h4>
+<p>The available <a href="https://polymarket.com/">prediction-market quotes</a> price a <strong>1% chance of a Fed cut by the October 2026 meeting</strong> and <strong>2% by the December meeting</strong>. A separate “another Fed rate hike in 2026” contract prices <strong>90%</strong>. These are market-implied odds, not Fed guidance; contract wording and settlement dates matter. They reinforce the practical risk for HL: a renewed rise in yield expectations could keep silver under pressure.</p>
+<p>A separate contract prices an <strong>8% chance of a U.S. recession by end-2026</strong>. That does not eliminate downside risk to silver’s industrial demand or to mining equities. Short-dated silver barrier contracts indicate substantial downside concern, but their modest trading volume makes them a weaker signal than observed metals and bond-market moves.</p>
+<p><strong>Data limitation:</strong> FRED requests for inflation, employment, policy rates, nominal and real Treasury yields, and the yield curve returned unavailable. Consequently, this report does <strong>not</strong> assert current rate levels, inflation readings, real yields, or an exact spot-silver price.</p>
+<h4 id="actionable-hl-watchlist">Actionable HL watchlist<a class="headerlink" href="#actionable-hl-watchlist" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>For a bullish entry:</strong> Look for silver to stabilize <em>and</em> the rise in Treasury yields to pause, then check whether HL begins outperforming other silver miners. That combination would suggest the company story is overcoming the macro headwind.</li>
+<li><strong>For an existing position:</strong> Treat further silver weakness accompanied by rising yields as a reason to reassess position size, even if HL’s long-term production ambition remains intact.</li>
+<li><strong>For fundamental confirmation:</strong> Check HL’s next primary-source update for the timetable and capital required to reach its production ambition, mine-level costs, and confirmation of the reported balance-sheet position. Do not price in increased shareholder returns as a committed action.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>HL trading factor</th>
+<th>Evidence as of Sept. 28</th>
+<th>Implication / next check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Precious metals</td>
+<td><a href="https://finance.yahoo.com/personal-finance/investing/article/silver-prices-today-monday-september-28-2026-silver-prices-slump-as-oil-prices-and-higher-rate-expectations-rise-111836731.html">Silver slumped</a>; <a href="https://finance.yahoo.com/m/ea204044-cc48-36ca-a171-0c737524fde4/gold-falls-to-seven-week-low.html">gold reached a seven-week low</a></td>
+<td>Near-term headwind; watch for silver stabilization</td>
+</tr>
+<tr>
+<td>Rates and risk appetite</td>
+<td><a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Yields climbed as U.S. stocks fell</a></td>
+<td>Avoid assuming HL is insulated by company-specific news</td>
+</tr>
+<tr>
+<td>HL fundamentals</td>
+<td><a href="https://www.marketbeat.com/instant-alerts/event-hecla-mining-eyes-20m-silver-ounces-as-debt-free-balance-sheet-builds-cash-2026-09-28/">Secondary report</a> describes growth ambitions and a debt-free balance sheet</td>
+<td>Potential longer-term support; verify in HL primary disclosures</td>
+</tr>
+<tr>
+<td>Fed expectations</td>
+<td>Prediction markets: October cut <strong>1%</strong>; December cut <strong>2%</strong>; separate “another hike” <strong>90%</strong></td>
+<td>Higher-for-longer risk to metals; respect contract-definition limits</td>
+</tr>
+<tr>
+<td>Data confidence</td>
+<td>FRED series unavailable; no verified current HL or silver quote</td>
+<td>No numerical price target or rate-based valuation is justified here</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="hl-hecla-mining-company-fundamental-review">HL — Hecla Mining Company: fundamental review<a class="headerlink" href="#hl-hecla-mining-company-fundamental-review" title="Permanent link">&para;</a></h4>
+<p><strong>Analysis date: 2026-09-28 · Exchange: NYQ · Amounts in USD unless stated otherwise</strong></p>
+<h4 id="scope-and-company-profile">Scope and company profile<a class="headerlink" href="#scope-and-company-profile" title="Permanent link">&para;</a></h4>
+<p>HL is classified by the data vendor as a Basic Materials company in <em>Other Precious Metals &amp; Mining</em>. Its results are consequently sensitive to precious-metals prices and mine operating costs. The available tools do not provide production volumes, reserves, mine-by-mine costs, guidance, or the text of SEC filings; those are important missing inputs for judging whether recent margins can persist.</p>
+<p><strong>Past-week limitation:</strong> The statement data are labeled by <em>fiscal period end</em>, not filing or publication date. They cannot establish that HL issued a financial report during September 21–28. The insider feed shows no transaction dated in that week, but that is not proof that none occurred.</p>
+<h4 id="financial-history">Financial history<a class="headerlink" href="#financial-history" title="Permanent link">&para;</a></h4>
+<p>HL moved from losses and negative free cash flow in 2022–23 to substantially stronger earnings and cash generation in 2025.</p>
+<table>
+<thead>
+<tr>
+<th>Fiscal year</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Net income</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Capital spending</th>
+<th style="text-align: right;">Free cash flow</th>
+<th style="text-align: right;">Year-end cash</th>
+<th style="text-align: right;">Year-end debt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">$718.9m</td>
+<td style="text-align: right;">−$37.3m</td>
+<td style="text-align: right;">$89.9m</td>
+<td style="text-align: right;">$149.4m</td>
+<td style="text-align: right;">−$59.5m</td>
+<td style="text-align: right;">$104.7m</td>
+<td style="text-align: right;">$527.2m</td>
+</tr>
+<tr>
+<td>2023</td>
+<td style="text-align: right;">$720.2m</td>
+<td style="text-align: right;">−$84.2m</td>
+<td style="text-align: right;">$75.5m</td>
+<td style="text-align: right;">$223.9m</td>
+<td style="text-align: right;">−$148.4m</td>
+<td style="text-align: right;">$106.4m</td>
+<td style="text-align: right;">$662.8m</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">$929.9m</td>
+<td style="text-align: right;">$35.8m</td>
+<td style="text-align: right;">$218.3m</td>
+<td style="text-align: right;">$214.5m</td>
+<td style="text-align: right;">$3.8m</td>
+<td style="text-align: right;">$26.9m</td>
+<td style="text-align: right;">$550.7m</td>
+</tr>
+<tr>
+<td>2025</td>
+<td style="text-align: right;">$1,423.0m</td>
+<td style="text-align: right;">$321.7m</td>
+<td style="text-align: right;">$562.6m</td>
+<td style="text-align: right;">$252.4m</td>
+<td style="text-align: right;">$310.2m</td>
+<td style="text-align: right;">$241.6m</td>
+<td style="text-align: right;">$275.8m</td>
+</tr>
+</tbody>
+</table>
+<p>Figures are from the annual income statement, cash-flow statement, and balance sheet; free cash flow is operating cash flow less capital spending.</p>
+<p>In 2025, revenue rose <strong>53.0%</strong> from 2024, gross margin increased from approximately <strong>21.3% to 43.7%</strong>, and operating income rose from <strong>$171.0m to $536.7m</strong>. EBITDA increased from <strong>$306.5m to $686.3m</strong>. This is meaningful improvement, but traders should not assume it is a permanent run rate without production, realized-price, and cost data.</p>
+<p>The balance sheet improved alongside those results. Year-end 2025 net debt, using the vendor’s reported measure, fell to <strong>$27.1m</strong> from <strong>$515.7m</strong> a year earlier. Cash generation was not the only funding source: HL issued <strong>$216.2m of stock</strong> during 2025 while making <strong>$436.0m of gross debt repayments</strong> and issuing <strong>$153.0m of debt</strong>. Common shares outstanding rose from <strong>631.7m at year-end 2024 to 670.3m at year-end 2025</strong>, approximately <strong>6.1% dilution</strong>. Cash dividends paid declined from <strong>$25.3m in 2024 to $10.4m in 2025</strong>.</p>
+<h4 id="latest-operating-and-balance-sheet-evidence">Latest operating and balance-sheet evidence<a class="headerlink" href="#latest-operating-and-balance-sheet-evidence" title="Permanent link">&para;</a></h4>
+<p><strong>March 2026 quarter—the latest substantially populated statements.</strong> Revenue was <strong>$411.4m</strong>, compared with <strong>$448.1m</strong> in December 2025 and <strong>$205.3m</strong> in March 2025. Gross profit reached <strong>$253.3m</strong>, a <strong>61.5% gross margin</strong>; operating income was <strong>$227.7m</strong>. The revenue comparison deserves caution because of the statement-reconciliation issue discussed below.</p>
+<p>Continuing operations earned <strong>$164.7m</strong>, but a <strong>$183.7m discontinued-operations loss</strong> turned total net income into a <strong>$19.0m loss</strong>, or <strong>−$0.03 diluted EPS</strong>. Accordingly, the headline loss alone understates continuing-operation profitability; conversely, treating the discontinued loss as inconsequential without examining the underlying disposal would be premature.</p>
+<p>March operating cash flow was <strong>$194.2m</strong>. After <strong>$39.3m</strong> of capital spending, reported free cash flow was <strong>$155.0m</strong>, versus <strong>$134.7m</strong> in the preceding quarter. Cash and equivalents increased to <strong>$587.6m</strong>, against <strong>$266.2m of total debt</strong>—approximately <strong>$321.3m of net cash</strong> by subtraction. Current assets of <strong>$957.6m</strong> versus current liabilities of <strong>$193.8m</strong> imply a <strong>4.94 current ratio</strong>.</p>
+<p><strong>The cash increase is not wholly recurring.</strong> March-quarter investing cash flow included <strong>$173.3m of proceeds from a business sale</strong>, and reported operating cash flow included <strong>$11.3m from discontinued activities</strong>. Net property, plant and equipment fell <strong>$708.0m</strong> from December to March. The available extracts do not explain the entire disposal or accounting impact; the next complete filing is necessary to assess the continuing asset base and sustainable cash flow.</p>
+<p><strong>June 2026 quarter—partial data only.</strong> The income-statement extract shows <strong>$0.17 diluted EPS</strong>, <strong>$0.18 basic EPS</strong>, and <strong>$130.8m normalized income</strong>, but omits June revenue, reported net income, operating income, cash flow, and a June balance sheet. The EPS improvement from March’s <strong>−$0.03</strong> should <em>not</em> be read as proof that underlying operations accelerated: March included the large discontinued-operations loss, while reported normalized income was <strong>$172.3m</strong> in March versus <strong>$130.8m</strong> in June.</p>
+<h4 id="valuation-ownership-and-data-checks">Valuation, ownership, and data checks<a class="headerlink" href="#valuation-ownership-and-data-checks" title="Permanent link">&para;</a></h4>
+<p>The fundamentals snapshot lists <strong>$11.41bn market capitalization</strong>, <strong>20.49× trailing P/E</strong>, <strong>16.28× forward P/E</strong>, <strong>$0.83 trailing EPS</strong>, <strong>$1.0451 forward EPS</strong>, <strong>4.27× price-to-book</strong>, and <strong>1.382 beta</strong>. Market cap divided by the March common-share count, and P/E multiplied by snapshot EPS, each imply roughly <strong>$17.01 per share</strong>. That is a <em>derived snapshot value</em>, <strong>not a verified September 28 market quote</strong>. The snapshot also reports <strong>$1.744bn trailing revenue</strong>, <strong>$969.5m EBITDA</strong>, and <strong>$342.3m free cash flow</strong>.</p>
+<p><strong>Do not mix these snapshot figures uncritically with the statements.</strong> Four reported cash-flow quarters through March 2026 total <strong>$721.1m operating cash flow</strong> and <strong>$467.3m free cash flow</strong>, rather than the snapshot’s $342.3m free cash flow. Snapshot net income of <strong>$552.5m</strong> is also inconsistent with its <strong>19.15% profit margin</strong> on $1.744bn revenue, which would imply roughly <strong>$334m</strong> of profit. Different update dates or treatment of discontinued operations may explain some differences, but the extracts cannot resolve them. The snapshot’s dividend-yield field reads <code>0.08</code> without a unit; 2025 cash dividends divided by snapshot market cap equal approximately <strong>0.09%</strong>, not 8%.</p>
+<p>There is a separate historical reconciliation concern: reported <strong>2025 annual revenue of $1,423.0m</strong> exceeds the sum of the four displayed 2025 quarterly revenue figures, <strong>$1,282.0m</strong>, by <strong>$141.0m</strong>, although annual and quarterly net income do reconcile. Restatement, discontinued-operation presentation, or vendor standardization may be involved. Traders should verify the original filings before extrapolating quarterly revenue growth or applying a trailing earnings multiple.</p>
+<p><strong>Insiders:</strong> The most recent listed transaction is officer Patrick Shay Malone’s <strong>August 20, 2026 sale of 23,994 shares for approximately $498,136</strong>. Numerous <strong>June 22 stock-award grants</strong> are compensation, <strong>not open-market purchases</strong>. The feed lists no 2026 open-market insider purchase; its most recent listed purchases were in 2025. The feed supplies no Form 4 links and cannot verify filing dates.</p>
+<h4 id="trading-implications">Trading implications<a class="headerlink" href="#trading-implications" title="Permanent link">&para;</a></h4>
+<p>The constructive case for HL is <strong>2025’s sharp improvement in earnings and free cash flow, followed by strong March operating cash generation and a net-cash balance sheet</strong>. The principal checks before acting are whether <strong>post-disposal operations sustain that cash generation</strong>, what the <strong>complete June 2026 statements</strong> show for cash, debt and capital spending, and whether the <strong>earnings and revenue presentations reconcile</strong>. Monitor receivables as well: they rose from <strong>$187.3m in December to $242.1m in March</strong>, while receivables absorbed <strong>$43.0m of March-quarter operating cash</strong>. Continued share-count growth is another per-share-return risk; June 2026 diluted average shares of <strong>675.9m</strong> exceeded June 2025’s <strong>639.7m</strong> by approximately <strong>5.7%</strong>.</p>
+<p>The tools support a <strong>financially stronger but not yet fully verified</strong> fundamental picture—not a past-week catalyst or a defensible buy/sell call based on a confirmed current price.</p>
+<table>
+<thead>
+<tr>
+<th>Key point</th>
+<th>Evidence for HL</th>
+<th>Actionable interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Profitability turnaround</td>
+<td>2025 revenue <strong>$1.423bn</strong>, net income <strong>$321.7m</strong>; 2024 net income <strong>$35.8m</strong></td>
+<td>Test whether gains persist after the disposal and across metals-price changes.</td>
+</tr>
+<tr>
+<td>Cash generation</td>
+<td>2025 FCF <strong>$310.2m</strong>; March 2026-quarter FCF <strong>$155.0m</strong></td>
+<td>Obtain complete June cash-flow data before annualizing March.</td>
+</tr>
+<tr>
+<td>Liquidity</td>
+<td>March cash <strong>$587.6m</strong>, debt <strong>$266.2m</strong>, calculated net cash <strong>$321.3m</strong></td>
+<td>Check whether net cash held through June and whether sale proceeds drove it.</td>
+</tr>
+<tr>
+<td>Earnings quality</td>
+<td>March continuing profit <strong>$164.7m</strong> but total loss <strong>$19.0m</strong> after discontinued operations</td>
+<td>Separate continuing performance from disposal effects.</td>
+</tr>
+<tr>
+<td>Dilution</td>
+<td>2025 year-end common shares <strong>+6.1%</strong> year over year</td>
+<td>Evaluate cash-flow and earnings growth <strong>per share</strong>.</td>
+</tr>
+<tr>
+<td>Insider activity</td>
+<td>Latest listed sale: <strong>23,994 shares</strong>, August 20; no listed past-week transaction</td>
+<td>Do not treat grants as insider buying or infer a new weekly signal.</td>
+</tr>
+<tr>
+<td>Data reliability</td>
+<td>2025 annual/quarterly revenue gap <strong>$141.0m</strong>; snapshot FCF differs from statement-derived FCF</td>
+<td>Reconcile original filings and valuation inputs before sizing a trade.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case for HL is a medium-term investment, not a bet that the next trading day will be green.</strong> Hecla’s operating and financial position improved substantially, while the recent sell-off creates an opportunity for investors willing to wait for evidence that metals prices have stabilized.</p>
+<p>The numbers behind that case are concrete. HL’s 2025 revenue rose <strong>53% to $1.42 billion</strong>, operating income climbed from <strong>$171 million to $537 million</strong>, and free cash flow increased from <strong>$3.8 million to $310 million</strong>. In the latest substantially complete quarter, March 2026, it generated <strong>$194 million of operating cash flow</strong> and reported a <strong>61.5% gross margin</strong>. Its March balance sheet held <strong>$588 million of cash against $266 million of debt</strong>. That financial flexibility matters for a miner pursuing growth: HL can evaluate projects from a much stronger position than it had during its cash-burning years.</p>
+<p>The growth opportunity is real, though it needs verification. A September 28 report describes HL’s ambition to produce <strong>more than 20 million silver ounces</strong>, supported by North American operations and long-lived reserves. I would not price that in as achieved production or assume a timetable we have not seen. But if HL confirms the project costs and delivers growth while preserving cash flow, its stronger balance sheet gives the thesis room to scale.</p>
+<p>A bear will fairly point to <strong>falling silver, rising yields, and three bearish SuperTrend readings</strong>. I agree those argue against calling a bottom at HL’s <strong>$17.01 September 28 close</strong>. They do not, however, erase the improvement in annual earnings and cash generation. ADX was rising but still <strong>below 25</strong>, so the technical evidence had not confirmed an unequivocally strong trend; nor had the near-stretched daily Z-score produced a buy signal. I would build a position gradually, or wait for silver to stabilize and HL to reclaim the nearer <strong>$17.63 and $18.19</strong> price checkpoints.</p>
+<p>The other bear challenge is earnings quality. March’s <strong>$19 million reported loss</strong> included a <strong>$183.7 million discontinued-operations loss</strong>, while continuing operations earned <strong>$164.7 million</strong>. Neither figure should be viewed alone: sale proceeds helped lift cash, and the complete June statements are still needed. The secondary report’s “debt-free” description is also too strong—<strong>net cash</strong>, not zero debt, is what the March balance sheet supports. Dilution and unresolved statement discrepancies likewise deserve scrutiny.</p>
+<p><strong>Bottom line: I favor HL for a patient investor</strong>, provided subsequent filings confirm post-disposal cash generation and clarify the capital needed for its silver-growth ambition. The bearish chart can dictate <em>entry discipline</em> without winning the longer-term argument about HL’s improved financial capacity.
+Bull Analyst: Bear, I agree that <strong>HL’s 61.5% March gross margin and its 20-million-plus-ounce ambition are not numbers to extrapolate blindly</strong>. Where we differ is whether the uncertainty warrants avoiding HL altogether. You are treating an incomplete picture as though it contains no investable evidence.</p>
+<p>The strongest evidence predates the March asset sale: HL generated <strong>$310 million of free cash flow in 2025</strong>, versus <strong>$3.8 million in 2024</strong>, while operating income rose from <strong>$171 million to $537 million</strong>. Stock issuance helped repair the balance sheet, and silver prices matter enormously; neither qualification erases the operating improvement. Growth in those annual totals also far exceeded the roughly <strong>6.1% increase in year-end shares</strong>. You are right, though, that the next test is whether <em>future</em> growth clears dilution on a per-share basis.</p>
+<p>The sale proceeds deserve precise treatment. The <strong>$173.3 million</strong> was investing cash flow, not the source of March’s <strong>$194.2 million operating cash flow</strong>. Even subtracting the reported <strong>$11.3 million from discontinued activities</strong> leaves roughly <strong>$183 million</strong> of operating cash flow attributable to continuing activities. That is encouraging evidence, <strong>not</strong> a sustainable quarterly forecast: the $708 million decline in property and equipment and missing complete June statements make the remaining asset base a necessary check. June’s <strong>$130.8 million normalized income</strong> was below March’s $172.3 million; it was still positive, but I would not call it proof of acceleration.</p>
+<p>The growth case is likewise an <em>option</em>, not booked revenue. A North American footprint and the reported long-lived, relatively low-capital-intensity project pipeline could let HL add silver production without the financing pressure it faced in its cash-burning years. Those project claims come from a secondary report; until HL supplies a timetable, capital budget and mine-level economics, I would assign <strong>no specific revenue forecast or valuation</strong> to the 20-million-plus-ounce target. March’s <strong>$588 million cash against $266 million debt</strong> provides flexibility, not proof that expansion will earn an adequate return.</p>
+<p>On the chart, you win the near-term point: falling silver, weakening OBV and three down SuperTrends make <strong>$17.01 no confirmed bottom</strong>. My bullish response is a <strong>small, patient position rather than a full-size purchase</strong>. I would add only if silver stabilizes, HL regains <strong>$17.63 and $18.19</strong> with improving participation, and subsequent disclosures support post-sale cash generation; a sustained move above the then-reported <strong>$20.30 daily SuperTrend</strong> would strengthen the case further. A close below <strong>$16.95</strong> with ADX rising past <strong>25</strong> would make me reassess.</p>
+<p>So I am not asking investors to pay for guaranteed durability. I am arguing that HL’s demonstrated 2025 cash-flow turnaround and March continuing-operation strength justify <em>measured exposure</em> before every uncertainty is resolved—provided the position is sized for the very real possibility that metals weakness or the next filings challenge the thesis.
+Bull Analyst: Bear, your strongest point is that we do not yet have a clean cash-flow record for HL’s <em>remaining</em> mines. I would not annualize March’s results or pay today for 20-million-plus silver ounces. But “not fully proven” is different from “no reason to invest.”</p>
+<p>Start with what was demonstrated <strong>before</strong> the sale: in 2025, HL generated <strong>$310 million of free cash flow after $252 million of capital spending</strong>, and operating income rose from <strong>$171 million to $537 million</strong>. That improvement far outpaced the <strong>6.1% increase in year-end shares</strong>. It does not establish what the smaller, post-sale business will earn, but it does show that the turnaround was more than proceeds from selling an asset.</p>
+<p>I agree your <strong>2.7% historical free-cash-flow yield</strong> is not an obvious bargain, especially with silver falling. My case is not that HL is cheap on one backward-looking multiple. It is that a miner which recently moved from cash burn to substantial cash generation has more capacity to endure a weak metals period and fund selective growth. Even if we mechanically subtract <em>all</em> <strong>$173.3 million of sale proceeds</strong> from March’s <strong>$587.6 million cash balance</strong>, cash would still exceed the reported <strong>$266.2 million of debt</strong> by about <strong>$148 million</strong>. That is a balance-sheet sensitivity check, not proof that the remaining assets will keep generating cash; June’s missing balance sheet is a real gap.</p>
+<p>On dilution, we agree on the test: <strong>growth must improve results per share</strong>. The reported North American footprint and long-lived, relatively low-capital-intensity projects make the silver-growth ambition worth investigating, not worth booking as revenue. I would want a project timetable, capital budget and mine-level returns before assigning that ambition material value. A stronger cash position gives HL an opportunity to be selective; it does not guarantee management will be.</p>
+<p>You also win the immediate chart argument. Three down SuperTrends, weak OBV and falling silver do not justify a full-sized purchase at the <strong>$17.01 September 28 close</strong>. Where I differ is on waiting for <em>every</em> fundamental and technical question to clear. I favor a <strong>small starter position in HL for a patient, metals-cycle investor</strong>, with additional capital contingent on silver stabilizing, improving volume participation and credible post-sale cash-flow disclosures. The <strong>$17.63 and $18.19</strong> levels are early checkpoints, not proof of a reversal; a close below <strong>$16.95</strong> alongside weakening OBV and ADX above <strong>25</strong> would prompt reassessment.</p>
+<p>So yes, a small position limits exposure rather than fixing the odds. That is precisely the trade-off I am proposing: take measured exposure to a documented operating turnaround <strong>without pretending its durability or growth economics are settled</strong>. Your wait-for-proof approach is defensible; I think it risks treating all uncertainty as a reason to forgo HL’s upside, when the company has already earned a closer look—and a carefully sized stake.
+Bull Analyst: Bear, your <strong>37× 2025 free-cash-flow</strong> calculation is the sharpest objection to HL. I would not call that an obvious bargain. But it is a historical comparison, not a measure of what HL’s remaining mines will earn—and that uncertainty cuts both ways. We should not extrapolate 2025’s cash flow upward, but neither should we assume it was the ceiling.</p>
+<p>What makes me willing to own a <em>small</em> position before the next filing is that HL’s improvement was operating, not simply the March 2026 asset sale. In 2025, it generated <strong>$562.6 million of operating cash flow</strong>, spent <strong>$252.4 million on capital projects</strong>, and retained <strong>$310.2 million of free cash flow</strong>. Using year-end share counts as an illustration—not reported per-share results—that is roughly <strong>$0.46 of free cash flow per share</strong>, versus less than <strong>$0.01 in 2024</strong>. Dilution mattered, but it did not swallow that year’s improvement. I agree a silver downturn could reverse some of it.</p>
+<p>You are also right that March cannot establish a post-sale run rate. Still, after removing the reported <strong>$11.3 million of discontinued-operations operating cash flow</strong>, the quarter shows roughly <strong>$183 million of operating cash flow</strong>. Subtracting the quarter’s <strong>$39.3 million of total capital spending</strong> leaves an <em>indicative</em> <strong>$144 million</strong>—not a clean measure of continuing-business free cash flow, because the sale’s timing and capital-spending allocation remain unresolved. June’s <strong>$130.8 million of normalized income</strong> is below March’s, but it is positive; the missing June cash-flow statement is the decisive next test, not evidence by itself that cash generation vanished.</p>
+<p>I am not assigning value to the <strong>20-million-plus-ounce</strong> ambition yet. The reported North American, long-lived project pipeline offers a plausible route to growth, while March’s <strong>$587.6 million of cash against $266.2 million of debt</strong> offers flexibility. Neither proves attractive project returns or rules out further dilution. HL needs to show a capital budget and growth in cash flow <strong>per share</strong>.</p>
+<p>So I grant your near-term chart and macro case: falling silver, weak OBV, and three down SuperTrends make <strong>$17.01 no confirmed bottom</strong>. Where we differ is the cost of waiting. Full confirmation may make HL safer to underwrite, but it may also arrive after investors reprice a successful turnaround; that is a possibility, not a forecast. <strong>My call remains a small, patient HL starter position, not a full-sized buy</strong>, with additions contingent on silver stabilizing and post-sale cash-flow evidence. If those results disappoint—or a close below <strong>$16.95</strong> comes with worsening participation and ADX above <strong>25</strong>—I would reassess rather than defend the thesis on 2025 numbers alone.
+Bull Analyst: Bear, your <strong>37× 2025 free-cash-flow</strong> figure is a fair warning: HL is not an obvious bargain if silver keeps falling. But it is not a complete valuation test. The four reported cash-flow quarters through March 2026 total <strong>$467 million of free cash flow</strong>—about <strong>24×</strong> the supplied $11.41 billion market-cap snapshot. I would not call that a forward multiple either: those quarters span the asset sale, and the vendor’s free-cash-flow snapshot does not reconcile with the statements. The point is narrower: neither historical multiple tells us conclusively what shareholders are paying for the remaining mines.</p>
+<p>That is why June matters. Its <strong>$130.8 million of normalized income</strong> was roughly <strong>24% below March’s</strong>, as you emphasize, but it was still positive. It offers some evidence of earnings after the March divestiture—not proof of sustainable post-sale <em>cash flow</em>. Meanwhile, March’s <strong>$588 million of cash against $266 million of debt</strong> gives HL room to withstand weaker metals or fund selective investment, though sale proceeds contributed to that cushion and we need an updated balance sheet.</p>
+<p>I also accept your project-economics challenge. North American assets and a reported long-lived pipeline are a plausible growth platform, <strong>not a demonstrated cost advantage</strong>. I would assign no revenue to the 20-million-plus-ounce ambition until HL provides a timetable, capital budget, and evidence that new ounces improve cash flow <em>per share</em>. The 2025 turnaround—<strong>$310 million of free cash flow after capital spending</strong>, despite dilution—is why I think that opportunity merits exposure rather than dismissal.</p>
+<p>You are right that a smaller position does not improve the odds. It limits the cost of being early. With silver weak and all three SuperTrends down as of September 28, my call remains <strong>a small HL starter position for a patient, risk-tolerant investor, not an aggressive buy at $17.01</strong>. I would add only on stronger post-sale cash-flow disclosure and stabilizing metals; a close below <strong>$16.95</strong> with worsening OBV and ADX above <strong>25</strong> would make me reassess. Your wait-for-proof approach is sensible, but it also gives up exposure to a turnaround that has already produced substantial operating cash—not merely a production target.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: <strong>My bear case on HL is not that the turnaround is imaginary. It’s that the bull is asking investors to pay for its durability before that durability has been demonstrated.</strong></p>
+<p>You’re right about 2025: revenue and cash flow improved sharply, and March 2026 showed strong continuing-operation profit. But HL also had <strong>negative free cash flow in 2022 and 2023</strong> and generated just <strong>$3.8 million in 2024</strong>. Without mine-level production, costs, and realized-price data, we cannot tell how much of the recent improvement would survive a sustained silver decline. That matters now, because silver slumped as Treasury yields rose in the latest week. The March quarter’s <strong>61.5% gross margin</strong> is impressive, but it is not a safe margin to extrapolate.</p>
+<p>I also agree that March showed <strong>net cash, not zero debt</strong>. The distinction goes further: <strong>$173.3 million of business-sale proceeds</strong> helped lift cash, net property and equipment fell <strong>$708 million</strong>, and some operating cash flow came from discontinued activities. We need to see what the <em>remaining</em> mines earn. June’s <strong>$0.17 EPS</strong> does not settle the question: its normalized income was <strong>$130.8 million</strong>, below March’s <strong>$172.3 million</strong>, and the available June extract lacks cash flow and a balance sheet. Meanwhile, HL issued <strong>$216.2 million of stock in 2025</strong>, and year-end shares rose <strong>6.1%</strong>. Growth must work <em>per share</em>, not merely in total ounces.</p>
+<p>That is why I would not yet pay for the <strong>20-million-plus silver-ounce ambition</strong>. It has no verified timetable or project-capital budget in the supplied evidence. A North American footprint may be attractive, but it does not establish that new ounces will earn an adequate return—or spare shareholders further dilution.</p>
+<p>Nor does your sensible entry discipline make today’s setup attractive. HL closed at <strong>$17.01</strong> on September 28, close to the day’s <strong>$16.95 low</strong>; volume participation weakened, MACD momentum was negative, and <strong>daily, weekly, and monthly SuperTrends were all down</strong>. ADX below 25 means bearish strength is <em>not yet confirmed</em>, not that the decline is harmless. Reclaiming <strong>$17.63</strong> or <strong>$18.19</strong> would improve the short-term picture but would still leave HL below the then-reported <strong>$20.30 daily SuperTrend</strong>. The near-stretched daily Z-score also argues against confidently shorting a bounce—not for buying one.</p>
+<p><strong>My position: avoid initiating HL for now.</strong> The bull has identified real financial progress, but the post-sale earnings base, cost of growth, and resilience to weaker metals remain unproven. I would reconsider after complete cash-flow disclosures and evidence that silver and HL’s broader trend have stabilized.
+Bear Analyst: Bull, I’m not dismissing HL’s turnaround. I’m questioning whether it offers a good entry <strong>before we know what the remaining business can earn</strong>.</p>
+<p>You’re right to separate the <strong>$173.3 million of sale proceeds</strong> from March’s operating cash flow. Subtracting the reported <strong>$11.3 million from discontinued activities</strong> still leaves roughly <strong>$183 million</strong>. But that is one quarter’s cash flow, not a demonstrated run rate for the post-sale mines. Property and equipment fell <strong>$708 million</strong>, the complete June cash-flow statement is unavailable, and June normalized income of <strong>$130.8 million</strong> was about <strong>24% below March’s</strong>. None of that negates March’s strength; it makes extrapolating it risky.</p>
+<p>Your best evidence is 2025’s <strong>$310 million of free cash flow</strong>. I agree it was a major improvement. Yet against the supplied <strong>$11.41 billion market-cap snapshot</strong>, that is only about <strong>2.7%</strong>—an illustrative comparison, not a forward yield. It does not look like an obvious bargain if weaker silver prices compress margins. HL’s history also shows how quickly the picture can change: free cash flow was negative in 2022 and 2023 and barely positive in 2024.</p>
+<p>And the growth “option” is not free. We have no verified timetable, capital budget, or mine-level returns for the <strong>20-million-plus-ounce</strong> ambition. North American assets may reduce some risks, but they do not establish a cost advantage over competing miners. HL issued <strong>$216.2 million in stock in 2025</strong>; investors need evidence that future ounces will create value <em>per share</em> rather than require more dilution.</p>
+<p>A small position limits dollars at risk, but it does not improve the underlying odds. As of September 28, silver had slumped, HL’s volume participation was weakening, and all three SuperTrends pointed down. ADX below 25 means the decline is not fully confirmed—not that buying ahead of confirmation is rewarded.</p>
+<p><strong>I would avoid initiating HL here, rather than short an already stretched decline.</strong> Show me complete post-sale cash flows, credible project economics, and stabilization in silver and HL’s trend. I may pay a higher share price for that evidence, but I would be buying a better-tested thesis—not financing its unanswered questions.
+Bear Analyst: Bull, I agree HL’s turnaround is real. My objection is to buying <strong>before we can tell how much of that turnaround belongs to the business shareholders own now</strong>. A small starter position limits the dollars at risk; it does not make an uncertain entry more attractive.</p>
+<p>Your strongest number is 2025’s <strong>$310 million of free cash flow</strong>. But against the supplied <strong>$11.41 billion market-cap snapshot</strong>, that is a roughly <strong>2.7% historical yield</strong>, or about <strong>37 times that year’s free cash flow</strong>. That is not much valuation protection if weaker silver prices squeeze margins. And while 2025 growth outpaced dilution, HL had negative free cash flow in 2022 and 2023 and barely broke even on that measure in 2024. One strong year does not establish through-cycle earning power.</p>
+<p>You are also right that the <strong>$173.3 million of sale proceeds was not March operating cash flow</strong>. Roughly <strong>$183 million of operating cash flow remains after removing the reported discontinued-operations contribution</strong>. I take that seriously. But the sale changed the asset base—net property and equipment fell <strong>$708 million</strong>—and we lack a complete June cash-flow statement. Your exercise showing <strong>$148 million of net cash without the proceeds</strong> demonstrates some resilience; it cannot show what the remaining mines will earn or what the proposed growth will cost. June normalized income was already about <strong>24% below March’s</strong>.</p>
+<p>That is where the “growth option” is weakest. The <strong>20-million-plus-ounce ambition</strong> has no verified timetable or capital budget in the supplied evidence. A North American footprint is appealing, but it is not evidence that HL can add ounces more cheaply than competitors or improve cash flow <em>per share</em> after further investment. Nor do the unresolved <strong>$141 million gap between annual and summed quarterly 2025 revenue</strong> and conflicting free-cash-flow figures make me eager to pay ahead of fuller disclosures.</p>
+<p>I am not demanding certainty. I am asking for two relevant confirmations: <strong>post-sale cash generation and stabilization in silver</strong>. As of September 28, silver was falling, HL’s OBV was weakening, and all three SuperTrends were down. ADX below 25 cautions against declaring a fully confirmed downtrend; the near-stretched daily reading cautions against chasing a short. Neither supplies a reason to buy at <strong>$17.01</strong>.</p>
+<p><strong>My call remains: avoid initiating HL, rather than short it.</strong> If the next complete statements establish durable per-share cash flow and silver steadies, I may pay more—but I would be paying for evidence, not just earlier exposure to the hope that it arrives.
+Bear Analyst: Bull, I accept that <strong>HL’s 2025 turnaround was operating, not an artifact of the March asset sale</strong>. But your $0.46 free-cash-flow-per-share illustration also sharpens the entry question: at the <strong>$17.01 September 28 close</strong>, investors would be paying roughly <strong>37 times that strong year’s free cash flow per share</strong>. The possibility that future cash flow exceeds 2025’s does not provide much protection if silver weakness takes it the other way.</p>
+<p>Your indicative <strong>$144 million of March cash flow after capital spending</strong> is worth examining, but it is not yet a post-sale earnings base. The quarter included discontinued-operations cash flow, the allocation of capital spending is unresolved, and HL’s net property and equipment fell <strong>$708 million</strong>. March capital spending of <strong>$39.3 million</strong> also cannot establish what maintaining the remaining mines <em>and</em> pursuing growth will cost. June’s positive normalized income is encouraging; its roughly <strong>24% decline from March</strong>, without a complete June cash-flow statement, does not answer that question.</p>
+<p>That is the weakness in the “small stake before repricing” argument. Position sizing limits a loss; it does not establish that HL is attractively priced for the risks. The <strong>20-million-plus-ounce</strong> goal has no verified timetable or project budget, while 2025’s <strong>6.1% share-count increase</strong> reminds us that additional ounces need to pay off <em>per share</em>. We have no mine-level cost evidence showing HL has an advantage over competing producers.</p>
+<p>I am not asking to wait for every uncertainty to disappear. I would wait for the two that directly test your thesis: <strong>cash generation from the remaining business and stabilization in silver</strong>. As of September 28, silver was slumping, OBV was weakening, and HL’s daily, weekly, and monthly SuperTrends were down. That is not a reason to short a potentially stretched decline, but at this valuation it is a reason <strong>not to initiate HL yet</strong>.
+Bear Analyst: Bull, I agree the <strong>$467 million of free cash flow over the four reported quarters through March 2026</strong> is stronger than the 2025 figure alone. But its implied <strong>24× multiple</strong>, using the supplied $11.41 billion market-cap snapshot, does not settle the price question. That period includes a quarter with discontinued-operations cash flow, predates a full cash-flow read on the smaller business, and conflicts with the vendor’s <strong>$342 million trailing free-cash-flow</strong> figure. The <strong>$173.3 million of sale proceeds were investing cash flow, not free cash flow</strong>—but the sale still changed which assets must generate cash going forward.</p>
+<p>June’s <strong>$130.8 million of normalized income</strong> shows HL remained profitable on that measure. It was also about <strong>24% below March’s</strong>, and we still lack June cash flow, capital spending, and an updated balance sheet. March’s net cash is a genuine cushion; it cannot tell us whether the remaining mines will fund both maintenance and growth through weaker silver prices.</p>
+<p>That is why I push back on the cost-of-waiting argument. Yes, HL could reprice before every question is answered. It could also reprice downward if margins narrow or the 20-million-plus-ounce plan requires more capital or dilution than investors expect. We have no verified project budget, timetable, or mine-level returns to weigh those outcomes. Meanwhile, silver has slumped, participation has weakened, and HL’s daily, weekly, and monthly SuperTrends are down. ADX below 25 keeps me from calling the decline fully confirmed; it does not turn the setup into a favorable entry.</p>
+<p><strong>My call remains to avoid initiating HL, not to short it.</strong> I would reconsider with complete post-sale cash-flow and capital-spending data, credible <em>per-share</em> project economics, and signs that silver and HL’s trend have stabilized. Paying somewhat more for those facts may be preferable to paying now for the chance they arrive.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For HL (Hecla Mining Company), the bear makes the stronger case for allocating capital at the supplied September 28 snapshot, although the bull convincingly establishes a real operating turnaround. HL generated about $310 million of 2025 free cash flow after capital spending, and March cash of approximately $588 million exceeded debt of $266 million. The $173.3 million asset-sale proceeds were investing cash flow, not operating cash flow; removing the reported discontinued-operations operating contribution still leaves roughly $183 million of March operating cash flow. Those strengths argue against a wholesale exit. The deciding issue is whether the remaining mines can sustain cash flow per share at a valuation that compensates for weaker silver. Complete June cash flow, capital spending and an updated balance sheet are missing. June normalized income fell about 24% from March, which raises a question rather than proving structural deterioration. The supplied market-cap snapshot implies approximately 37 times 2025 free cash flow or 24 times the summed four reported quarters through March; neither is a clean forward valuation of the post-sale business. The $467 million quarterly sum versus the $342 million vendor trailing figure, plus the reported $141 million annual-versus-quarterly revenue gap, require reconciliation. The greater-than-20-million-ounce ambition has no verified timetable, capital budget or project returns, while the 6.1% share-count increase reinforces the need for per-share discipline. Falling silver, weakening OBV and three bearish SuperTrends strengthen the case against initiating now. ADX below 25 and a near-stretched daily reading temper bearish conviction and argue against chasing a short. The combination of unverified post-sale cash generation, no demonstrated valuation cushion and adverse market conditions outweighs the benefit of gaining early exposure, supporting Underweight rather than Hold or Sell.</p>
+<p><strong>Strategic Actions</strong>: HL: For the next reporting cycle, cap existing exposure at 0.50 times the portfolio's standard single-name allocation. A position at 1.00 times standard would be cut by half; larger positions should also be reduced to the cap. If already at or below the cap, do not top up; if unowned, remain uninvested. The trader and portfolio manager must apply this to actual holdings. Use staged limit orders after validating an executable quote; do not initiate a short. All quoted prices are September 28 debate reference levels, not verified current prices, and SuperTrend levels must be refreshed before use. Treat $16.95 as a monitoring threshold, not an automatic stop just $0.06 below the cited $17.01 close. If the reference remains relevant and HL records two daily closes below it with weakening OBV and ADX rising above 25, reduce the exposure cap to 0.25 times standard. Fundamental impairment should trigger an immediate allocation review without waiting for technical confirmation. Before increasing exposure, obtain complete June or later post-sale cash-flow and balance-sheet disclosures; establish continuing-business cash flow after necessary capital spending, including the maintenance/growth split and working-capital effects; reconcile the revenue and free-cash-flow discrepancies; and assess results per diluted share. Request mine-level production, realized prices and costs, plus a funded project timetable and budget; give no material valuation credit to the greater-than-20-million-ounce ambition until its economics are substantiated. Raise the exposure cap to 0.75 times standard only after post-sale free cash flow supports the thesis and silver stabilizes, with improving participation and a sustained reclaim of the refreshed $17.63 and $18.19 checkpoints. Restore 1.00 times standard only after an updated valuation based on recurring post-sale cash flow and funded capital requirements supports it, alongside broader trend repair; the then-reported $20.30 daily SuperTrend is an additional confirmation reference, not a price target. Do not invent a fair-value target from the incomplete evidence.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: Underweight HL by trimming existing exposure rather than initiating a short: three down SuperTrends, falling OBV and negative MACD favor reducing risk, while missing post-sale cash-flow detail and an unproven valuation cushion outweigh the demonstrated operating improvement. The September 28 close of $17.01 sits near the $16.95 low, but ADX of 22.77 is below 25 and the daily Z-score of −1.93 warns against chasing weakness; $17.63 and $18.19 are rebound checkpoints, not verified executable prices. Use staged limit orders only after checking a current quote, and treat two daily closes below $16.95 with weakening OBV and ADX above 25 as a conditional trigger to reduce further, not as an automatic stop.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: For HL, cap existing holdings at 0.50× the portfolio's standard single-name allocation; trim any excess, with no purchase or short. If two daily closes below $16.95 coincide with weakening OBV and ADX above 25, reduce the cap to 0.25× standard; size staged sales to actual holdings and allow for the approximately $1.00 ATR and gaps.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: Neither analyst has made a case yet, so here’s mine: the bold move for HL is to sell excess exposure now while keeping a smaller stake in its upside. Three down SuperTrends, falling OBV and a −0.34 MACD histogram show a weak tape. ADX rose from 19.67 to 22.77, suggesting the decline is gaining strength even though it has not crossed 25. With roughly $1 of ATR against a $17.01 close, waiting for perfect confirmation can be costly.</p>
+<p>I would challenge a conservative case for waiting until every filing is reconciled. HL’s $310.2 million of 2025 free cash flow and strong March continuing operations are real reasons not to abandon the company. But March cash also benefited from $173.3 million of business-sale proceeds, complete June cash-flow detail is missing, and the 20-million-plus-ounce ambition is not realized production. Those uncertainties make a full-sized position harder to defend, not easier. I would also challenge a neutral “wait for a break” approach: two closes below $16.95 are a sound trigger for <em>further</em> reduction, but they need not be the first moment to manage exposure.</p>
+<p>There is a credible rebound case: the daily Z-score is −1.93, and HL could benefit if silver stabilizes. Yet RSI at 38.94 and early TD-9 counts do not establish a reversal; mildly bullish sentiment has low confidence. Selling only the excess preserves participation if the operating story wins while freeing capacity if the metals sell-off persists.</p>
+<p>My recommendation is the trader’s <strong>SELL</strong>: if HL exceeds 0.50× your standard single-name allocation, trim to that cap with staged limit orders after checking a current quote. Treat $17.63 and $18.19 as possible rebound checkpoints, not promised execution prices. If two daily closes below $16.95 come with weaker OBV and ADX above 25, reduce the cap to 0.25×. If you already hold less than the cap, this plan does not call for a sale, purchase or short.
+Aggressive Analyst: The conservative and neutral analysts are right that HL needs a portfolio risk budget. But that is an argument for applying the trader’s 0.50× cap intelligently, not for diluting the decision to sell excess exposure now. HL closed September 28 at $17.01, just above its $16.95 low, with all three SuperTrends down, OBV falling, and a −0.34 MACD histogram. ADX rose from 19.67 to 22.77 in one session. Waiting for it to cross an arbitrary 25 threshold before trimming an oversized holding risks surrendering more ground while the bearish move develops.</p>
+<p>To the conservative analyst: I am not calling 0.50× “safe.” A $1 ATR is about 5.9% of that close, and a gap could be larger. If existing metals concentration or loss tolerance demands a lower cap, use one. But imposing 0.25× <em>provisionally on every portfolio</em> would give up too much optionality. HL generated $310.2 million of free cash flow in 2025 and $155.0 million in the March quarter. Those figures do not prove a valuation floor, but they do give a retained, smaller stake a credible reason to exist if silver recovers. The aggressive move is to cut exposure that is too large while preserving participation—not to confuse maximum defensiveness with maximum opportunity.</p>
+<p>I also agree that the March sale proceeds were investing cash flow, not recurring operating cash flow, and that “debt-free” is imprecise beside $266.2 million of reported debt. March cash nevertheless exceeded that debt by roughly $321 million. Missing June cash-flow detail, dilution, and unreconciled financial figures argue against <em>restoring</em> a full allocation; they do not erase the operating improvement or require selling the entire stake. Conversely, HL’s growth ambition and mildly bullish, low-confidence sentiment are not strong enough to override weak price participation today.</p>
+<p>To the neutral analyst: yes, the cap must yield to a tighter portfolio risk limit, and a confirmed break must not become a mindless market order. But “reassess” alone can become a license to hesitate. Two daily closes below $16.95 alongside weakening OBV and ADX above 25 would add price, participation, and trend-strength evidence to the existing bearish alignment. That is a sensible <em>conditional trigger to reduce the cap to 0.25×</em>, after checking the live quote and circumstances—not an automatic stop or a claim that $16.95 is proven support. Likewise, the −1.93 daily Z-score warns against chasing weakness, but it does not outweigh three down SuperTrends; a rebound through $17.63 or $18.19 would not by itself reverse them.</p>
+<p>My recommendation remains <strong>SELL HL only to trim holdings above 0.50× the investor’s standard single-name allocation</strong>, or a lower limit required by their actual portfolio risk. Check a current quote and use staged, price-aware limit orders, recognizing they may not fill. If holdings are already within the applicable cap, this plan calls for no sale, purchase, or short. That is the higher-reward risk decision: shed excess exposure before confirmation potentially becomes expensive, while keeping measured upside in a company whose improvement is promising but not yet fully verified.
+Aggressive Analyst: Conservative, I agree that 0.50× is a ceiling, not a declaration that HL is safe. Its roughly $1 ATR was 5.9% of the September 28 close, and a gap could be larger. The investor’s metals concentration and affordable gap loss must set a lower ceiling if needed. But making 0.25×—or no residual holding—the default for an unknown portfolio gives up upside without evidence that every investor needs that degree of protection. HL generated $310.2 million of free cash flow in 2025, and March cash exceeded reported debt by about $321 million. Those facts give a risk-sized stake a reason to exist if silver recovers.</p>
+<p>I take your cash-flow objections seriously. March’s $173.3 million of sale proceeds were investing cash flow, not recurring operating cash flow; HL still reported $266.2 million of debt, and June cash-flow detail is missing. Dilution and unreconciled figures rule out claiming a proven valuation floor. But they strengthen the case for selling <em>excess</em> HL now, not for assuming its operating improvement has no potential value. I also agree that unfilled limit orders need prompt review; neither $17.63 nor $18.19 is a guaranteed exit.</p>
+<p>Neutral, you are right that $16.95 is an observed low, not established support, and that ADX can confirm late. That is why I would not wait for the proposed trigger to make the first trim. HL already had three down SuperTrends, falling OBV and a −0.34 MACD histogram, while ADX rose from 19.67 to 22.77. The −1.93 daily Z-score makes a rebound plausible, but it does not undo that alignment. A smaller retained stake captures some rebound potential without leaving an oversized position exposed to further silver weakness and rising yields.</p>
+<p>Where I differ from your “reassess” language is on the value of a precommitted response. If two daily closes below $16.95 arrive with weaker OBV and ADX above 25, I would lower the HL ceiling to 0.25×, subject to a fresh quote, the actual portfolio risk budget and any changed facts. That is a conditional sizing decision, not an automatic stop or an order to sell shares the investor does not hold.</p>
+<p>My recommendation remains SELL HL holdings above the lesser of 0.50× the investor’s standard single-name allocation or a tighter portfolio-specific limit. Check a current quote and stage price-aware sales, revisiting limits that do not fill. If holdings are already within the applicable limit, this plan calls for no sale, purchase or short. The higher-reward choice is to remove excessive exposure before confirmation may become costly while preserving only the upside the portfolio can afford to carry.
+Aggressive Analyst: Conservative, I agree that 0.50× is a ceiling, not a safe holding size. Stress-test HL alongside any other metals exposure: at the September 28 close, a $2–$3 adverse move would be roughly 12%–18% in HL, and a gap could be worse. If the affordable portfolio loss requires a cap below 0.50×, use the lower cap now. But without knowing the portfolio, making 0.25× or zero the default sacrifices upside as surely as ignoring gap risk invites losses.</p>
+<p>I also agree that past cash flow is not a valuation floor. The $173.3 million of March sale proceeds was investing cash flow, June cash-flow detail is missing, and HL reported $266.2 million of debt—not literally “debt-free.” Still, $310.2 million of 2025 free cash flow and March cash exceeding debt by about $321 million are substantive reasons to preserve an affordable stake. Dilution and unreconciled figures argue for trimming excess, not for treating the operating improvement as worthless. Waiting for filings before ever reconsidering a larger position could miss a turn in silver and HL’s shares; it is not a reason to carry too much today.</p>
+<p>Neutral, your same-day risk review after a breakdown is sensible, but “reassess” without a planned sizing response can leave an investor holding the same oversized stake through a faster decline. Two daily closes below $16.95 with weaker OBV and ADX above 25 would add confirmation to three down SuperTrends, falling OBV and negative MACD. I would plan to lower the HL ceiling to 0.25× then, subject to the current quote, changed facts and the portfolio loss budget—not place a blind stop or pretend $16.95 is proven support. The −1.93 daily Z-score makes a bounce possible; it does not reverse that bearish alignment.</p>
+<p>My call remains SELL excess HL exposure now. Check a current quote, trim holdings above the lesser of 0.50× the standard single-name allocation or the stress-tested portfolio cap, and promptly revisit staged limits that do not fill. If holdings are already within that cap, there is no prescribed sale, purchase or short. That is the higher-reward trade-off: free capacity before further weakness is confirmed while retaining only the rebound exposure the portfolio can afford.
+Aggressive Analyst: Conservative, your 25%–30% stress test is useful, but it is a scenario—not a reason to make zero HL exposure the default. I agree that 0.50× is a ceiling, not a safe or required holding. If a larger-than-ATR gap and simultaneous metals losses breach the investor’s loss budget, cut below it now. If the budget permits a smaller stake, though, selling it all forfeits a real upside possibility: HL generated $310.2 million of free cash flow in 2025, and March cash exceeded reported debt by roughly $321 million. Neither figure establishes a price floor, but neither is irrelevant to a silver recovery.</p>
+<p>Neutral, I agree that $16.95 is an observed low, not proven support, and that ADX can confirm late. My objection to “reassess” is practical: it leaves the response undefined just when a falling market makes hesitation expensive. I would plan for a <strong>0.25× ceiling</strong> if two daily closes below $16.95 coincide with weaker OBV and ADX above 25, then check the current quote, changed facts and portfolio budget before placing any order. That is a conditional decision rule, not a blind stop or a claim that every investor must retain exactly 0.25×.</p>
+<p>The reason to trim <em>now</em> is already visible in HL’s three down SuperTrends, falling OBV and −0.34 MACD histogram. The −1.93 daily Z-score makes a bounce plausible, but does not reverse those signals. Conversely, March’s sale proceeds, incomplete June cash-flow detail, reported debt and dilution make a full-sized bet hard to defend despite the operating improvement.</p>
+<p>My call remains <strong>SELL excess HL</strong> above the lesser of 0.50× the investor’s standard single-name allocation or a tighter, stress-tested portfolio cap. Check a current quote, stage price-aware sales and revisit unfilled orders promptly; $17.63 and $18.19 are checkpoints, not assured exits. If holdings are already within the applicable cap, I prescribe no sale, purchase or short. That is the aggressive opportunity here: remove exposure the portfolio cannot afford while keeping only the upside it can.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the Aggressive Analyst on the direction for HL: reducing an oversized position now is more prudent than waiting for a confirmed breakdown. But I would not call 0.50× a safe holding simply because it is half a standard allocation. HL moved with roughly $1 of daily ATR against a $17.01 September 28 close, and a gap could exceed that range. Without knowing the portfolio’s other metals exposure or loss tolerance, a fixed allocation cap is not a substitute for a risk budget.</p>
+<p>The operating improvement is a reason to avoid a reflexive full exit, not a reason to rely on the remaining stake. HL generated $310.2 million of free cash flow in 2025, but the complete June 2026 cash-flow picture is missing. March’s $173.3 million of business-sale proceeds were investing cash flow, not recurring operating cash flow, and the disposal leaves the continuing asset base harder to assess. The “debt-free” description also needs checking against March’s reported $266.2 million of debt. Dilution and unresolved differences between the reported financial figures further weaken any claim that today’s valuation offers a proven cushion. I would not wait for every filing to <em>reduce</em> risk; I would require better primary-source evidence before <em>restoring</em> a full position.</p>
+<p>The Neutral Analyst has not spoken, so I would not attribute a view to them. If the neutral case is to wait for two closes below $16.95, that waits for evidence of further damage before addressing current exposure. ADX at 22.77 has not confirmed a strong trend, and the daily Z-score of −1.93 makes a rebound plausible; neither fact makes $16.95 established support. Equally, a rebound toward $17.63 or $18.19 would not resolve the three down SuperTrends or the risk from weaker silver and rising yields.</p>
+<p>My conservative adjustment is to keep the SELL direction for HL but set the residual holding by stress-tested portfolio risk, not the technical trigger alone. Trim any holding above 0.50× the standard single-name allocation after checking a current quote; where metals exposure or gap risk is already material, favor a provisional ceiling nearer 0.25× until post-sale cash flow and the balance sheet can be verified. If holdings are already below the applicable risk cap, there is no automatic sale, purchase, or short. Use staged, price-aware orders, but recognize that limits may not fill during a decline. Treat two closes below $16.95 with weakening OBV and ADX above 25 as a prompt to reassess promptly—not as permission to leave an otherwise excessive position untouched until then.
+Conservative Analyst: Aggressive Analyst, I agree that HL exposure above a defensible limit should be trimmed now; waiting for ADX to reach 25 would leave the portfolio exposed to further losses. But preserving upside is not, by itself, a reason to retain 0.50× a standard position. HL’s roughly $1 ATR is about 5.9% of its September 28 close, and a news-driven gap could be larger. The appropriate residual holding depends on the portfolio’s total metals exposure and the loss it can absorb, not on what fraction of a conventional single-name allocation sounds modest.</p>
+<p>The cash-flow improvement deserves credit, but it does not yet establish a downside cushion. HL produced $310.2 million of free cash flow in 2025 and reported $155.0 million in the March quarter. March cash also reflected $173.3 million of business-sale proceeds in investing cash flow, while the complete June cash-flow and balance-sheet detail is missing. March cash exceeded reported debt, but that is different from being debt-free or knowing whether the post-sale business will sustain those results. Dilution and unreconciled financial figures add to the risk of treating past cash generation as a reliable valuation floor.</p>
+<p>Neutral Analyst, I agree that 0.25× should not be imposed on every unknown portfolio. But “reassess” needs an immediate risk decision if HL already breaches the investor’s concentration or gap-loss budget. A possible rebound—suggested by the −1.93 daily Z-score—does not repair three down SuperTrends, falling OBV, or the near-term headwind from weaker silver and rising yields. Nor do $17.63 and $18.19 establish prices at which risk can safely be reduced.</p>
+<p>My adjustment remains a conditional SELL for HL: check a current quote and trim holdings above the lesser of 0.50× the standard single-name allocation or a portfolio-specific risk ceiling. Where metals concentration or gap risk is material, that ceiling may be nearer 0.25× or lower; there is no required residual stake. If holdings are already within the applicable ceiling, do not sell automatically. Use staged, price-aware orders, but promptly revisit unfilled limits if the market deteriorates. Two closes below $16.95 with weaker OBV and ADX above 25 should accelerate a fresh reduction decision—not delay action on an excessive position today or act as an automatic stop.
+Conservative Analyst: Aggressive Analyst, I agree that an oversized HL holding should be trimmed now, not after ADX reaches 25. But preserving upside is not a reason to retain 0.50× if that stake would breach the portfolio’s loss budget. The roughly $1 ATR was already 5.9% of HL’s September 28 close, and an adverse gap or a simultaneous decline in other metals holdings could cost more. The $310.2 million of 2025 free cash flow and March net cash are encouraging, not a dependable downside cushion: March cash benefited from $173.3 million of business-sale proceeds, the post-sale cash-flow picture is incomplete, and HL still reported $266.2 million of debt. Dilution and unreconciled financial figures make a confident valuation floor harder to defend.</p>
+<p>Neutral Analyst, I agree that 0.25× should not be imposed on every unknown portfolio and that two closes below $16.95 must not trigger a blind order. But “reassess promptly” needs a decision rule set before the next decline. A possible rebound from the −1.93 daily Z-score does not offset three down SuperTrends, falling OBV, weaker silver and rising yields. For HL, I would set the maximum holding now by stress-testing a loss larger than ATR alongside the portfolio’s other metals exposures. If that test permits less than 0.50×—potentially 0.25× or no residual holding—that tighter limit governs today. The $16.95, OBV and ADX combination should prompt an immediate fresh risk decision, not provide permission to carry excessive exposure until it appears.</p>
+<p>My recommendation remains a conditional SELL of HL holdings above the lesser of 0.50× the standard single-name allocation or that stress-tested limit. If holdings are already within it, I would not prescribe a sale, purchase or short. Check a current quote, use price-aware staged sales, and revisit unfilled limits promptly if conditions worsen; $17.63 and $18.19 are checkpoints, not assured exits. Rebuilding should wait for a clearer metals backdrop and primary-source evidence that HL’s post-sale operations can sustain cash generation.
+Conservative Analyst: Aggressive, I agree that an oversized HL holding should be trimmed now, not left exposed while waiting for ADX to cross 25. But retaining 0.50× a normal allocation is not automatically the “higher-reward” choice. A $2–$3 decline from HL’s September 28 close of $17.01 would be roughly a 12%–18% loss on the shares, and a gap could be worse. Three down SuperTrends, falling OBV, negative MACD, weaker silver and rising yields make that exposure costly to carry. The near-stretched daily Z-score is a reason to avoid chasing a sale at any price, not a reason to reserve half a position for a rebound.</p>
+<p>HL’s operating improvement deserves credit, but it cannot yet establish how much downside the portfolio can safely absorb. The $310.2 million of 2025 free cash flow and March net cash are encouraging; March cash also included business-sale proceeds, HL still reported debt, and complete post-sale June cash-flow detail is missing. Dilution and unreconciled figures further weaken the argument that past results provide a valuation cushion.</p>
+<p>Neutral, I agree that 0.25× should not be imposed on an unknown portfolio. Your call for explicit stress assumptions is right: set an affordable portfolio-loss allowance, subtract the loss that could occur simultaneously in other metals holdings, then divide the remaining allowance by an HL loss scenario larger than its roughly $1 ATR. A 25%–30% HL decline is a stress scenario, not a forecast. If that calculation supports less than 0.50×—including 0.25× or no residual holding—the lower ceiling governs now. “Reassess” after a breakdown is too vague unless that budget is set beforehand.</p>
+<p>My recommendation remains to SELL existing HL holdings above that risk-tested ceiling, with 0.50× the standard single-name allocation as an upper bound, not a target. Check a current quote, stage price-aware limit sales and promptly review orders that do not fill. If holdings are already within the ceiling, there is no automatic sale, purchase or short. Two closes below $16.95 with weaker OBV and ADX above 25 should prompt an immediate new sizing decision, not a blind order; a rebound toward $17.63 or $18.19 would not by itself justify rebuilding.
+Conservative Analyst: Aggressive, I agree that zero HL exposure should not be the default and that an oversized holding should be trimmed now. But preserving upside is not, on its own, a reason to keep half a normal position. HL’s $310.2 million of 2025 free cash flow is encouraging, yet March cash included $173.3 million of business-sale proceeds in investing cash flow, the post-sale asset base has changed, and complete June cash-flow detail is missing. March cash exceeded debt, but HL still reported $266.2 million of debt. Those facts support a possible recovery, not a dependable downside cushion while silver is weak, yields are rising, and all three SuperTrends point down.</p>
+<p>Neutral, your objection to a universal 0.25× cap is fair. But I would make “reassess” operational <em>before</em> another decline. Set the maximum HL holding by specifying an affordable portfolio loss under an adverse move larger than its roughly $1 ATR, while allowing for other metals holdings to fall at the same time. For illustration, if the loss allowance for that combined exposure is 1% of portfolio value and other metals could consume 0.5%, a 30% HL decline would limit HL to about 1.7% of portfolio value. That decline is a stress assumption, not a forecast; a worse plausible gap calls for a smaller limit. Compare the result with 0.50× the standard single-name allocation and use the lower ceiling.</p>
+<p>My recommendation remains a conditional SELL of HL holdings above that ceiling now, after checking a current quote. Stage price-aware sales, but review unfilled orders promptly rather than relying on a rebound to $17.63 or $18.19. If holdings are already within the ceiling, there is no automatic sale, purchase, or short. Two closes below $16.95 with weaker OBV and ADX above 25 should trigger an immediate new loss-budget calculation—not an automatic 0.25× holding, and not the first occasion to address excessive risk.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: I agree with both analysts that an oversized HL position warrants a trim now, rather than waiting for two closes below $16.95. But I would push back on the Aggressive Analyst’s confidence in a 0.50× cap: half a standard single-name allocation is not necessarily modest if the portfolio already has substantial silver, gold, or mining exposure. Nor should a confirmed break mechanically dictate another sale. ADX was still below 25 on September 28, the daily Z-score was near −2, and HL’s roughly $1 ATR leaves room for a sharp rebound or a gap. The proposed signals are reasons to reassess risk, not substitutes for a portfolio risk budget.</p>
+<p>I would also push back on leaning toward 0.25× before knowing that portfolio exposure. HL’s $310.2 million of 2025 free cash flow and strong March continuing operations give a smaller holding a credible upside case if silver stabilizes and rising yields ease. March’s reported debt of $266.2 million contradicts a literal “debt-free” description, but cash exceeded that debt at the time. That distinction matters: the balance sheet is not a reason for a reflexive exit, even though sale proceeds, missing June cash-flow detail, dilution, and unreconciled figures prevent us from calling the valuation a proven cushion.</p>
+<p>My adjustment is a conditional SELL for HL holdings above the lesser of 0.50× the investor’s standard single-name allocation or a tighter limit set by their metals concentration and tolerance for a gap larger than ATR. If holdings are already within that limit, I would not prescribe a sale, purchase, or short. Check a current quote and stage price-aware sales, while recognizing that limit orders may not fill. A break below $16.95 with weakening OBV and ADX above 25 should prompt a fresh sizing decision; a rebound through $17.63 or $18.19 should not, by itself, justify rebuilding. Revisit a larger allocation only as the metals backdrop and HL’s post-sale cash generation become clearer.
+Neutral Analyst: Aggressive Analyst, I agree that an oversized HL holding should be trimmed now rather than left untouched until ADX crosses 25. But I would not treat a second reduction to 0.25× as the preset consequence of two closes below $16.95. That low is an observation, not established support, and ADX can strengthen after much of a decline has occurred. With the daily Z-score at −1.93 and roughly $1 of ATR, the trigger should force a prompt risk review, not dictate a sale regardless of the current quote or portfolio exposure.</p>
+<p>Conservative Analyst, your stress-test is the right check on the 0.50× cap. Still, leaning toward 0.25× solely because HL can gap risks giving up meaningful upside without knowing the investor’s other holdings or loss tolerance. HL generated $310.2 million of free cash flow in 2025, and March cash exceeded reported debt. Those facts do not create a valuation floor: the business-sale proceeds were investing cash flow, post-sale cash generation is not yet clear, and the June statements are incomplete. But they do support retaining a <em>risk-sized</em> stake where the portfolio can absorb it.</p>
+<p>My decision is a conditional SELL for HL: check a current quote, then trim any existing holding above the lesser of 0.50× the investor’s standard single-name allocation or a tighter limit based on total metals exposure and an affordable loss from a move larger than ATR. If HL is already within that limit, I would not prescribe a sale, purchase, or short. Stage price-aware orders, but revisit unfilled limits if conditions worsen rather than assuming a rebound to $17.63 or $18.19 will provide an exit.</p>
+<p>If two daily closes below $16.95 coincide with weaker OBV and ADX above 25, reassess promptly whether the risk budget calls for a cap nearer 0.25×. Conversely, a bounce alone would not justify rebuilding while all three SuperTrends point down. I would want silver and yields to stabilize and HL’s primary disclosures to clarify post-sale cash flow, debt and dilution before considering more exposure. That preserves some participation in the operating improvement without asking the portfolio to rely on an unproven cushion.
+Neutral Analyst: Aggressive Analyst, I agree that HL holders above a sensible limit should trim now rather than wait for ADX to cross 25. Where I differ is the proposed move to a 0.25× cap after two closes below $16.95. That would be stronger bearish evidence, but $16.95 is only an observed low, and ADX can confirm a move late. It should trigger a same-day sizing decision against a loss budget set in advance, not make 0.25× the right answer for every portfolio.</p>
+<p>Conservative Analyst, your stress test gives that decision substance. But it needs explicit assumptions: how much could HL lose in a gap larger than its roughly $1 ATR, and what if other metals holdings fall at the same time? Without those questions, “gap risk” can become an undefined reason to keep cutting. HL’s $310.2 million of 2025 free cash flow and March net-cash position give an affordable smaller stake a legitimate upside case if silver stabilizes. They are not a valuation floor: sale proceeds boosted cash, June cash-flow detail is missing, and reported debt was not zero.</p>
+<p>My recommendation remains a conditional SELL for HL: after checking a current quote, trim existing holdings above the lesser of 0.50× the investor’s standard single-name allocation or a tighter cap justified by an affordable portfolio loss under a larger-than-ATR move. If holdings are already within that cap, do not sell automatically; this is not a purchase or short recommendation. Use staged, price-aware sales, but revisit unfilled limits promptly. A confirmed break below $16.95 with weaker OBV and ADX above 25 calls for an immediate reassessment, potentially toward 0.25× if the risk budget warrants it. A bounce toward $17.63 or $18.19 alone would not justify rebuilding while the broader trend is down and post-sale cash generation remains unclear.
+Neutral Analyst: Aggressive, I agree that an oversized HL holding should be trimmed now, not left exposed until ADX crosses 25. But I would not precommit every investor to a 0.25× cap after two closes below $16.95. That level is an observed low, not proven support; ADX can confirm late, and the −1.93 daily Z-score makes a sharp rebound plausible. The signal should force a prompt sizing decision, not determine the answer regardless of portfolio risk.</p>
+<p>Conservative, your larger-than-ATR stress test gives that decision a useful discipline. I would not let it become a presumption that every investor needs a 0.25× or zero holding, though. HL’s $310.2 million of 2025 free cash flow and March net-cash position support retaining an affordable stake if silver recovers. Equally, the $173.3 million of business-sale proceeds were investing cash flow, not recurring operating cash flow; incomplete June detail, dilution and reported debt prevent those results from establishing a valuation floor.</p>
+<p>My middle ground is a conditional SELL for HL. Check a current quote, then trim existing holdings above the lesser of 0.50× the investor’s usual single-name allocation or a cap set by an affordable portfolio loss under a larger-than-ATR HL decline alongside losses in other metals holdings. If HL is already below that cap, I would prescribe no sale, purchase or short. Stage price-aware sales of any excess now, but revisit unfilled limits promptly rather than counting on $17.63 or $18.19 as exits.</p>
+<p>If the proposed $16.95, OBV and ADX conditions occur, recalculate that risk cap immediately; 0.25× may be appropriate, but it is not automatic. A rebound alone would not justify rebuilding while the broader trend is down. I would look for a steadier silver-and-yields backdrop and clearer primary-source evidence of HL’s post-sale cash generation first.
+Neutral Analyst: Aggressive, I agree with trimming excess HL now. Three down SuperTrends, falling OBV and negative MACD make waiting for ADX to cross 25 an unnecessary gamble. But I would not preselect a 0.25× cap after two closes below $16.95, even conditionally: that low is not proven support, and confirmation could arrive after a sharp move. The useful commitment is to recalculate the affordable position promptly, using the current quote, rather than to promise a particular fraction.</p>
+<p>Conservative, your combined metals stress test makes that recalculation practical. The missing distinction is that a 25%–30% HL decline is a scenario for setting a loss budget, not evidence that every investor should hold little or none. Your example yields an HL ceiling of about 1.7% of portfolio value, but only for an investor with those specific loss allowances and assumptions about other metals holdings. HL’s 2025 free cash flow and March net cash give an affordable residual stake a credible upside case. They do not establish a floor: March cash included business-sale proceeds, reported debt was not zero, and complete post-sale cash-flow detail is missing.</p>
+<p>So I support a conditional SELL: check a current HL quote and trim existing holdings above the lesser of 0.50× the usual single-name allocation or a ceiling based on a larger-than-ATR HL loss alongside other metals losses. If holdings are already within that ceiling, I would prescribe no sale, purchase or short. Use staged, price-aware orders and review any that do not fill. The $16.95, OBV and ADX combination calls for an immediate new sizing decision; a bounce toward $17.63 or $18.19 alone does not justify rebuilding. For that, I would want a steadier silver-and-yields backdrop and clearer primary-source evidence of HL’s post-sale cash generation.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: For HL, trim existing exposure above the lesser of 0.50× the portfolio's standard single-name allocation or a tighter, stress-tested risk ceiling, and reassess at the next reporting cycle. If already within that ceiling, do not sell automatically or add; if unowned, remain uninvested, and do not short HL. Obtain a current executable quote before staging price-aware limit sales of any excess, and promptly revisit unfilled orders rather than relying on a rebound. Treat the September 28 $16.95 level as a reference, not a stop: if still relevant, two daily closes below it with weakening OBV and ADX above 25 require an immediate sizing decision against the portfolio loss budget, not an automatic 0.25× allocation.</p>
+<p><strong>Investment Thesis</strong>: HL merits reduced exposure, not a blanket exit. The aggressive analyst is right that an oversized holding should be trimmed before further bearish confirmation; the conservative and neutral analysts make the stronger case that the residual holding must be governed by portfolio loss capacity rather than a universal position fraction. The trader's sale of excess shares therefore translates into an Underweight rating, rather than a recommendation to liquidate every holding.</p>
+<p>The supplied September 28 market evidence favors reducing risk: three bearish SuperTrends, falling OBV, a -0.34 MACD histogram, weaker silver and rising yields. ADX rose from 19.67 to 22.77 but remained below 25, while the daily Z-score of -1.93 makes a rebound plausible without establishing a reversal. Approximately $1 of ATR against the $17.01 reference close represents about 5.9% daily range, and gaps can be larger. These qualifications argue against indiscriminate selling or shorting, not against trimming exposure that already exceeds a defensible ceiling.</p>
+<p>The operating recovery supports an affordable residual stake. HL reported $310.2 million of 2025 free cash flow and $155.0 million for the March quarter; March cash of approximately $588 million exceeded reported debt of $266.2 million. HL was therefore net cash at that snapshot, not literally debt-free. The $173.3 million of asset-sale proceeds boosted cash through investing activities, not recurring operating cash flow; those proceeds should neither be counted as recurring operating generation nor used to dismiss the genuine operating improvement. Complete June post-sale cash-flow, capital-spending and balance-sheet information remains missing. The supplied plan's approximately 24% decline in June normalized income from March raises a sustainability question, but does not prove structural deterioration.</p>
+<p>There is no demonstrated valuation cushion. The supplied plan's roughly 37× 2025 free-cash-flow multiple and 24× summed four-quarter multiple are historical measures, not clean forward valuations of the remaining business. The $467 million quarterly sum versus the $342 million vendor trailing figure and the reported $141 million revenue discrepancy require reconciliation. The reported 6.1% share-count increase makes per-diluted-share economics important. The greater-than-20-million-ounce ambition deserves no material valuation credit without a verified timetable, capital budget and project returns.</p>
+<p>Make sizing operational before another decline. Let S be the standard single-name portfolio weight, B the permitted combined metals stress loss as a fraction of portfolio value, L_other the simultaneous stress loss from other metals holdings on the same basis, and d the assumed fractional decline in HL. The HL ceiling is min(0.50×S, max(0, B-L_other)/d). The analysts' 25%–30% HL decline is an illustrative stress scenario, not a forecast or a worst-case bound; test worse plausible gaps where appropriate. A holding at 1.00× standard would therefore be reduced by at least half, while a tighter portfolio risk limit can justify 0.25× or less, including no residual position. None of these fractions is a required holding, and the caller's actual holdings, concentration and loss allowance are unknown.</p>
+<p>All quoted prices are supplied September 28 references, not verified current quotes; refresh prices and indicators before using them. The $16.95 observed low is just $0.06 below the cited close, well inside the reported ATR, and is not proven support. If the two-close, OBV and ADX conditions occur, immediately recalculate the ceiling using current circumstances and sell any excess above that revised limit; 0.25× is appropriate only if justified, not mechanically. Fundamental impairment warrants immediate review without waiting for this technical combination. Limit orders can remain unfilled and do not eliminate gap risk.</p>
+<p>A larger HL allocation requires primary disclosures establishing recurring post-sale cash flow after necessary capital spending, including working-capital effects and the maintenance/growth split, reconciled financial figures and diluted-share results. Mine-level production, realized prices, costs and funded project economics must substantiate the operating and growth cases. Stabilization in silver and yields, improving participation and sustained recovery through refreshed $17.63 and $18.19 checkpoints would support reconsideration; a bounce alone would not. The supplied $20.30 daily SuperTrend is another trend-confirmation reference, not a target. No defensible fair-value target can be derived from the incomplete evidence.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Through HL's next reporting cycle, with earlier review on material fundamental or risk changes.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

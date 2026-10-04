@@ -1,0 +1,1 @@
+{"version": 1, "status": "complete", "required_stages": ["1_analysts/market.md", "1_analysts/sentiment.md", "1_analysts/news.md", "1_analysts/fundamentals.md", "2_research/manager.md", "3_trading/trader.md", "5_portfolio/decision.md", "complete_report.md"]}

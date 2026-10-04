@@ -1,0 +1,4440 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/LLY/20260928_gpt-6-astra_20260928_195553/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: LLY - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-lly" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: LLY
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lly-technical-outlook-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLY technical outlook — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-indicators-show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the indicators show
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable scenarios
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lly-sentiment-report-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLY sentiment report | 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-by-source-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source-by-source assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-source-alignment-and-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-source alignment and divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dominant-themes-catalysts-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dominant themes, catalysts and risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lly-trading-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLY trading and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-for-lly-this-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed for LLY this week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macro-backdrop-and-forward-looking-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Macro backdrop and forward-looking signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading implications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lly-fundamental-report-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLY fundamental report — 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-in-the-past-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed in the past week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#earnings-and-operating-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Earnings and operating history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-generation-investment-and-financing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash generation, investment and financing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-sheet-and-financial-resilience" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance sheet and financial resilience
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valuation-and-insider-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valuation and insider context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-implications-and-checks-for-the-next-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading implications and checks for the next release
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-lly">Trading Analysis Report: LLY<a class="headerlink" href="#trading-analysis-report-lly" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:55:53</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="lly-technical-outlook-september-28-2026">LLY technical outlook — September 28, 2026<a class="headerlink" href="#lly-technical-outlook-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>LLY is recovering within a longer-term uptrend, but its daily trend has not yet turned bullish.</strong> The verified September 28 close was <strong>$1,184.78</strong>, above the 50-day SMA of <strong>$1,176.88</strong>. Momentum has improved, while the daily SuperTrend remains down with its current reversal line at <strong>$1,217.65</strong>. That combination favors a <em>conditional</em> bullish view rather than treating the rebound as a confirmed breakout.</p>
+<p>I selected <strong>eight complementary indicators</strong>: SuperTrend and the 50-day SMA for trend and timeframe alignment; MACD histogram and RSI for momentum; ADX for trend strength; ATR for risk; OBV for participation; and the multi-timeframe z-score for price stretch. The assessment below is technical only; it does not assume a company-specific catalyst.</p>
+<h4 id="what-the-indicators-show">What the indicators show<a class="headerlink" href="#what-the-indicators-show" title="Permanent link">&para;</a></h4>
+<p><strong>Trend — constructive on higher timeframes, unresolved on the daily chart.</strong> SuperTrend is <strong>up weekly</strong>, with a trailing line at <strong>$979.50</strong>, and <strong>up monthly</strong>, with a line at <strong>$781.52</strong>. It is <strong>down daily</strong>, with a line at <strong>$1,217.65</strong>. The higher-timeframe signals deserve more weight for the broader direction, but neither distant higher-timeframe line is a practical tight stop for a short-term trade. The current daily line is <strong>$32.87 above</strong> the verified close; it is a confirmation threshold to monitor, not a forecast that price must reach it.</p>
+<p>The close has reclaimed the verified <strong>50-day SMA of $1,176.88</strong>, but only narrowly. That average fell from <strong>$1,190.35 on September 4</strong> to <strong>$1,176.88 on September 28</strong> and has only recently begun to flatten. Thus, price is improving faster than this lagging medium-term trend measure.</p>
+<p><strong>Momentum — improving, not unequivocal.</strong> The verified MACD histogram is <strong>+6.28</strong>, compared with an indicator reading of <strong>−0.26 on September 18</strong>. Yet the verified MACD line itself remains <strong>−0.73</strong>: the positive histogram shows MACD above its signal line, not that the MACD line has already crossed above zero. Verified <strong>RSI is 56.11</strong>, consistent with improving upside momentum without a conventional overbought reading.</p>
+<p><strong>Trend strength — breakout confirmation is still needed.</strong> ADX rose from <strong>18.30 on September 25</strong> to <strong>20.71 on September 28</strong>, but remains below the roughly <strong>25</strong> threshold commonly used here to identify a stronger trend. ADX does not establish direction by itself. Also, this feed’s ADX uses EMA-6 smoothing of DX-14, so its reading may differ from a conventional Wilder ADX on another platform.</p>
+<p><strong>Participation and stretch — supportive, with limits.</strong> OBV rose from <strong>338,606,700 on September 11</strong> to <strong>355,853,200 on September 28</strong>, broadly accompanying the recovery from the verified closes of <strong>$1,115.70</strong> and <strong>$1,184.78</strong> on those dates. OBV’s <em>direction</em>, not its absolute number, matters. September 28 volume was <strong>1,971,200 shares</strong>, however, so the latest session alone is not compelling evidence of a high-volume breakout. Z-scores are <strong>+0.51 weekly, +1.41 monthly, and +1.63 daily</strong>. None reaches the specified <strong>±2</strong> stretch threshold; the daily price is elevated relative to its recent mean, but there is no standalone statistical exhaustion signal.</p>
+<h4 id="actionable-scenarios">Actionable scenarios<a class="headerlink" href="#actionable-scenarios" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>For a patient long entry:</strong> Watch for a daily close above the <strong>September 28 high of $1,194.09</strong>, ideally with stronger volume and OBV continuing upward. Treat that as <em>initial</em> upside confirmation, not a full daily trend reversal. A subsequent close above the <strong>current $1,217.65 daily SuperTrend line</strong> would address the main timeframe conflict. SuperTrend recalculates, so recheck its line on the day of any signal.</li>
+<li><strong>For an existing long:</strong> The <strong>$1,176.88 50-day SMA</strong> is the immediate trend check, followed by the <strong>September 28 low of $1,172.56</strong> as a recent-session reference. A close back below the average would weaken the recovery case; these levels are <strong>not</strong> established support proven by repeated bounces. Reassess rather than automatically reversing short, given the weekly and monthly uptrends.</li>
+<li><strong>If the recovery fails:</strong> The verified <strong>September 23 close of $1,150.99</strong> and <strong>September 11 close of $1,115.70</strong> provide dated downside reference points, not guaranteed floors. A weakening histogram alongside a loss of the 50-day SMA would add weight to a bearish <em>daily</em> scenario.</li>
+<li><strong>Size for volatility:</strong> Verified ATR is <strong>$31.70</strong>. As an illustration anchored to the September 28 close, a two-ATR distance is <strong>$63.40 per share</strong>, implying <strong>$1,121.38</strong> below that reference close. Divide a predetermined dollar risk budget by the <em>actual planned entry-to-stop distance</em>, and recalculate at entry. ATR describes recent movement, not a maximum loss; gaps and slippage can exceed a stop.</li>
+</ul>
+<p>The key distinction is <strong>recovery versus confirmation</strong>: LLY has regained its 50-day average and positive short-term momentum, while a sub-25 ADX and down daily SuperTrend argue against assuming a durable new daily uptrend yet. Exact OHLCV, 50-day SMA, MACD, RSI, and ATR figures above are checked against the September 28 verified snapshot. SuperTrend, ADX, OBV, and z-score figures come from their respective indicator outputs; those four are not included in that snapshot.</p>
+<table>
+<thead>
+<tr>
+<th>Indicator or decision point</th>
+<th>Latest evidence</th>
+<th>Trading interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SuperTrend</strong></td>
+<td>Weekly up, <strong>$979.50</strong>; monthly up, <strong>$781.52</strong>; daily down, <strong>$1,217.65</strong></td>
+<td>Broader uptrend conflicts with daily weakness; prioritize timeframe and wait for daily confirmation.</td>
+</tr>
+<tr>
+<td><strong>50-day SMA</strong></td>
+<td><strong>$1,176.88</strong> versus <strong>$1,184.78</strong> close</td>
+<td>Narrow reclaim; a close back below it would weaken the recovery.</td>
+</tr>
+<tr>
+<td><strong>MACD histogram</strong></td>
+<td><strong>+6.28</strong>; MACD line <strong>−0.73</strong></td>
+<td>Momentum is improving, but the MACD line remains below zero.</td>
+</tr>
+<tr>
+<td><strong>RSI</strong></td>
+<td><strong>56.11</strong></td>
+<td>Positive-leaning momentum; not conventionally overbought.</td>
+</tr>
+<tr>
+<td><strong>ADX</strong></td>
+<td><strong>20.71</strong></td>
+<td>Strength is rising but has not reached the approximately <strong>25</strong> trend-confirmation threshold.</td>
+</tr>
+<tr>
+<td><strong>ATR</strong></td>
+<td><strong>$31.70</strong></td>
+<td>Use entry-to-stop distance and a fixed risk budget to size the position.</td>
+</tr>
+<tr>
+<td><strong>OBV</strong></td>
+<td><strong>355,853,200</strong>, up from <strong>338,606,700 on September 11</strong></td>
+<td>Participation has improved during the recovery; seek continued confirmation on a breakout.</td>
+</tr>
+<tr>
+<td><strong>Z-score</strong></td>
+<td>Weekly <strong>+0.51</strong>; monthly <strong>+1.41</strong>; daily <strong>+1.63</strong></td>
+<td>Above recent means, but below the <strong>+2</strong> stretch watch level.</td>
+</tr>
+<tr>
+<td><strong>Near-term triggers</strong></td>
+<td>September 28 high <strong>$1,194.09</strong>; current daily SuperTrend <strong>$1,217.65</strong></td>
+<td>A close above the high is an initial test; a close through the updated daily SuperTrend is stronger confirmation.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mildly Bullish</strong> (Score: 6.0/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="lly-sentiment-report-2026-09-21-to-2026-09-28">LLY sentiment report | 2026-09-21 to 2026-09-28<a class="headerlink" href="#lly-sentiment-report-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="source-by-source-assessment">Source-by-source assessment<a class="headerlink" href="#source-by-source-assessment" title="Permanent link">&para;</a></h4>
+<p><strong>News (Yahoo Finance feed; 20 headlines): Constructive, with meaningful competitive caveats.</strong> The strongest company-specific developments are the reported FDA approval expanding LLY’s Olumiant to patients aged 12 and older with severe alopecia areata (reported in both Zacks and Insider Monkey; one underlying approval, not two separate catalysts) and Bloomberg’s report that CEO Dave Ricks expects somewhat larger acquisitions, citing LLY’s $7.8 billion Centessa transaction as a model for investing beyond its obesity and diabetes franchise. A TIKR headline also reports FDA approval of a weekly insulin; the supplied excerpt does not substantiate details beyond that headline. Reports of Citigroup seeing a potential 35% gain provide a bullish analyst view, but the same article flags pricing pressure and a slow oral GLP-1 launch. Competitive headlines counterbalance these positives: a reported Phase 3 diabetes-trial comparison found 12.4% weight loss for a specified CagriSema dose versus 9.1% for the specified 5-mg tirzepatide comparator after 60 weeks, and Roche reported 15.5% average weight loss in a mid-stage study involving patients with type 2 diabetes. These are specific trial results, not proof of superiority across all doses or populations. A Viking GLP-1 comparison and a busy readout calendar reinforce competition. Several of the 20 headlines concern other companies or only broad healthcare-sector activity and should not be counted as direct LLY signals; syndicated CEO and Olumiant coverage should likewise not be counted as independent developments.</p>
+<p><strong>StockTwits (28 most-recent messages): Bullish-leaning labels, noisier underlying discussion.</strong> Seven messages are user-tagged Bullish, one Bearish, and 20 unlabeled: a 7:1 bullish/bearish ratio, or 87.5% bullish <em>among the eight labeled messages</em>, versus just 25% explicitly bullish among all 28. Nearly all messages were posted on September 28, making this a short snapshot rather than a week-long sample. Two Bullish-tagged posts link to the same reported JPMorgan target increase to $1,500 from $1,400, so they are not two independent upgrades. One Bullish-tagged post claims Foundayo exceeded 50,000 weekly prescriptions; an unlabeled post instead questions whether reported new-patient uptake can persist after an alleged free 30-day supply. Both are unverified social claims here. The sole Bearish-tagged message actually says a potential competitor would be ‘crushed by $LLY,’ so its tag appears to describe the competing name rather than bearishness toward LLY. Conversely, some unlabeled posts flag Novo’s relative valuation, its favorable trial comparison, and competition for a drug-delivery partnership. Other posts simply contain tickers, links, or unrelated discussion. User tags therefore overstate the precision of the LLY-specific bullish/bearish split.</p>
+<p><strong>Reddit: No usable sample.</strong> Reddit was explicitly disabled by the collection configuration. There are no posts, vote counts, or subreddit-specific observations to analyze; absence of data is not neutral or bearish sentiment. This missing third source, the small labeled StockTwits sample, and duplicated or peripheral news justify <strong>low confidence</strong>.</p>
+<h4 id="cross-source-alignment-and-divergence">Cross-source alignment and divergence<a class="headerlink" href="#cross-source-alignment-and-divergence" title="Permanent link">&para;</a></h4>
+<p>News and the more substantive StockTwits posts broadly align on LLY’s portfolio expansion, acquisition plans, and continued obesity-drug focus. Retail labels lean more bullish than the qualified news framing, but this is a difference in emphasis, not a clean news-bearish/retail-bullish split. Both sources surface the Novo competitive result. Social claims about Foundayo traction conflict with social doubts about sampling-driven demand; the supplied news excerpt independently flags a slow oral GLP-1 launch but does not resolve that dispute. Reddit provides no third-source check.</p>
+<h4 id="dominant-themes-catalysts-and-risks">Dominant themes, catalysts and risks<a class="headerlink" href="#dominant-themes-catalysts-and-risks" title="Permanent link">&para;</a></h4>
+<p>The dominant question is whether cash flows and growth from LLY’s obesity and diabetes franchise can finance a broader durable pipeline while the franchise faces intensifying competition. Potential favorable catalysts in the supplied material are commercial execution for the oral product, follow-through on the reported Olumiant label expansion and weekly-insulin approval headline, and disciplined larger deals. Principal risks are rival trial readouts, drug pricing, uncertainty about paid demand after introductory offers, acquisition spending and execution, and valuation sensitivity. Analyst price targets and percentage-upside estimates are opinions, not observed future returns. No earnings date or other firm upcoming catalyst date is provided. This is a sentiment input for a trader, <strong>not a price forecast or trade recommendation</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Key signal for LLY</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence / qualification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pediatric Olumiant label expansion</td>
+<td>Bullish</td>
+<td>News</td>
+<td>FDA approval reported for ages 12+ with severe alopecia areata; repeated headlines refer to one event.</td>
+</tr>
+<tr>
+<td>Larger acquisitions beyond core franchise</td>
+<td>Mildly bullish / execution risk</td>
+<td>Bloomberg news; StockTwits</td>
+<td>CEO describes ‘white space’ deals around the reported $7.8 billion Centessa acquisition; returns on spending remain uncertain.</td>
+</tr>
+<tr>
+<td>Rival obesity-drug readouts</td>
+<td>Bearish risk</td>
+<td>News; StockTwits</td>
+<td>Specified Novo Phase 3 comparator beat a specified tirzepatide dose on weight loss; Roche reported mid-stage results in a different study.</td>
+</tr>
+<tr>
+<td>Retail user-tag balance</td>
+<td>Bullish, weak signal</td>
+<td>StockTwits</td>
+<td>7 Bullish, 1 Bearish, 20 unlabeled out of 28; the Bearish-tagged post appears favorable to LLY.</td>
+</tr>
+<tr>
+<td>Oral-drug adoption and durability</td>
+<td>Mixed</td>
+<td>News; StockTwits</td>
+<td>News flags a slow launch; posts claim prescription growth or question whether free sampling converts into paid demand.</td>
+</tr>
+<tr>
+<td>Analyst optimism versus pricing</td>
+<td>Mixed</td>
+<td>News; StockTwits</td>
+<td>Citigroup upside thesis accompanies pricing cautions; two posts repeat one reported JPMorgan target increase.</td>
+</tr>
+<tr>
+<td>Reddit community signal</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>Feed disabled; cannot assess sentiment or engagement.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="lly-trading-and-macro-report-september-28-2026">LLY trading and macro report — September 28, 2026<a class="headerlink" href="#lly-trading-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Bottom line:</strong> LLY has a positive company-specific development—an expanded FDA indication for Olumiant—but the more consequential trading questions remain obesity-drug competition, the returns on acquisitions, and rising bond yields. I would treat LLY as <strong>event-driven rather than a straightforward buy on this week’s headlines</strong>: monitor clinical comparisons and yields before adding exposure. This is a research view, not a price target; the available tools did not provide a verified LLY quote or valuation.</p>
+<h4 id="what-changed-for-lly-this-week">What changed for LLY this week<a class="headerlink" href="#what-changed-for-lly-this-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Olumiant gained a broader U.S. indication.</strong> Reports say the FDA approved Olumiant (baricitinib) for patients aged 12 and older with severe alopecia areata on September 25. That expands its potential market and provides a tangible diversification win, although the supplied reports do not quantify the likely revenue contribution. <a href="https://finance.yahoo.com/healthcare/articles/llys-olumiant-gets-fda-nod-140300168.html">Zacks</a> · <a href="https://finance.yahoo.com/healthcare/articles/eli-lilly-company-lly-expanding-041132665.html">Insider Monkey</a></li>
+<li><strong>Management signaled appetite for somewhat larger deals.</strong> CEO Dave Ricks said investors should expect acquisitions along the lines of the reported <strong>$7.8 billion Centessa transaction</strong>, targeting scientific areas beyond LLY’s current franchises. A broader pipeline could reduce long-run dependence on diabetes and obesity products; near term, traders should scrutinize purchase prices, financing and the time to meaningful returns. <a href="https://finance.yahoo.com/healthcare/articles/lilly-ceo-eyes-bigger-deals-172818009.html">Bloomberg</a></li>
+<li><strong>Obesity competition warrants closer attention, not an automatic change to sales forecasts.</strong> Roche reported average <strong>15.5% weight loss</strong> in a mid-stage trial of enicepatide involving overweight or obese patients with type 2 diabetes. Separately, coverage highlighted a Novo Nordisk Phase 3 CagriSema result, including <strong>12.4% weight loss at 60 weeks</strong> for a specified dose in adults with type 2 diabetes. Different trials, patients, doses and durations prevent a reliable head-to-head ranking from these figures alone. Watch comparable efficacy <em>and</em> tolerability data, rather than trading on a “winner” headline. <a href="https://finance.yahoo.com/healthcare/articles/roche-latest-obesity-drug-results-195829767.html">Roche coverage</a> · <a href="https://finance.yahoo.com/healthcare/articles/novo-nordisk-just-beat-lilly-183132154.html">Novo coverage</a></li>
+</ul>
+<p>A secondary-source headline also reports FDA approval of a LLY weekly insulin product, but the retrieved material does not substantiate its approval details. <strong>Verify the FDA notice and LLY release before incorporating it into a trade.</strong> <a href="https://www.tikr.com/blog/eli-lilly-wins-fda-approval-for-weekly-insulin-heres-what-comes-next?ref=yahoofinance">TIKR</a></p>
+<h4 id="macro-backdrop-and-forward-looking-signals">Macro backdrop and forward-looking signals<a class="headerlink" href="#macro-backdrop-and-forward-looking-signals" title="Permanent link">&para;</a></h4>
+<p>Bond yields rose and major U.S. indexes fell on September 28, according to the week’s market coverage, reversing some of the resilience seen when indexes posted weekly gains on September 25. Higher yields can weigh on the present value investors assign to LLY’s distant growth and make acquisition financing less attractive, even if drug demand itself is relatively defensive. <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">September 28 market report</a> · <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">Bond-market report</a> · <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-notch-weekly-wins-market-shrugs-off-bond-sell-off-oil-prices-ease-081738529.html">September 25 market report</a></p>
+<p>Prediction markets provide context, <strong>not reliable forecasts or interchangeable Fed scenarios</strong>. Polymarket priced <em>no Fed rate cuts during 2026</em> at <strong>97%</strong> (approximately <strong>$8.65 million</strong> traded in that market) and a <em>U.S. recession by year-end 2026</em> at <strong>8%</strong> (approximately <strong>$2.23 million</strong> traded). Another market priced an additional 2026 Fed hike at 90%, but its contract wording and resolution differ; do not combine these figures into a single policy probability. A separate market assigned <strong>4%</strong> to FDA approval of retatrutide in 2026; that is a market price, <strong>not</strong> an FDA timetable. All odds are snapshots as retrieved on September 28.</p>
+<p><strong>Data limitation:</strong> The FRED macro tool returned <code>DATA_UNAVAILABLE</code> for CPI, core PCE, unemployment, the policy rate, the 10-year Treasury yield and the yield curve. Consequently, this report does <strong>not</strong> assert current readings or a measured weekly change in those series. Confirm rate and inflation data independently before sizing a macro-driven LLY position.</p>
+<h4 id="trading-implications">Trading implications<a class="headerlink" href="#trading-implications" title="Permanent link">&para;</a></h4>
+<p>For a <strong>bullish LLY setup</strong>, look for yields to stabilize while subsequent obesity-product sales, supply and reimbursement disclosures support growth expectations. Olumiant’s expanded label and disciplined acquisitions would add support, but neither alone establishes that the stock is attractively priced.</p>
+<p>For a <strong>cautious LLY setup</strong>, watch for sustained yield increases, credible rival data that alter expected market share or pricing, or acquisitions whose cost rises faster than the evidence for returns. Keep trial-to-trial comparisons separate from direct comparative studies. Without a verified current quote, earnings estimates or valuation from these tools, there is <strong>no evidence-based entry price, stop or upside percentage</strong> to recommend.</p>
+<table>
+<thead>
+<tr>
+<th>LLY-relevant factor</th>
+<th>Evidence as of September 28</th>
+<th>What to watch or do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Expanded Olumiant use</td>
+<td>Reported FDA approval for severe alopecia areata in patients 12+</td>
+<td>Check LLY’s estimate of eligible patients, access and incremental sales; positive, but unquantified</td>
+</tr>
+<tr>
+<td>Acquisition strategy</td>
+<td>CEO indicated interest in somewhat larger, non-core-science deals</td>
+<td>Assess financing, integration and expected returns before treating deal announcements as bullish</td>
+</tr>
+<tr>
+<td>Obesity competition</td>
+<td>Roche mid-stage and Novo Phase 3 results drew attention</td>
+<td>Seek comparable endpoints, safety and patient populations; avoid cross-trial “winner” trades</td>
+</tr>
+<tr>
+<td>Rates and risk appetite</td>
+<td>News reported rising yields and September 28 equity declines</td>
+<td>Monitor confirmed Treasury yields and LLY’s response; avoid assuming healthcare is immune to valuation pressure</td>
+</tr>
+<tr>
+<td>Fed and recession odds</td>
+<td>Prediction markets: 97% no 2026 cuts; 8% recession by year-end</td>
+<td>Use as sentiment indicators, not substitutes for economic releases</td>
+</tr>
+<tr>
+<td>Data and execution</td>
+<td>FRED series and a verified LLY quote were unavailable</td>
+<td>Confirm macro levels, price and valuation before setting position size or trade levels</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="lly-fundamental-report-2026-09-28">LLY fundamental report — 2026-09-28<a class="headerlink" href="#lly-fundamental-report-2026-09-28" title="Permanent link">&para;</a></h4>
+<p><strong>Eli Lilly and Company (LLY)</strong> is a NYQ-listed pharmaceutical company in Healthcare / Drug Manufacturers – General. Its businesses span diabetes and obesity, oncology, immunology and neuroscience. Mounjaro and Zepbound are important products to the investment case, but the available data contain <strong>no product-level sales, current guidance or pipeline update</strong>; their contribution to the figures below cannot be quantified from these tools.</p>
+<p><strong>Bottom line for traders:</strong> LLY is delivering rapid revenue and cash-flow growth, but its valuation assumes substantially higher future earnings. The latest supplied quarter also shows a sharp rise in debt and acquisition-related asset balances. The next financial release should be judged on whether growth converts into durable <em>per-share earnings and free cash flow</em> without further rapid balance-sheet expansion.</p>
+<h4 id="what-changed-in-the-past-week">What changed in the past week<a class="headerlink" href="#what-changed-in-the-past-week" title="Permanent link">&para;</a></h4>
+<p>The available financial statements end <strong>2026-06-30</strong>; the data vendor gives fiscal period-end dates, not filing dates. Its insider feed shows four small <strong>director stock awards on 2026-09-21</strong>, totaling 35 shares. It shows <strong>no open-market insider purchase or sale dated September 21–28</strong>. These awards are compensation, not evidence of directors buying LLY with their own cash.</p>
+<p>The tools do not establish whether LLY published a filing, guidance change, clinical result or other fundamental announcement during the past week. <strong>Do not treat the absence of such an item in this report as confirmation that none occurred.</strong></p>
+<h4 id="earnings-and-operating-history">Earnings and operating history<a class="headerlink" href="#earnings-and-operating-history" title="Permanent link">&para;</a></h4>
+<p>Amounts are USD billions except per-share figures. The 2026 quarterly comparison uses the same quarter a year earlier.</p>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th style="text-align: right;">2023</th>
+<th style="text-align: right;">2024</th>
+<th style="text-align: right;">2025</th>
+<th style="text-align: right;">Q2 2025</th>
+<th style="text-align: right;">Q2 2026</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td style="text-align: right;">34.124</td>
+<td style="text-align: right;">45.043</td>
+<td style="text-align: right;">65.179</td>
+<td style="text-align: right;">15.558</td>
+<td style="text-align: right;"><strong>22.974</strong></td>
+</tr>
+<tr>
+<td>Gross profit</td>
+<td style="text-align: right;">27.042</td>
+<td style="text-align: right;">36.625</td>
+<td style="text-align: right;">54.127</td>
+<td style="text-align: right;">13.110</td>
+<td style="text-align: right;"><strong>19.706</strong></td>
+</tr>
+<tr>
+<td>Operating income, vendor statement</td>
+<td style="text-align: right;">10.325</td>
+<td style="text-align: right;">17.040</td>
+<td style="text-align: right;">29.696</td>
+<td style="text-align: right;">7.021</td>
+<td style="text-align: right;"><strong>12.457</strong></td>
+</tr>
+<tr>
+<td>Net income</td>
+<td style="text-align: right;">5.240</td>
+<td style="text-align: right;">10.590</td>
+<td style="text-align: right;">20.640</td>
+<td style="text-align: right;">5.661</td>
+<td style="text-align: right;"><strong>7.095</strong></td>
+</tr>
+<tr>
+<td>Diluted EPS</td>
+<td style="text-align: right;">$5.80</td>
+<td style="text-align: right;">$11.71</td>
+<td style="text-align: right;">$22.95</td>
+<td style="text-align: right;">$6.29</td>
+<td style="text-align: right;"><strong>$7.94</strong></td>
+</tr>
+<tr>
+<td>R&amp;D expense</td>
+<td style="text-align: right;">9.313</td>
+<td style="text-align: right;">10.991</td>
+<td style="text-align: right;">13.337</td>
+<td style="text-align: right;">3.336</td>
+<td style="text-align: right;"><strong>3.819</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Revenue rose <strong>44.7% in 2025</strong> after approximately <strong>32.0% growth in 2024</strong>. Q2 2026 revenue increased <strong>47.7% year over year</strong> and <strong>16.0% from Q1 2026</strong>. Q2 gross margin was approximately <strong>85.8%</strong>, versus <strong>84.3%</strong> a year earlier. Diluted EPS increased <strong>26.2% year over year</strong>. Outstanding ordinary shares fell from <strong>896.8 million at June 2025</strong> to <strong>891.5 million at June 2026</strong>, providing a modest per-share benefit.</p>
+<p>The distinction between sales growth and take-home profit matters: Q2 net income rose <strong>25.3%</strong>, slower than revenue, and net margin fell to approximately <strong>30.9%</strong> from <strong>36.4%</strong> a year earlier. The vendor identifies <strong>$3.479 billion of Q2 2026 unusual items</strong>, versus <strong>$154 million in Q2 2025</strong>. It separately lists Q2 “reported operating income” of <strong>$8.978 billion</strong>, exactly $3.479 billion below its $12.457 billion operating-income line. Its normalized Q2 income is approximately <strong>$9.764 billion</strong>, versus $7.095 billion reported net income. <strong>Traders should examine the underlying disclosure and the nature of these charges before extrapolating either profit measure.</strong> Annual unusual items were also substantial—<strong>$3.394 billion in 2025</strong> and <strong>$4.141 billion in 2024</strong>—so assuming adjustments will disappear would be aggressive.</p>
+<p>R&amp;D spending increased to <strong>$13.337 billion in 2025</strong> from $10.991 billion in 2024; Q2 2026 spending was <strong>$3.819 billion</strong>. This supports continuing product investment, while also making pipeline execution important to the long-run return on that spending.</p>
+<h4 id="cash-generation-investment-and-financing">Cash generation, investment and financing<a class="headerlink" href="#cash-generation-investment-and-financing" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Cash-flow measure, USD billions</th>
+<th style="text-align: right;">2023</th>
+<th style="text-align: right;">2024</th>
+<th style="text-align: right;">2025</th>
+<th style="text-align: right;">Q2 2025</th>
+<th style="text-align: right;">Q2 2026</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Operating cash flow</td>
+<td style="text-align: right;">4.240</td>
+<td style="text-align: right;">8.818</td>
+<td style="text-align: right;"><strong>16.813</strong></td>
+<td style="text-align: right;">3.087</td>
+<td style="text-align: right;"><strong>10.690</strong></td>
+</tr>
+<tr>
+<td>Capital expenditure</td>
+<td style="text-align: right;">7.392</td>
+<td style="text-align: right;">8.404</td>
+<td style="text-align: right;"><strong>10.849</strong></td>
+<td style="text-align: right;">1.804</td>
+<td style="text-align: right;"><strong>6.215</strong></td>
+</tr>
+<tr>
+<td>Free cash flow, vendor statement</td>
+<td style="text-align: right;"><strong>−3.152</strong></td>
+<td style="text-align: right;">0.414</td>
+<td style="text-align: right;"><strong>5.964</strong></td>
+<td style="text-align: right;">1.283</td>
+<td style="text-align: right;"><strong>4.475</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The improvement from negative free cash flow in 2023 to <strong>$5.964 billion in 2025</strong> is material. Q2 2026 operating cash flow more than tripled year over year, although capex also more than tripled. <strong>First-half 2026 free cash flow was $7.278 billion</strong>, after <strong>$8.745 billion</strong> of capex—already about <strong>81% of full-year 2025 capex</strong>.</p>
+<p>Expansion extends beyond factories. In Q2 2026, the cash-flow statement records <strong>$8.747 billion of business purchases</strong> and <strong>$3.282 billion of intangible purchases</strong>. Total investing cash outflow was <strong>$15.396 billion</strong>, greater than Q2 operating cash flow of $10.690 billion. Financing cash flow was <strong>positive $8.426 billion</strong>, including <strong>$11.577 billion of net debt issuance</strong>. That combination explains why strong operating cash generation did not prevent leverage from rising.</p>
+<p>Q2 dividends paid were <strong>$1.546 billion</strong> and share repurchases <strong>$1.601 billion</strong>. For the first half, free cash flow of $7.278 billion only narrowly exceeded combined dividends and repurchases of approximately <strong>$7.051 billion</strong>, <em>before</em> funding acquisitions. This is a useful test for subsequent releases: whether LLY can maintain investment and shareholder returns without continuing to add debt.</p>
+<h4 id="balance-sheet-and-financial-resilience">Balance sheet and financial resilience<a class="headerlink" href="#balance-sheet-and-financial-resilience" title="Permanent link">&para;</a></h4>
+<p>At <strong>2026-06-30</strong>, LLY reported <strong>$142.283 billion in assets</strong>, <strong>$108.404 billion in liabilities</strong> and <strong>$33.879 billion in stockholders’ equity</strong>. Cash was <strong>$8.950 billion</strong> against <strong>$54.908 billion of total debt</strong>, leaving <strong>$45.958 billion of net debt</strong>. Net debt was <strong>$35.235 billion at year-end 2025</strong>—an increase of <strong>$10.723 billion</strong>, or about <strong>30%</strong>, in six months.</p>
+<p>Current assets of <strong>$64.672 billion</strong> exceeded current liabilities of <strong>$47.741 billion</strong>. The resulting <strong>1.35 current ratio</strong> indicates a liquidity cushion, but it has narrowed from approximately <strong>1.58 at year-end 2025</strong> and <strong>1.50 at March 2026</strong>. Working capital likewise declined from <strong>$20.401 billion at year-end 2025</strong> to <strong>$16.931 billion</strong>. Inventory reached <strong>$16.793 billion</strong>, up from $13.744 billion at year-end; traders should monitor whether the build translates into sales rather than tying up cash.</p>
+<p><strong>Goodwill plus other intangible assets nearly doubled quarter over quarter</strong>, from <strong>$13.504 billion to $26.959 billion</strong>. In conjunction with the business and intangible purchases, that increases the importance of acquisition integration and the eventual economic returns on those assets. It does not, by itself, establish that an impairment is forthcoming.</p>
+<p>The fundamentals snapshot quotes <strong>debt-to-equity of 162.071</strong>, consistent with roughly <strong>162%</strong>, not 162 times: $54.908 billion of debt divided by $33.879 billion of equity is approximately <strong>1.62×</strong>. Its <strong>102.3% return on equity</strong> should be interpreted alongside that leverage and LLY’s historically much smaller equity base, rather than as a stand-alone measure of operating quality.</p>
+<h4 id="valuation-and-insider-context">Valuation and insider context<a class="headerlink" href="#valuation-and-insider-context" title="Permanent link">&para;</a></h4>
+<p>The supplied fundamentals snapshot gives <strong>$1.056 trillion market capitalization</strong>, <strong>$79.666 billion trailing revenue</strong>, <strong>$29.82 trailing EPS</strong>, <strong>39.73× trailing P/E</strong>, <strong>$47.54 forward EPS</strong> and <strong>24.92× forward P/E</strong>. That is approximately <strong>13.3× trailing sales</strong>. The forward EPS estimate is roughly <strong>59% above trailing EPS</strong>; the lower forward multiple therefore depends on substantial forecast earnings growth materializing. The snapshot also quotes <strong>31.18× price-to-book</strong>, an approximately <strong>0.58% dividend yield</strong>, <strong>0.50 beta</strong>, and a <strong>$725.31–$1,292.65</strong> 52-week range. These are vendor snapshot measures, <strong>not a verified September 28 trading quote or independently confirmed forecast horizon</strong>.</p>
+<p>For insider context beyond the past week, the feed’s most recent explicit cash sales were three officer transactions on <strong>August 7, 10 and 17, 2026</strong>, totaling <strong>13,500 shares and about $15.96 million</strong>. Sales can have many motivations and are not proof of deteriorating fundamentals. The September 21 grants should not be counted as offsetting open-market purchases.</p>
+<h4 id="trading-implications-and-checks-for-the-next-release">Trading implications and checks for the next release<a class="headerlink" href="#trading-implications-and-checks-for-the-next-release" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Constructive case for LLY:</strong> continuing strong year-over-year sales growth, improved <em>reported</em> earnings after unusual charges, and free cash flow sufficient to fund rising capex would better support the forward EPS embedded in the valuation. Q2’s <strong>$22.974 billion revenue</strong> and <strong>$4.475 billion free cash flow</strong> are useful reference points, not forecasts or requirements for a seasonally different quarter.</li>
+<li><strong>Reason to be cautious about adding to LLY:</strong> a <strong>39.73× trailing P/E</strong> leaves less room for weaker growth or downward EPS revisions. Watch whether further unusual charges, the narrowing current ratio, inventory growth or rising net debt prevent sales growth from reaching shareholders.</li>
+<li><strong>Verify definitions before acting:</strong> adding the four supplied quarters’ free cash flows through Q2 2026 gives approximately <strong>$13.56 billion</strong>, whereas the fundamentals snapshot quotes <strong>$11.07 billion</strong>. The snapshot’s operating-margin figure also does not clearly match a four-quarter margin derived from the statement. Different vendor definitions or update timing may be responsible; use LLY’s filed statements to reconcile them before basing valuation or coverage estimates on either figure.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Key point for LLY</th>
+<th>Evidence as of 2026-09-28</th>
+<th>Trader takeaway</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Growth</td>
+<td>Q2 revenue <strong>$22.974B</strong>, <strong>+47.7% YoY</strong>; 2025 revenue <strong>$65.179B</strong>, <strong>+44.7% YoY</strong></td>
+<td>Strong trend; test its durability in the next release.</td>
+</tr>
+<tr>
+<td>Earnings quality</td>
+<td>Q2 net income <strong>$7.095B</strong>; <strong>$3.479B</strong> unusual items; net margin fell YoY</td>
+<td>Check the charges and reported, not just normalized, earnings.</td>
+</tr>
+<tr>
+<td>Cash and investment</td>
+<td>Q2 operating cash flow <strong>$10.690B</strong>, capex <strong>$6.215B</strong>, free cash flow <strong>$4.475B</strong></td>
+<td>Monitor cash conversion as expansion spending continues.</td>
+</tr>
+<tr>
+<td>Leverage and liquidity</td>
+<td>Net debt <strong>$45.958B</strong>, up <strong>$10.723B</strong> since year-end; current ratio <strong>1.35</strong></td>
+<td>Watch debt funding and the declining liquidity cushion.</td>
+</tr>
+<tr>
+<td>Valuation</td>
+<td><strong>39.73× trailing P/E</strong> versus <strong>24.92× forward P/E</strong> in vendor snapshot</td>
+<td>Forward earnings delivery is central to the case.</td>
+</tr>
+<tr>
+<td>Past-week insider activity</td>
+<td><strong>35 director award shares on Sep. 21</strong>; no open-market trade shown Sep. 21–28</td>
+<td>Awards provide no meaningful insider-buying signal.</td>
+</tr>
+<tr>
+<td>Information gap</td>
+<td>No verified past-week filing/news dates, product sales or guidance in supplied tools</td>
+<td>Check LLY’s primary disclosures before trading on a purported catalyst.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case for LLY, as of September 28, 2026:</strong> I’m bullish because Eli Lilly is already converting rapid growth into substantial cash flow—not merely asking investors to believe in a future pipeline. Q2 revenue rose <strong>47.7% year over year to $22.974 billion</strong>, gross margin improved to <strong>85.8%</strong>, and free cash flow reached <strong>$4.475 billion after $6.215 billion of capital spending</strong>. First-half 2026 free cash flow of <strong>$7.278 billion</strong> exceeded the <strong>$5.964 billion</strong> generated in all of 2025.</p>
+<p>Here’s the scale of the opportunity without pretending we have company guidance: if each second-half quarter merely matched Q2 revenue, full-year 2026 sales would be approximately <strong>$88.7 billion</strong>, about <strong>36% above 2025</strong>. That is an <em>illustrative scenario</em>, not a forecast. It shows why execution matters so much to the LLY thesis. The company is also investing beyond its diabetes and obesity products: 2025 R&amp;D was <strong>$13.337 billion</strong>, and the reported Olumiant approval for patients aged 12 and older adds a tangible, though unquantified, opportunity.</p>
+<p>I expect the bear to lead with rival obesity-drug results. Fair point: the reported Novo trial favored a specified CagriSema dose over the specified <strong>5-mg tirzepatide</strong> comparator. But that result does <strong>not</strong> establish superiority over every tirzepatide dose or in every patient group. Roche’s <strong>15.5%</strong> mid-stage result comes from a different study and cannot settle the comparison either. Competition could pressure LLY; it does not erase the growth and cash generation already on the books. I would watch comparable efficacy, tolerability and commercial data rather than declare a winner from selected headlines.</p>
+<p>The tougher bear argument is <strong>valuation and debt</strong>, and I won’t wave it away. Net debt rose <strong>$10.723 billion</strong> in six months to <strong>$45.958 billion</strong>; Q2’s unusual charges and lower net margin deserve scrutiny. At <strong>39.73× trailing earnings</strong>, LLY needs to deliver—the <strong>24.92× forward multiple</strong> relies on a vendor EPS estimate roughly <strong>59% above trailing EPS</strong>. Acquisitions have also required financing: first-half free cash flow only narrowly covered dividends and repurchases <em>before</em> deal spending. That makes capital allocation a test of the bull case, not a footnote.</p>
+<p><strong>My position: selectively buy LLY for a multi-year horizon, but add in stages rather than chase this rebound.</strong> The September 28 close of <strong>$1,184.78</strong> reclaimed the <strong>$1,176.88</strong> 50-day average, while the daily SuperTrend remains down. A close above <strong>$1,194.09</strong>, followed by a move through the <em>updated</em> daily SuperTrend line, would strengthen the entry case. More important than either chart level: the next results must show continued sales growth translating into reported per-share earnings and free cash flow <strong>without another rapid rise in net debt</strong>.
+Bull Analyst: <strong>Bear, I agree that LLY is expensive. I disagree that investors must wait for every uncertainty to disappear before owning any of it.</strong> At the September 28 close of <strong>$1,184.78</strong>, the vendor’s <strong>39.73× trailing P/E</strong> leaves little room for disappointment, and its <strong>24.92× forward P/E</strong> depends on an estimate whose horizon we cannot independently confirm. That is a reason to size a position carefully—not to dismiss a business that grew Q2 revenue <strong>47.7%</strong> and still produced <strong>$4.475 billion of free cash flow after $6.215 billion of capex</strong>.</p>
+<p>Your earnings-quality objection is the strongest one. Reported Q2 net income grew only <strong>25.3%</strong>, and the <strong>$3.479 billion of unusual items</strong> needs examination, especially given charges in prior years. But I would not read the lower net margin as evidence that competitors have already broken LLY’s commercial economics: Q2 <strong>gross margin rose from 84.3% to 85.8%</strong>. That does not guarantee future pricing power, but it makes the next task clear—determine how much of the gap between sales and reported earnings reflects recurring costs rather than assuming all of it does. Reported diluted EPS, even with those issues, rose <strong>26.2%</strong> year over year.</p>
+<p>On financing, your <strong>$227 million</strong> remaining after first-half dividends and repurchases is a fair warning. It is not the whole picture of operating capacity. First-half free cash flow of <strong>$7.278 billion</strong> was generated <em>after capex</em>; LLY then chose to fund shareholder returns and substantial acquisitions at the same time. Buybacks are adjustable, while the cash generation is already demonstrated. I am not giving management a free pass: <strong>$45.958 billion of net debt</strong>, up <strong>$10.723 billion</strong> in six months, means future deal returns and debt growth must be measured against that choice. The <strong>1.35 current ratio</strong> provides a liquidity cushion, though a narrowing one.</p>
+<p>I also take your competitive point seriously: rivals need not win every trial to pressure price or share. But the cited Novo comparison uses a specified <strong>5-mg tirzepatide</strong> dose, and Roche’s result comes from a different, mid-stage study. Neither establishes the broad commercial outcome on which an “avoid” call implicitly relies. Meanwhile, LLY has the scale to invest <strong>$13.337 billion in annual R&amp;D</strong> while generating growing sales and cash. The reported Olumiant label expansion broadens its opportunities, although I would not assign it an invented revenue contribution or call it an obesity-franchise offset.</p>
+<p><strong>My recommendation remains a staged, multi-year buy of LLY—not a breakout call or an all-in purchase.</strong> The daily SuperTrend is still down, so I would reserve additions for stronger price confirmation and, more importantly, evidence of rising <em>reported</em> EPS and free cash flow without another rapid increase in net debt. If those tests fail, your valuation argument wins. Until then, waiting for every test to pass risks overlooking the growth and cash generation that are already on the books.
+Bull Analyst: <strong>Bear, your $951 valuation case is a serious warning for LLY—not a reason, by itself, to avoid owning any shares.</strong> At <strong>20×</strong> the vendor’s $47.54 forward EPS estimate, LLY would be worth about $951, roughly 20% below the verified September 28 close. At <strong>25×</strong>, the same estimate implies about $1,189—essentially flat. I’m not treating a premium multiple as guaranteed. Those sensitivities show that my multi-year case requires earnings growth <em>beyond</em> an estimate whose horizon we cannot verify. They do not establish that 20× is the inevitable multiple if LLY keeps delivering.</p>
+<p>What makes a small first tranche defensible before the next report is the business already on the books. LLY grew 2025 revenue <strong>44.7%</strong>, then grew Q2 2026 revenue <strong>47.7%</strong> year over year. It produced <strong>$4.475 billion of Q2 free cash flow after $6.215 billion of capex</strong>, and first-half free cash flow exceeded the total for 2025. Its established diabetes and obesity franchises, <strong>$13.337 billion of 2025 R&amp;D</strong>, and investment capacity give it resources to compete and develop products across therapeutic areas. That is an advantage of scale, not a claim that competitors cannot take share.</p>
+<p>I accept your earnings-quality test. Q2 reported net-income growth of <strong>25.3%</strong> lagged sales growth, and recurring <em>“unusual”</em> charges would weaken the thesis. But reported diluted EPS still rose <strong>26.2%</strong>, while gross margin improved from <strong>84.3% to 85.8%</strong>. The supplied figures do not tell us whether the $3.479 billion of unusual items represents a lasting drag; we need the underlying disclosures. They also do not yet show a breakdown in LLY’s product economics.</p>
+<p>On funding, your <strong>$227 million</strong> left after first-half dividends and repurchases is the right constraint to highlight. Buybacks are adjustable—Q2 alone included <strong>$1.601 billion</strong>—but pausing them would not fund the entire acquisition program. Net debt of <strong>$45.958 billion</strong>, up <strong>$10.723 billion</strong> in six months, makes deal returns and financing discipline decisive. Likewise, the Novo result against a specified <strong>5-mg tirzepatide</strong> dose and Roche’s separate mid-stage result make pricing pressure plausible; neither establishes how LLY’s full franchise will perform commercially. I would not use unverified social claims to dismiss concerns about the oral launch.</p>
+<p><strong>My call remains a small, staged multi-year buy of LLY, not an all-in bet or a claim that the rebound is confirmed.</strong> The daily SuperTrend is still down. I would reserve most additions for evidence that reported EPS and free cash flow are catching up with sales <em>without another rapid rise in net debt</em>, alongside stronger price confirmation. If those tests fail, your valuation objection wins. But avoiding LLY entirely demands more confidence in future multiple compression and competitive damage than the current evidence supports.
+Bull Analyst: <strong>Bear, your valuation hurdle is real.</strong> At 25× the vendor’s $47.54 forward EPS estimate, LLY is worth roughly its September 28 close; at 20×, it would need about $59 in EPS just to support that price. I’m not assuming the multiple holds or that LLY reaches $59 soon—the estimate’s horizon is unconfirmed. My disagreement is with treating one forward estimate as the end of the earnings runway. Q2 <em>reported</em> EPS grew <strong>26.2% year over year</strong>, despite the charges you rightly flag, while revenue grew <strong>47.7%</strong>. One quarter cannot prove years of compounding, but it gives a prospective owner more to underwrite than an untested forecast.</p>
+<p>You’re also right that Q2 free cash flow did <strong>not</strong> fund $12.029 billion of business and intangible purchases plus shareholder returns. That is a capital-allocation constraint, not a detail I’d net away. The distinction is that LLY generated <strong>$4.475 billion of free cash flow after $6.215 billion of capex</strong>; first-half free cash flow of <strong>$7.278 billion</strong> exceeded all of 2025’s even as investment accelerated. Management can reduce buybacks, but it cannot keep making large debt-funded deals indefinitely without demonstrating returns. If net debt keeps rising rapidly, your objection gets stronger.</p>
+<p>On earnings quality, I won’t call the <strong>$3.479 billion</strong> of unusual items temporary without examining the disclosures, particularly given prior-year charges. Still, the improvement in gross margin from <strong>84.3% to 85.8%</strong> does not look like evidence that rivals have already undermined LLY’s product economics. Novo’s specified-dose comparison and Roche’s separate mid-stage result are genuine competitive warnings, not yet a measure of LLY’s future pricing or share. Its established franchises and <strong>$13.337 billion of 2025 R&amp;D</strong> give LLY resources to respond; they do not guarantee success.</p>
+<p><strong>I would initiate only a small, multi-year position in LLY</strong>, then require better reported earnings conversion, free cash flow and debt discipline before adding substantially. The daily trend is still unconfirmed, so I would not mistake the rebound for a breakout. Waiting is defensible; my bull case is that a limited first tranche is defensible too, because exceptional growth and cash generation are already observable—while the position size acknowledges that valuation and execution leave little room for error.
+Bull Analyst: Bear, your <strong>1.4% illustrative cash-flow yield</strong> is the sharpest challenge to my LLY case. This is not a cheap stock on current cash generation. But that yield annualizes a first half in which LLY spent <strong>$8.745 billion on capex</strong> and still produced <strong>$7.278 billion of free cash flow—more than in all of 2025</strong>. With Q2 sales up <strong>47.7%</strong> and gross margin rising to <strong>85.8%</strong>, investors are paying for the possibility that today’s capacity investment supports substantially greater future cash flow. That return is not proven, but neither is LLY merely promising growth without generating cash.</p>
+<p>I accept your valuation math: <strong>25× the vendor’s $47.54 forward EPS is roughly today’s price; 20× is about $951.</strong> A premium multiple already reflects expectations of further growth, so I cannot count that growth twice. My disagreement is that this single estimate, with an unconfirmed horizon, settles the multi-year earnings case. Reported Q2 EPS grew <strong>26.2%</strong> even as the <strong>$3.479 billion of unusual items</strong> and lower net margin raise legitimate questions about earnings conversion. Those questions need disclosure-level answers—not an assumption that EPS will stop at $47.54.</p>
+<p>You’re also right that free cash flow did not cover the acquisitions and shareholder returns together. The <strong>$10.723 billion</strong> first-half increase in net debt makes future deal returns a decisive test. LLY’s established diabetes and obesity franchises, <strong>$13.337 billion of 2025 R&amp;D</strong>, and expanding portfolio give it resources to pursue that growth; they do not guarantee successful acquisitions or immunity from competitors. I would not use the Olumiant label expansion or uncertain oral-product uptake to paper over those risks.</p>
+<p>And yes, a small position <strong>does not make the entry price cheaper</strong>. It limits exposure while letting a multi-year investor own a business whose exceptional sales growth and cash generation are already observable. <strong>I would initiate only a small LLY position, not add on the chart rebound alone.</strong> The daily trend remains unconfirmed; substantial additions must wait for better reported earnings conversion, sustained free cash flow, and evidence that net debt is no longer rising rapidly. If those fail, your case for waiting wins.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: <strong>Bull, I agree that LLY’s growth is real. My disagreement is about what investors are being asked to pay for it.</strong> Q2 revenue rose 47.7% and free cash flow was $4.475 billion. But at the vendor’s <strong>39.73× trailing earnings</strong> and approximately <strong>$1.056 trillion market value</strong>, strong growth is already a requirement, not a margin of safety. The apparently cheaper <strong>24.92× forward P/E</strong> depends on an EPS estimate roughly <strong>59% above trailing EPS</strong>; the estimate’s horizon is not independently confirmed in the supplied data.</p>
+<p>Your cash-flow point deserves credit, but it does not settle the financing question. First-half free cash flow of <strong>$7.278 billion</strong> exceeded all of 2025’s, yet it only narrowly covered roughly <strong>$7.051 billion</strong> of dividends and repurchases—leaving about <strong>$227 million before acquisitions</strong>. In Q2, <strong>$15.396 billion of investing cash outflow</strong> exceeded <strong>$10.690 billion of operating cash flow</strong>, while net debt rose <strong>$10.723 billion</strong> in six months to <strong>$45.958 billion</strong>. LLY is generating cash; it is also committing capital faster than internally generated cash can fund its investment program and shareholder returns together.</p>
+<p>Nor is sales growth flowing cleanly to the bottom line. Q2 revenue grew <strong>47.7%</strong>, but reported net income grew <strong>25.3%</strong>, and net margin fell from approximately <strong>36.4% to 30.9%</strong>. The vendor lists <strong>$3.479 billion of unusual items</strong>, versus <strong>$154 million</strong> a year earlier. Those charges need examination, not an assumption that they will recur—but substantial unusual items also appeared in 2024 and 2025. Your illustrative <strong>$88.7 billion</strong> sales scenario shows scale; without evidence that those sales produce the forecast <em>reported per-share earnings</em>, it does not establish an attractive return at today’s valuation.</p>
+<p>I also accept your caution on trial comparisons. The specified CagriSema result does <strong>not</strong> prove superiority to every tirzepatide dose, and Roche’s mid-stage result is not a head-to-head test. The bear case doesn’t require declaring a winner. Credible alternatives can pressure future share, reimbursement negotiations, or pricing enough to matter when LLY’s valuation assumes exceptional earnings growth. Likewise, the Olumiant label expansion is positive, but its incremental revenue is unquantified; it cannot yet be treated as an offset to obesity-franchise risk or to the returns required on larger acquisitions.</p>
+<p>Finally, I would not use the rebound to resolve those fundamental questions. The <strong>$1,184.78</strong> close was only <strong>$7.90 above</strong> the 50-day average; the <strong>daily SuperTrend remained down</strong>, and <strong>ADX at 20.71</strong> did not confirm a strong trend. Higher-timeframe trends are up, so this is not a reflexive short call. But a staged purchase still puts new money at risk before the earnings, debt, and competitive tests you yourself identify have been passed. Rising yields add valuation pressure, although the supplied data do not verify a current Treasury-yield level.</p>
+<p><strong>My position: avoid adding to LLY at this valuation.</strong> I would reconsider if subsequent results show sustained growth in <em>reported</em> EPS and free cash flow, with acquisitions and shareholder returns no longer accompanied by rapid net-debt growth—and if comparable competitive data support the pricing and share assumptions behind the forward estimate.
+Bear Analyst: <strong>Bull, LLY’s growth is real. My objection is that a staged purchase still buys the first tranche before the tests you call decisive have been passed.</strong> Sizing limits the dollars at risk; it does not make the entry valuation forgiving. The vendor’s forward P/E of <strong>24.92×</strong> assumes EPS of <strong>$47.54</strong>, roughly <strong>59% above trailing EPS</strong>. As a valuation sensitivity—not a price target—even if LLY delivers that estimate, a <strong>20×</strong> multiple would imply about <strong>$951 per share</strong>, roughly <strong>20% below</strong> the verified September 28 close of <strong>$1,184.78</strong>. The forecast horizon is unconfirmed, but the dependence on strong earnings <em>and</em> a sustained premium multiple is clear.</p>
+<p>You’re right that the higher gross margin does not prove competitors have damaged LLY’s economics. It also does not answer why <strong>47.7% revenue growth</strong> translated into <strong>25.3% reported net-income growth</strong> and a net margin decline from <strong>36.4% to 30.9%</strong>. The <strong>$3.479 billion</strong> in Q2 unusual items needs disclosure-level scrutiny; I would not label it recurring without that work. But substantial unusual items in both 2024 and 2025 make it equally risky to assume reported earnings will simply catch up to sales.</p>
+<p>And yes, the <strong>$4.475 billion Q2 free cash flow</strong> is impressive <em>after capex</em>. It is not after acquisitions. First-half free cash flow left just <strong>$227 million</strong> after dividends and repurchases, before deals; Q2 then included <strong>$8.747 billion in business purchases</strong> and <strong>$3.282 billion in intangible purchases</strong>, alongside <strong>$11.577 billion in net debt issuance</strong>. Suspending buybacks could free cash, but that is a capital-allocation trade-off, not proof the current investment program funds itself. Net debt is already up <strong>$10.723 billion</strong> in six months.</p>
+<p>I’m not claiming the Novo comparison proves broad superiority, or that Roche’s separate trial predicts LLY’s market share. My point is narrower: credible alternatives can constrain pricing or growth without defeating every LLY product. The reported slow oral launch adds a question the supplied data cannot resolve; neither an unquantified Olumiant expansion nor R&amp;D spending establishes the offset. Meanwhile, the close is only <strong>$7.90 above</strong> the 50-day average, with the daily SuperTrend still down. That rebound is not a reason to pay ahead of the fundamental evidence.</p>
+<p><strong>My call remains: avoid initiating or adding to LLY at this valuation, rather than shorting a genuinely fast-growing company.</strong> I’d reconsider when reported per-share earnings and cash generation support the forward estimate <em>and</em> LLY shows it can fund its investment plans without another rapid rise in net debt.
+Bear Analyst: <strong>Bull, I don’t need to predict that LLY will fall to 20× earnings to justify waiting.</strong> Your own 25× scenario values the vendor’s $47.54 forward EPS estimate at about <strong>$1,189—essentially the September 28 close of $1,184.78</strong>. At 20×, it is about <strong>$951</strong>, nearly 20% lower. Those are sensitivities, not price targets, and the estimate’s horizon is unconfirmed. But they show the hurdle for a new buyer: even delivering the estimate may leave little capital appreciation unless the premium multiple persists. At 20×, LLY would need roughly <strong>$59 in EPS</strong>, about 25% <em>above</em> that estimate, merely to support the current price.</p>
+<p>I grant your point that the business is growing and generating cash. The question is how much of that growth reaches shareholders after the entire investment program. Q2’s <strong>$4.475 billion of free cash flow</strong> was less than the <strong>$12.029 billion spent on business and intangible purchases</strong>, before <strong>$3.147 billion</strong> of dividends and buybacks. Buybacks can be cut, but doing so neither funds all the deals nor replaces the modest per-share benefit they provide. Net debt rose <strong>$10.723 billion</strong> in the first half, while goodwill and other intangibles nearly doubled quarter over quarter. Scale gives LLY options; it does not establish that these purchases will earn attractive returns.</p>
+<p>Nor does the higher gross margin settle the earnings test. Despite <strong>47.7% Q2 sales growth</strong>, reported net income rose <strong>25.3%</strong>, and net margin fell from <strong>36.4% to 30.9%</strong>. We should examine the <strong>$3.479 billion</strong> of unusual items rather than call them permanent—but we should not assume they vanish, given substantial unusual items in 2024 and 2025. Rival results do not prove LLY will lose the obesity market; they need only make the pricing and growth embedded in a premium valuation harder to sustain. The reported slow oral launch adds a question, not a conclusion.</p>
+<p>So I’m not dismissing LLY or recommending a short. I’m saying a <em>small</em> first tranche still pays today’s price before your decisive tests—reported earnings conversion, deal returns and stable debt—are met. <strong>My call remains to avoid initiating or adding to LLY for now.</strong> I would rather reconsider with evidence on those points than rely on exceptional growth <em>and</em> a sustained premium multiple to make this entry work.
+Bear Analyst: <strong>Bull, I agree that LLY’s growth makes it worth following closely. It does not yet make a first tranche attractive at this price.</strong> A small position limits the size of a mistake; it does not improve the return available if earnings or the valuation multiple disappoint.</p>
+<p>Your strongest evidence is Q2’s <strong>26.2% growth in reported EPS</strong> and <strong>$4.475 billion of free cash flow after capex</strong>. Both are real. But the valuation asks for more than another good quarter. At <strong>25×</strong> the vendor’s <strong>$47.54 forward EPS estimate</strong>, LLY is worth about <strong>$1,189</strong>, essentially its verified <strong>$1,184.78</strong> September 28 close. At <strong>20×</strong>, it is worth about <strong>$951</strong>. Neither multiple is a prediction, and the estimate’s horizon is unconfirmed. The point is that a new buyer needs substantial earnings growth <em>beyond</em> that estimate, or a sustained premium multiple, to earn a compelling return.</p>
+<p>Cash generation needs the same price discipline. Against the vendor’s <strong>$1.056 trillion</strong> market value, even doubling first-half free cash flow to an illustrative full-year <strong>$14.556 billion</strong> would imply a cash-flow yield of only about <strong>1.4%—before acquisitions</strong>. That annualization is not a forecast. It shows why impressive cash flow can coexist with a demanding entry price. Q2’s <strong>$12.029 billion</strong> of business and intangible purchases was more than twice Q2 free cash flow; net debt rose <strong>$10.723 billion</strong> in the first half. Cutting buybacks would help, but it would not establish that the full investment program funds itself.</p>
+<p>I also accept that the rise in gross margin to <strong>85.8%</strong> argues against claiming rivals have <em>already</em> damaged LLY’s product economics. It does not resolve the shareholder-level question: <strong>47.7% revenue growth</strong> produced <strong>25.3% reported net-income growth</strong>, while net margin fell from <strong>36.4% to 30.9%</strong>. The <strong>$3.479 billion</strong> of unusual items requires disclosure-level scrutiny, not an automatic assumption that it recurs or disappears. Likewise, <strong>$13.337 billion of R&amp;D</strong> demonstrates commitment, not yet the returns on that spending. Novo’s specified-dose result and Roche’s separate trial do not declare a winner; they do make the long earnings runway you are underwriting less certain.</p>
+<p>So my disagreement is about <strong>when</strong> to take risk. You propose buying a little now and demanding proof before adding. With the daily SuperTrend still down and the close only <strong>$7.90 above the 50-day average</strong>, I see no compelling price confirmation to offset paying ahead of that proof. <strong>I would avoid initiating or adding to LLY for now, not short it.</strong> I would reconsider when reported per-share earnings and cash flow better support the valuation, and when acquisition spending no longer comes with rapid net-debt growth.
+Bear Analyst: <strong>Bull, I’m not disputing that LLY generates cash. I’m disputing how much future cash generation a buyer at this price must already assume.</strong> First-half free cash flow of <strong>$7.278 billion</strong> is impressive <em>after</em> <strong>$8.745 billion of capex</strong>. But doubling that half-year cash flow gives an illustrative <strong>1.4% yield</strong> on the vendor’s <strong>$1.056 trillion</strong> market value. Even a 3% yield would require roughly <strong>$31.7 billion in annual free cash flow</strong>—more than twice that illustrative pace, before acquisitions. Three percent is not my required return or a forecast; it shows the scale of the improvement the entry price asks investors to underwrite.</p>
+<p>You describe capacity spending as a source of future growth. It may be. The unanswered question is whether that capacity earns attractive returns as competition expands. Q2 gross margin rose, so I’m <strong>not</strong> claiming rivals have already impaired LLY’s product economics. But <strong>47.7% sales growth</strong> yielded <strong>26.2% reported EPS growth</strong>, and the <strong>$3.479 billion</strong> of unusual items needs scrutiny. Nor can R&amp;D scale alone establish future returns. The cited Novo result is dose-specific, Roche’s is not head-to-head, and neither proves LLY will lose share. They do, however, make premium pricing and an extended earnings runway less certain—not more.</p>
+<p>The financing test is already visible. Q2’s <strong>$4.475 billion</strong> of free cash flow did not cover <strong>$12.029 billion</strong> of business and intangible purchases; net debt rose <strong>$10.723 billion</strong> in six months. Cutting buybacks offers flexibility, as you say, but it is a trade-off, not evidence that acquisitions fund themselves. Rising yields add another potential headwind for a stock whose <strong>25×</strong> multiple on the vendor’s <strong>$47.54 forward EPS</strong> implies roughly today’s price. That is a sensitivity, not a prediction; the estimate’s horizon is also unconfirmed.</p>
+<p>I accept that waiting could mean missing upside. But a small first purchase still accepts the same demanding price before capacity returns, reported earnings conversion, and debt discipline are demonstrated. <strong>I would avoid initiating or adding to LLY for now—not short it.</strong> Sustained per-share earnings and free-cash-flow growth <em>without</em> another rapid increase in net debt would give me a better reason to change that call than the size of an initial position.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For LLY, the bear case wins moderately on entry valuation and capital allocation, not on evidence that the business is deteriorating. This assessment uses the supplied September 28, 2026 snapshot, including the $1,184.78 close, rather than live or independently verified data. The bull deserves credit: Q2 revenue grew 47.7%, gross margin reached 85.8%, reported diluted EPS grew 26.2%, and free cash flow was $4.475 billion after capex. First-half free cash flow exceeded all of 2025. Those results support retaining some exposure rather than taking a categorical negative view. But strong operations do not automatically make the entry price attractive. The vendor's 39.73x trailing and 24.92x forward earnings multiples leave substantial expectations embedded in the price; the $47.54 forward EPS estimate is roughly 59% above trailing EPS, with its horizon and comparability to reported earnings unconfirmed. Applying 20x to that estimate gives approximately $951, but that is a sensitivity, not a justified fair value or price target. Similarly, the roughly 1.4% cash-flow yield obtained by doubling first-half free cash flow is illustrative, not a forecast. The more concrete concern is financing: first-half free cash flow left only about $227 million after dividends and repurchases, before acquisitions, while net debt increased $10.723 billion to $45.958 billion. Meanwhile, reported net-income growth lagged sales and net margin fell despite improving gross margin. The $3.479 billion of unusual items requires disclosure-level analysis; assuming either permanence or disappearance would overreach. The cited rival trials do not establish broad commercial superiority, and unverified oral-launch or interest-rate claims do not decide this call. Missing charge details, forecast timing, and acquisition-return evidence limit conviction. On balance, the valuation, reported-earnings conversion and funding concerns outweigh the case for buying a small first tranche; demonstrated operating strength limits the recommended reduction for LLY.</p>
+<p><strong>Strategic Actions</strong>: Use 0.75x a standard allocation as the temporary maximum working weight for LLY, not an instruction to purchase up to that level. The trader and portfolio manager should map this to actual holdings: trim exposure above the ceiling, retain smaller existing positions without topping up, and do not initiate if unowned. For illustration, a standard 4% portfolio allocation implies a 3% ceiling. Execute any required reduction with staged limit orders under normal liquidity; validate current quotes before placing orders because the supplied price and technical levels are dated. This is a reduction in long exposure, not a short or leveraged trade. Reassess after the next reported results or a material valuation reset. Before rebuilding toward 1.0x standard, require continuing reported EPS and free-cash-flow growth, an explanation of unusual items and the margin gap, and evidence that acquisitions and shareholder returns are no longer accompanied by rapid net-debt accumulation. Confirm the forward EPS estimate's period and earnings basis before using it for valuation, and obtain disclosed evidence on investment returns. If the next results combine another rapid net-debt increase with weakening reported EPS or free cash flow, reduce the working ceiling to 0.5x standard and reassess the remaining thesis. Monitor comparable competitive and commercial data, not isolated trial headlines. A chart breakout alone does not authorize additions: the daily SuperTrend remains down in the supplied snapshot, and an updated SuperTrend threshold is missing. Do not treat the approximately $951 sensitivity as an automatic purchase level.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: LLY's research plan calls for a moderate underweight: strong revenue and cash flow support retaining some exposure, but valuation, earnings conversion, and rising net debt argue for trimming holdings above the allocation ceiling rather than adding or shorting. The supplied $1,184.78 close only narrowly exceeded the $1,176.88 50-day SMA, while the daily SuperTrend remained down at $1,217.65 and ADX was 20.71, so the rebound does not override the plan. Reduce any excess using staged limit orders after confirming a current LLY quote; the September 28 prices are dated.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Trim existing LLY holdings above 0.75x the standard allocation to that ceiling (3% of portfolio if standard is 4%); retain smaller positions, do not initiate or short. No price-based stop for the reduction; reassess remaining exposure if LLY closes below the dated $1,176.88 50-day SMA or $1,172.56 session low.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: Neither analyst has spoken yet, so my opening case is to <strong>SELL only the excess LLY exposure</strong>. That is an aggressive allocation decision, not a claim that LLY’s growth is over.</p>
+<p>A conservative case for exiting entirely would surrender substantial upside: Q2 revenue grew 47.7% year over year, free cash flow reached $4.475 billion, and the weekly and monthly trends remain up. But a neutral “just hold everything” stance gives the overweight no scrutiny at a demanding valuation. LLY’s 24.92× forward P/E relies on forecast EPS roughly 59% above trailing EPS, while Q2 net margin fell and net debt rose $10.723 billion in six months. Trimming the excess puts less portfolio capital behind that forecast without abandoning the growth story.</p>
+<p>I would not wait for an obvious breakdown to make that trim. The September 28 close was only $7.90 above the dated 50-day SMA—far less than the $31.70 ATR—while the daily SuperTrend remained down and ADX was 20.71. Improving MACD, rising OBV and the expanded Olumiant indication are reasons to <strong>retain</strong> a core position, not reasons to ignore valuation, rival-drug readouts or acquisition-financing risk. Selling into a recovery may leave more flexibility than selling after it fails.</p>
+<p>Confirm a current LLY quote before using staged limit orders. If LLY exceeds 0.75× your standard allocation, trim to that ceiling—3% if your standard is 4%. If it is already at or below the ceiling, do not sell on this proposal; do not initiate or short. Reassess the retained position after a close below the <em>dated</em> $1,176.88 average or $1,172.56 session low, and reconsider the trim thesis if LLY establishes a stronger breakout above the updated daily SuperTrend.
+Aggressive Analyst: Conservative analyst, you’re right that 3% is not automatically safe and that a chart reversal cannot repair earnings quality or debt. But that argues for sizing LLY to the actual portfolio, not for abandoning a useful trim rule. Q2 revenue grew 47.7% and free cash flow reached $4.475 billion; the weekly and monthly trends remain up. I want to keep a meaningful stake in that upside. At the same time, the lower 24.92× forward P/E depends on estimated EPS roughly 59% above trailing EPS, while net margin fell and net debt rose $10.723 billion in six months. Selling only the excess is a more ambitious use of risk capital than either exiting LLY or letting an overweight ride unexamined. I would reconsider the ceiling if the growth and cash conversion justify it—not automatically because SuperTrend flips.</p>
+<p>Neutral analyst, I agree the September 28 chart cannot prove that selling today beats selling later. That is not the bet. The bet is that an overweight deserves a higher burden of proof than a core holding. On the dated snapshot, LLY closed just $7.90 above its 50-day average against $31.70 of ATR, with a down daily SuperTrend and ADX at 20.71. Waiting for a breakdown could give up the chance to trim during a recovery. Conversely, improving MACD, rising OBV, the Olumiant label expansion, and strong cash generation make a full exit an unnecessarily blunt response. Rival trial headlines are not clean head-to-head verdicts, and the mildly bullish social signal has low confidence; neither should dictate the size of the retained stake.</p>
+<p>My recommendation remains SELL only LLY shares above 0.75× the investor’s standard allocation—3% if that standard is 4% and the portfolio’s other exposures permit it. If LLY is already at or below the appropriate ceiling, this proposal calls for no sale; do not initiate or short. Confirm a current LLY quote, exposure, taxes, and costs before placing staged limit orders. Treat the September 28 average and session low as dated reassessment prompts, not automatic stops, and revisit the trim thesis if a current breakout is backed by durable reported earnings and cash flow.
+Aggressive Analyst: Conservative analyst, you’re right that 3% is not automatically safe. I’m not arguing for a guaranteed 3% holding: LLY’s ceiling should be the lower of 0.75× the investor’s standard allocation and what their other exposures and loss tolerance permit. But making uncertainty a reason to shrink every position further risks giving up the upside we’re trying to preserve. LLY grew Q2 revenue 47.7% and generated $4.475 billion of free cash flow; its weekly and monthly trends remain up. The Olumiant label expansion and investment beyond the obesity franchise offer ways for that growth to broaden, though their returns are unproven. Your earnings-quality and debt figures make a strong case for selling an overweight, not necessarily for stripping out a position that fits the risk budget.</p>
+<p>Neutral analyst, I’m not claiming a timing edge from a dated chart. The September 28 close was only $7.90 above the 50-day average against $31.70 of ATR, while the daily SuperTrend was down and ADX was 20.71. That is a poor basis for demanding that an investor carry <em>extra</em> LLY exposure until a breakdown confirms the risk. It is also a poor basis for exiting entirely: momentum and OBV were improving, and the longer-term trends were up. Selling only the excess is the bolder allocation choice because it keeps participation in a potentially powerful growth story while freeing risk capacity before the forward earnings assumptions have been proved.</p>
+<p>I agree with both of you that 47.7% sales growth does not guarantee the roughly 59% forecast EPS increase embedded in the forward valuation. Q2 net margin fell, unusual charges need scrutiny, and net debt rose $10.723 billion in six months. Those are precisely why the overweight must earn its place. Rival-drug headlines are not clean head-to-head verdicts, while mildly bullish social sentiment has low confidence; neither justifies an all-or-nothing trade.</p>
+<p>My call remains SELL LLY only above the lower, portfolio-appropriate ceiling—3% only when a 4% standard allocation and the investor’s other exposures support it. If holdings are already within that ceiling, this proposal calls for no sale; do not initiate or short. Confirm the current LLY quote, holdings, taxes and costs before staging limit orders, and plan for orders that do not fill. Revisit the retained weight on current technicals and demonstrated earnings, cash conversion and acquisition returns—not an automatic reaction to an old price level or a chart flip.
+Aggressive Analyst: Conservative analyst, I agree that “meaningful upside” is not a risk limit. The retained LLY weight must fit the investor’s correlated holdings and loss tolerance; 3% is an example, not a target to defend at all costs. But your earnings-quality and financing concerns make the case for selling the <em>excess</em>, not automatically shrinking a core that passes that test. LLY’s Q2 revenue grew 47.7%, and it generated $4.475 billion of free cash flow despite heavy capital spending. The Olumiant expansion and broader research investment offer potential growth beyond obesity, even though their returns are unquantified. Waiting for acquisition returns and reported earnings to be beyond doubt could mean retaining too little exposure if that investment succeeds.</p>
+<p>You are right that 26.2% EPS growth lagged sales growth, margin fell, unusual charges need examination, and debt rose sharply. I would not call the weekly uptrend or low-confidence bullish sentiment a margin of safety. I would call them reasons, alongside the operating growth, <strong>not to turn a disciplined trim into an exit</strong>.</p>
+<p>Neutral analyst, I am not claiming the dated September 28 chart gives us an exit-timing edge. Its $7.90 margin above the 50-day average was small beside $31.70 of ATR; daily SuperTrend was down and ADX was 20.71. That combination means an <em>overweight</em> has not earned the benefit of a confirmed breakout. Yet improving momentum, rising OBV, and up weekly and monthly trends mean a full sale could forfeit substantial upside. Selling excess shares now, if an excess still exists at the current quote, takes risk off without requiring a prediction about the next move. It also leaves capacity to reassess LLY on new earnings and cash-flow evidence rather than being forced to defend an oversized position.</p>
+<p>My call is SELL only LLY shares above the lower of 0.75× the investor’s standard allocation and a portfolio-specific risk ceiling. If LLY is already within that ceiling, this proposal calls for no trade; do not add or short. Confirm current holdings and quote, weigh taxes and costs, and use staged limit orders with a plan if they do not fill. The September 28 levels are review prompts, not stops or automatic buy-back signals.
+Aggressive Analyst: Conservative analyst, your 25% LLY drawdown test is the right challenge to my case: at a 3% weight, that would cost 0.75% of the portfolio before correlated losses. If that breaches the investor’s loss budget, 3% is too much. But the stress test is a reason to set the ceiling properly, not a reason to keep shrinking a core that passes it. LLY generated $4.475 billion of Q2 free cash flow after heavy capex, and revenue grew 47.7%. The Olumiant expansion and investment beyond obesity offer upside that an unnecessarily small holding could miss, even though their returns are not yet quantified.</p>
+<p>Your financing objection is stronger. First-half free cash flow barely covered dividends and repurchases before acquisitions, and net debt rose $10.723 billion. Alongside slower EPS growth and a 39.73× trailing P/E, that makes <em>excess</em> LLY exposure hard to defend. It does not make a portfolio-tested core irrational. I agree the ceiling must fall if cash conversion, acquisition returns or correlated exposure worsen.</p>
+<p>Neutral analyst, your illustrative 0.5% loss budget and 25% decline imply a 2% LLY ceiling before correlated losses; I would use it if those are the investor’s actual constraints. I would not turn that illustration into a universal limit. Nor am I claiming the dated chart proves a timing advantage. The close was just $7.90 above the 50-day average versus $31.70 of ATR, with a down daily SuperTrend and ADX of 20.71. That is insufficient confirmation to <em>carry an overweight</em>. Improving momentum, rising OBV and up weekly and monthly trends are equally good reasons not to exit altogether. The rival trial headlines are not clean head-to-head verdicts.</p>
+<p>My call remains SELL only LLY shares above the lower of 0.75× the standard allocation and a ceiling that accounts for plausible loss and correlated holdings. Three percent is an example, not a floor; if LLY is already within its appropriate limit, this proposal calls for no trade, addition or short. Confirm the current quote, holdings, taxes and costs before staging limit orders, and plan for non-fills. Reassess the retained stake on current prices and demonstrated earnings and cash conversion—not an automatic reaction to September 28 levels.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the aggressive analyst’s direction to sell excess LLY, but I would not call the resulting 3% position automatically low-risk. That ceiling is appropriate only if the portfolio’s other healthcare and obesity-drug exposure, cash needs, and loss tolerance support it. Nor would I treat a breakout above the updated daily SuperTrend as a reason to restore the trimmed shares: a chart reversal would not resolve valuation or financing risk.</p>
+<p>LLY’s 47.7% Q2 revenue growth and $4.475 billion of free cash flow justify retaining some exposure. They do not erase the fall in net margin from 36.4% to 30.9%, the $3.479 billion in unusual items, or the $10.723 billion rise in net debt over six months. The 24.92× forward P/E depends on estimated EPS roughly 59% above trailing EPS. Strong sales must still become durable reported earnings and cash flow while LLY funds expansion and acquisitions.</p>
+<p>The neutral analyst has not spoken, so I would not assign them a position. If the neutral case is to hold the full allocation until the chart breaks down, that leaves excess capital exposed while confirmation is weak: the September 28 close cleared the dated 50-day average by just $7.90, versus $31.70 of ATR; the daily SuperTrend remained down and ADX was 20.71. Conversely, I would not use a close below that old average as an automatic sell trigger. It is a prompt to reassess against current prices and current indicators.</p>
+<p>My recommendation remains to sell LLY holdings above a risk-adjusted ceiling of no more than 0.75× the standard allocation—3% only if the standard is 4% and portfolio concentration permits. Do not initiate or short LLY; a position already below its appropriate ceiling does not require a sale on this proposal alone. Confirm a current quote and review trading costs and taxes before using staged limit orders, which may not fill. Review the retained exposure when earnings quality, debt, acquisition returns, or credible competitive evidence changes—not solely when a dated price level is crossed.
+Conservative Analyst: Aggressive analyst, I agree that an overweight in LLY should be trimmed rather than ignored, but “keep a meaningful stake” is not a risk limit. A 3% weight could still be too large if the portfolio is already exposed to healthcare or obesity-drug outcomes. Q2 revenue rose 47.7%, yet diluted EPS rose 26.2% and net margin fell from 36.4% to 30.9%. The $4.475 billion of quarterly free cash flow is encouraging, but first-half free cash flow only narrowly covered dividends and repurchases before acquisitions; net debt rose $10.723 billion in six months. Those figures call for a portfolio-specific ceiling, not an automatic commitment to retain 3%.</p>
+<p>Neutral analyst, you are right that the September 28 chart cannot tell us whether selling now beats selling later, and the 0.75× ceiling need not be permanent. But waiting for clearer proof of deterioration leaves an overweight exposed to a 39.73× trailing P/E while the lower forward multiple depends on substantial earnings growth. Unusual charges may explain some margin weakness, but sizeable unusual items also appeared in prior years; dismissing them before checking the underlying disclosures would be premature. Rival trial results are not definitive head-to-head comparisons, yet they still warrant a margin of safety.</p>
+<p>My low-risk adjustment is to sell only LLY exposure above the smaller of 0.75× the standard allocation and a ceiling justified by the portfolio’s concentration and loss tolerance. If LLY is already within that ceiling, this proposal alone calls for no sale; do not add or short. Confirm the current quote, holdings, taxes and costs, then use staged limit orders with a plan for unfilled orders. Treat the dated technical levels as review prompts, not stops. Reconsider the retained weight when reported earnings, cash conversion and debt support it—not merely when the chart improves.
+Conservative Analyst: Aggressive analyst, I agree that trimming an overweight need not mean abandoning LLY. But preserving “meaningful” upside is not a reason to set the retained weight before checking the portfolio’s other healthcare exposure and loss tolerance. LLY’s 47.7% Q2 sales growth came with 26.2% diluted-EPS growth and a decline in net margin from 36.4% to 30.9%. Its $4.475 billion of Q2 free cash flow is substantial, yet first-half free cash flow only narrowly covered dividends and repurchases <em>before</em> acquisitions, while net debt rose $10.723 billion. The Olumiant expansion is positive but its sales contribution is unquantified; larger deals introduce financing and execution risk. Those facts make a smaller, portfolio-tested core more defensible than an assumed 3% holding.</p>
+<p>Neutral analyst, I am not asking for every concern to disappear before reconsidering that core. I am asking for evidence proportionate to LLY’s valuation: durable reported per-share earnings, cash generation after investment, and credible returns on acquisitions. Unusual charges may explain some margin pressure, but substantial charges also appeared in prior years. Rival trial headlines are not definitive comparisons, yet competition and pricing can still erode the earnings growth on which the forward multiple relies. Neither mildly bullish, low-confidence sentiment nor a weekly uptrend supplies a margin of safety.</p>
+<p>My recommendation is to <strong>SELL only LLY shares above the lower of 0.75× the standard allocation and a portfolio-specific risk ceiling</strong>; 3% applies only if a 4% standard weight and the rest of the portfolio support it. If LLY is already within that ceiling, this proposal alone does not call for a sale, addition, or short. Confirm current holdings and a current quote, account for taxes and costs, and plan for staged limit orders that do not fill. The September 28 technical levels are dated review prompts, not stops or proof that the recovery is durable.
+Conservative Analyst: Aggressive analyst, I agree that selling excess LLY does not require abandoning the business. But “a core that passes the risk test” needs a test that includes a plausible loss, not just a weight below 3%. A 25% decline in a 3% position would cost 0.75% of the portfolio before losses in correlated healthcare holdings; that is a stress scenario, not a forecast. Q2’s $4.475 billion of free cash flow is encouraging, but first-half free cash flow only narrowly covered dividends and repurchases before acquisitions, while net debt rose $10.723 billion in six months. The Olumiant expansion is real, but its incremental sales are unquantified. Those facts do not demand an exit; they do argue against treating upside participation as a reason to defend a particular core size.</p>
+<p>Neutral analyst, I agree that rival trials are not clean head-to-head evidence and that a position within its limit need not be sold merely because risks remain. But a limit is not permanent permission to hold: it should be lowered if updated portfolio exposures, reported cash conversion, debt or acquisition returns make the original loss budget untenable. At 39.73× trailing earnings, LLY has less room for an earnings disappointment, even if the business keeps growing.</p>
+<p>I would conditionally SELL only LLY shares above the lower of 0.75× the standard allocation and a portfolio-tested risk ceiling; 3% is an example, not a target or floor. If the holding is already within that ceiling, this proposal alone calls for no trade, addition or short. Confirm the current quote and holdings, weigh taxes and costs, and set a plan for unfilled staged limits. The September 28 chart levels are dated review prompts, not stops; reassess the retained weight on current evidence rather than automatically selling on a break or buying back on a breakout.
+Conservative Analyst: Aggressive analyst, I agree that strong growth argues against automatically exiting LLY. But a core position is safe only if it passes a sufficiently demanding loss test. A 25% share-price decline is one scenario, not a worst case. Stressing a 40% decline—not predicting one—a 3% LLY weight would cost 1.2% of the portfolio before losses in correlated holdings. If the investor’s single-name loss budget is 0.5%, that scenario implies a ceiling of 1.25% before allowing for correlation. The weekly uptrend and $31.70 ATR do not cap that risk.</p>
+<p>The operating results warrant caution about defending a “meaningful” weight. Q2 revenue rose 47.7%, but diluted EPS rose 26.2% and net margin fell. First-half free cash flow barely covered dividends and repurchases before acquisitions, while net debt increased $10.723 billion in six months. Olumiant’s expanded indication is positive, but its incremental sales are unquantified. Neither it nor prospective acquisitions yet establishes that LLY will deliver the earnings growth embedded in its forward valuation.</p>
+<p>Neutral analyst, I agree that rival trial headlines are not definitive comparisons and that a properly sized holding need not be cut merely because uncertainty remains. But “within its limit” is reassuring only if that limit already accounts for valuation disappointment, financing needs and correlated portfolio losses. Those risks are visible now; we need not wait for a chart breakdown or another debt increase to test the ceiling.</p>
+<p>I would conditionally SELL only LLY shares above the lower of 0.75× the standard allocation and a portfolio-specific ceiling tested against more than one loss scenario. If current holdings are within that ceiling, this proposal alone calls for no trade, addition or short. Confirm holdings and a current quote, weigh taxes and costs, and plan for staged limit orders that do not fill. The September 28 technical levels are dated review prompts, not protective stops.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: I agree with the proposed SELL, but only as a conditional portfolio rebalance for LLY—not as a bearish call on the business. The aggressive analyst is right that an overweight deserves scrutiny: LLY’s forward valuation depends on substantial earnings growth, while net debt rose $10.723 billion in six months. But the narrow September 28 move above the 50-day average, a down daily SuperTrend, and ADX of 20.71 do not establish that selling <em>now</em> will beat selling later. Those dated readings justify checking today’s market and the size of the overweight, not treating a weak rebound as a reliable exit signal.</p>
+<p>The conservative analyst is right to question whether 3% is safe for every portfolio and to resist buying back shares on a chart signal alone. I would push back on making 0.75× the standard allocation a permanent maximum, though. LLY’s 47.7% Q2 revenue growth, $4.475 billion of quarterly free cash flow, and rising weekly and monthly trends leave a credible growth case. Neither rival trial headlines nor a fall in net margin—affected by substantial unusual items—settles how durable that growth will be. Waiting until every valuation, competitive, and financing concern disappears could mean missing much of the upside.</p>
+<p>My middle ground is to confirm a current LLY quote and portfolio exposures, then trim only the amount above a concentration limit the investor can actually tolerate; 3% is an illustration if the standard allocation is 4%, not a universal safe weight. If LLY is already within that limit, this proposal alone does not call for a sale, an initiation, or a short. Use staged limit orders where practical, weighing taxes and trading costs against the risk of leaving a large overweight in place. For the retained position, review current technical levels alongside reported earnings, cash conversion, debt, acquisition returns, credible competitive data, and confirmed yield trends. A dated price break should prompt review, not an automatic exit; a breakout should likewise prompt review, not an automatic repurchase.
+Neutral Analyst: Aggressive analyst, I agree that trimming an oversized LLY position does not require waiting for a breakdown. But “sell into the recovery” should not imply a timing edge: the September 28 close was only $7.90 above the 50-day average, less than one-quarter of the $31.70 ATR, and those levels are now dated. Nor does 0.75× the standard allocation establish how much LLY risk this particular portfolio can bear. Strong sales and cash flow support keeping exposure, but they do not yet prove that the earnings growth implied by the forward valuation will arrive.</p>
+<p>Conservative analyst, your portfolio-specific ceiling is the right safeguard, but I would not let caution turn into a requirement that every earnings and financing concern disappear before the retained weight can be reconsidered. LLY generated $4.475 billion of Q2 free cash flow, and rival trial headlines are not clean head-to-head evidence that its growth case has failed. Rising debt deserves scrutiny, especially alongside acquisitions; it is not, by itself, a reason to abandon a position that fits the investor’s risk budget.</p>
+<p>So I support SELL as a conditional rebalance: confirm the current LLY quote and holdings, then trim only shares above the lower of 0.75× the standard allocation and a portfolio-specific concentration limit. If LLY is within that limit, this proposal alone warrants no sale; do not initiate or short. Account for taxes and trading costs, and have a plan if staged limit orders do not fill. Review the remaining weight using current technicals, reported per-share earnings, cash conversion, debt and acquisition returns. Neither a break of an old price level nor a chart breakout should make that decision automatically.
+Neutral Analyst: Aggressive analyst, I agree that an LLY overweight does not need a technical breakdown before it can be trimmed. But “keep meaningful upside” needs a risk test, not just a percentage rule. Q2 revenue grew 47.7%, yet diluted EPS grew 26.2%, and the lower forward P/E depends on estimated EPS roughly 59% above trailing EPS. Add rising net debt and possible sensitivity to higher yields, and even a retained position could be too large in a portfolio already concentrated in healthcare or obesity drugs. The September 28 chart supports neither a timing advantage for selling into a rebound nor confidence that the rebound will last.</p>
+<p>Conservative analyst, your portfolio-specific limit is essential, but I would not treat the financing and competitive questions as reasons to keep reducing a position that already fits that limit. LLY generated $4.475 billion of Q2 free cash flow, and its weekly and monthly trends were up. Rival trial headlines are worth investigating, but the cited studies are not clean head-to-head tests. The better question is whether future reported per-share earnings and cash generation justify the risk at the <em>current</em> price, not whether every uncertainty has been resolved.</p>
+<p>My call remains a conditional SELL for LLY: verify today’s quote and holdings, then trim only exposure above the lower of 0.75× the investor’s standard allocation and a limit based on correlated holdings, cash needs and loss tolerance. Three percent is only an example when the standard weight is 4% and the portfolio supports it. If LLY is already within its limit, this proposal calls for no trade, addition or short. Weigh taxes and costs against the size of any excess, and plan for staged limits that do not fill. Use the September 28 price levels as dated review prompts, not stops; review the remaining stake against current valuation, earnings quality, debt, acquisition returns and confirmed rate trends.
+Neutral Analyst: Aggressive analyst, I agree an LLY overweight can be trimmed without waiting for a breakdown. But “keep a core” is only persuasive after testing the loss the portfolio could absorb. Q2 revenue grew 47.7% and free cash flow was $4.475 billion, yet EPS growth lagged sales growth, net debt rose $10.723 billion in six months, and the forward P/E depends on a large increase in estimated earnings. The dated chart does not add a timing edge to that allocation argument.</p>
+<p>Conservative analyst, your 25% drawdown example is a useful stress test, not a forecast or a reason to keep cutting a position that passes the test. LLY’s cash generation and longer-term uptrends leave a credible upside case. Rival trial headlines also do not establish a definitive comparison across drugs. The limit should change if earnings conversion, debt, acquisition returns, or correlated portfolio exposure change—not simply because those uncertainties still exist.</p>
+<p>My call remains a conditional SELL of LLY shares above the lower of 0.75× the investor’s standard allocation and a portfolio-tested limit. For example, if the investor budgets a 0.5% portfolio loss from LLY under an illustrative 25% share-price decline, that implies a 2% weight ceiling before allowing for correlated losses—below the illustrative 3% ceiling for a 4% standard allocation. Confirm current holdings, quote, taxes, and costs before staging limits, and decide what to do if orders do not fill. If LLY is already within the appropriate limit, this proposal alone calls for no sale, addition, or short. Treat the September 28 price levels as review prompts, not automatic orders.
+Neutral Analyst: Aggressive analyst, I agree that an LLY overweight need not wait for a chart breakdown before being trimmed. But the 0.75× rule is a starting ceiling, not proof that the remaining stake is tolerable. Q2 revenue grew 47.7% and free cash flow reached $4.475 billion, yet EPS growth lagged sales, first-half free cash flow barely covered dividends and repurchases before acquisitions, and net debt rose $10.723 billion in six months. Those facts matter more to sizing than whether the September 28 rebound offered a good moment to sell. Its technical readings are now dated and establish no timing advantage.</p>
+<p>Conservative analyst, your 40% decline test usefully shows that a 3% LLY weight could cost 1.2% of the portfolio before correlated losses. But 40% is a stress scenario, not a forecast or a universal sizing rule. If an investor’s actual single-name loss budget is 0.5% under that scenario, the implied ceiling is 1.25% before correlation. If that is not their policy, automatically imposing it could sacrifice participation in a business with substantial cash generation and up weekly and monthly trends. Conversely, those trends and mildly bullish, low-confidence sentiment are no guarantee against a drawdown.</p>
+<p>I would keep the proposed SELL conditional: confirm the current LLY quote and holdings, then trim only exposure above the lower of 0.75× the standard allocation and a ceiling tested against the investor’s loss tolerance, correlated holdings and cash needs. If LLY is already within that ceiling, this proposal alone calls for no sale, addition or short. Weigh taxes and costs, and plan for staged limits that do not fill. Reassess the retained stake using current valuation, reported earnings and cash conversion, debt, acquisition returns, credible competitive evidence and confirmed yield trends—not an automatic reaction to an old price level or a chart breakout.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: For LLY, trim only exposure above the lower of 0.75× the investor’s standard allocation and a portfolio-specific ceiling reflecting correlated holdings, cash needs and loss tolerance; retain holdings already within that limit without adding, and do not initiate or short. A 4% standard allocation implies at most a 3% working ceiling, not a target or minimum holding. Verify current LLY quotes and holdings, weigh taxes and costs, then use staged limit orders for any excess, with a plan to review and amend unfilled orders rather than assuming execution. Reassess at LLY’s next reported results or earlier on material changes; the supplied $1,176.88 50-day average and $1,172.56 session low are dated review references, not automatic stops.</p>
+<p><strong>Investment Thesis</strong>: Basis and judgment: This LLY assessment uses only the supplied September 28, 2026 snapshot, including the $1,184.78 close, and the analysts’ discussion; neither current market data nor the caller’s portfolio is available. The valuation, earnings-conversion and funding concerns win moderately, supporting reduced exposure rather than liquidation. The analysts’ repeated instruction to sell excess LLY is a conditional rebalance, consistent with an Underweight position rating. The conservative argument wins on portfolio-specific stress testing, while the aggressive and neutral arguments correctly limit the reduction and reject an unsupported market-timing claim or a permanent allocation ceiling.</p>
+<p>Operating strength limits the bearish conclusion. LLY’s Q2 revenue grew 47.7%, gross margin reached 85.8%, reported diluted EPS grew 26.2%, and free cash flow was $4.475 billion after capital expenditure. First-half free cash flow exceeded all of 2025. These figures support retaining a position that passes the investor’s risk test. The supplied weekly and monthly uptrends and improving momentum also argue against declaring the growth story broken, although they offer no downside protection. The Olumiant expansion is positive but its incremental sales are unquantified; rival trial headlines do not establish broad commercial superiority.</p>
+<p>Valuation and earnings conversion argue against additions. LLY’s supplied 39.73× trailing and 24.92× forward earnings multiples embed substantial delivery expectations. The $47.54 forward EPS estimate is roughly 59% above trailing EPS, but its forecast period and comparability with reported earnings are unconfirmed. Reported EPS growth lagged revenue growth, and net margin declined from 36.4% to 30.9% despite the higher gross margin. The $3.479 billion of unusual items needs disclosure-level examination; assuming either permanent impairment or full disappearance would overstate the evidence. Applying 20× to the forward estimate produces approximately $951, but that is only a sensitivity, not a supported price target or automatic purchase level.</p>
+<p>Funding is the strongest concrete concern. LLY’s first-half free cash flow left only about $227 million after dividends and repurchases, before acquisitions, while net debt increased $10.723 billion to $45.958 billion. Strong cash generation therefore coexists with limited residual cash after shareholder distributions and sharply higher indebtedness. Without disclosed acquisition-return evidence, this warrants a smaller allocation, not a claim that the business is failing.</p>
+<p>Sizing must reflect losses, not just a percentage convention. At a 3% LLY weight, illustrative 25% and 40% share-price declines would cost 0.75% and 1.2% of portfolio value, respectively, before correlated losses. If the investor actually budgets a 0.5% portfolio loss under those scenarios, the corresponding standalone ceilings would be 2% and 1.25%, before accounting for correlation. These are stress examples, not forecasts, worst-case bounds or universal allocation rules. Use the lower of 0.75× standard and the ceiling supported by the investor’s actual loss policy and other exposures; do not purchase up to that limit or repeatedly trim a position merely because uncertainty persists.</p>
+<p>Technicals do not establish an execution-timing advantage. The supplied LLY close was only $7.90 above the $1,176.88 50-day average versus $31.70 ATR; daily SuperTrend remained down at the dated $1,217.65 threshold and ADX was 20.71. These readings do not prove that selling immediately beats selling later, and longer-term uptrends do not guarantee recovery. Refresh quotes and indicators before trading. Neither a break below an old level nor a breakout above an updated SuperTrend should automatically trigger an exit or repurchase. No price-based protective stop is specified from these stale inputs.</p>
+<p>What would change the decision: Reconsider increasing LLY toward a standard allocation when updated valuation and confirmed forward-EPS definitions are supported by durable reported EPS and free-cash-flow growth, an explanation of unusual items and the margin gap, and evidence that acquisitions and shareholder returns no longer coincide with rapid net-debt accumulation. Credible acquisition-return and comparable competitive evidence matter more than isolated trial headlines or unverified rate claims; not every uncertainty must disappear. If the next results combine another rapid net-debt increase with weakening reported EPS or free cash flow, lower the temporary ceiling to the smaller of 0.5× standard and the portfolio-specific risk limit and reassess the remaining thesis. Reassess earlier if concentration, cash needs or loss tolerance changes. Current quotes, actual holdings, the investor’s loss budget and the next reporting date remain unavailable.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Until LLY’s next reported results; reassess earlier on a material valuation, fundamental or portfolio-risk change.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

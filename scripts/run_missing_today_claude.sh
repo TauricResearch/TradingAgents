@@ -17,6 +17,7 @@
 # TRADINGAGENTS_OPENAI_REASONING_EFFORT also sets Claude effort (default max).
 # TRADINGAGENTS_LLM_RPM controls per-worker request pacing.
 # TRADINGAGENTS_MAX_TOKENS sets the output/reasoning budget (128000 for Claude 5.5).
+# TRADINGAGENTS_LLM_TIMEOUT sets the per-request timeout (1800s for Claude 5.5).
 
 # Parse the complete body before running; edits during a batch must not shift
 # the file positions Bash reads after workers finish. Exit inside this block.
@@ -72,7 +73,10 @@ QUICK_MODEL="${TRADINGAGENTS_QUICK_MODEL:-claude-opus-5-5}"
 case "$DEEP_MODEL/$QUICK_MODEL" in
   claude-opus-5-5/claude-opus-5-5 | claude-opus-5-5/claude-sonnet-5-5 | \
   claude-sonnet-5-5/claude-opus-5-5 | claude-sonnet-5-5/claude-sonnet-5-5)
-    export TRADINGAGENTS_MAX_TOKENS="${TRADINGAGENTS_MAX_TOKENS:-128000}" ;;
+    export TRADINGAGENTS_MAX_TOKENS="${TRADINGAGENTS_MAX_TOKENS:-128000}"
+    # A max-effort synthesis call can run past the 600s default; three
+    # attempts at 600s each then fail the run with AnthropicTimeoutError.
+    export TRADINGAGENTS_LLM_TIMEOUT="${TRADINGAGENTS_LLM_TIMEOUT:-1800}" ;;
 esac
 REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-max}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"

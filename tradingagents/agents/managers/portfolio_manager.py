@@ -82,7 +82,7 @@ Write these sections, in this order, starting with the rating on its own line:
 - **Executive Summary**: the call and how to act on it
 - **Investment Thesis**: the evidence that decided it, what would change it, and the source or calculation supporting the price target
 - **Current Price**: latest verified close from the technical market report, or not provided
-- **Price Target**: one positive numeric absolute target price supported by the supplied analyst evidence (valuation or technical objective). Never substitute a current price, entry, or stop just to fill this field. If the evidence cannot justify a target, state that explicitly; the report will remain incomplete.
+- **Price Target**: required — exactly one positive absolute number in the quote currency (no range, no "not provided"). Derive it from the supplied evidence, using the first method the reports support: (1) a valuation objective (forward EPS or FCF × a multiple, an analyst consensus or fair value cited in the reports); (2) a technical objective (resistance, prior high or low, moving average, measured move); (3) the latest close adjusted by the move your rating and horizon imply. Show the method and inputs in the Investment Thesis. Incomplete or stale data lowers Confidence; it is not a reason to omit the target. Never copy the current, entry or stop price as the target.
 - **Confidence**: Low / Medium / High based on the final decision's evidence and data quality
 - **Time Horizon**: numeric duration and units (e.g. 3-6 months), or not provided if unsupported
 
@@ -97,10 +97,11 @@ Write these sections, in this order, starting with the rating on its own line:
             validate=require_price_target,
             retry_prompt=prompt + "\n\nCorrection required: the previous attempt did not produce a valid "
             "Price Target. Return the full decision with **Price Target**: one positive "
-            "absolute number and explain its supporting source or calculation in the "
-            "Investment Thesis. Use only the supplied analyst evidence. Do not invent "
-            "a target or copy the current/entry/stop price to satisfy validation. "
-            "If no target is supported, explain why; this run will remain incomplete.",
+            "absolute number. Derive it from the supplied analyst evidence with the first "
+            "method the reports support (valuation objective, technical objective, or the "
+            "latest close adjusted by the move your rating and horizon imply) and show the "
+            "calculation in the Investment Thesis. Weak or stale evidence means Confidence: "
+            "Low, not a missing target. Do not copy the current/entry/stop price.",
         )
         # The typed rating is the decision; the rendered text only carries it.
         # Read back from text, a rating the thesis quotes could replace it.

@@ -279,10 +279,11 @@ class PortfolioDecision(BaseModel):
     price_target: float | None = Field(
         default=None,
         description=(
-            "Evidence-backed target price as one absolute number in the quote currency. "
-            "Explain its source or calculation in investment_thesis. A positive numeric "
-            "target is required to complete the report. Use null when no target can be "
-            "justified, leaving the run incomplete; do not substitute the current price."
+            "Required: one positive absolute target price in the quote currency. Derive "
+            "it from the supplied evidence (valuation objective, else technical objective, "
+            "else the latest close adjusted by the move the rating and horizon imply) and "
+            "show the calculation in investment_thesis. Weak evidence lowers confidence; "
+            "it does not justify null. Never copy the current, entry or stop price."
         ),
     )
     current_price: float | None = Field(

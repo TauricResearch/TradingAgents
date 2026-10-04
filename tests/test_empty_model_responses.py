@@ -132,7 +132,8 @@ def test_anthropic_retries_rejected_schema_tool_with_auto():
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
         llm = NormalizedChatAnthropic(model="claude-sonnet-5-5", api_key="fixture", max_tokens=1024)
         llm._client = anthropic.Anthropic(api_key="fixture", http_client=client)
-        proposal = llm.with_structured_output(TraderProposal).invoke(
+        # Explicit function_calling: 5.5-class models default to json_schema.
+        proposal = llm.with_structured_output(TraderProposal, method="function_calling").invoke(
             "Use the supplied evidence.",
             tool_choice={"type": "tool", "name": "TraderProposal"},
         )

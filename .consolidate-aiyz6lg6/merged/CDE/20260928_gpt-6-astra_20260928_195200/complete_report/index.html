@@ -1,0 +1,4373 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/CDE/20260928_gpt-6-astra_20260928_195200/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: CDE - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-cde" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: CDE
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cde-technical-outlook-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CDE technical outlook — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-indicators-say" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the indicators say
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading implications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cde-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CDE sentiment | 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-source-by-source-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Source-by-source evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cross-source-alignments-and-divergences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cross-source alignments and divergences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dominant-narrative-themes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dominant narrative themes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-potential-catalysts-and-risks-surfaced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Potential catalysts and risks surfaced
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cde-trading-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CDE trading and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-over-the-past-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed over the past week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cde-specific-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CDE-specific assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forward-looking-signals-and-trading-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forward-looking signals and trading plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cde-coeur-mining-inc-fundamental-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CDE — Coeur Mining, Inc. fundamental report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#company-and-valuation-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Company and valuation snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operating-results-rapid-growth-weaker-latest-quarter-margins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operating results: rapid growth, weaker latest-quarter margins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-flow-and-balance-sheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash flow and balance sheet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insider-activity-and-data-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insider activity and data checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-cde">Trading Analysis Report: CDE<a class="headerlink" href="#trading-analysis-report-cde" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:52:00</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="cde-technical-outlook-september-28-2026">CDE technical outlook — September 28, 2026<a class="headerlink" href="#cde-technical-outlook-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Coeur Mining (CDE) is in a short-term decline within a still-positive monthly trend.</strong> The latest verified close was <strong>$17.87</strong>, down from <strong>$19.22 on September 25</strong> and <strong>$22.21 on August 27</strong>. The September 28 close also matched the day’s <strong>$17.87 low</strong>, leaving no visible recovery by the close. That warrants caution, although an unusually stretched daily reading makes an immediate rebound possible.</p>
+<p>I selected <strong>eight complementary indicators</strong>: SuperTrend and the 50-day SMA for trend, ADX for trend strength, the MACD histogram for momentum, ATR for risk, OBV for volume confirmation, TD-9 for potential exhaustion, and the Z-score for price stretch. The verified market snapshot is the source for the latest close, OHLCV, 50-day SMA, MACD histogram, and ATR. Timeframe-specific and other selected readings come from their indicator reports.</p>
+<h4 id="what-the-indicators-say">What the indicators say<a class="headerlink" href="#what-the-indicators-say" title="Permanent link">&para;</a></h4>
+<p><strong>Trend is bearish on the trading timeframes, but not uniformly bearish.</strong> SuperTrend reports <strong>weekly DOWN</strong>, with its trailing line at <strong>$22.70</strong>; <strong>daily DOWN</strong>, with its line at <strong>$21.36</strong>; and <strong>monthly UP</strong>, with its line at <strong>$12.41</strong>. Giving the weekly signal priority, as this indicator specifies, favors a defensive near-term stance. The monthly uptrend is important context, not a nearby stop: its line is far below the current price. All three lines can change as new bars form.</p>
+<p>The <strong>50-day SMA is $18.71</strong>, above the <strong>$17.87</strong> close. Although that average has risen from <strong>$16.54 on August 19</strong> to <strong>$18.71</strong>, price has fallen beneath it. This is a useful distinction: the medium-term average still reflects the prior advance, while current price action has weakened. Treat <strong>$18.71 as a reclaim level to watch</strong>, not as a resistance level proven by repeated tests.</p>
+<p><strong>Momentum and participation favor caution.</strong> The verified MACD histogram is <strong>−0.33</strong>, versus approximately <strong>−0.27 on September 25</strong> in the indicator history. Negative momentum has therefore intensified on the latest session. OBV has also declined from approximately <strong>403.8 million on August 27</strong> to <strong>202.8 million on September 28</strong>, broadly confirming the retreat in price. OBV’s absolute number is not meaningful on its own; the downward direction is.</p>
+<p>There is an important qualification: <strong>ADX is 16.01</strong>, up from <strong>12.28 on September 25</strong> but still below the commonly used <strong>20</strong> threshold for a convincing trend. ADX measures strength, <em>not direction</em>. Thus, the weekly and daily SuperTrend readings identify a bearish direction, while ADX says that a clean, sustained trend-following trade is not yet strongly confirmed. A one-day breakdown or rebound may be prone to reversal.</p>
+<p><strong>CDE is stretched, but there is no completed exhaustion signal.</strong> The daily 20-period Z-score is <strong>−2.34</strong>, a statistically stretched reading below its mean. The weekly reading is <strong>−0.03</strong> and the monthly reading <strong>+0.48</strong>—both near their respective means. The stretch is therefore chiefly a <em>daily</em> condition, not a higher-timeframe extreme. TD-9 shows buy-setup counts of <strong>+3 weekly, +1 monthly, and +4 daily</strong>. These are counts during a decline, <strong>not buy instructions</strong>; none has reached the completed count of nine.</p>
+<h4 id="trading-implications">Trading implications<a class="headerlink" href="#trading-implications" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>For a prospective long:</strong> Waiting for a <strong>daily close back above the then-current 50-day SMA</strong>—<strong>$18.71 as of September 28</strong>—would provide better evidence than buying solely because the daily Z-score is low. Improvement in the MACD histogram and stabilization or an upswing in OBV would add confirmation. A reclaim would be an early recovery signal, <strong>not</strong> a reversal of the bearish weekly SuperTrend; that higher-timeframe hurdle is substantially farther away.</li>
+<li><strong>If weakness continues:</strong> A sustained move below the latest <strong>$17.87 low and close</strong> would argue against treating the daily oversold reading as an automatic floor. Conversely, a brief move below that level followed by a recovery would need confirmation before being called a reversal. Neither outcome is established by today’s data.</li>
+<li><strong>Size for volatility:</strong> Verified ATR is <strong>$1.02</strong>, about <strong>5.7% of the $17.87 close</strong>. As an <em>illustration</em>, an entry at <strong>$18.71</strong> with a stop one current ATR lower, near <strong>$17.69</strong>, risks approximately <strong>$1.02 per share</strong> before gaps, slippage, and fees. At a <strong>$500</strong> predefined risk limit, that is at most roughly <strong>490 shares</strong>. The entry and stop are hypothetical, not a forecast or a guarantee that an order would execute at its stop price.</li>
+</ul>
+<p><strong>Bottom line:</strong> The daily oversold condition creates rebound potential, but it does not outweigh bearish weekly and daily trend signals, a negative MACD histogram, and falling OBV. A patient trader has a clearer test than “buy the dip”: watch whether CDE can reclaim its 50-day average <strong>and</strong> show improving momentum and participation. Until then, keep risk sized for roughly dollar-per-share daily volatility and allow for false moves while ADX remains low.</p>
+<table>
+<thead>
+<tr>
+<th>Selected indicator</th>
+<th>Latest evidence</th>
+<th>Practical reading</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SuperTrend</td>
+<td>Weekly <strong>DOWN</strong>, line <strong>$22.70</strong>; monthly <strong>UP</strong>, <strong>$12.41</strong>; daily <strong>DOWN</strong>, <strong>$21.36</strong></td>
+<td>Near-term bearish within a still-positive monthly regime; prioritize the weekly signal.</td>
+</tr>
+<tr>
+<td>50-day SMA</td>
+<td><strong>$18.71</strong>, versus <strong>$17.87</strong> close</td>
+<td>Watch for a daily reclaim of the <em>current</em> average; its level will move.</td>
+</tr>
+<tr>
+<td>ADX</td>
+<td><strong>16.01</strong></td>
+<td>Trend strength remains weak despite the bearish directional signals; beware whipsaws.</td>
+</tr>
+<tr>
+<td>MACD histogram</td>
+<td><strong>−0.33</strong></td>
+<td>Downside momentum persists; look for improvement before trusting a rebound.</td>
+</tr>
+<tr>
+<td>ATR</td>
+<td><strong>$1.02</strong></td>
+<td>Set position size and stop distance with substantial daily volatility in mind.</td>
+</tr>
+<tr>
+<td>OBV</td>
+<td>Declining from August 27 to September 28</td>
+<td>Volume participation has not confirmed a durable recovery.</td>
+</tr>
+<tr>
+<td>TD-9</td>
+<td>Weekly <strong>+3</strong>; monthly <strong>+1</strong>; daily <strong>+4</strong></td>
+<td>Decline-related buy setups are in progress; none signals completed exhaustion.</td>
+</tr>
+<tr>
+<td>Z-score</td>
+<td>Weekly <strong>−0.03</strong>; monthly <strong>+0.48</strong>; daily <strong>−2.34</strong></td>
+<td>Daily price is stretched, but higher timeframes do not show the same extreme.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mixed</strong> (Score: 5.1/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="cde-sentiment-2026-09-21-to-2026-09-28">CDE sentiment | 2026-09-21 to 2026-09-28<a class="headerlink" href="#cde-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="1-source-by-source-evidence">1. Source-by-source evidence<a class="headerlink" href="#1-source-by-source-evidence" title="Permanent link">&para;</a></h4>
+<p><strong>News (three headlines; only one substantive CDE-focused article excerpt):</strong> Trefis reports CDE fell 5.7% on September 23 versus a 0.7% decline for the S&amp;P 500, framing the question as whether to sell. Its counterweight is CDE's reported record quarterly revenue, attributed in large part to the recently acquired New Afton and Rainy River mines; whether those mines meet plan remains the identified execution risk. This is caution balanced by an operating upside case, not a reported recommendation to sell. A Hycroft article only compares its pre-revenue business with commercial producers such as CDE; it is not CDE-specific operating news. The gold-stocks article offers a general gold-investment thesis, but the supplied excerpt does <strong>not</strong> establish that CDE is one of its three picks. Neither peripheral article establishes a new CDE catalyst.</p>
+<p><strong>StockTwits (18 most-recent messages):</strong> Eight are user-tagged Bullish (44% of all messages), none are tagged Bearish, and ten (56%) are unlabeled. Thus the tagged subset is 8/8 bullish, <strong>not</strong> 18/18; unlabeled posts contain material caution. Silver enthusiasm and buying dips appear in bullish posts, including a September 23 claim of adding CDE around $19.36 and a September 24 'Cash Machine' opinion. Two September 22 bullish-tagged posts link to an exploration update for New Afton and Rainy River, but the release text is not supplied, so its results cannot be evaluated. Counterweights include a September 23 observation that CDE repeatedly stalls near $21.50; a September 28 poster saying they sold near $22 resistance and set much lower re-entry orders; and posts saying support needs to hold, describing a break of a short-term structure low and possible continuing bearish pressure. One September 25 post advertises CDE call-option upside and a $18.98 share price; these are a user's claims, not verified prices, returns or independent analysis. Another unlabeled post warns that miners can underperform their underlying metals over long periods. Silver and gold chart posts cover multiple tickers rather than exclusively CDE. The proposed $17.50 and $16.80–$14 re-entry levels, as well as $21.50–$22 resistance, are poster opinions, not confirmed technical levels.</p>
+<p><strong>Reddit:</strong> The feed was explicitly disabled by configuration. There are no Reddit posts or engagement data to assess; this does not imply Reddit users were neutral or silent about CDE.</p>
+<h4 id="2-cross-source-alignments-and-divergences">2. Cross-source alignments and divergences<a class="headerlink" href="#2-cross-source-alignments-and-divergences" title="Permanent link">&para;</a></h4>
+<p>StockTwits' bullish user tags and dip-buying/silver-upside rhetoric contrast with Trefis's sell-question framing and reported September 23 relative underperformance. The divergence is less stark when the ten unlabeled messages are read: several social posters acknowledge breakdown, support and miner-versus-metal risks. Conversely, news's record-revenue point and the social links to an exploration update offer potential reasons for interest, without establishing that the new mines are on plan. General gold themes in the two peripheral headlines do not independently corroborate a CDE-specific bullish thesis. This split supports a <strong>Mixed</strong>, near-neutral reading rather than a bearish call or an unqualified bullish stance.</p>
+<h4 id="3-dominant-narrative-themes">3. Dominant narrative themes<a class="headerlink" href="#3-dominant-narrative-themes" title="Permanent link">&para;</a></h4>
+<p>The central tension is <strong>precious-metal upside versus CDE execution and near-term downside risk</strong>: traders look to silver strength or a rebound from support, while the CDE-focused news asks whether new acquired mines will catch up to plan after a pronounced down day. Posts increasingly discuss buying dips and possible lower entries rather than a confirmed breakout. The New Afton/Rainy River exploration-update links connect the retail conversation to the same assets cited in the news, but the update's content is unavailable.</p>
+<h4 id="4-potential-catalysts-and-risks-surfaced">4. Potential catalysts and risks surfaced<a class="headerlink" href="#4-potential-catalysts-and-risks-surfaced" title="Permanent link">&para;</a></h4>
+<p>Potential upside factors to monitor are CDE's ability to deliver the output and economics implied by record revenue at New Afton and Rainy River, the actual findings of the linked exploration update once read, and gold/silver strength if sustained. These are possibilities or reported themes, not verified forward outcomes. Risks are underperformance of the newly acquired mines against plan; a further decline or failure to regain levels that posters call support/resistance; and the possibility that metals strength does not translate into miner returns. The 'Mexico approval' in a multi-cashtag StockTwits post appears directed at another ticker and is <strong>not</strong> evidence of a CDE approval. No earnings date, quantified exploration results, verified current price or independent technical series is provided. Sentiment is a snapshot, not a price forecast.</p>
+<table>
+<thead>
+<tr>
+<th>Sentiment signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence / limit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User-tagged retail optimism</td>
+<td>Bullish, limited</td>
+<td>StockTwits</td>
+<td>8 Bullish, 0 Bearish, 10 unlabeled out of 18; tags cover fewer than half the posts.</td>
+</tr>
+<tr>
+<td>Dip buying and metals enthusiasm</td>
+<td>Bullish, speculative</td>
+<td>StockTwits</td>
+<td>'Cash Machine,' claimed CDE add around $19.36, and recurring silver-upside posts; opinions rather than outcomes.</td>
+</tr>
+<tr>
+<td>Relative drop and execution question</td>
+<td>Cautious</td>
+<td>Trefis news excerpt</td>
+<td>Reports September 23 CDE decline of 5.7% versus 0.7% for S&amp;P 500; asks if newly acquired mines can meet plan.</td>
+</tr>
+<tr>
+<td>Record quarterly revenue</td>
+<td>Constructive, conditional</td>
+<td>Trefis news excerpt</td>
+<td>Reports record revenue substantially supported by New Afton and Rainy River; execution remains uncertain.</td>
+</tr>
+<tr>
+<td>Resistance, support and lower entry levels</td>
+<td>Cautious</td>
+<td>StockTwits</td>
+<td>Unlabeled posters discuss $21.50–$22 selling pressure, a structure-low break, support risk and possible cheaper entries; unverified chart opinions.</td>
+</tr>
+<tr>
+<td>Exploration-update links</td>
+<td>Possible catalyst, unassessed</td>
+<td>StockTwits</td>
+<td>Two bullish-tagged September 22 links refer to CDE's New Afton/Rainy River update; release findings absent.</td>
+</tr>
+<tr>
+<td>Wider gold theme</td>
+<td>Contextual only</td>
+<td>Yahoo Finance headlines</td>
+<td>Hycroft comparison and generic gold-stock article do not establish a new CDE development or selection as a featured pick.</td>
+</tr>
+<tr>
+<td>Community cross-check</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>Feed disabled; no basis to infer a Reddit stance.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Confidence: low.</strong> One of the three requested sources is disabled, only one of the three supplied news excerpts substantially addresses CDE, and the 18 StockTwits messages have ten unlabeled entries and no independent verification of the posters' chart or price claims.</p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="cde-trading-and-macro-report-september-28-2026">CDE trading and macro report — September 28, 2026<a class="headerlink" href="#cde-trading-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Bottom line:</strong> Maintain a <strong>cautious, watch-for-confirmation stance on CDE</strong>. Rising bond yields and a late-week decline in precious metals are near-term headwinds for miners. CDE also has a company-specific question: whether its recently acquired New Afton and Rainy River mines can reach plan. The available news does not establish that the ramp-up has recovered.</p>
+<h4 id="what-changed-over-the-past-week">What changed over the past week<a class="headerlink" href="#what-changed-over-the-past-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Yields are setting the market tone.</strong> Reports on September 28 described rising Treasury yields alongside falling major U.S. stock indexes; a separate report characterized investors as pricing a “higher-for-longer” Fed path. The indexes had nevertheless posted gains for the week ending September 25, so Monday’s weakness is a change in near-term tone, not evidence of a sustained market decline. <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Yahoo Finance market report</a> · <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">Bond-market report</a> · <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-notch-weekly-wins-as-market-shrugs-off-bond-sell-off-oil-prices-ease-081738529.html">September 25 recap</a></li>
+<li><strong>Precious-metal weakness matters directly to CDE.</strong> A September 28 report attributed declines in Canadian mining shares to falling gold and silver prices. For CDE, weaker metal prices can pressure expected revenue just as investors scrutinize costs and production at its acquired operations. <a href="https://finance.yahoo.com/markets/commodities/articles/canadian-miners-slide-gold-silver-142811556.html">Investing.com sector report</a></li>
+<li><strong>Oil is an inflation wildcard.</strong> Oil eased in the September 25 market recap, while a subsequent report said prices rose amid uncertainty around Iran. A persistent oil increase could complicate the rate outlook; its effect on gold would depend in part on whether <em>real</em> yields rise or fall. <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-notch-weekly-wins-as-market-shrugs-off-bond-sell-off-oil-prices-ease-081738529.html">September 25 recap</a> · <a href="https://finance.yahoo.com/energy/articles/oil-extends-gain-iran-uncertainty-220233661.html">Bloomberg oil report</a></li>
+</ul>
+<h4 id="cde-specific-assessment">CDE-specific assessment<a class="headerlink" href="#cde-specific-assessment" title="Permanent link">&para;</a></h4>
+<p>A <a href="https://www.trefis.com/articles/616454/should-you-sell-your-coeur-mining-stock-now/2026-09-24">September 24 Trefis article</a> reported that <strong>CDE fell 5.7% on September 23</strong>, versus a <strong>0.7%</strong> S&amp;P 500 decline. It described record revenue in CDE’s last quarterly report, supported by New Afton and Rainy River, but identified those mines’ progress against plan as the central unresolved issue. An <a href="https://www.trefis.com/articles/615533/coeur-mining-is-generating-record-cash-so-why-does-its-dip-history-warn-buyers/2026-09-16">earlier September 16 article</a> also described a delayed ramp-up; that article is background, <strong>not news from the past week</strong>.</p>
+<p>The retrieved seven-day CDE news contained commentary but <strong>no primary company operating update</strong>. Accordingly, record revenue should not be treated as proof that production, costs, or free cash flow are on track. Before increasing exposure, check CDE’s next company-issued production and guidance update for New Afton and Rainy River, all-in sustaining costs, capital spending, and cash generation.</p>
+<h4 id="forward-looking-signals-and-trading-plan">Forward-looking signals and trading plan<a class="headerlink" href="#forward-looking-signals-and-trading-plan" title="Permanent link">&para;</a></h4>
+<p>Polymarket priced a <strong>97% chance of no Fed cuts in 2026</strong>, while its market for a cut by the December 2026 meeting showed <strong>2%</strong>. These are contract-specific, market-implied odds—not an official Fed forecast. Its U.S.-recession-by-year-end-2026 market showed <strong>8%</strong>. <a href="https://polymarket.com/">Fed markets: full year</a> · <a href="https://polymarket.com/">Fed and recession market data retrieved September 28</a></p>
+<p>For metals, Polymarket assigned <strong>60%</strong> to gold touching a <em>September low</em> of <strong>$4,100</strong> and <strong>60%</strong> to silver touching a <em>September low</em> of <strong>$60</strong>. These are <strong>touch-event probabilities, not current spot prices</strong>; the cited markets had relatively modest traded volumes of about <strong>$35,000</strong> and <strong>$18,000</strong>, respectively, so they are weak evidence for a precise price forecast.</p>
+<p><strong>Action for CDE:</strong> Avoid treating the September 23 drop alone as a bargain signal. A stronger long case requires <strong>both</strong> stabilizing gold and silver prices and company evidence that the acquired mines are approaching plan without disproportionate cost or spending increases. If metals continue to weaken while yields climb, keep position size conservative and wait for operating confirmation. If metals rebound but CDE continues to underperform other miners, investigate whether execution risk—not just the macro backdrop—is driving the gap.</p>
+<p><strong>Data limitation:</strong> The FRED macro tool was unavailable, so this report cannot verify current inflation, unemployment, policy-rate, nominal-yield, real-yield, or dollar-index levels. In particular, the available headlines establish a reported rise in <em>nominal</em> yields, <strong>not</strong> whether real yields rose; do not use an assumed real-yield move as a CDE trading signal.</p>
+<table>
+<thead>
+<tr>
+<th>CDE-relevant factor</th>
+<th>Evidence as of September 28</th>
+<th>Trading implication / next check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rates and risk appetite</td>
+<td>Reports describe climbing Treasury yields and weaker U.S. stocks on September 28.</td>
+<td>Watch verified nominal <strong>and real</strong> yields before attributing gold moves to rates.</td>
+</tr>
+<tr>
+<td>Gold and silver</td>
+<td>September 28 report links falling metals to mining-share weakness.</td>
+<td>Require metal-price stabilization before buying a CDE dip on sector grounds.</td>
+</tr>
+<tr>
+<td>CDE execution</td>
+<td>Trefis identifies New Afton and Rainy River reaching plan as the key open question.</td>
+<td>Prioritize CDE-issued production, cost, spending, and guidance figures.</td>
+</tr>
+<tr>
+<td>CDE share reaction</td>
+<td>Trefis reports CDE −5.7% on September 23 versus S&amp;P 500 −0.7%.</td>
+<td>Monitor whether CDE keeps underperforming miners when metals stabilize.</td>
+</tr>
+<tr>
+<td>Fed outlook</td>
+<td>Polymarket: 97% odds of no 2026 cuts; contract-specific odds.</td>
+<td>Do not base a CDE long position on imminent rate relief.</td>
+</tr>
+<tr>
+<td>Oil and inflation</td>
+<td>Reports shifted from easing oil September 25 to an Iran-related rise.</td>
+<td>Monitor whether sustained oil gains alter inflation expectations and real yields.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="cde-coeur-mining-inc-fundamental-report">CDE — Coeur Mining, Inc. fundamental report<a class="headerlink" href="#cde-coeur-mining-inc-fundamental-report" title="Permanent link">&para;</a></h4>
+<p><strong>Analysis date: September 28, 2026 | Exchange: NYQ | Classification: Basic Materials / Gold</strong></p>
+<p><strong>Bottom line.</strong> CDE has moved from losses and negative free cash flow in 2022–23 to substantial cash generation. At June 30, 2026, it held more cash than reported debt. The main question for traders is whether that strength will translate into <strong>per-share earnings</strong>: second-quarter revenue rose sharply, but production costs and depreciation rose faster, compressing margins. A large increase in assets and shares since year-end 2025 also needs an explanation from company filings before earlier periods are treated as directly comparable.</p>
+<p><strong>Past-week limitation:</strong> The available feeds show no financial release, filing date, or insider transaction dated September 21–28. This is an assessment of the latest financial <em>periods supplied</em>, not evidence of a new fundamental development in the past week. The statement feeds do not identify their source filings or publication dates.</p>
+<h4 id="company-and-valuation-snapshot">Company and valuation snapshot<a class="headerlink" href="#company-and-valuation-snapshot" title="Permanent link">&para;</a></h4>
+<p>The fundamental feed identifies CDE as Coeur Mining, Inc., in the Gold industry. It supplies no mine-by-mine production, reserves, mine lives, costs, commodity-price assumptions, or management guidance; those are material omissions when evaluating a miner.</p>
+<p>The vendor reports market capitalization of <strong>$18.37 billion</strong>, trailing EPS of <strong>$1.11</strong>, a <strong>16.10×</strong> trailing P/E, forward EPS of <strong>$2.04</strong>, an <strong>8.76×</strong> forward P/E, and <strong>1.77×</strong> price-to-book. Those valuation ratios imply a share price of approximately <strong>$17.87</strong>, but <strong>that is a calculation from the feed, not a verified September 28 quote</strong>. The forward EPS is about <strong>84% above</strong> trailing EPS, so the apparently lower forward P/E depends on a substantial earnings improvement. The reported beta is <strong>1.389</strong>.</p>
+<p>The feed also lists a 52-week range of <strong>$13.55–$27.77</strong>, 50-day average of <strong>$18.71</strong>, and 200-day average of <strong>$19.26</strong>. Their timestamps are not supplied; they should not substitute for a current quote or last-week price history. Its dividend-yield entry is <strong>0.21</strong>, without a clear unit. Although the cash-flow feed records a <strong>$20.6 million</strong> dividend payment in Q2 2026, neither that entry nor the ambiguous yield establishes a dependable recurring payout rate.</p>
+<h4 id="operating-results-rapid-growth-weaker-latest-quarter-margins">Operating results: rapid growth, weaker latest-quarter margins<a class="headerlink" href="#operating-results-rapid-growth-weaker-latest-quarter-margins" title="Permanent link">&para;</a></h4>
+<p>CDE's <strong>Q2 2026 revenue was $1.086 billion</strong>, up <strong>27%</strong> from Q1 and <strong>126%</strong> from Q2 2025. Yet cost of revenue rose <strong>87% quarter over quarter</strong>, from <strong>$429.8 million</strong> to <strong>$805.7 million</strong>. Gross profit fell from <strong>$426.4 million</strong> to <strong>$279.9 million</strong>, taking gross margin from <strong>49.8% to 25.8%</strong>. Q2 2025 gross margin was approximately <strong>39.5%</strong>.</p>
+<p>Q2 operating income consequently fell from <strong>$374.2 million</strong> to <strong>$217.0 million</strong> quarter over quarter. EBITDA increased modestly, from <strong>$454.1 million</strong> to <strong>$481.7 million</strong>, but depreciation, amortization and depletion rose from <strong>$99.8 million</strong> to <strong>$256.0 million</strong>. Net income fell from <strong>$246.8 million to $121.9 million</strong>, and diluted EPS from <strong>$0.35 to $0.12</strong>. The Q2 tax provision of <strong>$93.2 million</strong> on <strong>$215.1 million</strong> pretax income also exceeded Q1's effective rate. These figures make <strong>costs, depreciation, and the tax rate</strong> more useful next-quarter checkpoints than revenue growth alone.</p>
+<p>For context, 2025 annual revenue was <strong>$2.070 billion</strong>, versus <strong>$1.054 billion</strong> in 2024; net income was <strong>$585.9 million</strong>, versus <strong>$58.9 million</strong>. The longer history shows the scale of the turnaround:</p>
+<table>
+<thead>
+<tr>
+<th>Fiscal year</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Net income</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Free cash flow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">$785.6m</td>
+<td style="text-align: right;">−$78.1m</td>
+<td style="text-align: right;">$25.6m</td>
+<td style="text-align: right;">−$326.7m</td>
+</tr>
+<tr>
+<td>2023</td>
+<td style="text-align: right;">$821.2m</td>
+<td style="text-align: right;">−$103.6m</td>
+<td style="text-align: right;">$67.3m</td>
+<td style="text-align: right;">−$297.3m</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">$1,054.0m</td>
+<td style="text-align: right;">$58.9m</td>
+<td style="text-align: right;">$174.2m</td>
+<td style="text-align: right;">−$9.0m</td>
+</tr>
+<tr>
+<td>2025</td>
+<td style="text-align: right;">$2,070.1m</td>
+<td style="text-align: right;">$585.9m</td>
+<td style="text-align: right;">$886.9m</td>
+<td style="text-align: right;">$665.7m</td>
+</tr>
+</tbody>
+</table>
+<h4 id="cash-flow-and-balance-sheet">Cash flow and balance sheet<a class="headerlink" href="#cash-flow-and-balance-sheet" title="Permanent link">&para;</a></h4>
+<p><strong>Cash conversion remained strong despite Q2's earnings decline.</strong> Q2 operating cash flow was <strong>$513.2 million</strong>, up from <strong>$340.8 million</strong> in Q1. After <strong>$125.7 million</strong> of capital expenditure, Q2 free cash flow was <strong>$387.5 million</strong>, up from <strong>$266.8 million</strong>. First-half 2026 free cash flow of <strong>$654.3 million</strong> nearly equaled the <strong>$665.7 million</strong> reported for all of 2025. However, Q2 operating cash flow included <strong>$256.0 million</strong> of noncash depreciation and <strong>$136.1 million</strong> of “other non-cash items”; the composition and repeatability of the latter warrant checking in the underlying cash-flow notes.</p>
+<p>At June 30, CDE reported <strong>$1.052 billion cash</strong>, <strong>$713.2 million total debt</strong>, and thus approximately <strong>$339.1 million net cash</strong> on those balance-sheet lines. Current assets of <strong>$1.775 billion</strong> against current liabilities of <strong>$485.9 million</strong> give a <strong>3.65× current ratio</strong> and <strong>$1.289 billion working capital</strong>. Q2 cash flow also records <strong>$44.9 million debt repayment</strong>, <strong>$110.4 million share repurchases</strong>, and the <strong>$20.6 million dividend</strong>. The cash position supports flexibility, though repurchases and distributions should be weighed against future mine investment.</p>
+<p><strong>Comparability is a major diligence issue.</strong> From December 2025 to June 2026, total assets rose from <strong>$4.70 billion to $15.20 billion</strong>, net property, plant and equipment from <strong>$2.74 billion to $12.16 billion</strong>, and reported shares from <strong>642.1 million to 1,028.5 million</strong>—an increase of roughly <strong>60%</strong>. Equity rose from <strong>$3.31 billion to $10.41 billion</strong>, while noncurrent deferred tax liabilities rose from <strong>$323.0 million to $3.11 billion</strong>. The supplied statements do not establish the transaction or accounting treatment behind these changes. <strong>Do not assume historical growth rates or per-share results are like-for-like</strong> until the relevant filing and transaction disclosures are reviewed. Based on reported June balances, debt is about <strong>6.85% of equity</strong>; the fundamentals feed's unqualified “debt to equity: 6.851” appears consistent with a <em>percentage-style</em> figure, not 6.851 times.</p>
+<h4 id="insider-activity-and-data-checks">Insider activity and data checks<a class="headerlink" href="#insider-activity-and-data-checks" title="Permanent link">&para;</a></h4>
+<p>No insider transaction appears in the feed for the past week. Its latest entry is a <strong>September 8 sale of 10,000 shares for $210,600</strong> by general counsel Casey Nault. On <strong>August 19</strong>, Nault, CFO Thomas Whelan, and director James Thompson sold a combined <strong>41,000 shares for $844,470</strong>. The most recent listed purchase was <strong>635 shares for $10,763</strong> by officer Aoife McGrath on June 12. Recent listed trades therefore lean toward selling, but the feed gives neither holdings after sale nor trading-plan details; it cannot establish insiders' motives or filing dates.</p>
+<p>There are material <strong>vendor-summary reconciliation differences</strong>. Adding the four reported quarters through June 2026 produces trailing revenue of <strong>$3.171 billion</strong> and net income of <strong>$850.4 million</strong>, matching the fundamentals snapshot. But quarterly gross profits sum to approximately <strong>$1.324 billion</strong>, versus its <strong>$1.786 billion</strong> gross-profit figure. Quarterly free cash flows sum to approximately <strong>$1.156 billion</strong>, versus its <strong>$796.7 million</strong> free-cash-flow figure. For valuation, use a consistently defined, verified period rather than mixing those totals.</p>
+<p><strong>Actionable watchlist:</strong> Before treating the low forward P/E as an opportunity, verify the source filing behind the asset and share-count step-change, then test whether the next reported quarter restores gross margin from Q2's <strong>25.8%</strong> while maintaining positive free cash flow. Conversely, another quarter of cost growth outpacing revenue—or a material reduction in the current net-cash cushion—would weaken the turnaround case. With no verified past-week catalyst or live quote in these tools, this research alone does <strong>not</strong> support a time-specific entry price for CDE.</p>
+<table>
+<thead>
+<tr>
+<th>Key point</th>
+<th>Evidence as available September 28, 2026</th>
+<th>Trading implication / check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Earnings turnaround</td>
+<td>2025 net income <strong>$585.9m</strong>, after losses in 2022–23</td>
+<td>Positive longer-term shift; compare future results on a per-share basis.</td>
+</tr>
+<tr>
+<td>Latest margin warning</td>
+<td>Q2 2026 gross margin <strong>25.8%</strong>, down from <strong>49.8%</strong> in Q1</td>
+<td>Watch costs, depreciation and taxes, not revenue alone.</td>
+</tr>
+<tr>
+<td>Cash generation</td>
+<td>Q2 free cash flow <strong>$387.5m</strong>; first-half total <strong>$654.3m</strong></td>
+<td>Confirm the cash-flow components and repeatability.</td>
+</tr>
+<tr>
+<td>Liquidity</td>
+<td><strong>$1.052bn</strong> cash versus <strong>$713.2m</strong> debt; current ratio <strong>3.65×</strong></td>
+<td>Approximately <strong>$339m net cash</strong> provides a buffer.</td>
+</tr>
+<tr>
+<td>Comparability and dilution</td>
+<td>Shares <strong>642.1m → 1,028.5m</strong> from year-end 2025 to June 2026</td>
+<td>Verify the underlying transaction before extrapolating growth or EPS.</td>
+</tr>
+<tr>
+<td>Valuation</td>
+<td><strong>16.10×</strong> trailing P/E; <strong>8.76×</strong> forward P/E</td>
+<td>Forward multiple requires roughly <strong>84%</strong> higher EPS than trailing EPS.</td>
+</tr>
+<tr>
+<td>Recent insider feed</td>
+<td>Latest listed trade: <strong>September 8 sale</strong>; none listed September 21–28</td>
+<td>No supported past-week insider catalyst; avoid inferring motives.</td>
+</tr>
+<tr>
+<td>Data reliability</td>
+<td>Quarterly gross-profit and FCF sums differ from vendor summary</td>
+<td>Reconcile definitions against filings before using those figures in a trade.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case for CDE is about cash generation, not a bet that a falling stock must bounce.</strong> Coeur Mining has gone from negative free cash flow in 2022–23 to <strong>$665.7 million in 2025</strong>. In just the first half of 2026, it generated another <strong>$654.3 million</strong>, including <strong>$387.5 million in Q2 after capital spending</strong>. Q2 revenue reached <strong>$1.086 billion</strong>, up <strong>126% year over year</strong>, with the recently acquired New Afton and Rainy River mines contributing substantially to reported record sales.</p>
+<p>Bear, your strongest objection is that sales growth has not translated cleanly into earnings. I agree: Q2 gross margin fell from <strong>49.8% to 25.8%</strong> quarter over quarter, and diluted EPS fell from <strong>$0.35 to $0.12</strong>. I would not call that a temporary ramp-up cost without mine-level evidence. But the quarter still produced <strong>$217 million in operating income</strong> and substantial free cash flow. The investment question is whether CDE can improve the economics of a much larger operating base—not whether it needs to prove it can generate cash at all.</p>
+<p>That larger base creates meaningful upside <em>if</em> execution holds. First-half revenue was about <strong>$1.94 billion</strong>, nearly matching all of 2025’s <strong>$2.07 billion</strong>. If second-half revenue merely equaled Q2’s pace, full-year revenue would be roughly <strong>$4.11 billion</strong>—an illustration, <strong>not guidance or a like-for-like growth forecast</strong>. The balance sheet gives CDE room to work through the ramp: at June 30 it reported <strong>$1.052 billion in cash</strong>, <strong>$713 million in debt</strong>, and a <strong>3.65× current ratio</strong>. Its advantage is an expanded, cash-generating production base with financial flexibility, not an unproven claim of industry-leading costs.</p>
+<p>I also would not dismiss the bear’s dilution point. Reported shares rose roughly <strong>60%</strong> from year-end 2025 to June 2026, and the transaction accounting needs checking before projecting per-share gains. Likewise, the <strong>8.76× forward P/E</strong> is attractive only if the implied earnings improvement materializes. Those are tests of the bull case, not reasons to ignore the cash already generated.</p>
+<p><strong>My position:</strong> CDE merits a <strong>measured, long-term bullish position</strong>, not an aggressive dip-buy. The September 28 close of <strong>$17.87</strong> sits below the <strong>$18.71 50-day average</strong>, with falling OBV and bearish daily and weekly trend signals. I would add conviction only after company-issued production, cost and cash-flow figures show the acquired mines approaching plan—and, for a trading entry, after price and momentum improve. If costs keep outrunning revenue or free cash flow weakens materially, the bear wins. If CDE sustains cash generation while restoring margins, today’s weak share price offers a more compelling opportunity than the latest EPS figure alone suggests.
+Bull Analyst: Bear, you are right that <strong>revenue growth is not the same as per-share value creation</strong>. CDE’s Q2 cost increase, margin compression and roughly 60% rise in reported shares are serious objections. I would not use the illustrative $4.11 billion revenue pace—or the 8.76× forward P/E—as proof that the acquired mines are already earning their keep.</p>
+<p>But your “wait for proof” recommendation understates the proof CDE <em>has</em> supplied. This is not a turnaround financed only by hope: free cash flow rose from negative in 2022–23 to <strong>$665.7 million in 2025</strong>, then reached <strong>$266.8 million in Q1 2026 and $387.5 million in Q2</strong>. Even with Q2 gross margin down to <strong>25.8%</strong>, CDE reported <strong>$217 million of operating income</strong> and generated that Q2 free cash flow <em>after</em> <strong>$125.7 million of capital spending</strong>. That does not establish a durable return per share, but it does show the larger business can produce substantial cash under the latest reported margin conditions.</p>
+<p>I take your <strong>$136.1 million “other non-cash items”</strong> point seriously. Its composition needs verification; depreciation also reflects mine assets that will eventually require investment. As a deliberately harsh <em>illustration</em>, subtracting the entire $136.1 million from reported Q2 free cash flow still leaves about <strong>$251 million</strong>. That is not an audited normalized figure or a repeatability forecast. It shows why the cash-flow case cannot be dismissed solely because the adjustment is unexplained.</p>
+<p>The opportunity is operational leverage, not a claimed cost moat. New Afton and Rainy River have substantially expanded reported sales; if CDE improves their economics, the benefit applies to a much larger revenue base. At Q2’s <strong>$1.086 billion</strong> of sales, a five-percentage-point gross-margin improvement would mean roughly <strong>$54 million more quarterly gross profit</strong>, before other costs and taxes—an illustration, not guidance. Meanwhile, <strong>$1.052 billion in cash versus $713 million in debt</strong> gives CDE room to address execution without an immediate balance-sheet squeeze. I agree that neither liquidity nor buybacks erase dilution.</p>
+<p>Nor am I calling the chart a buy signal. At the verified <strong>September 28 close of $17.87</strong>, CDE was below its <strong>$18.71 50-day average</strong>, with weak momentum and falling OBV; weaker metals could make the near term worse. My disagreement is about <em>positioning</em>: waiting for restored margins, mine-level confirmation <strong>and</strong> a chart recovery may remove much of the uncertainty that creates the upside. <strong>I favor a small, long-term CDE position now, not an aggressive dip-buy</strong>, and would add only if company-issued production, costs and cash flow demonstrate improvement <em>per share</em>. If costs keep outrunning sales or free cash flow deteriorates, your bear case wins.
+Bull Analyst: Bear, you are right that CDE has <strong>not yet proved durable returns per share</strong> from its expanded mine portfolio. Q2’s cost increase, margin decline and roughly 60% rise in reported shares make that the central test. Where I disagree is your conclusion that investors should own nothing until margins and EPS have already recovered.</p>
+<p>The cash evidence is broader than one unusually strong quarter. CDE reported <strong>$665.7 million of free cash flow in 2025</strong>, followed by <strong>$266.8 million in Q1 2026 and $387.5 million in Q2</strong>. Q2 free cash flow rose even as gross margin fell to <strong>25.8%</strong> and EPS dropped to <strong>$0.12</strong>. That divergence does <em>not</em> prove the cash flow will repeat: the <strong>$136.1 million of other noncash items</strong> needs explanation, and future mine investment could be higher. But it does mean the weak EPS quarter alone does not capture what the business reported generating after capital spending.</p>
+<p>Your dilution objection deserves a per-share answer. Dividing Q2’s reported free cash flow by the <strong>1,028.5 million shares reported at June 30</strong> gives roughly <strong>$0.38 per end-period share</strong>. That is not an official per-share cash-flow measure or a sustainable run rate—the timing of the share issuance and the underlying transaction still need verification. It does show why I would investigate the cash economics on the <em>larger</em> share base rather than dismiss them outright.</p>
+<p>And I accept your point that a five-point gross-margin recovery would replace only about <strong>37%</strong> of the gross profit lost since Q1. My argument is not that CDE must immediately return to Q1’s <strong>49.8%</strong> margin. On Q2 sales, even that more modest improvement represents about <strong>$54 million of quarterly gross profit</strong> before other costs and taxes. The upside opportunity is improving the economics of an already expanded, cash-producing operation—not assuming record revenue automatically becomes record earnings. CDE’s <strong>$1.052 billion of cash against $713 million of debt</strong> gives it flexibility to pursue that improvement, though no balance sheet can substitute for mine-level results.</p>
+<p>The chart supports your caution on <em>sizing</em>, not necessarily your zero-position recommendation. At the <strong>September 28 close of $17.87</strong>, CDE was below its <strong>$18.71 50-day average</strong>, and momentum and volume had weakened. I would not call the oversold reading a buy signal or count on a metals rebound. I would <strong>hold or initiate only a small, long-term CDE position</strong>, then add only if company-issued production, cost and capital-spending figures support sustained cash generation on the enlarged share base, preferably alongside improving price action.</p>
+<p>That is the difference between our positions: you would pay for more certainty later; I would accept limited risk now because CDE has already demonstrated substantial reported cash generation. If costs keep outrunning sales or that cash generation fades, the bull thesis fails.
+Bull Analyst: Bear, I agree with your valuation discipline: <strong>annualizing Q2 cash flow or treating the 8.76× forward P/E as a proven bargain would overstate the case for CDE.</strong> We need the transaction disclosures, mine-level costs and a better view of sustaining capital. My disagreement is with requiring all of that evidence <em>before owning even a small position</em>.</p>
+<p>The latest quarter contains a more constructive signal than revenue alone. Despite the fall in gross margin, <strong>Q2 EBITDA rose from $454.1 million to $481.7 million</strong>, while reported free cash flow rose from <strong>$266.8 million to $387.5 million</strong> after <strong>$125.7 million of capital spending</strong>. EBITDA does not pay for future mine investment, and the unexplained <strong>$136.1 million of other noncash items</strong> still needs scrutiny. But two successive quarters of positive, rising free cash flow are evidence that CDE’s expanded business is producing cash—not merely a scenario in a revenue forecast.</p>
+<p>You are also right that a five-point margin improvement would recover only part of Q1’s lost gross profit. That is the opportunity <em>and</em> the risk. The bull case does not require an immediate return to Q1’s 49.8% margin; it requires costs and capital needs to stabilize enough for the larger sales base to create value <strong>per share</strong>. Q2’s roughly <strong>$0.38 of reported free cash flow per June-end share</strong> is a starting observation, not a sustainable rate. I would test it against subsequent results on the enlarged share base, rather than use 2025’s figures as though the shares had not changed.</p>
+<p>Nor am I claiming a low-cost mining moat. CDE’s demonstrated strengths are a larger, cash-generating operating platform and <strong>$1.052 billion of cash against $713 million of debt</strong>. Those give management room to address execution; they do not guarantee a higher share price if metals weaken or mine costs stay elevated.</p>
+<p>Position size, as you say, does not repair weak economics. It does let an investor take <strong>limited exposure to an already demonstrated cash-flow turnaround</strong> while reserving most capital for proof that it lasts. My recommendation remains a <strong>small, long-term CDE position, not an aggressive dip-buy</strong>. I would add only after company-issued mine results clarify production, costs and sustaining spending, with cash generation holding up per share. If those results disappoint—or the cash flow fades as costs continue to outrun sales—your wait-for-proof stance will have been the better one.
+Bull Analyst: Bear, your margin argument is the strongest reason <strong>not to make CDE a large position</strong>. Q2 revenue rose 27% from Q1 while EBITDA rose only about 6%, and EPS fell to $0.12. I am not asking investors to call that improved mine economics.</p>
+<p>But it matters what happened <em>despite</em> those weaker margins. Operating cash flow rose from <strong>$340.8 million to $513.2 million</strong>. Capital spending also rose—from roughly <strong>$74 million to $125.7 million</strong>—yet free cash flow increased from <strong>$266.8 million to $387.5 million</strong>. So the latest cash-flow improvement was not simply the result of spending less than in Q1. It does <strong>not</strong> prove that current capital spending is sufficient for the mines’ long-term needs, or resolve the unexplained $136.1 million of other noncash items. It does show a larger business producing more cash after higher reported investment, even in a quarter when costs outran sales.</p>
+<p>That is my answer to “why own CDE now?” The thesis is not that its new mines have proved durable returns per share; they have not. It is that CDE already has a cash-generating platform and <strong>$1.052 billion of cash against $713 million of debt</strong> while it works toward that proof. A small position gives a long-term investor exposure if mine economics improve, without pretending the conditional <strong>8.76× forward P/E</strong> is an established bargain. Position size manages the unresolved risk; it is not evidence that the risk has disappeared.</p>
+<p>I would not use the September 28 <strong>$17.87</strong> close or the stretched daily reading as a stand-alone buy signal. The daily and weekly trends are down. <strong>My recommendation remains a small, long-term CDE position—not an aggressive dip-buy or an immediate full allocation.</strong> I would add only if company-issued production, costs and capital-spending data show New Afton and Rainy River supporting sustained cash generation on the enlarged share base. If that cash flow fades while costs continue to outrun sales, your wait-for-proof case wins.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: Bull, I agree that CDE has proved it <em>can</em> generate cash. The question is whether its larger mine portfolio can generate <strong>durable returns per share</strong>. On the latest quarter, the evidence moved in the wrong direction.</p>
+<p>Q2 revenue rose <strong>27%</strong> from Q1, but cost of revenue rose <strong>87%</strong>. Gross margin fell from <strong>49.8% to 25.8%</strong>, operating income dropped from <strong>$374.2 million to $217.0 million</strong>, and diluted EPS fell from <strong>$0.35 to $0.12</strong>. That is why your illustrative <strong>$4.11 billion</strong> full-year revenue pace does not settle the investment case: more sales are not necessarily more value if the acquired mines bring disproportionately higher costs and depreciation.</p>
+<p>Your strongest point is Q2’s <strong>$387.5 million of free cash flow</strong>, and I would not dismiss it. But I would not capitalize one strong cash-flow quarter as though its economics are established, either. The supplied figures lack mine-level production, sustaining-cost and spending detail; Q2 operating cash flow also includes <strong>$136.1 million of “other non-cash items”</strong> whose composition needs checking. The cash is real as reported; its <em>repeatability</em> remains the issue. Even the vendor’s trailing free-cash-flow summary does not reconcile with the sum of its quarterly figures.</p>
+<p>The balance sheet buys CDE time, not a margin of safety at any price. Its roughly <strong>$339 million net cash</strong> is helpful, but reported shares increased about <strong>60%</strong> between year-end and June. Before calling the stock cheap on an <strong>8.76× forward P/E</strong>, I want to understand that transaction and see the implied <strong>84% increase in EPS</strong> actually earned. Without mine-level cost evidence, we cannot claim CDE has a cost advantage that would protect it if gold or silver weaken.</p>
+<p>And this is not merely an abstract execution concern. As of September 28, the <strong>$17.87</strong> close was below the <strong>$18.71</strong> 50-day average, daily and weekly SuperTrend signals were down, the MACD histogram had worsened, and OBV had fallen. A daily oversold reading could produce a bounce—especially with ADX still showing a weak trend—but it does not confirm a recovery. Reports of rising nominal yields and weaker precious metals add a near-term headwind, without proving what real yields will do.</p>
+<p>So I accept your conditions for adding conviction; I draw a different conclusion from them. <strong>My bear recommendation is to avoid initiating CDE at this point</strong>, rather than take a measured position ahead of the evidence. I would reconsider after company-issued results show New Afton and Rainy River approaching plan, gross margin recovering, and cash generation holding up <em>per share</em>—ideally alongside improving price and volume. Until then, the bull case asks investors to pay for a turnaround in mine economics that record revenue has not yet demonstrated.
+Bear Analyst: Bull, I agree with your central point: <strong>CDE generated substantial cash in Q2 even after capital spending.</strong> My objection is to treating that quarter as enough reason to own the shares <em>before</em> we know what the expanded mine portfolio can earn consistently.</p>
+<p>The latest quarter shows why I would wait. Revenue rose <strong>27%</strong> from Q1, but cost of revenue rose <strong>87%</strong>. Gross profit fell by <strong>$146.5 million</strong>, operating income dropped from <strong>$374.2 million to $217.0 million</strong>, and diluted EPS fell from <strong>$0.35 to $0.12</strong>. Your five-point margin-recovery example would add about <strong>$54 million</strong> of quarterly gross profit at Q2 sales—meaningful, but only about <strong>37% of the gross profit lost since Q1</strong>. Operational leverage works in both directions.</p>
+<p>I also would not call your <strong>$251 million</strong> adjusted cash-flow illustration a downside floor. Q2’s reported <strong>$387.5 million</strong> of free cash flow is a genuine positive in the supplied figures, and a noncash add-back is not automatically suspect. But subtracting the unexplained <strong>$136.1 million</strong> does not tell us what cash flow will look like after future sustaining investment, working-capital changes or different mine costs. We lack the mine-level figures needed to make that judgment. The vendor’s trailing free-cash-flow summary also fails to reconcile with its quarterly totals, so I am reluctant to assign a valuation multiple to an assumed run rate.</p>
+<p>Your balance-sheet point is fair: roughly <strong>$339 million of net cash</strong> provides flexibility, not an immediate financing crisis. But reported shares rose about <strong>60%</strong> from year-end to June, and the underlying transaction and accounting still need checking. Cash generation on a larger asset base must ultimately justify the <em>larger share base</em>. That is precisely why an <strong>8.76× forward P/E</strong>, dependent on forward EPS roughly <strong>84% above trailing EPS</strong>, is a conditional bargain rather than an established one.</p>
+<p>You are right that waiting for evidence could mean missing some upside. I would accept that trade-off here. At the <strong>September 28 close of $17.87</strong>, CDE was below its <strong>$18.71 50-day average</strong>; daily and weekly trend signals were down, while weaker metals and rising <em>nominal</em> yields added near-term uncertainty. The stretched daily reading could produce a bounce, so this is <strong>not a call to aggressively short CDE</strong>. It is a case against paying today for a mine-economics recovery that has not yet appeared in margins or EPS.</p>
+<p><strong>My recommendation remains: avoid initiating CDE for now.</strong> I would reconsider when company-issued results show New Afton and Rainy River approaching plan, costs stabilizing relative to sales, and cash generation remaining strong <em>per share</em>—not merely when the next revenue record arrives.
+Bear Analyst: Bull, I’m not disputing the cash CDE reported. I’m disputing what a new shareholder can safely infer from it. Your <strong>$0.38 of Q2 free cash flow per end-period share</strong> is a useful calculation, but it is one quarter divided by a share count whose roughly <strong>60% increase</strong> still needs transaction-level explanation. The <strong>$665.7 million generated in 2025</strong> does not establish what the enlarged portfolio can earn per share. Nor does Q2’s <strong>$125.7 million of capital spending</strong> establish a sustainable investment rate for those mines. None of that makes the reported cash flow unreal; it makes an annualized cash-flow valuation premature.</p>
+<p>Your five-point margin-recovery example also puts the hurdle in perspective. At Q2 sales, it adds about <strong>$54 million in quarterly gross profit</strong>, or roughly <strong>five cents per June-end share before other expenses and tax</strong>. Meanwhile, gross profit actually fell <strong>$146.5 million</strong> from Q1, despite higher revenue. We have evidence of costs outrunning sales; the recovery is still a scenario.</p>
+<p>I agree that <strong>$339 million of net cash</strong> gives CDE time and that a small position limits an investor’s exposure. But position size does not improve the investment case. The <strong>8.76× forward P/E</strong> assumes EPS rises about <strong>84% above trailing EPS</strong>, while we still lack company-issued mine-level evidence that New Afton and Rainy River are approaching plan. Without verified cost data, I also cannot credit CDE with a competitive cost advantage that would cushion weaker metals prices.</p>
+<p>You may capture upside by buying before that evidence arrives. I would rather risk missing the first part of a recovery than buy into deteriorating margins while CDE’s <strong>daily and weekly trends remain down</strong>. The stretched daily reading and weak ADX make a bounce possible, so this is <strong>not a short call</strong>. My recommendation remains <strong>avoid initiating CDE for now</strong>; reconsider when mine-level production and costs, capital needs, and cash generation on the enlarged share base support the upside case.
+Bear Analyst: Bull, I agree that CDE’s cash generation is real <em>as reported</em>. Two positive quarters of free cash flow are a stronger argument than record revenue alone. But your proposal to buy a small position now still depends on a step the results have not shown: that the expanded portfolio is improving <strong>returns per share</strong>.</p>
+<p>Consider the operating trend beneath that cash flow. Q2 revenue rose <strong>27%</strong> from Q1, while EBITDA rose only about <strong>6%</strong>. EBITDA margin fell from roughly <strong>53% to 44%</strong>, operating income dropped from <strong>$374 million to $217 million</strong>, and diluted EPS fell from <strong>$0.35 to $0.12</strong>. Rising free cash flow is encouraging; it does not erase the evidence that incremental sales came with substantially weaker margins. Nor can we establish a rising <em>per-share</em> free-cash-flow trend from the two quarters without resolving when CDE’s reported share count increased by roughly <strong>60%</strong> and what the acquired mines will require in ongoing capital spending.</p>
+<p>I also grant that <strong>$339 million of net cash</strong> gives management flexibility. It is not a substitute for knowing whether New Afton and Rainy River are approaching plan. Without mine-level costs and production, there is no demonstrated cost advantage to protect CDE if metals weaken. And at the <strong>September 28 close of $17.87</strong>, below the <strong>$18.71</strong> 50-day average, falling OBV and bearish daily and weekly trend signals offer no confirmation that investors are looking past these risks. An oversold bounce remains possible; that is why I am <strong>not recommending a short</strong>.</p>
+<p>A small position limits the dollars at risk, but it does not answer why <em>now</em> is preferable to waiting for the next company-issued operating results. <strong>I would avoid initiating CDE</strong> until costs stabilize relative to sales and free cash flow holds up on the enlarged share base. I’m willing to miss the first part of a recovery rather than pay ahead of evidence that the new mines create per-share value.
+Bear Analyst: Bull, I accept your correction: CDE’s Q2 free cash flow rose <strong>despite higher capital spending</strong>, not because management cut spending. That makes the reported <strong>$387.5 million</strong> meaningful. It still does not answer the question a new shareholder faces: is <strong>$125.7 million of quarterly capex</strong> enough to sustain and ramp the enlarged mine portfolio?</p>
+<p>Q2 depreciation, amortization and depletion was <strong>$256 million</strong>. That is <em>not</em> a maintenance-capex estimate, particularly when acquisition accounting may affect it, and I would not subtract the difference from free cash flow and call the result “normalized.” But without mine-level sustaining-capital and production data, I also would not treat this quarter’s free cash flow as a dependable run rate.</p>
+<p>The operating evidence makes that caution consequential. From Q1 to Q2, CDE added about <strong>$229 million in revenue</strong> but <strong>$376 million in cost of revenue</strong>. Gross profit fell <strong>$146.5 million</strong>, and diluted EPS fell from <strong>$0.35 to $0.12</strong>. Cash generation gives management time to improve those economics; it does not show that the additional sales are creating more value per share. We also cannot establish a cost advantage over other miners from the supplied mine-level data.</p>
+<p>I agree the roughly <strong>$339 million net-cash position</strong> reduces immediate financing pressure. But against a reported <strong>$18.37 billion market value</strong> and a share count up roughly <strong>60%</strong> since year-end, it is flexibility, not a compelling reason to buy before the mine economics are clear. A small position limits exposure to that uncertainty; it does not make today a better entry than waiting for evidence.</p>
+<p><strong>My recommendation remains to avoid initiating CDE for now—not to short it.</strong> I would reconsider when company-issued results show New Afton and Rainy River approaching plan, costs stabilizing relative to sales, and cash flow holding up after credible ongoing capital spending <strong>on the enlarged share base</strong>.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For CDE, the bear case wins by a moderate margin on positioning, not because the business lacks cash or faces an immediate financing crisis. The bull's strongest evidence is the reported cash-flow turnaround: $665.7 million of free cash flow in 2025 and $654.3 million in the first half of 2026. Q2 free cash flow increased to $387.5 million even as capital spending increased to $125.7 million, and roughly $339 million of net cash provides flexibility. That is meaningful evidence and argues against exiting outright or shorting. However, Q2 revenue increased 27% sequentially while cost of revenue increased 87%; gross margin fell from 49.8% to 25.8%, operating income declined from $374.2 million to $217.0 million, and diluted EPS fell from $0.35 to $0.12. EBITDA increased, but its margin also fell. Acquisition mix and accounting may explain some of the divergence, so these figures do not establish permanent deterioration; they also do not establish a temporary problem. The roughly 60% increase in reported shares makes comparable per-share returns essential. We lack company-issued mine-level production, costs and sustaining-capital detail, transaction/share-count reconciliation, and an explanation of the $136.1 million of other noncash items; the supplied vendor free-cash-flow totals also do not reconcile. Noncash add-backs are not automatically suspect, and depreciation is not a maintenance-capex estimate. Nevertheless, neither the conditional 8.76x forward P/E nor annualizing Q2 cash flow establishes a valuation cushion. The supplied September 28 technical snapshot reinforces cautious execution but is not a current quote or the deciding fundamental argument. Observed profit compression and unproven returns on the enlarged share base outweigh the plausible margin-recovery upside, supporting reduced CDE exposure rather than a new purchase ahead of confirmation.</p>
+<p><strong>Strategic Actions</strong>: Cap CDE exposure at 0.5x a standard allocation for now; this is half the normal position size, not half the portfolio. The trader and portfolio manager should map that cap to actual holdings. If exposure exceeds the cap, reduce the excess in two roughly equal tranches at the next suitable liquid executions, checking tradable prices first and not making completion dependent on an oversold bounce. If exposure is already below the cap, do not top up; if no position exists, defer initiation. Do not short or average down solely because the price falls. Before increasing exposure, obtain company-issued disclosures reconciling operating cash flow, working capital, the $136.1 million noncash adjustment, capital spending and the vendor discrepancies; distinguish sustaining from growth/ramp spending; and verify the acquisition/share-issuance timing and comparable per-share cash generation. Require evidence that New Afton and Rainy River are approaching their disclosed operating plans, costs are stabilizing relative to sales, gross margin is recovering from Q2's 25.8%, and cash generation remains sound after credible ongoing investment on the enlarged share base. Once those tests are met, consider rebuilding CDE in 0.25x-standard-allocation increments toward 1.0x, with price/volume improvement supporting execution rather than substituting for the fundamental tests. Treat $17.87 and the $18.71 50-day average solely as the supplied September 28 references, not live order or stop levels. If subsequent company results show costs continuing to outpace sales and materially weaker reconciled per-share free cash flow, reduce the residual exposure further; negative sustainable free cash flow alongside continuing operating deterioration would justify exiting. Reassess at the next company-issued operating/financial update; no release date, verified current price, support level or portfolio risk budget is supplied, so do not invent a dated catalyst, price target or fixed-price stop.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: For CDE, the research plan's Underweight calls for trimming exposure above 0.5x a standard allocation rather than liquidating or shorting: strong cash generation is offset by Q2 margin and EPS compression and unverified per-share returns after share issuance. The September 28 close of $17.87 was below the $18.71 50-day SMA, while weekly and daily SuperTrend were down, MACD was negative, and OBV fell; the daily oversold reading and weak ADX caution against relying on an orderly decline. With no verified current quote, support level, or portfolio risk budget, historical CDE prices should not be treated as live orders or fixed stops.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Cap CDE at 0.5x the standard allocation (half the normal position, not half the portfolio). If holdings exceed the cap, sell the excess in two roughly equal tranches at suitable liquid executions after checking tradable prices; if at or below the cap, do not add, and do not initiate a short.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: I’d back the SELL, but not as a retreat from risk. If CDE is above half a normal allocation, trimming the excess is a way to take risk more deliberately: free up capacity while the near-term case is deteriorating, and retain a meaningful stake if the longer-term turnaround wins out.</p>
+<p>The case for acting is stronger than a single bad close. As of September 28, CDE had fallen from $22.21 on August 27 to $17.87, closing at the day’s low and below its $18.71 50-day average. Weekly and daily SuperTrend were down, the MACD histogram had worsened to −0.33, and OBV had roughly halved from its August reading. Fundamentally, Q2 free cash flow of $387.5 million is impressive, but gross margin dropped from 49.8% to 25.8% quarter over quarter, diluted EPS fell from $0.35 to $0.12, and the roughly 60% increase in reported shares makes the payoff <em>per share</em> less clear. Keeping a full allocation through that combination isn’t the bold choice; it’s an unexamined bet that the turnaround will outrun dilution and costs.</p>
+<p>I also wouldn’t take those warnings as a reason to liquidate. CDE had about $339 million in reported net cash at June 30, record-revenue potential from the acquired mines, and a monthly SuperTrend that remained up. Its daily Z-score of −2.34 leaves room for a sharp rebound, while ADX of 16.01 does not confirm a strong, orderly downtrend. The better high-upside trade-off is to keep half-sized participation without letting a possible rebound dictate the whole position.</p>
+<p>If holdings exceed 0.5x the normal allocation, sell the excess in two roughly equal tranches after checking tradable prices and liquidity. If holdings are already at or below that cap, don’t add or initiate a short. The September 28 prices are evidence for the decision, not live order levels or fixed stops.
+Aggressive Analyst: I still back the conditional SELL for CDE. Conservative analyst, you’re right that half a standard allocation is a ceiling, not a target. I’m not arguing that dated June net cash or an upward monthly SuperTrend makes any holding mandatory. I’m arguing that, if CDE is oversized, keeping the excess is an aggressive bet with worsening near-term evidence and no demonstrated per-share payoff.</p>
+<p>CDE fell about 20% from its August 27 close to its September 28 close of $17.87. It finished that day at the low, below the $18.71 50-day average, with weekly and daily SuperTrend down, a worsening MACD histogram, and falling OBV. Record Q2 revenue and $387.5 million of free cash flow make the turnaround worth watching, but revenue growth did not prevent gross margin falling from 49.8% to 25.8% or diluted EPS dropping from $0.35 to $0.12. After a roughly 60% rise in reported shares, the upside must ultimately show up <em>per share</em>. Trimming now frees risk capacity rather than requiring a full-sized commitment while that test remains unresolved.</p>
+<p>Your rebound warning strengthens the case for a <strong>trim instead of liquidation or a short</strong>. A daily Z-score of −2.34 and ADX of 16.01 make a sharp reversal plausible; they do not make an oversized position attractive. Neutral analyst, I also agree that existing metals exposure and the actual risk budget may warrant less than half a normal allocation. But requiring every operating, metals, and technical question to be settled before retaining an affordable small stake risks missing the upside from a rebound. Those checks are more compelling prerequisites for <em>adding</em> than for keeping limited participation.</p>
+<p>So my recommendation remains SELL only CDE holdings above the applicable cap: at most 0.5 times the normal allocation, and less if the caller’s risk budget requires it. Sell the excess in two roughly equal liquid tranches after checking a current tradable quote. If already within that limit, do not add or short. The September 28 prices and $1.02 ATR inform the risk decision; none is a live order level or a guaranteed stop.
+Aggressive Analyst: Conservative, you’re right that 0.5x is a ceiling, not a stake CDE must retain. Other metals holdings, the actual risk budget, and gap risk could justify less. But the $1.02 ATR—about 5.7% of the September 28 close—also makes the case for acting on an oversized position now, rather than waiting for mine-level certainty. The daily Z-score of −2.34 and ADX of 16.01 do not promise a rebound; they argue against turning this SELL into a liquidation or short when a small, affordable holding could still participate in one.</p>
+<p>You’re also right that Q2’s $387.5 million of reported free cash flow and June’s roughly $339 million net cash do not settle the margin, dilution, or cash-flow-reconciliation questions. That is precisely why I would sell the <em>excess</em>. CDE’s gross margin fell from 49.8% to 25.8% and diluted EPS from $0.35 to $0.12, while reported shares rose roughly 60%. A full allocation demands more confidence in future returns per share than the evidence supports. Yet record revenue and the still-positive monthly trend leave upside worth preserving <strong>if</strong> the residual position fits the portfolio. Recent metals weakness and rising nominal yields strengthen the trim case; I would not claim an unverified real-yield move or a lasting metals downturn.</p>
+<p>Neutral, I agree that a roughly 20% decline, falling OBV, and bearish weekly trend do not guarantee another leg down. They <em>do</em> make carrying excess CDE risk a poor way to pursue upside. Nor would I wait for every filing and operating question to be resolved before retaining an affordable small stake: those are stronger tests for adding. The mixed, low-confidence sentiment—eight bullish-tagged StockTwits posts out of 18, with caution in unlabeled posts—is no confirmation, but it reinforces why an all-or-nothing exit could miss a sharp reversal.</p>
+<p>My call remains <strong>SELL CDE only above the smaller of 0.5x a standard allocation and the portfolio’s affordable risk limit</strong>, accounting for other metals exposure. Check a current tradable quote, then sell the excess in two roughly equal liquid tranches where practical; do not prolong a serious risk-budget breach to follow that schedule. If already within the appropriate limit, do not add or short, and reassess whether even that holding is affordable. September 28 prices are evidence, not live orders or fixed stops.
+Aggressive Analyst: Conservative, I agree that half a normal allocation is a ceiling, not a destination. A $1.02 ATR—about 5.7% of CDE’s September 28 close—and the possibility of a larger gap argue for trimming an oversized position promptly. They do not, by themselves, make zero exposure the best choice for a portfolio that can afford a small holding. CDE’s reported first-half 2026 free cash flow of $654.3 million nearly matched all of 2025, even as Q2 margins and EPS deteriorated. That tension is the opportunity: the turnaround is not proven per share, but neither is it disproven. The daily oversold reading and weak ADX add rebound potential, not protection against loss.</p>
+<p>Neutral, you are right not to treat bullish social tags or the positive monthly trend as a near-term buy signal. I would not. But dismissing CDE’s cash generation while waiting for every acquired-mine and share-count question to be resolved could surrender upside before the evidence improves. The roughly 20% decline from August 27 to September 28 shows why a full position is hard to defend; it also shows why an affordable residual stake has value if the operating case recovers. The vendor totals and per-share economics need checking before adding, not necessarily before retaining limited exposure. Nor do rising nominal yields establish an unverified real-yield move or a lasting metals downturn.</p>
+<p>My call is therefore SELL the excess CDE holding above the smaller of 0.5 times a standard allocation and the portfolio’s actual risk allowance, including other metals exposure. Check a current tradable quote and use two roughly equal liquid tranches where practical; correct a serious limit breach without waiting for that schedule. If already within the appropriate limit, do not add or short, and reduce further if the residual is still unaffordable. September 28 prices are evidence for that decision, not live orders or fixed stops.
+Aggressive Analyst: Conservative, you’re right that CDE’s reported cash flow does not prove durable returns per share. Q2 gross margin fell from 49.8% to 25.8%, diluted EPS fell from $0.35 to $0.12, and the roughly 60% increase in reported shares demands an explanation. But that is an argument for selling <em>excess exposure</em>, not for treating the upside as imaginary. Reported first-half free cash flow of $654.3 million nearly matched all of 2025. If the acquired mines deliver that cash generation on a sustainable, per-share basis, waiting for every uncertainty to disappear could mean missing a substantial repricing. The vendor totals need reconciliation before adding; they do not erase the reported quarterly cash generation.</p>
+<p>You’re also right that a daily Z-score of −2.34 and ADX of 16.01 offer no downside protection. Their strategic value is narrower: they make a smooth continued decline uncertain. That favors a trim over an automatic liquidation or short. And I agree that June’s net cash and the positive monthly trend are not today’s safety net. The portfolio risk budget—including other metals holdings—must decide whether any residual CDE position is affordable.</p>
+<p>Neutral, I agree a rebound cannot justify holding CDE in an already concentrated portfolio. Where I differ is in calling the cash-flow-versus-margin tension merely something to watch. An affordable small stake is a deliberate way to keep access to the potential turnaround while selling the portion that requires too much confidence in it. Meanwhile, CDE’s September 28 close of $17.87 was below its $18.71 50-day average, with weekly and daily SuperTrend down, worsening MACD and falling OBV. Those signals make carrying an <em>oversized</em> bet the wrong form of aggression. Recent metals weakness adds urgency, though it proves neither a lasting metals downturn nor a rise in real yields.</p>
+<p>My call is <strong>SELL CDE holdings above the lesser of 0.5 times a normal allocation and the portfolio’s actual risk allowance</strong>. Check a current tradable quote; sell the excess in two roughly equal liquid tranches where practical, without delaying correction of a serious risk-limit breach. If already within the appropriate limit, do not add or short, and reduce further if combined exposure makes even that holding unaffordable. September 28 prices are historical evidence, not live order levels or stops.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the Aggressive Analyst’s conditional SELL for CDE, but I would not describe a half-sized holding as automatically the “better high-upside trade-off.” Half a standard allocation is a ceiling, not a target. Without the portfolio’s holdings, other metals exposure, or risk budget, we cannot know whether even that amount is prudent.</p>
+<p>The reasons to trim are substantial: CDE closed September 28 at $17.87, below its $18.71 50-day average, with weekly and daily SuperTrend down, a worsening MACD histogram, and falling OBV. The operating picture also needs more proof. Q2 free cash flow was strong, but gross margin fell from 49.8% to 25.8%, diluted EPS fell from $0.35 to $0.12, and reported shares rose roughly 60% from year-end 2025 to June 2026. Until the underlying filings and acquired-mine performance are checked, record revenue and a low forward P/E do not establish durable per-share gains.</p>
+<p>I also would not use CDE’s reported June net cash or positive monthly trend as reasons to <em>insist</em> on retaining half a position. The cash figure is dated, while the monthly SuperTrend line was far below the September 28 close. Conversely, the stretched daily Z-score and weak ADX warn against selling as though a steady decline were assured. They argue for careful execution, not for buying the dip or treating a rebound as confirmation.</p>
+<p>The Neutral Analyst has not offered a view yet. If the alternative is to wait for clearer evidence before trimming, that leaves an oversized CDE position exposed while costs, mine execution, and weaker near-term price action remain unresolved. My recommendation is therefore to sell any holding above 0.5x a standard allocation, using two liquid tranches where practical after checking a current tradable quote. If CDE is already at or below that cap, do not add or short; reassess whether the existing size fits the actual risk budget. Do not turn September 28 prices into live orders or fixed stops.
+Conservative Analyst: Aggressive, I agree that an oversized CDE holding should be trimmed, but “keeping half-sized participation” is not automatically a sound trade-off. Half a standard allocation could still be too large alongside other metals holdings. CDE’s September 28 ATR was $1.02—about 5.7% of that day’s close—and a gap could exceed an ordinary daily move. The stretched daily reading and weak ADX make a rebound possible, not reliable; they are reasons to execute carefully, not reasons to reserve a particular stake for upside.</p>
+<p>Neutral, I would not insist on exiting an affordable small holding, but I would challenge the presumption that missing a rebound is the greater risk. Q2 free cash flow is encouraging, yet gross margin fell from 49.8% to 25.8%, diluted EPS fell from $0.35 to $0.12, and reported shares rose roughly 60% from year-end. The cash-flow feed also needs reconciliation, and June’s net cash does not establish today’s cushion. Until acquired-mine costs and output are verified, record revenue and a positive monthly trend do not establish durable returns per share. Recent metals weakness adds exposure; the reports do not verify a real-yield move that would justify a stronger macro claim.</p>
+<p>My recommendation remains a conditional SELL for CDE: after checking current tradable prices, reduce any holding above 0.5 times a standard allocation, or below that ceiling if the portfolio’s risk budget and combined metals exposure require it. Two liquid tranches are sensible where practical, but do not prolong an established risk-budget breach merely to preserve that schedule. If already within the appropriate limit, do not add or short; reassess whether even the existing size is affordable. The September 28 prices are evidence, not live orders or fixed stops.
+Conservative Analyst: Aggressive, I agree that an oversized CDE holding should be trimmed now rather than held while mine-level questions remain open. Where I disagree is treating the residual stake as upside worth preserving by default. Half a normal allocation is a ceiling, not a destination. September 28’s $1.02 ATR was about 5.7% of that close, and a gap could be larger. A daily oversold reading and weak ADX make a rebound possible, but neither limits the loss on a holding that is too large for the portfolio.</p>
+<p>Neutral, I am not calling for an automatic exit from every affordable CDE holding. But “we might miss a rebound” should not decide whether to keep one. Reported Q2 free cash flow was $387.5 million, yet gross margin fell from 49.8% to 25.8%, diluted EPS fell from $0.35 to $0.12, and reported shares rose roughly 60% from year-end. The vendor’s cash-flow totals need reconciliation. June’s net cash and the positive monthly trend do not answer whether the acquired mines will deliver durable returns per share.</p>
+<p>Both of you are right not to infer a lasting metals downturn or rising real yields from the available reports. The recent metals weakness, bearish weekly and daily signals, and low-confidence social optimism nevertheless give us no reason to stretch the risk budget.</p>
+<p>My recommendation remains a conditional SELL for CDE: check a current tradable quote and reduce any holding above the lesser of 0.5 times a normal allocation and the portfolio’s affordable limit, accounting for other metals exposure. Use two liquid tranches where practical, but do not delay correcting a serious limit breach to complete that schedule. If already within the limit, do not add or short; reduce further if the combined risk is still too high. September 28 prices are not live orders or fixed stops.
+Conservative Analyst: Aggressive, CDE’s reported $654.3 million of first-half free cash flow deserves attention, but calling the tension an opportunity puts too much weight on upside that has not been established per share. In Q2, gross margin fell from 49.8% to 25.8% and diluted EPS from $0.35 to $0.12, while reported shares had risen roughly 60% since year-end. The cash-flow totals also need reconciliation against filings. A rebound is possible, but the stretched daily reading and weak ADX offer no protection against a further loss or a gap.</p>
+<p>Neutral, I agree that unresolved questions do not require selling every affordable CDE holding. The key is whether “affordable” has been tested against the whole portfolio, including other metals exposure—not whether the holding is simply below half a normal allocation. June’s net cash and a positive monthly trend do not establish today’s downside cushion. Recent metals weakness and CDE’s bearish weekly and daily signals warrant restraint, without claiming an unverified rise in real yields or a lasting metals downturn.</p>
+<p>My recommendation remains a conditional SELL: check a current tradable quote and reduce CDE above the lesser of 0.5 times a standard allocation and the portfolio’s actual risk limit. Use two liquid tranches where practical, but correct a serious limit breach promptly. If already within that limit, do not add or short; reduce further if combined exposure is still too high. Before increasing CDE, verify acquired-mine output, costs, capital needs and per-share cash generation in company filings. September 28 prices are historical evidence, not live orders or fixed stops.
+Conservative Analyst: Aggressive, CDE’s reported $654.3 million of first-half free cash flow makes the turnaround worth investigating, but a possible repricing is not a reason to reserve a half-sized stake. Q2 gross margin fell from 49.8% to 25.8%, diluted EPS fell from $0.35 to $0.12, and reported shares rose roughly 60% from year-end. Until the filings reconcile the cash-flow figures and show what the acquired mines earn per share, the upside case remains conditional. Missing a rebound is an opportunity cost; carrying more loss than the portfolio can absorb is an asset-protection failure.</p>
+<p>Neutral, I agree that those questions do not require selling every genuinely affordable small holding. But “affordable” needs to include other metals positions and a plausible adverse move, not just whether CDE sits below half a normal allocation. The September 28 ATR of $1.02 was about 5.7% of that day’s close, and a gap could be larger. The stretched daily reading and weak ADX make a rebound possible; they do not put a floor under losses. Nor do June’s net cash or the positive monthly trend establish a current safety cushion. Recent metals weakness adds caution without proving a lasting downturn or a rise in real yields.</p>
+<p>My recommendation is a conditional SELL for CDE: check a current tradable quote, then reduce any holding above the lesser of 0.5 times a standard allocation and the portfolio’s risk limit, accounting for combined metals exposure. Use two liquid tranches if practical, but correct a serious limit breach promptly. If already within the limit, do not add or short; reduce further if a realistic loss would still strain the portfolio. Treat September 28 prices as historical evidence, not live orders or stops.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: I agree with both analysts on a conditional SELL for CDE, but I’d be careful about what the half-allocation rule means.</p>
+<p>The Aggressive Analyst is right that trimming an oversized holding preserves some upside. Where I’d push back is the idea that a half-sized stake is necessarily a good high-upside trade-off. CDE’s $387.5 million of Q2 free cash flow and reported June net cash are encouraging, but they do not yet resolve the drop in gross margin from 49.8% to 25.8%, the roughly 60% increase in reported shares, or discrepancies in the vendor’s cash-flow totals. A half allocation could still be too much if the portfolio already has substantial gold or silver miner exposure.</p>
+<p>The Conservative Analyst is right to call 0.5 times a standard allocation a ceiling, not a target. But I would resist turning unresolved questions into a reason to exit an otherwise affordable small holding. CDE’s cash generation is real evidence in the supplied figures, the monthly trend remained positive as of September 28, and the stretched daily reading plus weak ADX make a straight-line decline far from certain. Waiting for every operating question to be settled before retaining any exposure could mean missing a rebound. That is a reason for measured participation, not for buying the dip.</p>
+<p>My recommendation is to sell only the amount by which an existing CDE holding exceeds the lesser of 0.5 times the caller’s normal allocation and their actual risk budget. Sell that excess in two roughly equal tranches when current prices and liquidity permit. If holdings are already within that limit, do not add or short; reduce further only if the position or combined metals exposure exceeds the portfolio’s risk tolerance. September 28’s $17.87 close and $18.71 average are historical evidence, not live order prices or fixed stops. The then-current $1.02 ATR also illustrates why sizing matters: an ordinary daily move could be substantial.</p>
+<p>For any later increase, I’d want more than a bounce or bullish social posts: check the current quote and filings, look for a reclaim of the then-current 50-day average with improving momentum, and verify that metal prices and CDE’s acquired-mine costs, output, and per-share cash generation are stabilizing. Rising nominal yields and recent metals weakness favor restraint, but the available reports do not verify a real-yield move or establish that the longer-term metals case has failed. That balance supports trimming excess risk now without making an all-or-nothing call.
+Neutral Analyst: Aggressive, I agree that an oversized CDE position should be trimmed. But keeping half a normal allocation is not automatically the best upside trade-off: it could still be too much for a portfolio already concentrated in miners. The roughly 20% decline, falling OBV and bearish weekly trend justify reducing risk, not assuming the decline will continue smoothly. September 28’s weak ADX and stretched daily reading leave room for a sharp reversal.</p>
+<p>Conservative, I agree that the half-allocation limit is a ceiling, not a target. Still, the unresolved mine and share-count questions are stronger reasons not to add than reasons to exit every affordable holding. Reported Q2 free cash flow was $387.5 million, and assets rose substantially alongside shares; the filings need to establish what that means for returns per share. Likewise, weaker metals and rising nominal yields warrant caution, but the reports do not establish a lasting metals downturn or a rise in real yields.</p>
+<p>My recommendation remains a conditional SELL for CDE: after checking a current tradable quote, sell any amount above the smaller of half a normal allocation and the amount the portfolio’s risk budget permits, accounting for other metals exposure. Two liquid tranches are reasonable, unless that schedule would prolong a serious risk-budget breach. If the holding is already affordable, do not add or short; reassess it as mine costs, output and per-share cash generation become clearer. September 28 prices and ATR inform sizing, not live orders or fixed stops.
+Neutral Analyst: Aggressive, I agree that carrying excess CDE exposure while the weekly trend is down and Q2 margins have compressed is a poor way to pursue upside. But I would not lean on bullish social posts or the positive monthly trend to justify a residual stake. Sentiment is low-confidence, the monthly trend says little about near-term losses, and reported free cash flow has not yet answered what the much larger share count means for returns per share. Two sale tranches can help with execution; they cannot make the remaining position safe.</p>
+<p>Conservative, you are right that 0.5 times a normal allocation is a ceiling, not a target. Still, unresolved operating questions do not, by themselves, require selling an affordable small holding. CDE reported $387.5 million of Q2 free cash flow despite weaker earnings, and the daily stretched reading and weak ADX leave room for a reversal. Those are reasons to avoid an automatic liquidation, not reasons to buy a dip. Rising nominal yields and recent metals weakness add caution, but we cannot infer a sustained metals downturn or a real-yield move from these reports.</p>
+<p>My call remains a conditional SELL: check a current tradable quote and reduce any CDE holding above the lesser of 0.5 times the normal allocation and the portfolio’s actual risk limit, including its other metals exposure. Use two liquid tranches where practical, but correct a serious limit breach promptly rather than waiting for a preferred execution pattern. If already within the appropriate limit, do not add or short; a smaller holding, or none, may still be appropriate for a concentrated portfolio. Before considering an increase, I would want company-filed evidence on acquired-mine output, costs and per-share cash generation, alongside improving price and metals conditions. September 28 prices are historical evidence, not live orders or fixed stops.
+Neutral Analyst: Aggressive, CDE’s reported $654.3 million of first-half free cash flow makes the turnaround worth watching, but calling the tension an “opportunity” gets ahead of the per-share evidence. Q2 gross margin fell from 49.8% to 25.8%, reported shares rose roughly 60% from year-end, and the vendor’s cash-flow totals need reconciliation. A possible rebound does not make a residual holding affordable if the portfolio is already concentrated in miners.</p>
+<p>Conservative, I agree that half a normal allocation is a ceiling, not a target. But mine-level uncertainty is a stronger reason not to add than to exit every genuinely affordable small holding. Reported cash generation and the positive monthly trend leave a plausible upside case, even though neither limits near-term losses. The bearish weekly signals and recent metals weakness warrant restraint; they do not establish a lasting metals downturn, and rising nominal yields do not prove real yields rose.</p>
+<p>My call remains a conditional SELL for CDE: check a current tradable quote and trim any holding above the lesser of 0.5 times a normal position and the portfolio’s risk allowance, including other metals exposure. Use two liquid tranches where practical, but correct a serious limit breach promptly. If CDE is already within that limit, do not add or short; reduce further if the combined risk is still too high. Before increasing exposure, verify acquired-mine costs, output and per-share cash generation, alongside improving market conditions. September 28 prices are historical evidence, not live orders or stops.
+Neutral Analyst: Aggressive, I agree that selling excess CDE exposure is more defensible than carrying a full position through a weakening weekly trend and Q2 margin compression. But reported first-half free cash flow of $654.3 million is not yet a reliable per-share turnaround thesis: the share count rose roughly 60%, and the vendor’s cash-flow totals need reconciliation. The daily oversold reading and weak ADX make a smooth decline less certain; they do not tell us how likely or durable a rebound would be.</p>
+<p>Conservative, protecting the portfolio from an unaffordable loss comes first. Still, requiring every mine and accounting question to be resolved before retaining any CDE could be too cautious for someone whose small holding fits their risk budget. Reported Q2 free cash flow and June net cash give that investor a reason to keep watching, though neither is a current downside cushion. Recent metals weakness and rising nominal yields support restraint, not a claim that the longer-term metals case has failed.</p>
+<p>My call remains a conditional SELL for CDE: check a current tradable quote and trim holdings above the lesser of 0.5 times a normal allocation and the portfolio’s risk allowance, including other metals exposure and plausible gap losses. Use two liquid tranches if practical, but do not leave a serious limit breach in place to follow that schedule. If already within the appropriate limit, do not add or short. Before increasing, verify acquired-mine output, costs, capital needs and cash generation per share, as well as improving price and metals conditions. September 28 prices are historical evidence, not live orders or stops.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: Reduce CDE exposure to no more than the lesser of 0.5x the caller's standard position allocation and the amount permitted by the portfolio's risk budget, accounting for other metals holdings and plausible gap losses; this is a ceiling, not a target or half the portfolio. If above that limit, check current tradable prices and sell the excess in two roughly equal liquid tranches where practical, without waiting for a rebound or delaying correction of a serious risk-limit breach. If within the limit, do not add or short; if uninvested, defer initiation, and reduce existing exposure further if aggregate portfolio risk warrants it. Reassess at the next company-issued operating/financial update, whose date is not supplied; historical September 28 prices are not live orders or stops, and the supplied evidence does not support a price target or fixed-price stop.</p>
+<p><strong>Investment Thesis</strong>: The bearish positioning case for CDE wins by a moderate margin, supporting reduced exposure rather than an unconditional exit. The analysts' conditional sale recommendations concern excess holdings, not liquidation of every affordable position. The conservative and neutral argument that 0.5x is only a ceiling is stronger than preserving a particular residual stake to avoid missing a rebound; the aggressive analyst's cash-generation argument nevertheless provides meaningful evidence against a blanket exit.</p>
+<p>Operating performance is the deciding evidence. Q2 revenue increased 27% sequentially while cost of revenue increased 87%; gross margin fell from 49.8% to 25.8%, operating income declined from $374.2 million to $217.0 million, and diluted EPS fell from $0.35 to $0.12. Reported shares rose roughly 60% from year-end 2025 to June 2026, so greater aggregate cash generation does not establish improved returns per share. Acquired assets also expanded, and acquisition mix or accounting could explain part of the earnings divergence; neither destructive dilution nor a merely temporary margin problem has been established.</p>
+<p>The strongest counterevidence is reported free cash flow: $665.7 million in 2025, $654.3 million in the first half of 2026, and $387.5 million in Q2 despite capital spending increasing to $125.7 million. Roughly $339 million of reported June net cash also supports financial flexibility, although it is not a verified current cushion. These figures argue against treating CDE as an immediate financing crisis and allow consideration of a small holding that genuinely fits the portfolio. However, vendor cash-flow totals do not reconcile, the $136.1 million other noncash adjustment remains unexplained, and company-issued mine-level production, costs and sustaining-capital detail are missing. Noncash add-backs are not inherently suspect, and depreciation is not a substitute for sustaining-capital requirements. The conditional 8.76x forward P/E and annualized Q2 cash flow do not establish a valuation cushion.</p>
+<p>The supplied September 28 technical snapshot supports cautious execution, not the fundamental verdict: CDE closed at $17.87 versus a $18.71 50-day average after an approximately 20% decline from August 27, with bearish weekly and daily SuperTrend, worsening MACD and falling OBV. A daily Z-score of -2.34 and ADX of 16.01 caution against assuming a smooth further decline; the positive monthly trend does not establish downside protection. Historical ATR of $1.02, approximately 5.7% of that close, illustrates material daily volatility, and gaps could be larger. None of these historical prices or indicators supplies a live order or stop level. Low-confidence social sentiment is not confirmation, and rising nominal yields do not establish rising real yields or a lasting metals downturn.</p>
+<p>Before increasing CDE exposure, require company-issued reconciliation of operating cash flow, working capital, the $136.1 million adjustment, capital spending and vendor discrepancies; distinguish sustaining from growth or ramp spending and verify acquisition/share-issuance timing and comparable per-share cash generation. Look for New Afton and Rainy River to approach their disclosed operating plans, costs to stabilize relative to sales, gross margin to recover from 25.8%, and sustainable cash generation after credible ongoing investment on the enlarged share base. Only after those tests are met should rebuilding in 0.25x-standard-allocation increments toward 1.0x be considered, subject to the actual portfolio risk limit; improving current price, volume and metals conditions should support execution rather than replace the fundamental tests.</p>
+<p>If costs continue to outpace sales and reconciled per-share free cash flow weakens materially, reduce residual CDE exposure further; negative sustainable free cash flow alongside continuing operating deterioration would justify exiting. Current holdings, cash, portfolio risk budget, a verified current quote, a live support level and the next release date are not supplied, so no absolute trade quantity, dated catalyst, price target or fixed-price stop is justified.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Until CDE's next company-issued operating/financial update; date not provided.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

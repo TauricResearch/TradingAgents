@@ -1,0 +1,4381 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/NBIS/20260928_gpt-6-astra_20260928_192232/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: NBIS - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-nbis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: NBIS
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nbis-technical-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NBIS technical report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trend-and-momentum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend and momentum
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#participation-volatility-and-exhaustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Participation, volatility, and exhaustion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-decision-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable decision points
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nbis-sentiment-september-2128-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NBIS sentiment, September 21–28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-source-by-source-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Source-by-source assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cross-source-alignment-and-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cross-source alignment and divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dominant-narratives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dominant narratives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-catalysts-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Catalysts and risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-key-nbis-sentiment-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Key NBIS sentiment signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nbis-trading-and-macro-news-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NBIS trading and macro news report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-for-nbis-this-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed for NBIS this week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-world-and-macro-backdrop-relevant-to-nbis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The world and macro backdrop relevant to NBIS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-watchlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable watchlist
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nbis-fundamental-research-28-september-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NBIS fundamental research — 28 September 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operating-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operating performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-flow-investment-and-funding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash flow, investment and funding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-sheet-and-valuation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance sheet and valuation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#financial-history-and-insider-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial history and insider activity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-nbis">Trading Analysis Report: NBIS<a class="headerlink" href="#trading-analysis-report-nbis" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:22:32</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="nbis-technical-report-september-28-2026">NBIS technical report — September 28, 2026<a class="headerlink" href="#nbis-technical-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Nebius Group N.V. (NBIS) closed at $231.88.</strong> Its higher-timeframe trend remains upward, but the near-term advance has not yet become a strong, orderly trend. The practical distinction is important: the weekly and monthly SuperTrend readings favor the bulls, while ADX is below its trend-confirmation threshold, momentum has eased over the last two sessions, and volatility remains substantial.</p>
+<p>The analysis uses <strong>eight complementary indicators</strong>: SuperTrend and ADX for trend direction and strength; the MACD histogram and RSI for momentum; ATR for risk; OBV for participation; and TD-9 and Z-Score for exhaustion and stretch. The September 28 verified market snapshot is the reference for the close, OHLCV, RSI, MACD histogram, and ATR. The timeframe-specific and volume indicators come from their separate indicator reports; no conflicting snapshot value was reported.</p>
+<h4 id="trend-and-momentum">Trend and momentum<a class="headerlink" href="#trend-and-momentum" title="Permanent link">&para;</a></h4>
+<p><strong>The larger trend is up, but it leaves considerable room for a pullback.</strong> SuperTrend is <em>up</em> on all three timeframes: the weekly trailing line is <strong>$172.93</strong>, the monthly line <strong>$113.82</strong>, and the daily line <strong>$195.10</strong>. The weekly reading carries the most weight for the primary trend. Still, the daily line sits <strong>$36.78 below</strong> the latest close; it is a trend-failure reference, not a tight risk limit for a new position.</p>
+<p><strong>ADX is 19.59</strong>, just under the level of 20 that flags potentially range-bound trading and well below 25, which would give stronger trend confirmation. It has risen from <strong>6.12 on September 16</strong>, so trend strength has been developing, but it has not cleared that higher bar. ADX measures strength, not direction; the upward SuperTrend readings supply the directional context.</p>
+<p>The <strong>MACD histogram is positive at 1.53</strong>, supporting the recovery in momentum, but it has eased from <strong>1.97 on September 25</strong>. <strong>RSI is 53.15</strong>: mildly constructive, neither overbought nor oversold. Together, these readings favor watching for confirmation rather than treating the recent rebound as an established breakout. NBIS closed at <strong>$243.48 on September 24</strong>, <strong>$237.33 on September 25</strong>, and <strong>$231.88 on September 28</strong>—three successively lower closes after the latest push higher.</p>
+<h4 id="participation-volatility-and-exhaustion">Participation, volatility, and exhaustion<a class="headerlink" href="#participation-volatility-and-exhaustion" title="Permanent link">&para;</a></h4>
+<p><strong>OBV improved over the broader recent rebound but weakened over the last two sessions.</strong> It rose from <strong>423.64 million on September 16</strong> to <strong>521.99 million on September 24</strong>, then fell to <strong>498.24 million on September 28</strong>. Its absolute level is not a trading signal; the useful question is whether its slope resumes upward alongside price. At <strong>$16.64</strong>, ATR is large relative to the <strong>$231.88</strong> close. NBIS can move enough in an ordinary volatile session to make a very tight stop impractical.</p>
+<p><strong>There is an exhaustion watch, not a completed reversal signal.</strong> TD-9 stands at <strong>−3 weekly, −7 monthly, and +1 daily</strong>. The monthly sell-setup is approaching nine, warranting attention if the advance resumes, but no timeframe has completed a nine. Z-Score reads <strong>+0.33 weekly, +1.55 monthly, and +0.63 daily</strong>. The monthly price is above its mean, yet none of the readings reaches the <strong>±2</strong> stretch threshold. A monthly exhaustion watch alone is not a reason to short an upward higher-timeframe trend.</p>
+<h4 id="actionable-decision-points">Actionable decision points<a class="headerlink" href="#actionable-decision-points" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>For a prospective breakout trade:</strong> Watch for a <em>daily close</em> above <strong>$245.35</strong>, the verified September 28 high. That would also exceed the verified <strong>September 24 close of $243.48</strong> and <strong>September 8 close of $243.88</strong>. Prefer a simultaneous rise in OBV, an expanding positive MACD histogram, and ultimately ADX above 25. Without those confirmations, a move through the level could prove short-lived.</li>
+<li><strong>For an existing long or a pullback entry:</strong> Monitor <strong>$228.38</strong>, the September 28 low, followed by the verified <strong>September 23 close of $226.61</strong> and <strong>September 18 close of $223.54</strong>. These are <em>observation levels</em>, not historically validated support. A sustained close below that area would weaken the near-term case; a close through the <strong>$195.10 daily SuperTrend line</strong> would change the daily trend reading, even though the higher-timeframe readings could remain up.</li>
+<li><strong>Size for volatility before entering.</strong> For illustration only, one current ATR below the <strong>$231.88</strong> reference close is approximately <strong>$215.24</strong>, implying <strong>$16.64 per share</strong> of nominal risk if an entry were available at that close. Position size would be the amount one is willing to lose divided by that per-share risk, adjusted for the <em>actual</em> entry and stop. ATR can change, and gaps or slippage can make realized losses larger. Using the much lower daily SuperTrend line as a new trade’s only stop would entail substantially more risk.</li>
+</ul>
+<p><strong>Bottom line:</strong> NBIS retains a bullish higher-timeframe structure, while short-term evidence argues for patience. A close above the recent reference high <em>with participation and improving trend strength</em> would make a stronger continuation case than price alone; losing the nearby September closing levels would instead shift attention toward risk reduction.</p>
+<table>
+<thead>
+<tr>
+<th>Selected indicator / key point</th>
+<th>September 28 reading or reference</th>
+<th>Trading interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SuperTrend — direction</td>
+<td>Weekly <strong>up, $172.93</strong>; monthly <strong>up, $113.82</strong>; daily <strong>up, $195.10</strong></td>
+<td>Higher-timeframe trend favors bulls; daily line is a distant trend-failure reference.</td>
+</tr>
+<tr>
+<td>ADX — trend strength</td>
+<td><strong>19.59</strong></td>
+<td>Improving, but below strong-trend confirmation; beware false breakouts.</td>
+</tr>
+<tr>
+<td>MACD histogram — momentum</td>
+<td><strong>+1.53</strong>, down from <strong>+1.97</strong> on September 25</td>
+<td>Positive momentum has recently softened.</td>
+</tr>
+<tr>
+<td>RSI — momentum balance</td>
+<td><strong>53.15</strong></td>
+<td>Mildly positive; no overbought or oversold signal.</td>
+</tr>
+<tr>
+<td>ATR — risk</td>
+<td><strong>$16.64</strong></td>
+<td>Allow for wide price movement and size positions accordingly.</td>
+</tr>
+<tr>
+<td>OBV — participation</td>
+<td><strong>498.24 million</strong>; below September 24’s <strong>521.99 million</strong></td>
+<td>Seek renewed upward OBV movement to confirm a price breakout.</td>
+</tr>
+<tr>
+<td>TD-9 — exhaustion</td>
+<td>Weekly <strong>−3</strong>; monthly <strong>−7</strong>; daily <strong>+1</strong></td>
+<td>Monthly sell-setup bears watching; no completed nine.</td>
+</tr>
+<tr>
+<td>Z-Score — stretch</td>
+<td>Weekly <strong>+0.33</strong>; monthly <strong>+1.55</strong>; daily <strong>+0.63</strong></td>
+<td>Above-mean monthly reading, but no ±2 statistical stretch.</td>
+</tr>
+<tr>
+<td>Price decision points</td>
+<td>Breakout watch <strong>above $245.35 on a daily close</strong>; near-term downside watch <strong>$228.38</strong>, then <strong>$226.61–$223.54</strong></td>
+<td>Treat levels as conditional triggers or observations, not guaranteed support or resistance.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mixed</strong> (Score: 5.3/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="nbis-sentiment-september-2128-2026">NBIS sentiment, September 21–28, 2026<a class="headerlink" href="#nbis-sentiment-september-2128-2026" title="Permanent link">&para;</a></h4>
+<h4 id="1-source-by-source-assessment">1. Source-by-source assessment<a class="headerlink" href="#1-source-by-source-assessment" title="Permanent link">&para;</a></h4>
+<p><strong>News — mixed, with a constructive operating-demand story and material downside warnings.</strong> The supplied feed contains 20 headlines, but several cover the same BNP Paribas upgrade, GPU-price announcement, or Michael Burry position change; several others primarily concern peers rather than NBIS, so 20 is not a count of independent NBIS developments. BNP Paribas reportedly upgraded NBIS to Outperform and raised its target from $260 to $399, with an estimate of approximately $22 billion in annual recurring revenue exiting 2027. That ARR number is an <em>analyst projection</em>, not achieved revenue. Headlines also report that NBIS plans to increase AI-compute/GPU prices on October 1, supporting a favorable-demand/pricing narrative, and cite the NBIS–Palantir sovereign-AI infrastructure partnership. That partnership was announced September 8: its coverage this week is renewed attention to an earlier announcement, not a new agreement this week. One article reports a 7.44% NBIS gain to $243.48 on Thursday in response to the target hike and impending price increase; this is a reported past session, not a September 28 quote.</p>
+<p>Offsetting news reports Burry replacing common-stock shorts in NBIS and other AI names with puts, while advancing his AI-bubble timing thesis. The switch changes the form of a bearish wager; it does not establish that his bearish view ended. An earlier September 24 article described him expanding an NBIS short; the subsequent puts coverage should be read chronologically rather than treated as proof of simultaneous contradictory positions. Other headlines report an NBIS decline of 2.5% despite the $399 target, selling across neocloud peers, a chairman's sale of more than 6,000 shares worth about $1.3 million, and the funding demands of a very large capacity ramp. The significance of the insider sale cannot be established without ownership and transaction context. IREN, CoreWeave, Axe Compute, and Palantir stories provide sector background, not standalone evidence about NBIS fundamentals. Several Yahoo-listed articles are themselves Stocktwits-sourced, limiting independence between the news and social feeds.</p>
+<p><strong>StockTwits — bullish among labeled posts, but narrow and reactive.</strong> Of 23 most-recent messages, 10 are user-labeled Bullish, two Bearish, and 11 unlabeled: bullish posts are 10/12 (83%) of <em>labeled</em> messages, but 10/23 (43%) of all sampled messages, versus 2/23 (9%) bearish and 11/23 (48%) unclassified. These labels are user-supplied; the unlabeled half cannot be treated as neutral or automatically bullish. Bullish posters cite the BNP Paribas $399 target and projected 2027 ARR, or mock Burry's shift from shorts to puts as a retreat. One poster's calculation of roughly 7.7 times projected ARR at a hypothetical $400 NBIS share price is a speculative valuation argument, not an observed valuation or verified forecast. Two bearish posts call NBIS 'meme junk' and warn that Burry's bearish positioning could hurt a crowded trade. Multiple bullish replies come from repeat users, the sample is concentrated within a few hours on September 28, and at least one Bullish-tagged message focuses on Palantir rather than NBIS. Thus the 83% labeled split is a retail mood indicator, not a broad investor poll or evidence that Burry's puts are unlikely to pay off.</p>
+<p><strong>Reddit — unavailable.</strong> The Reddit feed was explicitly disabled by configuration; there are no posts, excerpts, or engagement data to assess from r/wallstreetbets, r/stocks, or r/investing. Its absence is not a neutral sentiment vote. Confidence is <strong>low</strong> because an entire requested source is missing, the social sample is small and partly off-topic/unlabeled, and news coverage repeats a few events.</p>
+<h4 id="2-cross-source-alignment-and-divergence">2. Cross-source alignment and divergence<a class="headerlink" href="#2-cross-source-alignment-and-divergence" title="Permanent link">&para;</a></h4>
+<p>Both the news and retail discussion identify stronger AI-compute demand, an NBIS target upgrade, and Burry's bearish AI thesis as the week's principal talking points. They diverge on interpretation: many StockTwits bulls portray his change to puts as capitulation, whereas news describes a continued bearish, timing-sensitive options bet. Constructive upgrade and pricing headlines coexist with an NBIS down-day, sector selling, dilution/funding concerns, and an insider-sale headline. Retail conviction therefore looks firmer than the mixed news and reported price-action framing justify. The overlap of syndicated Stocktwits news and retail reactions also means this is not a fully independent two-source confirmation.</p>
+<h4 id="3-dominant-narratives">3. Dominant narratives<a class="headerlink" href="#3-dominant-narratives" title="Permanent link">&para;</a></h4>
+<p>The primary bullish NBIS narrative is that scarce GPU compute supports higher prices, strong contract economics, and a substantial capacity-driven revenue opportunity. The opposing narrative is that an expensive, capital-intensive AI-infrastructure build-out could disappoint expectations or be repriced sharply if AI enthusiasm cools. Burry's positioning has become a retail identity contest around that second narrative, crowding out careful discussion of NBIS financing and delivery risk.</p>
+<h4 id="4-catalysts-and-risks">4. Catalysts and risks<a class="headerlink" href="#4-catalysts-and-risks" title="Permanent link">&para;</a></h4>
+<p>The stated <strong>October 1 AI-compute price increase</strong> is the clearest dated prospective catalyst; execution, customer retention, and realized economics are unknown. Follow-through on the NBIS–Palantir partnership and capacity build-out could matter, but no new agreement date, customer uptake metrics, or funding terms are supplied. BNP Paribas's $399 target and $22 billion exiting-2027 ARR estimate may influence positioning but are forecasts, not operating milestones. Risks include an AI-sector sentiment reversal associated with Burry's bearish thesis, neocloud peer selling, the cost of funding rapid capacity expansion, high expectations after reported share-price gains, and unclear implications of the chairman's sale. StockTwits mentions 'after earnings,' but the data give no confirmed upcoming NBIS earnings date. No verified September 28 closing price, options positioning details, or Reddit discussion are provided. This is a snapshot of sentiment for the trader to weigh against fundamentals and technicals, <strong>not an NBIS price prediction or trade recommendation</strong>.</p>
+<h4 id="5-key-nbis-sentiment-signals">5. Key NBIS sentiment signals<a class="headerlink" href="#5-key-nbis-sentiment-signals" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence / qualification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Analyst upgrade and growth expectations</td>
+<td>Bullish</td>
+<td>News</td>
+<td>BNP Paribas reportedly upgraded NBIS to Outperform and lifted its target $260 → $399; ~$22B exiting-2027 ARR is a projection.</td>
+</tr>
+<tr>
+<td>Planned GPU-compute repricing</td>
+<td>Bullish, conditional</td>
+<td>News</td>
+<td>NBIS price increase slated for October 1; demand and realized pricing still need verification.</td>
+</tr>
+<tr>
+<td>Enterprise/sovereign-AI partnership</td>
+<td>Mildly bullish</td>
+<td>News</td>
+<td>NBIS–Palantir integration discussed this week; original announcement September 8, not a fresh deal.</td>
+</tr>
+<tr>
+<td>Labeled retail messages</td>
+<td>Bullish but limited</td>
+<td>StockTwits</td>
+<td>10 Bullish versus two Bearish among 12 labeled posts; 11 of 23 total are unlabeled, with repeat and tangential posters.</td>
+</tr>
+<tr>
+<td>Burry's AI-bubble positioning</td>
+<td>Bearish / disputed</td>
+<td>News; StockTwits</td>
+<td>News describes replacement of NBIS stock shorts with puts and a sooner-bubble thesis; bulls call it retreat, an interpretation rather than an established fact.</td>
+</tr>
+<tr>
+<td>Market reception and financing</td>
+<td>Bearish / cautionary</td>
+<td>News</td>
+<td>NBIS down 2.5% in one headline despite target hike; sector weakness and capacity-ramp funding needs also cited.</td>
+</tr>
+<tr>
+<td>Chairman share sale</td>
+<td>Cautionary, uncertain</td>
+<td>News</td>
+<td>Reported sale of over 6,000 NBIS shares for ~$1.3M; ownership context unavailable.</td>
+</tr>
+<tr>
+<td>Community cross-check</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>Feed disabled; no Reddit stance or engagement can be inferred.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Overall NBIS read: Mixed, 5.3/10; slightly positive demand and retail tone counterbalanced by bearish positioning, capital requirements, and mixed market reception. Confidence: low.</strong></p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="nbis-trading-and-macro-news-report-september-28-2026">NBIS trading and macro news report — September 28, 2026<a class="headerlink" href="#nbis-trading-and-macro-news-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Bottom line:</strong> The past week strengthened the demand case for Nebius Group N.V. (<code>NBIS</code>) but also sharpened its financing and valuation risks. Reports of an October 1 AI-compute price increase and a bullish analyst upgrade support the view that capacity remains valuable. Rising Treasury yields and selling across neocloud stocks make it important to distinguish <em>announced prices and projected revenue</em> from realized cash flow. My stance is <strong>constructive on demand, cautious on chasing NBIS without evidence that higher prices translate into sustained utilization and margins</strong>.</p>
+<h4 id="what-changed-for-nbis-this-week">What changed for NBIS this week<a class="headerlink" href="#what-changed-for-nbis-this-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>A pricing test is imminent.</strong> Nebius reportedly plans to raise AI-compute prices on <strong>October 1</strong>. That is a favorable demand signal if customers accept the new rates, but a price-list change alone does not establish higher realized revenue: existing contracts, discounts and GPU utilization matter. Watch for confirmed pricing terms and subsequent utilization or revenue disclosures. <a href="https://www.fool.com/investing/2026/09/27/nebius-is-raising-the-price-of-its-ai-compute-on-oct-1-here-s-what-that-says-about-the-shortage/">Motley Fool</a></li>
+<li><strong>The bullish forecast is ambitious, not company guidance.</strong> Reports say BNP Paribas raised its NBIS price target to <strong>$399</strong>; a separate account attributes a <strong>$22 billion 2027 annual recurring revenue estimate</strong> to the analyst. Treat both as an analyst view, not a verified company commitment. NBIS reportedly closed <strong>September 24 at $243.48</strong>, up <strong>7.44% that day</strong>—a historical reference, <strong>not</strong> a September 28 quote or entry level. <a href="https://www.barchart.com/story/news/4834616/why-bnp-paribas-is-setting-its-sights-on-399-for-nebius-stock">Barchart</a> · <a href="https://stocktwits.com/news-articles/markets/equity/nebius-stock-surges-bnp-paribas-upgrades-sees-22-b-arr-by-2027/cZMaMEpRBa4">Stocktwits</a> · <a href="https://finance.yahoo.com/markets/stocks/articles/nebius-group-nbis-hike-prices-015714845.html">Insider Monkey</a></li>
+<li><strong>Sentiment has become contested.</strong> Coverage reported a roughly <strong>2.5% NBIS decline</strong> despite the higher target, alongside selling among neocloud peers. Michael Burry’s reported shift from stock shorts to puts on NBIS and other AI names highlights downside sentiment, but the available reports do not establish his current position size or prove a fundamental deterioration. A reported chairman sale of more than 6,000 shares, worth about $1.3 million, likewise lacks the holding and trading-plan context needed to read it as a decisive signal. <a href="https://finance.yahoo.com/markets/stocks/articles/nebius-stock-falls-2-5-170037293.html">GuruFocus</a> · <a href="https://247wallst.com/investing/2026/09/25/neocloud-stocks-fall-as-selling-extends-after-a-week-of-research-notes-iren-drops-4-coreweave-slides-3-nebius-eases/">24/7 Wall St.</a> · <a href="https://stocktwits.com/news-articles/markets/equity/michael-burry-swaps-mu-nbis-nvda-pltr-shorts-for-puts-says-ai-bubble-may-burst-sooner-than-later/cZMj3k9RBXa">Stocktwits</a> · <a href="https://www.fool.com/coverage/filings/2026/09/25/nebius-chairman-of-the-board-dumps-over-6-000-shares-worth-usd1-3-million-after-the-stock-soared-128-in-the-past-year/">Motley Fool</a></li>
+<li><strong>Do not double-count the Palantir news.</strong> Articles circulated this week about the sovereign-AI partnership, but the reported announcement date was <strong>September 8</strong>. It remains relevant to potential demand; it is not a newly announced deal from September 21–28. <a href="https://finance.yahoo.com/technology/ai/articles/could-palantir-pltrs-partnership-nebius-220317492.html">Insider Monkey</a></li>
+</ul>
+<h4 id="the-world-and-macro-backdrop-relevant-to-nbis">The world and macro backdrop relevant to NBIS<a class="headerlink" href="#the-world-and-macro-backdrop-relevant-to-nbis" title="Permanent link">&para;</a></h4>
+<p><strong>Rates are the principal near-term macro risk.</strong> September 28 market coverage reported climbing Treasury yields and declines in the Dow, S&amp;P 500 and Nasdaq, although Nvidia rose. Friday’s coverage had described weekly index gains despite a bond sell-off. For an infrastructure builder, persistently higher yields can raise the cost of funding expansion and compress the valuation investors will pay for future growth—even while AI demand remains strong. These are <em>news-reported directions</em>, not independently verified yield levels. <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Yahoo Finance, September 28</a> · <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-081738529.html">Yahoo Finance, September 25</a></p>
+<p><strong>Prediction markets price a restrictive Fed backdrop, with important caveats.</strong> Polymarket showed <strong>97%</strong> odds of <em>no Fed cuts in 2026</em> on about <strong>$8.65 million</strong> traded, and <strong>90%</strong> odds of <em>another hike by December 9</em> on the much thinner <strong>$185,000</strong> market. Its <em>US recession by year-end</em> market stood at <strong>8%</strong> on about <strong>$2.23 million</strong> traded. These are contract-specific crowd prices—not Fed guidance or economic data—and the thinner hike market warrants particular caution. An <em>AI bubble burst in 2026</em> contract stood at <strong>9%</strong> on about <strong>$2.41 million</strong> traded, illustrating that a prominent bearish trade is not itself a market consensus.</p>
+<p><strong>Geopolitical supply risk is low-probability but consequential.</strong> A prediction market assigned <strong>4%</strong> odds to a China invasion of Taiwan by year-end, on approximately <strong>$43 million</strong> traded. That is not evidence of an imminent event; it is a risk to monitor because disruption to advanced-chip supply would affect AI-capacity buildouts. No verified geopolitical event in the retrieved week’s news justifies changing NBIS’s base case on its own.</p>
+<p><strong>Data limitation:</strong> The FRED macro feed was unavailable, so this report cannot verify the current policy rate, Treasury yield, CPI, core PCE, unemployment or their changes. Do <strong>not</strong> use the prediction-market probabilities or news headlines as substitutes for those figures.</p>
+<h4 id="actionable-watchlist">Actionable watchlist<a class="headerlink" href="#actionable-watchlist" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>October 1 pricing:</strong> Verify NBIS’s actual new GPU rates and which customers and contracts they apply to. A bullish confirmation would be higher <em>realized</em> revenue per unit of capacity <strong>without weaker utilization</strong>; a headline price hike without those results is less meaningful.</li>
+<li><strong>Funding versus execution:</strong> In the next company disclosure, compare capacity brought online, contracted demand, capital spending and financing needs. Strong demand can coexist with weak returns if buildout costs rise faster than cash generation.</li>
+<li><strong>Rates and sector breadth:</strong> Check current Treasury yields and whether neocloud peers stabilize before treating an NBIS rally as company-specific. If yields keep rising while peers sell off, position sizing and downside protection matter more than an analyst target.</li>
+<li><strong>Separate forecasts from commitments:</strong> Seek company-reported contracts and revenue milestones before underwriting the reported $22 billion 2027 ARR analyst estimate. The available tools provide <strong>no current NBIS quote or technical levels</strong>, so they do not support a precise buy price or stop.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>Evidence as of September 28</th>
+<th>Implication for NBIS</th>
+<th>What to check next</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI-compute pricing</td>
+<td>Reported October 1 increase</td>
+<td>Potential pricing power; realization unproven</td>
+<td>Effective rates, contract coverage, utilization</td>
+</tr>
+<tr>
+<td>Growth expectations</td>
+<td>BNP Paribas $399 target; reported $22B 2027 ARR estimate</td>
+<td>High upside expectations increase execution risk</td>
+<td>Company-reported revenue, capacity and funding</td>
+</tr>
+<tr>
+<td>Sector sentiment</td>
+<td>NBIS and neocloud peers saw selling; Burry reported bearish puts</td>
+<td>Good news may not prevent volatility</td>
+<td>Peer performance and verified company disclosures</td>
+</tr>
+<tr>
+<td>Interest rates</td>
+<td>News reports rising yields; prediction market prices no 2026 cuts at 97%</td>
+<td>Higher financing and valuation pressure</td>
+<td>Actual yields, Fed communications and inflation data</td>
+</tr>
+<tr>
+<td>Broader downside</td>
+<td>Prediction markets: recession 8%; AI-bubble contract 9%</td>
+<td>Risks remain possible, not established forecasts</td>
+<td>Contract definitions and incoming economic data</td>
+</tr>
+<tr>
+<td>Chip supply</td>
+<td>Taiwan invasion-by-year-end market at 4%</td>
+<td>Low-probability, high-impact buildout risk</td>
+<td>Developments affecting GPU supply</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="nbis-fundamental-research-28-september-2026">NBIS fundamental research — 28 September 2026<a class="headerlink" href="#nbis-fundamental-research-28-september-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Nebius Group N.V. (NBIS, NMS)</strong> is classified by the data vendor under Communication Services / Internet Content &amp; Information. Its reported financials show rapid revenue growth alongside a capital-intensive infrastructure buildout. The central trading question is whether that growth can begin to cover operating costs and construction spending before further financing or dilution is needed.</p>
+<p><strong>Scope and timing:</strong> The available tools provide financial statements through <strong>30 June 2026</strong> and insider transaction dates through <strong>15 September 2026</strong>. They do not provide filing or publication dates, company announcements, guidance, or press releases. Consequently, this report cannot verify a new fundamental development during <strong>21–28 September</strong> or establish when the June statements first became public. Figures below are vendor-reported USD amounts; calculated ratios are approximate.</p>
+<h4 id="operating-performance">Operating performance<a class="headerlink" href="#operating-performance" title="Permanent link">&para;</a></h4>
+<p>NBIS reported <strong>$582.3 million of revenue in Q2 2026</strong>, up <strong>46%</strong> from Q1 2026’s $399.0 million and <strong>454%</strong> from Q2 2025’s $105.1 million. Revenue for the four quarters ended June 2026 was <strong>$1.355 billion</strong>. Q2 gross profit reached <strong>$448.7 million</strong>, a <strong>77.1% gross margin</strong>, versus $295.2 million and <strong>74.0%</strong> in Q1.</p>
+<p>That growth has not yet produced GAAP operating profit. Q2 operating expenses were <strong>$624.6 million</strong>, leaving an <strong>operating loss of $175.9 million</strong>. The loss narrowed as a share of revenue to <strong>30.2%</strong>, from <strong>32.1%</strong> in Q1, but widened in dollars from Q1’s $128.0 million loss. Q2 research and development rose to <strong>$191.0 million</strong>, from $67.4 million in Q1; selling, general and administrative expense was <strong>$173.9 million</strong>, versus $143.8 million. Income-statement depreciation and amortization was <strong>$259.7 million</strong>, versus $75.2 million a year earlier, consistent with a much larger asset base.</p>
+<p>The vendor reports <strong>Q2 normalized EBITDA of $154.2 million</strong>, up from $140.3 million in Q1. Its implied margin nevertheless fell from <strong>35.2% to 26.5%</strong> as revenue grew. Normalized EBITDA is not a substitute for the reported operating loss or free cash flow; its precise adjustment methodology would need confirmation in company filings.</p>
+<p>Q2 ended with a <strong>$190.4 million net loss</strong>, or <strong>$0.68 per diluted share</strong>, after Q1’s $621.2 million profit. Reported earnings are especially susceptible to investment gains: Q1 included a <strong>$780.6 million gain on securities</strong>, while Q2 included <strong>$82.5 million</strong>. The vendor’s normalized-income series moves from <strong>positive $152.8 million in Q1</strong> to <strong>negative $239.9 million in Q2</strong>. Four-quarter GAAP net income totals just <strong>$42.4 million</strong> despite those gains, while the four-quarter operating loss totals approximately <strong>$684.1 million</strong>.</p>
+<p>A useful, <em>non-forecast</em> operating sensitivity: at Q2’s gross margin and <strong>unchanged</strong> $624.6 million quarterly operating expenses, NBIS would need roughly <strong>$810 million in quarterly revenue</strong> to reach operating break-even—about <strong>39% above Q2 revenue</strong>. Margins and expenses are unlikely to remain fixed, so the next report’s expense trajectory matters as much as its sales growth.</p>
+<h4 id="cash-flow-investment-and-funding">Cash flow, investment and funding<a class="headerlink" href="#cash-flow-investment-and-funding" title="Permanent link">&para;</a></h4>
+<p>Construction spending is the clearest constraint on the growth case. <strong>Q2 capital expenditure was $5.657 billion</strong>, up from $2.473 billion in Q1 and $511 million a year earlier. Q2 operating cash flow of <strong>$2.246 billion</strong> did not cover it: reported <strong>free cash flow was negative $3.411 billion</strong>, versus negative $215 million in Q1. Adding the four quarterly cash-flow statements through June gives approximately <strong>$11.142 billion of capital expenditure</strong> and <strong>negative $5.884 billion of free cash flow</strong>.</p>
+<p>Operating cash flow also needs a quality check. <strong>$2.031 billion of Q2’s $2.246 billion</strong> came from reported working-capital changes; Q1’s figures were <strong>$2.122 billion of $2.258 billion</strong>. Excluding those changes arithmetically leaves only about <strong>$215 million in Q2</strong> and <strong>$136 million in Q1</strong> of operating cash flow. This is <em>not</em> a formal adjusted-cash-flow measure, but it shows why positive operating cash flow alone does not establish that the buildout is self-funding. Q2’s working-capital benefit included a reported <strong>$1.143 billion release from receivables</strong>.</p>
+<p>Customer-related obligations appear material. Current plus noncurrent <strong>deferred revenue rose to approximately $6.000 billion at June 2026</strong>, from $4.778 billion in March and $1.595 billion at December 2025. That may support future recognized revenue, but it represents services still to be delivered—not earned revenue or unrestricted cash available without associated costs. The tools do not identify the customers, contract terms, or how much of this balance drove cash-flow movements.</p>
+<h4 id="balance-sheet-and-valuation">Balance sheet and valuation<a class="headerlink" href="#balance-sheet-and-valuation" title="Permanent link">&para;</a></h4>
+<p>At June 2026, NBIS reported <strong>$27.962 billion of assets</strong>, including <strong>$14.900 billion of net property, plant and equipment</strong>—up $6.503 billion from March—and <strong>$8.042 billion of cash and equivalents</strong>. It also reported <strong>$830 million of restricted cash</strong>, up from $6.8 million at year-end 2025. Total debt, <strong>including lease obligations</strong>, was <strong>$10.171 billion</strong>, against <strong>$10.340 billion of stockholders’ equity</strong>. The <strong>4.03 current ratio</strong> indicates substantial current assets relative to current liabilities, though it fell from approximately <strong>8.33 in March</strong> as investment accelerated.</p>
+<p>The vendor’s <strong>$504 million net-debt</strong> figure is reconcilable if leases are excluded: approximately <strong>$8.546 billion of financial borrowings less $8.042 billion of cash</strong>. Including <strong>$1.625 billion of lease obligations</strong> produces approximately <strong>$2.129 billion of net debt</strong>. Traders comparing leverage figures should specify which definition they use. Q2 interest expense rose to <strong>$119.1 million</strong>, from $63.7 million in Q1.</p>
+<p>Financing has been significant. The cash-flow series reports <strong>$4.338 billion of debt issuance in Q1</strong> and <strong>$2.847 billion of common-stock issuance in Q2</strong>. Reported ordinary shares increased from <strong>253.9 million in March to 271.9 million in June</strong>, roughly <strong>7.1%</strong>; share-count definitions and the offering’s full dilution should be checked against filings.</p>
+<p>The fundamentals feed lists a <strong>$58.874 billion market capitalization</strong>, <strong>6.15 price-to-book ratio</strong>, <strong>negative $3.49 forward EPS</strong>, and <strong>negative 66.35 forward P/E</strong>. On the supplied market capitalization and four-quarter revenue, the indicative <strong>market-cap-to-sales ratio is about 43.4×</strong>; even annualizing Q2 revenue gives about <strong>25.3×</strong>. These are demanding multiples if cash needs or dilution remain elevated. They are <strong>not verified contemporaneous trading valuations</strong>: the feed does not timestamp its quote inputs, and market capitalization divided by June equity implies approximately <strong>5.69× book</strong>, rather than its stated 6.15×. The feed’s four-quarter free-cash-flow figure, <strong>negative $9.615 billion</strong>, also does not reconcile with the <strong>negative $5.884 billion</strong> obtained by summing its four displayed quarterly statements. Use dated filings before relying on either figure for a trade.</p>
+<h4 id="financial-history-and-insider-activity">Financial history and insider activity<a class="headerlink" href="#financial-history-and-insider-activity" title="Permanent link">&para;</a></h4>
+<p>For <strong>2025</strong>, NBIS reported <strong>$529.8 million revenue</strong>, up from <strong>$91.5 million in 2024</strong>; gross profit rose from $47.8 million to $363.6 million. The operating loss nonetheless widened from <strong>$399.6 million to $611.7 million</strong>. Reported 2025 net income was <strong>$82.5 million</strong>, but included a <strong>$681.3 million securities gain</strong>; the vendor’s normalized income was <strong>negative $473.9 million</strong>. Annual capital expenditure rose from <strong>$807.5 million in 2024 to $4.066 billion in 2025</strong>, and free cash flow deteriorated from <strong>negative $561.9 million to negative $3.681 billion</strong>. Older net-income comparisons are particularly difficult because 2022–2024 include substantial discontinued-operation results.</p>
+<p>The insider feed shows <strong>no transaction dated 21–28 September</strong>. Its latest priced entries are a <strong>6,364-share director sale for approximately $1.339 million on 15 September</strong>, a <strong>7,000-share officer sale for approximately $1.464 million on 14 September</strong>, and a <strong>470-share CFO sale for $92,120 on 1 September</strong>. Eight listed insiders received <strong>1,352-share awards each</strong> on 1 September; awards are <strong>not open-market purchases</strong>. An additional unpriced 7,000-share entry on 14 September may duplicate the priced entry and should not be double-counted. The feed does not establish whether sales were scheduled or tax-related, and its lack of a newer entry is not proof that no filing exists.</p>
+<p><strong>Trading interpretation:</strong> NBIS has demonstrated exceptional sales growth and high gross margins, but the evidence does <strong>not yet</strong> show GAAP operating profitability or a self-funded construction program. A stronger fundamental confirmation would be continued revenue growth <strong>with a narrowing dollar operating loss</strong>, cash generation less dependent on working-capital inflows, and capex moving closer to internally generated cash. Conversely, sustained spending near Q2’s rate, rising interest costs, or another material share issuance would heighten financing and dilution risk. Verify dated filings, contractual obligations and any guidance before turning these conditions into a position.</p>
+<table>
+<thead>
+<tr>
+<th>Key point</th>
+<th>Evidence available as of 28 September 2026</th>
+<th>Trading relevance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latest reported sales</td>
+<td>Q2 revenue <strong>$582.3m</strong>, <strong>+46% QoQ</strong> and <strong>+454% YoY</strong></td>
+<td>Strong demand signal; test whether growth persists.</td>
+</tr>
+<tr>
+<td>Profitability</td>
+<td>Q2 gross margin <strong>77.1%</strong>; GAAP operating loss <strong>$175.9m</strong></td>
+<td>Gross economics are strong, but operating break-even remains unproven.</td>
+</tr>
+<tr>
+<td>Earnings quality</td>
+<td>Q2 net loss <strong>$190.4m</strong>; Q1 profit included a <strong>$780.6m securities gain</strong></td>
+<td>Do not value NBIS chiefly on recent GAAP net income or P/E.</td>
+</tr>
+<tr>
+<td>Capital intensity</td>
+<td>Q2 capex <strong>$5.657bn</strong>; free cash flow <strong>−$3.411bn</strong></td>
+<td>Track project spending and funding needs ahead of the next results.</td>
+</tr>
+<tr>
+<td>Cash-flow quality</td>
+<td>Q2 operating cash flow <strong>$2.246bn</strong>, including <strong>$2.031bn</strong> of working-capital benefit</td>
+<td>Check whether subsequent cash generation persists without similar inflows.</td>
+</tr>
+<tr>
+<td>Liquidity and leverage</td>
+<td>Cash <strong>$8.042bn</strong>; total debt including leases <strong>$10.171bn</strong>; lease-inclusive net debt about <strong>$2.129bn</strong></td>
+<td>Liquidity is substantial, but debt definitions and cash burn matter.</td>
+</tr>
+<tr>
+<td>Deferred revenue</td>
+<td>Approximately <strong>$6.000bn</strong>, up from <strong>$1.595bn</strong> at December 2025</td>
+<td>Potential future revenue, subject to delivery and associated costs.</td>
+</tr>
+<tr>
+<td>Dilution</td>
+<td>Ordinary shares <strong>+7.1%</strong> from March to June; Q2 equity issuance <strong>$2.847bn</strong></td>
+<td>Evaluate growth on a per-share basis.</td>
+</tr>
+<tr>
+<td>Valuation and data caution</td>
+<td>Indicative market-cap/sales <strong>43.4×</strong>; vendor valuation and free-cash-flow figures do not fully reconcile</td>
+<td>Require a dated price and filed statements before applying multiples.</td>
+</tr>
+<tr>
+<td>Past-week visibility</td>
+<td>No insider entry dated <strong>21–28 September</strong>; no filing-date or news feed</td>
+<td>No verified past-week fundamental catalyst can be asserted from these tools.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case for NBIS: speculative buy, with execution—not an analyst target—as the thesis.</strong> Nebius has already shown that demand can translate into rapid sales growth: Q2 2026 revenue reached <strong>$582.3 million, up 46% quarter over quarter and 454% year over year</strong>, while gross margin rose to <strong>77.1%</strong>. That combination matters. It suggests the opportunity is not merely to install more AI capacity, but to sell that capacity at attractive gross economics.</p>
+<p>The growth case has two tests ahead. NBIS reportedly plans to raise AI-compute prices on <strong>October 1</strong>; if realized rates rise without weakening utilization, that would be meaningful evidence of pricing power. Its Palantir sovereign-AI partnership offers another route to demand, although it was announced on <strong>September 8</strong>, not this week, and no customer revenue from it has been established. BNP Paribas’s reported <strong>$22 billion exiting-2027 ARR estimate</strong> illustrates the scale bulls envision, but I would not treat an analyst projection as company guidance—or confuse exit ARR with revenue already earned.</p>
+<p>I expect the bear to go straight to cash burn, and fairly so. Q2 capex was <strong>$5.657 billion</strong>, free cash flow was <strong>negative $3.411 billion</strong>, and operating cash flow benefited substantially from working-capital changes. NBIS is <strong>not</strong> self-funding its buildout; ordinary shares also rose about <strong>7.1%</strong> from March to June. My counter is not to dismiss those costs. It is that NBIS has <strong>$8.042 billion in cash</strong> and approximately <strong>$6 billion in deferred revenue tied to services still to be delivered</strong>, alongside exceptional revenue growth. Deferred revenue is an obligation, not profit, but it gives us a concrete reason to test whether deployed capacity converts into recognized sales. At Q2’s margin and <em>unchanged</em> operating expenses, quarterly revenue of roughly <strong>$810 million</strong> would cover operating costs—about <strong>39% above Q2</strong>. That is a sensitivity, not a prediction; expense growth and financing terms will decide whether shareholders benefit.</p>
+<p>Nor would I call the stock cheap. The vendor’s indicative <strong>43.4× trailing-sales</strong> figure is demanding and its quote inputs are not timestamped. The bull argument is instead that today’s valuation could be supported by a much larger, profitable business <strong>if</strong> NBIS sustains utilization and earns returns on its enormous investment. Burry’s reported puts and rising-yield concerns underscore why that “if” matters; neither, by itself, demonstrates deteriorating customer demand.</p>
+<p>At the <strong>September 28 close of $231.88</strong>, all three SuperTrend timeframes still point up, but <strong>ADX of 19.59</strong> and two sessions of softer momentum do not justify chasing a breakout. I favor <strong>measured accumulation for investors who can tolerate substantial volatility</strong>, with greater conviction if NBIS closes above <strong>$245.35</strong> on improving volume participation—and, more importantly, subsequently reports higher realized pricing, continued revenue growth and tighter control of cash burn. If spending continues to outrun credible returns or dilution accelerates, I would change the thesis. For now, the operating growth gives the bull case more substance than the bear’s assertion that this is <em>only</em> AI enthusiasm.
+Bull Analyst: <strong>Bull Analyst:</strong> Bear, your funding objection is the right one. NBIS spent <strong>$5.657 billion on capex in Q2</strong>, and its <strong>$8.042 billion cash balance is not a license to repeat that spending indefinitely</strong>. I also agree that the roughly <strong>$6 billion of deferred revenue is a service obligation, not a second cash reserve</strong>. My disagreement is with your conclusion that investors should wait for pricing, operating losses, cash flow <em>and</em> dilution to improve together before taking any position.</p>
+<p>The operating evidence already gives NBIS a credible path worth underwriting—cautiously. Q2 revenue of <strong>$582.3 million exceeded its entire 2025 revenue</strong>, rose <strong>46% from Q1</strong>, and came with a <strong>77.1% gross margin</strong>, up from 74.0%. That does not establish a return on the full buildout. It does show that the capacity NBIS has begun selling can generate substantial gross profit. Deferred revenue’s rise from <strong>$1.595 billion at year-end 2025 to about $6 billion in June 2026</strong> adds visibility into services to be delivered, even though neither the timing nor the eventual profit is assured.</p>
+<p>You are right to challenge my <strong>$810 million quarterly operating break-even sensitivity</strong>. Q2 operating expenses rose by roughly <strong>$201 million</strong>, more than the <strong>$154 million</strong> increase in gross profit, so the dollar loss widened. Roughly <strong>$124 million</strong> of that expense increase was R&amp;D. I cannot call it one-time spending; equally, I would not assume expenses must rise at that pace for every additional quarter of revenue. The bull thesis depends on growth in gross profit eventually outrunning those costs. It has <strong>not</strong> happened yet, and operating break-even would still fall far short of funding construction.</p>
+<p>That is why I favor <strong>small, staged exposure</strong>, not an all-in bet. Q2 operating cash flow benefited from <strong>$2.031 billion of working-capital changes</strong>; dilution was real, with ordinary shares up about <strong>7.1%</strong> from March to June. The case for owning NBIS is that deployed capacity may produce revenue over time while today’s construction bill is incurred upfront—not that future returns are guaranteed. October’s reported price increase offers a near-term test: higher <em>realized</em> rates without weaker utilization would strengthen the case. The Palantir partnership offers a potential route to sovereign-AI demand, but I assign it no established revenue contribution.</p>
+<p>On valuation, I won’t defend NBIS as cheap: the indicative <strong>43.4× trailing-sales</strong> multiple is demanding, and even using annualized Q2 sales leaves a substantial premium. Nor is BNP Paribas’s <strong>$22 billion exiting-2027 ARR estimate</strong> company guidance. But trailing sales also capture little of a business growing 46% quarter over quarter. Waiting until every financing and profitability metric is resolved could mean waiting until much of a successful ramp is reflected in the price.</p>
+<p>So my recommendation remains a <strong>speculative, volatility-sized long in NBIS</strong>, using the <strong>September 28 close of $231.88 as a dated reference, not a current quote</strong>. You are right that a close above <strong>$245.35</strong> would be technical confirmation, not proof of sound economics. I would increase conviction only on realized pricing, continued sales growth, better operating-loss dollars, and a credible decline in funding needs per unit of capacity. If capex and dilution keep outrunning the returns from that capacity, your bear case wins.
+Bull Analyst: <strong>Bull Analyst:</strong> Bear, you’re right that NBIS has not demonstrated an adequate return on its buildout. That is the central risk—not something a price breakout or an analyst target can answer. But “avoid any long until funding needs decline” sets the entry bar after a potentially important part of the ramp has already been proved. My case for a <em>small</em> position rests on evidence of attractive sales economics today, while recognizing that returns on invested capital remain unproved.</p>
+<p>Look at the Q1-to-Q2 progression. Revenue rose <strong>$183.3 million</strong> and gross profit rose <strong>$153.5 million</strong>—about <strong>84 cents of additional gross profit per additional sales dollar</strong> in those reported quarters. Gross margin improved from <strong>74.0% to 77.1%</strong>. You’re correct that expenses grew faster and the <em>dollar</em> operating loss widened. But the operating loss also fell from <strong>32.1% to 30.2% of revenue</strong> despite a roughly <strong>$124 million increase in R&amp;D</strong>. That is not operating leverage sufficient to declare victory; it is a reason not to assume that every dollar of future sales requires the same increase in operating expense. The next report must test that proposition.</p>
+<p>Your cash-flow objection is equally valid. <strong>$5.657 billion of Q2 capex</strong>, working-capital-supported operating cash flow, and <strong>7.1% share-count growth</strong> mean NBIS cannot be valued as a self-funding business. The bull case is that construction costs arrive before the capacity produces its full revenue—not that spending automatically creates value. Approximately <strong>$6 billion of deferred revenue</strong>, up from <strong>$1.595 billion at year-end 2025</strong>, gives a tangible indication of services awaiting delivery. It is an obligation, <strong>not another cash cushion</strong>, and we still need to see what it costs to fulfill.</p>
+<p>So why take any risk at this valuation? Because NBIS has already delivered Q2 revenue greater than <em>all of 2025</em>, at high and improving gross margins, while its reported <strong>October 1 price increase</strong> offers a near-term test of whether scarce compute can command more revenue without losing utilization. That potential pricing advantage is <strong>not yet a proven moat</strong>. Nor do I use BNP Paribas’s <strong>$22 billion exiting-2027 ARR estimate</strong> as earned revenue. I agree that the indicative <strong>43.4× trailing-sales</strong> multiple leaves little room for disappointment.</p>
+<p>My recommendation remains a <strong>speculative, volatility-sized long in NBIS</strong>, not an aggressive purchase on a close above <strong>$245.35</strong>. At the dated <strong>September 28 close of $231.88</strong>, weak ADX and softer OBV argue against chasing. I would add only if reported realized pricing and sales improve <em>alongside a narrowing dollar operating loss and a credible path to lower funding needs per unit of capacity</em>. If another ramp in capex and dilution swallows the benefit of growth, your avoid-long call wins. But the combination of demonstrated sales growth, improving gross economics, and a substantial delivery pipeline is enough, in my view, to justify limited exposure <strong>before</strong> every return metric is settled.
+Bull Analyst: <strong>Bull Analyst:</strong> Bear, I agree that gross profit is not a return on NBIS’s multibillion-dollar buildout. But your concern that financing will swallow the growth <em>per share</em> is worth testing against what has happened so far. Using the reported March and June ordinary-share counts, quarterly revenue divided by shares rose from about <strong>$1.57 to $2.14</strong>, and gross profit from about <strong>$1.16 to $1.65</strong>—roughly <strong>36% and 42%</strong>, respectively—even as shares outstanding rose <strong>7.1%</strong>. Those are illustrative point-in-time ratios, not EPS, free cash flow per share, or proof of an adequate return. They do show that dilution has <strong>not yet erased the commercial growth</strong>.</p>
+<p>You are also right that operating leverage remains unproved. Normalized EBITDA margin fell, the dollar operating loss widened, and interest expense rose. Still, NBIS sold <strong>46% more</strong> quarter over quarter at a <strong>77.1% gross margin</strong>. At that margin, another $100 million of sales would generate roughly $77 million of gross profit <em>if the margin holds</em>; the decisive question is how much additional operating expense and capital that growth requires. This is a measurable path to improvement, not a claim that improvement has already arrived.</p>
+<p>I would not wave away <strong>$5.657 billion of Q2 capex</strong>, <strong>negative $3.411 billion of free cash flow</strong>, or the equity issuance. Nor is <strong>$6 billion of deferred revenue</strong> a second cash reserve. It does, however, represent services NBIS has yet to deliver, while the reported October 1 price increase creates a near-term test of pricing power. Higher <em>realized</em> rates without weaker utilization would strengthen the case; an announcement alone will not.</p>
+<p>So I accept your hurdle for <strong>adding conviction</strong>: a narrower dollar operating loss and evidence that funding needs are improving relative to capacity delivered. Where we differ is whether investors must wait for both before owning a share. At the <strong>dated September 28 close of $231.88</strong>, with a demanding <em>indicative</em> valuation and weak near-term trend strength, I favor a <strong>small, speculative NBIS position—not a chase above $245.35</strong>. If future growth fails to improve cash economics per share, your avoid-long call wins. But the growth <em>already achieved despite dilution</em> gives a volatility-tolerant investor a reason to take measured exposure while those tests unfold.
+Bull Analyst: <strong>Bull Analyst:</strong> Bear, your illustrative operating-loss-per-share comparison is a fair correction to mine. NBIS grew sales per share, but it has not yet demonstrated value creation per share. Where I differ is on what the latest quarter tells us about the <em>next</em> one.</p>
+<p>Q2 added <strong>$153.5 million of gross profit</strong> while operating expenses rose about <strong>$201 million</strong>. Of that expense increase, <strong>$123.6 million—roughly 61%—was R&amp;D</strong>. I am not treating R&amp;D as temporary or excluding it from the loss. But neither can we conclude from one large spending step-up that expenses must rise as fast as revenue indefinitely. Here is a concrete test: if NBIS added another $183 million of quarterly sales at Q2’s <strong>77.1% gross margin</strong>, it would generate roughly $141 million more gross profit. Operating-expense growth would need to fall below $141 million, from $201 million last quarter, for the <em>dollar</em> operating loss to narrow. That is a demanding hurdle, not a forecast—and one I would require before adding substantially.</p>
+<p>You are also right that <strong>$5.657 billion of capex</strong>, <strong>negative $3.411 billion of free cash flow</strong>, rising interest expense and dilution could overwhelm that progress. The <strong>$8.042 billion cash balance</strong> cannot support Q2-sized deficits indefinitely, and deferred revenue is an obligation, not extra liquidity. Still, comparing one construction-heavy quarter’s spending with its current sales does not establish the eventual return on that capacity. The roughly <strong>$6 billion of deferred revenue</strong> gives visibility into services awaiting delivery; October’s reported price increase offers a test of whether NBIS can deliver them at better realized prices <strong>without sacrificing utilization</strong>. Neither proves the return yet.</p>
+<p>I accept your valuation objection. The indicative <strong>43.4× trailing-sales</strong> multiple is steep; even annualizing <em>reported</em> Q2 sales yields about <strong>25.3× using the same undated market-cap input</strong>. My case is not that NBIS is cheap or that an analyst’s 2027 ARR forecast will come true. It is that demonstrated 46% sequential sales growth and high gross margins warrant a <strong>small, speculative NBIS long</strong> before every return metric is settled.</p>
+<p>At the <strong>dated September 28 close of $231.88</strong>, I would not chase a technical breakout alone. If realized pricing disappoints, dollar operating losses keep widening, or financing continues to dilute shareholders without improving capacity economics, I would exit. Your risks are real; I disagree that investors must wait for all three tests to pass before taking <em>any</em> measured exposure.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: <strong>Bear Analyst:</strong> I agree with you that NBIS is more than “only AI enthusiasm.” Revenue growth of 46% quarter over quarter and a 77.1% gross margin are real. But they establish demand for compute—not that shareholders will earn an adequate return on the capital required to supply it. That is why I disagree with <em>accumulating now</em>.</p>
+<p>Your $810 million quarterly revenue break-even test holds operating expenses fixed. They did not stay fixed in Q2: operating expenses rose to $624.6 million, and the <strong>dollar operating loss widened</strong> from $128.0 million to $175.9 million despite the sales surge. Normalized EBITDA margin also fell from 35.2% to 26.5%. If costs keep rising as capacity comes online, the break-even target moves with them. And operating break-even would still be a long way from funding construction.</p>
+<p>That funding gap is my central objection. NBIS spent <strong>$5.657 billion on capex in Q2</strong> and reported <strong>negative $3.411 billion of free cash flow</strong>. Of its $2.246 billion in operating cash flow, $2.031 billion came from working-capital changes; that benefit should not be mistaken for repeatable cash generation. The $8.042 billion cash balance is substantial, but it is only about <strong>2.4 Q2-sized free-cash-flow deficits</strong>—a scale comparison, not a runway forecast. NBIS already issued $2.847 billion of common stock in Q2, while ordinary shares increased roughly 7.1%. Growth can be impressive and still disappoint <em>per share</em> if financing keeps expanding the denominator.</p>
+<p>I also would not treat the $6 billion of deferred revenue as a second cash cushion. As you acknowledge, it represents service obligations; fulfilling them requires capacity and expense. Likewise, October’s announced price increase will matter only if customers pay higher <em>realized</em> rates without utilization suffering. Competing capacity could weaken that pricing opportunity. The Palantir partnership has no established revenue contribution in the supplied data, and the analyst’s $22 billion exiting-2027 ARR figure remains a forecast, not a funding source.</p>
+<p>Finally, the stock offers little margin for error. The vendor’s <strong>indicative</strong>, not contemporaneously verified, market-cap-to-trailing-sales ratio is about 43×. At the September 28 close of $231.88, ADX was just 19.59, OBV had fallen from its September 24 reading, and the last three closes were successively lower. I concede that the higher-timeframe trend remains up; this is <strong>not</strong> a confident short call. It is a case to <strong>avoid initiating a long in NBIS</strong> until realized pricing, operating-loss dollars, cash flow and dilution improve together. A close above $245.35 alone would not resolve those questions.
+Bear Analyst: <strong>Bear Analyst:</strong> I agree, Bull: waiting for every uncertainty to disappear would mean missing some of the upside if NBIS succeeds. But that is not the choice I’m asking investors to make. I’m asking why they should fund this ramp <em>at today’s demanding valuation</em> before there is evidence that growth is improving returns for shareholders.</p>
+<p>Your strongest point is real: Q2 revenue of <strong>$582.3 million</strong> exceeded all of 2025, at a <strong>77.1% gross margin</strong>. Yet from Q1 to Q2, gross profit rose about <strong>$154 million</strong> while operating expenses rose about <strong>$201 million</strong>. The operating loss consequently widened from <strong>$128.0 million to $175.9 million</strong>. That does not prove costs will keep rising at the same pace, but it means the operating leverage your thesis needs has not appeared. The fixed-expense <strong>$810 million break-even sensitivity</strong> is a useful benchmark, not evidence that NBIS is approaching a self-funding business.</p>
+<p>The capital bill makes “start small now” less reassuring than it sounds. Q2 capex was <strong>$5.657 billion—nearly ten times quarterly revenue</strong>. Of <strong>$2.246 billion</strong> in operating cash flow, <strong>$2.031 billion</strong> came from working-capital changes; subtracting that benefit arithmetically leaves roughly <strong>$215 million</strong>, not a formal adjusted cash-flow figure and nowhere near the construction bill. NBIS has cash, but it also issued <strong>$2.847 billion of stock in Q2</strong>, and ordinary shares rose about <strong>7.1%</strong>. Stronger future sales may not translate into strong <em>per-share</em> returns if financing repeatedly expands the share count.</p>
+<p>I grant that the <strong>$6 billion in deferred revenue</strong> offers visibility into services to be delivered. It does not tell us their margins or the capital still needed to deliver them. Likewise, an October price increase tests pricing power only once <strong>realized rates and utilization</strong> are reported. We have no evidence here that rivals have taken NBIS’s customers—but neither do we have evidence that customers will accept higher effective prices as competing capacity expands.</p>
+<p>Finally, the indicative <strong>43.4× trailing-sales</strong> multiple leaves little room for those tests to disappoint; the vendor’s valuation inputs are not a verified September 28 quote. The higher-timeframe technical trend is up, so I am <strong>not calling for a short</strong>. But ADX of <strong>19.59</strong>, weakening recent OBV and an ATR of <strong>$16.64</strong> make a move above $245.35 a poor substitute for fundamental confirmation.</p>
+<p>My bar is <strong>not perfection on every metric</strong>. A report showing continued sales growth <em>alongside a narrowing dollar operating loss and a credible reduction in funding needs</em> would materially weaken my case. Until then, I would <strong>avoid initiating a long in NBIS</strong>, rather than pay upfront for returns the buildout has yet to demonstrate.
+Bear Analyst: <strong>Bear Analyst:</strong> Bull, your strongest point is NBIS’s roughly <strong>84 cents of additional gross profit for each additional sales dollar</strong> from Q1 to Q2. I agree that is impressive. But gross profit is not the return shareholders earn on a multibillion-dollar buildout. Despite the revenue surge, normalized EBITDA rose only <strong>$13.9 million</strong>, its margin fell from <strong>35.2% to 26.5%</strong>, and the <em>dollar</em> operating loss widened to <strong>$175.9 million</strong>. Interest expense also climbed from <strong>$63.7 million to $119.1 million</strong>. Revenue is scaling; the evidence that it can outrun operating and financing costs is not.</p>
+<p>You argue that construction comes before the revenue it enables. Fair—but Q2’s <strong>$5.657 billion of capex</strong> is a real investment that future sales must repay, not just a timing inconvenience. NBIS reported <strong>negative $3.411 billion of free cash flow</strong> and issued <strong>$2.847 billion of common stock</strong> that quarter. Starting with a small position limits an investor’s exposure; it does not prevent repeated financing from diluting the eventual payoff <em>per share</em>.</p>
+<p>The <strong>$6 billion of deferred revenue</strong> makes future service delivery more visible, but it does not establish the margin or additional capital needed to fulfill those obligations. Likewise, October’s reported price increase is promising only if <em>realized</em> rates rise without utilization falling. With no demonstrated durable pricing moat, expanding competing capacity remains a risk—not a claim that NBIS has already lost customers.</p>
+<p>That is why “you might miss the ramp” does not settle the entry decision. The vendor’s <strong>indicative 43.4× trailing-sales multiple</strong>—based on quote inputs that are not contemporaneously verified—already assumes a great deal will go right. I do <strong>not</strong> need NBIS to become fully self-funding before reconsidering. Continued growth paired with a <strong>narrowing dollar operating loss and a credible reduction in financing needs relative to the capacity brought online</strong> would materially weaken my case.</p>
+<p>The higher-timeframe trend remains up, so this is <strong>not a short recommendation</strong>. But at the dated September 28 close of <strong>$231.88</strong>, I would <strong>avoid initiating a long in NBIS</strong> rather than pay today for returns its buildout has yet to demonstrate.
+Bear Analyst: <strong>Bear Analyst:</strong> Bull, your per-share comparison is fair as far as it goes: NBIS grew revenue and gross profit faster than its share count from March to June. But it tests whether dilution has erased <em>sales growth</em>, not whether the buildout is creating value for shareholders. Using the same rough end-of-quarter share counts, the <strong>operating loss per share worsened from about $0.50 to $0.65</strong>. Those are illustrative ratios, not reported EPS. They show the other side of the per-share story.</p>
+<p>Your next $100 million of sales could produce roughly $77 million of gross profit <strong>if</strong> Q2’s margin holds. In the quarter we actually observed, though, gross profit rose <strong>$153.5 million</strong> while operating expenses rose about <strong>$201 million</strong>. The dollar operating loss widened to <strong>$175.9 million</strong>, and interest expense climbed to <strong>$119.1 million</strong>. I’m not assuming expenses must always rise that quickly. I’m saying the improvement your thesis requires has yet to show up.</p>
+<p>That matters because capacity has to earn back its cost. NBIS spent <strong>$5.657 billion on capex in Q2</strong> and generated <strong>negative $3.411 billion of free cash flow</strong>; most reported operating cash flow came from working-capital changes. The October price increase and roughly <strong>$6 billion of deferred revenue</strong> offer reasons to watch future sales, but neither establishes the realized margins or cash returns on that investment. Nor does a small position make further financing less dilutive if the gap persists.</p>
+<p>I accept the risk of missing some upside by waiting. At an <strong>indicative, non-contemporaneously verified 43.4× trailing-sales multiple</strong>, I think that is preferable to paying upfront for operating leverage and funding improvement that NBIS has not demonstrated. The higher-timeframe trend is up, so I am <strong>not recommending a short</strong>. My recommendation remains <strong>avoid initiating a long in NBIS</strong>; continued growth <em>with a narrowing dollar operating loss and a credible reduction in funding needs</em> would change my view.
+Bear Analyst: <strong>Bear Analyst:</strong> Bull, your $141 million gross-profit test is useful—but it sets a much lower bar than the one NBIS needs to clear. If another $183 million of quarterly sales produced roughly $141 million of gross profit at Q2’s margin, <strong>even with no additional operating expense</strong>, the $175.9 million operating loss would only shrink to about <strong>$35 million</strong>. If expenses rose by $100 million—less than half their Q2 increase—the loss would still be about <strong>$135 million</strong>. Neither scenario addresses the return on <strong>$5.657 billion of Q2 capex</strong> or the quarter’s <strong>$119.1 million interest expense</strong>.</p>
+<p>I agree that Q2’s construction spending cannot tell us the eventual return on every asset built. But that uncertainty cuts against paying a premium <em>now</em>, not automatically in favor of a starter position. Q2 free cash flow was <strong>negative $3.411 billion</strong> despite an operating-cash-flow figure heavily supported by working-capital changes. NBIS issued <strong>$2.847 billion of common stock</strong> in the same quarter. Calling much of the expense increase R&amp;D does not make it optional for shareholders; it is part of what this growth currently costs.</p>
+<p>The $6 billion of deferred revenue and the reported October 1 price increase give us concrete things to watch. They do not yet tell us what NBIS will spend to deliver those services, whether customers will pay higher <em>effective</em> rates, or whether utilization will hold as competing capacity expands. Meanwhile, even <strong>25.3× annualized Q2 sales</strong>, calculated using the vendor’s <em>undated</em> market-cap input, leaves little room for an expensive ramp to disappoint.</p>
+<p>So I’m not asking for a fully self-funding NBIS before reconsidering. I’m asking for evidence that <strong>dollar operating losses are narrowing while funding needs become more credible relative to the capacity delivered</strong>. A small position limits dollars at risk, but it does not improve those economics or guarantee an opportunity to exit before disappointing results are priced in. The higher-timeframe trend keeps me from recommending a short; my call remains <strong>avoid initiating a long in NBIS</strong>.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For NBIS, I side with the bear on allocating capital now, with moderate rather than strong conviction. The bull has real operating evidence: supplied Q2 revenue of $582.3 million grew 46% sequentially, gross margin reached 77.1%, and sales and gross profit grew faster than the share count. Construction spending precedes the revenue it enables, so one investment-heavy quarter does not establish that the buildout will destroy value. The $8.042 billion cash balance and roughly $6 billion of deferred revenue also give NBIS resources and delivery visibility, although deferred revenue is a service obligation, not additional cash to count twice. What decides the debate is that improving gross economics have not yet translated into improving shareholder economics. The dollar operating loss widened from $128.0 million to $175.9 million, normalized EBITDA margin declined from 35.2% to 26.5%, and financing costs increased. Q2 capex was $5.657 billion and free cash flow was negative $3.411 billion despite $2.031 billion of working-capital contributions to $2.246 billion of operating cash flow. Common-stock issuance of $2.847 billion and roughly 7.1% share-count growth show that financing risk is already tangible. The indicative 43.4x trailing-sales valuation raises the cost of disappointment, but its undated inputs cannot establish a current fair value. The bull's fixed-cost break-even sensitivity, announced price increase, partnership and analyst ARR forecast are tests or possibilities, not demonstrated returns. Strong demand, cash resources and the upward higher-timeframe trend argue against an outright exit or short; funding dependence and unproved operating leverage nevertheless justify below-standard exposure. This assessment uses only the supplied evidence; a current quote, contemporaneous valuation, detailed funding schedule and capacity-level cash returns are missing.</p>
+<p><strong>Strategic Actions</strong>: For NBIS, cap any retained long exposure at 0.5x the portfolio's standard allocation, without leverage. Holdings are unknown: if exposure exceeds that ceiling, trim the excess in two orderly limit-order tranches; from a 1.0x position, that means two reductions of 0.25x. If already below the ceiling, do not add merely to reach it. If unowned, defer initiating a long pending the evidence below. Have the trader check the current NBIS quote and liquidity before execution; the supplied September 28 close of $231.88 is historical, and $245.35 is only a dated technical reference, not an automatic purchase trigger. The supplied $16.64 ATR, weak ADX and softer OBV favor restrained sizing rather than chasing; no short or options trade is recommended. Reassess after the next operating report. A staged rebuild toward 1.0x would require continued revenue growth above the $582.3 million Q2 baseline alongside a materially narrower dollar operating loss than $175.9 million, plus a credible, quantified improvement in financing needs relative to delivered capacity and adequate funding on acceptable terms. Higher realized pricing without weaker utilization would strengthen that assessment; neither an announced price increase nor a breakout alone qualifies. Do not require full self-funding or zero dilution before reconsidering, but distinguish reported cash generation from customer-prepayment and other working-capital benefits. Reduce the residual exposure further, potentially to zero, if losses continue widening and financing or dilution keeps rising without improving capacity economics, or if realized pricing and utilization deteriorate enough to undermine the growth thesis. Do not average down on price weakness alone. No defensible current price target or mechanical stop can be specified from the supplied, dated market data.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: NBIS merits an underweight allocation: despite strong revenue growth and substantial cash, widening operating losses, heavy capex, negative free cash flow and share issuance make financing and dilution risk material. The September 28 close of $231.88 was below the $245.35 breakout reference, with ADX at 19.59, softer momentum and declining OBV, so the upward higher-timeframe trend is not a reason to add. Trim only exposure above 0.5x the standard allocation in two orderly limit-order tranches after checking the current NBIS quote and liquidity; the dated price snapshot does not justify an executable entry or mechanical stop.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Cap retained NBIS long exposure at 0.5x the portfolio's standard allocation, without leverage. If at 1.0x, sell two tranches of 0.25x; if at or below 0.5x, do not add solely to reach the cap.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: My aggressive case is for the proposed SELL, not for abandoning NBIS. The opportunity is real: Q2 revenue rose 46% from Q1, gross margin reached 77.1%, and the reported October 1 compute-price increase could reveal stronger pricing power. But keeping a full-sized position ahead of that test asks the portfolio to absorb financing risk before the payoff is demonstrated. Q2 capex was $5.657 billion, free cash flow was negative $3.411 billion, and ordinary shares increased about 7.1% from March to June. Those are substantial costs of pursuing growth, not reasons to dismiss the growth itself.</p>
+<p>Neither other analyst has spoken yet, so I won’t put arguments in their mouths. I would challenge a conservative case for selling everything: NBIS still has an upward weekly and monthly trend, and a complete exit gives up exposure if higher prices translate into revenue. I would challenge a neutral case for simply holding full size even harder. NBIS closed September 28 at $231.88, below the $245.35 breakout reference; ADX was only 19.59, while MACD momentum and OBV had softened. With ATR at $16.64—about 7% of that close—waiting for unmistakable weakness could mean accepting a much worse trim price. The reported $399 analyst target is upside potential, not a substitute for confirmed utilization, margins, or cash generation.</p>
+<p>So take the active middle path: after checking the current NBIS quote and liquidity, sell only exposure above 0.5 times the standard allocation using two orderly limit-order tranches. If the position is 1.0 times, that means two sales of 0.25 times; if it is already at or below 0.5 times, do not sell merely to make a statement or add merely to reach the cap. This preserves a meaningful stake in the high-reward outcome while reducing exposure to dilution and a failed pricing test. The September 28 snapshot is a decision reference, not an executable price or a basis for a mechanical stop.
+Aggressive Analyst: Conservative analyst, I agree that NBIS is not self-funding and that 0.5x is not “safe.” Q2 capex of $5.657 billion, negative free cash flow of $3.411 billion, working-capital-heavy operating cash flow, and roughly 7.1% share-count growth are exactly why I favor SELL over holding full size. But making 0.25x the default risks cutting too much of the upside before it is tested. NBIS had $8.042 billion in cash at June, revenue grew 46% sequentially, and gross margin reached 77.1%. At that margin and unchanged operating expenses, roughly $810 million in quarterly revenue would cover the Q2 operating loss—about 39% above Q2 sales. That is a sensitivity, not a forecast, but it shows why abandoning most of the position now could be costly. Keep less than 0.5x if the actual portfolio risk budget requires it; don’t assume every portfolio does.</p>
+<p>Neutral analyst, you are right that the close below $245.35 does not disprove growth. ADX had improved, MACD remained positive, and the weekly and monthly trends were up. That is the case for <em>retaining</em> exposure, not for postponing a trim from 1.0x. ADX was still only 19.59, MACD and OBV had softened, and a $16.64 ATR makes waiting for unmistakable weakness expensive. Two limit-order tranches cannot protect the remaining shares from a gap; their purpose is orderly execution while reducing the amount exposed to one. The reported October 1 price increase could strengthen the bull case, but customer-paid rates and utilization remain unverified. Likewise, the $399 analyst target describes potential upside, not a realized return.</p>
+<p>My high-reward case is therefore a deliberate partial SELL, not an exit or an indefinite wait for perfect evidence. After checking the current NBIS quote, liquidity, and correlated portfolio exposure, cap the retained long at 0.5x the standard allocation if that fits the risk budget. From 1.0x, sell two orderly 0.25x tranches; if already at or below the applicable cap, do not trade merely to reach a number. That leaves meaningful exposure if pricing power materializes while freeing the portfolio from having a full-sized bet on unproven cash economics. The September 28 prices are dated references, not executable orders or mechanical stops.
+Aggressive Analyst: Conservative analyst, you’re right that the $810 million quarterly revenue calculation assumes stable margins and expenses, and operating break-even would not fund a $5.657 billion quarterly buildout. I’m not using it as a free-cash-flow forecast. It shows why selling down to 0.25x <em>before the growth case is tested</em> has a real opportunity cost: NBIS grew revenue 46% sequentially, earned a 77.1% gross margin, and held $8.042 billion in cash at June. Those figures do not erase the negative $3.411 billion of Q2 free cash flow, working-capital-heavy operating cash flow, or dilution. They explain the proposed SELL from full size, while arguing against making a three-quarter cut the default. Without the portfolio’s risk limits, 0.25x is no less arbitrary than an automatic 0.5x holding.</p>
+<p>Neutral analyst, I agree that half-size is a ceiling to test, not a safe harbor. A gap can hit retained shares, correlated holdings can compound the loss, and limit orders improve execution rather than insure the position. But requiring realized pricing gains and cash generation sufficient to cover capex <em>before retaining meaningful exposure</em> risks missing the payoff for bearing NBIS’s execution risk. The reported October 1 price increase is unproven, and the $399 analyst target is a forecast, not a return to count on. Still, the upward weekly and monthly trends, positive MACD, and ADX’s rise from 6.12 to 19.59 give a reason to keep a stake. The lower recent closes, softer OBV, and $16.64 ATR give a reason not to keep a full one.</p>
+<p>That is the aggressive case for this SELL: cut concentrated exposure now without surrendering the upside option. Check the current NBIS quote, liquidity, new disclosures, and correlated portfolio risk first. If 0.5x fits the actual risk budget, reduce a 1.0x holding with two orderly 0.25x limit-order sales; use a lower retained cap if that budget requires it. Do not sell an already compliant position merely to reach 0.25x, or add merely to reach 0.5x. The September 28 prices are dated decision references, not executable orders or mechanical stops.
+Aggressive Analyst: Conservative analyst, your cash-flow case is a strong argument for SELL, but not for making 0.25x the provisional ceiling. NBIS’s $5.657 billion of Q2 capex, negative $3.411 billion of free cash flow, working-capital-heavy operating cash flow, and 7.1% share-count increase make a full-sized position hard to defend. They do not establish that every portfolio must surrender three-quarters of its exposure. The $810 million revenue sensitivity is not a claim that operating break-even would fund construction; it shows why 46% sequential sales growth and a 77.1% gross margin leave a meaningful upside case. Waiting for the buildout to become self-funding before retaining a substantial stake could mean missing much of that payoff.</p>
+<p>Neutral analyst, I agree with your gap test, but it should determine <strong>how much of NBIS to retain</strong>, not become a reason to delay trimming an oversized holding. The September 28 close was below the $245.35 breakout reference, ADX was only 19.59, and OBV and MACD momentum had softened. That favors reducing a full-sized bet now. At the same time, the weekly and monthly trends remained up, MACD was positive, and the reported October 1 price increase offers a near-term test of pricing power. Those are reasons to preserve upside participation—not to treat an unverified $399 analyst target as a return we can count on.</p>
+<p>My recommendation remains a partial SELL. First check the current NBIS quote, liquidity, new disclosures, and losses under a substantial gap across correlated holdings. If retaining 0.5x of the standard allocation fits that risk budget, reduce a 1.0x position through two orderly 0.25x limit-order sales. Retain less if the test requires it; if already within the applicable cap, neither sell to hit a round number nor add to fill it. Limit orders do not insure the shares left behind, and the dated September 28 levels are not executable prices or mechanical stops.
+Aggressive Analyst: Conservative analyst, you’re right that $810 million in quarterly revenue would be an operating break-even sensitivity, not a way to fund $5.657 billion of quarterly capex. The working-capital-heavy cash flow and 7.1% share-count increase make a full-sized NBIS holding hard to defend. That is the case for SELL. But they do not establish that 0.25x is the right provisional holding for an unknown portfolio. Q2 revenue grew 46% sequentially, gross margin was 77.1%, and NBIS had $8.042 billion in June cash. Those figures do not make further financing unlikely; they make the potential cost of cutting three-quarters of a position before the growth case is tested worth taking seriously.</p>
+<p>I agree with your gap-risk test. Neither the upward weekly trend nor a positive MACD protects the retained shares, and the $16.64 ATR is not a worst-case loss. Test NBIS alongside correlated AI holdings first, and retain less than 0.5x if the loss budget demands it. My objection is to using 0.25x <em>before</em> that test as though it were evidence-based. Likewise, waiting for the buildout to become self-funding before keeping meaningful exposure could surrender the reward for bearing execution risk.</p>
+<p>Neutral analyst, I agree that closing below $245.35 did not invalidate NBIS’s growth thesis. ADX had risen, MACD was positive, and the higher-timeframe trends were up. That is why I want to <strong>retain</strong> a stake. But ADX was still only 19.59, OBV and momentum had softened, and Q2 free cash flow was negative $3.411 billion. Those facts argue against leaving a 1.0x position untouched. I also agree the tranches must not be automatic: check the current quote, liquidity and disclosures before acting, then reassess before the second sale. Limit orders help execution; they do not insure what remains.</p>
+<p>The opportunity cost is real, even though it cannot be booked in advance. The reported $399 analyst target would imply roughly 72% upside from the <em>dated</em> $231.88 close; it is a forecast, not an expected return or an executable price. Selling an extra 0.25x would give up that fraction of any such move. The reported October 1 price change offers a test of pricing power, not proof of customer-paid rates or sustained utilization. A half-sized holding, <strong>if the portfolio can withstand a substantial correlated gap</strong>, keeps the chance to benefit from favorable evidence without maintaining a full-sized bet on unproven cash economics.</p>
+<p>So I defend the proposed partial SELL: check current NBIS conditions and the portfolio loss budget, then trim exposure above an affordable cap of no more than 0.5x. From 1.0x, two orderly 0.25x limit-order sales are the plan only if retaining 0.5x passes that test; retain less if it does not. If already within the applicable cap, neither sell to reach a round number nor add to fill it. That is deliberate risk-taking, not a claim that half-size is safe.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: Aggressive analyst, I agree with SELL, but I would not treat a retained 0.5x NBIS position as automatically safe. Q2’s 46% revenue growth and 77.1% gross margin are encouraging; they have not yet made the buildout self-funding. NBIS spent $5.657 billion on capex, reported negative $3.411 billion in free cash flow, and obtained $2.031 billion of its $2.246 billion operating cash flow from working-capital changes. The roughly 7.1% increase in ordinary shares shows that dilution is already a practical cost of growth. An announced October 1 price increase cannot establish what customers will actually pay or whether utilization will hold.</p>
+<p>You are right that a complete exit could forfeit upside. But an upward weekly trend is not protection against a financing surprise or a sharp repricing. On the September 28 snapshot, ADX was 19.59, participation and momentum had softened, and the $16.64 ATR was about 7% of the close. That makes “keep half” a position-size choice that needs a portfolio risk budget, not a default compromise.</p>
+<p>The neutral analyst has not spoken, so I will not assign them a view. If the alternative is to hold full size while awaiting clearer evidence, it leaves more capital exposed precisely while cash generation and pricing economics remain unproven. My adjustment is to sell NBIS exposure above a risk-budgeted cap: <strong>0.25x the standard allocation is the more conservative default</strong>, with up to 0.5x retained only if the portfolio can absorb a substantial gap loss. Do not add to reach either cap; reduce further if even the smaller position breaches the firm’s risk limits. Check the current NBIS quote and liquidity, use orderly limit orders where practical, and do not turn the dated September 28 levels into an entry price or mechanical stop.
+Conservative Analyst: Aggressive analyst, I agree that NBIS has real upside, but the $810 million quarterly revenue break-even calculation is too fragile to justify retaining 0.5x by default. It assumes gross margin holds at 77.1% and operating expenses stay flat while revenue rises roughly 39%. Even reaching operating break-even would not pay for a buildout that consumed $5.657 billion in Q2 capex. NBIS’s $8.042 billion in June cash is substantial, but Q2 free cash flow was negative $3.411 billion, and $2.031 billion of its $2.246 billion operating cash flow came from working-capital changes. Further financing is not certain; neither is self-funding growth.</p>
+<p>Neutral analyst, you are right that we cannot prescribe a universal 0.25x holding without seeing the portfolio. But reducing an existing NBIS long does reduce its dollar exposure to a company-specific gap. What we cannot establish is whether 0.5x fits the caller’s total risk budget, particularly if it holds correlated AI-infrastructure names. The upward weekly trend and positive MACD warrant respect, not a full-sized bet: ADX was still 19.59, OBV and momentum had softened, and the September 28 ATR was $16.64.</p>
+<p>I support <strong>SELL</strong>, with a more cautious adjustment to the trader’s plan: treat 0.5x as a maximum only after checking portfolio risk, not the automatic stopping point. Pending that check, 0.25x is a prudent provisional ceiling for an existing long—not a target to buy toward. Trim further, including from a position already below 0.5x, if potential gap losses exceed the caller’s limits. Check the current NBIS quote and liquidity, and use orderly limit orders where practical; the dated September prices are not executable levels or mechanical stops. Reconsider a larger allocation only when the October 1 pricing change shows up in realized rates and utilization, and cash generation improves relative to capex without renewed material dilution.
+Conservative Analyst: Aggressive analyst, I agree that selling all of NBIS could sacrifice genuine upside. But the opportunity cost of a smaller holding is visible only if the growth case succeeds; the cost of retaining too much can arrive first, through dilution, a financing surprise, or a sharp repricing. Q2’s $8.042 billion in cash is substantial, yet NBIS spent $5.657 billion on capex and reported negative $3.411 billion in free cash flow that quarter. About $2.031 billion of its $2.246 billion in operating cash flow came from working-capital changes. Those figures do not make another financing inevitable, but they make cash on hand a weak argument for treating 0.5x as the natural stopping point. The $810 million operating break-even sensitivity is even further from demonstrating that the buildout can fund itself.</p>
+<p>Neutral analyst, you are right that 0.25x is not a universal answer without the portfolio. But “no more than 0.5x” can become a default in practice if the two proposed 0.25x sales stop automatically at half-size. The risk test has to come first: how much would the retained NBIS position and correlated AI-infrastructure holdings lose together in a substantial gap, and does that fit the firm’s limit? Reducing NBIS does reduce its dollar contribution to that loss, even though it cannot eliminate portfolio-level risk.</p>
+<p>I support SELL, with 0.5x as an absolute ceiling rather than a target. Pending a portfolio risk check, I would favor retaining closer to 0.25x or less where a gap would otherwise strain the risk budget; I would not force an already small position down to a round number if it demonstrably fits. Check the current NBIS quote, liquidity, and any new disclosure before placing orderly limit orders. Neither those orders nor the September 28 technical levels insure the shares left behind. The upward weekly trend supports keeping a <em>risk-sized</em> stake, while ADX at 19.59, softer OBV and momentum, and a $16.64 ATR argue against paying for that upside with more exposure than the firm can comfortably lose. Reconsider a larger allocation when the October 1 pricing change produces evidence of realized rates and utilization, alongside improving cash generation relative to capex—not merely an announced price or an analyst target.
+Conservative Analyst: Aggressive analyst, I agree that selling all of NBIS could sacrifice upside. But the $810 million quarterly revenue break-even sensitivity is a weak reason to retain half a standard allocation: it assumes Q2’s 77.1% gross margin and operating expenses hold, and operating break-even still would not fund a quarter like Q2, when capex was $5.657 billion. June’s $8.042 billion cash balance is substantial, but Q2 free cash flow was negative $3.411 billion, and $2.031 billion of the $2.246 billion in operating cash flow came from working-capital changes. The reported October 1 price increase has yet to show that customers will pay more without reducing utilization. Keeping upside exposure is reasonable; treating 0.5x as the natural stopping point is not.</p>
+<p>Neutral analyst, I agree that 0.25x is not a universal answer. But the absence of portfolio details is a reason to avoid assuming half-size is affordable, not a reason to leave an oversized position untouched while seeking perfect precision. Stress-test a substantial NBIS gap together with losses in correlated AI holdings. The upward weekly trend and positive MACD do not protect against that loss; ADX was still 19.59, OBV had softened, and one day’s ATR was about 7% of the September 28 close.</p>
+<p>I support SELL. Check the current NBIS quote, liquidity, disclosures and portfolio exposure, then trim any oversized long in orderly tranches. Keep 0.5x only if it passes the firm’s loss budget; if that cannot be established promptly, favor a provisional ceiling nearer 0.25x or lower for an existing position. That is a risk limit, not a target to buy toward. Do not force an already risk-compliant small holding to a round number. Reconsider more exposure when realized pricing and utilization improve alongside cash generation relative to capex—not on a dated technical level or analyst target.
+Conservative Analyst: Aggressive analyst, I agree that NBIS has upside worth preserving. But the opportunity cost of trimming is conditional on growth becoming profitable <em>per share</em>. The $810 million quarterly revenue figure assumes Q2’s gross margin and operating expenses hold, and even operating break-even would not fund a buildout that required $5.657 billion of capex in Q2. June’s $8.042 billion cash balance is meaningful, but Q2 free cash flow was negative $3.411 billion, most reported operating cash flow came from working-capital changes, and the share count had already risen about 7.1% since March. The $399 target is an analyst forecast, not a reliable measure of what a smaller holding would forgo.</p>
+<p>Neutral analyst, I agree that neither a close below $245.35 nor the financing figures prove NBIS’s growth case has failed. My concern is that “no more than 0.5x” can quietly become the stopping point before anyone establishes what a correlated sell-off would cost this portfolio. The upward weekly trend and positive MACD justify considering a retained stake; they cannot limit a financing-driven gap. Nor can two limit orders protect the shares left behind—or guarantee execution during a fast move. The reported October 1 price increase needs evidence of customer-paid rates and sustained utilization, not just an announcement.</p>
+<p>I therefore support SELL, but would change the trader’s half-size stopping rule. Check the live NBIS quote, liquidity, new disclosures, and combined exposure to AI-infrastructure holdings first. Set the retained cap from the firm’s allowable loss under a substantial correlated gap, with 0.5x as a maximum only if that test passes. If the test cannot promptly establish that half-size is affordable, I favor trimming an oversized existing position toward a provisional 0.25x ceiling, subject to orderly execution—not pretending 0.25x is a universally correct allocation. Reduce even a position below 0.5x if it breaches the loss budget; do not add to reach either figure or force a demonstrably risk-compliant small holding to a round number. Reconsider more exposure when realized pricing, utilization, cash generation relative to capex, and dilution support it.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: Aggressive analyst, I agree with trimming an oversized NBIS position, but I would challenge the idea that 0.5x is automatically the right place to stop. Two orderly sales reduce exposure; they do not protect the retained shares from a financing surprise or a gap down. And trading below the September 28 breakout reference is not, by itself, a failed growth case: ADX was weak but improving, MACD remained positive, and the weekly and monthly trends were still up.</p>
+<p>Conservative analyst, your risk-budget objection is important, but a default cut to 0.25x is also a fixed answer to a portfolio we have not seen. NBIS had $8.042 billion in cash at June, Q2 revenue grew 46% sequentially, and gross margin reached 77.1%. Those figures do not make the $5.657 billion quarterly capex or dilution harmless, but they argue against treating further financing stress as certain. Selling too far before the October 1 pricing test could give up meaningful upside without a demonstrated reduction in portfolio-level risk.</p>
+<p>I would keep the proposed SELL as a conditional trim, not a verdict to exit. After checking the current NBIS quote, liquidity, and the caller’s total exposure to AI infrastructure, reduce any position above a risk-budgeted cap of no more than 0.5x the standard allocation. For a 1.0x position, two 0.25x limit-order tranches are reasonable if 0.5x fits that budget; aim closer to 0.25x if correlated holdings or potential gap losses make half-size too large. Do not add merely to reach either figure.</p>
+<p>Then reassess using realized prices and utilization, the dollar operating loss, cash flow without large working-capital benefits, and any new financing or share issuance. Rising yields add pressure, but the supplied reports do not verify current rates. The September 28 technical levels are useful observations, not executable prices or mechanical stops.
+Neutral Analyst: Aggressive analyst, I agree that trimming a full-sized NBIS position is more defensible than waiting for perfect confirmation. But 0.5x is a ceiling to test against the portfolio’s risk budget, not a safe stopping point. The roughly $810 million quarterly revenue break-even calculation assumes today’s gross margin and operating expenses hold; even operating break-even would not fund Q2’s $5.657 billion of capex. Two limit-order tranches can improve execution, but they cannot protect the retained position from a gap or from losses shared with other AI-infrastructure holdings.</p>
+<p>Conservative analyst, I share your concern about that gap risk, but a provisional 0.25x ceiling is also arbitrary without knowing the portfolio. NBIS’s 46% sequential revenue growth, 77.1% gross margin, $8.042 billion in June cash, and upward weekly and monthly trends leave a credible upside case. None proves that the reported October 1 price increase will improve realized returns, but none warrants treating further financing stress as inevitable.</p>
+<p>I would retain the proposed conditional SELL: after checking the current NBIS quote, liquidity, new disclosures, and correlated holdings, trim exposure above a risk-budgeted cap of <strong>no more than 0.5x</strong> the standard allocation. From 1.0x, two 0.25x tranches are reasonable <em>if</em> retaining 0.5x fits that budget; aim nearer 0.25x—or lower—if a substantial gap would breach it. If already within the applicable cap, do not trade just to reach a round number. Diversify any proceeds rather than merely shifting the same risk to another AI name.</p>
+<p>Reassess on customer-paid rates and utilization, the dollar operating loss, cash flow relative to capex, and any new issuance. The September 28 technical levels and $399 analyst target are dated references, not executable prices or substitutes for those results.
+Neutral Analyst: Aggressive analyst, I agree that selling all of NBIS could forfeit meaningful upside. But the case for retaining 0.5x cannot rest on June’s $8.042 billion cash balance or the $810 million operating break-even sensitivity. Q2 free cash flow was negative $3.411 billion, ordinary shares rose about 7.1% from March to June, and operating break-even would still leave construction spending to fund. The improving ADX and upward weekly trend support keeping a stake; they do not establish that half-size fits this portfolio.</p>
+<p>Conservative analyst, your gap-risk test is the right starting point. I would not, though, make 0.25x the provisional ceiling for every investor. NBIS’s 46% sequential revenue growth and 77.1% gross margin leave a credible growth case, even though the reported October 1 price increase has yet to demonstrate better realized economics. A smaller position is warranted when correlated holdings or a potential gap would strain the loss budget—not simply because 0.25x sounds safer.</p>
+<p>I would keep the proposed SELL as a conditional trim. Check the current NBIS quote, liquidity, new disclosures, and total AI-infrastructure exposure first; then stress-test a substantial NBIS gap alongside losses in correlated holdings. Cap the retained position at <strong>no more than 0.5x</strong> the standard allocation, and nearer 0.25x or lower if that test requires it. From 1.0x, two 0.25x limit-order sales are reasonable only if 0.5x passes the test. If the position already fits its risk-budgeted cap, do not trade to reach a round number or add to fill the cap. Reassess on customer-paid rates, utilization, cash generation versus capex, and further issuance—not the dated September 28 levels or an analyst target.
+Neutral Analyst: Aggressive analyst, I agree with reducing an oversized NBIS position, but the September 28 close below $245.35 is not proof that the growth thesis has failed. ADX had improved, MACD remained positive, and the weekly and monthly trends were up. More importantly, two preset sales should not become automatic if the current quote, liquidity, or new disclosures materially change the case. Your $810 million quarterly operating break-even sensitivity illustrates potential operating leverage, but it says little about funding a buildout that required $5.657 billion of Q2 capex.</p>
+<p>Conservative analyst, your gap-risk test is essential, but a provisional 0.25x ceiling still prescribes a holding before we know the portfolio’s loss tolerance or its exposure to other AI-infrastructure names. NBIS’s 46% sequential revenue growth, 77.1% gross margin, and June cash balance support retaining some participation. They do not make dilution or further financing inevitable—or harmless. The reported October 1 price increase needs evidence of customer-paid rates and sustained utilization before either side can claim vindication.</p>
+<p>I favor a conditional SELL rather than an exit or a fixed half-size holding. Check the current NBIS quote, liquidity, disclosures, and correlated exposures; stress-test a substantial gap across those holdings, recognizing that the $16.64 September 28 ATR is not a worst-case loss. Cap retained NBIS at no more than 0.5x the standard allocation, and use less if that stress test breaches the risk budget. From 1.0x, two 0.25x limit-order tranches are reasonable only if the resulting 0.5x position passes that test; reassess before the second tranche. If already within the applicable cap, neither sell to reach a round number nor add to fill it. Diversify proceeds rather than replacing NBIS with the same concentrated AI risk.
+Neutral Analyst: Aggressive analyst, I agree that an oversized NBIS position warrants a partial sale, but the reported $399 target is a poor measure of the upside forgone by trimming. It is a forecast, not a probability-weighted return. Nor does the roughly $810 million quarterly operating break-even sensitivity establish that NBIS can finance its buildout: Q2 capex was $5.657 billion, free cash flow was negative $3.411 billion, and shares outstanding rose about 7.1% from March to June. A retained 0.5x position needs a portfolio risk justification, not just a plausible growth story.</p>
+<p>Conservative analyst, the financing risk is substantial, but a provisional 0.25x ceiling is also a number chosen without knowing the portfolio. NBIS’s 46% sequential revenue growth, 77.1% gross margin, and $8.042 billion June cash balance leave room for the business case to improve. Investors need not wait for the entire buildout to become self-funding before retaining a risk-sized stake. Equally, the reported October 1 price increase is not yet evidence of customer-paid rates or sustained utilization.</p>
+<p>I support a conditional SELL. Check the current NBIS quote, liquidity, new disclosures, and exposure to correlated AI-infrastructure holdings. Then set the retained cap at the lesser of 0.5x the standard allocation and what a substantial <em>combined</em> gap-loss scenario permits; the September 28 ATR is not a worst-case loss. From 1.0x, two 0.25x limit-order sales make sense only if 0.5x passes that test, with a reassessment before the second tranche. Retain less—even below 0.5x—if the loss budget requires it; do not add or trade an already compliant holding merely to reach a round number. Diversify any proceeds rather than moving the same risk into another AI name.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: Reduce oversized NBIS long exposure, with moderate conviction, to the lesser of 0.5x the portfolio's standard allocation and the size permitted by a substantial NBIS gap-loss stress test that includes correlated AI-infrastructure holdings; use no leverage. Check the current NBIS quote, liquidity and new disclosures before executing orderly limit-order tranches; from 1.0x, two reductions of 0.25x are appropriate only if retaining 0.5x passes that risk test, with reassessment before the second sale. Do not add to fill the cap or trim an already risk-compliant position merely to reach a round number; if NBIS is unowned, defer entry. Reassess at the next NBIS operating report or sooner on material financing or pricing disclosures; the supplied dated market data do not support an executable entry price, numerical stop or current price target.</p>
+<p><strong>Investment Thesis</strong>: The financing and dilution case for reducing NBIS exposure is stronger than the case for maintaining a full allocation, but the growth evidence does not justify a universal exit. The trader's proposed sale should therefore be interpreted as a conditional partial reduction, consistent with the Underweight rating, rather than liquidation of every NBIS holding.</p>
+<p>Funding quality and shareholder economics decide the call. Supplied Q2 capex was $5.657 billion and free cash flow was negative $3.411 billion. Working-capital changes contributed $2.031 billion of $2.246 billion in operating cash flow, so reported operating cash generation is not evidence that the buildout is self-funding. Common-stock issuance of $2.847 billion and approximately 7.1% share-count growth demonstrate that dilution is already tangible. Despite revenue growth, the dollar operating loss widened from $128.0 million to $175.9 million, normalized EBITDA margin fell from 35.2% to 26.5%, and financing costs increased. These facts support reducing capital at risk before operating leverage and capacity-level returns are demonstrated; they do not establish that another financing is inevitable.</p>
+<p>The counterargument limits conviction rather than reversing the decision. NBIS reported Q2 revenue of $582.3 million, up 46% sequentially, a 77.1% gross margin and $8.042 billion of cash at June. Construction spending precedes the revenue it enables, so one investment-heavy quarter cannot establish that the buildout destroys value. Roughly $6 billion of deferred revenue provides delivery visibility but represents a service obligation, not additional cash to count twice. These resources and growth metrics support retaining a risk-sized stake. However, the approximately $810 million quarterly operating break-even sensitivity assumes unchanged operating expenses and gross margin; it is neither a forecast nor evidence that capital spending can be funded. The reported October 1 price increase still requires evidence of customer-paid rates and sustained utilization. The reported $399 analyst target is not a probability-weighted return, and the indicative 43.4x trailing-sales multiple uses undated inputs that cannot establish current fair value.</p>
+<p>On sizing, the neutral analyst's portfolio-specific approach is more defensible than either automatically stopping at 0.5x or universally imposing 0.25x. The retained NBIS cap must be the lesser of half the standard allocation and what the caller's combined gap-loss budget permits. Retain nearer 0.25x, less, or nothing if that budget requires it, including when an existing position is already below 0.5x. No actual retained size can be certified without holdings, correlated exposures and loss limits. Limit orders help control execution prices but neither guarantee fills nor protect retained shares from gaps. Diversify any proceeds rather than simply transferring the same concentration to another AI-infrastructure holding; no short or options trade is recommended.</p>
+<p>Technicals reinforce restrained sizing, not an automatic trading level. The supplied September 28 close of $231.88 was below the $245.35 reference; ADX was 19.59 and OBV and momentum had softened. Conversely, MACD remained positive, ADX had improved, and weekly and monthly trends were upward, so the snapshot did not establish a failed growth thesis. The $16.64 ATR was about 7% of that historical close, but is not a worst-case gap estimate. Current quotes, liquidity, contemporaneous valuation, a detailed funding schedule and capacity-level cash returns are missing; no defensible current target or mechanical stop follows from the supplied information.</p>
+<p>Rebuild NBIS exposure only after continued revenue growth above the $582.3 million Q2 baseline is accompanied by a materially narrower dollar operating loss than $175.9 million and a quantified improvement in financing needs relative to delivered capacity, with adequate funding on acceptable terms. Higher realized prices without weaker utilization and improving cash generation relative to capex would strengthen that case; separate operating improvement from customer-prepayment and other working-capital benefits. Do not require full self-funding or zero dilution, but do require evidence that growth is improving shareholder economics. Reduce residual NBIS exposure further, potentially to zero, if losses keep widening and financing or dilution rises without better capacity economics, or if realized pricing and utilization deteriorate enough to undermine the growth thesis. Neither a breakout alone nor price weakness alone warrants adding.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: Through the next NBIS operating report; reassess sooner on material financing, pricing or utilization disclosures.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

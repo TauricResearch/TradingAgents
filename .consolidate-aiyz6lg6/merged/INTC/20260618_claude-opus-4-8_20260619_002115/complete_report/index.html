@@ -1,0 +1,4344 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/INTC/20260618_claude-opus-4-8_20260619_002115/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Trading Analysis Report: INTC - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-intc" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: INTC
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../ALAB/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  ALAB
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../ANET/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  ANET
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../ARM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  ARM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BABA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BABA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRWD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRWD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NKE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NKE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NOW/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NOW
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../PANW/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  PANW
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../PLTR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  PLTR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QCOM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QCOM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SMCI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SMCI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TCEHY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TCEHY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../ALAB/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ALAB
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ALAB
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../ANET/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ANET
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ANET
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../ARM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ARM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ARM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BABA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BABA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BABA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRWD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRWD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRWD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NKE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NKE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NKE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NOW/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NOW
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NOW
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../PANW/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PANW
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    PANW
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../PLTR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PLTR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    PLTR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QCOM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QCOM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QCOM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SMCI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMCI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMCI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TCEHY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TCEHY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TCEHY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#intel-corporation-intc-comprehensive-fundamental-analysis-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intel Corporation (INTC) — Comprehensive Fundamental Analysis Report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-company-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 🏢 Company Profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-market-valuation-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 📊 Market &amp; Valuation Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-income-statement-analysis-quarterly-trend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 💰 Income Statement Analysis (Quarterly Trend)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-balance-sheet-analysis-most-recent-q1-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 🏦 Balance Sheet Analysis (Most Recent: Q1 2026)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#liabilities-equity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Liabilities &amp; Equity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-cash-flow-analysis-quarterly-trend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 💵 Cash Flow Analysis (Quarterly Trend)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-profitability-efficiency-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 📈 Profitability &amp; Efficiency Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-key-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. ⚠️ Key Risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-key-opportunities-strengths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. ✅ Key Opportunities &amp; Strengths
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-summary-key-metrics-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 📋 Summary Key Metrics Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-trader-actionable-insights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 🧭 Trader Actionable Insights
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bull Researcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-numbers-dont-lie-this-recovery-is-real" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Numbers Don't Lie — This Recovery is Real
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-losses-narrative-is-misleading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The "Losses" Narrative is Misleading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-ai-foundry-wildcard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The AI &amp; Foundry Wildcard
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bear Researcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#non-recurring-charges-that-keep-recurring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "Non-Recurring" Charges That Keep Recurring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-valuation-is-pricing-perfection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Valuation is Pricing Perfection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-ai-wildcard-is-a-long-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The AI Wildcard is a Long Shot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-debt-reduction-story-has-a-catch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Debt Reduction Story Has a Catch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-intc">Trading Analysis Report: INTC<a class="headerlink" href="#trading-analysis-report-intc" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-06-19 00:21:15</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="intel-corporation-intc-comprehensive-fundamental-analysis-report">Intel Corporation (INTC) — Comprehensive Fundamental Analysis Report<a class="headerlink" href="#intel-corporation-intc-comprehensive-fundamental-analysis-report" title="Permanent link">&para;</a></h4>
+<p><strong>Date of Analysis:</strong> June 18, 2026 | <strong>Exchange:</strong> NASDAQ (NMS) | <strong>Sector:</strong> Technology | <strong>Industry:</strong> Semiconductors</p>
+<hr />
+<h4 id="1-company-profile">1. 🏢 Company Profile<a class="headerlink" href="#1-company-profile" title="Permanent link">&para;</a></h4>
+<p>Intel Corporation is one of the world's largest semiconductor companies, designing and manufacturing processors, chipsets, and related technologies. Intel operates across multiple segments including client computing, data center &amp; AI, network &amp; edge computing, and its foundry services (Intel Foundry Services / IFS). The company is undergoing a significant multi-year transformation under a new strategic direction that includes restructuring, cost-cutting, and a renewed push into AI-capable hardware.</p>
+<hr />
+<h4 id="2-market-valuation-metrics">2. 📊 Market &amp; Valuation Metrics<a class="headerlink" href="#2-market-valuation-metrics" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Market Capitalization</strong></td>
+<td>~$673.4 Billion</td>
+</tr>
+<tr>
+<td><strong>Forward P/E</strong></td>
+<td>86.7x</td>
+</tr>
+<tr>
+<td><strong>PEG Ratio</strong></td>
+<td>1.36</td>
+</tr>
+<tr>
+<td><strong>Price-to-Book</strong></td>
+<td>6.04x</td>
+</tr>
+<tr>
+<td><strong>Book Value Per Share</strong></td>
+<td>$22.18</td>
+</tr>
+<tr>
+<td><strong>EPS (TTM)</strong></td>
+<td>-$0.60</td>
+</tr>
+<tr>
+<td><strong>Forward EPS</strong></td>
+<td>$1.55</td>
+</tr>
+<tr>
+<td><strong>Beta</strong></td>
+<td>2.23</td>
+</tr>
+<tr>
+<td><strong>52-Week High</strong></td>
+<td>$135.48</td>
+</tr>
+<tr>
+<td><strong>52-Week Low</strong></td>
+<td>$18.97</td>
+</tr>
+<tr>
+<td><strong>50-Day Avg Price</strong></td>
+<td>$101.43</td>
+</tr>
+<tr>
+<td><strong>200-Day Avg Price</strong></td>
+<td>$55.51</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔍 <strong>Insight:</strong> The stock has experienced a dramatic surge — the 50-day average ($101.43) is nearly double the 200-day average ($55.51), suggesting a very strong and recent upward move. The extremely high Forward P/E (86.7x) reflects speculative premium pricing, betting on a strong earnings recovery. Beta of 2.23 signals high volatility relative to the market.</p>
+</blockquote>
+<hr />
+<h4 id="3-income-statement-analysis-quarterly-trend">3. 💰 Income Statement Analysis (Quarterly Trend)<a class="headerlink" href="#3-income-statement-analysis-quarterly-trend" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Revenue</th>
+<th>Gross Profit</th>
+<th>Operating Income</th>
+<th>Net Income</th>
+<th>EPS (Diluted)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Q1 2026 (Mar-31)</strong></td>
+<td>$13.58B</td>
+<td>$5.35B</td>
+<td>$934M</td>
+<td>-$3.73B</td>
+<td>-$0.73</td>
+</tr>
+<tr>
+<td><strong>Q4 2025 (Dec-31)</strong></td>
+<td>$13.67B</td>
+<td>$4.94B</td>
+<td>$550M</td>
+<td>-$591M</td>
+<td>-$0.12</td>
+</tr>
+<tr>
+<td><strong>Q3 2025 (Sep-30)</strong></td>
+<td>$13.65B</td>
+<td>$5.22B</td>
+<td>$858M</td>
+<td>$4.06B</td>
+<td>+$0.90</td>
+</tr>
+<tr>
+<td><strong>Q2 2025 (Jun-30)</strong></td>
+<td>$12.86B</td>
+<td>$3.54B</td>
+<td>-$1.29B</td>
+<td>-$2.92B</td>
+<td>-$0.67</td>
+</tr>
+<tr>
+<td><strong>Q1 2025 (Mar-31)</strong></td>
+<td>$12.67B</td>
+<td>$4.67B</td>
+<td>-$145M</td>
+<td>-$821M</td>
+<td>-$0.19</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔍 <strong>Insights:</strong>
+- <strong>Revenue is trending upward</strong> — from $12.67B in Q1 2025 to $13.58B in Q1 2026, a ~7.2% YoY improvement.
+- <strong>Gross profit improved sharply</strong> in Q1 2026 ($5.35B vs. $4.67B Q1 2025), with Gross Margin recovering.
+- <strong>Net income remains deeply negative</strong> in most quarters due to massive restructuring, write-offs, and special charges. The one exception was Q3 2025 ($4.06B profit), driven by a <strong>$5.5B gain on sale of business</strong>.
+- <strong>Q1 2026 loss of -$3.73B</strong> was driven by $4.03B in write-offs and $4.13B in special charges, not recurring operations.
+- <strong>R&amp;D spending</strong> is heavy at ~$3.2-3.7B/quarter — reflecting Intel's aggressive investment cycle.</p>
+</blockquote>
+<hr />
+<h4 id="4-balance-sheet-analysis-most-recent-q1-2026">4. 🏦 Balance Sheet Analysis (Most Recent: Q1 2026)<a class="headerlink" href="#4-balance-sheet-analysis-most-recent-q1-2026" title="Permanent link">&para;</a></h4>
+<h4 id="assets">Assets<a class="headerlink" href="#assets" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Q1 2026</th>
+<th>Q4 2025</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Total Assets</strong></td>
+<td>$205.3B</td>
+<td>$211.4B</td>
+</tr>
+<tr>
+<td><strong>Cash &amp; Short-Term Investments</strong></td>
+<td>$32.8B</td>
+<td>$37.4B</td>
+</tr>
+<tr>
+<td><strong>Inventory</strong></td>
+<td>$12.4B</td>
+<td>$11.6B</td>
+</tr>
+<tr>
+<td><strong>Net PPE</strong></td>
+<td>$104.5B</td>
+<td>$105.4B</td>
+</tr>
+<tr>
+<td><strong>Goodwill &amp; Intangibles</strong></td>
+<td>$23.2B</td>
+<td>$26.7B</td>
+</tr>
+</tbody>
+</table>
+<h4 id="liabilities-equity">Liabilities &amp; Equity<a class="headerlink" href="#liabilities-equity" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Q1 2026</th>
+<th>Q4 2025</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Total Liabilities</strong></td>
+<td>$80.3B</td>
+<td>$85.1B</td>
+</tr>
+<tr>
+<td><strong>Total Debt</strong></td>
+<td>$45.0B</td>
+<td>$46.6B</td>
+</tr>
+<tr>
+<td><strong>Long-Term Debt</strong></td>
+<td>$43.0B</td>
+<td>$44.1B</td>
+</tr>
+<tr>
+<td><strong>Net Debt</strong></td>
+<td>$27.8B</td>
+<td>$32.3B</td>
+</tr>
+<tr>
+<td><strong>Stockholders' Equity</strong></td>
+<td>$111.4B</td>
+<td>$114.3B</td>
+</tr>
+<tr>
+<td><strong>Working Capital</strong></td>
+<td>$35.3B</td>
+<td>$32.1B</td>
+</tr>
+<tr>
+<td><strong>Debt-to-Equity</strong></td>
+<td>36.03</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Current Ratio</strong></td>
+<td>2.31</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔍 <strong>Insights:</strong>
+- <strong>Cash position is robust at $32.8B</strong>, providing substantial liquidity runway.
+- <strong>Net Debt has declined</strong> from $41.2B (Q1 2025) to $27.8B (Q1 2026) — a meaningful deleveraging trend.
+- <strong>Total debt reduced</strong> from ~$50.8B to $45.0B over the year, showing disciplined liability management.
+- <strong>Current ratio of 2.31</strong> indicates healthy short-term liquidity.
+- <strong>Debt-to-Equity of 36x</strong> appears elevated but must be read alongside total equity of $111B — a function of the large asset base.
+- <strong>Goodwill declined</strong> from $24.7B (Q1 2025) to $20.5B (Q1 2026), reflecting write-downs or divestitures.</p>
+</blockquote>
+<hr />
+<h4 id="5-cash-flow-analysis-quarterly-trend">5. 💵 Cash Flow Analysis (Quarterly Trend)<a class="headerlink" href="#5-cash-flow-analysis-quarterly-trend" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Operating CF</th>
+<th>Investing CF</th>
+<th>Financing CF</th>
+<th>Free Cash Flow</th>
+<th>CapEx</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Q1 2026</strong></td>
+<td>$1.10B</td>
+<td>$3.09B</td>
+<td>-$1.21B</td>
+<td>-$2.54B</td>
+<td>-$3.64B</td>
+</tr>
+<tr>
+<td><strong>Q4 2025</strong></td>
+<td>$4.29B</td>
+<td>-$6.57B</td>
+<td>$5.85B</td>
+<td>$800M</td>
+<td>-$3.49B</td>
+</tr>
+<tr>
+<td><strong>Q3 2025</strong></td>
+<td>$2.55B</td>
+<td>-$6.25B</td>
+<td>$5.15B</td>
+<td>$121M</td>
+<td>-$2.43B</td>
+</tr>
+<tr>
+<td><strong>Q2 2025</strong></td>
+<td>$2.05B</td>
+<td>-$2.09B</td>
+<td>$782M</td>
+<td>-$1.50B</td>
+<td>-$3.55B</td>
+</tr>
+<tr>
+<td><strong>Q1 2025</strong></td>
+<td>$813M</td>
+<td>$81M</td>
+<td>-$196M</td>
+<td>-$4.37B</td>
+<td>-$5.18B</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔍 <strong>Insights:</strong>
+- <strong>Operating Cash Flow has improved YoY</strong> — Q1 2026 operating CF of $1.10B vs. $813M in Q1 2025.
+- <strong>CapEx has declined</strong> meaningfully — from -$5.18B in Q1 2025 to -$3.64B in Q1 2026, reflecting strategic capex rationalization.
+- <strong>Free Cash Flow remains negative</strong> at -$2.54B in Q1 2026, but the trend (from -$4.37B a year ago) is improving.
+- <strong>Q4 2025 saw $8.96B in stock option proceeds</strong>, boosting financing cash flow significantly — a notable but potentially non-recurring event.
+- Intel has <strong>paused dividends</strong> (zero cash dividends paid across all recent quarters), preserving capital.</p>
+</blockquote>
+<hr />
+<h4 id="6-profitability-efficiency-metrics">6. 📈 Profitability &amp; Efficiency Metrics<a class="headerlink" href="#6-profitability-efficiency-metrics" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Revenue (TTM)</strong></td>
+<td>$53.76B</td>
+</tr>
+<tr>
+<td><strong>Gross Profit (TTM)</strong></td>
+<td>$20.0B</td>
+</tr>
+<tr>
+<td><strong>Gross Margin</strong></td>
+<td>~37.2%</td>
+</tr>
+<tr>
+<td><strong>EBITDA (TTM)</strong></td>
+<td>$14.17B</td>
+</tr>
+<tr>
+<td><strong>Net Income (TTM)</strong></td>
+<td>-$3.17B</td>
+</tr>
+<tr>
+<td><strong>Net Profit Margin</strong></td>
+<td>-5.9%</td>
+</tr>
+<tr>
+<td><strong>Operating Margin</strong></td>
+<td>6.9%</td>
+</tr>
+<tr>
+<td><strong>Return on Equity (ROE)</strong></td>
+<td>-2.91%</td>
+</tr>
+<tr>
+<td><strong>Return on Assets (ROA)</strong></td>
+<td>0.63%</td>
+</tr>
+<tr>
+<td><strong>Free Cash Flow (TTM)</strong></td>
+<td>-$8.30B</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔍 <strong>Insights:</strong>
+- Intel is <strong>operationally recovering</strong> — operating margin of 6.9% shows the core business is generating positive operating income.
+- <strong>Net margin remains negative</strong> due to large non-recurring charges (restructuring, write-offs, goodwill impairments).
+- <strong>FCF of -$8.3B TTM</strong> is concerning for long-term investors but is driven by heavy capital investment, not operational weakness per se.</p>
+</blockquote>
+<hr />
+<h4 id="7-key-risks">7. ⚠️ Key Risks<a class="headerlink" href="#7-key-risks" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Persistent Net Losses:</strong> Net income has been negative in 4 of the last 5 quarters.</li>
+<li><strong>Negative Free Cash Flow:</strong> FCF remains negative at -$8.3B TTM, straining financial flexibility.</li>
+<li><strong>Elevated Valuation vs. Fundamentals:</strong> Forward P/E of 86.7x is pricing in a substantial turnaround that has not yet fully materialized.</li>
+<li><strong>High Beta (2.23):</strong> Stock is highly volatile — significant downside risk in a risk-off market environment.</li>
+<li><strong>Restructuring Charges:</strong> Large write-offs and special charges (e.g., $4.03B in Q1 2026) distort earnings and create uncertainty.</li>
+<li><strong>Goodwill Impairment Trends:</strong> Goodwill declining from $24.7B to $20.5B signals write-downs tied to asset disposals.</li>
+</ol>
+<hr />
+<h4 id="8-key-opportunities-strengths">8. ✅ Key Opportunities &amp; Strengths<a class="headerlink" href="#8-key-opportunities-strengths" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Strong Revenue Recovery:</strong> Revenue growing ~7% YoY, showing demand improvement.</li>
+<li><strong>Gross Margin Expansion:</strong> Gross profit rising from $4.67B to $5.35B QoQ YoY comparison (Q1 2025 → Q1 2026).</li>
+<li><strong>Balance Sheet Liquidity:</strong> $32.8B in cash and short-term investments provides a strong buffer.</li>
+<li><strong>Debt Reduction:</strong> Net Debt reduced by ~$13.4B over the past year — a major positive signal.</li>
+<li><strong>CapEx Discipline:</strong> CapEx cut from -$5.18B to -$3.64B YoY, indicating cost control.</li>
+<li><strong>AI &amp; Foundry Catalyst:</strong> Intel's foundry services and AI chip initiatives (Gaudi, Arrow Lake) could be significant long-term growth drivers.</li>
+<li><strong>Stock Momentum:</strong> 50-day average of $101.43 vs. 200-day of $55.51 signals strong near-term momentum.</li>
+</ol>
+<hr />
+<h4 id="9-summary-key-metrics-table">9. 📋 Summary Key Metrics Table<a class="headerlink" href="#9-summary-key-metrics-table" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Metric</th>
+<th>Value</th>
+<th>Signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Valuation</strong></td>
+<td>Market Cap</td>
+<td>$673.4B</td>
+<td>Large-cap</td>
+</tr>
+<tr>
+<td><strong>Valuation</strong></td>
+<td>Forward P/E</td>
+<td>86.7x</td>
+<td>Elevated / Speculative</td>
+</tr>
+<tr>
+<td><strong>Valuation</strong></td>
+<td>Price-to-Book</td>
+<td>6.04x</td>
+<td>Premium</td>
+</tr>
+<tr>
+<td><strong>Valuation</strong></td>
+<td>PEG Ratio</td>
+<td>1.36</td>
+<td>Fairly Valued on Growth</td>
+</tr>
+<tr>
+<td><strong>Revenue</strong></td>
+<td>TTM Revenue</td>
+<td>$53.76B</td>
+<td>Recovering</td>
+</tr>
+<tr>
+<td><strong>Revenue</strong></td>
+<td>Q1 2026 Revenue</td>
+<td>$13.58B</td>
+<td>+7.2% YoY</td>
+</tr>
+<tr>
+<td><strong>Profitability</strong></td>
+<td>Gross Margin (TTM)</td>
+<td>~37.2%</td>
+<td>Moderate</td>
+</tr>
+<tr>
+<td><strong>Profitability</strong></td>
+<td>Operating Margin</td>
+<td>6.9%</td>
+<td>Positive, improving</td>
+</tr>
+<tr>
+<td><strong>Profitability</strong></td>
+<td>Net Profit Margin</td>
+<td>-5.9%</td>
+<td>Negative</td>
+</tr>
+<tr>
+<td><strong>Profitability</strong></td>
+<td>ROE</td>
+<td>-2.91%</td>
+<td>Negative</td>
+</tr>
+<tr>
+<td><strong>Earnings</strong></td>
+<td>EPS TTM</td>
+<td>-$0.60</td>
+<td>Loss</td>
+</tr>
+<tr>
+<td><strong>Earnings</strong></td>
+<td>Forward EPS</td>
+<td>$1.55</td>
+<td>Expected recovery</td>
+</tr>
+<tr>
+<td><strong>Liquidity</strong></td>
+<td>Cash &amp; ST Investments</td>
+<td>$32.8B</td>
+<td>Strong</td>
+</tr>
+<tr>
+<td><strong>Liquidity</strong></td>
+<td>Current Ratio</td>
+<td>2.31</td>
+<td>Healthy</td>
+</tr>
+<tr>
+<td><strong>Debt</strong></td>
+<td>Total Debt</td>
+<td>$45.0B</td>
+<td>High but declining</td>
+</tr>
+<tr>
+<td><strong>Debt</strong></td>
+<td>Net Debt</td>
+<td>$27.8B</td>
+<td>Declining YoY (-33%)</td>
+</tr>
+<tr>
+<td><strong>Cash Flow</strong></td>
+<td>Operating CF (Q1 2026)</td>
+<td>$1.10B</td>
+<td>Positive</td>
+</tr>
+<tr>
+<td><strong>Cash Flow</strong></td>
+<td>Free Cash Flow (TTM)</td>
+<td>-$8.30B</td>
+<td>Negative</td>
+</tr>
+<tr>
+<td><strong>Cash Flow</strong></td>
+<td>CapEx (Q1 2026)</td>
+<td>-$3.64B</td>
+<td>Declining / Controlled</td>
+</tr>
+<tr>
+<td><strong>Risk</strong></td>
+<td>Beta</td>
+<td>2.23</td>
+<td>High Volatility</td>
+</tr>
+<tr>
+<td><strong>Momentum</strong></td>
+<td>50-Day Avg</td>
+<td>$101.43</td>
+<td>Strong Uptrend</td>
+</tr>
+<tr>
+<td><strong>Momentum</strong></td>
+<td>52-Week Range</td>
+<td>$18.97 – $135.48</td>
+<td>Extreme range</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="10-trader-actionable-insights">10. 🧭 Trader Actionable Insights<a class="headerlink" href="#10-trader-actionable-insights" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Bullish Case:</strong> Revenue recovery, gross margin expansion, debt reduction, strong liquidity, and momentum all suggest Intel is executing on its turnaround. Forward EPS of $1.55 vs. current losses implies the market is pricing in a significant 2026–2027 earnings inflection.</li>
+<li><strong>Bearish Case:</strong> The stock trades at a very high Forward P/E of 86.7x with still-negative FCF and net losses. The 52-week high of $135.48 and current ~$134 price level means the stock is at or near peak, leaving little margin of safety if the earnings recovery disappoints.</li>
+<li><strong>Key Watch Points:</strong> Q2 2026 earnings results, any update on Intel Foundry customer wins, trend in CapEx and FCF trajectory, and whether non-recurring charges continue to drag net income.</li>
+</ul>
+<blockquote>
+<p>⚡ <strong>Bottom Line:</strong> INTC is a <strong>high-risk, high-reward turnaround play</strong> with strong operational momentum but elevated valuation. Suitable for growth/momentum traders with high risk tolerance; value investors should await FCF positivity before committing.</p>
+</blockquote>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: # 🐂 Bull Case for INTC — Opening Argument</p>
+<hr />
+<p>Let me be direct: <strong>Intel is not the company it was two years ago</strong>, and the market is finally waking up to that reality. The stock's move from a 52-week low of $18.97 to over $134 isn't irrational exuberance — it's the market repricing a turnaround that is <strong>actually happening in the data</strong>.</p>
+<hr />
+<h4 id="the-numbers-dont-lie-this-recovery-is-real">The Numbers Don't Lie — This Recovery is Real<a class="headerlink" href="#the-numbers-dont-lie-this-recovery-is-real" title="Permanent link">&para;</a></h4>
+<p>Let's start with what matters most: <strong>revenue is growing</strong>. Q1 2026 came in at $13.58B, up <strong>7.2% year-over-year</strong>. More importantly, gross profit jumped from $4.67B to $5.35B in that same comparison — that's <strong>margin expansion</strong>, not just top-line noise. The core business is getting healthier, quarter by quarter.</p>
+<p>Meanwhile, Intel has slashed net debt by a stunning <strong>$13.4 billion in a single year</strong> — from $41.2B to $27.8B. That's not accounting magic; that's disciplined financial execution. CapEx has been rationalized from $5.18B to $3.64B per quarter. The company is <strong>spending smarter, not just spending more</strong>.</p>
+<hr />
+<h4 id="the-losses-narrative-is-misleading">The "Losses" Narrative is Misleading<a class="headerlink" href="#the-losses-narrative-is-misleading" title="Permanent link">&para;</a></h4>
+<p>Bears will hammer on net losses, but here's what they won't tell you: <strong>Q1 2026's $3.73B net loss was driven by $4.03B in write-offs and $4.13B in special charges</strong> — non-recurring restructuring costs. Strip those out, and the operating picture shows <strong>6.9% operating margins and improving</strong>. Forward EPS of <strong>$1.55</strong> isn't wishful thinking — it's the logical endpoint of a cost structure that's being rebuilt in real time.</p>
+<hr />
+<h4 id="the-ai-foundry-wildcard">The AI &amp; Foundry Wildcard<a class="headerlink" href="#the-ai-foundry-wildcard" title="Permanent link">&para;</a></h4>
+<p>Intel's Gaudi accelerators and Arrow Lake architecture put it squarely in the <strong>AI hardware race</strong>. With $32.8B in cash on hand, Intel has the firepower to compete. The foundry business is a <strong>long-duration option</strong> that the bear case conveniently ignores.</p>
+<p><strong>The turnaround is underway. The momentum is real. INTC is the most compelling large-cap semiconductor recovery story on the market today.</strong></p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: # 🐻 Bear Case for INTC — Rebuttal</p>
+<hr />
+<p>My bull colleague has told a compelling story. Now let me tell you what the story <em>costs</em> — because at <strong>86.7x forward earnings</strong>, you're paying an extraordinary price for a turnaround that is far from guaranteed.</p>
+<hr />
+<h4 id="non-recurring-charges-that-keep-recurring">"Non-Recurring" Charges That Keep Recurring<a class="headerlink" href="#non-recurring-charges-that-keep-recurring" title="Permanent link">&para;</a></h4>
+<p>The bull's most convenient trick? Calling massive losses "non-recurring." But look at the data: Intel has posted net losses in <strong>4 of the last 5 quarters</strong>. Every quarter brings a new batch of write-offs, restructuring charges, and special items. Q1 2026 alone saw <strong>$4.03B in write-offs plus $4.13B in special charges</strong>. At what point do "non-recurring" charges become just... the business? When a company consistently generates these costs, stripping them out isn't analysis — it's wishful thinking dressed up as insight.</p>
+<hr />
+<h4 id="the-valuation-is-pricing-perfection">The Valuation is Pricing Perfection<a class="headerlink" href="#the-valuation-is-pricing-perfection" title="Permanent link">&para;</a></h4>
+<p>Forward EPS of $1.55 sounds promising until you realize the stock is trading at <strong>86.7x that number</strong>. For context, NVIDIA — the undisputed AI chip king — trades at a fraction of that premium <em>with actual profits and positive FCF</em>. Intel is asking you to pay peak multiples for a company still burning <strong>-$8.3B in free cash flow on a TTM basis</strong>. That's not a growth premium; that's speculation.</p>
+<p>And the 52-week range tells the real story: <strong>$18.97 to $135.48</strong>. The stock has essentially 7x'd. Who's left to buy? The stock is trading <em>at its 52-week high</em> with negative FCF and no dividend. The margin of safety here is essentially zero.</p>
+<hr />
+<h4 id="the-ai-wildcard-is-a-long-shot">The AI Wildcard is a Long Shot<a class="headerlink" href="#the-ai-wildcard-is-a-long-shot" title="Permanent link">&para;</a></h4>
+<p>Gaudi accelerators? Arrow Lake? Let's be honest — <strong>NVIDIA's CUDA moat is nearly impenetrable</strong>, and AMD is a far more credible AI challenger than Intel right now. Intel's foundry ambitions are burning capital with minimal customer wins to show for it. The bull calls it a "long-duration option" — I call it a long-duration <em>cost center</em> with uncertain payoff.</p>
+<hr />
+<h4 id="the-debt-reduction-story-has-a-catch">The Debt Reduction Story Has a Catch<a class="headerlink" href="#the-debt-reduction-story-has-a-catch" title="Permanent link">&para;</a></h4>
+<p>Yes, net debt fell — but <em>how</em>? The Q3 2025 profit was driven by a <strong>$5.5B gain on a business sale</strong>, and Q4 2025 saw <strong>$8.96B in stock option proceeds</strong>. These are one-time events, not operational cash generation. The underlying FCF is still deeply negative. Intel is selling assets and diluting shareholders to paper over a cash flow problem, not fixing it.</p>
+<p><strong>At 86.7x forward earnings, near its 52-week high, with -$8.3B FCF and no dividend — INTC is priced for perfection in a turnaround that has yet to deliver it.</strong></p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: Let me walk you through how I'm scoring this one. The bull made a genuinely strong operational case — revenue up 7.2% YoY to $13.58B, gross profit expanding from $4.67B to $5.35B, net debt cut by $13.4B in a year, and CapEx rationalized. That's real evidence the underlying business is stabilizing, and I don't want to dismiss it. The turnaround has operational momentum.</p>
+<p>But the bear landed the more decisive blows on the two things that actually determine forward returns from here: valuation and cash flow quality. Three points carried the debate for me. First, the "non-recurring" charge argument fell apart under scrutiny — Intel has posted net losses in 4 of the last 5 quarters, with fresh write-offs and special charges every period. When charges recur that consistently, they're operating reality, not noise, and the bull's adjusted-margin framing is doing a lot of unearned work. Second, the debt reduction story has a hollow center: the bear correctly flagged that the improvement leaned on a $5.5B one-time gain on a business sale and $8.96B in stock option proceeds — asset sales and dilution, not operational cash generation. TTM free cash flow remains roughly -$8.3B. Third, and most important, valuation. At ~86.7x forward EPS of $1.55, trading essentially at its 52-week high after a near-7x run from $18.97, the stock is priced for a flawless turnaround with effectively zero margin of safety, no dividend, and negative FCF. The AI/foundry optionality is real but speculative — NVIDIA's CUDA moat and AMD's stronger positioning make Intel a long-shot, capital-burning bet, not a near-term earnings driver.</p>
+<p>The bull wins on operational direction; the bear wins on price paid and cash quality, which dominate the risk/reward from current levels. This isn't a Sell — the business is genuinely healing and a Sell would ignore that real progress and the heavy short-squeeze/momentum risk of fighting a 7x move. But the asymmetry is clearly unfavorable, so I'm landing on Underweight: trim exposure, respect the turnaround, but don't pay perfection multiples for it.</p>
+<p><strong>Strategic Actions</strong>: 1) Reduce existing INTC exposure to roughly 40-50% of a full position to lock in gains from the run and lower downside concentration. Scale out into strength rather than dumping into weakness, given momentum/squeeze risk near the 52-week high. 2) Do NOT initiate new long exposure at ~86.7x forward EPS; there is no margin of safety here. 3) For the residual position, set a trailing stop ~12-15% below current levels to protect against a multiple de-rate if a quarter disappoints. 4) Avoid outright shorting despite the rich valuation — the operational improvement, $32.8B cash cushion, and parabolic momentum make a short dangerous; size any tactical hedge small (puts preferred over shares). 5) Re-rate to Hold/Overweight only on confirmation of (a) two consecutive quarters of positive operating FCF excluding one-time gains, (b) tangible foundry customer wins, or &copy; a meaningful pullback that restores valuation support. 6) Monitor each quarter specifically for whether write-offs/special charges actually stop recurring — that is the key thesis-confirming or thesis-breaking signal.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: The research plan rates INTC as Underweight, recommending a reduction of existing exposure to 40-50% of a full position. The bear case decisively won on valuation and cash flow quality: INTC trades at ~86.7x forward EPS near its 52-week high following a near-7x rally, with TTM free cash flow of approximately -$8.3B and net losses in 4 of the last 5 quarters. Critically, the $13.4B debt reduction relied heavily on a $5.5B one-time business sale gain and $8.96B in stock option proceeds — not organic cash generation — undermining the bull's turnaround narrative. While operational metrics show real stabilization (revenue +7.2% YoY, gross profit expansion), the asymmetric risk/reward at perfection-level multiples with no margin of safety, no dividend, and speculative AI/foundry optionality facing NVIDIA and AMD's entrenched positions warrants trimming exposure materially into current strength.</p>
+<p><strong>Entry Price</strong>: 134.47</p>
+<p><strong>Stop Loss</strong>: 148.0</p>
+<p><strong>Position Sizing</strong>: Reduce to 40-50% of current full position; scale out into strength rather than a single market order to manage momentum/short-squeeze risk near the 52-week high</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: Look, let me be direct with you — I'm the Aggressive Risk Analyst, and my job is to champion bold, high-reward opportunities. But today, the boldest, highest-reward move IS the sell. And I want to be crystal clear about why, because this isn't timidity — this is aggressive profit capture at peak valuation.</p>
+<p>INTC has done something extraordinary. It rallied from near $19 to nearly $135 — that's a near seven-fold move. You've already won this trade if you were long. The aggressive play now isn't to hold and hope, it's to lock in those gains before the market wakes up and realizes the fundamentals don't support this price.</p>
+<p>Here's what the data tells me that no optimist can argue away. The stock is trading at 86.7 times forward earnings — at its 52-week high of $135.48. The 50-day average is $101, the 200-day is $55. The market has already priced in every piece of good news, every turnaround narrative, every AI foundry dream. When a stock prices in perfection, any disappointment — and I mean ANY — triggers violent mean reversion. With a beta of 2.23, that reversion won't be gentle.</p>
+<p>The free cash flow is negative $8.3 billion TTM. The debt reduction that bulls love to cite was funded by a one-time $5.5 billion business sale and nearly $9 billion in stock option proceeds. That's not organic strength — that's financial engineering. And Q1 2026 just printed another $3.73 billion net loss with $4 billion in write-offs and $4.13 billion in special charges.</p>
+<p>Selling into this strength, scaling out near the 52-week high, is the most aggressive profit-maximizing move available right now. The stop at $148 gives you defined risk if momentum somehow extends. But asymmetry here favors the exit, not the hold.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: Let me be straightforward here — I'm the Conservative Risk Analyst, and while I find myself in the unusual position of largely agreeing with the sell recommendation, I want to make absolutely clear that my reasoning goes deeper than profit capture. This isn't about locking in gains. This is about protecting the firm from a potentially catastrophic drawdown that the current valuation makes almost mathematically inevitable.</p>
+<p>Let me build the conservative case from the ground up.</p>
+<p>The single most alarming number in this entire dataset is the beta of 2.23. That isn't just a volatility statistic — it's a warning siren. It means that in any broad market correction, INTC doesn't fall in line with the market, it falls more than twice as hard. We are sitting near the 52-week high of $135.48 with a stock that has already demonstrated it can trade at $18.97. That isn't ancient history — that's within this trailing twelve-month window. The downside scenario here isn't a 20% pullback. It's a potential 60, 70, 80 percent collapse if the turnaround narrative cracks even slightly.</p>
+<p>Now, the Aggressive Analyst is correct that the debt reduction relied on non-organic sources. But I want to stress why this matters even more from a conservative standpoint than from a momentum one. When a company's balance sheet improvement is driven by a one-time business sale and stock option proceeds rather than genuine free cash flow generation, you cannot model forward stability with any confidence. Free cash flow of negative $8.3 billion trailing twelve months means Intel is still consuming capital, not generating it. That $32.8 billion cash buffer looks impressive until you realize the company burned through cash from $37.4 billion at year end to $32.8 billion in just one quarter. At that rate, the liquidity runway is tighter than the headline number suggests.</p>
+<p>The stop loss placement at $148 also concerns me from a risk management perspective. We are entering a sell at $134.47 with a stop at $148 — that's roughly 10% of upside risk on a stock with a beta over 2 and negative fundamentals. For a conservative portfolio, that's an asymmetric bet in the wrong direction. If momentum extends and we get stopped out, we've sold into strength only to watch the position move against us before the inevitable fundamental reckoning arrives. I would argue the position reduction should be more aggressive and executed more swiftly rather than scaled slowly, precisely because the downside risk of waiting is far greater than any short-term momentum loss.</p>
+<p>The 86.7 times forward earnings multiple is not just elevated — it is pricing in flawless execution of a turnaround that has not yet produced a single quarter of positive net income from core operations. Q3 2025's profit was entirely a mirage, generated by a $5.5 billion business sale. Strip that out and you have losses across every single quarter. The market is paying perfection prices for a company still reporting restructuring charges of over $4 billion in the most recent quarter alone.</p>
+<p>My position is this — sell, yes, but do not treat this as merely profit taking. Treat this as active risk elimination. Reduce to the lower end of that 40 to 50 percent range, and do it promptly. The longer this position sits at these valuations with this volatility profile, the more the firm is exposed to a mean reversion event that could be swift, deep, and devastating.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: Here's where I'll push back on both of you, because while you've both landed on the right direction, you're each overreaching in ways that could actually hurt execution.</p>
+<p>To the Aggressive Analyst — you're framing this as a clean, obvious exit, but you're glossing over something important. The momentum on INTC is real and it's not irrational. The PEG ratio of 1.36 is actually fairly reasonable if you accept the forward earnings trajectory. Revenue is genuinely growing 7.2% year over year. Gross profit expanded meaningfully from Q1 2025 to Q1 2026. Operating margin is positive at 6.9%. You're treating the bull case as pure fantasy, but there are real operational improvements underneath the noise. The risk of scaling out too aggressively is that you exit too much of a position that still has legitimate upside optionality if foundry wins materialize or if Q2 2026 earnings surprise. Selling everything into the 40-50% range is defensible, but your confidence that the reckoning is imminent is higher than the data actually warrants.</p>
+<p>To the Conservative Analyst — I'd push back even harder on you. You're catastrophizing the downside in a way that's leading to a recommendation that's actually more disruptive than protective. Suggesting we rush to the lower end of the range and do it quickly ignores real short-squeeze and momentum risk near the 52-week high. A high-beta stock moving against you during a rapid exit can cost you significantly in execution slippage. The original plan to scale out gradually is smarter risk management than a hurried dump. Also, your framing of the cash burn is somewhat misleading — CapEx dropped from $5.18 billion to $3.64 billion year over year, and operating cash flow actually improved. This isn't a company in freefall; it's a company in a heavy investment cycle with improving fundamentals beneath the surface.</p>
+<p>The balanced view here is this. The sell is correct. The 86.7x forward P/E near the 52-week high with negative FCF and no dividend is genuinely asymmetric to the downside. But the right execution is methodical, not panicked. Scale out to the 45% range, split the difference between the two of you, over several tranches into strength. Keep the $148 stop on the residual position — it's a reasonable buffer given the beta. And critically, don't close your eyes to the possibility that this turnaround is more real than either of you are giving it credit for. If Q2 2026 earnings show further operating improvement and CapEx continues to decline, that residual 45% position might earn its keep. The moderate path here isn't cowardice — it's the only approach that respects both the real risks and the real opportunities simultaneously.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: Trim INTC to ~45% of a full position by scaling out into strength across several tranches rather than a single market order, respecting momentum and short-squeeze risk near the 52-week high of $135.48. Maintain a trailing/hard stop around $148 on the residual position. Do not initiate new long exposure at ~86.7x forward EPS, and avoid outright shorting given the parabolic move and $32.8B cash cushion. Time horizon 3-6 months, re-rating gated on operating FCF and foundry milestones.</p>
+<p><strong>Investment Thesis</strong>: All three analysts converge on selling/trimming, and the debate clarifies both direction and execution. The bear/aggressive case dominates on the metrics that drive forward returns: ~86.7x forward EPS of $1.55 at the 52-week high after a near-7x run from $18.97, TTM free cash flow of roughly -$8.3B, net losses in 4 of the last 5 quarters, and a Q1 2026 print showing a $3.73B net loss with ~$4B write-offs and $4.13B special charges. Critically, the celebrated $13.4B debt reduction leaned on a $5.5B one-time business sale gain and ~$8.96B in stock option proceeds — financial engineering and dilution, not organic cash generation. Beta of 2.23 near peak valuation creates dangerous asymmetry, with a demonstrated trailing range down to $18.97. The Neutral Analyst's correction matters and tempers a more extreme stance: revenue is up 7.2% YoY, gross profit expanded, operating margin is positive at 6.9%, CapEx fell from $5.18B to $3.64B, and PEG of ~1.36 is not absurd — the turnaround has genuine operational momentum. That real progress, plus heavy momentum/short-squeeze risk, is why this is not a Sell. I reject the Conservative Analyst's call to rush a swift exit: forced liquidation of a high-beta name into strength invites execution slippage and squeeze risk, exactly what methodical tranche-based scaling avoids. The net is unfavorable risk/reward at perfection multiples with no margin of safety, no dividend, and speculative AI/foundry optionality facing NVIDIA's CUDA moat and AMD — hence Underweight.</p>
+<p><strong>Price Target</strong>: 114.0</p>
+<p><strong>Time Horizon</strong>: 3-6 months</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

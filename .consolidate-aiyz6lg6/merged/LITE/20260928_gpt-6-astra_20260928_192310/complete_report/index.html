@@ -1,0 +1,4425 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/LITE/20260928_gpt-6-astra_20260928_192310/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: LITE - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-lite" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: LITE
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMZN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMZN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lite-technical-trading-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LITE — technical trading report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-price-and-indicators-show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the price and indicators show
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-trading-framework" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable trading framework
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lite-lumentum-holdings-inc-nms-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LITE — Lumentum Holdings Inc. (NMS) | Sentiment, 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-source-by-source-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Source-by-source assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cross-source-alignment-and-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cross-source alignment and divergence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dominant-narratives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dominant narratives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-catalysts-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Catalysts and risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lite-news-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LITE news and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changed-for-lite-this-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed for LITE this week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-relevant-macro-backdrop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading-relevant macro backdrop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-framework-for-lite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable framework for LITE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lite-fundamental-research-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LITE — fundamental research report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#company-profile-and-trading-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Company profile and trading context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#financial-history-a-sharp-operating-recovery-obscured-by-a-large-charge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial history: a sharp operating recovery, obscured by a large charge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latest-quarter-fiscal-q4-ended-2026-06-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latest quarter: fiscal Q4 ended 2026-06-30
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-sheet-funding-and-cash-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance sheet, funding, and cash quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valuation-and-data-reconciliation-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Valuation and data-reconciliation checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insider-activity-in-the-past-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insider activity in the past week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-interpretation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable interpretation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-lite">Trading Analysis Report: LITE<a class="headerlink" href="#trading-analysis-report-lite" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:23:10</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="lite-technical-trading-report">LITE — technical trading report<a class="headerlink" href="#lite-technical-trading-report" title="Permanent link">&para;</a></h4>
+<p><strong>Lumentum Holdings Inc. (NMS) | As of September 28, 2026</strong></p>
+<p><strong>Bottom line:</strong> LITE’s broader trend remains upward, but its near-term direction is unsettled. The verified close was <strong>$921.32</strong>, above the <strong>$862.84 50-day SMA</strong>. Weekly, monthly, and daily SuperTrend readings are all up. Against that, <strong>ADX is only 13.17</strong>, the MACD histogram has slipped below zero, and recent OBV has declined. This favors <strong>waiting for confirmation or trading smaller</strong>, rather than treating the broader uptrend as an immediate buy signal.</p>
+<p>The selected eight indicators are <strong>SuperTrend, ADX, close_50_sma, macdh, RSI, ATR, OBV, and z_score</strong>. They cover trend direction, trend strength, momentum, volatility, participation, and price stretch without pairing highly overlapping signals such as RSI and StochRSI. Latest OHLCV and the indicators included in the verified snapshot are quoted from that snapshot; SuperTrend, ADX, OBV, and z-score readings come from their dedicated indicator outputs, with no conflicting snapshot value.</p>
+<h4 id="what-the-price-and-indicators-show">What the price and indicators show<a class="headerlink" href="#what-the-price-and-indicators-show" title="Permanent link">&para;</a></h4>
+<p><strong>The higher-timeframe trend is intact, but the daily stop is distant.</strong> SuperTrend is <strong>up on all three timeframes</strong>: weekly with a <strong>$634.30</strong> trailing stop, monthly with a <strong>$629.64</strong> stop, and daily with a <strong>$795.53</strong> stop. The weekly signal takes priority for the broader assessment; the daily signal is more useful for tactical monitoring. At the current close, the daily stop is <strong>$125.79 below price</strong>, so using it as a trade stop would entail substantial downside exposure. These are <em>current</em> indicator levels, not fixed future stop prices.</p>
+<p>The verified <strong>50-day SMA is $862.84</strong>, below the <strong>$921.32</strong> close. That supports the medium-term bullish reading, but does not establish that the average will hold on the next decline. Recent verified closes show why the near-term call is less decisive: LITE closed at <strong>$988.98 on September 9</strong>, <strong>$835.03 on September 14</strong>, <strong>$954.49 on September 21</strong>, and <strong>$921.32 on September 28</strong>. Those are dated reference closes, <strong>not validated support or resistance levels</strong>.</p>
+<p><strong>Trend strength is the main qualification.</strong> The dedicated ADX reading is <strong>13.17</strong>, below the commonly used <strong>20</strong> threshold for a convincing trend. ADX measures strength, not bullish or bearish direction: it does not negate the upward SuperTrend readings, but it does warn that short-term trend-following entries may be prone to false starts.</p>
+<p><strong>Momentum is mixed, not oversold.</strong> Verified <strong>RSI is 51.99</strong>, near neutral. Verified <strong>MACD is 17.32</strong>, below its <strong>18.17 signal line</strong>, leaving the histogram at <strong>−0.85</strong>. The dedicated histogram series was <strong>+0.53 on September 25</strong>; the move below zero is a near-term caution, not by itself a reversal of the broader uptrend. The dedicated z-scores likewise show no statistical stretch requiring an immediate fade: <strong>weekly +0.83, monthly +1.42, and daily +0.19</strong>—all short of the stated <strong>|2|</strong> watch threshold. The monthly reading warrants attention, but it is not an exhaustion signal on its own.</p>
+<p><strong>Participation has softened during the latest pullback.</strong> Dedicated OBV readings fell from <strong>290.32 million on September 21</strong> to <strong>278.46 million on September 28</strong>, while the verified close moved from <strong>$954.49</strong> to <strong>$921.32</strong>. The OBV <em>change</em>, rather than its absolute level, suggests recent selling pressure has accompanied the price decline. It does not establish a durable bearish trend.</p>
+<p><strong>Allow for wide moves.</strong> Verified ATR is <strong>$62.17</strong>, about <strong>6.7% of the latest close</strong>. On September 28, LITE traded from a verified <strong>$881.23 low</strong> to a <strong>$950.97 high</strong>, then closed at <strong>$921.32</strong>, below its <strong>$947.80 open</strong>. That wide session reinforces the case for modest position size and close-based confirmation rather than reacting to an intraday break alone.</p>
+<h4 id="actionable-trading-framework">Actionable trading framework<a class="headerlink" href="#actionable-trading-framework" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>For a new long:</strong> A close above the <strong>September 21 reference close of $954.49</strong> would improve the immediate price picture; a close above the <strong>September 9 reference close of $988.98</strong> would be stronger evidence. Look for the MACD histogram to turn positive and OBV to improve alongside price. An ADX rise above <strong>20</strong>, preferably <strong>25</strong>, would make a trend-following case more persuasive. Neither dated close is a proven breakout threshold.</li>
+<li><strong>If price weakens:</strong> A close below the current <strong>$862.84 50-day SMA</strong> would challenge the medium-term setup. Monitor the <em>then-current</em> daily SuperTrend line for a possible daily trend flip; today’s line is <strong>$795.53</strong>. A daily flip would not automatically overturn the still-up weekly and monthly readings.</li>
+<li><strong>For sizing, not prediction:</strong> From the <strong>$921.32</strong> reference close, <strong>1.5 × the current $62.17 ATR</strong> is about <strong>$93.26</strong>, implying a hypothetical stop near <strong>$828.06</strong>. That is a wide stop, not a recommended price or a guarantee against gaps. Size any position from the dollar amount you can afford to lose divided by the planned per-share risk, and account for slippage.</li>
+</ul>
+<p><strong>Assessment:</strong> LITE is <strong>bullish on the broader timeframe, neutral-to-cautious tactically</strong>. The most useful change to watch is not another upward-trend label—it is whether price, participation, and ADX strengthen <em>together</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Evidence as of September 28</th>
+<th>Trading implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Verified price</td>
+<td>Close <strong>$921.32</strong>; session range <strong>$881.23–$950.97</strong></td>
+<td>Wide intraday movement; avoid treating an intraday high as a confirmed breakout.</td>
+</tr>
+<tr>
+<td>Trend — SuperTrend</td>
+<td>Weekly <strong>up / $634.30</strong>; monthly <strong>up / $629.64</strong>; daily <strong>up / $795.53</strong></td>
+<td>Broader trend remains up; daily trailing stop is far below price.</td>
+</tr>
+<tr>
+<td>Medium-term trend — close_50_sma</td>
+<td><strong>$862.84</strong>, below the close</td>
+<td>A future close below it would weaken the medium-term case, not prove a reversal alone.</td>
+</tr>
+<tr>
+<td>Trend strength — ADX</td>
+<td><strong>13.17</strong></td>
+<td>Weak near-term trend strength; require stronger confirmation for trend-following entries.</td>
+</tr>
+<tr>
+<td>Momentum — macdh and RSI</td>
+<td>Histogram <strong>−0.85</strong>; RSI <strong>51.99</strong></td>
+<td>Slight near-term momentum deterioration, with no RSI overbought or oversold signal.</td>
+</tr>
+<tr>
+<td>Volatility — ATR</td>
+<td><strong>$62.17</strong></td>
+<td>Use volatility-aware stops and smaller sizing where necessary.</td>
+</tr>
+<tr>
+<td>Participation — OBV</td>
+<td><strong>290.32m</strong> on Sep. 21 → <strong>278.46m</strong> on Sep. 28</td>
+<td>Recent participation has not confirmed a fresh push higher.</td>
+</tr>
+<tr>
+<td>Stretch — z_score</td>
+<td>Weekly <strong>+0.83</strong>; monthly <strong>+1.42</strong>; daily <strong>+0.19</strong></td>
+<td>No <strong>|2|</strong> exhaustion/stretch reading; do not fade the trend on z-score alone.</td>
+</tr>
+<tr>
+<td>Next price checks</td>
+<td>Dated closes: <strong>$954.49</strong> (Sep. 21), <strong>$988.98</strong> (Sep. 9); current 50-day SMA <strong>$862.84</strong></td>
+<td>Use as reference points alongside momentum, OBV, and ADX—not as historically validated barriers.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mildly Bullish</strong> (Score: 6.2/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="lite-lumentum-holdings-inc-nms-sentiment-2026-09-21-to-2026-09-28">LITE — Lumentum Holdings Inc. (NMS) | Sentiment, 2026-09-21 to 2026-09-28<a class="headerlink" href="#lite-lumentum-holdings-inc-nms-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<h4 id="1-source-by-source-assessment">1. Source-by-source assessment<a class="headerlink" href="#1-source-by-source-assessment" title="Permanent link">&para;</a></h4>
+<p><strong>News (20 supplied headlines; approximately 8 explicitly mention LITE or Lumentum):</strong> The company-specific and optical-networking stories lean positive. A Barchart report says LITE shares rose following an announced ECOC 2026 AI optical-connectivity demonstration with Corning and Qualcomm, using Lumentum VCSEL lasers in high-density chip-to-chip links; another headline describes a planned joint optical die-to-die showcase. Zacks reports a planned eight-wavelength DWDM ELSFP demonstration aimed at CPO/NPO architectures. These are product and partnership <em>demonstrations</em>, not evidence of booked orders, commercial adoption, or realized revenue. An Investor's Business Daily headline reports Citi's forecast of an $11 billion optical-switching market by 2030, an industry opportunity rather than a LITE sales forecast. Barron's named LITE among AI-linked shares rallying ahead of Friday's open, and Insider Monkey reported an approximately 10% Wednesday rise versus Coherent's 6.9% and Corning's 0.4%; those refer to specific sessions, not a sustained weekly gain. A Stocktwits-sourced news article relays Josh Brown's opinion that LITE has further upside despite a reported roughly 450% 12-month run. Several of the 20 headlines concern peers or AI generally, so they should not be counted as direct LITE endorsements. Counterweights include the scale of that reported prior run, expanding AAOI and Fabrinet competition described by Zacks, and industry-level China supply-chain concerns.</p>
+<p><strong>StockTwits (29 most-recent messages, concentrated around 2026-09-28):</strong> Eleven are user-tagged Bullish, three Bearish, and 15 unlabeled. Bullish labels represent 11/14, or approximately 79%, of <em>labeled</em> messages, but only 11/29, or approximately 38%, of the entire sample; the unlabeled majority makes a simple 79% bullish reading misleading. Positive posts discuss buying the dip, adding to LITE positions, longer-term photonics demand, and a reported late-day reversal. One unlabeled post claims $5.87 million of near-the-money calls bought for October 2; another claims Citi increased its LITE target to $1,400 from $1,200 with a Buy rating. Those are social-media assertions, not independently verified flow or analyst research in the supplied news excerpts. Bearish and cautionary posts describe a 'bottomless pit,' a prospective market crash, a claimed approximately 5% drop, and profit-taking. A Bullish-tagged message celebrating profits from closing puts demonstrates that tags can misstate the economic direction of a trade. The bearish intraday comments and later reversal claims can coexist; the feed does not establish LITE's verified closing price or a price trend for the full week.</p>
+<p><strong>Reddit:</strong> Skipped because the feed was disabled by configuration. There are no Reddit posts to assess from r/wallstreetbets, r/stocks, or r/investing; this is missing coverage, <strong>not</strong> evidence of neutral Reddit sentiment. Confidence is therefore <strong>low</strong> despite meaningful news and StockTwits samples.</p>
+<h4 id="2-cross-source-alignment-and-divergence">2. Cross-source alignment and divergence<a class="headerlink" href="#2-cross-source-alignment-and-divergence" title="Permanent link">&para;</a></h4>
+<p>News and the positive portion of retail discussion align around AI data-center optical connectivity and potential multiyear demand for LITE. The divergence is in <em>time horizon and proof</em>: institutional-style stories describe demonstrations and an industry forecast, while social posts extrapolate toward large targets and imminent options moves without supplied confirmation. Within StockTwits itself, short-term drawdown fears conflict with dip-buying and later rebound claims. This is not a clean institutional-bearish/retail-bullish split: the supplied LITE-specific news is generally constructive, albeit more restrained than some retail rhetoric.</p>
+<h4 id="3-dominant-narratives">3. Dominant narratives<a class="headerlink" href="#3-dominant-narratives" title="Permanent link">&para;</a></h4>
+<p>The central LITE narrative is AI-scale-up optical infrastructure: VCSEL-based chip-to-chip links, DWDM ELSFP, CPO/NPO, and potential optical switching demand. A secondary narrative is LITE's sharp reported appreciation and volatile trading, creating both momentum enthusiasm and overextension concerns. Competitor coverage shows a growing market but does not establish that LITE will capture any particular share.</p>
+<h4 id="4-catalysts-and-risks">4. Catalysts and risks<a class="headerlink" href="#4-catalysts-and-risks" title="Permanent link">&para;</a></h4>
+<p>Potential catalysts are ECOC 2026 demonstrations and subsequent evidence of qualification, orders, or commercial deployment; follow-through on optical-switching spending; and renewed AI-infrastructure risk appetite. Near-term October 2 options activity is discussed on StockTwits but is unverified and highly tactical. Risks include a valuation or momentum reversal after the reported 450% 12-month advance, AAOI/Fabrinet/other optical competitors, China-related supply-chain or policy constraints cited in industry coverage, and rates/risk-appetite volatility. The supplied macro headlines include both falling yields supporting an AI rally and concerns about expensive capital; they do not establish a reliable single rate outlook. No LITE earnings release, order backlog, verified options tape, or independent price series is supplied.</p>
+<table>
+<thead>
+<tr>
+<th>Sentiment signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence / qualification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI-optics showcase</td>
+<td>Positive</td>
+<td>Barchart; Simply Wall St.; Zacks</td>
+<td>LITE/Corning/Qualcomm optical-link demo and LITE DWDM ELSFP plans; demonstrations are not purchase orders.</td>
+</tr>
+<tr>
+<td>Optical-switching market forecast</td>
+<td>Positive, conditional</td>
+<td>Investor's Business Daily</td>
+<td>Citi projects an $11 billion market by 2030, not $11 billion of LITE revenue.</td>
+</tr>
+<tr>
+<td>Relative strength and AI risk-on</td>
+<td>Positive, backward-looking</td>
+<td>Barron's; Insider Monkey</td>
+<td>LITE mentioned in Friday premarket rally; reported approximately 10% Wednesday advance versus optical peers.</td>
+</tr>
+<tr>
+<td>Retail stance</td>
+<td>Moderately positive, noisy</td>
+<td>StockTwits</td>
+<td>11 Bullish, 3 Bearish, 15 unlabeled of 29; bearish intraday posts and profit-taking temper labeled bullish ratio.</td>
+</tr>
+<tr>
+<td>Target and tactical call-flow claims</td>
+<td>Speculative positive</td>
+<td>StockTwits</td>
+<td>Posters claim a $1,400 Citi target and $5.87 million in October 2 calls; neither is independently established here.</td>
+</tr>
+<tr>
+<td>Overextension and competition</td>
+<td>Negative risk</td>
+<td>Stocktwits-sourced news article; Zacks; StockTwits</td>
+<td>Reported approximately 450% 12-month LITE run, competing optical suppliers, and posts describing intraday weakness.</td>
+</tr>
+<tr>
+<td>Reddit coverage</td>
+<td>Unknown</td>
+<td>Reddit feed</td>
+<td>Disabled by configuration; no community stance can be inferred.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bottom line:</strong> LITE sentiment is <strong>mildly bullish (6.2/10)</strong> on company-specific optical-AI coverage and net-positive labeled retail posts, moderated by speculative extrapolation, recent volatility, competition, and absent Reddit coverage. This is a sentiment input for another agent to weigh alongside fundamentals and technicals, not a price prediction or trade recommendation.</p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="lite-news-and-macro-report-september-28-2026">LITE news and macro report — September 28, 2026<a class="headerlink" href="#lite-news-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Bottom line:</strong> The past week’s news strengthens the <em>technology case</em> for LITE, Lumentum Holdings Inc., but not yet the <em>revenue case</em>. AI optical-connectivity demonstrations and a favorable industry forecast have supported enthusiasm, while rising Treasury yields and a strong prior share-price run increase the risk of a sharp reversal. For a new position, I would wait for evidence of customer orders or a more supportive rate environment rather than treat a demonstration as a sales win.</p>
+<h4 id="what-changed-for-lite-this-week">What changed for LITE this week<a class="headerlink" href="#what-changed-for-lite-this-week" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>A relevant product demonstration:</strong> <a href="https://www.barchart.com/story/news/4762532/lumentum-shares-are-up-after-an-ai-optical-tech-partnership-with-corning-and-qualcomm-what-this-means-for-lite-stock">Barchart reports</a> that Lumentum, Corning and Qualcomm announced an AI optical-connectivity demonstration for ECOC 2026, pairing Lumentum’s VCSEL lasers with high-density chip-to-chip links. Separately, <a href="https://finance.yahoo.com/technology/articles/lumentum-demonstrate-dwdm-elsfp-ecoc-153700274.html">Zacks reports</a> an eight-wavelength DWDM ELSFP demonstration aimed at co-packaged and near-packaged optics. These are signs of product positioning in AI infrastructure, <strong>not evidence of a production order, shipment volume or booked revenue</strong>.</li>
+<li><strong>Industry opportunity, with an important distinction:</strong> <a href="https://www.investors.com/news/technology/citi-sees-optical-networking-boom-driven-by-google-nvidia/?src=A00220&amp;yptr=yahoo">Investor’s Business Daily reports</a> Citi’s forecast of an <strong>$11 billion optical-switching market by 2030</strong>. That is an industry forecast—not a forecast of LITE sales or its directly addressable share.</li>
+<li><strong>Price expectations look demanding:</strong> A <a href="https://stocktwits.com/news-articles/markets/equity/lite-stock-has-run-450-in-12-months-ritholtz-wealth-ceo-thinks-there-is-room-for-more/cZMO2VcRBam">Stocktwits article</a> describes a roughly <strong>450% twelve-month run</strong>, while <a href="https://finance.yahoo.com/markets/stocks/articles/lumentum-jumped-nearly-10-while-041957023.html">Insider Monkey reports</a> a nearly 10% Wednesday gain. These are reported figures, not independently verified price data. They make position sizing and entry discipline particularly important.</li>
+<li><strong>Competition is active:</strong> <a href="https://finance.yahoo.com/technology/ai/articles/applied-optoelectronics-rides-ai-boom-152300951.html">Zacks describes</a> accelerating AI-optics demand and capacity expansion at Applied Optoelectronics. Growing demand can benefit LITE without guaranteeing its margins or market share.</li>
+</ul>
+<h4 id="trading-relevant-macro-backdrop">Trading-relevant macro backdrop<a class="headerlink" href="#trading-relevant-macro-backdrop" title="Permanent link">&para;</a></h4>
+<p>The clearest cross-market development is <strong>bond-yield pressure</strong>. <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Yahoo Finance reported</a> major U.S. indexes falling on September 28 as Treasury yields climbed, and <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">separately described</a> a higher-for-longer Fed outlook. That contrasts with <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-081738529.html">September 25’s account</a> of weekly equity gains despite a bond sell-off. For LITE, the issue is whether expected AI-infrastructure growth can continue to outweigh the valuation pressure that rising yields can put on growth stocks.</p>
+<p><strong>Market-implied odds lean against near-term easing:</strong> Polymarket markets retrieved on September 28 priced a Fed cut by the October 2026 meeting at <strong>1%</strong> ($184,077 traded volume) and by the December meeting at <strong>2%</strong> ($376,738). A separate market priced a U.S. recession by year-end at <strong>8%</strong> ($2.23 million volume). These are contract prices, <strong>not Fed guidance or reliable economic forecasts</strong>; traders should check each contract’s resolution rules before using them. They support planning for rates to stay restrictive, while leaving room for an adverse growth surprise.</p>
+<p><strong>Supply-chain risk remains relevant.</strong> <a href="https://www.investors.com/news/ai-data-center-boom-supply-chain-china/?src=A00220&amp;yptr=yahoo">Investor’s Business Daily highlights</a> a trade-off between rapidly building U.S. AI data centers and securing supply chains linked to China. That is a risk to monitor for optical-component availability, costs and delivery schedules—not evidence of a specific LITE disruption. Prediction markets put a China–Taiwan military clash before 2027 at <strong>6%</strong> ($3.44 million volume); low probability does not make a potentially severe supply-chain event immaterial.</p>
+<h4 id="actionable-framework-for-lite">Actionable framework for LITE<a class="headerlink" href="#actionable-framework-for-lite" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Bullish confirmation:</strong> Look for LITE disclosures of design wins, customer commitments, production qualification, shipments and improving margins tied to these optical products. Those would bridge the gap between this week’s demonstrations and earnings.</li>
+<li><strong>Entry discipline:</strong> Given the reported run-up, avoid chasing a news-driven spike solely on the ECOC headlines. Consider a staged entry only if the position fits a predefined risk limit; check whether LITE strength persists when Treasury yields rise and whether it outperforms optical peers.</li>
+<li><strong>Reasons to reduce risk:</strong> A continuing yield climb, delayed customer qualification, weaker AI data-center spending, margin pressure or supply-chain disruption would undermine the current thesis. Reassess rather than assume the industry’s projected market growth will flow directly to LITE.</li>
+</ol>
+<p><strong>Data limitation:</strong> The FRED macro-data tool was unavailable because its API key was not configured. I cannot substantiate current Treasury-yield levels, inflation, unemployment or policy-rate changes with FRED observations; none are asserted here. The available global-news feed also contains many company articles, so the macro assessment is based on its directly relevant market reports rather than a complete survey of world events.</p>
+<table>
+<thead>
+<tr>
+<th>Key point for LITE</th>
+<th>Evidence as of September 28</th>
+<th>Trading implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI-optics positioning</td>
+<td><a href="https://www.barchart.com/story/news/4762532/lumentum-shares-are-up-after-an-ai-optical-tech-partnership-with-corning-and-qualcomm-what-this-means-for-lite-stock">Lumentum–Corning–Qualcomm demonstration</a>; <a href="https://finance.yahoo.com/technology/articles/lumentum-demonstrate-dwdm-elsfp-ecoc-153700274.html">DWDM ELSFP demonstration</a></td>
+<td>Positive catalyst; await orders and shipments before raising earnings assumptions.</td>
+</tr>
+<tr>
+<td>Market opportunity</td>
+<td><a href="https://www.investors.com/news/technology/citi-sees-optical-networking-boom-driven-by-google-nvidia/?src=A00220&amp;yptr=yahoo">Citi’s $11 billion optical-switching forecast for 2030</a></td>
+<td>Supports sector interest, but is not a LITE revenue target.</td>
+</tr>
+<tr>
+<td>Rates and equities</td>
+<td><a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">September 28: stocks fell as yields rose</a></td>
+<td>Monitor yields when timing or sizing a growth-stock position.</td>
+</tr>
+<tr>
+<td>Fed and growth expectations</td>
+<td>Prediction markets: <strong>1%</strong> October cut; <strong>2%</strong> December cut; <strong>8%</strong> year-end recession</td>
+<td>Plan for limited near-term rate relief, without treating contract odds as certainty.</td>
+</tr>
+<tr>
+<td>Execution and supply chain</td>
+<td><a href="https://www.investors.com/news/ai-data-center-boom-supply-chain-china/?src=A00220&amp;yptr=yahoo">China-related AI supply-chain trade-off</a> and <a href="https://finance.yahoo.com/technology/ai/articles/applied-optoelectronics-rides-ai-boom-152300951.html">optical competition</a></td>
+<td>Watch qualification, capacity, delivery and margins—not demonstrations alone.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="lite-fundamental-research-report">LITE — fundamental research report<a class="headerlink" href="#lite-fundamental-research-report" title="Permanent link">&para;</a></h4>
+<p><strong>Lumentum Holdings Inc. | NMS | Technology / Communication Equipment</strong>
+<strong>Analysis date: 2026-09-28.</strong> Dollar amounts are USD. The financial statements supplied by the data vendor run through the fiscal year and quarter ended <strong>2026-06-30</strong>; the vendor does not provide filing or publication dates. Consequently, this report cannot establish that a financial document was released during <strong>2026-09-21 to 2026-09-28</strong>. The identifiable transaction in that week is an insider sale on September 23.</p>
+<h4 id="company-profile-and-trading-context">Company profile and trading context<a class="headerlink" href="#company-profile-and-trading-context" title="Permanent link">&para;</a></h4>
+<p>LITE is classified as a communication-equipment company. Optical and photonic communications demand is therefore relevant to the investment case, but the supplied data do <strong>not</strong> break out products, customers, end markets, orders, or management guidance. Traders should not infer a particular data-center or AI revenue contribution from these figures alone.</p>
+<p>The fundamentals feed lists a <strong>$82.64 billion market capitalization</strong>, <strong>1.54 beta</strong>, and <strong>52-week range of $147.81–$1,085.68</strong>. It does not provide a verified live quote. Its <strong>26.54 forward P/E</strong> and <strong>$34.71 forward EPS</strong> imply a price near <strong>$921</strong>, but those estimates have no forecast date or methodology attached. The feed also lists <strong>17.58 price-to-book</strong>, <strong>0.63 PEG</strong>, and <strong>negative $92.94 trailing EPS</strong>. Because reported earnings are negative, a conventional trailing GAAP P/E is not useful.</p>
+<h4 id="financial-history-a-sharp-operating-recovery-obscured-by-a-large-charge">Financial history: a sharp operating recovery, obscured by a large charge<a class="headerlink" href="#financial-history-a-sharp-operating-recovery-obscured-by-a-large-charge" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Fiscal year ended June 30</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Gross profit</th>
+<th style="text-align: right;">Operating income/(loss)</th>
+<th style="text-align: right;">Net income/(loss)</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Free cash flow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2023</strong></td>
+<td style="text-align: right;">$1.767B</td>
+<td style="text-align: right;">$569.0M</td>
+<td style="text-align: right;">$(87.6)M</td>
+<td style="text-align: right;">$(131.6)M</td>
+<td style="text-align: right;">$179.8M</td>
+<td style="text-align: right;">$51.3M</td>
+</tr>
+<tr>
+<td><strong>2024</strong></td>
+<td style="text-align: right;">$1.359B</td>
+<td style="text-align: right;">$251.5M</td>
+<td style="text-align: right;">$(361.4)M</td>
+<td style="text-align: right;">$(546.5)M</td>
+<td style="text-align: right;">$24.7M</td>
+<td style="text-align: right;">$(112.3)M</td>
+</tr>
+<tr>
+<td><strong>2025</strong></td>
+<td style="text-align: right;">$1.645B</td>
+<td style="text-align: right;">$459.9M</td>
+<td style="text-align: right;">$(192.2)M</td>
+<td style="text-align: right;">$25.9M</td>
+<td style="text-align: right;">$126.3M</td>
+<td style="text-align: right;">$(104.7)M</td>
+</tr>
+<tr>
+<td><strong>2026</strong></td>
+<td style="text-align: right;"><strong>$3.014B</strong></td>
+<td style="text-align: right;"><strong>$1.256B</strong></td>
+<td style="text-align: right;"><strong>$536.2M</strong></td>
+<td style="text-align: right;"><strong>$(6.935)B</strong></td>
+<td style="text-align: right;"><strong>$751.4M</strong></td>
+<td style="text-align: right;"><strong>$300.1M</strong></td>
+</tr>
+</tbody>
+</table>
+<p><em>Source: annual income and cash-flow statements returned for LITE.</em></p>
+<p>FY2026 revenue rose <strong>83.2%</strong> year over year, following roughly <strong>21.0%</strong> growth in FY2025. Gross margin expanded to <strong>41.7%</strong>, from <strong>28.0%</strong>; operating margin improved to <strong>17.8%</strong>, from a loss. Annual normalized EBITDA in the income-statement feed rose to <strong>$857.0 million</strong>, from <strong>$98.9 million</strong>. These are substantial operating improvements, not an improvement in <em>reported</em> net income.</p>
+<p>The distinction is critical: FY2026 includes approximately <strong>$7.76 billion of “other special charges”</strong> in the vendor’s annual income statement. The resulting <strong>$6.935 billion GAAP net loss</strong> contrasts with its <strong>$558.2 million normalized income</strong> estimate. The annual cash-flow feed includes a roughly <strong>$7.78 billion “operating gains/losses” adjustment</strong> while reporting positive operating cash flow. These classifications strongly suggest that the headline loss is not representative of cash generated by routine operations, but the vendor does <strong>not</strong> explain the charge’s nature or accounting. <strong>Read the actual FY2026 filing and its footnotes before treating it as nonrecurring or adopting normalized earnings as an investable run rate.</strong></p>
+<h4 id="latest-quarter-fiscal-q4-ended-2026-06-30">Latest quarter: fiscal Q4 ended 2026-06-30<a class="headerlink" href="#latest-quarter-fiscal-q4-ended-2026-06-30" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Revenue:</strong> <strong>$1.0063 billion</strong>, up <strong>24.5%</strong> from the March quarter’s $808.4 million and <strong>109.3%</strong> from the year-earlier $480.7 million.</li>
+<li><strong>Gross profit and margin:</strong> <strong>$477.3 million</strong> and <strong>47.4%</strong>, versus <strong>$357.0 million</strong> and <strong>44.2%</strong> in fiscal Q3.</li>
+<li><strong>Operating income:</strong> <strong>$281.7 million</strong>, a <strong>28.0% operating margin</strong>, up from $175.6 million in Q3. Quarterly operating expenses increased much less quickly than revenue.</li>
+<li><strong>Cash generation:</strong> <strong>$363.0 million</strong> operating cash flow less <strong>$166.8 million</strong> capital expenditure yielded <strong>$196.2 million free cash flow</strong>, versus $79.1 million in Q3.</li>
+<li><strong>Reported bottom line:</strong> <strong>$(7.162) billion net income</strong> and <strong>$(84.65) diluted EPS</strong>. The quarterly statement identifies approximately <strong>$7.759 billion in special income charges</strong>; its normalized-income figure is <strong>$289.2 million</strong>. The size and treatment of the charge need primary-document confirmation.</li>
+</ul>
+<p>The sequential revenue and margin gains are the clearest positive operating evidence. They are also why a trader should examine <strong>future per-share earnings and cash flow</strong>, rather than extrapolate either the exceptional GAAP loss or a single strong quarter.</p>
+<h4 id="balance-sheet-funding-and-cash-quality">Balance sheet, funding, and cash quality<a class="headerlink" href="#balance-sheet-funding-and-cash-quality" title="Permanent link">&para;</a></h4>
+<p>At <strong>2026-06-30</strong>, LITE reported <strong>$7.308 billion assets</strong>, <strong>$2.664 billion liabilities</strong>, and <strong>$4.644 billion stockholders’ equity</strong>. Cash and short-term investments totaled <strong>$2.738 billion</strong>, against <strong>$1.671 billion total debt</strong>—an approximately <strong>$1.067 billion net-cash position</strong> on those definitions. A year earlier, the same calculation indicated approximately <strong>$1.731 billion net debt</strong>. The <strong>1.68 current ratio</strong> provides a cushion, although it is far below the approximately <strong>4.37</strong> ratio at FY2025 year-end.</p>
+<p>The maturity profile deserves closer examination: <strong>$1.597 billion of debt is classified as current</strong>. Cash and short-term investments exceed it, but the quarter’s reported total-debt decline—from <strong>$3.314 billion to $1.671 billion</strong>, approximately <strong>$1.643 billion</strong>—does <strong>not</strong> reconcile to the cash-flow statement’s <strong>$521.6 million debt repayment</strong> and zero debt issuance for that quarter. Noncash financing or classification changes may be involved; the available data cannot establish which. FY2026’s cash-flow feed also labels approximately <strong>$2.000 billion as preferred-stock issuance</strong>, while the year-end balance sheet lists <strong>zero preferred stock</strong>. Both discrepancies call for a filing-level reconciliation, not an assumed explanation.</p>
+<p><strong>Funding and dilution:</strong> Shares outstanding increased from <strong>69.8 million</strong> at FY2025 year-end to <strong>88.6 million</strong> at FY2026 year-end, approximately <strong>26.9%</strong>. Additional paid-in capital increased sharply. Even with stronger aggregate profits and cash generation, a trader must test whether growth translates into <strong>earnings and free cash flow per share</strong>. The vendor’s debt-to-equity field of <strong>35.987</strong> appears to use percentage-style units: balance-sheet debt divided by equity is approximately <strong>36.0%</strong>, not 36 times.</p>
+<p><strong>Cash-flow quality and investment needs:</strong> FY2026 operating cash flow of <strong>$751.4 million</strong> covered <strong>$451.3 million capex</strong>, producing <strong>$300.1 million free cash flow</strong>, compared with <strong>$(104.7) million</strong> in FY2025. Capex almost doubled from <strong>$231.0 million</strong>, and construction in progress increased from <strong>$152.3 million to $377.4 million</strong>. That capacity investment may support further growth, but increases the cost of a demand slowdown. FY2026 working-capital changes consumed <strong>$292.0 million</strong> of cash; receivables rose from <strong>$250.0 million to $520.3 million</strong> and inventory from <strong>$470.1 million to $691.6 million</strong>. Receivables grew faster than annual sales, making collections worth monitoring even though cash generation improved.</p>
+<h4 id="valuation-and-data-reconciliation-checks">Valuation and data-reconciliation checks<a class="headerlink" href="#valuation-and-data-reconciliation-checks" title="Permanent link">&para;</a></h4>
+<p>At the supplied <strong>$82.64 billion market cap</strong>, LITE trades at approximately <strong>27.4 times FY2026 revenue</strong> and offers only about a <strong>0.36% yield on FY2026’s $300.1 million free cash flow</strong>. Subtracting the calculated net cash gives an indicative enterprise value near <strong>$81.58 billion</strong>, or roughly <strong>95 times</strong> the income-statement feed’s <strong>$857 million normalized FY2026 EBITDA</strong>. These calculations are approximate because the quote, capital structure, and statement data may have different timestamps. They show that substantial further growth is priced in despite the operating recovery.</p>
+<p>Do not mix vendor fields uncritically: the summary feed lists <strong>$1.334 billion gross profit</strong>, <strong>$800.7 million EBITDA</strong>, and <strong>$224.7 million free cash flow</strong>, whereas the FY2026 annual statements show <strong>$1.256 billion gross profit</strong>, <strong>$(6.884) billion reported EBITDA</strong> (<strong>$857 million normalized EBITDA</strong>), and <strong>$300.1 million free cash flow</strong>. The summary’s approximately <strong>28% operating margin</strong> also resembles <strong>Q4’s</strong> margin rather than <strong>FY2026’s 17.8%</strong>. Definitions or update times may differ. The summary’s <strong>$34.71 forward EPS</strong>, if applied illustratively to the <strong>88.6 million year-end shares</strong>, would imply roughly <strong>$3.08 billion</strong> of forward earnings—well above FY2026 normalized income of <strong>$558 million</strong>. The forecast’s period and share-count assumptions are unknown; confirm them before relying on the forward P/E.</p>
+<h4 id="insider-activity-in-the-past-week">Insider activity in the past week<a class="headerlink" href="#insider-activity-in-the-past-week" title="Permanent link">&para;</a></h4>
+<p>The insider feed records <strong>officer Wupen Yuen selling 1,500 LITE shares on 2026-09-23 for approximately $1.421 million</strong>, at a reported price range of <strong>$935.55–$959.27</strong>. It lists <strong>no insider purchase</strong> in the reviewed rows for September 21–28. Across September 1, 4, 10, 15, and 23, it lists five sales by the same officer totaling <strong>7,500 shares and approximately $6.821 million</strong>. August’s feed includes larger sales and multiple zero-price stock-award grants; <strong>grants are not open-market purchases</strong>. The data do not establish whether sales followed a prearranged plan or covered taxes, and transaction dates may precede Form 4 publication by up to two business days. Treat this as a monitoring signal, not a stand-alone bearish thesis.</p>
+<h4 id="actionable-interpretation">Actionable interpretation<a class="headerlink" href="#actionable-interpretation" title="Permanent link">&para;</a></h4>
+<p><strong>Fundamental stance: strong operating momentum, but high valuation and unresolved accounting details warrant caution.</strong> For a constructive LITE case, seek confirmation in the next fiscal quarter’s eventual results that revenue holds near or above Q4’s <strong>$1.006 billion</strong>, gross margin remains near <strong>47%</strong>, and operating cash flow continues to exceed elevated capex. Those are <strong>analyst watch levels based on the latest quarter, not company guidance</strong>. Require an explanation in primary filings for the <strong>$7.76 billion charge</strong>, the debt movement, and the equity issuance classifications before relying on adjusted multiples. A weaker sales or margin trend alongside continued high capex, slower collections, or more per-share dilution would undermine the case. No verified current price or next earnings-release date was supplied, so this is <strong>not</strong> a price-specific entry recommendation.</p>
+<table>
+<thead>
+<tr>
+<th>Key point for LITE</th>
+<th>Evidence as of 2026-09-28</th>
+<th>Trading implication / check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Operating acceleration</td>
+<td>FY2026 sales <strong>$3.014B</strong>, <strong>+83.2%</strong>; Q4 sales <strong>$1.006B</strong>, <strong>+24.5% QoQ</strong></td>
+<td>Check whether the next reported quarter sustains growth rather than annualizing Q4 automatically.</td>
+</tr>
+<tr>
+<td>Margin recovery</td>
+<td>FY gross margin <strong>41.7%</strong>; Q4 <strong>47.4%</strong>; Q4 operating margin <strong>28.0%</strong></td>
+<td>A material reversal would challenge the operating thesis.</td>
+</tr>
+<tr>
+<td>Extraordinary reported loss</td>
+<td>FY net loss <strong>$6.935B</strong> alongside roughly <strong>$7.76B special charges</strong></td>
+<td>Read filing footnotes; neither ignore the loss nor assume the charge is repeatable.</td>
+</tr>
+<tr>
+<td>Cash generation versus capex</td>
+<td>FY operating cash flow <strong>$751.4M</strong>; capex <strong>$451.3M</strong>; FCF <strong>$300.1M</strong></td>
+<td>Watch whether expansion spending continues to earn a positive cash return.</td>
+</tr>
+<tr>
+<td>Liquidity and maturity</td>
+<td>Cash plus short-term investments <strong>$2.738B</strong>; total debt <strong>$1.671B</strong>, including <strong>$1.597B current debt</strong></td>
+<td>Net cash is encouraging; confirm debt terms and the unexplained quarterly debt movement.</td>
+</tr>
+<tr>
+<td>Dilution</td>
+<td>Year-end shares <strong>88.6M</strong>, up <strong>26.9% YoY</strong></td>
+<td>Assess future growth <strong>per share</strong>, not solely in aggregate dollars.</td>
+</tr>
+<tr>
+<td>Demanding valuation</td>
+<td>Approximately <strong>27.4× sales</strong>, <strong>95× normalized EBITDA</strong>, <strong>0.36% historical FCF yield</strong></td>
+<td>Limited room for operational disappointment at the supplied market cap.</td>
+</tr>
+<tr>
+<td>Past-week insider activity</td>
+<td><strong>1,500-share officer sale on Sep. 23</strong>; no purchase shown for that week</td>
+<td>Monitor subsequent filings; sale motive and filing timing are unverified.</td>
+</tr>
+<tr>
+<td>Data reliability</td>
+<td>Summary fundamentals disagree with annual statements on EBITDA, FCF, and gross profit</td>
+<td>Reconcile to primary filings before sizing a trade.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: <strong>My opening case for LITE: the operating inflection is real, even if the stock is expensive.</strong> In FY2026, Lumentum grew revenue <strong>83% to $3.014 billion</strong>, moved from an operating loss to <strong>$536 million of operating income</strong>, and generated <strong>$300 million of free cash flow</strong>. The latest quarter strengthened that case: revenue rose <strong>24.5% sequentially</strong> to $1.006 billion, while operating income rose about <strong>60%</strong> to $282 million. That is evidence of operating leverage—not just enthusiasm for AI optics.</p>
+<p>The opportunity is credible, but I would frame it carefully. LITE’s planned demonstrations with Corning and Qualcomm put its VCSEL technology into a high-density AI-connectivity discussion; its eight-wavelength DWDM demonstration targets emerging optical architectures. Those collaborations support the view that LITE has relevant products and an ecosystem position. They <strong>do not establish a moat, a design win, or an order</strong>. Likewise, Citi’s projected <strong>$11 billion optical-switching market by 2030</strong> indicates industry potential, not a LITE revenue forecast. The bull bet is that a company already showing sharply higher sales, margins, and cash generation can convert some of that opportunity into sustained per-share growth.</p>
+<p>The bear’s strongest objection is valuation, and I would not wave it away. At the supplied market cap, LITE is roughly <strong>27× FY2026 sales</strong> and <strong>95× the vendor’s normalized EBITDA</strong>; a reported roughly 450% prior share-price run makes disappointment costly. But “priced for growth” is not the same as “growth is only hypothetical.” Q4 gross margin reached <strong>47.4%</strong>, free cash flow rose to <strong>$196 million</strong> from $79 million in Q3, and cash plus short-term investments exceeded total debt by about <strong>$1.07 billion</strong>. Those results give the company capacity to invest while testing demand.</p>
+<p>Nor would I dismiss the bear’s accounting and dilution points. The <strong>$7.76 billion special charge</strong>, unusual debt movements, and equity classifications need reconciliation against the filing; shares outstanding rose <strong>26.9%</strong> year over year. I would not use the unverified forward EPS figure to call LITE cheap, or assume the charge is harmless. The decisive test is whether future <strong>cash flow and earnings per share</strong> grow as production scales.</p>
+<p><strong>My stance is bullish, with a measured entry rather than a chase.</strong> The broader technical trend remains up and the $921.32 verified close is above the $862.84 50-day average, but weak ADX, a slightly negative MACD histogram, and declining OBV argue against treating this as a confirmed near-term breakout. I favor a modest LITE position, adding only as customer qualifications or shipments, durable margins, and per-share cash generation substantiate the thesis. The bear is right to demand proof; I disagree that investors must ignore the operating recovery while waiting for every uncertainty to disappear.
+Bull Analyst: Bear, I agree that <strong>LITE is expensive</strong>. A 0.36% historical free-cash-flow yield leaves little room for disappointment, and your 15×-sales scenario shows that even strong revenue growth would not guarantee a higher stock price. Where I differ is on whether investors should wait until every sign of scale is confirmed. The operating evidence is already moving faster than the annual valuation snapshot suggests.</p>
+<p>LITE ended FY2026 with revenue up <strong>83%</strong> and positive <strong>$300 million</strong> free cash flow. In Q4, revenue reached <strong>$1.006 billion</strong>, gross margin rose to <strong>47.4%</strong>, and free cash flow was <strong>$196 million after $167 million of capex</strong>. Repeating Q4 for a year would imply roughly <strong>$4.03 billion of revenue</strong>—about 34% above FY2026—and <strong>$785 million of free cash flow</strong>. That is <em>not</em> my forecast, and even that cash flow would yield less than 1% at the supplied market cap. But it explains the bull case: the latest quarter shows materially greater earning power than the full-year figures alone.</p>
+<p>Your dilution objection is the right test, not a footnote. Shares outstanding rose <strong>26.9%</strong>. Still, using year-end share counts as a rough proxy, revenue per share rose about <strong>44%</strong> year over year, and free cash flow moved from negative to positive. That does not prove future per-share returns; it shows dilution has not yet erased the operating advance. I also would not call the $7.76 billion charge harmless or rely on normalized earnings until the filing explains it.</p>
+<p>On competition, I am <strong>not</strong> claiming the Corning–Qualcomm and DWDM demonstrations are orders or a moat. They show LITE has products relevant to emerging AI optical architectures at the same time its reported sales and margins are improving. The investment question is whether that positioning converts into qualifications and repeat shipments. Citi’s $11 billion optical-switching forecast supports the scale of one industry opportunity, not a revenue target for LITE.</p>
+<p>So I would <strong>initiate only a small, risk-budgeted LITE position</strong>, not chase a full allocation at the September 28 close of <strong>$921.32</strong>. The broader trend is up, but ADX at <strong>13.17</strong>, softer OBV and a slightly negative MACD histogram argue against calling this a confirmed breakout. I would add only after filing reconciliation and evidence of orders, durable margins and rising <strong>free cash flow per share</strong>. If those fail to appear, your valuation argument wins. My disagreement is that the existing growth and cash-flow inflection justify <em>some</em> exposure before all the proof arrives—not that they justify paying any price.
+Bull Analyst: Bear, I agree that <strong>LITE is priced for exceptional execution</strong>. Your 15×-sales scenario is a useful warning. But it assumes substantial multiple compression; it does not show that today’s operating gains have stopped or that avoiding the stock until every commercial question is settled offers the better risk–reward.</p>
+<p>The evidence is stronger than one annualized quarter. FY2026 revenue grew <strong>83%</strong>, operating income moved from a loss to <strong>$536 million</strong>, and free cash flow turned positive. Then, from Q3 to Q4, revenue increased about <strong>$198 million</strong> while operating income increased about <strong>$106 million</strong>—roughly <strong>54 cents of incremental operating income per incremental sales dollar</strong>. Q4 also produced <strong>$196 million of free cash flow after $167 million of capex</strong>. I would not project that conversion rate forward, but it is tangible evidence of scalability even while LITE invests.</p>
+<p>You are right to press on dilution and collections. Using year-end shares as a rough proxy, though, <strong>revenue per share rose about 44%</strong> from FY2025 to FY2026: the 26.9% share-count increase did not erase the growth already achieved. Receivables and working capital remain tests for the <em>next</em> results, not reasons to disregard the cash generated in this one. Net cash provides room to fund expansion; it does <strong>not</strong> make the valuation cheap or explain the $7.76 billion charge. I would still require the primary filing before relying on normalized earnings.</p>
+<p>Nor am I underwriting an order from the Corning–Qualcomm or DWDM demonstrations. Their significance is that LITE has relevant technology positioned for emerging optical architectures <strong>while its existing business is already showing rapid sales and margin improvement</strong>. Competitors can win business too; qualifications, repeat shipments and margins will determine whether that positioning becomes a durable advantage.</p>
+<p>That is why my recommendation remains <strong>a small, risk-budgeted LITE starter position—not a full allocation at $921.32</strong>. The weak ADX and softer OBV argue against chasing or calling a breakout. I would add only on filing reconciliation and evidence of sustained margins, collections, shipments and <strong>free cash flow per share</strong>. If those fail, your multiple-compression case gains force. But waiting for all of them before taking <em>any</em> exposure also risks waiting past the operating inflection that the reported results already show.
+Bull Analyst: Bear, you’re right that <strong>a smaller position does not create an entry edge</strong>. The edge I’m willing to underwrite is the possibility that LITE’s recent operating pace proves more representative than its full-year averages—not that its current cash-flow yield is attractive.</p>
+<p>FY2026’s <strong>17.8% operating margin</strong> includes a much weaker first half. The margin was about <strong>21.7% in Q3</strong> and <strong>28.0% in Q4</strong>; together, those quarters produced roughly <strong>85% of the year’s operating income</strong> and <strong>92% of its free cash flow</strong>. That is two quarters of improving conversion, not just one exceptional Q4. And despite the 26.9% increase in year-end shares, free cash flow moved from negative to positive on a rough per-share calculation. None of this proves Q4 margins will persist, but it gives the growth thesis more substance than a demonstration alone.</p>
+<p>I accept your valuation math. Even annualized Q4 free cash flow yields less than 1% at the supplied market cap, and a move to <strong>15× sales</strong> could hurt shareholders despite further growth. The bull case therefore depends on <em>continued</em> revenue growth and cash generation per share; it cannot rest on today’s yield or on Citi’s industry forecast. The Corning–Qualcomm and DWDM work makes LITE relevant to emerging optical systems, while its reported sales show an operating business already scaling. <strong>Orders and durable pricing power remain unproven.</strong></p>
+<p>You’ve also persuaded me that the filing reconciliation is a <strong>pre-trade diligence requirement</strong>, not merely a condition for adding. I would verify the $7.76 billion charge and capital-structure movements rather than buy on the vendor’s normalized earnings. If that review is satisfactory, I still favor a <strong>small LITE starter position</strong>, adding only when shipments, collections, margins and free cash flow <em>per share</em> support it. At the September 28 close of <strong>$921.32</strong>, weak ADX and declining OBV rule out a momentum-based chase. My disagreement is narrower: once the accounting is checked, I think the two-quarter operating acceleration warrants measured exposure before the commercial case is fully established.
+Bull Analyst: Bear, your <strong>$551 million annualized second-half free-cash-flow calculation and 0.67% yield are fair</strong>. LITE cannot justify its valuation merely by repeating the average of Q3 and Q4. My disagreement is that this average treats a business still accelerating as though it has reached a steady state.</p>
+<p>Q4 free cash flow was <strong>$196 million, up from $79 million in Q3</strong>, after <strong>$167 million of Q4 capex</strong>. Revenue rose <strong>24.5% sequentially</strong>, gross margin improved from <strong>44.2% to 47.4%</strong>, and operating margin rose from about <strong>21.7% to 28.0%</strong>. Those figures do not prove Q4 is a sustainable run rate. They do show that the more recent quarter converted growth into substantially more profit and cash <em>while funding expansion</em>. That is the operating evidence behind taking some exposure before every future order is visible.</p>
+<p>I agree that <strong>per-share results are the test</strong>. The 26.9% increase in year-end shares is a serious hurdle, as are the receivables increase and $292 million working-capital outflow. But dilution did not erase the recovery already achieved: using year-end shares as a rough proxy, FY2026 revenue per share grew about <strong>44%</strong>, and free cash flow moved from negative to positive. The roughly <strong>$1.07 billion net-cash position</strong> gives LITE capacity to fund the next stage; it does not make a 0.67% illustrative cash-flow yield cheap.</p>
+<p>On competitive advantage, I would not ask investors to pay 27× sales <em>because</em> of the Corning–Qualcomm and DWDM demonstrations. They are evidence that LITE’s products are being developed for relevant optical architectures, <strong>not evidence of orders or a protected moat</strong>. The stronger bull argument combines that positioning with the sales and margin acceleration already reported. Applied Optoelectronics’ expansion means LITE must keep proving its margins and collections; it does not negate the progress in its own results.</p>
+<p>So my recommendation is <strong>bullish on LITE, but conditional on pre-trade diligence</strong>. I would first reconcile the $7.76 billion charge and capital-structure movements in the primary filing. If that checks out, I favor a <strong>small, risk-budgeted starter position</strong>, not a full purchase justified by today’s cash-flow yield or by a technical breakout. I would add only if shipments, margins, collections and free cash flow <strong>per share</strong> continue to advance. Weak ADX and declining OBV are reasons not to chase at the September 28 close of <strong>$921.32</strong>.</p>
+<p>You are right that sustained recent cash flow alone may not be enough. Where we differ is the threshold for <em>any</em> investment: I think the demonstrated acceleration, once the accounting is verified, warrants measured exposure before repeat orders settle the question. If that acceleration stalls, your valuation case wins.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: I agree with your central point: <strong>LITE’s operating recovery is real.</strong> FY2026 revenue rose 83%, and Q4 showed genuine margin and cash-flow improvement. My disagreement is about the price investors are being asked to pay for that recovery. At the supplied $82.64 billion market cap, LITE trades at roughly <strong>27.4× FY2026 sales</strong> and <strong>95× normalized EBITDA</strong>, while FY2026 free cash flow represents a <strong>0.36% yield</strong>. Even if Q4’s $196 million of free cash flow repeated for four quarters—a substantial assumption—the yield would still be below 1%.</p>
+<p>You argue that net cash gives LITE room to invest. It does, and I would not portray this as an immediate liquidity crisis. But investment is getting more expensive: FY2026 capex reached <strong>$451 million</strong>, working capital consumed <strong>$292 million</strong>, and receivables rose from <strong>$250 million to $520 million</strong>. Meanwhile, shares outstanding increased <strong>26.9%</strong>. The question is not just whether sales keep growing; it is whether cash flow grows <em>per share</em> after funding that expansion. The unexplained special charge and debt and equity movements also make the primary filing essential before treating normalized earnings as a dependable baseline.</p>
+<p>Your distinction between demonstrations and orders is exactly where the bear case bites. The Corning–Qualcomm showcase and DWDM plans establish technical relevance, <strong>not customer commitments or defensible margins</strong>. Citi’s $11 billion forecast is for an industry market, not LITE revenue. With competitors including Applied Optoelectronics expanding capacity, a growing market need not deliver the share or pricing power this valuation appears to require.</p>
+<p>Here is the valuation risk in concrete terms: <strong>even if sales grew another 50%</strong> from FY2026 to about $4.52 billion, a decline to <strong>15× sales</strong> would imply roughly a <strong>$67.8 billion</strong> market cap—about <strong>18% below</strong> the supplied figure, assuming unchanged shares. That is a scenario, not a forecast; it shows why strong growth alone may not protect a buyer.</p>
+<p>Finally, the uptrend is intact, but it is not compelling confirmation for a new entry: ADX is <strong>13.17</strong>, the MACD histogram has turned slightly negative, and OBV has fallen. Your modest sizing limits exposure, but it does not fix the entry price. <strong>I would avoid initiating LITE here</strong> and revisit it when orders, sustained free cash flow <em>per share</em>, and the accounting reconciliations support what the stock already prices in.
+Bear Analyst: Bull, I agree that LITE’s operating inflection is real. The question is whether <strong>a small position at $921.32 offers a favorable risk–reward</strong>, not whether FY2026 was better than FY2025.</p>
+<p>Your Q4 run-rate exercise actually sharpens my concern. Annualizing Q4’s $196 million of free cash flow gives roughly <strong>$785 million</strong>, yet that would still be <strong>less than a 1% yield</strong> on the supplied $82.64 billion market cap. That assumes four quarters as strong as Q4, despite capex rising to $167 million in that quarter, FY2026 working capital consuming $292 million, and receivables more than doubling year over year. I would not treat one excellent quarter as a dependable per-share cash-flow baseline.</p>
+<p>Your revenue-per-share calculation fairly shows that dilution has not erased the <em>past</em> recovery. But with shares outstanding up <strong>26.9%</strong>, it raises the hurdle for future holders. The unresolved $7.76 billion charge and discrepancies in the vendor’s debt and equity figures add another reason to examine the filing before paying a premium for normalized earnings. Net cash means this is <strong>not an immediate liquidity-crisis argument</strong>; it does not resolve the valuation argument.</p>
+<p>And while the demonstrations establish technological relevance, they still leave the decisive commercial questions unanswered: qualifications, repeat orders, and margins as competitors such as Applied Optoelectronics expand capacity. Even annualizing Q4 revenue to about <strong>$4.03 billion</strong>, a hypothetical <strong>15× sales</strong> multiple would imply a market cap near <strong>$60 billion—roughly 27% below</strong> the supplied figure, assuming unchanged shares. That is a sensitivity, not a price target, but it shows why strong sales alone may not protect the stock.</p>
+<p>The uptrend is a fair bull point; <strong>ADX at 13.17, a negative MACD histogram, and declining OBV</strong> make it a weak reason to buy <em>now</em>, especially with rising yields pressuring growth-stock valuations. I would <strong>avoid initiating LITE</strong>, even at small size, until orders and sustained free cash flow <em>per share</em> justify the price—or the price offers a better margin for error.
+Bear Analyst: Bull, I’m not disputing the inflection. The <strong>$106 million increase in operating income on $198 million of additional Q4 revenue</strong> is impressive. I’m disputing the leap from one quarter of strong incremental margins to a return worth buying at LITE’s price. FY2026 operating margin was <strong>17.8%</strong>, versus <strong>28.0% in Q4</strong>; capacity expansion and competitors’ investment make it important to show that the latter is durable, not just achievable.</p>
+<p>Your “starter position” addresses <em>how much</em> an investor could lose, not whether the entry has an edge. Even if Q4’s <strong>$196 million free cash flow</strong> repeated for four quarters, the roughly <strong>$785 million annualized</strong> would yield <strong>less than 1%</strong> on the supplied $82.64 billion market cap. And Q4’s cash flow is not yet a per-share run rate: FY2026 working capital consumed <strong>$292 million</strong>, receivables rose from <strong>$250 million to $520 million</strong>, and shares outstanding increased <strong>26.9%</strong>. Net cash buys LITE time; it does not make those cash returns attractive at today’s valuation.</p>
+<p>I also think “wait for every commercial question to be settled” overstates my position. The supplied financials don’t identify how much of the sales acceleration came from the optical products being demonstrated. Those showcases may become valuable business, but they cannot yet establish the repeat orders or pricing power needed to defend a premium multiple. The unexplained <strong>$7.76 billion charge</strong> makes filing reconciliation a basic underwriting step, not a demand for certainty.</p>
+<p>There is a real cost to waiting: LITE could rise before that proof arrives. But at the <strong>September 28 close of $921.32</strong>, weak ADX and declining OBV offer little tactical compensation for taking that valuation risk now. <strong>I would avoid initiating LITE</strong>, and reconsider on credible order and sustained free-cash-flow-per-share evidence—or at a price with more room for disappointment.
+Bear Analyst: Bull, you’re right to move the filing review <strong>before</strong> a trade, and you’re right that LITE has shown two quarters of improving conversion. But your own figures sharpen the valuation problem: Q3 and Q4 produced about <strong>92% of FY2026 free cash flow</strong>. Annualizing <em>both</em> quarters, rather than Q4 alone, gives roughly <strong>$551 million</strong> of free cash flow—still only a <strong>0.67% yield</strong> on the supplied $82.64 billion market cap. Sustaining the recent pace may not be enough; buyers need further growth.</p>
+<p>That is a demanding bet while LITE funds expansion. FY2026 capex reached <strong>$451 million</strong>, working capital consumed <strong>$292 million</strong>, receivables rose from <strong>$250 million to $520 million</strong>, and year-end shares increased <strong>26.9%</strong>. Those figures do not negate the recovery. They do mean that the next test is durable <strong>cash flow per share</strong>, not another strong aggregate revenue quarter.</p>
+<p>Reconciliation of the <strong>$7.76 billion charge</strong> and capital-structure movements would remove an important underwriting obstacle. It would not establish orders for the demonstrated optical products or protect Q4’s <strong>28% operating margin</strong> as competitors expand capacity. At roughly <strong>27× FY2026 sales</strong>, that distinction matters.</p>
+<p>So I accept the operating inflection, but not the proposed entry. A small position limits the dollars at risk; it does not improve the price paid. <strong>I would avoid initiating LITE at the September 28 close of $921.32</strong> and revisit it after the filing checks out <em>and</em> repeat shipments, collections, and free cash flow per share support the valuation—or after the price offers more room for disappointment.
+Bear Analyst: Bull, I agree that annualizing the Q3–Q4 average can understate an accelerating business. So let’s give LITE the more favorable assumption: repeat Q4’s <strong>$196 million of free cash flow</strong> for four quarters. That produces about <strong>$785 million annually</strong>—still a yield below <strong>1%</strong> on the supplied <strong>$82.64 billion</strong> market cap. Even a <strong>2% yield</strong>, equivalent to paying 50× free cash flow, would require roughly <strong>$1.65 billion a year</strong>, more than <strong>twice</strong> that Q4 run rate. This is an illustrative hurdle, not a claim that growth must stop or that 2% is the “right” yield. It shows how much further cash generation must climb for today’s price to become less demanding.</p>
+<p>You’re also right that Q4 generated cash <em>after</em> substantial capex. But sustaining—and then doubling—that pace is the part investors cannot yet verify. FY2026 working capital consumed <strong>$292 million</strong>, receivables rose from <strong>$250 million to $520 million</strong>, and shares outstanding increased <strong>26.9%</strong>. Stronger sales are valuable; collections and <strong>free cash flow per share</strong> determine how much of that value reaches a new shareholder. The net-cash position helps fund expansion, but it does not remove that test.</p>
+<p>I welcome your decision to reconcile the <strong>$7.76 billion charge</strong> and capital-structure movements <em>before</em> trading. A satisfactory filing would clear a diligence obstacle, not establish repeat orders, durable Q4 margins, or protection from expanding optical competitors. Nor do ADX at <strong>13.17</strong> and declining OBV supply a compelling entry signal while those questions remain open.</p>
+<p>So my objection is not “wait until every order is visible.” It is that <strong>LITE at the September 28 close of $921.32 asks buyers to pay for substantial future cash-flow growth before its durability is demonstrated</strong>. I would avoid initiating a position and revisit after the filing checks out and shipments, collections, and cash flow per share provide that evidence—or after a lower price improves the margin for error.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For LITE, the bear case wins on entry valuation, not on whether the operating recovery is real. The bull has meaningful evidence: supplied FY2026 revenue grew 83% to $3.014 billion, operating income reached $536 million, free cash flow reached $300 million, and the last two quarters showed improving conversion. Q4 generated $196 million of free cash flow after substantial capex, while the supplied balance sheet suggests roughly $1.07 billion of net cash. Those strengths argue against a full exit or an outright short. But at the supplied $82.64 billion market capitalization, LITE costs about 27.4 times annual sales and offers a historical free-cash-flow yield of only 0.36%. Even repeating Q4 four times would generate about $0.78 billion and yield less than 1%; reaching an illustrative 2% yield would require approximately $1.65 billion annually, more than twice that run rate. Neither annualization is a forecast, and 2% is not a fair-value standard. A small starter position reduces exposure but does not improve that entry valuation. The 26.9% increase in year-end shares, working-capital demands, and faster receivables growth raise the hurdle for future cash flow per share without disproving the recovery already achieved. Demonstrations do not establish repeat orders or pricing power. The unexplained $7.76 billion charge and capital-structure movements require primary-filing reconciliation; their economic effects cannot be determined here. Weak ADX, declining OBV, and a slightly negative MACD histogram provide little tactical compensation despite the broader uptrend. Valuation and the missing evidence of durable per-share cash generation therefore outweigh the case for buying the acceleration, supporting a moderate Underweight rather than Sell.</p>
+<p><strong>Strategic Actions</strong>: For LITE, use 0.5 times the portfolio's standard allocation as an exposure ceiling, not a minimum. If existing exposure exceeds that level, trim toward it with staged limit orders using current executable quotes; retain smaller positions without topping up. If there is no position, do not initiate at the supplied valuation. For example, a 4% standard allocation implies a 2% LITE ceiling, subject to tighter portfolio risk limits. Actual holdings and live prices are not provided; the supplied September 28 close of $921.32 is a reference, not an assumed execution price. Before considering purchases, require primary-filing reconciliation of the $7.76 billion charge, debt and equity movements, share dilution, and cash-flow figures; do not rely on unreconciled normalized EBITDA or unverified forward EPS. At each of the next two reported quarters, review repeat shipments or credible customer commitments, margin durability, collections relative to sales, and sustained improvement in free cash flow per diluted share using actual diluted share counts rather than year-end proxies. Reconsider an increase only after accounting is resolved and either demonstrated cash-generation growth supports a valuation with room for disappointment or a lower price provides that margin for error. Stress-test multiple compression: 50% revenue growth followed by a 15-times-sales valuation implies approximately $67.8 billion of equity value, about 18% below the supplied market cap at unchanged shares; this is a sensitivity, not a price target. Reduce remaining exposure further if cash conversion deteriorates persistently, dilution outpaces cash-flow growth, or filing reconciliation materially weakens the balance-sheet assessment. Do not mechanically buy a pullback to the supplied moving average or turn Underweight into a short recommendation. Primary filings, current quotes, and a validated forward cash-flow forecast are missing, so no reliable fair-value target or exact trading levels are established.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: Underweight LITE by trimming excess exposure rather than exiting or shorting: despite strong FY2026 growth and an intact broader uptrend, roughly 27.4× sales, a 0.36% historical free-cash-flow yield, dilution, and unresolved filing items weaken the entry case. At the September 28 reference close of $921.32, price remained above its $862.84 50-day SMA, but ADX of 13.17, declining OBV, a −0.85 MACD histogram, and $62.17 ATR favor cautious, staged trims. Current executable quotes and validated exit or stop levels are unavailable, so no fixed entry price or stop-loss is justified.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Cap LITE at 0.5× the portfolio's standard allocation (e.g., 2% of portfolio if standard is 4%). If holdings exceed the cap, stage limit-order trims using current executable quotes; retain smaller positions without topping up, and do not initiate a new position.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: Neither analyst has spoken yet, so I won’t put arguments in their mouths. My opening case for LITE is that <strong>selling only the excess position is the bold choice—not a retreat</strong>. It takes risk off a valuation that leaves little room for disappointment while preserving a stake in a potentially substantial AI-optics opportunity.</p>
+<p>The upside deserves respect. FY2026 revenue grew 83.2%, and the latest quarter delivered $1.006 billion in sales, a 47.4% gross margin, and $196.2 million in free cash flow. The Corning–Qualcomm optical-link demonstration and LITE’s DWDM showcase put its technology near fast-growing infrastructure needs. A blanket exit would give up that exposure before we know whether demonstrations become orders. The roughly $7.76 billion special charge also needs filing-level explanation; treating the reported loss alone as a verdict on operating momentum would be premature.</p>
+<p>But doing nothing with an oversized position is not neutral. At roughly 27.4 times FY2026 sales and a 0.36% historical free-cash-flow yield, LITE is priced for exceptional follow-through. Shares outstanding rose 26.9% year over year, while filing and financing items remain unresolved. The broader uptrend is intact, yet ADX is just 13.17, OBV has fallen, and the MACD histogram is slightly negative. With ATR at $62.17, excess exposure can become a large portfolio bet quickly. Mildly bullish sentiment is not a substitute for verified orders.</p>
+<p>So I support the proposed <strong>SELL as a staged trim, not an exit or short</strong>. If LITE exceeds half the portfolio’s standard allocation, use current executable quotes to trim toward that cap; retain a smaller position without topping up. If it is already at or below the cap—or there is no holding—do not sell merely to express this view, and do not open a new position. That keeps meaningful upside participation while creating room to act when commercial evidence improves, rather than requiring a perfect forecast today.
+Aggressive Analyst: Conservative, you’re right that 0.5 times a standard allocation is a ceiling, not a safe target. Correlated AI exposure or a tighter portfolio limit could require a smaller LITE position. But making a complete exit the practical default would give up an unusually strong operating recovery: FY2026 revenue rose 83.2%, and the latest quarter generated $196.2 million in free cash flow. The 27.4-times-sales valuation, dilution, and unexplained $7.76 billion charge make an oversized bet hard to defend; they do not make a small stake in that growth opportunity irrational. The filings must be reconciled before increasing exposure, but insisting on completed orders before retaining any exposure risks arriving after the market has repriced the opportunity.</p>
+<p>Neutral, I agree that trimming is not automatically “bold” and that demonstrations are not orders. The bold part is refusing the false choice between riding an oversized position and abandoning LITE. Even using year-end share counts only as a rough proxy, revenue per share increased despite the 26.9% rise in shares outstanding; dilution has not erased the operating acceleration. And the technical evidence argues for <em>less</em> exposure, not necessarily none: ADX of 13.17 signals weak trend strength, while the September 28 close remained above its 50-day average, all three SuperTrend timeframes were up, and RSI was near neutral. Mildly bullish sentiment is low-confidence support for preserving optionality, not a reason to add.</p>
+<p>My recommendation remains <strong>SELL excess LITE through staged trims</strong>, toward no more than half the portfolio’s standard allocation—or a lower applicable concentration or correlated-sector limit. Use current executable quotes and confirm fills; the $921.32 September 28 close is not a live selling price, and no fixed stop is justified here. If LITE is already within the limit, retain it without topping up; if there is no holding, do not initiate one. That takes the valuation and volatility risk seriously while keeping a measured claim on upside if product positioning turns into commercial results.
+Aggressive Analyst: Conservative, you’re right that a retained LITE stake consumes a loss budget. But the 0.36% historical free-cash-flow yield is a backward-looking measure of a business changing quickly: FY2026 revenue grew 83.2%, and quarterly free cash flow rose from $79.1 million in Q3 to $196.2 million in Q4. I would not annualize that quarter, but I would not assume last year’s cash yield captures the upside either. Waiting for confirmed orders before retaining any exposure could mean surrendering the gain from a commercial breakthrough before it appears in reported revenue. That is why I favor selling the <em>excess</em>, not defaulting to an exit.</p>
+<p>The dilution, $7.76 billion charge, current debt and financing discrepancies are serious—not reasons to wave through a large position. Still, $2.738 billion in cash and short-term investments against $1.671 billion in total debt gives LITE room to pursue growth while those items are checked. The Corning–Qualcomm optical-link demonstration and DWDM showcase are not orders, and Citi’s $11 billion optical-switching forecast is not a LITE sales forecast. They do, however, explain why preserving a limited claim on the upside is worth a measured risk budget.</p>
+<p>Neutral, I agree that revenue per share cannot prove durable cash flow per share. But even a rough calculation using year-end share counts suggests revenue per share rose about 44% despite 26.9% dilution; the operating acceleration was not simply more shares supporting a larger aggregate number. You are also right that rising yields, weak ADX, falling OBV and a $62.17 ATR argue for restraint. They strengthen the case to trim an oversized holding now, not to presume the opportunity has ended while LITE’s broader SuperTrend readings remain up. Neither the trend nor neutral RSI is a safety net.</p>
+<p>So my decision is SELL any LITE exposure above the lowest applicable ceiling: half the standard allocation, the concentration or correlated-sector limit, or the portfolio’s practical loss budget. That ceiling is not a target. Retain a smaller holding only if it fits those limits; a full exit is appropriate if it does not. If LITE is already within limits, do not trade merely to reach a model weight, and if there is no holding, do not initiate one. Use current executable quotes, stage trims where practical, and confirm fills rather than treating an unfilled order as reduced risk. The September 28 close is not a live quote, and the available data justify no fixed stop.
+Aggressive Analyst: Conservative, your 0.95% yield calculation is a useful warning about LITE’s valuation, but repeating Q4 free cash flow is not a ceiling on what this business could earn. FY2026 revenue grew 83.2%; Q4 revenue reached $1.006 billion, gross margin rose to 47.4%, and free cash flow increased from $79.1 million in Q3 to $196.2 million. I would not annualize that quarter or dismiss higher capex, working-capital use, and dilution. I would argue that selling every risk-compliant share while waiting for the full commercial story could surrender meaningful upside. Net cash gives LITE funding flexibility, not a floor under the stock; the current debt and unexplained filing items still need reconciliation.</p>
+<p>Neutral, you are right that the rough revenue-per-share improvement proves nothing about future cash flow per share. The Corning–Qualcomm and DWDM demonstrations are not orders, either. But they place LITE’s technology in a potentially large AI-optics opportunity while operating results are already accelerating. At roughly 27.4 times sales, delayed adoption could punish the stock—that is my case for trimming excess exposure now, not for abandoning a stake that fits the portfolio’s loss budget. The upward SuperTrend readings and close above the 50-day average preserve the upside case; ADX of 13.17, falling OBV, rising yields, and a $62.17 ATR argue against a large bet. None is a safety net.</p>
+<p>I support SELL for any LITE holding above the lowest applicable limit: half the standard allocation, the single-name or correlated-sector cap, and a position size the portfolio can withstand under a substantial decline or gap. Your illustrative 1.7% stress-based limit is useful, Neutral, but it could be lower once correlated losses are included; it is not a target. Retain an existing position within those limits without adding, and exit entirely if the mandate cannot accommodate it. With no holding, do not initiate one. Use current executable quotes and verify fills when trimming; an unfilled limit order has not reduced an oversized position, and the September 28 close supplies neither a live price nor a justified fixed stop.
+Aggressive Analyst: Conservative, your 0.95% free-cash-flow yield illustration and 50% repricing scenario are useful stress tests. They make an oversized LITE position hard to defend. But neither is a ceiling on what the business can earn or a forecast of what the stock must lose. LITE generated $196.2 million of free cash flow in Q4 after $166.8 million of capex, while quarterly revenue rose 24.5% and gross margin reached 47.4%. I would not annualize that quarter; I also would not assume FY2026’s 0.36% cash-flow yield captures a rapidly changing business. Dilution, working-capital use and the unexplained charge demand scrutiny, not an automatic sale of every risk-compliant share. Net cash offers funding flexibility, though no floor under the share price, and the current debt classification still needs checking.</p>
+<p>Neutral, I agree that fear of missing out cannot justify a fixed residual weight. The stronger argument for retaining an already-small holding is that LITE’s operating recovery is visible <em>before</em> its optical demonstrations have become verified orders. The Corning–Qualcomm and DWDM showcases do not prove commercial adoption, and competition may pressure returns. But waiting for orders before allowing any existing exposure could also mean missing a substantial pre-confirmation repricing. As of the September 28 reference close, LITE was above its 50-day average and its broader SuperTrend readings remained up. Weak ADX, declining OBV, a slightly negative MACD histogram and wide ATR argue for trimming excess—not treating either a rebound or a collapse as settled.</p>
+<p>So I still favor SELL, applied to <strong>excess LITE exposure</strong>, not as a blanket exit. Use the lowest of half the standard allocation, the applicable single-name or correlated-sector limit, and the portfolio’s stress-loss limit as a ceiling, never a target. Your 50% decline scenario matters: with a hypothetical 0.5% portfolio loss budget, it caps LITE at 1% <em>before</em> correlated losses or worse gaps. An existing holding within the actual limits can be retained without adding; if even that risk is unacceptable under the mandate, exit. With no holding, do not initiate one. Check executable quotes, trim a breach promptly, and confirm fills—an unfilled limit order has reduced nothing. The dated $921.32 close supplies neither a live sale price nor a justified fixed stop.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the Aggressive Analyst’s direction to sell excess LITE, but not with treating half a standard allocation as an automatically safe residual position. That cap should be a ceiling, not a target. Without the portfolio’s other holdings, we cannot know whether even that smaller stake would leave the firm overly exposed to one volatile technology name.</p>
+<p>The operating recovery is real: FY2026 revenue grew 83.2%, and the latest quarter produced strong margins and cash flow. But the upside case still asks us to pay roughly 27.4 times annual sales and about 95 times normalized EBITDA before the optical demonstrations have become verified orders. One strong quarter does not establish a durable per-share cash-flow run rate, particularly after 26.9% share dilution. Nor should we dismiss the $7.76 billion charge as harmless without reading the filing and reconciling the debt and financing discrepancies. Net cash helps liquidity; it does not resolve those questions or protect the share price from a valuation reset.</p>
+<p>I would also push back on a neutral “wait and see” stance if that means leaving an oversized holding untouched. The broader trend is up, but ADX at 13.17 shows weak trend strength, OBV has declined, and a $62.17 ATR signals substantial day-to-day movement. The September 28 close of $921.32 is a dated reference, not an executable price, and the current daily SuperTrend level of $795.53 is too distant to serve as a comfortable loss limit. Waiting for technical confirmation while retaining excess exposure puts assets at risk before that confirmation arrives.</p>
+<p>My recommendation remains SELL, with a stricter risk interpretation: if LITE is above the firm’s concentration and loss limits, reduce it promptly toward no more than 0.5 times the standard allocation, and consider less if the portfolio already has correlated AI or technology exposure. Stage orders where liquidity allows, but check live quotes and whether orders fill; unfilled limits are not risk reduction. If the holding is already small, do not add merely to reach the cap. If there is no holding, do not initiate one. Reconsider a larger allocation only after primary filings clarify the accounting and financing items and commercial orders support the growth being priced in.
+Conservative Analyst: Aggressive, I’m not proposing a blanket exit from LITE. But a retained stake is not free optionality: it consumes a loss budget. FY2026 revenue growth and Q4’s $196.2 million in free cash flow are impressive, yet annual free cash flow was $300.1 million against an indicative $82.64 billion market value—about a 0.36% historical yield. Capex rose sharply, shares outstanding increased 26.9%, and a rough revenue-per-share calculation cannot establish durable cash flow per share. Missing some upside while waiting for evidence of commercial orders is a more manageable risk than paying this valuation for growth that may not materialize.</p>
+<p>Neutral, net cash improves LITE’s financing position, but it does not protect an expensive share price from a reset. The $1.597 billion of current debt and the unexplained charge and financing classifications still warrant filing-level review. Nor are the technicals a dependable safety net: the September 28 close was above the 50-day average, but ADX was only 13.17, OBV had fallen, and the daily SuperTrend line was roughly 13.7% below that reference close. Neutral RSI and z-scores do not limit downside, particularly with ATR near 6.7% of the close.</p>
+<p>I support SELL to reduce any excess LITE holding. Treat half a standard allocation as a maximum, not a target: use the lower of that ceiling, the applicable concentration or correlated-sector limit, and a size the portfolio can withstand through a substantial move or gap. A smaller residual can be defensible; so can a full exit if even that exposure breaches the firm’s loss limits or the unresolved filings are unacceptable under its mandate. If the holding already fits those limits, do not trade merely to reach a model weight; if there is no holding, do not initiate one. Check live quotes and completed fills when trimming—an unfilled limit order has not reduced risk.
+Conservative Analyst: Aggressive, I agree that LITE’s 0.36% historical free-cash-flow yield may understate a rapidly improving business. But even mechanically repeating its strongest quarter—$196.2 million in free cash flow—for four quarters would produce only about a 0.95% yield at the supplied $82.64 billion market value. That is an illustration, not a forecast. Capex has risen sharply, working capital consumed $292 million in FY2026, and shares outstanding increased 26.9%. Revenue growth per share does not yet establish durable cash-flow growth per share. Preserving upside is worthwhile only if the retained stake has a defensible loss budget.</p>
+<p>Nor would I treat net cash as protection against a share-price reset. LITE has $1.597 billion of debt classified as current, while the large special charge and discrepancies in debt and financing data still need filing-level reconciliation. The optical demonstrations are promising, but they are not orders; competition and rising yields make paying roughly 27 times sales less forgiving if commercialization takes longer than hoped.</p>
+<p>Neutral, I agree that a small existing holding need not be sold automatically. But “small enough to absorb a sharp decline” needs a number, not reassurance from an upward SuperTrend or neutral RSI. At the September 28 reference close, ATR was about 6.7% of price and the daily SuperTrend line was roughly 13.7% lower; neither is a guaranteed exit level. For illustration, a 2% LITE weight losing 30% would cost about 0.6% of portfolio value before any losses in correlated holdings. The portfolio’s actual limits—not the half-allocation rule alone—must decide whether that exposure is acceptable.</p>
+<p>I support SELL where LITE exceeds the lowest applicable single-name, correlated-sector, or stress-loss limit, with half the standard allocation as an upper ceiling, never a target. Reduce a breach promptly using current executable quotes and confirmed fills; staged limits should not leave it unresolved. If an existing position fits the firm’s limits, retaining it without adding is defensible, though a full exit is appropriate if the filing uncertainty violates the mandate. If there is no holding, do not initiate one. I would require reconciled filings and evidence of orders and sustained cash flow per share before considering more risk.
+Conservative Analyst: Aggressive, I agree that repeating LITE’s strongest quarter is not a ceiling on future cash flow. My 0.95% yield calculation was an illustration of how much improvement the supplied $82.64 billion valuation already demands, not a forecast. FY2026 growth is impressive, but capex rose to $451.3 million, working capital consumed $292 million, and shares outstanding increased 26.9%. Demonstrations may lead to orders; until they do, preserving upside in LITE means accepting a real risk of loss if growth or margins disappoint. Rising yields could make that valuation less forgiving even while the business improves.</p>
+<p>Neutral, a small existing stake can be defensible, but I would not make the illustrative 30% decline the only stress test. If LITE’s roughly 27.4-times-sales multiple were halved while sales and share count stayed constant, the implied share-price decline would be about 50%. That is a scenario, not a prediction. Under a hypothetical 0.5% portfolio loss budget, a 50% LITE decline permits no more than a 1% portfolio weight, and less if correlated technology holdings would fall too. The upward SuperTrends and net cash support the case for monitoring LITE; neither limits that downside. The $1.597 billion of current debt and unresolved charge and financing classifications also deserve primary-filing review.</p>
+<p>I still recommend SELL any LITE holding above the lowest applicable half-standard-allocation ceiling, concentration limit, and correlated stress-loss limit. None is a target weight. An existing holding within those limits need not be sold automatically, but a full exit is appropriate if the filing uncertainty exceeds the mandate’s tolerance; with no holding, do not initiate one. Use current executable quotes and confirm fills—staged limits must not leave a risk-limit breach unresolved. Reconsider more exposure only after the filings are reconciled and orders and sustainable cash flow per share better support the valuation.
+Conservative Analyst: Aggressive, I agree that LITE’s strongest quarter is not a ceiling on future earnings. But the possibility of more upside is not enough to justify retaining shares under a capital-preservation mandate. Q4’s $196.2 million of free cash flow accounted for roughly two-thirds of FY2026’s $300.1 million, while capex rose, working capital consumed $292 million, and shares outstanding increased 26.9%. At the supplied $82.64 billion market value, even four quarters matching Q4 would imply only about a 0.95% free-cash-flow yield. That is an illustration, not a forecast; it shows how much sustained improvement the valuation requires. Missing a pre-order rally is a bounded opportunity cost. Holding through delayed adoption or a valuation reset is an asset loss.</p>
+<p>Neutral, I agree that the 50% repricing scenario is not a prediction and that an existing small stake need not be sold automatically. But “small” must mean affordable after losses in correlated technology holdings, not merely below a single-name cap. A 2% LITE weight losing an illustrative 50% would cost 1% of portfolio value before those other losses. Net cash offers funding flexibility, not a floor under the share price, and an upward SuperTrend does not provide one either. The $1.597 billion of current debt and unresolved special-charge and financing classifications make filing review a risk-control requirement, not a formality.</p>
+<p>I support <strong>SELL where LITE exceeds the lowest applicable limit</strong>: half the standard allocation, the firm’s concentration or correlated-sector cap, and a severe-loss budget that accounts for other holdings. Half an allocation is a ceiling, never a target; a lower residual or full exit is appropriate if the mandate cannot tolerate the filing uncertainty or stress loss. If an existing holding fits those limits, do not add merely because FY2026 growth was strong. If there is no holding, do not initiate one. Trim breaches promptly using current executable quotes and confirmed fills; an unfilled staged limit order leaves the risk in place. I would consider increasing exposure only after primary filings are reconciled and orders and durable cash flow per share better support LITE’s valuation.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: I agree with both of you on the direction, but I’d push back on how confidently either of you can size the remaining LITE position. To the Aggressive Analyst: calling a trim “bold” risks making a half-sized holding sound automatically prudent. FY2026 growth and the strong latest quarter are real, but demonstrations are not orders, and 26.9% share dilution means aggregate growth may not translate into comparable gains per share. At an indicative 27.4 times sales, an oversized position deserves reduction even if the AI-optics story succeeds.</p>
+<p>To the Conservative Analyst: those risks do not make a small residual holding indefensible. LITE remains above its September 28 reference 50-day average, its broader SuperTrend readings are up, and neither RSI nor the reported z-scores indicate an extreme. That does not promise a rebound—ADX is weak and participation has softened—but it argues against treating a complete exit as the default. Net cash and improved operating cash flow also provide some resilience while the filing questions are investigated.</p>
+<p>My recommendation is still SELL, specifically to trim any holding above the lesser of 0.5 times the portfolio’s standard allocation and its applicable concentration or correlated-sector limit. If LITE is already below that limit, do not sell or buy merely to hit a model weight; if there is no holding, do not initiate one. Use current executable quotes, stage trims where practical, and verify fills—an unfilled limit order has not reduced risk. I would revisit the retained position as filings clarify the charge and financing items, and as actual orders and per-share cash flow test the growth case. Rising yields strengthen the case for restraint, not for assuming the upside has disappeared.
+Neutral Analyst: Aggressive, I agree that selling excess LITE while retaining a smaller stake avoids a false choice between an oversized bet and a full exit. But I would put less weight on the rough revenue-per-share improvement. It does not show that cash flow per share can keep rising after 26.9% dilution and sharply higher capex. Q4’s $196.2 million of free cash flow is encouraging; it is not yet a dependable quarterly run rate. The optical demonstrations strengthen the technology case, but verified orders are still needed to test the revenue case.</p>
+<p>Conservative, I agree that a residual holding consumes a real loss budget, and neither net cash nor an upward SuperTrend protects LITE’s share price from a valuation reset. Still, requiring completed orders before retaining <em>any</em> exposure sets a high bar for an existing, appropriately sized holding. FY2026 operating growth was substantial, and the broader trend remained up as of September 28. Those facts justify considering a small stake—not adding to it—if the portfolio can absorb a sharp decline. ADX of 13.17, falling OBV and ATR near 6.7% of the reference close argue against treating that stake as safe.</p>
+<p>My decision remains SELL only where LITE exceeds the lower of half the portfolio’s standard allocation, its concentration or correlated-sector limit, and its practical loss budget. That is a ceiling, not a target. If it already fits those limits, there is no need to trade simply to reach a model weight; a full exit is reasonable if even a small position violates the mandate. If there is no holding, do not initiate one.</p>
+<p>Use current executable quotes and confirm fills. Stage trims when practical, but do not let unfilled limit orders prolong a risk-limit breach. I would reconsider the retained exposure after the primary filings clarify the charge and financing items, and after orders, margins and cash flow per share show whether LITE can support its valuation—especially if rising yields continue to pressure growth stocks.
+Neutral Analyst: Aggressive, I agree that trimming LITE rather than exiting preserves a chance to benefit if its optical products win commercial business. But the rough 44% revenue-per-share growth uses year-end share counts; it does not establish what future cash flow per share will look like after dilution and higher capex. The demonstrations are promising, not orders. At roughly 27.4 times FY2026 sales, even a successful product may leave the stock vulnerable if adoption takes longer than investors expect.</p>
+<p>Conservative, your stress-loss example is the right way to test the residual position. I would not, though, treat the roughly 0.95% yield from repeating Q4 free cash flow as a ceiling on future performance—or require confirmed orders before retaining any already-small holding. LITE’s operating recovery and broader uptrend give that holding a reasonable purpose. Neither makes it safe: weak ADX, falling OBV, wide daily moves and pressure from rising yields all argue for a limited risk budget.</p>
+<p>My recommendation remains SELL only the excess LITE position. Half the standard allocation is a ceiling, not a target; use the lower of that ceiling and the portfolio’s concentration, correlated-exposure and stress-loss limits. For example, if the allowable loss is 0.5% of portfolio value under an illustrative 30% LITE decline, the position limit would be about 1.7%, before accounting for correlated losses. If an existing holding is within its limits, retain it without adding; if it breaches them, trim using current executable quotes and confirm fills. A full exit is reasonable if even a small stake violates the mandate, while no holding calls for no new position. Reassess after primary filings resolve the accounting questions and subsequent results show whether orders and cash flow per share can support the valuation.
+Neutral Analyst: Aggressive, I agree that selling every LITE share could forfeit upside if its optical demonstrations become commercial wins. But fear of missing that move is not, by itself, a reason to retain a fixed stake. FY2026 growth and Q4 cash flow are strong; at an indicative 27.4 times sales, the stock could still fall if adoption takes longer than expected, competition pressures margins, or rising yields weigh on growth valuations. Dilution and higher capex make cash flow per share the test—not Q4 cash flow alone.</p>
+<p>Conservative, your 50% repricing scenario is a useful stress test, but it is neither a forecast nor a reason to exit every existing position. LITE’s operating recovery is substantial, and its broader trend was still up at the September 28 reference close. A small holding can be defensible before orders are confirmed, provided the portfolio can absorb a severe decline. Neither that trend nor net cash guarantees it can.</p>
+<p>I would keep the SELL decision conditional: trim LITE if it exceeds the lowest of half the standard allocation, applicable concentration and correlated-sector limits, and a position size that fits the portfolio’s stress-loss budget. Treat that limit as a ceiling, not a target. If the holding already fits, retain it without adding; if even a small stake breaches the mandate, exit. With no holding, do not initiate one. Use current executable quotes and confirm fills rather than letting unfilled staged orders leave a breach in place. Reassess after the filings are reconciled and orders, margins, and cash flow per share provide better evidence for the valuation.
+Neutral Analyst: Aggressive, you’re right that selling every LITE share could forfeit upside before optical demonstrations turn into orders. But that possibility does not justify a minimum holding. Q4 generated nearly two-thirds of FY2026 free cash flow, so it is too soon to treat that quarter as repeatable—especially after higher capex, working-capital use and 26.9% share dilution. At roughly 27.4 times sales, LITE could execute well operationally and still suffer a valuation reset if adoption takes longer than expected or yields rise.</p>
+<p>Conservative, your 50% decline scenario is a valuable test of what the portfolio can withstand, not an estimate of LITE’s likely return. Likewise, repeating Q4 cash flow illustrates how demanding the valuation is; it does not cap future cash generation. No capital-preservation mandate or portfolio holdings were supplied, so we cannot conclude that every existing small stake should go. The operating recovery and broader uptrend give a risk-compliant residual a purpose, though neither protects it from loss.</p>
+<p>I would keep the decision as <strong>SELL excess LITE</strong>, not an unconditional exit. The allowable weight is the lowest of half the standard allocation, the applicable concentration and correlated-sector limits, and a weight that fits the portfolio’s severe-loss budget. That is a ceiling, not a target; stress other AI and technology holdings alongside LITE. Retain an existing position that fits those limits without adding, and exit if even a small stake violates the mandate. With no holding, do not initiate one. Check current executable quotes, trim any breach without relying on unfilled orders, and reassess after primary filings clarify the charge and financing items and subsequent results establish orders and cash flow per share.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: Trim excess LITE exposure and do not initiate or add at the supplied valuation. Set the exposure ceiling at the lowest of 0.5 times the portfolio's standard allocation, available capacity under single-name and correlated-sector limits, and the weight permitted by its severe-loss budget; retain an already-compliant position without topping up. Use current executable quotes, stage trims only where practical, and confirm fills without leaving a risk-limit breach unresolved; the supplied September 28 close of $921.32 is dated, and no validated fixed entry or stop level is available. Review LITE through the next two reported quarters, with earlier reassessment for material filing developments or risk-limit breaches.</p>
+<p><strong>Investment Thesis</strong>: Decision and valuation: The analysts' repeated instructions to sell excess LITE describe partial reductions, not an unconditional exit; Underweight is therefore the appropriate rating. The valuation and loss-budget arguments outweigh the case for increasing exposure, while the operating recovery supports retaining an appropriately sized existing holding. At the supplied $82.64 billion market capitalization and $3.014 billion FY2026 revenue, LITE trades at approximately 27.4 times sales. Annual free cash flow of $300.1 million implies a historical yield of about 0.36%. Mechanically repeating Q4's $196.2 million four times would produce $784.8 million, or approximately 0.95%; this is neither a forecast nor a ceiling on future performance, but it illustrates the substantial cash-generation improvement the valuation demands. Q4 contributed roughly two-thirds of annual free cash flow, limiting confidence in its repeatability.</p>
+<p>Why not automatically exit: The supplied operating improvement is substantial: FY2026 revenue grew 83.2%, Q4 revenue reached $1.006 billion, gross margin reached 47.4%, and quarterly free cash flow increased from $79.1 million in Q3 to $196.2 million in Q4 after $166.8 million of Q4 capex. Supplied cash and short-term investments of $2.738 billion versus total debt of $1.671 billion suggest approximately $1.07 billion of net cash, subject to reconciliation. This supports funding flexibility, not a floor under the share price. The optical-link and DWDM demonstrations support the technology opportunity but do not establish repeat orders or pricing power. Those positives justify considering a risk-compliant residual, not a minimum allocation or a short position.</p>
+<p>Cash-flow quality and accounting: Annual capex of $451.3 million, $292 million of working-capital consumption, and a 26.9% increase in year-end shares raise the hurdle for sustainable cash flow per share. The aggressive analyst's rough revenue-per-share improvement does not answer that question; actual diluted share counts are needed. The unexplained $7.76 billion charge, $1.597 billion of debt classified as current, and financing discrepancies require primary-filing reconciliation. Their economic effects cannot be determined from this debate, so neither a harmless-charge assumption nor reliance on unreconciled normalized EBITDA is justified.</p>
+<p>Tactical evidence and position risk: At the supplied September 28 reference, LITE remained above its $862.84 50-day average and broader SuperTrend readings were up. However, ADX of 13.17, declining OBV, a negative 0.85 MACD histogram, and $62.17 ATR—approximately 6.7% of the reference close—provide little tactical compensation for valuation risk. These dated indicators establish neither an executable stop nor protection against gaps. Halving the price-to-sales multiple at unchanged revenue and shares would imply approximately 50% downside: a scenario, not a prediction. With a hypothetical 0.5% portfolio loss budget, that scenario permits at most a 1% LITE weight before correlated losses or worse gaps; actual limits could require less. No holdings or portfolio limits were supplied, so no residual weight can be declared safe. A full exit is appropriate if the caller's actual mandate cannot accommodate even a small holding or the filing uncertainty; otherwise retain compliant exposure without adding. This is not a short recommendation.</p>
+<p>What would change the decision: At each of the next two reported quarters, assess repeat shipments or credible customer commitments, margin durability, collections relative to sales, and sustained free-cash-flow growth per diluted share. Increasing LITE exposure requires reconciled filings and stronger commercial and per-share cash-flow evidence, together with either cash-generation growth or a lower price that leaves room for disappointment; a price decline alone does not resolve accounting uncertainty. Reduce further if cash conversion deteriorates persistently, dilution outpaces cash-flow growth, or reconciliation materially weakens the balance-sheet assessment. Primary filings, current executable quotes, and a validated forward cash-flow forecast are missing, so no reliable fair-value target or exact trading levels can be established.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: LITE: through the next two reported quarters; reassess sooner for material filing developments or risk-limit breaches.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

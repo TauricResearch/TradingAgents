@@ -1,0 +1,4370 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-agent LLM trading analysis runs">
+      
+      
+      
+        <link rel="canonical" href="https://bichengwang.github.io/TradingAgents/AMZN/20260928_gpt-6-astra_20260928_192222/complete_report/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Trading Analysis Report: AMZN - TradingAgents Reports</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading-analysis-report-amzn" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="TradingAgents Reports" class="md-header__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TradingAgents Reports
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading Analysis Report: AMZN
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  TradingAgents Reports
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AAPL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AAPL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AMD/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMD
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AMZN
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../AVGO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  AVGO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../BE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  BE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CARR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CARR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CDE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../COHR/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  COHR
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRDO/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRDO
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../CRM/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  CRM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GEV/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GEV
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../GOOGL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  GOOGL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../HL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  HL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../INTC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  INTC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../KGC/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  KGC
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LITE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LITE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../LLY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  LLY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MELI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MELI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../META/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  META
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MKSI/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MKSI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MSFT/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MSFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../MU/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MU
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NBIS/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NBIS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NFLX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NFLX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../NVDA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NVDA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../QQQ/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  QQQ
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SE
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SOXX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SOXX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPCX/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPCX
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../SPY/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SPY
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../STRL/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  STRL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../TSLA/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  TSLA
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../UBER/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  UBER
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../YINN/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  YINN
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="TradingAgents Reports" class="md-nav__button md-logo" aria-label="TradingAgents Reports" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TradingAgents Reports
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BichengWang/TradingAgents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BichengWang/TradingAgents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TradingAgents Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AAPL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AAPL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AAPL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AMD/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMD
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AMZN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AMZN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../AVGO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AVGO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AVGO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../BE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    BE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CARR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CARR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CARR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CDE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CDE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CDE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../COHR/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    COHR
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    COHR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRDO/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRDO
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRDO
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../CRM/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRM
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CRM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GEV/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEV
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GEV
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../GOOGL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GOOGL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GOOGL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../HL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    HL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../INTC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    INTC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    INTC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../KGC/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KGC
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    KGC
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LITE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LITE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LITE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../LLY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    LLY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_19" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MELI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MELI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MELI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_20" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../META/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    META
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_20">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    META
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_21" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MKSI/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MKSI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_21">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MKSI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_22" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MSFT/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MSFT
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_22">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MSFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_23" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../MU/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MU
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_23">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MU
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_24" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NBIS/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NBIS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_24_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_24">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NBIS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_25" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NFLX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NFLX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_25">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NFLX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_26" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../NVDA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NVDA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_26">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NVDA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_27" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../QQQ/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QQQ
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_27_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_27">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QQQ
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_28" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SE/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_28_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_28">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_29" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SOXX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOXX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_29_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_29">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SOXX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_30" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPCX/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPCX
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_30_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_30">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPCX
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_31" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../SPY/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SPY
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_31_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_31">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SPY
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_32" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../STRL/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STRL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_32_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_32">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    STRL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_33" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../TSLA/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TSLA
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_33_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_33">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TSLA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_34" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../UBER/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UBER
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_34_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_34">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    UBER
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_35" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../YINN/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YINN
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_35_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_35">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    YINN
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#i-analyst-team-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. Analyst Team Reports
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="I. Analyst Team Reports">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Market Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amzn-technical-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMZN technical report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trend-a-daily-pullback-within-a-stronger-higher-timeframe-regime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend: a daily pullback within a stronger higher-timeframe regime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#momentum-participation-and-stretch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Momentum, participation, and stretch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionable-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actionable scenarios
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sentiment-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentiment Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sentiment Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amzn-sentiment-2026-09-21-to-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMZN sentiment | 2026-09-21 to 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#news-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        News Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="News Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amzn-trading-and-macro-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMZN trading and macro report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#market-backdrop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market backdrop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amzn-specific-developments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMZN-specific developments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trading-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trading implications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fundamentals-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fundamentals Analyst
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fundamentals Analyst">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amzn-fundamental-report-september-28-2026" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AMZN fundamental report — September 28, 2026
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#company-and-valuation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Company and valuation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#earnings-growth-with-an-important-quality-of-earnings-caveat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Earnings: growth, with an important quality-of-earnings caveat
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-flow-and-balance-sheet-the-main-constraint-on-the-bullish-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cash flow and balance sheet: the main constraint on the bullish case
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insider-activity-and-trading-read-through" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insider activity and trading read-through
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ii-research-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        II. Research Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="II. Research Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bull-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bull Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bear-researcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bear Researcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#research-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iii-trading-team-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        III. Trading Team Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="III. Trading Team Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iv-risk-management-team-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IV. Risk Management Team Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IV. Risk Management Team Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aggressive-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggressive Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conservative-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conservative Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral-analyst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral Analyst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v-portfolio-manager-decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V. Portfolio Manager Decision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="V. Portfolio Manager Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portfolio-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portfolio Manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="trading-analysis-report-amzn">Trading Analysis Report: AMZN<a class="headerlink" href="#trading-analysis-report-amzn" title="Permanent link">&para;</a></h1>
+<p>Generated: 2026-09-28 19:22:22</p>
+<h2 id="i-analyst-team-reports">I. Analyst Team Reports<a class="headerlink" href="#i-analyst-team-reports" title="Permanent link">&para;</a></h2>
+<h3 id="market-analyst">Market Analyst<a class="headerlink" href="#market-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="amzn-technical-report-september-28-2026">AMZN technical report — September 28, 2026<a class="headerlink" href="#amzn-technical-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Assessment: defensive in the short term, but not a confirmed longer-term downtrend.</strong> AMZN closed at <strong>$246.15</strong>, below its <strong>50-day SMA of $256.15</strong>. Daily momentum and volume participation have weakened. Yet the weekly and monthly SuperTrend readings remain positive, while daily ADX is too low to confirm a strong directional trend. That combination favors waiting for confirmation rather than treating either a rebound or a breakdown as inevitable.</p>
+<p>I selected <strong>eight complementary indicators</strong>: the 50-day SMA, SuperTrend, ADX, MACD histogram, RSI, ATR, OBV, and multitimeframe z-score. They cover trend and trend strength, momentum, volatility, participation, and price stretch without pairing closely redundant oscillators.</p>
+<h4 id="trend-a-daily-pullback-within-a-stronger-higher-timeframe-regime">Trend: a daily pullback within a stronger higher-timeframe regime<a class="headerlink" href="#trend-a-daily-pullback-within-a-stronger-higher-timeframe-regime" title="Permanent link">&para;</a></h4>
+<p>AMZN’s <strong>weekly SuperTrend is UP</strong>, with a trailing stop at <strong>$225.82</strong>; its <strong>monthly SuperTrend is UP</strong>, with a stop at <strong>$177.71</strong>. The <strong>daily SuperTrend is DOWN</strong>, with its line at <strong>$263.49</strong>. The higher timeframes deserve more weight for the overall regime, but neither cancels the weaker daily setup. These are trailing-stop readings, <strong>not price targets</strong>, and their levels can change as new bars form.</p>
+<p>The close is also below the <strong>$256.15 50-day SMA</strong>, making that moving average a useful <em>reclaim test</em>, not a proven resistance level. For context, AMZN closed at <strong>$258.45 on September 21</strong> and <strong>$246.15 on September 28</strong>. The 50-day average itself has been nearly flat over the latest few sessions: the indicator tool reports <strong>$256.29 on September 23</strong> and <strong>$256.15 on September 28</strong>. Thus, the immediate issue is price losing ground beneath the medium-term benchmark, rather than a sharply falling average.</p>
+<p><strong>ADX is 8.36</strong>, well below the commonly used <strong>20</strong> threshold for a meaningful trend and <strong>25</strong> for stronger trend confirmation. ADX measures strength, not direction. Here it argues against assuming that the daily bearish signal will develop into a sustained decline without further evidence.</p>
+<h4 id="momentum-participation-and-stretch">Momentum, participation, and stretch<a class="headerlink" href="#momentum-participation-and-stretch" title="Permanent link">&para;</a></h4>
+<p><strong>RSI is 41.24</strong>: below its neutral 50 area, but not at the conventional oversold threshold of 30. The <strong>MACD histogram is −0.61</strong>; the verified MACD line of <strong>−2.35</strong> is below its <strong>−1.74</strong> signal line. The histogram had narrowed to <strong>−0.06 on September 22</strong> before becoming more negative by September 28. That is a renewed short-term momentum warning, not evidence that a strong downtrend has already been established.</p>
+<p><strong>OBV declined alongside price</strong> between September 21 and September 28: its indicator readings were approximately <strong>1.629 billion</strong> and <strong>1.578 billion</strong>, respectively, while verified closes went from <strong>$258.45</strong> to <strong>$246.15</strong>. OBV’s absolute number has no trading significance; the relevant observation is that participation has not confirmed a fresh upside move. This is not a claim that OBV fell every intervening day.</p>
+<p>The <strong>daily z-score is −1.68</strong>, compared with <strong>−0.56 weekly</strong> and <strong>+0.62 monthly</strong>. Daily price is below its recent mean, but it has <strong>not</strong> reached the indicator’s ±2 stretch threshold. A mean-reversion bounce is possible, but the reading alone is not an oversold buy signal—particularly with RSI below 50 and the daily SuperTrend down.</p>
+<p><strong>ATR is $5.75 per share</strong>, down from approximately <strong>$7.86 on August 19</strong>. This describes the scale of recent daily movement, not a maximum possible loss. Gaps can exceed an ATR-based stop.</p>
+<h4 id="actionable-scenarios">Actionable scenarios<a class="headerlink" href="#actionable-scenarios" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>For a prospective long:</strong> A close back above the <em>then-current</em> 50-day SMA—<strong>$256.15 as of this report</strong>—would improve the setup. Stronger confirmation would be RSI recovering above 50, the MACD histogram improving toward or above zero, and OBV turning up. A daily SuperTrend flip would provide additional confirmation, but its current <strong>$263.49</strong> line will update.</li>
+<li><strong>For a bearish continuation watch:</strong> The September 28 low of <strong>$244.73</strong> is an immediate, dated reference. A subsequent <strong>close below $244.73</strong>, accompanied by weaker OBV and momentum, would make further downside more credible. Because ADX is only 8.36 and weekly SuperTrend remains UP, a single breach should not be treated as proof of a durable bearish trend.</li>
+<li><strong>For existing positions and sizing:</strong> Decide the exit level before entering. One to one-and-a-half current ATRs represents approximately <strong>$5.75–$8.63 per share from the actual entry price</strong>; position size should reflect that risk and the possibility of a gap through a stop. The weekly <strong>$225.82</strong> SuperTrend stop is substantially farther from the latest close and may be inappropriate as the sole risk limit for a short-term trade.</li>
+</ul>
+<p><strong>Bottom line:</strong> AMZN has a weak daily setup inside a still-positive weekly/monthly regime. The cleaner approach is to require a confirmed reclaim for a new trend-following long, or a confirmed break of the recent low for a bearish case, rather than anticipate either move solely from today’s indicators.</p>
+<p>The September 28 OHLCV, 50-day SMA, RSI, MACD readings, and ATR above use the verified market snapshot. SuperTrend, ADX, OBV, and z-scores come from their respective indicator outputs; none conflicts with a value supplied by that snapshot.</p>
+<table>
+<thead>
+<tr>
+<th>Selected indicator</th>
+<th style="text-align: right;">September 28 reading</th>
+<th>What it contributes</th>
+<th>Trading implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>50-day SMA</strong></td>
+<td style="text-align: right;"><strong>$256.15</strong> vs. $246.15 close</td>
+<td>Medium-term price benchmark</td>
+<td>Watch for a close back above the updated average; current price is below it.</td>
+</tr>
+<tr>
+<td><strong>SuperTrend</strong></td>
+<td style="text-align: right;">Weekly <strong>UP / $225.82</strong>; monthly <strong>UP / $177.71</strong>; daily <strong>DOWN / $263.49</strong></td>
+<td>Separates regime from entry timing</td>
+<td>Higher-timeframe trend remains positive, but daily longs lack trend confirmation.</td>
+</tr>
+<tr>
+<td><strong>ADX</strong></td>
+<td style="text-align: right;"><strong>8.36</strong></td>
+<td>Tests whether a directional move has strength</td>
+<td>Low reading cautions against chasing either a breakout or breakdown.</td>
+</tr>
+<tr>
+<td><strong>MACD histogram</strong></td>
+<td style="text-align: right;"><strong>−0.61</strong></td>
+<td>Tracks changes in short-term momentum</td>
+<td>Momentum weakened again after September 22’s −0.06 reading.</td>
+</tr>
+<tr>
+<td><strong>RSI</strong></td>
+<td style="text-align: right;"><strong>41.24</strong></td>
+<td>Gauges momentum without assuming oversold conditions</td>
+<td>Below neutral, but not conventionally oversold.</td>
+</tr>
+<tr>
+<td><strong>ATR</strong></td>
+<td style="text-align: right;"><strong>$5.75</strong></td>
+<td>Sets a volatility scale for risk</td>
+<td>Size positions against an entry-specific stop; allow for gap risk.</td>
+</tr>
+<tr>
+<td><strong>OBV</strong></td>
+<td style="text-align: right;">Lower on September 28 than September 21</td>
+<td>Checks participation alongside price</td>
+<td>Recent price weakness has been accompanied by weaker OBV.</td>
+</tr>
+<tr>
+<td><strong>Z-score</strong></td>
+<td style="text-align: right;">Weekly <strong>−0.56</strong>; monthly <strong>+0.62</strong>; daily <strong>−1.68</strong></td>
+<td>Checks for statistically stretched price</td>
+<td>Daily weakness is notable, but no timeframe has reached ±2.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sentiment-analyst">Sentiment Analyst<a class="headerlink" href="#sentiment-analyst" title="Permanent link">&para;</a></h3>
+<p><strong>Overall Sentiment:</strong> <strong>Mixed</strong> (Score: 4.8/10)
+<strong>Confidence:</strong> Low</p>
+<h4 id="amzn-sentiment-2026-09-21-to-2026-09-28">AMZN sentiment | 2026-09-21 to 2026-09-28<a class="headerlink" href="#amzn-sentiment-2026-09-21-to-2026-09-28" title="Permanent link">&para;</a></h4>
+<p><strong>Source-by-source breakdown.</strong> The 20 Yahoo Finance news-feed items offer a mixed, largely indirect institutional signal: several concern other companies or broad AI themes rather than developments at AMZN. On the positive side, Adobe expects U.S. consumers to spend <strong>$10 billion during AMZN’s October Prime Day event</strong>; that is projected consumer spending, <strong>not</strong> an AMZN revenue or profit forecast. A separate headline points to a <strong>$275 billion holiday shopping rush</strong>, though it warns that AMZN and Walmart could face a costly promotional battle. A comparison of AMZN and Alibaba presents AI and cloud as consequential investment theses but does not establish which company’s bet will pay off. Counterweights include a Zacks report that AMZN closed a session at <strong>$246.15, down 1.41% and more than the broader market</strong>; a report that AMZN says Meta never received permission for its Muse shopping agent, raising an unresolved agentic-commerce/customer-loyalty question; and an eBay comparison that says eBay converts more sales into operating profit than AMZN. General Nvidia, Alphabet, Meta and AI-infrastructure headlines provide context, not direct evidence of AMZN earnings or a company-specific catalyst.</p>
+<p><strong>StockTwits:</strong> Of <strong>23 most-recent messages, all dated September 28</strong>, <strong>4 are tagged Bullish, 4 Bearish and 15 unlabeled</strong>. The tagged split is <strong>50/50 among eight labeled posts</strong>, not a bullish majority; labels also overstate AMZN-specific conviction. For example, a Bullish-tagged post speculates that AMZN could partner with another company, while another asks whether an AMC squeeze might crash the wider market. Positive <em>unlabeled</em> opinions include “Buy $AMZN,” a hoped-for rebound, and unsupported targets of $280 before earnings and $300 after. In the other direction, bearish or cautionary messages forecast sub-$240 or $200, seek new management, or discuss put trades. Two posts by the <strong>same</strong> chart commentator describe a correction from an August peak and, in one case, a bounce followed by another decline; these are technical opinions, not confirmed outcomes. Three delivery-driver complaints come from <strong>one</strong> user, and pricing/safety allegations are unverified. A post quotes a purported Truist forecast for the overall AI-cloud market, but neither that forecast nor AMZN’s share is independently confirmed here. The claim that something is “down 13% since post” lacks enough context to assign that decline to AMZN.</p>
+<p><strong>Reddit:</strong> The r/wallstreetbets, r/stocks and r/investing feed was <strong>disabled by configuration</strong>. There are no posts, engagement figures or subreddit-specific sentiment to evaluate; absence of data is not neutral discussion.</p>
+<p><strong>Cross-source read and dominant themes.</strong> The forward-looking <strong>holiday-demand and AI/cloud opportunities</strong> in news coexist with <strong>recent share-price weakness, promotional-margin risk and questions about AI shopping agents</strong>. Retail traders likewise alternate between buying a dip and anticipating further declines. The sources therefore do not support a clean bullish or bearish consensus. The recurring actionable sentiment contrast is <em>prospective growth versus near-term price action and execution risk</em>, rather than a verified change in AMZN fundamentals.</p>
+<p><strong>Catalysts and risks.</strong> Watch the October Prime Day event against the <strong>$10 billion consumer-spend estimate</strong>, the competitive intensity of holiday promotions, and any substantiated developments in AMZN’s cloud/AI investments or its dispute with Meta over Muse access. StockTwits mentions earnings but supplies <strong>no confirmed earnings date</strong>. Recent relative underperformance and bearish chart interpretations are cautionary sentiment signals, not price forecasts. Confidence is <strong>low</strong> because Reddit is unavailable, the 23-message retail sample covers only one day, many messages are unlabeled or tangential, and much of the news feed is not AMZN-specific.</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Direction</th>
+<th>Source</th>
+<th>Supporting evidence and limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>October shopping event</td>
+<td>Positive, conditional</td>
+<td>Yahoo Finance/GuruFocus</td>
+<td>Adobe projects $10 billion in U.S. consumer spending during AMZN’s October Prime Day; not AMZN revenue.</td>
+</tr>
+<tr>
+<td>Holiday market and discounts</td>
+<td>Mixed</td>
+<td>Yahoo Finance/GuruFocus</td>
+<td>$275 billion holiday-rush headline accompanied by warning of costly AMZN–Walmart promotions.</td>
+</tr>
+<tr>
+<td>Recent trading session</td>
+<td>Negative</td>
+<td>Yahoo Finance/Zacks</td>
+<td>AMZN reported at $246.15, down 1.41% and more than the broader market for that session.</td>
+</tr>
+<tr>
+<td>AI/cloud and agentic commerce</td>
+<td>Mixed</td>
+<td>Yahoo Finance; StockTwits</td>
+<td>AMZN–Alibaba AI comparison and bullish cloud-market opinion versus reported Muse-access dispute; no demonstrated AMZN financial impact.</td>
+</tr>
+<tr>
+<td>Retail stance and chart discussion</td>
+<td>Mixed, near-term cautious</td>
+<td>StockTwits</td>
+<td>Four Bullish and four Bearish tags among 23; unlabeled rebound hopes oppose two same-author correction posts and bearish targets.</td>
+</tr>
+<tr>
+<td>Reddit confirmation</td>
+<td>Unavailable</td>
+<td>Reddit</td>
+<td>All three named subreddit feeds disabled; no cross-check possible.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bottom line:</strong> AMZN sentiment is <strong>Mixed (4.8/10), with low confidence</strong>. Treat these observations as sentiment inputs alongside independently assessed fundamentals and technicals, not as a trade recommendation or predictive price call.</p>
+<h3 id="news-analyst">News Analyst<a class="headerlink" href="#news-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="amzn-trading-and-macro-report-september-28-2026">AMZN trading and macro report — September 28, 2026<a class="headerlink" href="#amzn-trading-and-macro-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>Near-term stance: cautious, with a conditional bullish case for the holiday season.</strong> The most immediate pressure on AMZN is the rise in bond yields, which can weigh on growth-stock valuations even if operating demand remains sound. The potential offset is a strong October shopping event—but projected spending is not the same as profitable sales.</p>
+<h4 id="market-backdrop">Market backdrop<a class="headerlink" href="#market-backdrop" title="Permanent link">&para;</a></h4>
+<p>U.S. stocks fell on September 28 as <a href="https://finance.yahoo.com/markets/live/stock-market-today-monday-september-28-dow-sp-500-nasdaq-080420627.html">Treasury yields continued to climb</a>. Reports also linked the bond sell-off to <a href="https://finance.yahoo.com/markets/article/bond-yields-push-higher-as-investors-digest-global-risks-higher-for-longer-path-for-the-fed-183719554.html">higher-for-longer Fed expectations and global risks</a>. This matters for AMZN through both its valuation and consumers’ borrowing costs. The relationship is not mechanical: <a href="https://finance.yahoo.com/markets/live/stock-market-today-friday-september-25-dow-sp-500-nasdaq-081738529.html">major indexes posted weekly gains on September 25 despite the bond sell-off</a>.</p>
+<p>Prediction markets reinforce the <em>market narrative</em>, not a confirmed economic forecast. A relatively active Polymarket contract prices a <strong>97% chance of no Fed rate cuts during 2026</strong> ($8.65 million traded), while a U.S.-recession-by-year-end contract prices <strong>8%</strong> ($2.23 million traded). Event definitions matter: the first contract concerns cuts over the <strong>whole calendar year</strong>, not just decisions remaining after September 28. Neither probability should be treated as Fed guidance.</p>
+<p><strong>Data limitation:</strong> FRED retrieval failed for inflation, unemployment, policy rates, Treasury yields, the yield curve, retail sales, and volatility. This report therefore cannot quantify current macro levels or establish how much yields changed. Traders should check those releases and live yields before acting on the rate thesis.</p>
+<h4 id="amzn-specific-developments">AMZN-specific developments<a class="headerlink" href="#amzn-specific-developments" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Holiday demand versus margins.</strong> A <a href="https://finance.yahoo.com/markets/stocks/articles/amazon-10-billion-holiday-catalyst-194457409.html">report citing Adobe</a> says U.S. consumers could spend <strong>$10 billion during Amazon’s October shopping event</strong>. That is a consumer-spending projection, <strong>not</strong> a forecast of AMZN revenue, incremental sales, or profit. A separate <a href="https://finance.yahoo.com/markets/stocks/articles/amazon-walmart-face-record-275-194315689.html">holiday-shopping report</a> flags the risk of a costly promotional contest with Walmart. Watch whether order growth comes with heavier discounts or fulfillment costs.</li>
+<li><strong>AI-driven shopping is a distribution risk.</strong> <a href="https://finance.yahoo.com/technology/articles/mark-zuckerbergs-muse-remains-locked-193020244.html">Benzinga reports</a> that Amazon says Meta did not obtain permission for its Muse shopping agent. The trading question is whether third-party agents eventually shift product discovery away from AMZN’s own shopping and advertising surfaces, or whether AMZN retains control of that customer path. The report does not establish a measurable earnings impact.</li>
+<li><strong>AI investment needs a return.</strong> Cloud and AI demand support AMZN’s longer-term case, but spending can pressure free cash flow before it generates returns. Polymarket prices AMZN 2026 capital expenditure above $200 billion at <strong>92%</strong>, on only about <strong>$5,580 traded</strong>. Treat that as thin-market speculation, <strong>not company guidance</strong>.</li>
+<li><strong>Recent price reference.</strong> <a href="https://finance.yahoo.com/markets/stocks/articles/why-amazon-amzn-dipped-more-204502891.html">Zacks reports</a> a session close of <strong>$246.15</strong>, down <strong>1.41%</strong> and worse than the broader market. This is a reported close, not a verified live quote. Polymarket contracts referencing <strong>$240</strong> and <strong>$264</strong> September price thresholds are thinly traded; those strikes are <em>not</em> established technical support or resistance.</li>
+</ul>
+<h4 id="trading-implications">Trading implications<a class="headerlink" href="#trading-implications" title="Permanent link">&para;</a></h4>
+<p>For a <strong>short-horizon AMZN trade</strong>, first distinguish a market-wide rate move from company-specific weakness: compare AMZN with the broader market while monitoring live Treasury yields. Sustained yield increases alongside AMZN underperformance favor patience or tighter risk limits; easing yields and improving relative performance would strengthen a bullish setup.</p>
+<p>For an <strong>October holiday trade</strong>, prioritize evidence of <em>profitable</em> demand—sales, promotions, delivery costs, and subsequent margin commentary—over the $10 billion spending headline alone. Longer-term holders should similarly test AI and cloud optimism against disclosed capital spending and cash-flow returns.</p>
+<p>The main confidence constraint is source coverage: the AMZN news feed returned mostly September 28 items, so it does <strong>not</strong> establish that no other material developments occurred earlier in the week.</p>
+<table>
+<thead>
+<tr>
+<th>Theme</th>
+<th>Evidence as of Sept. 28</th>
+<th>AMZN trading implication</th>
+<th>What to verify next</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rising yields</td>
+<td>Sept. 28 market reports link falling stocks and climbing yields</td>
+<td>Near-term valuation headwind</td>
+<td>Live Treasury yields and AMZN relative performance</td>
+</tr>
+<tr>
+<td>Fed and growth</td>
+<td>Polymarket: 97% no 2026 cuts; 8% U.S. recession by year-end</td>
+<td>Higher-for-longer is a more prominent priced risk than near-term recession</td>
+<td>Official Fed communications and economic releases</td>
+</tr>
+<tr>
+<td>October shopping</td>
+<td>Adobe projection of $10B in event-period consumer spending</td>
+<td>Possible sales catalyst, with promotion and margin risk</td>
+<td>Actual sales, discounting, fulfillment costs</td>
+</tr>
+<tr>
+<td>AI shopping agents</td>
+<td>Reported dispute over Meta’s Muse access</td>
+<td>Potential change to customer discovery and advertising economics</td>
+<td>Access arrangements and measurable traffic effects</td>
+</tr>
+<tr>
+<td>AI capital spending</td>
+<td>Thin Polymarket market prices &gt;$200B 2026 AMZN capex at 92%</td>
+<td>Cash-flow risk if returns lag spending</td>
+<td>AMZN disclosures; do not use the contract as guidance</td>
+</tr>
+<tr>
+<td>Data quality</td>
+<td>FRED unavailable; partial weekly AMZN news coverage</td>
+<td>Avoid rate-level or full-week claims from this report</td>
+<td>Live market data, FRED releases, company filings</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamentals-analyst">Fundamentals Analyst<a class="headerlink" href="#fundamentals-analyst" title="Permanent link">&para;</a></h3>
+<h4 id="amzn-fundamental-report-september-28-2026">AMZN fundamental report — September 28, 2026<a class="headerlink" href="#amzn-fundamental-report-september-28-2026" title="Permanent link">&para;</a></h4>
+<p><strong>AMZN is showing stronger sales and operating profit, but cash generation has not kept pace with its investment spending.</strong> The most important trading distinction is between improving core operations and headline earnings that include sizable securities gains. Before relying on the latest valuation multiples, traders should verify the complete second-quarter 2026 filing: the available income-statement feed shows Q2 earnings per share but leaves Q2 revenue, operating income, and net income blank.</p>
+<p><strong>Coverage of the past week:</strong> The available tools provide financial-statement periods and insider transaction dates, but not filing dates, company releases, or news. They show no insider transaction dated September 21–28, 2026, and do not establish whether AMZN released new information during that week.</p>
+<h4 id="company-and-valuation">Company and valuation<a class="headerlink" href="#company-and-valuation" title="Permanent link">&para;</a></h4>
+<p>Amazon.com, Inc. operates online retail and third-party marketplaces, fulfillment and logistics, subscriptions and digital services, advertising, and AWS cloud services. The available statements do <strong>not</strong> provide segment revenue or profit, so they cannot isolate the contribution of AWS or advertising to the growth discussed below.</p>
+<p>The fundamentals feed lists a <strong>$2.655 trillion market capitalization</strong>, <strong>$775.680 billion in trailing revenue</strong>, <strong>$135.281 billion in trailing net income</strong>, and <strong>$12.43 in trailing EPS</strong>. It reports a <strong>19.8× trailing P/E</strong>, <strong>23.5× forward P/E</strong>, <strong>4.81× price-to-book</strong>, <strong>30.56% return on equity</strong>, and <strong>6.59% return on assets</strong>. Forward EPS of <strong>$10.475</strong> is below trailing EPS, an additional reason not to treat the trailing P/E alone as evidence of inexpensive recurring earnings.</p>
+<p>The P/E and EPS figures imply a price of approximately <strong>$246.15</strong>, but this is <strong>not a verified September 28 executable quote</strong>. The feed lists a $196.00–$287.20 52-week range, a $256.15 50-day average, and a $240.94 200-day average; their timestamps are not supplied.</p>
+<h4 id="earnings-growth-with-an-important-quality-of-earnings-caveat">Earnings: growth, with an important quality-of-earnings caveat<a class="headerlink" href="#earnings-growth-with-an-important-quality-of-earnings-caveat" title="Permanent link">&para;</a></h4>
+<p><strong>Full-year 2025 revenue rose 12.4%</strong> to $716.924 billion from $637.959 billion in 2024. Operating income rose <strong>16.6%</strong> to $79.975 billion, lifting operating margin from approximately <strong>10.75% to 11.16%</strong>. Reported net income increased <strong>31.1%</strong> to $77.670 billion, and diluted EPS rose from $5.53 to $7.17.</p>
+<p>That net-income growth overstates the improvement in normalized earnings. The vendor identifies <strong>$15.320 billion of unusual securities gains in 2025</strong>, versus a <strong>$1.836 billion unusual-item loss in 2024</strong>. Its normalized net income increased from <strong>$60.836 billion to $65.355 billion</strong>, or about <strong>7.4%</strong>. These are vendor-defined adjustments, not a substitute for reviewing the filings.</p>
+<p>The latest <strong>fully populated income-statement quarter, Q1 2026</strong>, provides stronger evidence of operating improvement:</p>
+<ul>
+<li>Revenue was <strong>$181.519 billion</strong>, up <strong>16.6%</strong> from Q1 2025.</li>
+<li>Operating income was <strong>$23.852 billion</strong>, up <strong>29.6%</strong>; operating margin rose from approximately <strong>11.82% to 13.14%</strong>.</li>
+<li>Reported net income was <strong>$30.255 billion</strong>, versus $17.127 billion. It included a <strong>$15.680 billion pretax securities gain</strong>; vendor-normalized net income was <strong>$18.338 billion</strong>, up about <strong>22.8%</strong> from $14.929 billion.</li>
+</ul>
+<p>The Q2 2026 income feed supplies <strong>$5.75 diluted EPS</strong> and <strong>10.903 billion diluted average shares</strong>, but leaves its principal income-statement lines blank. The fundamentals feed’s trailing EPS of $12.43 includes that $5.75 quarter. <strong>Do not extrapolate Q2 EPS into recurring profit growth without the missing operating results and unusual-item disclosures.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th style="text-align: right;">Revenue</th>
+<th style="text-align: right;">Operating income</th>
+<th style="text-align: right;">Net income</th>
+<th style="text-align: right;">Operating cash flow</th>
+<th style="text-align: right;">Capital expenditure</th>
+<th style="text-align: right;">Free cash flow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2022</td>
+<td style="text-align: right;">$513.983bn</td>
+<td style="text-align: right;">$12.248bn</td>
+<td style="text-align: right;">−$2.722bn</td>
+<td style="text-align: right;">$46.752bn</td>
+<td style="text-align: right;">$63.645bn</td>
+<td style="text-align: right;">−$16.893bn</td>
+</tr>
+<tr>
+<td>2023</td>
+<td style="text-align: right;">$574.785bn</td>
+<td style="text-align: right;">$36.852bn</td>
+<td style="text-align: right;">$30.425bn</td>
+<td style="text-align: right;">$84.946bn</td>
+<td style="text-align: right;">$52.729bn</td>
+<td style="text-align: right;">$32.217bn</td>
+</tr>
+<tr>
+<td>2024</td>
+<td style="text-align: right;">$637.959bn</td>
+<td style="text-align: right;">$68.593bn</td>
+<td style="text-align: right;">$59.248bn</td>
+<td style="text-align: right;">$115.877bn</td>
+<td style="text-align: right;">$82.999bn</td>
+<td style="text-align: right;">$32.878bn</td>
+</tr>
+<tr>
+<td>2025</td>
+<td style="text-align: right;">$716.924bn</td>
+<td style="text-align: right;">$79.975bn</td>
+<td style="text-align: right;">$77.670bn</td>
+<td style="text-align: right;">$139.514bn</td>
+<td style="text-align: right;">$131.819bn</td>
+<td style="text-align: right;">$7.695bn</td>
+</tr>
+<tr>
+<td>Q1 2026</td>
+<td style="text-align: right;">$181.519bn</td>
+<td style="text-align: right;">$23.852bn</td>
+<td style="text-align: right;">$30.255bn</td>
+<td style="text-align: right;">$26.032bn</td>
+<td style="text-align: right;">$44.203bn</td>
+<td style="text-align: right;">−$18.171bn</td>
+</tr>
+</tbody>
+</table>
+<p><em>Annual periods are full fiscal years; Q1 2026 is one quarter. Free cash flow is operating cash flow less the vendor’s capital-expenditure line.</em></p>
+<h4 id="cash-flow-and-balance-sheet-the-main-constraint-on-the-bullish-case">Cash flow and balance sheet: the main constraint on the bullish case<a class="headerlink" href="#cash-flow-and-balance-sheet-the-main-constraint-on-the-bullish-case" title="Permanent link">&para;</a></h4>
+<p><strong>2025 operating cash flow grew 20.4%, but capital expenditure grew 58.8%.</strong> Consequently, free cash flow fell from <strong>$32.878 billion in 2024 to $7.695 billion in 2025</strong>. In Q1 2026, operating cash flow improved to <strong>$26.032 billion</strong> from $17.015 billion a year earlier, yet <strong>$44.203 billion of capex</strong> produced <strong>negative $18.171 billion of free cash flow</strong>, versus negative $8.004 billion in Q1 2025. The four reported quarters through March 2026 sum to approximately <strong>negative $2.472 billion of free cash flow</strong>.</p>
+<p>Investment extends beyond capex: the Q1 2026 cash-flow statement also records <strong>$15.408 billion of business purchases</strong>, without identifying them in this feed. Net property, plant, and equipment reached <strong>$486.199 billion</strong> at March 31, up from $351.276 billion one year earlier. Traders should seek the filing’s detail on these investments, their expected returns, and associated commitments.</p>
+<p>At March 31, 2026, AMZN had <strong>$143.089 billion of cash and short-term investments</strong>, <strong>$209.888 billion of total debt including $90.814 billion of capital-lease obligations</strong>, and <strong>$441.914 billion of equity</strong>. Total debt had risen <strong>$56.901 billion</strong> since December 2025; Q1 financing cash flow was positive <strong>$52.767 billion</strong>, primarily reflecting net debt issuance. Current assets of <strong>$255.155 billion</strong> exceeded current liabilities of <strong>$216.756 billion</strong>, implying a <strong>1.18 current ratio</strong> for that dated balance sheet.</p>
+<p><strong>Data-vintage caution:</strong> The undated fundamentals snapshot instead lists a <strong>1.033 current ratio</strong> and <strong>$3.219 billion of free cash flow</strong>. It may cover a different period from the latest detailed balance sheet and cash-flow statement, which end in March 2026. Its <strong>$17.258 billion “net debt”</strong> field also does not reconcile to March total debt less cash and short-term investments, or <strong>$66.799 billion</strong>. Use the dated statement components for like-for-like comparisons rather than merging these figures.</p>
+<h4 id="insider-activity-and-trading-read-through">Insider activity and trading read-through<a class="headerlink" href="#insider-activity-and-trading-read-through" title="Permanent link">&para;</a></h4>
+<p>The latest transaction <strong>dated</strong> in the insider feed is a <strong>1,000-share sale by Douglas Herrington on September 1</strong> for $254,770. Other entries include a <strong>415,580-share gift by Jeff Bezos on August 26</strong>, an approximately <strong>$4.004 million sale by David Zapolsky on August 24</strong>, and sales by several executives on August 21. Bezos sold approximately <strong>1.210 million shares for $346.454 million on August 3</strong>. A gift is not a market sale, and rows lacking a stated sale price should not be counted as sales. The feed establishes <strong>no dated September 21–28 transaction</strong>, not the absence of all trading or subsequently filed disclosures.</p>
+<p><strong>Actionable view:</strong> The operating-income trend supports a constructive fundamental case, but the cash-flow and earnings-quality evidence argues for <strong>verification rather than buying AMZN solely on its 19.8× trailing P/E</strong>. In the next complete filing, prioritize Q2 operating income and securities gains, operating cash flow relative to capex, acquisition spending, and whether debt continues to rise. A return to sustained positive free cash flow alongside operating growth would strengthen the case; persistent cash burn financed by new debt would weaken it.</p>
+<table>
+<thead>
+<tr>
+<th>Key point for AMZN</th>
+<th>Evidence available September 28, 2026</th>
+<th>Trader implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core operations improving</td>
+<td>Q1 revenue <strong>+16.6%</strong> and operating income <strong>+29.6%</strong> year over year</td>
+<td>Test whether Q2’s complete operating results sustain the trend.</td>
+</tr>
+<tr>
+<td>Headline earnings need adjustment</td>
+<td>Q1 reported net income <strong>$30.255bn</strong> included a <strong>$15.680bn pretax securities gain</strong></td>
+<td>Do not value recurring earnings from reported EPS alone.</td>
+</tr>
+<tr>
+<td>Cash conversion weakened</td>
+<td>2025 FCF <strong>$7.695bn</strong>, down from <strong>$32.878bn</strong>; Q1 2026 FCF <strong>−$18.171bn</strong></td>
+<td>Make the capex-to-operating-cash-flow trend a primary decision metric.</td>
+</tr>
+<tr>
+<td>Financing and liquidity both rose</td>
+<td>March cash and short-term investments <strong>$143.089bn</strong>; debt including leases <strong>$209.888bn</strong>, up <strong>$56.901bn</strong> since year-end</td>
+<td>Monitor whether investment spending requires further debt growth.</td>
+</tr>
+<tr>
+<td>Most recent quarter is incomplete in this feed</td>
+<td>Q2 2026 EPS <strong>$5.75</strong>, but revenue, operating income, net income, and cash flow are unavailable here</td>
+<td>Obtain the complete Q2 filing before acting on trailing valuation figures.</td>
+</tr>
+<tr>
+<td>No verified past-week insider signal</td>
+<td>No insider transaction <strong>dated September 21–28</strong> appears in the feed</td>
+<td>Do not infer a new weekly buying or selling catalyst from these records.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ii-research-team-decision">II. Research Team Decision<a class="headerlink" href="#ii-research-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="bull-researcher">Bull Researcher<a class="headerlink" href="#bull-researcher" title="Permanent link">&para;</a></h3>
+<p>Bull Analyst: ## Opening bull case: AMZN</p>
+<p>I’m bullish on <strong>AMZN as a multiyear investment</strong>, though I would not mistake the current pullback for an automatic buy signal. The case is that its operating business is improving at enormous scale, while the market’s most legitimate concern—investment spending—is visible and testable.</p>
+<p>Start with the operations, not the headline P/E. AMZN generated <strong>$716.9 billion of revenue in 2025</strong>, up <strong>12.4%</strong>, and operating income grew faster, up <strong>16.6%</strong>. In the latest fully populated income-statement quarter, Q1 2026, revenue rose <strong>16.6%</strong> and operating income <strong>29.6%</strong> year over year; operating margin improved from roughly <strong>11.8% to 13.1%</strong>. That is evidence of operating leverage, not just a bet on a distant AI payoff. Its marketplace, fulfillment network, subscriptions, advertising, and AWS also give it several ways to serve customers and merchants. The available statements do not break out segment results, so I would not claim to know how much of this quarter’s improvement came from AWS or ads.</p>
+<p><strong>The bear’s strongest objection is cash flow, and it deserves a direct answer.</strong> Capex reached <strong>$131.8 billion in 2025</strong>, pushing free cash flow down to <strong>$7.7 billion</strong>. Q1 2026 free cash flow was <strong>negative $18.2 billion</strong>, and debt including leases rose <strong>$56.9 billion</strong> during the quarter. That is a real cost of this growth strategy—not something to wave away as “investment.” But the spending is occurring alongside improving operations: 2025 operating cash flow rose <strong>20.4%</strong>, and Q1 operating cash flow increased from <strong>$17.0 billion to $26.0 billion</strong> year over year. AMZN also held <strong>$143.1 billion</strong> in cash and short-term investments at March 31. My bull thesis is that stronger operating cash generation can eventually convert into durable free cash flow as these investments earn returns; it is <strong>not</strong> that the return has already been proved.</p>
+<p>Nor would I defend the stock by calling its <strong>19.8× trailing P/E</strong> cheap. Reported earnings include large securities gains, and the available Q2 2026 feed lacks the operating results needed to assess its <strong>$5.75 EPS</strong>. More persuasive is that Q1 <em>vendor-normalized</em> net income grew about <strong>22.8%</strong> year over year. I want the complete Q2 filing before putting greater weight on any earnings multiple.</p>
+<p>Near term, the bear has a fair point on price: AMZN closed at <strong>$246.15</strong>, below its <strong>$256.15 50-day average</strong>, with weak daily momentum. But <strong>ADX of 8.36</strong> does not confirm a strong downtrend, and weekly and monthly SuperTrend remain positive. I would build a long-term position with that volatility in mind; for a trend-following entry, I would prefer a close above the <em>then-current</em> 50-day average with improving momentum and volume participation. October’s projected <strong>$10 billion of event-period consumer spending</strong> is a potential demand catalyst, <strong>not</strong> an AMZN revenue or profit forecast.</p>
+<p>So the debate is not “growth versus no growth.” Growth and operating leverage are already showing up. The decisive question is whether AMZN can turn that progress—and its heavy spending—into sustained free cash flow without continued rapid debt growth. I favor owning AMZN for that upside, while treating those cash-flow results as the test that could prove the bull case wrong.
+Bull Analyst: <strong>Bear, I agree that AMZN has not yet earned a free-cash-flow victory lap. I disagree that investors must wait for the victory lap before buying any shares.</strong> Your case identifies the central risk; it does not erase the operating progress that could ultimately pay for the investment cycle.</p>
+<p>Look at what is already measurable. AMZN grew 2025 revenue <strong>12.4%</strong> and operating income <strong>16.6%</strong>. In Q1 2026, those growth rates accelerated to <strong>16.6%</strong> and <strong>29.6%</strong>, respectively, while operating margin rose from about <strong>11.8% to 13.1%</strong>. Operating cash flow also increased from <strong>$17.0 billion to $26.0 billion</strong> year over year. That is not proof that every new dollar of capex will earn an adequate return. It <em>is</em> proof that the existing business is expanding and producing more operating cash while AMZN invests.</p>
+<p>Your <strong>0.3% historical free-cash-flow yield</strong> is a useful warning, but a poor stand-alone valuation verdict. It divides today’s market value by 2025 cash flow after <strong>$131.8 billion of capex</strong>, which rose <strong>58.8%</strong> that year. Investors cannot ignore that spending—it is real cash out the door. But neither should they assume that a year in which investment growth sharply exceeded operating-cash-flow growth represents AMZN’s permanent cash-earning capacity. The upside is conditional: <strong>if operating cash flow keeps growing and capex growth moderates, free cash flow can recover substantially.</strong> If spending continues to outrun cash generation, your objection wins.</p>
+<p>Nor am I claiming the balance sheet makes this painless. March’s <strong>$143.1 billion</strong> of cash and short-term investments provides room to invest, but debt including leases was <strong>$209.9 billion</strong>, up <strong>$56.9 billion</strong> since year-end. I would treat further rapid debt growth without improving cash returns as a reason to reduce conviction. The bull argument is about AMZN’s <em>capacity</em> to fund a growth opportunity, not permission to spend indefinitely.</p>
+<p>Where I think your “avoid all new purchases” recommendation goes too far is that it treats uncertainty about returns as if there were no evidence of a potentially valuable platform behind the spending. AMZN can serve shoppers and merchants through its marketplace and fulfillment network while also operating subscriptions, advertising, and AWS. That range of businesses gives it several avenues to benefit from commerce and cloud demand. We lack segment results here, so I cannot assign Q1’s improvement to AWS or advertising—or declare the AI investment successful. But the consolidated operating acceleration gives a long-term investor something firmer than an AI narrative alone.</p>
+<p>I also would <strong>not</strong> buy AMZN on its <strong>19.8× trailing P/E</strong> or extrapolate Q2’s <strong>$5.75 EPS</strong>: securities gains affect reported earnings, and the available Q2 operating lines are missing. The complete filing matters. Likewise, Adobe’s projected <strong>$10 billion of October-event consumer spending</strong> indicates potential demand, not AMZN profit; promotions and fulfillment costs will determine its value.</p>
+<p>So here is the investable distinction between us: you want sustained positive free cash flow <em>before</em> starting a position. I would <strong>accumulate AMZN gradually for a multiyear horizon</strong>, recognizing that waiting for full proof may mean paying after the market has already repriced improving cash returns. I would not chase a short-term trade: at <strong>$246.15</strong>, AMZN is below its <strong>$256.15</strong> 50-day average, and daily momentum is weak. A reclaim of the then-current average with better momentum and participation would strengthen entry timing. Meanwhile, <strong>ADX at 8.36</strong> and positive weekly and monthly SuperTrend readings do not establish the durable breakdown that would override the long-term thesis.</p>
+<p>My recommendation is therefore <strong>cautious accumulation, not an unconditional buy</strong>. The next complete filing must clarify recurring Q2 operating earnings, and subsequent reports must show operating cash flow gaining ground on capex without persistent debt acceleration. You are right that the payoff is unproved. I am arguing that AMZN’s demonstrated operating growth makes taking a <em>measured</em> position before that payoff is fully proved a reasonable risk.
+Bull Analyst: Bear, your Q1 cash-flow comparison is the right challenge: AMZN’s operating cash flow rose about <strong>$9.0 billion</strong> year over year, while capex rose about <strong>$19.2 billion</strong>. Free cash flow got worse, not better. I’m not asking investors to overlook that gap. I’m arguing that <strong>“the cash payoff is unproved” is a stronger conclusion than “there is no reason to invest before it arrives.”</strong></p>
+<p>There is evidence of growing earning capacity. In Q1 2026, revenue rose <strong>16.6%</strong>, operating income rose <strong>29.6%</strong>, and operating margin improved from roughly <strong>11.8% to 13.1%</strong>. Operating cash flow increased from <strong>$17.0 billion to $26.0 billion</strong>. None of that establishes a return on the <em>new</em> spending, but it shows an expanding business generating more cash from operations—not a growth story supported only by hoped-for AI returns.</p>
+<p>Here is the cash-flow sensitivity that keeps me interested, not a forecast: AMZN produced <strong>$139.5 billion</strong> of operating cash flow against <strong>$131.8 billion</strong> of capex in 2025. If capex stayed at that level and operating cash flow gained another <strong>$23.6 billion</strong>—the absolute increase it achieved in 2025—free cash flow would be about <strong>$31.3 billion</strong>, versus <strong>$7.7 billion</strong> in 2025. Capex has <em>not</em> stabilized, so I would not underwrite that outcome yet. Nor would $31.3 billion alone settle valuation at a <strong>$2.655 trillion</strong> market cap. It illustrates why the trajectory of two very large cash-flow lines matters more to a multiyear investor than one year’s <strong>0.3% historical free-cash-flow yield</strong>.</p>
+<p>You are also right that <strong>$143.1 billion</strong> of cash does not cancel <strong>$209.9 billion</strong> of debt including leases, and the <strong>$15.4 billion</strong> of Q1 business purchases raises another question about investment returns. Those are reasons to keep the position measured. They do not negate the value of a scaled marketplace and fulfillment network alongside subscriptions, advertising, and AWS—multiple avenues for AMZN to earn from customer and merchant activity. I cannot assign Q1’s gains to any one segment or declare the AI buildout successful without fuller disclosures.</p>
+<p>I would not use the <strong>19.8× trailing P/E</strong>, Q2’s unexplained <strong>$5.75 EPS</strong>, or projected October-event spending to shortcut those disclosures. And you’re right that a close below the 50-day average with weak momentum offers <strong>no urgency</strong> for a short-term trade; low ADX is not a buy signal.</p>
+<p>So my recommendation remains <strong>modest, gradual accumulation of AMZN for a multiyear horizon</strong>, rather than avoiding every new purchase until free cash flow has already recovered. I would require the complete Q2 operating results before adding conviction, and I would cut it if future reports keep showing capex outrunning operating cash flow alongside rapid debt growth. That makes the bull case conditional—but grounded in demonstrated operating growth, with a clear test for whether shareholders ultimately receive the cash payoff.
+Bull Analyst: Bear, your challenge lands: <strong>AMZN’s cash-flow gap is widening, not narrowing.</strong> If capex keeps rising as fast as operating cash flow, my earlier $31.3 billion free-cash-flow illustration goes nowhere. And even $31.3 billion would yield only about <strong>1.2%</strong> on a $2.655 trillion market value. A return to that level alone would not settle the valuation case; AMZN ultimately needs substantially stronger, durable cash generation.</p>
+<p>Where I differ is on whether there is enough evidence to take <em>any</em> position before that inflection. AMZN generated roughly <strong>$32 billion of free cash flow in each of 2023 and 2024</strong>, before 2025’s sharp spending increase. That does not mean it can simply return to those levels—especially given Q1’s <strong>$44.2 billion of capex</strong> and <strong>$15.4 billion of business purchases</strong>. It does show that today’s weak free cash flow is not the only cash-generation record we have. Meanwhile, Q1 revenue grew <strong>16.6%</strong>, operating income grew <strong>29.6%</strong>, and operating cash flow rose from <strong>$17.0 billion to $26.0 billion</strong>. Those are measurable gains in the existing business, even though they do <strong>not</strong> prove returns on the newest investments.</p>
+<p>You are right to press on the missing link. The supplied statements cannot tell us which of the marketplace, advertising, or AWS is producing incremental returns, and <strong>$143.1 billion of cash</strong> does not neutralize <strong>$209.9 billion of debt including leases</strong>. That is why I would not call the <strong>19.8× trailing P/E</strong> cheap, rely on Q2’s unexplained <strong>$5.75 EPS</strong>, or make October shopping projections the basis for a purchase.</p>
+<p>My case is instead for <strong>a small, staged AMZN position over a multiyear horizon</strong>, not an aggressive buy today. Waiting for evidence of narrowing cash burn is a defensible choice; buying modestly before that evidence is also defensible when operating profit and cash from operations are already growing. The price may respond to an improving trajectory before several reports establish sustained free cash flow—but that possibility is a risk to weigh, not a promised catalyst.</p>
+<p>I would <strong>not add conviction</strong> without the complete Q2 operating results. If subsequent reports continue to show capex outpacing operating-cash-flow growth alongside rapid debt increases, I would stop accumulating and reassess the position. And for a short-term trade, I agree there is no urgency: <strong>$246.15 remains below the $256.15 50-day average</strong>, with weak daily momentum.</p>
+<p>So the disagreement is narrow but consequential. You want the first sign of better cash conversion <em>before</em> owning AMZN. I’m willing to own a measured amount while testing for it—because operating improvement is already visible—while accepting that persistent cash deterioration would defeat my thesis.
+Bull Analyst: Bear, I agree on the valuation hurdle: <strong>$32 billion of annual free cash flow is not a sufficient bull case for AMZN at a $2.655 trillion market value.</strong> It is neither a floor nor a target I would pay for today. And Q1’s widening gap between operating cash flow and capex is evidence against assuming a quick recovery.</p>
+<p>Where I disagree is that cash conversion is the <em>only</em> useful early signal. In Q1, AMZN added roughly <strong>$25.8 billion of revenue</strong> and <strong>$5.4 billion of operating income</strong> versus a year earlier—about a <strong>21% consolidated incremental operating margin</strong>. Operating cash flow rose about <strong>$9 billion</strong>. Those figures do <strong>not</strong> prove a return on the newest investments; they show that the business funding those investments is gaining earning power. Its marketplace and fulfillment reach, subscriptions, advertising, and AWS offer several potential paths to monetize that scale, though the supplied statements cannot tell us which drove Q1’s improvement.</p>
+<p>Your warning about the bill is equally concrete: Q1 capex rose about <strong>$19.2 billion</strong>, business purchases used another <strong>$15.4 billion</strong>, and debt including leases increased <strong>$56.9 billion</strong>. AMZN’s <strong>$143.1 billion</strong> of cash and short-term investments buys flexibility, not a free pass. If spending remains structurally ahead of operating cash generation, the bull thesis fails—even if sales keep growing. The incomplete Q2 operating results and securities gains also mean I would not use the trailing P/E to dismiss that risk.</p>
+<p>So I’m not calling for an aggressive purchase into weak daily momentum. <strong>My recommendation is a small, staged AMZN position for a multiyear investor</strong>, with no increase in conviction until the complete Q2 results clarify recurring earnings and later reports show the cash-flow gap narrowing without another sharp debt increase. A short-term trader can reasonably wait for a reclaim of the <em>then-current</em> 50-day average. You want the first cash-conversion improvement before owning any shares; I’m willing to own a measured amount because operating leverage is already visible, while recognizing that it must eventually become substantially more free cash flow than AMZN has produced historically.</p>
+<h3 id="bear-researcher">Bear Researcher<a class="headerlink" href="#bear-researcher" title="Permanent link">&para;</a></h3>
+<p>Bear Analyst: <strong>My response to the bull: AMZN’s operating growth is real. The investment case still asks shareholders to pay today for cash returns that have not arrived.</strong></p>
+<p>You point to Q1 2026 revenue growth of <strong>16.6%</strong> and operating-income growth of <strong>29.6%</strong>. I agree those are strong results. But operating leverage is not the same as <em>shareholder</em> leverage when investment spending is rising faster than the cash the business produces. In 2025, operating cash flow grew <strong>20.4%</strong>, while capex grew <strong>58.8%</strong>; free cash flow fell from <strong>$32.9 billion to $7.7 billion</strong>. In Q1 2026, AMZN generated <strong>$26.0 billion</strong> of operating cash flow and spent <strong>$44.2 billion</strong> on capex. That left <strong>negative $18.2 billion</strong> of free cash flow, versus negative $8.0 billion a year earlier. The four reported quarters through March 2026 sum to slightly <em>negative</em> free cash flow.</p>
+<p>You fairly acknowledge that the spending needs to earn a return. But “it eventually will” is the part of the bull case investors cannot yet verify. AMZN’s <strong>$143.1 billion</strong> of cash and short-term investments provides substantial flexibility; it does not erase <strong>$209.9 billion</strong> of debt including leases or the <strong>$56.9 billion</strong> increase in that debt since year-end 2025. This is not an imminent-distress argument. It is an argument that growth is becoming more capital-intensive before its payoff is demonstrated.</p>
+<p>I also would not let earnings fill the cash-flow gap in the valuation case. AMZN’s <strong>19.8× trailing P/E</strong> includes earnings affected by large securities gains, and the available Q2 2026 feed gives <strong>$5.75 of EPS without the operating results or unusual-item detail needed to judge it</strong>. Even your better measure—Q1 vendor-normalized net income, up <strong>22.8%</strong>—does not establish what Q2 earned from operations or when spending will translate into free cash flow. At a <strong>$2.655 trillion</strong> market cap, 2025’s $7.7 billion of free cash flow equates to an illustrative historical yield of only <strong>about 0.3%</strong>. The valuation depends heavily on a substantial recovery.</p>
+<p>Your diversification point is plausible, but the available statements do not show which segments generated the improvement or whether incremental AI and cloud investment is earning an adequate return. Meanwhile, a <strong>$10 billion consumer-spending projection</strong> for October’s shopping event says nothing about AMZN’s profit, particularly if promotions against Walmart and fulfillment costs absorb the benefit. Rising yields add a valuation headwind, though the available macro data do not quantify that move.</p>
+<p>Finally, I agree with you that <strong>ADX of 8.36</strong> and positive weekly and monthly SuperTrend readings do <strong>not</strong> prove a durable downtrend. They also do not make this a compelling entry: AMZN closed at <strong>$246.15</strong>, below its <strong>$256.15</strong> 50-day average, with RSI at <strong>41.24</strong>, a negative MACD histogram, and lower OBV than a week earlier.</p>
+<p><strong>My recommendation is to avoid new AMZN purchases for now, not to assume an inevitable collapse.</strong> I would reconsider when a complete Q2 filing clarifies recurring earnings and when operating cash flow begins to outpace capex <em>without</em> continued rapid debt growth. That is a more demanding test than strong sales growth—and the bull case has not passed it yet.
+Bear Analyst: Bull, I’m not asking AMZN to finish its investment cycle before anyone buys. I’m asking for evidence that the cycle is moving <strong>toward</strong> a cash payoff. Your own Q1 example points the other way: operating cash flow rose about <strong>$9.0 billion</strong> year over year, but capex rose about <strong>$19.2 billion</strong>. Free cash flow therefore worsened from <strong>negative $8.0 billion to negative $18.2 billion</strong>. Growth is measurable; improved cash conversion is not.</p>
+<p>You argue that capex could moderate. It could—but that is the crucial assumption, not an observed trend. Capex grew <strong>58.8% in 2025</strong>, and AMZN’s net property, plant and equipment reached <strong>$486.2 billion</strong> in March 2026, up from <strong>$351.3 billion</strong> a year earlier. Q1 also included <strong>$15.4 billion of business purchases</strong>, a cash use outside the stated operating-cash-flow-minus-capex measure. With debt including leases up <strong>$56.9 billion</strong> in the quarter, the <strong>$143.1 billion</strong> cash cushion shows AMZN has financing capacity; it does not show that the investments are paying for themselves.</p>
+<p>I agree its marketplace, advertising and AWS give AMZN several potential sources of return. But without segment results in the supplied statements, neither of us can show which businesses produced Q1’s operating improvement or whether AI spending is earning an adequate return. Meanwhile, a promotional fight with Walmart could dilute the value of holiday sales, and third-party shopping agents pose a <em>potential</em> threat to product discovery and advertising. Neither risk has a quantified earnings impact yet—that is precisely why I would not pay in advance for an assured payoff.</p>
+<p>Earnings do not settle the valuation question either. Vendor-normalized 2025 net income grew about <strong>7.4%</strong>, versus <strong>31.1%</strong> reported net-income growth. Q2’s <strong>$5.75 EPS</strong> represents roughly <strong>46%</strong> of the reported <strong>$12.43 trailing EPS</strong>, yet the supplied Q2 feed lacks the operating lines needed to evaluate that quarter. A <strong>19.8× trailing P/E</strong> is not enough reassurance.</p>
+<p>I concede your technical point: <strong>ADX at 8.36</strong> and positive higher-timeframe SuperTrend readings do not predict a collapse. But a <strong>$246.15</strong> close below the <strong>$256.15</strong> 50-day average, alongside weak momentum and OBV, offers no urgency to accumulate either.</p>
+<p><strong>My recommendation remains to avoid new AMZN purchases for now.</strong> A smaller position limits exposure; it does not improve the underlying cash returns. I would revisit that stance when complete Q2 results clarify recurring earnings and subsequent cash-flow reports show the gap between operating cash flow and capex narrowing without another surge in debt.
+Bear Analyst: Bull, I agree that waiting until AMZN’s investment cycle is finished could mean missing upside. But you don’t need a finished cycle to ask whether cash returns are <strong>starting to catch up with spending</strong>. The evidence you’ve cited still points the other way.</p>
+<p>Your sensitivity makes the issue clear. If operating cash flow rises another <strong>$23.6 billion</strong> while capex stays at its 2025 level, free cash flow reaches about <strong>$31.3 billion</strong>. But capex rose <strong>58.8% in 2025</strong>, and Q1 2026 capex increased about <strong>$19.2 billion</strong> year over year—more than twice the roughly <strong>$9.0 billion</strong> gain in operating cash flow. If capex rose by even the same $23.6 billion assumed for operating cash flow, free cash flow would remain around <strong>$7.7 billion</strong>. Neither scenario is a forecast; the point is that your upside case depends on spending moderating when the recent evidence shows it accelerating. Even your favorable $31.3 billion outcome would yield only about <strong>1.2%</strong> on AMZN’s <strong>$2.655 trillion</strong> market value.</p>
+<p>I accept the operating progress: Q1 revenue and operating income grew <strong>16.6%</strong> and <strong>29.6%</strong>. But Q1 free cash flow still worsened to <strong>negative $18.2 billion</strong> from negative $8.0 billion. AMZN also recorded <strong>$15.4 billion of business purchases</strong> outside that free-cash-flow calculation, while debt including leases rose <strong>$56.9 billion</strong>. Its <strong>$143.1 billion</strong> cash cushion reduces financing pressure; it does not demonstrate a return on those investments. Nor can the supplied statements show which of AMZN’s businesses will earn that return.</p>
+<p>That is why “I’ll accumulate now and cut if the cash gap persists” does not persuade me. It puts shareholders at risk during the very test we can wait to observe. With Q2’s <strong>$5.75 EPS</strong> lacking the operating detail needed to assess recurring earnings, and AMZN below its 50-day average with weak daily momentum, I see no compelling reason to pay for the hoped-for inflection today. Low ADX and positive longer-term trend readings argue against predicting a collapse—not for buying.</p>
+<p><strong>I would avoid new AMZN purchases for now</strong>, then reassess when complete operating results and subsequent cash-flow reports show capex gaining less ground on operating cash flow without another rapid debt increase. That is not demanding a victory lap; it is demanding an early sign that the investment is paying off.
+Bear Analyst: Bull, the roughly <strong>$32 billion of free cash flow AMZN generated in each of 2023 and 2024</strong> is a fair reminder of what the business has produced. But it is not a floor under future cash flow. Capex rose from <strong>$83.0 billion in 2024 to $131.8 billion in 2025</strong>, and Q1 2026 spending rose again. Returning to $32 billion of annual free cash flow requires the growing operating business to overcome that much larger investment bill. Even if AMZN got there, $32 billion would represent only about a <strong>1.2% yield</strong> on its stated $2.655 trillion market value—not much room for disappointing returns.</p>
+<p>Your Q1 operating results are genuinely strong. The problem is the conversion: operating cash flow increased by about <strong>$9 billion</strong> year over year, while capex increased by about <strong>$19.2 billion</strong>. Free cash flow worsened from <strong>negative $8.0 billion to negative $18.2 billion</strong>. The quarter also included <strong>$15.4 billion of business purchases</strong> outside that free-cash-flow measure. AMZN has the liquidity to keep investing, but its March balance sheet also showed debt including leases up <strong>$56.9 billion</strong> since year-end. Funding capacity is not evidence that the newest investments are earning attractive returns.</p>
+<p>I take your point that the share price could rise before cash returns become clear. It could also fall if investors decide this level of spending is enduring rather than temporary. That uncertainty is harder to accept when the supplied Q2 feed offers <strong>$5.75 of EPS without the operating detail</strong> needed to assess it, while securities gains complicate the trailing P/E. A small position limits the dollars at risk; it does not resolve what shareholders are paying for.</p>
+<p>Nor does the near-term setup demand haste: AMZN is below its 50-day average with weak daily momentum. Low ADX means I am <strong>not</strong> predicting a sustained breakdown. It means I see little reason to buy ahead of the evidence. <strong>I would avoid new AMZN purchases for now</strong> and revisit that call when complete Q2 results clarify recurring earnings and later cash-flow reports show operating cash flow catching up with capex without another sharp increase in debt.
+Bear Analyst: Bull, your <strong>21% incremental operating margin</strong> is meaningful evidence that AMZN’s existing business is gaining earning power. It is not a measure of the return on its newest investments. In Q1, operating cash flow rose about <strong>$9 billion</strong> year over year, but capex rose about <strong>$19.2 billion</strong>; free cash flow deteriorated by roughly <strong>$10.2 billion</strong>. Those assets may pay off over years. The point is that shareholders cannot yet see that payoff beginning in cash.</p>
+<p>The valuation makes that distinction consequential. As an <em>illustration, not a required yield</em>, a <strong>3% free-cash-flow yield</strong> on AMZN’s <strong>$2.655 trillion</strong> market value would require about <strong>$80 billion</strong> a year. Even if capex stopped rising at its 2025 level of <strong>$131.8 billion</strong>, operating cash flow would have to climb from <strong>$139.5 billion to roughly $211.5 billion</strong>—about <strong>52% higher</strong>—to reach it. Your staged purchase depends on a substantial improvement in cash generation <em>and</em> spending restraint; neither is established by the Q1 operating margin.</p>
+<p>I also wouldn’t assume AMZN can grow into that hurdle without friction. A promotional contest with Walmart could turn holiday volume into thin-margin sales, while third-party shopping agents could eventually challenge AMZN’s control of product discovery and advertising. Neither impact is quantified, but neither should be dismissed when the investment case already needs a large cash-flow improvement. Rising yields add a valuation headwind, though the supplied data do not establish its size.</p>
+<p>A small position limits portfolio risk; it doesn’t improve the price paid for an unproved cash return. With Q2’s operating detail missing, debt including leases having risen <strong>$56.9 billion</strong> in Q1, and the share price below its 50-day average, <strong>I would avoid new AMZN purchases for now</strong>. I’d reconsider when complete results show recurring earnings clearly and cash-flow reports show operating cash beginning to catch up with capex without another sharp debt increase.</p>
+<h3 id="research-manager">Research Manager<a class="headerlink" href="#research-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Recommendation</strong>: Underweight</p>
+<p><strong>Rationale</strong>: For AMZN, the bear wins moderately on the allocation decision today, not because the operating business is weak. The bull's strongest evidence is real: Q1 2026 revenue grew 16.6%, operating income grew 29.6%, margin improved from about 11.8% to 13.1%, and operating cash flow increased from $17.0 billion to $26.0 billion. The supplied $143.1 billion of cash and short-term investments also argues against an imminent financing crisis. Those strengths justify retaining some exposure rather than exiting outright.</p>
+<p>What decides the debate is that cash conversion is demonstrably deteriorating, whereas the spending moderation needed by the bull remains hypothetical. Annual free cash flow fell from $32.9 billion in 2024 to $7.7 billion in 2025. In Q1 2026, capex increased about $19.2 billion year over year against only about $9.0 billion of additional operating cash flow, widening the free-cash-flow deficit from $8.0 billion to $18.2 billion. This judgment uses annual and year-over-year comparisons, not an annualization of a seasonal quarter. Another $15.4 billion of business purchases sat outside that free-cash-flow measure, and debt including leases increased $56.9 billion. The debt movement needs reconciliation; we cannot attribute all of it to capex.</p>
+<p>Valuation does not resolve that risk. Securities gains and incomplete Q2 operating disclosure prevent the quoted 19.8x trailing P/E from being a clean recurring-earnings anchor. Even the bull's illustrative recovery to roughly $31–32 billion of annual free cash flow would yield only about 1.2% at the stated $2.655 trillion market value. That is not a required yield or a fair-value calculation, but it shows why simply recovering historical cash flow is an incomplete upside case. Complete Q2 operating results, unusual-item detail, segment investment returns, and forward capex guidance are missing from the prompt. Weak daily momentum supports patience, while low ADX and positive longer-term trends do not support predicting a collapse. The observed cash deterioration therefore outweighs the conditional recovery case, with operating strength limiting the size of the underweight.</p>
+<p><strong>Strategic Actions</strong>: For AMZN, use a ceiling of 0.75x the portfolio's standard allocation: a measured reduction, not a full exit. The trader and portfolio manager must apply this to actual holdings. If exposure exceeds that ceiling, trim the excess using staged limit orders, without making execution contingent on a rebound. If already below the ceiling or uninvested, do not purchase merely to reach it; pause fresh allocation increases.</p>
+<p>Treat the supplied $246.15 close and $256.15 50-day average as reference snapshots, not live execution levels. Use then-current prices for orders. A reclaim of the then-current 50-day average with better momentum and participation is supportive timing evidence only, not sufficient grounds to increase AMZN exposure.</p>
+<p>At the next complete filing, reconcile Q2 recurring operating earnings and securities gains, operating cash flow, capex, acquisition cash uses, and changes in debt including leases. Examine segment performance and investment-return disclosures if available. Consider restoring toward 1.0x standard exposure only when recurring earnings are clarified and comparable cash-flow evidence improves: year-over-year dollar growth in operating cash flow exceeds capex growth, trailing free cash flow improves, and debt growth moderates. A completed investment cycle is not required, but an observable inflection is.</p>
+<p>If the next comparable report instead shows further free-cash-flow deterioration alongside another sharp increase in debt including leases, lower the AMZN ceiling to 0.50x standard exposure and reassess the remaining position. Deteriorating operating margins and operating cash flow would strengthen the case for a larger reduction. Do not set a numerical price target from the incomplete valuation evidence supplied.</p>
+<h2 id="iii-trading-team-plan">III. Trading Team Plan<a class="headerlink" href="#iii-trading-team-plan" title="Permanent link">&para;</a></h2>
+<h3 id="trader">Trader<a class="headerlink" href="#trader" title="Permanent link">&para;</a></h3>
+<p><strong>Action</strong>: Sell</p>
+<p><strong>Reasoning</strong>: Underweight AMZN: strong Q1 operating growth supports retaining some exposure, but deteriorating free cash flow, capex growth exceeding operating cash-flow growth, and rising debt warrant a measured trim. AMZN's $246.15 September 28 close is below its $256.15 50-day SMA, with weak momentum and OBV; low ADX and positive weekly and monthly SuperTrend argue against a full exit. These are dated price references, so trim excess holdings with staged limit orders at then-current prices rather than waiting for a rebound.</p>
+<p><strong>Entry Price</strong>: not provided</p>
+<p><strong>Stop Loss</strong>: not provided</p>
+<p><strong>Position Sizing</strong>: Cap AMZN at 0.75x the portfolio's standard allocation. If above that ceiling, sell only the excess; if at or below it, do not add.</p>
+<p>FINAL TRANSACTION PROPOSAL: <strong>SELL</strong></p>
+<h2 id="iv-risk-management-team-decision">IV. Risk Management Team Decision<a class="headerlink" href="#iv-risk-management-team-decision" title="Permanent link">&para;</a></h2>
+<h3 id="aggressive-analyst">Aggressive Analyst<a class="headerlink" href="#aggressive-analyst" title="Permanent link">&para;</a></h3>
+<p>Aggressive Analyst: No conservative or neutral analyst has spoken yet, so I’ll open with the risk-on case for the proposed SELL: trim excess AMZN exposure now, rather than wait for a cleaner signal. Aggressive investing is not the same as defending every holding at full weight. It means putting risk where the prospective payoff best justifies it—and keeping capacity to act when a stronger opportunity appears.</p>
+<p>The operating upside is real: Q1 2026 revenue grew 16.6% and operating income grew 29.6% year over year. That is why I would challenge a conservative call to exit AMZN entirely. The weekly and monthly SuperTrend remained positive in the September 28 snapshot, and an ADX of 8.36 did not confirm a durable downtrend. A full sale could sacrifice substantial upside if investment spending begins to pay off.</p>
+<p>But I would also challenge a neutral call to wait for confirmation before trimming. AMZN’s 2025 free cash flow fell from $32.878 billion to $7.695 billion as capex grew far faster than operating cash flow. Q1 2026 free cash flow was negative $18.171 billion, while debt including leases rose $56.901 billion from year-end. At the dated September 28 close of $246.15, AMZN was below its $256.15 50-day average, with weakening MACD and OBV. Waiting for an established downtrend could mean surrendering the chance to reduce an oversized position earlier. The projected $10 billion of October-event consumer spending is a possible catalyst, not proof of AMZN profit.</p>
+<p>My recommendation is therefore <strong>SELL only the portion above 0.75× your standard portfolio allocation</strong>. If AMZN is already at or below that weight, do not sell under this proposal—and do not add. Use staged limit orders based on current tradable prices, not the September 28 quote. This deliberately accepts the risk of an immediate rebound while retaining a meaningful stake in AMZN’s growth and freeing risk capacity for opportunities that earn it.
+Aggressive Analyst: Conservative, I agree that 0.75× a standard allocation is a ceiling, not a declaration that AMZN is safe at that weight. Any stricter portfolio limit still applies. But without holdings or liquidity information, I would not turn a measured trim into a larger sale by assuming those limits have been breached. Your gap-risk point strengthens the case for selling excess AMZN now: ADX of 8.36 offers no protection, and the $225.82 weekly SuperTrend level is not a guaranteed exit price. It does not, however, erase the upside signaled by Q1 revenue growth of 16.6%, operating-income growth of 29.6%, and positive weekly and monthly trends.</p>
+<p>I also take your cash-flow objection seriously. AMZN’s Q1 capex of $44.203 billion exceeded operating cash flow of $26.032 billion, and debt rose sharply. Those are reasons to cut concentration, not proof that every remaining share is poorly placed. Operating cash flow itself rose from $17.015 billion a year earlier. With $143.089 billion in cash and short-term investments at March 31, the question is whether heavy investment will earn a return—not whether the supplied figures establish an immediate liquidity crisis. The securities gain and incomplete Q2 feed make it especially important not to defend the position using the 19.8× trailing P/E.</p>
+<p>Neutral, your lower-of-two-limits rule is sensible where an actual portfolio rule is tighter. Where I push further is on urgency and purpose. We already have enough evidence to trim an overweight AMZN position without waiting for a breakdown or the complete Q2 filing. Selling excess exposure creates room to pursue a better-supported opportunity if one appears; it does not require putting the proceeds straight back to work. Conversely, demanding sustained positive free cash flow before retaining meaningful exposure risks missing the payoff from AMZN’s operating growth.</p>
+<p>The October spending projection is not an AMZN profit forecast, mixed sentiment is low-confidence, and rising-yield reports do not quantify the valuation headwind. None justifies a full exit or a rebound bet. My call remains SELL only AMZN shares above 0.75× the standard allocation, subject to any tighter actual portfolio constraint. If AMZN is already within that ceiling, do not add or sell solely on this proposal. Use staged limits against current tradable prices, not the dated September 28 close, and keep the remaining stake positioned to benefit if investment returns begin to catch up with spending.
+Aggressive Analyst: Conservative, you are right that 0.75× a standard allocation is a ceiling, not a weight to defend regardless of the portfolio. You are also right that AMZN’s $143.089 billion in March cash and short-term investments does not prove its spending will pay off. But that uncertainty makes the case for trimming <em>excess</em> exposure now—not for giving up a growth stake while the outcome is unresolved. Q1 revenue grew 16.6% and operating income grew 29.6% year over year. Those are operating results worth participating in, even as Q1 capex of $44.203 billion exceeded operating cash flow of $26.032 billion.</p>
+<p>Your earnings-quality and gap-risk objections sharpen that distinction. The $15.680 billion Q1 securities gain and incomplete Q2 operating data mean I would not use the 19.8× trailing P/E to justify holding an oversized position. And ADX of 8.36 cannot protect against a sharp loss. Yet low ADX and positive weekly and monthly SuperTrend readings also do not justify treating a lasting decline as established. The aggressive move is to cut concentration before confirmation while keeping exposure to a potentially valuable cloud, AI, and retail payoff—not to pretend the $10 billion October consumer-spending estimate is AMZN profit.</p>
+<p>Neutral, I agree that freed capacity is not an investment return and that selling before a rebound has a cost. Its value is flexibility: an investor can pursue a better-supported opportunity if one emerges without first having to unwind an overweight AMZN position into further weakness. That does not require immediate redeployment. On September 28, AMZN closed at $246.15, below its $256.15 50-day average, with weakening MACD and OBV. Waiting for a confirmed breakdown risks paying more to make a trim already warranted by cash-flow and financing trends. Mixed, low-confidence sentiment and unquantified rising-yield pressure offer no compelling reason to wait.</p>
+<p>My call remains a conditional <strong>SELL for AMZN</strong>: promptly sell only shares above the lower of 0.75× your standard allocation and any tighter limit imposed by your actual portfolio. If AMZN is already within those limits, do not sell or add solely on this proposal. Use staged, reviewable limit orders based on current tradable prices, not the dated September close or a hoped-for rebound. Keep the remaining stake for upside, then reassess it against complete Q2 operating results and evidence that cash returns are catching up with investment spending.
+Aggressive Analyst: Conservative, you’re right that 0.75 times a standard allocation is a ceiling, not a weight AMZN has earned or a substitute for the portfolio’s downside budget. The $18.171 billion of negative Q1 free cash flow and $56.901 billion rise in debt including leases make an oversized position harder to defend. But requiring proof that the spending will pay off before retaining any manageable exposure risks missing the payoff: Q1 revenue grew 16.6%, operating income grew 29.6%, and operating cash flow rose from $17.015 billion to $26.032 billion. Those results do not guarantee a return on capex; they make keeping a limited stake a deliberate growth bet rather than complacency.</p>
+<p>I also agree that low ADX and positive weekly and monthly SuperTrend readings cannot cap a loss. That is precisely why I would sell excess AMZN exposure <em>before</em> a confirmed breakdown, not rely on the dated $225.82 weekly level as an exit. At the same time, those readings do not establish a lasting decline that calls for selling every share. The Q1 securities gain and missing Q2 operating lines rule out using the 19.8× trailing P/E as a shortcut for defending a larger position.</p>
+<p>Neutral, freeing capacity is not a return, and an immediate rebound is a genuine cost of trimming. But when AMZN exceeds the investor’s actual limit, reducing that excess gives them flexibility without forcing immediate reinvestment. Waiting for complete Q2 results leaves the known cash-flow and financing risks concentrated in the portfolio in the meantime. The $10 billion October-event figure is projected consumer spending, not AMZN profit, so I would retain exposure for the demonstrated operating growth—not make the trim contingent on a holiday forecast.</p>
+<p>My call remains a conditional SELL for AMZN: sell only shares above the lower of 0.75 times the standard allocation and any tighter portfolio risk limit. If AMZN is already within that boundary, hold without adding solely on this evidence. Use staged, reviewable limit orders at current tradable prices, rather than anchoring to the September 28 close or waiting for a rebound.
+Aggressive Analyst: Conservative, your stress-test point is right: 0.75× a standard allocation is a ceiling, not proof that the remaining AMZN stake is safe. A gap could pass through the dated $225.82 weekly SuperTrend level. But that argues for trimming a known overweight promptly, not postponing the trim until the portfolio model or Q2 filing is complete. The cash-flow deterioration spans 2025 and Q1 2026, and debt including leases rose $56.901 billion in Q1. Those facts make excess exposure costly to defend. They do not, by themselves, make a risk-budgeted stake unattractive: Q1 operating cash flow rose from $17.015 billion to $26.032 billion, operating income grew 29.6%, and AMZN held $143.089 billion in cash and short-term investments. Insisting on demonstrated capex returns before retaining <em>any manageable exposure</em> could surrender the upside if that operating growth converts to cash.</p>
+<p>Neutral, I agree that stronger operations do not prove adequate returns on investment, that the retained stake must be monitored, and that sale proceeds need not be redeployed immediately. My challenge is to any interpretation of “monitor” that leaves an overweight untouched. At the dated September 28 snapshot, AMZN was below its 50-day average, with weaker MACD and OBV; waiting for complete Q2 detail could mean making the same necessary trim after a further decline. Equally, ADX of 8.36 and positive weekly and monthly trends argue against a full exit. The $10 billion October-event estimate is consumer spending, not AMZN profit, and mixed, low-confidence sentiment is no reason to wait for a rebound.</p>
+<p>My call is a conditional <strong>SELL for AMZN</strong>: sell only shares above the lower of 0.75× your standard allocation and any tighter limit imposed by your actual concentration, correlated holdings, liquidity needs, or downside budget. If AMZN is already within that boundary, hold without adding solely on this evidence. Use staged, reviewable limits at current tradable prices—not the September 28 quote. This takes risk off where the cash-flow evidence warrants it while preserving participation if AMZN’s investment cycle pays off; reassess that remaining risk when complete Q2 operating and cash-flow figures are available.</p>
+<h3 id="conservative-analyst">Conservative Analyst<a class="headerlink" href="#conservative-analyst" title="Permanent link">&para;</a></h3>
+<p>Conservative Analyst: I agree with the Aggressive Analyst that a full exit from AMZN is not justified by this evidence. Q1 operating growth was strong, and the weekly and monthly trends were still positive on September 28. But retaining some exposure is different from assuming that 0.75 times a standard allocation is safe. Without the portfolio’s holdings, cash needs, or other growth-stock exposure, that figure is an upper limit to test against the firm’s risk budget—not a weight to defend.</p>
+<p>The aggressive case also puts too much comfort in the absence of a confirmed downtrend. An ADX of 8.36 says the trend was weak; it does not protect AMZN from a sharp loss. At the dated $246.15 close, the stock was below its 50-day average, while MACD and OBV had weakened. The weekly SuperTrend level of $225.82 was roughly 8% below that close, and a gap could pass through any stop. I would not wait for a textbook breakdown to reduce an oversized position.</p>
+<p>Nor would I treat the Q1 operating gains or October spending forecast as a reason to relax that limit. AMZN’s 2025 free cash flow fell to $7.695 billion from $32.878 billion, Q1 2026 free cash flow was negative $18.171 billion, and debt including leases rose $56.901 billion from year-end. AMZN had substantial cash and short-term investments, so this is not a liquidity-crisis claim. It is a warning that investment spending and financing risk are growing faster than the evidence of cash returns. Q1 reported earnings also included a $15.680 billion pretax securities gain, and the available Q2 feed lacks the operating results needed to assess its $5.75 EPS.</p>
+<p>The Neutral Analyst has not spoken, but the likely argument for waiting until the evidence is clearer has a cost too: confirmation may arrive only after a larger loss. Equally, mixed, low-confidence sentiment and a projected $10 billion in event-period consumer spending are not proof of profitable demand, especially if promotions raise costs.</p>
+<p>My low-risk adjustment is to <strong>SELL AMZN exposure above the proposed 0.75-times-allocation ceiling now</strong>, using current prices and executable limits rather than the September 28 quote. I would not automatically keep a position at or below that ceiling: first check its contribution to portfolio concentration, downside tolerance, and liquidity needs, and reduce further if it breaches those limits. Hold any remaining stake without adding until the complete Q2 results clarify operating earnings and cash flow, and capex shows a credible path to cash returns. Keep proceeds available for liquidity or demonstrably better risk-adjusted opportunities; freeing capacity alone is not a reason to take another risk.
+Conservative Analyst: Aggressive, I agree that the missing portfolio details do not justify assuming AMZN needs a larger sale. But they also do not justify treating 0.75 times the standard allocation as a weight worth preserving. Q1 revenue and operating income grew strongly, yet 2025 free cash flow fell from $32.878 billion to $7.695 billion, Q1 2026 free cash flow was negative $18.171 billion, and debt including leases rose $56.901 billion from year-end. The $143.089 billion cash balance means this is not an immediate liquidity-crisis argument. It does not tell us when those investments will produce enough cash to support the risk being taken.</p>
+<p>Neutral, I am not asking for sustained positive free cash flow before retaining any meaningful AMZN position. I am asking for better evidence before defending an outsized one. The available Q2 feed gives a $5.75 EPS figure without the operating results needed to assess it, while Q1 reported earnings included a $15.680 billion pretax securities gain. Waiting for complete results before adding is different from selling every share. Likewise, positive weekly and monthly trends and an ADX of 8.36 argue against declaring a lasting decline; they offer no protection against a sharp loss. The October $10 billion estimate is consumer spending, not AMZN profit.</p>
+<p>My adjustment remains a conditional SELL: reduce AMZN to the lower of 0.75 times the standard allocation or the limit imposed by the portfolio’s actual concentration, correlated growth exposure, liquidity needs, and downside budget. If it is already within those limits, do not sell merely because cash flow is weak—but do not add. Use current tradable prices and staged, executable limit orders, and review unfilled orders rather than waiting indefinitely for a rebound to the dated 50-day average. Reassess the retained stake when complete Q2 results clarify cash returns and financing needs.
+Conservative Analyst: Aggressive, I agree that AMZN’s operating growth argues against an automatic full exit. It does not establish that the remaining stake deserves 0.75 times a standard allocation. Q1 capex of $44.203 billion exceeded $26.032 billion of operating cash flow, producing negative $18.171 billion of free cash flow, while debt including leases rose $56.901 billion from year-end. The $143.089 billion cash and short-term investment balance rules out an immediate liquidity-crisis claim; it does not demonstrate that this spending will earn an adequate return. “Keeping exposure for upside” is a choice to bear that unresolved risk, not a sizing rule.</p>
+<p>Neutral, I agree that weak cash flow alone is not grounds to sell every AMZN position already within a sound risk limit. But the limit needs to reflect <em>current</em> downside capacity and correlated growth exposure, not merely a pre-existing allocation rule. Positive weekly and monthly SuperTrend readings and an ADX of 8.36 do not cap losses. The dated weekly SuperTrend level was more than 8% below the September 28 close, and a gap could bypass it. Nor can Q2’s $5.75 EPS settle the risk question when the available feed lacks Q2 operating results and Q1 reported earnings included a $15.680 billion pretax securities gain.</p>
+<p>My recommendation remains a conditional SELL for AMZN: promptly reduce holdings above the lower of the 0.75-times ceiling and the portfolio’s actual concentration, liquidity, and downside limits. If AMZN is below those limits, hold without adding solely on this evidence; reassess the limit if the portfolio’s risk capacity changes. Use current tradable prices and reviewable staged orders, not the dated September quote. Retain only exposure the firm can tolerate through a sharp decline while awaiting complete Q2 cash-flow and financing details.
+Conservative Analyst: Aggressive, I agree that AMZN’s Q1 operating growth justifies considering a limited stake. But “manageable” has to be measured by the loss the portfolio can absorb, not by the possibility that capex eventually pays off. Operating cash flow rose to $26.032 billion, yet Q1 capex was $44.203 billion. That followed a fall in annual free cash flow from $32.878 billion in 2024 to $7.695 billion in 2025, while debt including leases rose $56.901 billion in Q1. The $143.089 billion cash balance means this is not an immediate liquidity crisis; it does not remove the risk of funding investments whose returns remain unproven.</p>
+<p>Neutral, this is not a judgment based on one negative quarter. The deterioration spans 2025 and Q1 2026, and the available Q2 feed lacks the operating and cash-flow detail needed to tell whether it is reversing. Positive weekly and monthly trends and low ADX argue against declaring a lasting decline, but they do not set a floor for AMZN. At the dated September 28 close, the weekly SuperTrend level was about 8% lower, and a gap could exceed that move. A position can meet an allocation rule and still be too large once correlated growth holdings and liquidity needs are counted.</p>
+<p>I therefore support a conditional SELL for AMZN, with a stricter sizing test than either “keep the growth stake” or “hold if under 0.75×.” Sell exposure above the lower of 0.75 times the standard allocation and the portfolio’s actual concentration and downside limit. If AMZN is below that limit, do not sell solely on these reports, but do not add; first stress-test what a sharp AMZN decline alongside losses in correlated holdings would cost the whole portfolio. Use current tradable prices and reviewable staged orders, rather than waiting for the dated September price or assuming a stop will contain a gap. Reassess the retained weight when complete Q2 results show whether cash generation is catching up with spending and whether debt growth persists.
+Conservative Analyst: Aggressive, I agree that an AMZN position above its risk limit should be trimmed without waiting for a breakdown or a complete Q2 filing. But we do not know whether this portfolio is overweight. Nor am I requiring proof of capex returns before retaining any stake. My objection is to calling a stake “manageable” before testing what an AMZN decline, alongside losses in correlated growth holdings, would do to the portfolio. Q1 operating cash flow rose, but $44.203 billion of capex exceeded it by $18.171 billion; the March cash balance does not establish that this spending will earn an adequate return.</p>
+<p>Neutral, I agree that negative free cash flow is not an immediate funding crisis or a reason to sell every share. Still, “hold if under 0.75×” is safe only if the portfolio’s actual downside and liquidity limits are at least as tight. Free cash flow weakened across 2025 and Q1 2026, debt including leases rose $56.901 billion in Q1, and the supplied Q2 feed cannot show whether those trends reversed. Positive higher-timeframe signals and low ADX do not limit losses; the dated weekly SuperTrend level was more than 8% below the September 28 close, and a gap could exceed that distance.</p>
+<p>My recommendation is a conditional SELL for AMZN: promptly sell shares above the lower of the 0.75× ceiling and the portfolio’s verified risk limit. Run the stress test alongside that trim, not instead of it, and reduce further only if it reveals a tighter limit. If AMZN is already within those limits, hold without adding solely on this evidence. Use reviewable limit orders at current tradable prices, recognizing that an unfilled order does not reduce risk, and revisit the retained weight when complete Q2 cash-flow and financing details are available.</p>
+<h3 id="neutral-analyst">Neutral Analyst<a class="headerlink" href="#neutral-analyst" title="Permanent link">&para;</a></h3>
+<p>Neutral Analyst: I agree with both analysts on the immediate decision: a measured SELL makes sense if AMZN exceeds the proposed limit. Where I differ is in how much confidence either side places in that limit. The Aggressive Analyst is right that waiting for a confirmed downtrend could make an overdue trim more costly. But selling excess AMZN to “free capacity” is not itself a reason to take a new risk, and 0.75 times a standard allocation is a ceiling to test against the portfolio—not a universally safe weight.</p>
+<p>The Conservative Analyst is right to check concentration, liquidity needs, and exposure to other growth stocks before deciding what to retain. I would push back, though, on making sustained positive free cash flow a prerequisite for keeping any meaningful AMZN stake. Q1 revenue grew 16.6% and operating income grew 29.6% year over year. Capex may eventually earn a return; waiting until that return is fully evident could mean giving up much of the upside. That possibility does not erase the cash-flow problem: 2025 free cash flow fell sharply, Q1 2026 free cash flow was negative $18.171 billion, and debt including leases rose $56.901 billion from year-end.</p>
+<p>The technical picture also argues against either extreme. On September 28, AMZN was below its 50-day average with weaker momentum and OBV, supporting a trim of an oversized holding. But ADX was just 8.36 and the weekly and monthly SuperTrend readings remained positive; those signals do not establish a lasting decline. Rising-yield reports add a valuation risk, though the supplied macro data do not quantify the yield move. The projected October shopping spend is an opportunity, not evidence of profitable AMZN sales.</p>
+<p>My recommendation is to SELL only AMZN shares above the lower of two limits: 0.75 times your standard allocation, or the weight your actual concentration and liquidity rules permit. If AMZN is already within those limits, hold rather than sell or add solely on this evidence. Use staged orders against current tradable prices, without waiting for a rebound to the dated $256.15 average. Then reassess the remaining position when the complete Q2 operating results and cash-flow details are available. That preserves participation in operating growth while reducing exposure to the less certain payoff from rising investment spending.
+Neutral Analyst: Aggressive, I agree that an overweight AMZN position does not need a confirmed breakdown before it is trimmed. But “freeing capacity” is a risk benefit, not an investment return: the proceeds need not be redeployed, and a rebound remains a real cost of selling now. AMZN’s Q1 revenue rose 16.6% and operating income rose 29.6%, while its weekly and monthly trends were still positive on September 28. That supports retaining a position, not treating the trim as a bearish bet.</p>
+<p>Conservative, your clarification matters: you are not demanding positive free cash flow before keeping any AMZN exposure. I agree that 0.75 times a standard allocation is not automatically safe. Still, weak cash flow alone does not establish that a position already within a sensible portfolio risk limit needs further selling. Q1 operating cash flow grew, even though $44.203 billion of capex exceeded it; the question is whether that spending earns a return. The $143.089 billion March cash and short-term investment balance argues against calling this an immediate liquidity crisis, while the rise in debt and negative free cash flow argue against complacency. The incomplete Q2 operating data and Q1 securities gain also make the trailing P/E a poor shortcut for settling that question.</p>
+<p>My decision remains a conditional SELL for AMZN: promptly trim only the shares above the lower of 0.75 times your standard allocation and any tighter limit set by your actual concentration, correlated holdings, liquidity needs, or downside budget. If AMZN is already within those limits, hold without adding solely on this evidence. Use staged, reviewable orders at current tradable prices rather than anchoring to September 28’s $246.15 close or waiting for the dated 50-day average. Then reassess the retained stake against complete Q2 operating results, cash flow relative to capex, and financing needs. Weak daily momentum favors controlling the size now; low ADX and positive higher-timeframe trends argue against selling everything.
+Neutral Analyst: Aggressive, I agree that an overweight AMZN position need not wait for a confirmed breakdown before being trimmed. But “freeing capacity” is a benefit only if the sale reduces a real concentration risk or leaves room for a better-supported use of capital; it is not a return in itself. Strong Q1 operating growth supports retaining exposure, while the drop in free cash flow and rise in debt argue against treating that growth as a reason to preserve an oversized stake.</p>
+<p>Conservative, your insistence on testing the limit against correlated holdings and downside capacity is right. I would resist letting one negative free-cash-flow quarter dictate the size of every otherwise manageable position, though. Q1 revenue rose 16.6% and operating income rose 29.6%, and the September 28 weekly and monthly trends were still positive. Heavy investment might earn a return. Equally, those trends and the low ADX do not protect against a sharp loss, especially when the available Q2 operating results are incomplete.</p>
+<p>My decision remains a conditional SELL for AMZN: sell shares above the lower of 0.75 times the standard allocation or any tighter limit set by the portfolio’s concentration, liquidity, and downside budget. If AMZN is already within that limit, hold without adding solely on this evidence. Use staged, reviewable orders based on current tradable prices, not the dated September 28 close. Reassess the retained position when complete Q2 results show whether operating cash flow is catching up with capex and whether financing needs continue to grow.
+Neutral Analyst: Aggressive, I agree that an oversized AMZN position can be trimmed before a confirmed breakdown. My reservation is that Q1 operating growth is evidence of a stronger business, not yet evidence that the current investment pace will earn an adequate return. Operating cash flow rose, but capex exceeded it; free cash flow weakened across 2025 and Q1 2026. With Q2 operating and cash-flow detail missing from the supplied feed, the retained stake should be a monitored risk, not a position defended indefinitely because the growth case remains possible. Freeing capacity is useful, but there is no need to redeploy the proceeds immediately.</p>
+<p>Conservative, you are right that the 0.75-times ceiling cannot substitute for a portfolio-wide stress test. A sharp AMZN decline could coincide with losses in other growth holdings, particularly if rising yields continue to pressure valuations. But the deterioration in free cash flow does not establish an immediate funding crisis or a lasting decline. AMZN held $143.089 billion in cash and short-term investments at March 31, Q1 operating income grew 29.6%, and the September 28 weekly and monthly trend readings were still positive. I would assess the portfolio’s downside capacity promptly, not let that assessment become a reason to leave a known overweight untouched.</p>
+<p>My recommendation remains a conditional SELL for AMZN: reduce shares above the lower of 0.75 times the standard allocation or any tighter limit justified by concentration, correlated holdings, liquidity needs, and downside tolerance. If AMZN is already within that limit, hold without adding or selling solely on these reports. Use staged, reviewable limits at current tradable prices, rather than the dated September 28 quote or a hoped-for rebound. Then revisit the retained weight using complete Q2 results—especially cash flow versus capex and debt growth—and evidence of profitable holiday demand. That controls concentration now without treating uncertain investment returns, weak daily momentum, or a projected shopping-spend figure as a reason for a full exit.
+Neutral Analyst: Aggressive, I agree that a confirmed AMZN overweight should be trimmed without waiting for a technical breakdown. But we do not know this portfolio’s weight, so “sell promptly” must begin with checking the position. Q1 operating income grew 29.6%, yet capex of $44.203 billion exceeded operating cash flow of $26.032 billion. That supports reducing excess exposure, not assuming either that the investment will pay off or that every remaining share should go.</p>
+<p>Conservative, your proposal to stress-test correlated growth holdings alongside the trim is the right safeguard. I would make that test concrete: set the portfolio loss it can tolerate under a sharp AMZN decline occurring alongside losses in similar holdings. A tighter limit should follow from that budget, not from an undefined concern about volatility. The $143.089 billion March cash balance argues against an immediate liquidity-crisis claim, though it does not settle the return-on-capex question.</p>
+<p>My call remains a conditional SELL for AMZN. Reduce any holding above the lower of 0.75 times the standard allocation and the portfolio’s actual concentration, liquidity, and downside limit. If AMZN is already within that boundary, hold without adding or selling solely on these reports. Use current tradable prices and reviewable staged limits; an unfilled order has not reduced risk. The September 28 technical readings are dated, and low ADX with positive higher-timeframe trends argues against a full exit. Reassess the retained stake when complete Q2 operating and cash-flow figures clarify whether cash generation is catching up with spending and debt growth.</p>
+<h2 id="v-portfolio-manager-decision">V. Portfolio Manager Decision<a class="headerlink" href="#v-portfolio-manager-decision" title="Permanent link">&para;</a></h2>
+<h3 id="portfolio-manager">Portfolio Manager<a class="headerlink" href="#portfolio-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Rating</strong>: Underweight</p>
+<p><strong>Executive Summary</strong>: For AMZN, reduce only exposure above the lower of 0.75× the portfolio’s standard allocation and its verified concentration, liquidity, and downside-risk limit. Check actual holdings first, trim confirmed excess using staged, reviewable limit orders at current tradable prices without waiting for a rebound, and stress-test correlated exposures alongside execution; if already within the limit, retain existing exposure without adding, and defer entry if uninvested. Reassess when complete Q2 operating and cash-flow details become available, with fresh allocation increases paused pending an observable cash-conversion improvement. Further comparable free-cash-flow deterioration alongside another sharp increase in debt including leases would lower the ceiling to 0.50× standard allocation, subject to tighter portfolio constraints.</p>
+<p><strong>Investment Thesis</strong>: The case for reducing AMZN exposure wins moderately because cash-conversion deterioration is observed, while adequate returns from the investment surge remain unproven. The analysts’ conditional SELL is an execution instruction for excess holdings, not a recommendation to exit AMZN entirely; Underweight therefore matches the rating scale better than Sell or Hold.</p>
+<p>Cash generation versus spending decides the allocation. Annual free cash flow fell from $32.878 billion in 2024 to $7.695 billion in 2025. Q1 2026 operating cash flow increased from $17.015 billion to $26.032 billion, but $44.203 billion of capex produced a $18.171 billion free-cash-flow deficit. The supplied year-over-year comparison shows approximately $19.2 billion of additional capex against $9.0 billion of additional operating cash flow, widening the deficit from about $8.0 billion. This is annual and comparable-quarter deterioration, not an annualization of one seasonal quarter. Debt including leases rose $56.901 billion from year-end; its components must be reconciled rather than attributing the entire movement to capex. The supplied $15.4 billion of business purchases outside the free-cash-flow measure also requires separate consideration.</p>
+<p>Operating strength limits the reduction. Q1 revenue grew 16.6%, operating income grew 29.6%, and operating margin improved from approximately 11.8% to 13.1%. Operating cash flow itself grew substantially, and $143.089 billion of cash and short-term investments at March 31 argues against inferring an immediate funding crisis. Those facts support retaining risk-budgeted exposure to a possible investment payoff, while neither proving adequate returns on capex nor making 0.75× allocation universally safe. Selling now also accepts the possibility of missing part of an immediate rebound.</p>
+<p>Valuation and technical evidence do not overturn the cash-flow conclusion. The $15.680 billion Q1 pretax securities gain and missing Q2 operating detail make the quoted 19.8× trailing P/E and Q2 EPS of $5.75 insufficient recurring-earnings anchors. In the dated September 28 snapshot, AMZN’s $246.15 close was below its $256.15 50-day average, with weaker MACD and OBV, supporting execution without waiting for a rebound. However, ADX of 8.36 and positive weekly and monthly SuperTrend readings do not establish a durable decline or protect against losses. The dated $225.82 weekly SuperTrend reference was about 8.3% below that close, but is not a guaranteed stop or executable current level; gaps can bypass it. Projected October consumer spending of $10 billion is not an AMZN profit forecast, and low-confidence sentiment and unquantified yield pressure do not justify a stronger directional call.</p>
+<p>Apply the ceiling to actual portfolio conditions. Current holdings, cash needs, the standard allocation, live prices, and the portfolio’s risk limits are not supplied, so no absolute portfolio weight or share quantity can be prescribed. Check concentration and stress losses from a sharp AMZN decline occurring alongside correlated growth-stock losses; apply any tighter verified limit without assuming one has already been breached. Review and reprice unfilled limit orders because they have not reduced exposure. Proceeds need not be immediately redeployed.</p>
+<p>What would change the decision: obtain complete Q2 operating and cash-flow disclosure, reconcile recurring earnings and securities gains, capex, acquisition cash uses, and debt including leases, and examine segment investment returns and forward capex guidance where available. Consider restoring AMZN toward 1.0× standard allocation, subject to portfolio limits, only when recurring earnings are clarified and comparable evidence shows year-over-year dollar growth in operating cash flow exceeding capex growth, improving trailing free cash flow, and moderating debt growth. An observable inflection is sufficient; a completed investment cycle or sustained positive free cash flow is not required. Reclaiming the then-current 50-day average with stronger momentum and participation would support timing, not independently justify adding. Conversely, further comparable free-cash-flow deterioration together with another sharp debt-and-lease increase warrants the 0.50× ceiling; declining operating margins and operating cash flow would strengthen the case for further reduction. Complete Q2 detail, a disclosure date, and sufficient recurring-earnings valuation evidence are missing, so no numerical price target or calendar-based holding period is justified.</p>
+<p><strong>Price Target</strong>: not provided</p>
+<p><strong>Time Horizon</strong>: AMZN: retain only risk-budgeted exposure pending complete Q2 operating and cash-flow disclosure; reassess when available.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      For AI testing and experimentation only. Not financial or investment advice or a substitute for a qualified financial adviser. AI-generated reports may contain errors. Do not use them to make investment or trading decisions.
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
