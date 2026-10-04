@@ -31,6 +31,10 @@ def create_llm_client(
     """
     provider_lower = provider.lower()
 
+    if provider_lower == "commandcode":
+        from .commandcode import CommandCodeClient
+        return CommandCodeClient(model, base_url, **kwargs)
+
     # Native (non-OpenAI) APIs are matched first so their string check doesn't
     # import the OpenAI client. Everything else is OpenAI-compatible and routes
     # through the provider registry (single source of truth).
@@ -107,6 +111,13 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         kwargs["api"] = config.get("opencode_go_api") or "auto"
         if config.get("openai_reasoning_effort"):
             kwargs["reasoning_effort"] = config["openai_reasoning_effort"]
+
+    if provider == "commandcode":
+        kwargs["api"] = config.get("commandcode_api") or "auto"
+        if config.get("openai_reasoning_effort"):
+            kwargs["reasoning_effort"] = config["openai_reasoning_effort"]
+        if config.get("anthropic_effort"):
+            kwargs["effort"] = config["anthropic_effort"]
 
     if provider == "google":
         thinking_level = config.get("google_thinking_level")

@@ -334,6 +334,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("OpenCode Go", "opencode-go", GO_BASE_URL),
+        ("Command Code", "commandcode", "https://api.commandcode.ai/provider/v1"),
         ("Mistral", "mistral", "https://api.mistral.ai/v1"),
         ("Kimi (Moonshot)", "kimi", "https://api.moonshot.ai/v1"),
         ("Groq", "groq", "https://api.groq.com/openai/v1"),
@@ -415,6 +416,62 @@ def select_llm_provider(default=None) -> tuple[str, str | None]:
 
     provider, url = choice
     return provider, url
+
+
+def ask_provider_api(provider: str, models: list[str], configured_api: str = "auto") -> str:
+    """Ask for a protocol only when a gateway cannot route a custom ID.
+
+    Known models keep automatic per-model routing, so e.g. Claude and GPT can
+    coexist. An explicit override applies to both quick and deep models.
+    """
+    from tradingagents.llm_clients.commandcode import (
+        COMMANDCODE_APIS,
+        COMMANDCODE_MODEL_ENDPOINTS,
+        resolve_commandcode_api,
+    )
+    from tradingagents.llm_clients.opencode_go import GO_MODEL_APIS, resolve_go_api
+
+    provider = provider.lower()
+    if provider == "commandcode":
+        resolve = resolve_commandcode_api
+        known = COMMANDCODE_MODEL_ENDPOINTS
+    elif provider == "opencode-go":
+        resolve = resolve_go_api
+        known = {model: (api,) for model, api in GO_MODEL_APIS.items()}
+    else:
+        raise ValueError(f"Provider {provider!r} does not need a protocol selector")
+
+    if configured_api != "auto":
+        for model in models:
+            resolve(model, configured_api)
+        return configured_api
+    try:
+        for model in models:
+            resolve(model)
+    except ValueError:
+        pass
+    else:
+        return "auto"
+
+    choices = set(COMMANDCODE_APIS)
+    for model in models:
+        if model in known:
+            choices.intersection_update(known[model])
+    if not choices:
+        raise ValueError("Selected models need different API protocols; use known model IDs with auto routing")
+    labels = {
+        "chat_completions": "OpenAI Chat Completions (/chat/completions)",
+        "responses": "OpenAI Responses (/responses)",
+        "messages": "Anthropic Messages (/messages)",
+    }
+    choice = questionary.select(
+        f"Select the documented API for your custom {provider} model (applies to both models):",
+        choices=[questionary.Choice(label, value=api) for api, label in labels.items() if api in choices],
+    ).ask()
+    if choice is None:
+        console.print("\n[red]No model API selected. Exiting...[/red]")
+        raise SystemExit(1)
+    return choice
 
 
 def ask_openai_reasoning_effort() -> str:

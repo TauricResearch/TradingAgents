@@ -30,6 +30,7 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "minimax-cn": "MINIMAX_CN_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     "opencode-go": "OPENCODE_GO_API_KEY",
+    "commandcode": "CMD_API_KEY",
     # Additional hosted OpenAI-compatible providers (model is user-specified).
     # kimi -> Moonshot AI; nvidia -> NVIDIA NIM.
     "mistral":    "MISTRAL_API_KEY",

@@ -148,6 +148,13 @@ def get_capabilities(model_name: str) -> ModelCapabilities:
     if model_name.startswith("deepseek/"):
         model_name = model_name.removeprefix("deepseek/")
 
+    # Command Code uses the publishers' namespaced API IDs. Reuse only known
+    # official namespaces; unrelated finetunes must retain default behavior.
+    if model_name.startswith("MiniMaxAI/"):
+        model_name = model_name.removeprefix("MiniMaxAI/")
+    if model_name.startswith("meta/muse-spark-"):
+        model_name = model_name.removeprefix("meta/")
+
     if model_name in _BY_ID:
         return _BY_ID[model_name]
     for pattern, caps in _BY_PATTERN:

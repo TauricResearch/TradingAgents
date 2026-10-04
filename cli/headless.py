@@ -36,6 +36,13 @@ class AssetMode(str, Enum):
     CRYPTO = "crypto"
 
 
+class ProviderAPI(str, Enum):
+    AUTO = "auto"
+    CHAT_COMPLETIONS = "chat_completions"
+    RESPONSES = "responses"
+    MESSAGES = "messages"
+
+
 _EFFORT_ROUNDS = {"shallow": 1, "medium": 3, "deep": 5}
 _ANALYST_KEYS = tuple(a.value for a in AnalystType)
 _ROUND_ENV = {

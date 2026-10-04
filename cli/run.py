@@ -80,9 +80,16 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     config["deep_think_llm"] = selections["deep_think_llm"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    if config["llm_provider"] != str(DEFAULT_CONFIG.get("llm_provider", "")).lower():
+        # Match the prompt-free path: custom authentication/routing headers
+        # belong to the configured provider and must not follow a menu switch.
+        config["llm_headers"] = None
     # A provider without its own reasoning prompt (e.g. Go) must not erase
     # a reasoning option that DEFAULT_CONFIG already read from the environment.
     for key in ("google_thinking_level", "openai_reasoning_effort", "anthropic_effort"):
+        if selections.get(key) is not None:
+            config[key] = selections[key]
+    for key in ("opencode_go_api", "commandcode_api"):
         if selections.get(key) is not None:
             config[key] = selections[key]
     config["output_language"] = selections.get("output_language", "English")

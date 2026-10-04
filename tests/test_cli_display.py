@@ -83,9 +83,9 @@ def test_the_live_display_does_not_scroll_the_terminal():
     report prints after the live view ends, so nothing is lost when it closes."""
     import inspect
 
-    import cli.main as m
+    import cli.run as native
 
-    assert "screen=True" in inspect.getsource(m.run_analysis)
+    assert "screen=True" in inspect.getsource(native._execute_analysis)
 
 
 class AnalystWallTimeTrackerTests(unittest.TestCase):

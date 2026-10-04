@@ -195,6 +195,8 @@ def test_propagator_observers_and_explicit_override():
 
 @pytest.mark.parametrize("error", [ValueError("failure"), KeyboardInterrupt()])
 def test_live_cleanup_on_failure_or_interrupt(monkeypatch, error):
+    # isatty alone is insufficient when the host explicitly declares TERM=dumb.
+    monkeypatch.setenv("TERM", "xterm-256color")
     stream, stdout = Terminal(), StringIO()
     monkeypatch.setattr(sys, "stderr", stream)
     monkeypatch.setattr(sys, "stdout", stdout)

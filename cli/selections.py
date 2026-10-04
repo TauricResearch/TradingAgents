@@ -20,6 +20,7 @@ from cli.prompts import (
     ask_minimax_region,
     ask_openai_reasoning_effort,
     ask_output_language,
+    ask_provider_api,
     ask_qwen_region,
     confirm_ollama_endpoint,
     detect_asset_type,
@@ -90,7 +91,10 @@ def _prompt_selections(prefs):
             console.print(f"[green]✓ {label} from environment:[/green] {value}")
             return value
         console.print(create_question_box(box_title, box_body))
-        return prompt_fn()
+        value = prompt_fn()
+        if value is None:
+            raise typer.Abort()
+        return value
 
     # Step 1: Ticker symbol
     console.print(
@@ -224,26 +228,47 @@ def _prompt_selections(prefs):
         # doesn't fail later at the first API call.
         ensure_api_key(selected_llm_provider)
 
-    # Step 7: Thinking agents (skipped when either model is set via environment)
-    if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
-        selected_shallow_thinker = DEFAULT_CONFIG["quick_think_llm"]
-        selected_deep_thinker = DEFAULT_CONFIG["deep_think_llm"]
-        console.print(
-            f"[green]✓ Thinking agents from environment:[/green] "
-            f"quick={selected_shallow_thinker}, deep={selected_deep_thinker}"
-        )
-    else:
+    # Step 7: Each model has independent environment precedence. Configuring
+    # only one must not silently choose the other from a different provider's
+    # defaults (e.g. OpenAI's deep model after choosing Anthropic).
+    quick_from_env = bool(os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM"))
+    deep_from_env = bool(os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"))
+    if not (quick_from_env and deep_from_env):
         console.print(
             create_question_box(
                 "Step 7: Thinking Agents", "Select your thinking agents for analysis"
             )
         )
-        remembered = prefs if prefs.get("llm_provider") == selected_llm_provider else {}
+    remembered = prefs if prefs.get("llm_provider") == selected_llm_provider else {}
+    if quick_from_env:
+        selected_shallow_thinker = DEFAULT_CONFIG["quick_think_llm"]
+        console.print(
+            f"[green]✓ Quick-thinking agent from environment:[/green] {selected_shallow_thinker}"
+        )
+    else:
         selected_shallow_thinker = select_shallow_thinking_agent(
             selected_llm_provider, remembered.get("quick_think_llm")
         )
+    if selected_shallow_thinker is None:
+        raise typer.Abort()
+    if deep_from_env:
+        selected_deep_thinker = DEFAULT_CONFIG["deep_think_llm"]
+        console.print(
+            f"[green]✓ Deep-thinking agent from environment:[/green] {selected_deep_thinker}"
+        )
+    else:
         selected_deep_thinker = select_deep_thinking_agent(
             selected_llm_provider, remembered.get("deep_think_llm")
+        )
+    if selected_deep_thinker is None:
+        raise typer.Abort()
+
+    protocol_settings = {}
+    if selected_llm_provider in {"opencode-go", "commandcode"}:
+        protocol_key = selected_llm_provider.replace("-", "_") + "_api"
+        protocol_settings[protocol_key] = ask_provider_api(
+            selected_llm_provider, [selected_shallow_thinker, selected_deep_thinker],
+            DEFAULT_CONFIG.get(protocol_key) or "auto",
         )
 
     # Step 8: Provider-specific reasoning/thinking configuration. Each knob is
@@ -278,6 +303,28 @@ def _prompt_selections(prefs):
             "Claude effort", "Step 8: Effort Level",
             "Configure Claude effort level", ask_anthropic_effort,
         )
+    elif provider_lower in {"opencode-go", "commandcode"}:
+        # Routed providers can mix native OpenAI and Anthropic models. Offer
+        # the same controls as their direct providers; adapters gate each
+        # setting by the individual model's actual capabilities.
+        from tradingagents.llm_clients.openai_client import _supports_reasoning_effort
+
+        models = [selected_shallow_thinker, selected_deep_thinker]
+        if any(_supports_reasoning_effort(model) for model in models):
+            reasoning_effort = thinking_value_or_prompt(
+                "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
+                "Reasoning effort", "Step 8: Reasoning Effort",
+                "Configure OpenAI reasoning effort level", ask_openai_reasoning_effort,
+            )
+        if provider_lower == "commandcode":
+            from tradingagents.llm_clients.anthropic_client import _supports_effort
+
+            if any(_supports_effort(model) for model in models):
+                anthropic_effort = thinking_value_or_prompt(
+                    "TRADINGAGENTS_ANTHROPIC_EFFORT", "anthropic_effort",
+                    "Claude effort", "Step 8: Effort Level",
+                    "Configure Claude effort level", ask_anthropic_effort,
+                )
 
     return {
         "ticker": selected_ticker,
@@ -293,6 +340,7 @@ def _prompt_selections(prefs):
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
+        **protocol_settings,
     }
 
 

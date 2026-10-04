@@ -107,7 +107,7 @@ class TestResearchDepthSkippedFromEnv(unittest.TestCase):
              mock.patch.object(cli_selections, "ask_output_language", return_value="English"), \
              mock.patch.object(cli_selections, "select_shallow_thinking_agent", return_value="gpt-5.4-mini"), \
              mock.patch.object(cli_selections, "select_deep_thinking_agent", return_value="gpt-5.5"), \
-             mock.patch.object(cli_selections, "ask_openai_reasoning_effort", return_value=None):
+             mock.patch.object(cli_selections, "ask_openai_reasoning_effort", return_value="medium"):
             sel = cli_selections.get_user_selections()
 
         # The research-depth prompt is skipped; the value comes from the env config.

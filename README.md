@@ -166,6 +166,7 @@ export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
 export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export CMD_API_KEY=...             # Command Code Provider API
 export MISTRAL_API_KEY=...         # Mistral
 export MOONSHOT_API_KEY=...        # Kimi (Moonshot)
 export GROQ_API_KEY=...            # Groq
@@ -183,6 +184,16 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
+For [Command Code's Provider API](https://commandcode.ai/docs/provider), select **Command Code** in the CLI or set `llm_provider: "commandcode"` and `CMD_API_KEY` from Command Code Studio. GOAT, Pro, Max, Team and Provider plans support API access; the Go plan does not. Known models route automatically: Claude uses Anthropic Messages, GPT uses OpenAI Responses, and other models use Chat Completions. Both thinking models may use different protocols in one run. For example:
+
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=commandcode
+export TRADINGAGENTS_QUICK_THINK_LLM=deepseek/deepseek-v4-flash
+export TRADINGAGENTS_DEEP_THINK_LLM=moonshotai/Kimi-K3
+```
+
+The default API base is `https://api.commandcode.ai/provider/v1`; `backend_url` / `TRADINGAGENTS_LLM_BACKEND_URL` can override it with a proxy base (not a complete request URL). The adapter removes `/v1` for the Anthropic SDK to avoid duplicating it. The offline model catalog was verified on 2026-10-04. For a new/custom ID, consult the live [`supported_endpoints` catalog](https://api.commandcode.ai/provider/v1/models) and explicitly set `commandcode_api` / `TRADINGAGENTS_COMMANDCODE_API` to `chat_completions`, `responses`, or `messages`; the default is `auto`. This shared override must suit both selected models. The Command Code key is never taken from OpenAI or Anthropic environment variables. Optional `llm_headers: {"x-cmd-zdr": "1"}` requests zero-data-retention routing, which may affect pricing or fail with HTTP 422 when unavailable.
+
 With `TYPESAFE_API_KEY` set, the Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. Without the key, posts pass through unscreened. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
@@ -198,6 +209,19 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
+
+For an unattended run, use `analyze SYMBOL`. It does not prompt, and defaults to today's date, all applicable analysts, and medium research depth (three debate/risk rounds unless overridden in `.env`). Explicit command-line options take precedence over environment defaults:
+
+```bash
+tradingagents analyze 600519.SS --language Chinese
+tradingagents analyze AAPL --provider commandcode \
+  --quick-model deepseek/deepseek-v4-flash --deep-model claude-sonnet-5-5 \
+  --language Chinese
+```
+
+`--openai-reasoning-effort`, `--google-thinking-level`, and `--anthropic-effort` expose the same model thinking controls as the interactive flow. `--opencode-go-api` and `--commandcode-api` accept `auto` (the default), `chat_completions`, `responses`, or `messages` for a new/custom model; the interactive flow asks for the protocol when needed. Keep API keys in your environment or `.env`.
+
+Other overrides include `--date`, `--analysts`, `--effort` / `--depth`, `--debate-rounds`, `--risk-rounds`, `--backend-url`, repeatable `--header`, `--temperature`, `--max-tokens`, and `--max-retries`. Use `--show-report` to display the saved full report without a follow-up question, or `--json` for a machine-readable summary. Run `tradingagents analyze --help` for all output, progress, checkpoint, and portfolio options.
 
 ### Markets and tickers
 
