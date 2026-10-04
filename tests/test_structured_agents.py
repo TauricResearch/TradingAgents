@@ -212,6 +212,25 @@ def test_invoke_structured_falls_back_when_result_is_none():
 
 
 @pytest.mark.unit
+def test_invoke_structured_does_not_retry_terminal_subscription_failure():
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+    from tradingagents.llm_clients.chatgpt_client import ChatGPTSubscriptionError
+
+    structured = MagicMock()
+    structured.invoke.side_effect = ChatGPTSubscriptionError(
+        "ChatGPT plan usage limit reached."
+    )
+    plain = MagicMock()
+
+    with pytest.raises(ChatGPTSubscriptionError, match="usage limit"):
+        invoke_structured_or_freetext(
+            structured, plain, "prompt", render=lambda result: str(result), agent_name="t"
+        )
+
+    plain.invoke.assert_not_called()
+
+
+@pytest.mark.unit
 class TestTraderAgent:
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}

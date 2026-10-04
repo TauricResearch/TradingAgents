@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Sequence
 
+import anyio
 import httpx
 import pytest
 from langchain_core.callbacks import BaseCallbackHandler
@@ -22,6 +24,7 @@ from tradingagents.llm_clients.chatgpt_client import (
     ChatGPTClient,
     ChatGPTResponses,
     ChatGPTResponsesError,
+    ChatGPTSubscriptionError,
 )
 
 pytestmark = pytest.mark.unit
@@ -59,6 +62,13 @@ def _sse(response: dict) -> bytes:
     return f"event: response.completed\ndata: {json.dumps(event)}\n\n".encode()
 
 
+def _sse_events(events: Sequence[dict]) -> bytes:
+    return b"".join(
+        f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode()
+        for event in events
+    )
+
+
 class Recorder:
     def __init__(self, responses: Sequence[dict]):
         self.responses = list(responses)
@@ -72,6 +82,50 @@ class Recorder:
         return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=payload)
 
 
+class EventRecorder:
+    def __init__(self, streams: Sequence[Sequence[dict]]):
+        self.streams = [list(stream) for stream in streams]
+        self.requests: list[httpx.Request] = []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if not self.streams:
+            return httpx.Response(500, json={"error": {"message": "no fixture"}})
+        payload = _sse_events(self.streams.pop(0))
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=payload)
+
+
+class AsyncEventStream(httpx.AsyncByteStream):
+    def __init__(self, events: Sequence[dict]):
+        self.events = list(events)
+        self.closed = False
+
+    async def __aiter__(self):
+        yield _sse_events(self.events)
+
+    async def aclose(self):
+        self.closed = True
+
+
+class AsyncEventRecorder:
+    def __init__(self, streams: Sequence[Sequence[dict]]):
+        self.streams = [list(stream) for stream in streams]
+        self.requests: list[httpx.Request] = []
+        self.responses: list[httpx.Response] = []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if not self.streams:
+            return httpx.Response(500, json={"error": {"message": "no fixture"}})
+        response = httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            stream=AsyncEventStream(self.streams.pop(0)),
+        )
+        self.responses.append(response)
+        return response
+
+
 def _model(recorder: Recorder, **kwargs) -> ChatGPTResponses:
     client = httpx.Client(transport=httpx.MockTransport(recorder.handler))
     return ChatGPTResponses(
@@ -79,6 +133,19 @@ def _model(recorder: Recorder, **kwargs) -> ChatGPTResponses:
         api_key=ACCESS_TOKEN,
         http_client=client,
         **kwargs,
+    )
+
+
+def _async_model(recorder: AsyncEventRecorder, **kwargs):
+    client = httpx.AsyncClient(transport=httpx.MockTransport(recorder.handler))
+    return (
+        ChatGPTResponses(
+            model="gpt-test",
+            api_key=ACCESS_TOKEN,
+            http_async_client=client,
+            **kwargs,
+        ),
+        client,
     )
 
 
@@ -481,4 +548,674 @@ def test_use_previous_response_id_cannot_be_enabled():
     recorder = Recorder([_completed([_text_message("nope")])])
     with pytest.raises(ChatGPTResponsesError, match="use_previous_response_id"):
         _model(recorder).invoke("hi", use_previous_response_id=True)
+    assert recorder.requests == []
+
+
+@pytest.mark.parametrize("async_invoke", [False, True], ids=["invoke", "ainvoke"])
+def test_interleaved_function_argument_deltas_are_confirmed_by_completed_output(
+    async_invoke,
+):
+    output = [
+        {
+            "id": "fc_a",
+            "type": "function_call",
+            "call_id": "call_a",
+            "name": "get_price",
+            "namespace": TOOL_NAMESPACE,
+            "arguments": '{"ticker":"AAPL"}',
+            "status": "completed",
+        },
+        {
+            "id": "fc_b",
+            "type": "function_call",
+            "call_id": "call_b",
+            "name": "get_price",
+            "namespace": TOOL_NAMESPACE,
+            "arguments": '{"ticker":"MSFT"}',
+            "status": "completed",
+        },
+    ]
+    events = [
+        {
+            "type": "response.function_call_arguments.delta",
+            "item_id": "fc_a",
+            "output_index": 0,
+            "delta": '{"ticker":"AA',
+        },
+        {
+            "type": "response.function_call_arguments.delta",
+            "item_id": "fc_b",
+            "output_index": 1,
+            "delta": '{"ticker":"MSFT"}',
+        },
+        {
+            "type": "response.function_call_arguments.delta",
+            "item_id": "fc_a",
+            "output_index": 0,
+            "delta": 'PL"}',
+        },
+        {
+            "type": "response.function_call_arguments.done",
+            "item_id": "fc_b",
+            "output_index": 1,
+            "arguments": '{"ticker":"MSFT"}',
+        },
+        {
+            "type": "response.function_call_arguments.done",
+            "item_id": "fc_a",
+            "output_index": 0,
+            "arguments": '{"ticker":"AAPL"}',
+        },
+        {"type": "response.completed", "response": _completed(output)},
+    ]
+    if async_invoke:
+        recorder = AsyncEventRecorder([events])
+        model, client = _async_model(recorder)
+
+        async def call():
+            async with client:
+                return await model.bind_tools([get_price]).ainvoke("prices")
+
+        message = anyio.run(call)
+    else:
+        recorder = EventRecorder([events])
+        message = _model(recorder).bind_tools([get_price]).invoke("prices")
+    assert [(call["id"], call["args"]) for call in message.tool_calls] == [
+        ("call_a", {"ticker": "AAPL"}),
+        ("call_b", {"ticker": "MSFT"}),
+    ]
+    assert len(recorder.requests) == 1
+
+
+def test_stream_yields_text_and_completed_usage_for_sync_and_async_calls():
+    response = _completed([_text_message("Hello")])
+    response["usage"] = {"input_tokens": 4, "output_tokens": 2, "total_tokens": 6}
+    events = [
+        {"type": "response.output_text.delta", "delta": "Hel"},
+        {"type": "response.output_text.delta", "delta": "lo"},
+        {"type": "response.completed", "response": response},
+    ]
+    sync_recorder = EventRecorder([events])
+    chunks = list(_model(sync_recorder).stream("hello"))
+    assert "".join(chunk.content for chunk in chunks) == "Hello"
+    assert chunks[-1].usage_metadata == {
+        "input_tokens": 4,
+        "output_tokens": 2,
+        "total_tokens": 6,
+    }
+
+    async_recorder = AsyncEventRecorder([events])
+    async_model, async_client = _async_model(async_recorder)
+
+    async def invoke_async():
+        async with async_client:
+            return await async_model.ainvoke("hello")
+
+    async_message = anyio.run(invoke_async)
+    assert async_message.content == "Hello"
+    assert async_message.usage_metadata["total_tokens"] == 6
+    assert len(async_recorder.requests) == 1
+
+    async_stream_recorder = AsyncEventRecorder([events])
+    async_stream_model, async_stream_client = _async_model(async_stream_recorder)
+
+    async def collect_async_stream():
+        async with async_stream_client:
+            return [chunk async for chunk in async_stream_model.astream("hello")]
+
+    async_chunks = anyio.run(collect_async_stream)
+    assert "".join(chunk.content for chunk in async_chunks) == "Hello"
+    assert async_chunks[-1].usage_metadata["total_tokens"] == 6
+    assert len(async_stream_recorder.requests) == 1
+
+
+@pytest.mark.parametrize("api", ["astream", "ainvoke"])
+def test_astream_cancel_closes_response_while_next_read_is_blocked(api):
+    read_started = threading.Event()
+    sync_release = threading.Event()
+    sync_reader_done = threading.Event()
+    responses: dict[str, httpx.Response] = {}
+
+    class BlockingSyncStream(httpx.SyncByteStream):
+        def __iter__(self):
+            try:
+                yield _sse_events(
+                    [{"type": "response.output_text.delta", "delta": "provisional"}]
+                )
+                read_started.set()
+                sync_release.wait()
+            finally:
+                sync_reader_done.set()
+
+    async def exercise():
+        async_release = anyio.Event()
+        async_stream_closed = anyio.Event()
+
+        class BlockingAsyncStream(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                yield _sse_events(
+                    [{"type": "response.output_text.delta", "delta": "provisional"}]
+                )
+                read_started.set()
+                await async_release.wait()
+
+            async def aclose(self):
+                async_stream_closed.set()
+                async_release.set()
+
+        def sync_handler(_: httpx.Request) -> httpx.Response:
+            response = httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                stream=BlockingSyncStream(),
+            )
+            responses["sync"] = response
+            return response
+
+        def async_handler(_: httpx.Request) -> httpx.Response:
+            response = httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                stream=BlockingAsyncStream(),
+            )
+            responses["async"] = response
+            return response
+
+        sync_client = httpx.Client(transport=httpx.MockTransport(sync_handler))
+        async_client = httpx.AsyncClient(transport=httpx.MockTransport(async_handler))
+        model = ChatGPTResponses(
+            model="gpt-test",
+            api_key=ACCESS_TOKEN,
+            http_client=sync_client,
+            http_async_client=async_client,
+        )
+        first_chunk = anyio.Event()
+        yielded: list[str] = []
+
+        async def consume():
+            if api == "astream":
+                async for chunk in model.astream("cancel during blocked read"):
+                    yielded.append(chunk.content)
+                    if chunk.content:
+                        first_chunk.set()
+            else:
+                result = await model.ainvoke("cancel during blocked read")
+                yielded.append(str(result.content))
+
+        try:
+            async with anyio.create_task_group() as task_group:
+                task_group.start_soon(consume)
+                with anyio.fail_after(2):
+                    if api == "astream":
+                        await first_chunk.wait()
+                    assert await anyio.to_thread.run_sync(lambda: read_started.wait(2))
+                task_group.cancel_scope.cancel()
+
+            response = responses.get("async") or responses.get("sync")
+            return bool(response and response.is_closed), yielded, async_stream_closed.is_set()
+        finally:
+            sync_release.set()
+            async_release.set()
+            await async_client.aclose()
+            sync_client.close()
+
+    closed_during_cancel, yielded, async_stream_closed = anyio.run(exercise)
+    assert yielded == (["provisional"] if api == "astream" else [])
+    assert closed_during_cancel
+    assert async_stream_closed or "async" not in responses
+    if "sync" in responses:
+        assert sync_reader_done.wait(2)
+
+
+def test_sync_stream_close_closes_response_after_first_delta():
+    responses: list[httpx.Response] = []
+
+    def handle(_: httpx.Request) -> httpx.Response:
+        response = httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=_sse_events(
+                [{"type": "response.output_text.delta", "delta": "provisional"}]
+            ),
+        )
+        responses.append(response)
+        return response
+
+    model = ChatGPTResponses(
+        model="gpt-test",
+        api_key=ACCESS_TOKEN,
+        http_client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+    stream = model.stream("close after a provisional delta")
+    assert next(stream).content == "provisional"
+    stream.close()
+    assert responses[0].is_closed
+
+
+@pytest.mark.parametrize(
+    "events,match",
+    [
+        (
+            [{"type": "response.incomplete", "response": {"status": "incomplete"}}],
+            "response.incomplete",
+        ),
+        (
+            [{"type": "response.output_text.delta", "delta": "partial"}],
+            "without response.completed",
+        ),
+        (
+            [
+                {
+                    "type": "error",
+                    "error": {
+                        "code": "permission_denied",
+                        "param": "resource",
+                        "message": "Plan access is not enabled.",
+                    },
+                }
+            ],
+            "Plan access is not enabled",
+        ),
+    ],
+)
+@pytest.mark.parametrize("async_invoke", [False, True], ids=["invoke", "ainvoke"])
+def test_non_completed_streams_are_terminal(events, match, async_invoke):
+    if async_invoke:
+        recorder = AsyncEventRecorder([events])
+        model, client = _async_model(recorder)
+
+        async def call():
+            async with client:
+                with pytest.raises(ChatGPTSubscriptionError, match=match):
+                    await model.ainvoke("do not publish partial output")
+
+        anyio.run(call)
+    else:
+        recorder = EventRecorder([events])
+        with pytest.raises(ChatGPTSubscriptionError, match=match):
+            _model(recorder).invoke("do not publish partial output")
+    assert len(recorder.requests) == 1
+
+
+def test_quota_failure_after_text_pauses_later_requests():
+    recorder = EventRecorder(
+        [
+            [
+                {"type": "response.output_text.delta", "delta": "partial"},
+                {
+                    "type": "response.failed",
+                    "response": {
+                        "status": "failed",
+                        "error": {"code": "usage_limit_reached", "message": "quota"},
+                    },
+                },
+            ],
+            [{"type": "response.completed", "response": _completed([_text_message("no")])}],
+        ]
+    )
+    class Session:
+        def access_token(self):
+            return ACCESS_TOKEN
+
+    session = Session()
+    client = httpx.Client(transport=httpx.MockTransport(recorder.handler))
+    model = ChatGPTResponses(model="gpt-test", auth_session=session, http_client=client)
+    another_model = ChatGPTResponses(
+        model="gpt-test", auth_session=session, http_client=client
+    )
+    with pytest.raises(ChatGPTSubscriptionError, match="ChatGPT plan usage limit"):
+        model.invoke("first")
+    with pytest.raises(ChatGPTSubscriptionError, match="ChatGPT plan usage limit"):
+        another_model.invoke("second")
+    assert len(recorder.requests) == 1
+
+
+def test_async_quota_failure_after_text_pauses_later_requests_for_shared_session():
+    recorder = AsyncEventRecorder(
+        [
+            [
+                {"type": "response.output_text.delta", "delta": "partial"},
+                {
+                    "type": "response.failed",
+                    "response": {
+                        "status": "failed",
+                        "error": {"code": "usage_limit_reached", "message": "quota"},
+                    },
+                },
+            ],
+            [{"type": "response.completed", "response": _completed([_text_message("no")])}],
+        ]
+    )
+
+    class Session:
+        def access_token(self):
+            return ACCESS_TOKEN
+
+    session = Session()
+    model, model_client = _async_model(recorder, auth_session=session)
+    another_model, another_client = _async_model(recorder, auth_session=session)
+
+    async def call():
+        async with model_client:
+            with pytest.raises(ChatGPTSubscriptionError, match="ChatGPT plan usage limit"):
+                await model.ainvoke("first")
+        async with another_client:
+            with pytest.raises(ChatGPTSubscriptionError, match="ChatGPT plan usage limit"):
+                await another_model.ainvoke("second")
+
+    anyio.run(call)
+    assert len(recorder.requests) == 1
+    assert len(recorder.streams) == 1
+
+
+def test_503_retries_before_deltas_and_refreshes_token_each_request():
+    class TokenSource:
+        calls = 0
+
+        def access_token(self):
+            self.calls += 1
+            return f"fixture-access-{self.calls}"
+
+    source = TokenSource()
+    requests: list[httpx.Request] = []
+    outcomes = iter(
+        [
+            httpx.Response(
+                503,
+                headers={"x-request-id": "req-transient"},
+                json={"error": {"message": "temporary", "code": "server_error"}},
+            ),
+            httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=_sse(_completed([_text_message("recovered")])),
+            ),
+        ]
+    )
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return next(outcomes)
+
+    client = ChatGPTResponses(
+        model="gpt-test",
+        api_key=ACCESS_TOKEN,
+        auth_session=source,
+        max_retries=1,
+        http_client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+    assert client.invoke("retry").content == "recovered"
+    assert len(requests) == source.calls == 2
+    assert [request.headers["authorization"] for request in requests] == [
+        "Bearer fixture-access-1",
+        "Bearer fixture-access-2",
+    ]
+
+
+def test_async_503_retries_before_deltas_and_refreshes_token_each_request():
+    class TokenSource:
+        calls = 0
+
+        def access_token(self):
+            self.calls += 1
+            return f"fixture-access-{self.calls}"
+
+    source = TokenSource()
+    requests: list[httpx.Request] = []
+    outcomes = [
+        httpx.Response(
+            503,
+            headers={"x-request-id": "req-async-transient"},
+            json={"error": {"message": "temporary", "code": "server_error"}},
+        ),
+        httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            stream=AsyncEventStream(
+                [
+                    {
+                        "type": "response.completed",
+                        "response": _completed([_text_message("recovered")]),
+                    }
+                ]
+            ),
+        ),
+    ]
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return outcomes.pop(0)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    model = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=source,
+        max_retries=1,
+        http_async_client=client,
+    )
+
+    async def call():
+        async with client:
+            return await model.ainvoke("retry")
+
+    assert anyio.run(call).content == "recovered"
+    assert len(requests) == source.calls == 2
+    assert [request.headers["authorization"] for request in requests] == [
+        "Bearer fixture-access-1",
+        "Bearer fixture-access-2",
+    ]
+
+
+def test_503_after_text_is_not_replayed():
+    request_count = 0
+
+    def handle(_: httpx.Request) -> httpx.Response:
+        nonlocal request_count
+        request_count += 1
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=_sse_events(
+                [
+                    {"type": "response.output_text.delta", "delta": "partial"},
+                    {
+                        "type": "response.failed",
+                        "response": {
+                            "status": "failed",
+                            "error": {"code": "server_error", "message": "overloaded"},
+                        },
+                    },
+                ]
+            ),
+        )
+
+    model = ChatGPTResponses(
+        model="gpt-test",
+        api_key=ACCESS_TOKEN,
+        max_retries=2,
+        http_client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+    with pytest.raises(ChatGPTSubscriptionError, match="overloaded"):
+        model.invoke("do not replay")
+    assert request_count == 1
+
+
+@pytest.mark.parametrize(
+    "event,max_retries",
+    [
+        (
+            {
+                "type": "response.created",
+                "sequence_number": 0,
+                "response": {
+                    "id": "resp_created",
+                    "object": "response",
+                    "created_at": 0,
+                    "model": "gpt-test",
+                    "status": "in_progress",
+                    "output": [],
+                },
+            },
+            1,
+        ),
+        (
+            {
+                "type": "response.function_call_arguments.delta",
+                "sequence_number": 1,
+                "item_id": "fc_interrupted",
+                "output_index": 0,
+                "delta": '{"ticker":"A',
+            },
+            2,
+        ),
+    ],
+)
+@pytest.mark.parametrize("async_invoke", [False, True])
+def test_interrupted_stream_after_any_event_is_not_retried(event, max_retries, async_invoke):
+    class InterruptedStream(httpx.SyncByteStream):
+        def __iter__(self):
+            yield (
+                f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode()
+            )
+            raise httpx.ReadError("fixture stream interrupted")
+
+    class AsyncInterruptedStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield f"event: {event['type']}\ndata: {json.dumps(event)}\n\n".encode()
+            raise httpx.ReadError("fixture stream interrupted")
+
+        async def aclose(self):
+            pass
+
+    request_count = 0
+
+    def handle(_: httpx.Request) -> httpx.Response:
+        nonlocal request_count
+        request_count += 1
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            stream=AsyncInterruptedStream() if async_invoke else InterruptedStream(),
+        )
+
+    if async_invoke:
+        async_client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+        model = ChatGPTResponses(
+            model="gpt-test",
+            api_key=ACCESS_TOKEN,
+            max_retries=max_retries,
+            http_async_client=async_client,
+        )
+
+        async def call():
+            async with async_client:
+                with pytest.raises(
+                    ChatGPTSubscriptionError,
+                    match="interrupted by a transport failure",
+                ):
+                    await model.ainvoke("do not retry a consumed stream")
+
+        anyio.run(call)
+    else:
+        model = ChatGPTResponses(
+            model="gpt-test",
+            api_key=ACCESS_TOKEN,
+            max_retries=max_retries,
+            http_client=httpx.Client(transport=httpx.MockTransport(handle)),
+        )
+        with pytest.raises(
+            ChatGPTSubscriptionError,
+            match="interrupted by a transport failure",
+        ):
+            model.invoke("do not retry a consumed stream")
+    assert request_count == 1
+
+
+def test_detail_only_http_admission_error_preserves_request_metadata():
+    def handle(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403,
+            headers={"x-request-id": "req-admission"},
+            json={"error": {"message": "Subscription access is pending."}},
+        )
+
+    model = ChatGPTResponses(
+        model="gpt-test",
+        api_key=ACCESS_TOKEN,
+        http_client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
+    with pytest.raises(
+        ChatGPTSubscriptionError, match="Subscription access is pending"
+    ) as error:
+        model.invoke("access check")
+    assert error.value.status_code == 403
+    assert error.value.request_id == "req-admission"
+
+
+def test_async_detail_only_http_admission_error_preserves_request_metadata():
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            403,
+            headers={"x-request-id": "req-async-admission"},
+            json={"error": {"message": "Subscription access is pending."}},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    model = ChatGPTResponses(
+        model="gpt-test",
+        api_key=ACCESS_TOKEN,
+        http_async_client=client,
+    )
+
+    async def call():
+        async with client:
+            with pytest.raises(
+                ChatGPTSubscriptionError,
+                match="Subscription access is pending",
+            ) as error:
+                await model.ainvoke("access check")
+            assert error.value.status_code == 403
+            assert error.value.request_id == "req-async-admission"
+
+    anyio.run(call)
+    assert len(requests) == 1
+
+
+def test_revoked_auth_is_terminal_before_responses_request():
+    from tradingagents.llm_clients.chatgpt_auth import ReauthorizationRequired
+
+    class RevokedSession:
+        def access_token(self):
+            raise ReauthorizationRequired("Sign in again to continue.")
+
+    recorder = Recorder([])
+    model = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=RevokedSession(),
+        http_client=httpx.Client(transport=httpx.MockTransport(recorder.handler)),
+    )
+    with pytest.raises(ChatGPTSubscriptionError, match="Sign in again"):
+        model.invoke("auth is revoked")
+    assert recorder.requests == []
+
+
+def test_async_revoked_auth_is_terminal_before_responses_request():
+    from tradingagents.llm_clients.chatgpt_auth import ReauthorizationRequired
+
+    class RevokedSession:
+        def access_token(self):
+            raise ReauthorizationRequired("Sign in again to continue.")
+
+    recorder = AsyncEventRecorder([])
+    model, client = _async_model(recorder, auth_session=RevokedSession())
+
+    async def call():
+        async with client:
+            with pytest.raises(ChatGPTSubscriptionError, match="Sign in again"):
+                await model.ainvoke("auth is revoked")
+
+    anyio.run(call)
     assert recorder.requests == []

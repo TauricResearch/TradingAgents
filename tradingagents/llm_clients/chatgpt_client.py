@@ -11,25 +11,30 @@ from __future__ import annotations
 import copy
 import json
 import os
-from collections.abc import Iterable, Mapping
+import threading
+import weakref
+from collections.abc import AsyncIterator, Iterable, Mapping
 from typing import Any
 from urllib.parse import urlparse
 
+import anyio
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
+    AIMessageChunk,
     BaseMessage,
     ChatMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
 )
-from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.messages.utils import message_chunk_to_message
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.runnables import Runnable
 from langchain_core.utils.function_calling import convert_to_openai_tool
-from openai import OpenAI
-from pydantic import ConfigDict, Field, SecretStr, model_validator
+from openai import APIConnectionError, APIStatusError, AsyncOpenAI, OpenAI
+from pydantic import ConfigDict, Field, PrivateAttr, SecretStr, model_validator
 
 from tradingagents.llm_clients.base_client import BaseLLMClient
 
@@ -101,6 +106,58 @@ _LANGCHAIN_NOISE = frozenset({"callbacks", "tags", "run_id", "configurable", "re
 
 class ChatGPTResponsesError(ValueError):
     """The Responses request or tool call cannot be sent or accepted."""
+
+
+class ChatGPTSubscriptionError(ChatGPTResponsesError):
+    """A terminal ChatGPT subscription request or stream failure."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        code: str | None = None,
+        param: str | None = None,
+        request_id: str | None = None,
+    ):
+        super().__init__(message)
+        self.status_code = status_code
+        self.code = code
+        self.param = param
+        self.request_id = request_id
+
+
+class _AdmissionState:
+    """Shared quota gate for all model views of one pinned auth session."""
+
+    __slots__ = ("quota_paused", "__weakref__")
+
+    def __init__(self) -> None:
+        self.quota_paused = False
+
+
+_ADMISSION_LOCK = threading.Lock()
+_ADMISSION_STATES: dict[int, weakref.ReferenceType[_AdmissionState]] = {}
+
+
+def _admission_state(session: Any) -> _AdmissionState:
+    """Share the quota gate among models that use the same session object."""
+    if session is None:
+        return _AdmissionState()
+    key = id(session)
+    with _ADMISSION_LOCK:
+        reference = _ADMISSION_STATES.get(key)
+        state = reference() if reference is not None else None
+        if state is None:
+            state = _AdmissionState()
+
+            def discard(reference: weakref.ReferenceType[_AdmissionState]) -> None:
+                with _ADMISSION_LOCK:
+                    if _ADMISSION_STATES.get(key) is reference:
+                        del _ADMISSION_STATES[key]
+
+            _ADMISSION_STATES[key] = weakref.ref(state, discard)
+        return state
 
 
 def _is_public_base_url(url: str | None) -> bool:
@@ -473,18 +530,155 @@ def _message_text(items: list[dict[str, Any]]) -> str:
     return "\n".join(texts)
 
 
-def _completed_response(stream: Iterable[Any]) -> Any:
-    """Accept one completed Responses stream. Failure events are not success."""
-    completed = None
-    for event in stream:
-        event_type = getattr(event, "type", None)
-        if event_type == "response.completed":
-            completed = event.response
-        elif event_type in {"response.failed", "response.incomplete", "error"}:
-            raise ChatGPTResponsesError(f"response ended with {event_type}")
-    if completed is None:
-        raise ChatGPTResponsesError("stream ended without response.completed")
-    return completed
+def _field(value: Any, name: str, default: Any = None) -> Any:
+    if isinstance(value, Mapping):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _error_details(value: Any) -> tuple[str | None, str | None, str | None]:
+    error = _field(value, "error", value)
+    message = _field(error, "message")
+    code = _field(error, "code")
+    param = _field(error, "param")
+    return (
+        message if isinstance(message, str) else None,
+        code if isinstance(code, str) else None,
+        param if isinstance(param, str) else None,
+    )
+
+
+def _event_failure(event: Any, event_type: str) -> ChatGPTSubscriptionError:
+    source = _field(event, "response", event)
+    message, code, param = _error_details(source)
+    details = [f"ChatGPT stream ended with {event_type}"]
+    if code:
+        details.append(f"code={code}")
+    if param:
+        details.append(f"param={param}")
+    if message:
+        details.append(message)
+    return ChatGPTSubscriptionError(": ".join(details), code=code, param=param)
+
+
+def _request_failure(exc: Exception) -> ChatGPTSubscriptionError:
+    status_code = getattr(exc, "status_code", None)
+    response = getattr(exc, "response", None)
+    request_id = None
+    if response is not None:
+        request_id = response.headers.get("x-request-id")
+    code = None
+    param = None
+    detail = None
+    body = getattr(exc, "body", None)
+    if isinstance(body, Mapping):
+        detail, code, param = _error_details(body)
+    if detail is None and isinstance(exc, APIConnectionError):
+        detail = "The ChatGPT response stream was interrupted by a transport failure."
+    if status_code == 429 or code in {"insufficient_quota", "usage_limit_reached"}:
+        detail = "ChatGPT plan usage limit reached. Check ChatGPT Usage before retrying."
+        code = code or "usage_limit_reached"
+    parts = ["ChatGPT request failed"]
+    if isinstance(status_code, int):
+        parts.append(f"HTTP {status_code}")
+    if code:
+        parts.append(f"code={code}")
+    if param:
+        parts.append(f"param={param}")
+    if request_id:
+        parts.append(f"request_id={request_id}")
+    if detail:
+        parts.append(detail)
+    return ChatGPTSubscriptionError(
+        ": ".join(parts),
+        status_code=status_code if isinstance(status_code, int) else None,
+        code=code,
+        param=param,
+        request_id=request_id,
+    )
+
+
+def _is_retryable(exc: Exception) -> bool:
+    if isinstance(exc, APIConnectionError):
+        return True
+    return isinstance(exc, APIStatusError) and exc.status_code in {408, 409, 500, 502, 503, 504}
+
+
+def _response_usage(response: Any) -> dict[str, Any] | None:
+    usage = _field(response, "usage")
+    if usage is None:
+        return None
+    if hasattr(usage, "model_dump"):
+        usage = usage.model_dump(exclude_none=True)
+    if not isinstance(usage, Mapping):
+        return None
+    input_tokens = usage.get("input_tokens")
+    output_tokens = usage.get("output_tokens")
+    if not isinstance(input_tokens, int) or not isinstance(output_tokens, int):
+        return None
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": usage.get("total_tokens", input_tokens + output_tokens),
+    }
+
+
+def _tool_argument_deltas(event: Any, accumulated: dict[str, str]) -> None:
+    """Track interleaved argument fragments by response item, without exposing them."""
+    event_type = _field(event, "type")
+    if event_type not in {
+        "response.function_call_arguments.delta",
+        "response.function_call_arguments.done",
+    }:
+        return
+    item_id = _field(event, "item_id")
+    output_index = _field(event, "output_index")
+    key = item_id if isinstance(item_id, str) and item_id else f"index:{output_index}"
+    if event_type.endswith(".delta"):
+        delta = _field(event, "delta")
+        if isinstance(delta, str):
+            accumulated[key] = accumulated.get(key, "") + delta
+        return
+    complete = _field(event, "arguments")
+    if not isinstance(complete, str):
+        raise ChatGPTSubscriptionError("ChatGPT stream ended with malformed function arguments.")
+    prior = accumulated.get(key)
+    if prior is not None and prior != complete:
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream function argument deltas did not match the completed arguments."
+        )
+    try:
+        parsed = json.loads(complete)
+    except json.JSONDecodeError as exc:
+        raise ChatGPTSubscriptionError("ChatGPT stream returned malformed function arguments.") from exc
+    if not isinstance(parsed, dict):
+        raise ChatGPTSubscriptionError("ChatGPT function call arguments must be an object.")
+    accumulated[key] = complete
+
+
+def _validate_completed_arguments(response: Any, accumulated: Mapping[str, str]) -> None:
+    output = _field(response, "output", []) or []
+    for index, raw_item in enumerate(output):
+        item = _output_item(raw_item)
+        if item.get("type") != "function_call":
+            continue
+        item_id = item.get("id")
+        observed = accumulated.get(item_id) if isinstance(item_id, str) else None
+        if observed is None:
+            observed = accumulated.get(f"index:{index}")
+        arguments = item.get("arguments")
+        if not isinstance(arguments, str):
+            raise ChatGPTSubscriptionError("ChatGPT completed function call has malformed arguments.")
+        try:
+            parsed = json.loads(arguments)
+        except json.JSONDecodeError as exc:
+            raise ChatGPTSubscriptionError("ChatGPT completed function call has malformed arguments.") from exc
+        if not isinstance(parsed, dict):
+            raise ChatGPTSubscriptionError("ChatGPT function call arguments must be an object.")
+        if observed is not None and observed != arguments:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT completed function arguments did not match streamed deltas."
+            )
 
 
 class ChatGPTResponses(BaseChatModel):
@@ -500,11 +694,19 @@ class ChatGPTResponses(BaseChatModel):
 
     model_name: str = Field(alias="model")
     api_key: SecretStr | None = Field(default=None, repr=False)
+    auth_session: Any = Field(default=None, exclude=True, repr=False)
     base_url: str = PUBLIC_RESPONSES_BASE_URL
     use_previous_response_id: bool = False
+    max_retries: int = 0
     timeout: float | None = None
     http_client: Any = Field(default=None, exclude=True, repr=False)
     http_async_client: Any = Field(default=None, exclude=True, repr=False)
+    _admission: _AdmissionState = PrivateAttr(default_factory=_AdmissionState)
+
+    @model_validator(mode="after")
+    def _share_admission_state(self) -> ChatGPTResponses:
+        self._admission = _admission_state(self.auth_session)
+        return self
 
     @model_validator(mode="after")
     def _pin_public_endpoint(self) -> ChatGPTResponses:
@@ -536,6 +738,16 @@ class ChatGPTResponses(BaseChatModel):
         return super().bind(tools=formatted, tool_choice=tool_choice, **kwargs)
 
     def _access_token(self) -> str:
+        if self.auth_session is not None:
+            try:
+                token = self.auth_session.access_token()
+            except Exception as exc:
+                raise ChatGPTSubscriptionError(
+                    f"ChatGPT account authorization failed: {exc}"
+                ) from exc
+            if isinstance(token, str) and token:
+                return token
+            raise ChatGPTSubscriptionError("ChatGPT account did not provide an access token.")
         if self.api_key is not None:
             value = self.api_key.get_secret_value()
             if value:
@@ -638,6 +850,18 @@ class ChatGPTResponses(BaseChatModel):
             kwargs["timeout"] = self.timeout
         return OpenAI(**kwargs)
 
+    def _async_client(self) -> AsyncOpenAI:
+        kwargs: dict[str, Any] = {
+            "api_key": self._access_token(),
+            "base_url": PUBLIC_RESPONSES_BASE_URL,
+            "max_retries": 0,
+        }
+        if self.http_async_client is not None:
+            kwargs["http_client"] = self.http_async_client
+        if self.timeout is not None:
+            kwargs["timeout"] = self.timeout
+        return AsyncOpenAI(**kwargs)
+
     def _message_from_response(
         self,
         response: Any,
@@ -667,17 +891,302 @@ class ChatGPTResponses(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         del run_manager
+        chunks = list(self._stream(messages, stop=stop, **kwargs))
+        if not chunks:
+            raise ChatGPTSubscriptionError("ChatGPT stream ended without a completed response.")
+        message = chunks[0].message
+        for chunk in chunks[1:]:
+            message = message + chunk.message
+        return ChatResult(
+            generations=[ChatGeneration(message=message_chunk_to_message(message))]
+        )
+
+    async def _agenerate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        del run_manager
+        chunks = [
+            chunk
+            async for chunk in self._astream(messages, stop=stop, **kwargs)
+        ]
+        if not chunks:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT stream ended without a completed response."
+            )
+        message = chunks[0].message
+        for chunk in chunks[1:]:
+            message = message + chunk.message
+        return ChatResult(
+            generations=[ChatGeneration(message=message_chunk_to_message(message))]
+        )
+
+    def _stream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> Iterable[ChatGenerationChunk]:
+        del run_manager
+        if self._admission.quota_paused:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT plan usage limit reached. Check ChatGPT Usage before retrying.",
+                status_code=429,
+                code="usage_limit_reached",
+            )
         body, function_names, custom_names, timeout = self._prepare_body(
             messages, stop, dict(kwargs)
         )
         request = dict(body)
         if timeout is not None:
             request["timeout"] = timeout
-        client = self._client()
-        with client.responses.create(**request) as stream:
-            response = _completed_response(stream)
-        message = self._message_from_response(response, function_names, custom_names)
-        return ChatResult(generations=[ChatGeneration(message=message)])
+        retry_count = 0
+        while True:
+            received_event = False
+            emitted_text = False
+            argument_deltas: dict[str, str] = {}
+            try:
+                client = self._client()
+                with client.responses.create(**request) as stream:
+                    response = None
+                    for event in stream:
+                        received_event = True
+                        event_type = _field(event, "type")
+                        if event_type == "response.output_text.delta":
+                            delta = _field(event, "delta")
+                            if isinstance(delta, str) and delta:
+                                emitted_text = True
+                                yield ChatGenerationChunk(
+                                    message=AIMessageChunk(content=delta)
+                                )
+                        _tool_argument_deltas(event, argument_deltas)
+                        if event_type in {"response.failed", "response.incomplete", "error"}:
+                            failure = _event_failure(event, event_type)
+                            if failure.code in {
+                                "insufficient_quota",
+                                "usage_limit_reached",
+                            } or _field(event, "status_code") == 429:
+                                self._admission.quota_paused = True
+                                failure.status_code = 429
+                                failure.code = failure.code or "usage_limit_reached"
+                                failure.args = (
+                                    "ChatGPT plan usage limit reached. "
+                                    "Check ChatGPT Usage before retrying.",
+                                )
+                            raise failure
+                        if event_type == "response.completed":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted more than one completed response."
+                                )
+                            response = _field(event, "response")
+                    if response is None:
+                        raise ChatGPTSubscriptionError(
+                            "ChatGPT stream ended without response.completed."
+                        )
+                    if _field(response, "status") != "completed":
+                        raise ChatGPTSubscriptionError(
+                            f"ChatGPT completed event had non-completed status "
+                            f"{_field(response, 'status')!r}."
+                        )
+                    _validate_completed_arguments(response, argument_deltas)
+                    try:
+                        final_message = self._message_from_response(
+                            response, function_names, custom_names
+                        )
+                    except ChatGPTResponsesError as exc:
+                        raise ChatGPTSubscriptionError(
+                            f"ChatGPT completed response was invalid: {exc}"
+                        ) from exc
+                if not emitted_text and final_message.content:
+                    yield ChatGenerationChunk(
+                        message=AIMessageChunk(content=final_message.content)
+                    )
+                tool_chunks = [
+                    {
+                        "name": call["name"],
+                        "args": json.dumps(call["args"]),
+                        "id": call["id"],
+                        "index": index,
+                        "type": "tool_call_chunk",
+                    }
+                    for index, call in enumerate(final_message.tool_calls)
+                ]
+                yield ChatGenerationChunk(
+                    message=AIMessageChunk(
+                        content="",
+                        additional_kwargs=final_message.additional_kwargs,
+                        id=final_message.id,
+                        tool_call_chunks=tool_chunks,
+                        response_metadata=final_message.response_metadata,
+                        usage_metadata=_response_usage(response),
+                        chunk_position="last",
+                    )
+                )
+                return
+            except ChatGPTSubscriptionError as exc:
+                if exc.status_code == 429 or exc.code in {
+                    "insufficient_quota",
+                    "usage_limit_reached",
+                }:
+                    self._admission.quota_paused = True
+                raise
+            except Exception as exc:
+                failure = _request_failure(exc)
+                if failure.status_code == 429 or failure.code in {
+                    "insufficient_quota",
+                    "usage_limit_reached",
+                }:
+                    self._admission.quota_paused = True
+                if (
+                    not received_event
+                    and retry_count < self.max_retries
+                    and _is_retryable(exc)
+                ):
+                    retry_count += 1
+                    continue
+                raise failure from exc
+
+    async def _astream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[ChatGenerationChunk]:
+        del run_manager
+        if self._admission.quota_paused:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT plan usage limit reached. Check ChatGPT Usage before retrying.",
+                status_code=429,
+                code="usage_limit_reached",
+            )
+        body, function_names, custom_names, timeout = self._prepare_body(
+            messages, stop, dict(kwargs)
+        )
+        request = dict(body)
+        if timeout is not None:
+            request["timeout"] = timeout
+        retry_count = 0
+        while True:
+            received_event = False
+            emitted_text = False
+            argument_deltas: dict[str, str] = {}
+            client: AsyncOpenAI | None = None
+            try:
+                client = self._async_client()
+                stream = await client.responses.create(**request)
+                async with stream:
+                    response = None
+                    async for event in stream:
+                        received_event = True
+                        event_type = _field(event, "type")
+                        if event_type == "response.output_text.delta":
+                            delta = _field(event, "delta")
+                            if isinstance(delta, str) and delta:
+                                emitted_text = True
+                                yield ChatGenerationChunk(
+                                    message=AIMessageChunk(content=delta)
+                                )
+                        _tool_argument_deltas(event, argument_deltas)
+                        if event_type in {
+                            "response.failed",
+                            "response.incomplete",
+                            "error",
+                        }:
+                            failure = _event_failure(event, event_type)
+                            if failure.code in {
+                                "insufficient_quota",
+                                "usage_limit_reached",
+                            } or _field(event, "status_code") == 429:
+                                self._admission.quota_paused = True
+                                failure.status_code = 429
+                                failure.code = failure.code or "usage_limit_reached"
+                                failure.args = (
+                                    "ChatGPT plan usage limit reached. "
+                                    "Check ChatGPT Usage before retrying.",
+                                )
+                            raise failure
+                        if event_type == "response.completed":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted more than one completed response."
+                                )
+                            response = _field(event, "response")
+                    if response is None:
+                        raise ChatGPTSubscriptionError(
+                            "ChatGPT stream ended without response.completed."
+                        )
+                    if _field(response, "status") != "completed":
+                        raise ChatGPTSubscriptionError(
+                            "ChatGPT completed event had non-completed status "
+                            f"{_field(response, 'status')!r}."
+                        )
+                    _validate_completed_arguments(response, argument_deltas)
+                    try:
+                        final_message = self._message_from_response(
+                            response, function_names, custom_names
+                        )
+                    except ChatGPTResponsesError as exc:
+                        raise ChatGPTSubscriptionError(
+                            f"ChatGPT completed response was invalid: {exc}"
+                        ) from exc
+                if not emitted_text and final_message.content:
+                    yield ChatGenerationChunk(
+                        message=AIMessageChunk(content=final_message.content)
+                    )
+                tool_chunks = [
+                    {
+                        "name": call["name"],
+                        "args": json.dumps(call["args"]),
+                        "id": call["id"],
+                        "index": index,
+                        "type": "tool_call_chunk",
+                    }
+                    for index, call in enumerate(final_message.tool_calls)
+                ]
+                yield ChatGenerationChunk(
+                    message=AIMessageChunk(
+                        content="",
+                        additional_kwargs=final_message.additional_kwargs,
+                        id=final_message.id,
+                        tool_call_chunks=tool_chunks,
+                        response_metadata=final_message.response_metadata,
+                        usage_metadata=_response_usage(response),
+                        chunk_position="last",
+                    )
+                )
+                return
+            except ChatGPTSubscriptionError as exc:
+                if exc.status_code == 429 or exc.code in {
+                    "insufficient_quota",
+                    "usage_limit_reached",
+                }:
+                    self._admission.quota_paused = True
+                raise
+            except Exception as exc:
+                failure = _request_failure(exc)
+                if failure.status_code == 429 or failure.code in {
+                    "insufficient_quota",
+                    "usage_limit_reached",
+                }:
+                    self._admission.quota_paused = True
+                if (
+                    not received_event
+                    and retry_count < self.max_retries
+                    and _is_retryable(exc)
+                ):
+                    retry_count += 1
+                    continue
+                raise failure from exc
+            finally:
+                if client is not None and self.http_async_client is None:
+                    with anyio.CancelScope(shield=True):
+                        await client.close()
 
 
 class ChatGPTClient(BaseLLMClient):
@@ -706,7 +1215,15 @@ class ChatGPTClient(BaseLLMClient):
     def get_llm(self) -> ChatGPTResponses:
         self.warn_if_unknown_model()
         forwarded: dict[str, Any] = {}
-        for key in ("api_key", "timeout", "callbacks", "http_client", "http_async_client"):
+        for key in (
+            "api_key",
+            "auth_session",
+            "timeout",
+            "max_retries",
+            "callbacks",
+            "http_client",
+            "http_async_client",
+        ):
             if key in self.kwargs and self.kwargs[key] is not None:
                 forwarded[key] = self.kwargs[key]
         return ChatGPTResponses(model=self.model, **forwarded)
