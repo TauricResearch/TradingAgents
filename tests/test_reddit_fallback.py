@@ -311,3 +311,25 @@ def test_an_unavailable_screen_keeps_every_post_and_says_so():
         screened = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"), screen=unavailable)
         plain = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
     assert screened == "<Jev screening unavailable (HTTP 529); posts are unscreened>\n\n" + plain
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("ticker, expected", [
+    ("NVDA", ("wallstreetbets", "stocks", "investing")),
+    ("BTC-USD", ("Bitcoin", "CryptoCurrency", "CryptoMarkets")),
+    ("ETH-USD", ("ethereum", "CryptoCurrency", "CryptoMarkets")),
+    ("SOL-USD", ("solana", "CryptoCurrency", "CryptoMarkets")),
+    ("DOGE-USD", ("CryptoCurrency", "CryptoMarkets")),
+])
+def test_a_crypto_ticker_is_searched_in_crypto_communities(ticker, expected):
+    assert reddit.subreddits_for(ticker) == expected
+
+
+@pytest.mark.unit
+def test_a_crypto_pair_is_fetched_from_its_communities_in_one_request():
+    with patch.object(reddit, "_fetch_subreddit_rss", return_value=[]) as fetch:
+        out = reddit.fetch_reddit_posts("ETH-USD")
+    fetch.assert_called_once()
+    query, subs = fetch.call_args.args[:2]
+    assert (query, subs) == ("ETH", "ethereum+CryptoCurrency+CryptoMarkets")
+    assert "r/wallstreetbets" not in out

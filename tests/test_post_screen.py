@@ -45,6 +45,7 @@ def post(monkeypatch):
     monkeypatch.setattr(typesafe.time, "sleep", calls.sleeps.append)
     monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
     monkeypatch.delenv("TYPESAFE_DEFAULT_MODEL", raising=False)
+    monkeypatch.delenv("TYPESAFE_BASE_URL", raising=False)
     return calls
 
 
@@ -74,6 +75,26 @@ def test_the_model_follows_the_sdk_environment(post, monkeypatch):
     typesafe.system_one("s", QUESTIONS)
 
     assert post[0][1]["json"]["model"] == "jev-1.13.0"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("base", ["https://openrouter.ai/api", "https://openrouter.ai/api/"])
+def test_the_endpoint_follows_the_sdk_environment(post, monkeypatch, base):
+    """TypeSafe's SDKs read TYPESAFE_BASE_URL and append /v1/systemone; OpenRouter
+    serves Jev at https://openrouter.ai/api with an OpenRouter key (#1416)."""
+    monkeypatch.setenv("TYPESAFE_BASE_URL", base)
+    post.queue.append(_ok())
+
+    typesafe.system_one("s", QUESTIONS)
+
+    assert post[0][0] == "https://openrouter.ai/api/v1/systemone"
+
+
+@pytest.mark.unit
+def test_a_base_url_without_a_key_does_not_turn_screening_on(monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setenv("TYPESAFE_BASE_URL", "https://openrouter.ai/api")
+    assert typesafe.jev_screen("AAPL") is None
 
 
 @pytest.mark.unit

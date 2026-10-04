@@ -60,3 +60,11 @@ def test_no_thinking_level_is_omitted():
     kw = _captured_kwargs("gemini-3.5-flash")
     assert "thinking_level" not in kw
     assert "thinking_budget" not in kw
+
+
+@pytest.mark.unit
+def test_a_gemini_call_times_out_like_the_other_providers():
+    """The OpenAI and Anthropic SDKs give up after 600s; Gemini's waits forever
+    unless told otherwise, so a stalled call would hang the run (#1417)."""
+    assert _captured_kwargs("gemini-3.5-flash")["timeout"] == 600
+    assert _captured_kwargs("gemini-3.5-flash", timeout=30)["timeout"] == 30

@@ -37,12 +37,15 @@ _RATING_SET = {r.lower() for r in RATINGS_5_TIER}
 _RATING_LABEL_RE = re.compile(r"(?<![a-z])rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
                               re.IGNORECASE)
 
-# The same label opening its own line ("**Rating**: X", "## Final Rating - X",
-# "Our rating: X"): the shape the Portfolio Manager is asked to write its
-# decision in. Only emphasis and heading marks may precede it, so a list item,
-# table row or blockquote quoting someone else's rating is not one.
+# The decision's own rating line, in the shape the Portfolio Manager is asked to
+# open with ("- **Rating**: X", "**Final Rating**: X", "## Our rating - X"): an
+# optional list marker, emphasis and heading marks, and only words naming the
+# decision itself before "rating". "Consensus rating: Buy" or "Trader's rating:
+# Buy" is someone else's rating.
+_OWN_QUALIFIER = r"(?:(?:final|our|overall|my|recommended|updated|revised|new|current)\s+)*"
 _RATING_LINE_RE = re.compile(
-    r"[\s*_#]*(?:\w+\s+)?rating[^\w:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
+    r"\s*(?P<item>(?:[-+*\u2022]|\d+[.)])\s+)?[\s*_#]*" + _OWN_QUALIFIER
+    + r"rating[^\w:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(?P<value>\w+)",
     re.IGNORECASE,
 )
 
@@ -54,32 +57,40 @@ def extract_rating(text: str) -> str | None:
 
     Reads an explicit "Rating: X" label (tolerant of markdown bold) in the
     NFKC-normalized text, so fullwidth punctuation like ``Rating：Overweight``
-    matches as ASCII does: the first one opening its own line, else the last
-    one anywhere.
+    matches as ASCII does: the decision's opening rating line, else its own
+    rating lines or, failing those, every label, when they agree.
     """
     if not text:
         return None
     norm = unicodedata.normalize("NFKC", text)
 
-    # A decision is asked to open with its rating on its own line, so the first
-    # such line is the call; later ones may quote someone else's ("Consensus
-    # rating: Buy"). Without one, the last label anywhere wins: prose states its
-    # rating after discussing the alternatives. Lines presenting the scale itself
-    # are a legend the model echoed, not a call.
-    on_own_line = anywhere = None
-    for line in norm.splitlines():
-        if _RATING_SCALE_RE.search(line):
-            continue
+    # The decision is asked to open with its rating, so a first line (after any
+    # headings) in that shape is the call. A list item there may also be a quote
+    # heading a list of other parties' ratings, so it counts with the decision's
+    # other rating lines, which leave out list items; failing those, every label
+    # counts. Either way they must agree: ratings that differ, with nothing
+    # marking which one is the call, are no call (#1170). Lines presenting the
+    # scale itself are a legend the model echoed, not a call.
+    lines = [line for line in norm.splitlines() if line.strip() and not _RATING_SCALE_RE.search(line)]
+    first = next((line for line in lines if not line.lstrip().startswith("#")
+                  or _RATING_LINE_RE.match(line)), "")
+    m = _RATING_LINE_RE.match(first)
+    opening = m if m and m.group("value").lower() in _RATING_SET else None
+    if opening and not opening.group("item"):
+        return opening.group("value").capitalize()
+
+    own = [opening.group("value").capitalize()] if opening else []
+    labels = []
+    for line in lines:
         m = _RATING_LINE_RE.match(line)
-        if on_own_line is None and m and m.group(1).lower() in _RATING_SET:
-            on_own_line = m.group(1).capitalize()
-        m = _RATING_LABEL_RE.search(line)
-        if m and m.group(1).lower() in _RATING_SET:
-            anywhere = m.group(1).capitalize()
+        if m and not m.group("item") and m.group("value").lower() in _RATING_SET:
+            own.append(m.group("value").capitalize())
+        labels += [v.capitalize() for v in _RATING_LABEL_RE.findall(line) if v.lower() in _RATING_SET]
     # Without a label there is no call to read: a rating word in the prose may be
     # one the text argues against ("not a Sell"), and reading it reports a
     # direction nobody decided.
-    return on_own_line or anywhere
+    found = own or labels
+    return found[0] if found and len(set(found)) == 1 else None
 
 
 def parse_rating(text: str, default: str = RATING_REVIEW) -> str:

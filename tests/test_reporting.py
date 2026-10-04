@@ -1,6 +1,7 @@
 """Report parity: the shared writer produces the report tree for the CLI and the
 programmatic API alike (#1037)."""
 
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -117,3 +118,29 @@ def test_run_settings_name_the_version_of_the_running_code():
     graph = object.__new__(TradingAgentsGraph)
     graph.selected_analysts, graph.config = ("market",), {}
     assert graph.run_settings()["version"] == tradingagents.__version__
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("decision, rating", [
+    ("**Rating**: Overweight\n**Price Target**: 120\n\nAdd on weakness.", "Overweight"),
+    ("Add on weakness.\n**Price Target**: 120", "REVIEW"),           # no readable rating is said, not left out
+])
+def test_the_report_header_names_the_rating(tmp_path, decision, rating):
+    state = dict(_state(), final_trade_decision=decision)
+
+    header = write_report_tree(state, "NVDA", tmp_path, settings=SETTINGS).read_text().split("## ")[0]
+
+    assert f"- Rating: {rating}" in header
+
+
+@pytest.mark.unit
+def test_the_header_names_the_analysts_as_users_select_them(tmp_path):
+    settings = {**SETTINGS, "analysts": ["market", "social", "news"]}
+
+    write_report_tree(_state(), "NVDA", tmp_path, settings=settings, html=True)
+
+    markdown = (tmp_path / "complete_report.md").read_text(encoding="utf-8")
+    assert "market, sentiment, news" in markdown and "social" not in markdown
+    page = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
+    fields = re.findall(r'<span class="field">([^<]*)</span>', page)
+    assert {"market", "sentiment", "news"} <= set(fields) and "social" not in page

@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import webbrowser
 from functools import wraps
 from pathlib import Path
 
@@ -211,8 +212,9 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # The same initial state propagate() builds: settled memory log, past
-        # context and resolved instrument identity.
+        # The same initial state propagate() builds, with the resolved
+        # instrument identity; the graph's Memory Log step settles past
+        # decisions and loads their lessons alongside the analysts.
         init_agent_state = graph.create_run_state(
             selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
         )
@@ -383,11 +385,50 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
     _offer_reports(final_state, graph, selections["ticker"],
-                   save=flags.get("save"), show=flags.get("show"))
+                   save=flags.get("save"), show=flags.get("show"), html=flags.get("html"))
 
 
-def _offer_reports(final_state, graph, ticker, save=None, show=None):
-    """Save the report tree and show it; ``save``/``show`` answer the questions when given."""
+def _yes(question: str) -> bool:
+    return typer.prompt(question, default="Y").strip().upper() in ("Y", "YES", "")
+
+
+def _graphical_browser():
+    """A browser that opens a page in its own window on this machine, or None.
+
+    Over SSH the page sits on the remote machine, and a terminal browser (lynx,
+    w3m, elinks) would take over the terminal, so neither is offered.
+    """
+    if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"):
+        return None
+    try:
+        browser = webbrowser.get()
+    except webbrowser.Error:
+        return None
+    if type(browser) is webbrowser.GenericBrowser or isinstance(browser, webbrowser.Elinks):
+        return None
+    return browser
+
+
+def _open_page(page: Path) -> None:
+    """Offer to open the saved page in a browser window, and say where it is if opening fails."""
+    browser = _graphical_browser()
+    if browser is None or not _yes("Open it in your browser?"):
+        return
+    try:
+        opened = browser.open(page.as_uri())
+    except (webbrowser.Error, OSError):
+        opened = False
+    if not opened:
+        console.print(f"  [dim]Could not open a browser; the page is at:[/dim] {page}")
+
+
+def _offer_reports(final_state, graph, ticker, save=None, show=None, html=None):
+    """Save the report tree and show it; ``save``/``show``/``html`` answer the questions when given.
+
+    A saved report includes the HTML page unless ``html`` is False. Someone
+    answering the save question at the prompt is also asked about the page and
+    offered to open it; a run whose flags answer the save question asks neither.
+    """
     asked = save is None
     if asked:
         save = typer.prompt("Save report?", default="Y").strip().upper() in ("Y", "YES", "")
@@ -400,12 +441,21 @@ def _offer_reports(final_state, graph, ticker, save=None, show=None):
             save_path = Path(typer.prompt(
                 "Save path (press Enter for default)", default=str(save_path)
             ).strip())
+        if html is None:
+            html = _yes("Also save it as an HTML page?") if asked else True
+        saved = False
         try:
-            report_file = graph.save_reports(final_state, ticker, save_path)
+            report_file = graph.save_reports(final_state, ticker, save_path, html=html)
+            saved = True
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
+        if saved and html:
+            page = (save_path / "complete_report.html").resolve()
+            console.print(f"  [dim]HTML report:[/dim] {page.name}")
+            if asked:
+                _open_page(page)
 
     if show is None:
         show = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper() in ("Y", "YES", "")

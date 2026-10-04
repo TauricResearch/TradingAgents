@@ -92,6 +92,7 @@ not_in_nav: |
 # pages multiplies the site size without adding a useful public navigation path.
 exclude_docs: |
   /**/[1-5]_*/**.md
+  /**/complete_report.html
 
 copyright: >
   For AI testing and experimentation only. Not financial or investment advice
