@@ -191,8 +191,12 @@ def _markdown() -> MarkdownIt:
     return md
 
 
-def _render_agent_text(md: MarkdownIt, text: str) -> str:
+def _render_agent_text(md: MarkdownIt, text: str, normalize_headings: bool = False) -> str:
     """An agent's text, its own headings placed below the agent's heading (h3)."""
+    if normalize_headings:
+        from cli.report_headings import transform
+
+        return md.render(transform(text, in_body=True))
     tokens = md.parse(text)
     for token in tokens:
         if token.type in ("heading_open", "heading_close"):
@@ -245,7 +249,8 @@ def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, st
     return details
 
 
-def render_report(ticker: str, final_state: dict, settings: dict | None, parts) -> str:
+def render_report(ticker: str, final_state: dict, settings: dict | None, parts,
+                  normalize_headings: bool = False) -> str:
     """The report page: title and rating, what produced the run, contents, sections."""
     md = _markdown()
     rating = run_rating(final_state) if final_state.get("final_trade_decision") else ""
@@ -272,7 +277,8 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
                         f'<span class="label">{escape(name)}</span></a><ul>{agents}</ul></li>')
         body.append(f'<section id="s{n}"><h2>{escape(heading)}</h2>')
         for m, (agent, _filename, text) in enumerate(written, 1):
-            body.append(f'<h3 id="s{n}-{m}">{escape(agent)}</h3>\n{_render_agent_text(md, text)}')
+            rendered = _render_agent_text(md, text, normalize_headings=normalize_headings)
+            body.append(f'<h3 id="s{n}-{m}">{escape(agent)}</h3>\n{rendered}')
         body.append("</section>")
 
     page_title = " ".join(x for x in (ticker, date, rating) if x)

@@ -55,11 +55,14 @@ def _is_wrapper_h3(text: str) -> bool:
     return text.strip() in WRAPPER_H3_LABELS
 
 
-def transform(text: str) -> str:
-    """Demote agent-body H1/H2/H3 to H4. Preserve wrapper headings and code fences."""
+def transform(text: str, *, in_body: bool = False) -> str:
+    """Demote agent-body H1/H2/H3 to H4. Preserve wrapper headings and code fences.
+
+    ``in_body`` lets callers normalize individual agent text with the same
+    rules as a complete report, without adding a synthetic agent wrapper.
+    """
     lines = text.splitlines(keepends=True)
     out: list[str] = []
-    in_body = False
     in_fence = False
 
     for line in lines:

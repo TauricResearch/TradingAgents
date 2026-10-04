@@ -48,7 +48,7 @@ def main() -> int:
     # Layout: <reports_dir>/<TICKER>/<DATE>_<MODEL>_<TS>/. The per-ticker
     # parent folder is what the Just-the-Docs site uses as a nav group.
     out = Path(cfg["reports_dir"]) / args.ticker / f"{date_slug}_{model_slug}_{ts}"
-    save_report_to_disk(final_state, args.ticker, out)
+    save_report_to_disk(final_state, args.ticker, out, settings=ta.run_settings())
     print(f"OK {args.ticker} -> {out}", file=sys.stderr)
     return 0
 

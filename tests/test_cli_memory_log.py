@@ -204,6 +204,9 @@ def test_flag_cli_resumes_and_clears_only_after_report_saved(tmp_path, monkeypat
     class ResumedGraph(_FakeGraph):
         config = {"checkpoint_enabled": True}
 
+        def run_settings(self):
+            return {"version": "0.6.0"}
+
         def resolve_instrument_context(self, *args):
             return "instrument"
 
@@ -242,12 +245,14 @@ def test_flag_cli_resumes_and_clears_only_after_report_saved(tmp_path, monkeypat
     monkeypatch.setattr(m, "Live", _NullLive)
     monkeypatch.setattr(m, "_build_run_config", lambda *a: {
         "results_dir": str(tmp_path / "results"), "reports_dir": str(tmp_path / "docs"),
-        "deep_think_llm": "model", "checkpoint_enabled": True,
+        "deep_think_llm": "model", "checkpoint_enabled": True, "llm_provider": "openai",
     })
 
-    def save(state, ticker, path):
+    def save(state, ticker, path, *, settings, html):
         assert state["market_report"] == "saved analyst work"
         assert state["trader_investment_plan"] == "saved trade"
+        assert settings == {"version": "0.6.0"}
+        assert html is True
         fake.calls.append(("save",))
         if save_fails:
             raise OSError("disk unavailable")

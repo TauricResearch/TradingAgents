@@ -114,7 +114,7 @@ def test_no_arguments_uses_all_shared_tickers(tmp_path, provider):
 
 
 @pytest.mark.parametrize("token_budget", [None, "65536"])
-@pytest.mark.parametrize("effort", [None, "max"])
+@pytest.mark.parametrize("effort", [None, "high", "max"])
 @pytest.mark.parametrize("models,default_budget", [
     (("claude-opus-5-5", "claude-opus-5-5"), "128000"),
     (("claude-opus-5-5", "claude-sonnet-5-5"), "128000"),
@@ -162,4 +162,4 @@ done
     assert result.returncode == 0, result.stdout + result.stderr
     assert capture.read_text() == (token_budget or default_budget)
     args = capture.with_suffix(".args").read_text().splitlines()
-    assert args[args.index("--anthropic-effort") + 1] == (effort or "high")
+    assert args[args.index("--anthropic-effort") + 1] == (effort or "max")

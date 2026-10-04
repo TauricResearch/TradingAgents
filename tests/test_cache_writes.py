@@ -106,7 +106,9 @@ def test_on_windows_the_lock_is_waited_for_while_another_writer_holds_it(tmp_pat
     import errno
     import sys
 
-    fake, calls = _fake_msvcrt([OSError(errno.EDEADLOCK, "held"), None])
+    # macOS exposes only the portable EDEADLK name, unlike Linux and Windows.
+    monkeypatch.delattr(errno, "EDEADLOCK", raising=False)
+    fake, calls = _fake_msvcrt([OSError(errno.EDEADLK, "held"), None])
     monkeypatch.setitem(sys.modules, "msvcrt", fake)
 
     with open(tmp_path / "log.md.lock", "a+b") as handle, files._hold_windows(handle):
@@ -156,6 +158,7 @@ def test_on_windows_a_held_lock_is_reported_when_not_waiting(tmp_path, monkeypat
     import errno
     import sys
 
+    monkeypatch.delattr(errno, "EDEADLOCK", raising=False)
     fake, calls = _fake_msvcrt([OSError(errno.EACCES, "held")])
     monkeypatch.setitem(sys.modules, "msvcrt", fake)
 

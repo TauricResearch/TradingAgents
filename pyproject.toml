@@ -30,6 +30,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9",
+]
 dev = [
     "ruff>=0.16",
     "pytest>=8.0",

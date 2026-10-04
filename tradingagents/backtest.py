@@ -170,11 +170,16 @@ def run_backtest(
             logger.warning("Backtest cell %s %s failed: %s", ticker, date, exc)
             result.failures.append((ticker, date, str(exc)))
 
-    # Settlement runs at the start of the next run for a ticker, so each ticker's
+    # Each run settles earlier decisions alongside its analysts, so each ticker's
     # last cell would stay pending without this pass.
     for ticker in tickers:
         try:
-            graph.settle_pending(ticker)
+            settled = graph.settle_pending(ticker)
+            if settled is not None:
+                for failed_ticker, date, reason in settled.failed:
+                    failure = (failed_ticker, f"{date}: {reason}")
+                    if failure not in result.settlement_failures:
+                        result.settlement_failures.append(failure)
         except Exception as exc:  # reflection calls an LLM; one failure is not the sweep's
             logger.warning("Settling %s failed: %s", ticker, exc)
             result.settlement_failures.append((ticker, str(exc)))

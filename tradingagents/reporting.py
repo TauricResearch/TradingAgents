@@ -9,8 +9,28 @@ run produces the same on-disk report tree a CLI run does.
 from datetime import datetime
 from pathlib import Path
 
+import tradingagents
 from cli.report_fields import require_price_target
 from tradingagents.agents.rating import run_rating
+from tradingagents.llm_clients import tier_provider
+
+
+def report_settings(config: dict, analysts) -> dict:
+    """Public run metadata for reports, excluding credentials, endpoints and paths."""
+    return {
+        "version": tradingagents.__version__,
+        "llm_provider": config.get("llm_provider"),
+        "deep_think_provider": tier_provider(config, "deep") if config.get("llm_provider") else None,
+        "deep_think_llm": config.get("deep_think_llm"),
+        "quick_think_provider": tier_provider(config, "quick") if config.get("llm_provider") else None,
+        "quick_think_llm": config.get("quick_think_llm"),
+        "analysts": list(analysts),
+        "max_debate_rounds": config.get("max_debate_rounds"),
+        "max_risk_discuss_rounds": config.get("max_risk_discuss_rounds"),
+        "output_language": config.get("output_language"),
+        "data_vendors": dict(config.get("data_vendors") or {}),
+        "tool_vendors": dict(config.get("tool_vendors") or {}),
+    }
 
 
 def analyst_names(keys) -> list[str]:
@@ -91,12 +111,14 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
 
 
 def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict | None = None,
-                      html: bool = True) -> Path:
+                      html: bool = True, normalize_headings: bool = False) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path.
 
     ``settings`` (``TradingAgentsGraph.run_settings()``) adds what produced the run
     to the report's header. ``html`` also writes ``complete_report.html``, one
-    self-contained page of the same report (#1419).
+    self-contained page of the same report (#1419). ``normalize_headings``
+    applies the fork CLI's heading normalization to both complete reports;
+    individual stage files retain the original agent output.
     """
     require_price_target(final_state.get("final_trade_decision") or "")
     save_path = Path(save_path)
@@ -110,13 +132,17 @@ def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict 
         content = "\n\n".join(f"### {agent}\n{text}" for agent, _filename, text in written)
         sections.append(f"## {heading}\n\n{content}")
 
-    (save_path / "complete_report.md").write_text(
-        _header(ticker, final_state, settings) + "\n\n".join(sections), encoding="utf-8"
-    )
+    complete_report = _header(ticker, final_state, settings) + "\n\n".join(sections)
+    if normalize_headings:
+        from cli.report_headings import transform
+
+        complete_report = transform(complete_report)
+    (save_path / "complete_report.md").write_text(complete_report, encoding="utf-8")
     if html:
         from tradingagents.report_html import render_report
 
         (save_path / "complete_report.html").write_text(
-            render_report(ticker, final_state, settings, parts), encoding="utf-8"
+            render_report(ticker, final_state, settings, parts, normalize_headings=normalize_headings),
+            encoding="utf-8",
         )
     return save_path / "complete_report.md"

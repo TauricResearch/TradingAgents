@@ -26,6 +26,7 @@ from cli.checkpoint import stream_with_checkpoint
 from cli.models import AnalystType, AssetType
 from cli.prompts import parse_analysts
 from cli.report_headings import transform as _prune_report_headings
+from cli.selections import _check_tier_providers
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
     ask_anthropic_effort,
@@ -51,6 +52,7 @@ from cli.utils import (
 )
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.batch import BatchRunner
+from tradingagents.batch.runner import validate_batch_config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
@@ -60,7 +62,7 @@ from tradingagents.graph.analyst_execution import (
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.portfolio import load_portfolio
-from tradingagents.reporting import write_report_tree
+from tradingagents.reporting import report_settings, write_report_tree
 
 console = Console()
 
@@ -646,8 +648,6 @@ def get_user_selections():
         )
         console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
-        # Still confirm/persist the API key so the run doesn't fail later.
-        ensure_api_key(selected_llm_provider)
     else:
         console.print(
             create_question_box(
@@ -682,10 +682,8 @@ def get_user_selections():
         if selected_llm_provider == "ollama":
             confirm_ollama_endpoint(backend_url)
 
-        # Confirm the provider's API key is present; prompt the user to paste
-        # one and persist it to .env if it's missing, so the analysis run
-        # doesn't fail later at the first API call.
-        ensure_api_key(selected_llm_provider)
+
+    _check_tier_providers(selected_llm_provider)
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
     if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
@@ -709,9 +707,11 @@ def get_user_selections():
     # provider itself came from env) the prompt is skipped and the configured
     # value is used — same env-precedence rule as the steps above. None = each
     # provider's own default.
-    thinking_level = None
-    reasoning_effort = None
-    anthropic_effort = None
+    # A different provider may serve the other tier. Keep its configured
+    # settings even when only the main provider's knob is prompted below.
+    thinking_level = DEFAULT_CONFIG["google_thinking_level"]
+    reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
+    anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
 
     provider_lower = selected_llm_provider.lower()
     if provider_from_env:
@@ -778,14 +778,20 @@ def report_model_slug(model_id: str) -> str:
     return model_id.strip().replace("/", "-").replace(":", "-").replace(".", "-")
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def _html_choice(ctx: typer.Context, value: bool | None) -> bool | None:
+    """A subcommand's explicit choice wins over a root-level HTML flag."""
+    return value if value is not None else ctx.find_root().params.get("html")
+
+
+def save_report_to_disk(final_state, ticker: str, save_path: Path, settings=None, html=True):
     """Save the complete analysis report to disk (shared CLI/API writer).
 
-    Re-prunes the consolidated report afterward: ``write_report_tree`` is
-    shared with the headless API path, but the CLI's stray H1/H2 pruning
-    (agents occasionally emit their own top-level headers) stays CLI-only.
+    The shared writer normalizes both formats for the CLI and records the
+    run's settings. Programmatic callers can omit the optional HTML page.
     """
-    report_path = write_report_tree(final_state, ticker, save_path)
+    report_path = write_report_tree(
+        final_state, ticker, save_path, settings=settings, html=html, normalize_headings=True,
+    )
     pruned_text = _prune_report_headings(report_path.read_text(encoding="utf-8"))
     report_path.write_text(pruned_text, encoding="utf-8")
     return report_path
@@ -1043,6 +1049,7 @@ def run_analysis(
     post_display: bool | None = None,
     portfolio=None,
     flags: dict | None = None,
+    post_html: bool | None = None,
 ):
     """Run a full analysis.
 
@@ -1056,15 +1063,24 @@ def run_analysis(
     --save/--show`` ``flags``, hands the run to the upstream ``cli.run`` flow,
     which implements them.
     """
-    if portfolio is not None or any(v is not None for v in (flags or {}).values()):
+    if portfolio is not None or any(
+        value is not None for key, value in (flags or {}).items() if key != "html"
+    ):
         from cli.run import run_analysis as run_upstream_analysis
         return run_upstream_analysis(checkpoint=checkpoint, portfolio=portfolio, flags=flags)
+
+    if flags and flags.get("html") is not None:
+        post_html = flags["html"]
 
     # First get all user selections
     if selections is None:
         selections = get_user_selections()
 
     config = _build_run_config(selections, checkpoint)
+
+    from cli.selections import ensure_run_provider_keys
+
+    ensure_run_provider_keys(config)
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1372,13 +1388,28 @@ def run_analysis(
         else:
             save_path_str = str(default_path)
         save_path = Path(save_path_str).expanduser()
+        if post_html is None:
+            if post_save is None:
+                post_html = typer.prompt("Also save it as an HTML page?", default="Y").strip().upper() in ("Y", "YES", "")
+            else:
+                post_html = True
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state, selections["ticker"], save_path,
+                settings=graph.run_settings(), html=post_html,
+            )
             graph.clear_checkpoint_on_success(
                 selections["ticker"], selections["analysis_date"], selections["asset_type"]
             )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            if post_html:
+                page = (save_path / "complete_report.html").resolve()
+                console.print(f"  [dim]HTML report:[/dim] {page.name}")
+                if post_save is None:
+                    from cli.run import _open_page
+
+                    _open_page(page)
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
     else:
@@ -1398,6 +1429,7 @@ def run_analysis(
 
 @app.command()
 def analyze(
+    ctx: typer.Context,
     checkpoint: bool | None = typer.Option(
         None,
         "--checkpoint/--no-checkpoint",
@@ -1409,13 +1441,16 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    html: bool | None = typer.Option(
+        None, "--html/--no-html", help="Also save a self-contained HTML report (default: yes).",
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     try:
-        run_analysis(checkpoint=checkpoint)
+        run_analysis(checkpoint=checkpoint, post_html=_html_choice(ctx, html))
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit
@@ -1497,6 +1532,10 @@ def _batch_config(
         raise typer.BadParameter("batch provider must be openai or anthropic")
     config = DEFAULT_CONFIG.copy()
     config["llm_provider"] = provider_key
+    try:
+        validate_batch_config(config, provider_key)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     config["backend_url"] = _PROVIDER_DEFAULT_BACKENDS[provider_key]
     if provider_key == "anthropic":
         config["deep_think_llm"] = deep_model or "claude-opus-4-8"
@@ -1541,17 +1580,20 @@ def _create_batch_runner(
         anthropic_effort=anthropic_effort,
     )
     ensure_api_key(config["llm_provider"])
-    return BatchRunner.create(
-        provider=config["llm_provider"],
-        tickers=tickers,
-        trade_date=analysis_date,
-        asset_types={ticker: asset.value for ticker, asset in asset_enums.items()},
-        selected_analysts=selected_analysts,
-        config=config,
-    )
+    try:
+        return BatchRunner.create(
+            provider=config["llm_provider"],
+            tickers=tickers,
+            trade_date=analysis_date,
+            asset_types={ticker: asset.value for ticker, asset in asset_enums.items()},
+            selected_analysts=selected_analysts,
+            config=config,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
-def _save_batch_reports(runner: BatchRunner) -> list[Path]:
+def _save_batch_reports(runner: BatchRunner, html=True) -> list[Path]:
     saved: list[Path] = []
     reports_root = Path(runner.manifest.config["reports_dir"])
     reports_root.mkdir(parents=True, exist_ok=True)
@@ -1563,7 +1605,10 @@ def _save_batch_reports(runner: BatchRunner) -> list[Path]:
             continue
         date_slug = run.trade_date.replace("-", "")
         save_path = reports_root / ticker / f"{date_slug}_{model_slug}_{timestamp}"
-        report_file = save_report_to_disk(state, ticker, save_path)
+        report_file = save_report_to_disk(
+            state, ticker, save_path,
+            settings=report_settings(runner.manifest.config, runner.manifest.selected_analysts), html=html,
+        )
         run.report_path = str(report_file)
         saved.append(report_file)
     runner.save()
@@ -1609,12 +1654,15 @@ def batch_status(run_id: str = typer.Argument(...)):
 
 @batch_app.command("collect")
 def batch_collect(
+    ctx: typer.Context,
     run_id: str = typer.Argument(...),
     save_reports: bool = typer.Option(True, "--save-reports/--no-save-reports"),
+    html: bool | None = typer.Option(None, "--html/--no-html", help="Also save a self-contained HTML report (default: yes)."),
 ):
     runner = BatchRunner.load(config=DEFAULT_CONFIG, run_id=run_id)
     runner.collect()
-    saved = _save_batch_reports(runner) if save_reports else []
+    choice = _html_choice(ctx, html)
+    saved = _save_batch_reports(runner, html=True if choice is None else choice) if save_reports else []
     console.print(json.dumps(runner.status_summary(), indent=2, sort_keys=True))
     for path in saved:
         console.print(f"[green]Saved report:[/green] {path}")
@@ -1630,6 +1678,7 @@ def batch_retry(run_id: str = typer.Argument(...)):
 
 @app.command()
 def run(
+    ctx: typer.Context,
     ticker: str = typer.Option(..., "--ticker", "-t", help="Ticker symbol, e.g. SPY, 0700.HK, BTC-USD."),
     date: str = typer.Option(
         None,
@@ -1668,6 +1717,7 @@ def run(
     execution: str = typer.Option("sync", "--execution", help="sync or batch-wait."),
     checkpoint: bool = typer.Option(False, "--checkpoint", help="Enable checkpoint/resume."),
     clear_checkpoints: bool = typer.Option(False, "--clear-checkpoints", help="Delete saved checkpoints before running."),
+    html: bool | None = typer.Option(None, "--html/--no-html", help="Also save a self-contained HTML report (default: yes)."),
 ):
     """One-shot non-interactive analysis. Flags mirror the interactive prompts.
 
@@ -1684,6 +1734,9 @@ def run(
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+
+    choice = _html_choice(ctx, html)
+    html = True if choice is None else choice
 
     # --- Validate / normalize inputs ---
     norm_ticker = ticker.strip().upper()
@@ -1734,9 +1787,6 @@ def run(
     else:
         resolved_backend = _PROVIDER_DEFAULT_BACKENDS[provider_key]
 
-    # API key check (interactive prompt only fires when the env var is missing)
-    ensure_api_key(provider_key)
-
     selections = {
         "ticker": norm_ticker,
         "asset_type": asset_enum.value,
@@ -1747,9 +1797,9 @@ def run(
         "backend_url": resolved_backend,
         "shallow_thinker": quick_model,
         "deep_thinker": deep_model,
-        "google_thinking_level": google_thinking_level,
-        "openai_reasoning_effort": openai_reasoning_effort,
-        "anthropic_effort": anthropic_effort,
+        "google_thinking_level": google_thinking_level if google_thinking_level is not None else DEFAULT_CONFIG["google_thinking_level"],
+        "openai_reasoning_effort": openai_reasoning_effort if openai_reasoning_effort is not None else DEFAULT_CONFIG["openai_reasoning_effort"],
+        "anthropic_effort": anthropic_effort if anthropic_effort is not None else DEFAULT_CONFIG["anthropic_effort"],
         "output_language": language,
     }
 
@@ -1770,7 +1820,7 @@ def run(
             anthropic_effort=anthropic_effort,
         )
         runner.wait(poll_seconds=60.0)
-        saved = _save_batch_reports(runner)
+        saved = _save_batch_reports(runner, html=html)
         console.print(f"[green]Batch run completed:[/green] {runner.manifest.run_id}")
         for path in saved:
             console.print(f"[green]Saved report:[/green] {path}")
@@ -1782,6 +1832,7 @@ def run(
         post_save=True,
         post_save_path=None,
         post_display=False,
+        post_html=html,
     )
 
 

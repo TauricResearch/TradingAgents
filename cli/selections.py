@@ -37,6 +37,7 @@ from cli.prompts import (
     select_shallow_thinking_agent,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients import tier_provider
 
 
 def get_user_selections(flags=None):
@@ -77,7 +78,6 @@ def _check_tier_providers(main_provider: str) -> None:
     first call, which for the deep tier comes after everything else has been
     paid for; a provider no tier uses needs no key.
     """
-    used = []
     for tier in ("quick", "deep"):
         provider = (DEFAULT_CONFIG.get(f"{tier}_think_provider") or main_provider).lower()
         if provider != main_provider.lower():
@@ -85,10 +85,22 @@ def _check_tier_providers(main_provider: str) -> None:
             if not os.environ.get(variable):
                 console.print(f"[red]The {tier} tier runs on {provider}; set {variable} to one of its models.[/red]")
                 raise typer.Exit(code=1)
-        if provider not in used:
-            used.append(provider)
-    for provider in used:
-        ensure_api_key(provider)
+    ensure_run_provider_keys({**DEFAULT_CONFIG, "llm_provider": main_provider})
+
+
+def ensure_run_provider_keys(config: dict) -> None:
+    """Check the providers the resolved run uses, including explicit model flags.
+
+    The interactive model-selection check above requires an environment model
+    for a different provider. A resolved config already has its models, so this
+    check also works for headless commands that supplied them on the CLI.
+    """
+    checked = set()
+    for tier in ("quick", "deep"):
+        provider = tier_provider(config, tier)
+        if provider not in checked:
+            ensure_api_key(provider)
+            checked.add(provider)
 
 
 def _from_flag(parse, value, *args):
@@ -312,9 +324,11 @@ def _prompt_selections(prefs, flags):
     # provider itself came from env) the prompt is skipped and the configured
     # value is used — same env-precedence rule as the steps above. None = each
     # provider's own default.
-    thinking_level = None
-    reasoning_effort = None
-    anthropic_effort = None
+    # A different provider may serve the other tier. Keep its configured
+    # settings even when only the main provider's knob is prompted below.
+    thinking_level = DEFAULT_CONFIG["google_thinking_level"]
+    reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
+    anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
 
     provider_lower = selected_llm_provider.lower()
     if provider_from_env:

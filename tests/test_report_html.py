@@ -172,3 +172,38 @@ def test_the_packaged_logo_stays_inert(tmp_path):
     tags = set(re.findall(r"<\s*([a-zA-Z][\w:-]*)", logo))
     assert tags <= {"svg", "path", "rect", "circle", "g", "defs", "clipPath", "linearGradient", "stop"}
     assert not re.search(r"\son\w+\s*=|href|url\(|@import|javascript:|<!entity|<!doctype", logo, re.IGNORECASE)
+
+
+@pytest.mark.unit
+def test_normalized_html_matches_the_saved_markdown_outline_and_preserves_fences(tmp_path):
+    from markdown_it import MarkdownIt
+
+    body = ("# View\n## Trend\n### Detail\n#### Existing\n##### Nested\n###### Deep\n\n"
+            "```markdown\n# Code heading\n```\n\n~~~markdown\n## Tilde code heading\n~~~\n\n"
+            "Setext view\n===========\n\n> # Quoted view\n\n"
+            "## I. Outlook\n\n### Market Analyst\n\n# After agent heading\n")
+    report = write_report_tree(_state(market_report=body), "NVDA", tmp_path, settings=SETTINGS,
+                               normalize_headings=True)
+    markdown = report.read_text(encoding="utf-8")
+    page = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
+    main = page.split("<main>", 1)[1].split("</main>", 1)[0]
+    rendered_markdown = MarkdownIt("commonmark", {"html": False}).render(markdown)
+    headings = r"<h([1-6])(?:\s[^>]*)?>(.*?)</h[1-6]>"
+
+    assert re.findall(headings, main) == re.findall(headings, rendered_markdown)[1:]
+    assert [(level, title) for level, title in re.findall(headings, main) if title in
+            {"View", "Trend", "Detail", "Existing", "Nested", "Deep"}] == [
+        ("4", "View"), ("4", "Trend"), ("4", "Detail"),
+        ("4", "Existing"), ("5", "Nested"), ("6", "Deep"),
+    ]
+    # The fork's existing normalizer preserves these heading forms. HTML must
+    # retain the same outline rather than applying another demotion pass.
+    assert ("1", "Setext view") in re.findall(headings, main)
+    assert ("1", "Quoted view") in re.findall(headings, main)
+    assert ("2", "I. Outlook") in re.findall(headings, main)
+    assert re.findall(headings, main).count(("3", "Market Analyst")) == 2
+    assert ("4", "After agent heading") in re.findall(headings, main)
+    assert "```markdown\n# Code heading\n```" in markdown
+    assert "~~~markdown\n## Tilde code heading\n~~~" in markdown
+    assert "# Code heading" in main and "## Tilde code heading" in main
+    assert not re.search(r"<h[1-6][^>]*>(?:Code heading|Tilde code heading)</h[1-6]>", main)

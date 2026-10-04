@@ -14,7 +14,7 @@
 # For the public Anthropic API, set TRADINGAGENTS_MODE=direct and
 # ANTHROPIC_API_KEY. The direct API key may also come from the project's .env.
 # TRADINGAGENTS_MODE defaults to proxy; TRADINGAGENTS_CLAUDE_MODE overrides it.
-# TRADINGAGENTS_OPENAI_REASONING_EFFORT also sets Claude effort (default high).
+# TRADINGAGENTS_OPENAI_REASONING_EFFORT also sets Claude effort (default max).
 # TRADINGAGENTS_LLM_RPM controls per-worker request pacing.
 # TRADINGAGENTS_MAX_TOKENS sets the output/reasoning budget (128000 for Claude 5.5).
 

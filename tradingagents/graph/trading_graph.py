@@ -9,17 +9,16 @@ from typing import Any
 
 from langchain_core.rate_limiters import InMemoryRateLimiter
 
-import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
 from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.llm_clients import create_tier_client, tier_provider
+from tradingagents.llm_clients import create_tier_client
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory.reflection import Reflector
-from tradingagents.reporting import write_report_tree
+from tradingagents.reporting import report_settings, write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -284,21 +283,7 @@ class TradingAgentsGraph:
         An allowlist: endpoints (a backend_url can carry credentials), keys and
         local paths are never recorded.
         """
-        cfg = self.config
-        return {
-            "version": tradingagents.__version__,
-            "llm_provider": cfg.get("llm_provider"),
-            "deep_think_provider": tier_provider(cfg, "deep") if cfg.get("llm_provider") else None,
-            "deep_think_llm": cfg.get("deep_think_llm"),
-            "quick_think_provider": tier_provider(cfg, "quick") if cfg.get("llm_provider") else None,
-            "quick_think_llm": cfg.get("quick_think_llm"),
-            "analysts": list(self.selected_analysts),
-            "max_debate_rounds": cfg.get("max_debate_rounds"),
-            "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
-            "output_language": cfg.get("output_language"),
-            "data_vendors": dict(cfg.get("data_vendors") or {}),
-            "tool_vendors": dict(cfg.get("tool_vendors") or {}),
-        }
+        return report_settings(self.config, self.selected_analysts)
 
     def save_reports(self, final_state, ticker, save_path=None, html=True) -> Path:
         """Write the report tree for a completed run, like the CLI does.

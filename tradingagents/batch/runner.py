@@ -53,6 +53,36 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.graph.analyst_execution import ANALYST_NODE_SPECS
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.signal_processing import SignalProcessor
+from tradingagents.llm_clients import tier_provider
+
+
+def validate_batch_config(config: dict[str, Any], provider: str) -> None:
+    """Reject tier routing that the single native-provider batch adapter cannot honor."""
+    provider_key = provider.lower()
+    native_endpoints = {
+        "openai": "https://api.openai.com/v1",
+        "anthropic": "https://api.anthropic.com",
+    }
+    if provider_key not in native_endpoints:
+        raise ValueError("batch mode supports only provider='openai' or provider='anthropic'")
+    tier_config = {**config, "llm_provider": provider_key}
+    for tier in ("quick", "deep"):
+        configured_provider = tier_provider(tier_config, tier)
+        if configured_provider != provider_key:
+            raise ValueError(
+                f"batch mode requires both model tiers to use provider='{provider_key}'; "
+                f"the {tier} tier uses '{configured_provider}'. "
+                "Use synchronous runs for mixed providers."
+            )
+        endpoint = config.get(f"{tier}_think_backend_url")
+        if endpoint and (
+            not isinstance(endpoint, str) or endpoint.rstrip("/") != native_endpoints[provider_key]
+        ):
+            # Endpoint URLs can carry credentials, so identify only the tier.
+            raise ValueError(
+                f"batch mode cannot use a custom {tier} tier endpoint. "
+                "Use synchronous runs for custom endpoints."
+            )
 
 
 class BatchRunner:
@@ -113,10 +143,9 @@ class BatchRunner:
         root: Path | None = None,
     ) -> BatchRunner:
         provider_key = provider.lower()
-        if provider_key not in {"openai", "anthropic"}:
-            raise ValueError("batch mode supports only provider='openai' or provider='anthropic'")
         config = dict(config)
         config["llm_provider"] = provider_key
+        validate_batch_config(config, provider_key)
         runs: dict[str, BatchRunState] = {}
         memory_log = TradingMemoryLog(config)
         propagator = Propagator(max_recur_limit=config.get("max_recur_limit", 100))
