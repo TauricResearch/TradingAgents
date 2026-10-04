@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 from rich.console import Console
+from rich.text import Text
 from typer.testing import CliRunner
 
 import cli.headless as headless
@@ -334,10 +335,22 @@ def test_graph_setup_failure_closes_progress_without_success_json(fake_graph, mo
     assert not result.stdout.strip()
 
 
-def test_help_exposes_progress_flags():
-    result = CliRunner().invoke(main.app, ["analyze", "--help"])
+@pytest.mark.parametrize("color", [False, True])
+def test_help_exposes_progress_flags(monkeypatch, color):
+    # GitHub Actions enables colored help. Rich styles the option prefix and
+    # name separately, so assert the rendered text rather than ANSI bytes.
+    monkeypatch.setenv("TERM", "xterm-256color" if color else "dumb")
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    if color:
+        monkeypatch.setenv("FORCE_COLOR", "1")
+    else:
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+    result = CliRunner().invoke(main.app, ["analyze", "--help"], color=color)
     assert result.exit_code == 0
-    assert "--progress" in result.output and "--no-progress" in result.output
+    if color:
+        assert "\x1b[" in result.output
+    rendered = Text.from_ansi(result.output).plain
+    assert "--progress" in rendered and "--no-progress" in rendered
 
 
 def test_live_redirects_noisy_tools_to_stderr_and_restores_streams(monkeypatch):
