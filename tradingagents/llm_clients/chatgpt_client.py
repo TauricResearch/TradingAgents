@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 import threading
 import weakref
 from collections.abc import AsyncIterator, Iterable, Mapping
@@ -653,16 +652,53 @@ def _tool_argument_deltas(event: Any, accumulated: dict[str, str]) -> None:
     try:
         parsed = json.loads(complete)
     except json.JSONDecodeError as exc:
-        raise ChatGPTSubscriptionError("ChatGPT stream returned malformed function arguments.") from exc
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream returned malformed function arguments."
+        ) from exc
     if not isinstance(parsed, dict):
         raise ChatGPTSubscriptionError("ChatGPT function call arguments must be an object.")
     accumulated[key] = complete
 
 
-def _validate_completed_arguments(response: Any, accumulated: Mapping[str, str]) -> None:
+def _remember_completed_item(event: Any, items: dict[int, dict[str, Any]]) -> None:
+    output_index = _field(event, "output_index")
+    if not isinstance(output_index, int) or isinstance(output_index, bool) or output_index < 0:
+        raise ChatGPTSubscriptionError("ChatGPT stream completed item has an invalid output index.")
+    try:
+        item = _output_item(_field(event, "item"))
+    except ChatGPTResponsesError as exc:
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream completed item is not serializable."
+        ) from exc
+    previous = items.get(output_index)
+    if previous is not None and previous != item:
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream emitted conflicting completed items at one output index."
+        )
+    items[output_index] = item
+
+
+def _completed_output(
+    response: Any, completed_items: Mapping[int, dict[str, Any]]
+) -> dict[int, dict[str, Any]]:
     output = _field(response, "output", []) or []
+    items: dict[int, dict[str, Any]] = {}
     for index, raw_item in enumerate(output):
         item = _output_item(raw_item)
+        completed = completed_items.get(index)
+        if completed is not None and completed != item:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT terminal output conflicts with a completed stream item."
+            )
+        items[index] = item
+    items.update(completed_items)
+    return items
+
+
+def _validate_completed_arguments(
+    items: Mapping[int, dict[str, Any]], accumulated: Mapping[str, str]
+) -> None:
+    for index, item in sorted(items.items()):
         if item.get("type") != "function_call":
             continue
         item_id = item.get("id")
@@ -671,11 +707,15 @@ def _validate_completed_arguments(response: Any, accumulated: Mapping[str, str])
             observed = accumulated.get(f"index:{index}")
         arguments = item.get("arguments")
         if not isinstance(arguments, str):
-            raise ChatGPTSubscriptionError("ChatGPT completed function call has malformed arguments.")
+            raise ChatGPTSubscriptionError(
+                "ChatGPT completed function call has malformed arguments."
+            )
         try:
             parsed = json.loads(arguments)
         except json.JSONDecodeError as exc:
-            raise ChatGPTSubscriptionError("ChatGPT completed function call has malformed arguments.") from exc
+            raise ChatGPTSubscriptionError(
+                "ChatGPT completed function call has malformed arguments."
+            ) from exc
         if not isinstance(parsed, dict):
             raise ChatGPTSubscriptionError("ChatGPT function call arguments must be an object.")
         if observed is not None and observed != arguments:
@@ -742,24 +782,15 @@ class ChatGPTResponses(BaseChatModel):
         return super().bind(tools=formatted, tool_choice=tool_choice, **kwargs)
 
     def _access_token(self) -> str:
-        if self.auth_session is not None:
-            try:
-                token = self.auth_session.access_token()
-            except Exception as exc:
-                raise ChatGPTSubscriptionError(
-                    f"ChatGPT account authorization failed: {exc}"
-                ) from exc
-            if isinstance(token, str) and token:
-                return token
-            raise ChatGPTSubscriptionError("ChatGPT account did not provide an access token.")
-        if self.api_key is not None:
-            value = self.api_key.get_secret_value()
-            if value:
-                return value
-        value = os.environ.get("ACCESS_TOKEN")
-        if value:
-            return value
-        raise ChatGPTResponsesError("ChatGPT access token is not set")
+        if self.auth_session is None:
+            raise ChatGPTSubscriptionError("ChatGPT Responses requires a pinned app-owned session")
+        try:
+            token = self.auth_session.access_token()
+        except Exception as exc:
+            raise ChatGPTSubscriptionError(f"ChatGPT account authorization failed: {exc}") from exc
+        if isinstance(token, str) and token:
+            return token
+        raise ChatGPTSubscriptionError("ChatGPT account did not provide an access token.")
 
     def _reject_transport_overrides(self, params: Mapping[str, Any]) -> None:
         if _ENDPOINT_KEYS.intersection(params):
@@ -874,9 +905,8 @@ class ChatGPTResponses(BaseChatModel):
         response: Any,
         function_names: set[str],
         custom_names: set[str],
+        items: list[dict[str, Any]],
     ) -> AIMessage:
-        raw_output = getattr(response, "output", []) or []
-        items = [_output_item(item) for item in raw_output]
         tool_calls = _calls_from_items(items, function_names, custom_names)
         fields: dict[str, Any] = {
             "content": _message_text(items),
@@ -904,9 +934,7 @@ class ChatGPTResponses(BaseChatModel):
         message = chunks[0].message
         for chunk in chunks[1:]:
             message = message + chunk.message
-        return ChatResult(
-            generations=[ChatGeneration(message=message_chunk_to_message(message))]
-        )
+        return ChatResult(generations=[ChatGeneration(message=message_chunk_to_message(message))])
 
     async def _agenerate(
         self,
@@ -916,20 +944,13 @@ class ChatGPTResponses(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         del run_manager
-        chunks = [
-            chunk
-            async for chunk in self._astream(messages, stop=stop, **kwargs)
-        ]
+        chunks = [chunk async for chunk in self._astream(messages, stop=stop, **kwargs)]
         if not chunks:
-            raise ChatGPTSubscriptionError(
-                "ChatGPT stream ended without a completed response."
-            )
+            raise ChatGPTSubscriptionError("ChatGPT stream ended without a completed response.")
         message = chunks[0].message
         for chunk in chunks[1:]:
             message = message + chunk.message
-        return ChatResult(
-            generations=[ChatGeneration(message=message_chunk_to_message(message))]
-        )
+        return ChatResult(generations=[ChatGeneration(message=message_chunk_to_message(message))])
 
     def _stream(
         self,
@@ -956,6 +977,8 @@ class ChatGPTResponses(BaseChatModel):
             received_event = False
             emitted_text = False
             argument_deltas: dict[str, str] = {}
+            completed_items: dict[int, dict[str, Any]] = {}
+            client: OpenAI | None = None
             try:
                 client = self._client()
                 with client.responses.create(**request) as stream:
@@ -967,15 +990,20 @@ class ChatGPTResponses(BaseChatModel):
                             delta = _field(event, "delta")
                             if isinstance(delta, str) and delta:
                                 emitted_text = True
-                                yield ChatGenerationChunk(
-                                    message=AIMessageChunk(content=delta)
+                                yield ChatGenerationChunk(message=AIMessageChunk(content=delta))
+                        if event_type == "response.output_item.done":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted an item after response.completed."
                                 )
+                            _remember_completed_item(event, completed_items)
                         _tool_argument_deltas(event, argument_deltas)
                         if event_type in {"response.failed", "response.incomplete", "error"}:
                             failure = _event_failure(event, event_type)
-                            if failure.code in _QUOTA_ERROR_CODES or _field(
-                                event, "status_code"
-                            ) == 429:
+                            if (
+                                failure.code in _QUOTA_ERROR_CODES
+                                or _field(event, "status_code") == 429
+                            ):
                                 self._admission.quota_paused = True
                                 failure.status_code = 429
                                 failure.code = failure.code or "usage_limit_reached"
@@ -999,19 +1027,19 @@ class ChatGPTResponses(BaseChatModel):
                             f"ChatGPT completed event had non-completed status "
                             f"{_field(response, 'status')!r}."
                         )
-                    _validate_completed_arguments(response, argument_deltas)
+                    output_items = _completed_output(response, completed_items)
+                    _validate_completed_arguments(output_items, argument_deltas)
+                    items = [output_items[index] for index in sorted(output_items)]
                     try:
                         final_message = self._message_from_response(
-                            response, function_names, custom_names
+                            response, function_names, custom_names, items
                         )
                     except ChatGPTResponsesError as exc:
                         raise ChatGPTSubscriptionError(
                             f"ChatGPT completed response was invalid: {exc}"
                         ) from exc
                 if not emitted_text and final_message.content:
-                    yield ChatGenerationChunk(
-                        message=AIMessageChunk(content=final_message.content)
-                    )
+                    yield ChatGenerationChunk(message=AIMessageChunk(content=final_message.content))
                 tool_chunks = [
                     {
                         "name": call["name"],
@@ -1042,14 +1070,13 @@ class ChatGPTResponses(BaseChatModel):
                 failure = _request_failure(exc)
                 if failure.status_code == 429 or failure.code in _QUOTA_ERROR_CODES:
                     self._admission.quota_paused = True
-                if (
-                    not received_event
-                    and retry_count < self.max_retries
-                    and _is_retryable(exc)
-                ):
+                if not received_event and retry_count < self.max_retries and _is_retryable(exc):
                     retry_count += 1
                     continue
                 raise failure from exc
+            finally:
+                if client is not None and self.http_client is None:
+                    client.close()
 
     async def _astream(
         self,
@@ -1076,6 +1103,7 @@ class ChatGPTResponses(BaseChatModel):
             received_event = False
             emitted_text = False
             argument_deltas: dict[str, str] = {}
+            completed_items: dict[int, dict[str, Any]] = {}
             client: AsyncOpenAI | None = None
             try:
                 client = self._async_client()
@@ -1089,9 +1117,13 @@ class ChatGPTResponses(BaseChatModel):
                             delta = _field(event, "delta")
                             if isinstance(delta, str) and delta:
                                 emitted_text = True
-                                yield ChatGenerationChunk(
-                                    message=AIMessageChunk(content=delta)
+                                yield ChatGenerationChunk(message=AIMessageChunk(content=delta))
+                        if event_type == "response.output_item.done":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted an item after response.completed."
                                 )
+                            _remember_completed_item(event, completed_items)
                         _tool_argument_deltas(event, argument_deltas)
                         if event_type in {
                             "response.failed",
@@ -1099,9 +1131,10 @@ class ChatGPTResponses(BaseChatModel):
                             "error",
                         }:
                             failure = _event_failure(event, event_type)
-                            if failure.code in _QUOTA_ERROR_CODES or _field(
-                                event, "status_code"
-                            ) == 429:
+                            if (
+                                failure.code in _QUOTA_ERROR_CODES
+                                or _field(event, "status_code") == 429
+                            ):
                                 self._admission.quota_paused = True
                                 failure.status_code = 429
                                 failure.code = failure.code or "usage_limit_reached"
@@ -1125,19 +1158,19 @@ class ChatGPTResponses(BaseChatModel):
                             "ChatGPT completed event had non-completed status "
                             f"{_field(response, 'status')!r}."
                         )
-                    _validate_completed_arguments(response, argument_deltas)
+                    output_items = _completed_output(response, completed_items)
+                    _validate_completed_arguments(output_items, argument_deltas)
+                    items = [output_items[index] for index in sorted(output_items)]
                     try:
                         final_message = self._message_from_response(
-                            response, function_names, custom_names
+                            response, function_names, custom_names, items
                         )
                     except ChatGPTResponsesError as exc:
                         raise ChatGPTSubscriptionError(
                             f"ChatGPT completed response was invalid: {exc}"
                         ) from exc
                 if not emitted_text and final_message.content:
-                    yield ChatGenerationChunk(
-                        message=AIMessageChunk(content=final_message.content)
-                    )
+                    yield ChatGenerationChunk(message=AIMessageChunk(content=final_message.content))
                 tool_chunks = [
                     {
                         "name": call["name"],
@@ -1168,11 +1201,7 @@ class ChatGPTResponses(BaseChatModel):
                 failure = _request_failure(exc)
                 if failure.status_code == 429 or failure.code in _QUOTA_ERROR_CODES:
                     self._admission.quota_paused = True
-                if (
-                    not received_event
-                    and retry_count < self.max_retries
-                    and _is_retryable(exc)
-                ):
+                if not received_event and retry_count < self.max_retries and _is_retryable(exc):
                     retry_count += 1
                     continue
                 raise failure from exc
