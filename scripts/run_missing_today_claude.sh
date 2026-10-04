@@ -74,7 +74,7 @@ case "$DEEP_MODEL/$QUICK_MODEL" in
   claude-sonnet-5-5/claude-opus-5-5 | claude-sonnet-5-5/claude-sonnet-5-5)
     export TRADINGAGENTS_MAX_TOKENS="${TRADINGAGENTS_MAX_TOKENS:-128000}" ;;
 esac
-REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-high}"
+REASONING_EFFORT="${TRADINGAGENTS_OPENAI_REASONING_EFFORT:-max}"
 ANALYSTS="${TRADINGAGENTS_ANALYSTS:-market,social,news,fundamentals}"
 DEPTH="${TRADINGAGENTS_DEPTH:-5}"
 model_slug() {
@@ -86,7 +86,7 @@ model_slug() {
 }
 MODEL_SLUG="$(model_slug "$DEEP_MODEL")"
 REPORT_GLOB="${DATE_SLUG}_${MODEL_SLUG}_*"
-CONCURRENCY="${CONCURRENCY:-5}"
+CONCURRENCY="${CONCURRENCY:-10}"
 case "$CONCURRENCY" in
   ''|*[!0-9]*|0) echo "CONCURRENCY must be a positive integer" >&2; exit 1 ;;
 esac

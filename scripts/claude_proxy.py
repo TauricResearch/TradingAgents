@@ -20,7 +20,9 @@ def client_key():
         import yaml
 
         config = yaml.safe_load(path.read_text()) or {}
-        keys = config.get("api-keys", [])
+        # v8 moved client keys to access.api-keys and wins over the legacy root list.
+        access = config.get("access") or {}
+        keys = access["api-keys"] if "api-keys" in access else config.get("api-keys", [])
         if isinstance(keys, list) and keys and isinstance(keys[0], str) and keys[0]:
             return keys[0]
     except (ImportError, OSError, ValueError):
