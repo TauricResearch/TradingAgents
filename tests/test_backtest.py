@@ -304,3 +304,44 @@ def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
     graph = _FakeGraph.instances[-1]
     assert graph.calls == [("NVDA", "2026-01-05")]
     assert graph.settled == ["NVDA"]
+
+
+@pytest.fixture
+def _settling_graph(monkeypatch):
+    """Settle synthetic outcomes through the real log, including its rotation."""
+    def settle(self, ticker):
+        for entry in self.memory_log.get_pending_entries():
+            if entry["ticker"] == ticker:
+                alpha = -0.04 if entry["date"] == "2026-01-05" else 0.02
+                self.memory_log.update_with_outcome(
+                    ticker, entry["date"], alpha, alpha, 5, "note", "2026-02-01"
+                )
+
+    monkeypatch.setattr(_FakeGraph, "settle_pending", settle)
+
+
+@pytest.mark.unit
+def test_live_log_rotation_does_not_discard_backtest_scores(tmp_path, _settling_graph):
+    config = {**_config(tmp_path), "memory_log_max_entries": 1}
+
+    result = run_backtest(["NVDA"], ["2026-01-05", "2026-01-12"], config)
+    summary = summarize(result)
+
+    assert result.cells_run == 2
+    assert summary.resolved == 2
+    assert summary.by_rating["Buy"].hit_rate == 0.5
+    assert summary.by_rating["Buy"].mean_alpha == pytest.approx(-0.01)
+    assert config["memory_log_max_entries"] == 1
+
+
+@pytest.mark.unit
+def test_resuming_with_live_rotation_does_not_repeat_settled_cells(tmp_path, _settling_graph):
+    config = {**_config(tmp_path), "memory_log_max_entries": 1}
+    dates = ["2026-01-05", "2026-01-12"]
+    first = run_backtest(["NVDA"], dates, config)
+
+    resumed = run_backtest(["NVDA"], dates, config, run_id=first.run_id)
+
+    assert resumed.cells_run == 0
+    assert resumed.skipped == 2
+    assert summarize(resumed).resolved == 2
