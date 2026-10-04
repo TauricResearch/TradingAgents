@@ -21,15 +21,22 @@ import os
 from pathlib import Path
 
 from cli.models import AnalystType, AssetType
-from cli.prompts import _llm_provider_table, filter_analysts_for_asset_type
+from cli.prompts import (
+    _chatgpt_model_catalog,
+    _llm_provider_table,
+    filter_analysts_for_asset_type,
+)
 from tradingagents.dataflows.files import replace_file
-from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.model_catalog import (
+    ChatGPTModelCatalogError,
+    get_model_options,
+)
 
 _PREFS_PATH = Path(os.path.expanduser("~")) / ".tradingagents" / "cli_prefs.json"
 
 REMEMBERED = (
     "output_language", "analysts", "research_depth", "llm_provider",
-    "quick_think_llm", "deep_think_llm", "backend_url",
+    "quick_think_llm", "deep_think_llm", "backend_url", "chatgpt_account_id",
 )
 
 
@@ -78,14 +85,34 @@ def sanitize(prefs: dict, asset_type) -> dict:
     # base key is what the provider menu matches.
     base = (provider or "").split("-cn")[0]
     if base and base in {key for _, key, _ in _llm_provider_table()}:
+        if base == "chatgpt":
+            from tradingagents.llm_clients import chatgpt_auth
+
+            account_id = prefs.get("chatgpt_account_id")
+            if account_id is not None and not isinstance(account_id, str):
+                return kept
+            try:
+                selected_account_id, options = _chatgpt_model_catalog(account_id)
+            except (chatgpt_auth.OAuthError, ChatGPTModelCatalogError):
+                return kept
+            kept["chatgpt_account_id"] = selected_account_id
+            offered = {model for _, model in options}
+        else:
+            offered_by_mode = {}
+            for field, mode in (("quick_think_llm", "quick"), ("deep_think_llm", "deep")):
+                try:
+                    offered_by_mode[field] = {
+                        model for _, model in get_model_options(base, mode)
+                    }
+                except KeyError:
+                    offered_by_mode[field] = set()
+
         kept["llm_provider"] = provider
         if isinstance(prefs.get("backend_url"), str) and prefs["backend_url"]:
             kept["backend_url"] = prefs["backend_url"]
-        for field, mode in (("quick_think_llm", "quick"), ("deep_think_llm", "deep")):
-            try:
-                offered = {model for _, model in get_model_options(base, mode)}
-            except KeyError:
-                continue
+        for field, _mode in (("quick_think_llm", "quick"), ("deep_think_llm", "deep")):
+            if base != "chatgpt":
+                offered = offered_by_mode[field]
             if prefs.get(field) in offered:
                 kept[field] = prefs[field]
     return kept

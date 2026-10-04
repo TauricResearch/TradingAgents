@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from typing import TypedDict
 
+import pytest
 from langgraph.graph import END, StateGraph
 
 from tradingagents.graph.checkpointer import (
@@ -242,6 +243,53 @@ class TestCheckpointSignature(unittest.TestCase):
         # parallel one: its pending node no longer exists, and the join would
         # never fire.
         self.assertIn("analysts=parallel", base)
+
+
+@pytest.mark.unit
+def test_chatgpt_checkpoint_isolated_by_pinned_account(tmp_path):
+    """The same analysis under a second registration must start with no checkpoint."""
+    from types import SimpleNamespace
+
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.selected_analysts = ("market",)
+    graph.config = {
+        "max_debate_rounds": 1,
+        "max_risk_discuss_rounds": 1,
+        "llm_provider": "chatgpt",
+        "chatgpt_account_id": "oaiapp_account_a",
+    }
+    graph._chatgpt_registration_session = SimpleNamespace(
+        registration=SimpleNamespace(discriminator="opaque-account-a")
+    )
+    signature_a = graph._run_signature("stock")
+    assert "oaiapp_account_a" not in signature_a
+
+    builder = _build_graph()
+    thread_a = thread_id("TEST", "2026-04-20", signature_a)
+    global _should_crash
+    _should_crash = True
+    try:
+        with get_checkpointer(tmp_path, "TEST") as saver:
+            compiled = builder.compile(checkpointer=saver)
+            with pytest.raises(RuntimeError):
+                compiled.invoke(
+                    {"count": 0},
+                    config={"configurable": {"thread_id": thread_a}},
+                )
+        assert checkpoint_step(tmp_path, "TEST", "2026-04-20", signature_a) == 1
+
+        graph.config["chatgpt_account_id"] = "oaiapp_account_b"
+        graph._chatgpt_registration_session = SimpleNamespace(
+            registration=SimpleNamespace(discriminator="opaque-account-b")
+        )
+        signature_b = graph._run_signature("stock")
+        assert signature_b != signature_a
+        assert "oaiapp_account_b" not in signature_b
+        assert checkpoint_step(tmp_path, "TEST", "2026-04-20", signature_b) is None
+    finally:
+        _should_crash = False
 
 
 if __name__ == "__main__":

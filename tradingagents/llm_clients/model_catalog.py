@@ -2,8 +2,81 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 ModelOption = tuple[str, str]
 ProviderModeOptions = dict[str, dict[str, list[ModelOption]]]
+
+if TYPE_CHECKING:
+    from .chatgpt_auth import RegistrationSession
+
+
+class ChatGPTModelCatalogError(RuntimeError):
+    """The selected ChatGPT account's model catalog could not be used."""
+
+
+def get_chatgpt_model_options(session: RegistrationSession) -> list[ModelOption]:
+    """Fetch the selected account's displayable models in server order."""
+    import httpx
+
+    from . import chatgpt_auth
+
+    account = next(
+        (
+            saved
+            for saved in chatgpt_auth.saved_accounts(store_path=session.store_path)
+            if saved.client_id == session.registration.client_id
+        ),
+        None,
+    )
+    if account is None or account.requires_reauthorization or not account.inference_enabled:
+        raise ChatGPTModelCatalogError(
+            "ChatGPT plan use is not enabled for the selected account."
+        )
+    token = session.access_token()
+    try:
+        with httpx.Client(timeout=10.0, transport=session.http_transport) as client:
+            response = client.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            response.raise_for_status()
+            catalog = response.json()
+    except httpx.HTTPError as exc:
+        raise ChatGPTModelCatalogError(
+            "Unable to load models for the selected ChatGPT account."
+        ) from exc
+    except ValueError as exc:
+        raise ChatGPTModelCatalogError(
+            "The selected ChatGPT account returned an invalid model catalog."
+        ) from exc
+
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("models"), list):
+        raise ChatGPTModelCatalogError("The ChatGPT model catalog is malformed.")
+
+    options: list[ModelOption] = []
+    for model in catalog["models"]:
+        if not isinstance(model, dict) or not isinstance(model.get("visibility"), str):
+            raise ChatGPTModelCatalogError("The ChatGPT model catalog is malformed.")
+        if model["visibility"] != "list":
+            continue
+        display_name = model.get("display_name")
+        slug = model.get("slug")
+        if (
+            not isinstance(display_name, str)
+            or not display_name.strip()
+            or not isinstance(slug, str)
+            or not slug.strip()
+        ):
+            raise ChatGPTModelCatalogError("A displayable ChatGPT model is malformed.")
+        options.append((display_name, slug))
+
+    if not options:
+        raise ChatGPTModelCatalogError(
+            "The selected ChatGPT account has no displayable models."
+        )
+    return options
+
 
 # Providers that serve many / frequently-changing models: offer only "Custom
 # model ID" rather than a list that goes stale.

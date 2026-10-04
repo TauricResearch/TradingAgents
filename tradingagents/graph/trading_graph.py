@@ -76,6 +76,14 @@ class TradingAgentsGraph:
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
         llm_kwargs = build_llm_kwargs(self.config)
+        self._chatgpt_registration_session = None
+        if self.config.get("llm_provider", "").lower() == "chatgpt":
+            from tradingagents.llm_clients.chatgpt_auth import pinned_session
+
+            self._chatgpt_registration_session = pinned_session(
+                client_id=self.config.get("chatgpt_account_id")
+            )
+            llm_kwargs["auth_session"] = self._chatgpt_registration_session
 
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
@@ -165,8 +173,10 @@ class TradingAgentsGraph:
         the run keeps its files and how it retries are left out.
         """
         settings = {k: v for k, v in self.config.items() if k not in _NOT_IN_SIGNATURE}
+        if self.config.get("llm_provider", "").lower() == "chatgpt":
+            settings.pop("chatgpt_account_id", None)
         digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode()).hexdigest()[:12]
-        return "|".join([
+        signature_parts = [
             "analysts=" + ",".join(self.selected_analysts),
             f"debate={self.config['max_debate_rounds']}",
             f"risk={self.config['max_risk_discuss_rounds']}",
@@ -177,7 +187,15 @@ class TradingAgentsGraph:
             # another has pending nodes this graph no longer has.
             "analysts=parallel",
             f"settings={digest}",
-        ])
+        ]
+        if self.config.get("llm_provider", "").lower() == "chatgpt":
+            session = getattr(self, "_chatgpt_registration_session", None)
+            if session is None:
+                raise ValueError("ChatGPT checkpoint identity requires a pinned account session")
+            signature_parts.append(
+                f"chatgpt-account={session.registration.discriminator}"
+            )
+        return "|".join(signature_parts)
 
     def propagate(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Run the trading agents graph for a company on a specific date.
