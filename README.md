@@ -1,33 +1,50 @@
-<p align="center">
-  <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
-</p>
+# TradingAgents-Jev
 
-<div align="center" style="line-height: 1;">
-  <a href="https://arxiv.org/abs/2412.20138" target="_blank"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv"/></a>
-  <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
-  <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
-  <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
-</div>
-<br>
-<div align="center">
-  <a href="https://github.com/TauricResearch" target="_blank"><img alt="TradingAgents #1 Repository of the Day" src="https://trendshift.io/api/badge/repositories/16192" width="250" height="55"/></a>
-</div>
-<br>
-<div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=zh">中文</a>
-</div>
+**by NoSlack Labs**
+
+The slow lane of a three-speed trading system: LLM agents decide what to trade,
+how much risk to take and when to stand down. The fast lanes, a C++ engine and
+an FPGA pipeline that never wait on a model, live in
+[129BOB](https://github.com/sushant-mishra-dtu/129BOB).
+
+This is a fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents)
+([arXiv 2412.20138](https://arxiv.org/abs/2412.20138), Apache 2.0). It adds
+[TypeSafe Jev](https://docs.typesafe.ai) typed judgments where an LLM's free
+text is a poor fit, and keeps numbers, dates and counting in code.
+
+## What this fork adds
+
+| Addition | What it does | Where |
+| --- | --- | --- |
+| Screened, scored sentiment | Jev judges each news article and social post: off-topic items, repeats and posts carrying instructions aimed at an AI are dropped; the sentiment band, score and confidence are computed in code from per-item stances, and the LLM writes only the narrative | [TypeSafe Jev](#typesafe-jev-optional) |
+| Debates that stop early | The bull/bear and risk debates end once a full round adds no new argument, saving one call per skipped turn | [TypeSafe Jev](#typesafe-jev-optional) |
+| Claim check on the final decision | The Portfolio Manager's thesis is checked against the analyst reports; a contradicted claim turns the rating into `REVIEW` instead of a trade | [TypeSafe Jev](#typesafe-jev-optional) |
+| Learning from the reports | `tradingagents learn` tests whether Jev's judgments of a backtest's reports predict outcomes better than the rating alone, on chronological holdouts | [Learning from the reports](#learning-from-the-reports-jev) |
+| Browser UI | Analyze a ticker and watch each desk stream in, inspect every sentiment judgment, read saved reports and run backtests | [Browser UI](#browser-ui) |
+
+The survey of where Jev fits, and how each fit was built and checked, is in
+[docs/jev-use-cases.md](docs/jev-use-cases.md).
+
+## Quick start
+
+```bash
+git clone https://github.com/sushant-mishra-dtu/TradingAgents-Jev.git
+cd TradingAgents-Jev
+uv venv --python 3.12 && source .venv/bin/activate
+uv pip install ".[jev]"
+cp .env.example .env      # add an LLM provider key, and TYPESAFE_API_KEY for Jev
+tradingagents ui          # http://localhost:8501
+```
+
+Without `TYPESAFE_API_KEY` everything runs as upstream TradingAgents does. Set
+`TRADINGAGENTS_JEV_ENABLED=false` to turn every Jev call off with the key set.
+
+> For research only. Not financial, investment or trading advice.
 
 ---
 
-> **TradingAgents-Jev** is a fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) (Apache 2.0). It adds [TypeSafe Jev](https://docs.typesafe.ai) per-item judgments to the Sentiment Analyst, early stopping for the debates, a check of the Portfolio Manager's claims against the analyst reports, a way to test Jev judgments of a backtest's reports against its outcomes, and a browser UI; see [TypeSafe Jev (optional)](#typesafe-jev-optional) and [Browser UI](#browser-ui). All credit for the underlying framework goes to the original authors.
+The rest of this README is the upstream documentation, updated where the fork
+changes behaviour. All credit for the underlying framework goes to its authors.
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
@@ -113,10 +130,10 @@ Our framework decomposes complex trading tasks into specialized roles.
 
 ### Installation
 
-Clone TradingAgents:
+Clone TradingAgents-Jev:
 ```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
-cd TradingAgents
+git clone https://github.com/sushant-mishra-dtu/TradingAgents-Jev.git
+cd TradingAgents-Jev
 ```
 
 Create a virtual environment in any of your favorite environment managers:
