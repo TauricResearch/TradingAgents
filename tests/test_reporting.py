@@ -1,13 +1,14 @@
 """Report parity: the shared writer produces the report tree for the CLI and the
 programmatic API alike (#1037)."""
 
+import re
 from types import SimpleNamespace
 
 import pytest
 
 from cli.report_fields import MissingPriceTargetError
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.reporting import write_report_tree
+from tradingagents.reporting import report_settings, write_report_tree
 
 
 def _state():
@@ -117,3 +118,78 @@ def test_run_settings_name_the_version_of_the_running_code():
     graph = object.__new__(TradingAgentsGraph)
     graph.selected_analysts, graph.config = ("market",), {}
     assert graph.run_settings()["version"] == tradingagents.__version__
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("decision, rating", [
+    ("**Rating**: Overweight\n**Price Target**: 120\n\nAdd on weakness.", "Overweight"),
+    ("Add on weakness.\n**Price Target**: 120", "REVIEW"),           # no readable rating is said, not left out
+])
+def test_the_report_header_names_the_rating(tmp_path, decision, rating):
+    state = dict(_state(), final_trade_decision=decision)
+
+    header = write_report_tree(state, "NVDA", tmp_path, settings=SETTINGS).read_text().split("## ")[0]
+
+    assert f"- Rating: {rating}" in header
+
+
+@pytest.mark.unit
+def test_the_header_names_the_analysts_as_users_select_them(tmp_path):
+    settings = {**SETTINGS, "analysts": ["market", "social", "news"]}
+
+    write_report_tree(_state(), "NVDA", tmp_path, settings=settings, html=True)
+
+    markdown = (tmp_path / "complete_report.md").read_text(encoding="utf-8")
+    assert "market, sentiment, news" in markdown and "social" not in markdown
+    page = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
+    fields = re.findall(r'<span class="field">([^<]*)</span>', page)
+    assert {"market", "sentiment", "news"} <= set(fields) and "social" not in page
+
+
+@pytest.mark.unit
+def test_report_settings_allowlists_metadata_for_graph_and_batch_runs():
+    import tradingagents
+
+    config = {
+        "llm_provider": "openai", "deep_think_provider": "anthropic",
+        "deep_think_llm": "claude-opus-4-8", "quick_think_llm": "gpt-5.5",
+        "max_debate_rounds": 3, "max_risk_discuss_rounds": 2, "output_language": "English",
+        "data_vendors": {"news_data": "yfinance"}, "tool_vendors": {"get_news": "alpha_vantage"},
+        "backend_url": "https://user:secret@relay.example/v1",
+        "deep_think_backend_url": "https://user:secret@another.example",
+        "api_key": "secret", "reports_dir": "/private/reports", "results_dir": "/private/results",
+    }
+    analysts = ["market", "social"]
+
+    settings = report_settings(config, analysts)
+
+    assert settings == {
+        "version": tradingagents.__version__, "llm_provider": "openai",
+        "deep_think_provider": "anthropic", "deep_think_llm": "claude-opus-4-8",
+        "quick_think_provider": "openai", "quick_think_llm": "gpt-5.5",
+        "analysts": ["market", "social"], "max_debate_rounds": 3,
+        "max_risk_discuss_rounds": 2, "output_language": "English",
+        "data_vendors": {"news_data": "yfinance"}, "tool_vendors": {"get_news": "alpha_vantage"},
+    }
+    assert "secret" not in str(settings) and "/private/" not in str(settings)
+    settings["analysts"].append("news")
+    settings["data_vendors"]["news_data"] = "other"
+    settings["tool_vendors"]["get_news"] = "other"
+    assert analysts == ["market", "social"]
+    assert config["data_vendors"] == {"news_data": "yfinance"}
+    assert config["tool_vendors"] == {"get_news": "alpha_vantage"}
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("normalize", [False, True])
+def test_heading_normalization_is_optional_and_preserves_agent_stage_files(tmp_path, normalize):
+    body = "# View\n## Trend\n### Detail\n#### Existing\n```markdown\n## Code\n```\n"
+    state = dict(_state(), market_report=body)
+
+    report = write_report_tree(state, "AAPL", tmp_path, html=False,
+                               normalize_headings=normalize).read_text(encoding="utf-8")
+
+    expected = ("#### View\n#### Trend\n#### Detail\n#### Existing\n" if normalize else
+                "# View\n## Trend\n### Detail\n#### Existing\n")
+    assert f"### Market Analyst\n{expected}```markdown\n## Code\n```\n" in report
+    assert (tmp_path / "1_analysts" / "market.md").read_text(encoding="utf-8") == body

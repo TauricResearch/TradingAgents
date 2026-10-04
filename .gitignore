@@ -239,6 +239,7 @@ __marimo__/
 docs/index.md
 docs/*/index.md
 docs/*/*/complete_report.md
+docs/*/*/complete_report.html
 docs/archive/
 
 # Ignore all generated report Markdown under docs/

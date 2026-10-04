@@ -49,6 +49,94 @@ def _config(tmp_path):
     return config
 
 
+@pytest.mark.parametrize("provider, tier, other_provider", [
+    ("openai", "quick", "anthropic"),
+    ("openai", "deep", "google"),
+    ("anthropic", "quick", "openai"),
+    ("anthropic", "deep", "OPENAI"),
+])
+def test_batch_rejects_a_different_tier_provider_before_setup(
+    tmp_path, monkeypatch, provider, tier, other_provider,
+):
+    import tradingagents.batch.runner as runner_mod
+
+    config = _config(tmp_path)
+    config[f"{tier}_think_provider"] = other_provider
+
+    def unexpected_setup(*a, **kw):
+        pytest.fail("mixed-provider batch reached memory, network, or run-state setup")
+
+    for operation in ("TradingMemoryLog", "resolve_instrument_identity", "Propagator"):
+        monkeypatch.setattr(runner_mod, operation, unexpected_setup)
+    monkeypatch.setattr(runner_mod.BatchManifest, "new", unexpected_setup)
+
+    with pytest.raises(ValueError, match=f"{tier} tier uses '{other_provider.lower()}'") as error:
+        BatchRunner.create(
+            provider=provider, tickers=["AAPL"], trade_date="2026-09-01",
+            asset_types={"AAPL": "stock"}, selected_analysts=["market"],
+            config=config, root=tmp_path / "batch",
+        )
+
+    assert "synchronous runs" in str(error.value)
+    assert not any(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("provider", ["openai", "anthropic"])
+@pytest.mark.parametrize("endpoint_choice", ["unset", "empty", "native", "native-slash"])
+def test_batch_allows_explicit_tiers_using_its_own_provider(tmp_path, monkeypatch, provider, endpoint_choice):
+    import tradingagents.batch.runner as runner_mod
+
+    monkeypatch.setattr(runner_mod, "resolve_instrument_identity", lambda ticker: {})
+    config = _config(tmp_path)
+    native_endpoint = "https://api.openai.com/v1" if provider == "openai" else "https://api.anthropic.com"
+    endpoint = {"unset": None, "empty": "", "native": native_endpoint,
+                "native-slash": native_endpoint + "/"}[endpoint_choice]
+    config.update(quick_think_provider=provider.upper(), deep_think_provider=provider,
+                  quick_think_backend_url=endpoint, deep_think_backend_url=endpoint,
+                  memory_log_path=str(tmp_path / "memory.md"))
+
+    runner = BatchRunner.create(
+        provider=provider.upper(), tickers=["AAPL"], trade_date="2026-09-01",
+        asset_types={"AAPL": "stock"}, selected_analysts=["market"],
+        config=config, root=tmp_path / "batch",
+    )
+
+    assert runner.provider == provider
+    assert runner.quick_llm.provider == runner.deep_llm.provider == provider
+
+
+@pytest.mark.parametrize("provider", ["openai", "anthropic"])
+@pytest.mark.parametrize("tier", ["quick", "deep"])
+def test_batch_rejects_custom_tier_endpoints_before_setup_without_exposing_the_url(
+    tmp_path, monkeypatch, provider, tier,
+):
+    import tradingagents.batch.runner as runner_mod
+
+    endpoint = "https://fixture-user:fixture-password@proxy.example.invalid/v1?key=fixture-key"
+    config = _config(tmp_path)
+    config[f"{tier}_think_backend_url"] = endpoint
+
+    def unexpected_setup(*a, **kw):
+        pytest.fail("custom-endpoint batch reached memory, network, or run-state setup")
+
+    for operation in ("TradingMemoryLog", "resolve_instrument_identity", "Propagator"):
+        monkeypatch.setattr(runner_mod, operation, unexpected_setup)
+    monkeypatch.setattr(runner_mod.BatchManifest, "new", unexpected_setup)
+
+    with pytest.raises(ValueError, match=f"custom {tier} tier endpoint") as error:
+        BatchRunner.create(
+            provider=provider, tickers=["AAPL"], trade_date="2026-09-01",
+            asset_types={"AAPL": "stock"}, selected_analysts=["market"],
+            config=config, root=tmp_path / "batch",
+        )
+
+    message = str(error.value)
+    assert "synchronous runs" in message
+    assert "https://" not in message
+    assert "fixture-" not in message
+    assert not any(tmp_path.iterdir())
+
+
 def test_openai_adapter_builds_responses_batch_line(tmp_path):
     adapter = OpenAIBatchAdapter(_config(tmp_path))
     payload = adapter.build_payload(

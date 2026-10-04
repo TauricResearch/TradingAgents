@@ -95,6 +95,15 @@ def test_demotes_body_h1_h2(transform):
     assert "#### Stray H2\n" in out
 
 
+def test_normalizes_individual_agent_text_without_a_wrapper(transform):
+    body = "# View\n## Trend\n### Detail\n#### Existing\n```markdown\n# Code\n```\n"
+
+    assert transform(body, in_body=True) == (
+        "#### View\n#### Trend\n#### Detail\n#### Existing\n```markdown\n# Code\n```\n"
+    )
+    assert transform(body).startswith("# View\n")
+
+
 def test_leaves_h4_h5_h6_alone(transform):
     text = (
         "### Market Analyst\n"

@@ -9,17 +9,16 @@ from typing import Any
 
 from langchain_core.rate_limiters import InMemoryRateLimiter
 
-import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
 from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.llm_clients import build_llm_kwargs, create_llm_client
+from tradingagents.llm_clients import create_tier_client
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory.reflection import Reflector
-from tradingagents.reporting import write_report_tree
+from tradingagents.reporting import report_settings, write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -91,26 +90,11 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
-        llm_kwargs = self._get_provider_kwargs()
-
+        extra = self._get_provider_kwargs()
         if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
-
-        deep_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
-        )
-        quick_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
-        )
-
-        self.deep_thinking_llm = deep_client.get_llm()
-        self.quick_thinking_llm = quick_client.get_llm()
+            extra["callbacks"] = self.callbacks
+        self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
+        self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
 
         self.memory_log = TradingMemoryLog(self.config)
 
@@ -142,13 +126,14 @@ class TradingAgentsGraph:
         self.selected_analysts = tuple(selected_analysts)
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = self.graph_setup.setup_graph(selected_analysts, memory_node=self._memory_step)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
         self._resuming = False
 
     def _get_provider_kwargs(self) -> dict[str, Any]:
-        kwargs = build_llm_kwargs(self.config)
+        """Kwargs both tiers share; each tier's provider settings come from create_tier_client."""
+        kwargs: dict[str, Any] = {}
         limiter = _build_rate_limiter(self.config.get("llm_requests_per_minute"))
         if limiter is not None:
             kwargs["rate_limiter"] = limiter
@@ -197,8 +182,10 @@ class TradingAgentsGraph:
             # None, an empty book and a changed book are three different runs.
             f"portfolio={portfolio.fingerprint() if portfolio is not None else 'none'}",
             # The layout itself: a checkpoint saved when analysts ran one after
-            # another has pending nodes this graph no longer has.
+            # another has pending nodes this graph no longer has, and one saved
+            # before the Memory Log step would resume without the lessons.
             "analysts=parallel",
+            "memory=parallel",
             f"settings={digest}",
         ])
 
@@ -296,29 +283,18 @@ class TradingAgentsGraph:
         An allowlist: endpoints (a backend_url can carry credentials), keys and
         local paths are never recorded.
         """
-        cfg = self.config
-        return {
-            "version": tradingagents.__version__,
-            "llm_provider": cfg.get("llm_provider"),
-            "deep_think_llm": cfg.get("deep_think_llm"),
-            "quick_think_llm": cfg.get("quick_think_llm"),
-            "analysts": list(self.selected_analysts),
-            "max_debate_rounds": cfg.get("max_debate_rounds"),
-            "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
-            "output_language": cfg.get("output_language"),
-            "data_vendors": dict(cfg.get("data_vendors") or {}),
-            "tool_vendors": dict(cfg.get("tool_vendors") or {}),
-        }
+        return report_settings(self.config, self.selected_analysts)
 
-    def save_reports(self, final_state, ticker, save_path=None) -> Path:
-        """Write the markdown report tree for a completed run, like the CLI does.
+    def save_reports(self, final_state, ticker, save_path=None, html=True) -> Path:
+        """Write the report tree for a completed run, like the CLI does.
 
         Programmatic callers get the same on-disk reports the CLI produces. Pass
-        an explicit ``save_path`` or let it default under ``results_dir``.
+        an explicit ``save_path`` or let it default under ``results_dir``; the
+        report is also written as one HTML page unless ``html`` is False.
         """
         if save_path is None:
             save_path = self.default_report_path(ticker)
-        return write_report_tree(final_state, ticker, save_path, settings=self.run_settings())
+        return write_report_tree(final_state, ticker, save_path, settings=self.run_settings(), html=html)
 
     def default_report_path(self, ticker) -> Path:
         """Where a run's reports go unless told otherwise: under results_dir, stamped now."""
@@ -328,33 +304,67 @@ class TradingAgentsGraph:
     def create_run_state(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Build a run's initial state; propagate() and the CLI both start here.
 
-        Settles this ticker's pending decisions first, then injects the lessons
-        known by the trade date for the Portfolio Manager (#1251) and the
-        resolved instrument identity for every agent (#814). An entry point that
-        assembled the state itself would skip the memory log.
+        Injects the resolved instrument identity for every agent (#814). The
+        memory log's lessons are not here: the graph's Memory Log step settles
+        and loads them alongside the analysts (see ``_memory_step``).
         """
-        self.settle_pending(company_name)
         return self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
-            past_context=self.memory_log.get_past_context(
-                company_name, as_of=self._memory_as_of(trade_date)
-            ),
             instrument_context=self.resolve_instrument_context(company_name, asset_type, trade_date),
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
 
-    def settle_pending(self, company_name):
+    def _memory_step(self, state):
+        """The graph's Memory Log step, alongside the analysts (#1428): settle every
+        ticker's due decisions (#1445), then return the lessons known by the
+        trade date for the Portfolio Manager (#1251).
+
+        Settling fetches prices and asks the model for a reflection per decision,
+        so it runs beside the analysts instead of before them. A failure here
+        does not end the run: the analysts' work is kept, the lessons already in
+        the log are used, and the report says what could not be settled.
+        """
+        note = ""
+        try:
+            # Another run settling the same log does the work; this one goes on.
+            done = self.settle_all_pending(wait=False)
+            if done.failed:
+                note = (f"{len(done.failed)} past decision(s) could not be settled this run "
+                        "and stay pending.")
+        except Exception as exc:
+            logger.warning("Settling past decisions failed: %s", exc)
+            note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."
+        try:
+            past_context = self.memory_log.get_past_context(
+                state["company_of_interest"], as_of=self._memory_as_of(state["trade_date"]))
+        except Exception as exc:
+            logger.warning("Reading the memory log failed: %s", exc)
+            past_context = ""
+            note = note or f"The memory log could not be read this run ({type(exc).__name__})."
+        return {"past_context": past_context, "memory_note": note}
+
+    def settle_pending(self, company_name) -> settlement.Settlement:
         """Settle this ticker's decisions whose holding window has now traded.
 
-        A run settles the ticker's earlier decisions on its way in, so the most
-        recent one stays pending until the next run for that ticker. A caller
-        that is done analyzing a ticker (a backtest sweep, a scheduled job) calls
-        this to settle it now.
+        A run settles every due decision alongside its analysts, so its own
+        decision stays pending until a later run. A caller that is done
+        analyzing a ticker (a backtest sweep, a scheduled job) calls this to
+        settle it now. Returns what was settled and what failed.
         """
         with run_config(self.config):
-            settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
+            return settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
+
+    def settle_all_pending(self, wait: bool = True) -> settlement.Settlement:
+        """Settle every ticker's decisions whose holding window has now traded (#1445).
+
+        For a scheduler whose tickers rotate: a ticker it stops analysing would
+        otherwise keep its decisions pending, and their lessons out of later runs.
+        With ``wait=False`` a pass already running on the same log is not waited for.
+        """
+        with run_config(self.config):
+            return settlement.settle_all_pending(self.memory_log, self.reflector, self.config, wait=wait)
 
     def record_decision(self, company_name, trade_date, final_state):
         """Record a finished run: its state log, and its decision in the memory log

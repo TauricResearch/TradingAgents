@@ -34,46 +34,55 @@ def replace_file(path, write: Callable[[str], None]) -> None:
 
 
 @contextmanager
-def locked(path) -> Iterator[None]:
+def locked(path, wait: bool = True) -> Iterator[bool]:
     """Hold ``path`` for one writer at a time, across threads and processes.
 
     For a file read, changed and written back: without the lock, two writers
     each read the same text and the second write drops the first's change. The
-    lock is taken on a ``.lock`` file beside ``path``.
+    lock is taken on a ``.lock`` file beside ``path``. Yields whether it is
+    held: with ``wait=False`` a lock someone else holds is not waited for, and
+    the block runs holding nothing.
     """
     with open(f"{path}.lock", "a+b") as handle:
         hold = _hold_windows if os.name == "nt" else _hold_posix
-        with hold(handle):
-            yield
+        with hold(handle, wait) as acquired:
+            yield acquired
 
 
 @contextmanager
-def _hold_posix(handle) -> Iterator[None]:
+def _hold_posix(handle, wait: bool = True) -> Iterator[bool]:
     import fcntl
 
-    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
     try:
-        yield
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX if wait else fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        yield False
+        return
+    try:
+        yield True
     finally:
         fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 @contextmanager
-def _hold_windows(handle) -> Iterator[None]:
+def _hold_windows(handle, wait: bool = True) -> Iterator[bool]:
     import msvcrt
 
     handle.seek(0)
     while True:
         try:
-            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK if wait else msvcrt.LK_NBLCK, 1)
             break
         except OSError as exc:
+            if not wait and exc.errno in (errno.EACCES, errno.EDEADLK):
+                yield False   # another writer holds it
+                return
             # LK_LOCK gives up after about ten seconds of another writer's hold;
             # any other failure is not a wait.
-            if exc.errno != errno.EDEADLOCK:
+            if exc.errno != errno.EDEADLK:
                 raise
     try:
-        yield
+        yield True
     finally:
         handle.seek(0)
         msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)

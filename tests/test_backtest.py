@@ -182,6 +182,27 @@ def test_a_failed_settlement_does_not_lose_the_remaining_tickers(tmp_path, monke
 
 
 @pytest.mark.unit
+def test_returned_settlement_failures_are_reported_and_the_sweep_continues(tmp_path, monkeypatch):
+    """Price and reflection failures now return a Settlement instead of raising."""
+    from tradingagents.memory.settlement import Settlement
+
+    settled = []
+
+    def _settle(self, ticker):
+        settled.append(ticker)
+        if ticker == "NVDA":
+            failure = (ticker, "2026-01-05", "reflection failed: provider down")
+            return Settlement(failed=[failure, failure])
+        return Settlement()
+
+    monkeypatch.setattr(_FakeGraph, "settle_pending", _settle)
+    result = run_backtest(["NVDA", "AAPL"], ["2026-01-05"], _config(tmp_path))
+
+    assert result.cells_run == 2 and settled == ["NVDA", "AAPL"]
+    assert result.settlement_failures == [("NVDA", "2026-01-05: reflection failed: provider down")]
+
+
+@pytest.mark.unit
 def test_pending_note_appears_only_when_something_is_pending(tmp_path):
     settled = [("NVDA", "2026-01-05", DECISION, (0.1, 0.05))]
     assert "Pending" not in summarize(_log_with(tmp_path, settled)).render()
