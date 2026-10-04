@@ -102,6 +102,9 @@ _CREDENTIAL_KEYS = frozenset(
 )
 _ALLOWED_HOSTED_TOOLS = frozenset({"web_search", "web_search_preview"})
 _LANGCHAIN_NOISE = frozenset({"callbacks", "tags", "run_id", "configurable", "recursion_limit"})
+_QUOTA_ERROR_CODES = frozenset(
+    {"insufficient_quota", "usage_limit_reached", "subscription_sharing_usage_limit_exceeded"}
+)
 
 
 class ChatGPTResponsesError(ValueError):
@@ -575,7 +578,7 @@ def _request_failure(exc: Exception) -> ChatGPTSubscriptionError:
         detail, code, param = _error_details(body)
     if detail is None and isinstance(exc, APIConnectionError):
         detail = "The ChatGPT response stream was interrupted by a transport failure."
-    if status_code == 429 or code in {"insufficient_quota", "usage_limit_reached"}:
+    if status_code == 429 or code in _QUOTA_ERROR_CODES:
         detail = "ChatGPT plan usage limit reached. Check ChatGPT Usage before retrying."
         code = code or "usage_limit_reached"
     parts = ["ChatGPT request failed"]
@@ -698,6 +701,7 @@ class ChatGPTResponses(BaseChatModel):
     base_url: str = PUBLIC_RESPONSES_BASE_URL
     use_previous_response_id: bool = False
     max_retries: int = 0
+    reasoning_effort: str | None = None
     timeout: float | None = None
     http_client: Any = Field(default=None, exclude=True, repr=False)
     http_async_client: Any = Field(default=None, exclude=True, repr=False)
@@ -801,6 +805,7 @@ class ChatGPTResponses(BaseChatModel):
         tool_choice = params.pop("tool_choice", None)
         structured = params.pop("ls_structured_output_format", None) is not None
         timeout = params.pop("timeout", None)
+        reasoning_effort = params.pop("reasoning_effort", self.reasoning_effort)
         for key in list(params):
             if key.startswith("ls_") or key in _LANGCHAIN_NOISE:
                 params.pop(key)
@@ -823,6 +828,8 @@ class ChatGPTResponses(BaseChatModel):
             "stream": True,
             "include": ["reasoning.encrypted_content"],
         }
+        if reasoning_effort is not None:
+            body["reasoning"] = {"effort": reasoning_effort}
         if wired:
             body["tools"] = wired
         if choice is not None and wired:
@@ -966,10 +973,9 @@ class ChatGPTResponses(BaseChatModel):
                         _tool_argument_deltas(event, argument_deltas)
                         if event_type in {"response.failed", "response.incomplete", "error"}:
                             failure = _event_failure(event, event_type)
-                            if failure.code in {
-                                "insufficient_quota",
-                                "usage_limit_reached",
-                            } or _field(event, "status_code") == 429:
+                            if failure.code in _QUOTA_ERROR_CODES or _field(
+                                event, "status_code"
+                            ) == 429:
                                 self._admission.quota_paused = True
                                 failure.status_code = 429
                                 failure.code = failure.code or "usage_limit_reached"
@@ -1029,18 +1035,12 @@ class ChatGPTResponses(BaseChatModel):
                 )
                 return
             except ChatGPTSubscriptionError as exc:
-                if exc.status_code == 429 or exc.code in {
-                    "insufficient_quota",
-                    "usage_limit_reached",
-                }:
+                if exc.status_code == 429 or exc.code in _QUOTA_ERROR_CODES:
                     self._admission.quota_paused = True
                 raise
             except Exception as exc:
                 failure = _request_failure(exc)
-                if failure.status_code == 429 or failure.code in {
-                    "insufficient_quota",
-                    "usage_limit_reached",
-                }:
+                if failure.status_code == 429 or failure.code in _QUOTA_ERROR_CODES:
                     self._admission.quota_paused = True
                 if (
                     not received_event
@@ -1099,10 +1099,9 @@ class ChatGPTResponses(BaseChatModel):
                             "error",
                         }:
                             failure = _event_failure(event, event_type)
-                            if failure.code in {
-                                "insufficient_quota",
-                                "usage_limit_reached",
-                            } or _field(event, "status_code") == 429:
+                            if failure.code in _QUOTA_ERROR_CODES or _field(
+                                event, "status_code"
+                            ) == 429:
                                 self._admission.quota_paused = True
                                 failure.status_code = 429
                                 failure.code = failure.code or "usage_limit_reached"
@@ -1162,18 +1161,12 @@ class ChatGPTResponses(BaseChatModel):
                 )
                 return
             except ChatGPTSubscriptionError as exc:
-                if exc.status_code == 429 or exc.code in {
-                    "insufficient_quota",
-                    "usage_limit_reached",
-                }:
+                if exc.status_code == 429 or exc.code in _QUOTA_ERROR_CODES:
                     self._admission.quota_paused = True
                 raise
             except Exception as exc:
                 failure = _request_failure(exc)
-                if failure.status_code == 429 or failure.code in {
-                    "insufficient_quota",
-                    "usage_limit_reached",
-                }:
+                if failure.status_code == 429 or failure.code in _QUOTA_ERROR_CODES:
                     self._admission.quota_paused = True
                 if (
                     not received_event
@@ -1218,6 +1211,7 @@ class ChatGPTClient(BaseLLMClient):
         for key in (
             "api_key",
             "auth_session",
+            "reasoning_effort",
             "timeout",
             "max_retries",
             "callbacks",

@@ -1219,3 +1219,316 @@ def test_async_revoked_auth_is_terminal_before_responses_request():
 
     anyio.run(call)
     assert recorder.requests == []
+
+
+@pytest.mark.parametrize("failure_surface", ["http", "sse"])
+@pytest.mark.parametrize("async_invoke", [False, True], ids=["invoke", "ainvoke"])
+def test_subscription_usage_limit_stops_later_shared_session_requests(
+    failure_surface, async_invoke
+):
+    code = "subscription_sharing_usage_limit_exceeded"
+    requests: list[httpx.Request] = []
+
+    class Session:
+        def access_token(self):
+            return ACCESS_TOKEN
+
+    session = Session()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1 and failure_surface == "http":
+            return httpx.Response(
+                429,
+                headers={"x-request-id": "req-quota-limit"},
+                json={
+                    "error": {
+                        "code": code,
+                        "message": "Usage limit exceeded.",
+                        "param": "model",
+                    }
+                },
+            )
+        if len(requests) == 1:
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=_sse_events(
+                    [
+                        {"type": "response.output_text.delta", "delta": "partial"},
+                        {
+                            "type": "response.failed",
+                            "response": {
+                                "status": "failed",
+                                "error": {
+                                    "code": code,
+                                    "message": "Usage limit exceeded.",
+                                    "param": "model",
+                                },
+                            },
+                        },
+                    ]
+                ),
+            )
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=_sse(_completed([_text_message("must not be requested")])),
+        )
+
+    clients = [
+        httpx.AsyncClient(transport=httpx.MockTransport(handle))
+        if async_invoke
+        else httpx.Client(transport=httpx.MockTransport(handle))
+        for _ in range(2)
+    ]
+    first = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=session,
+        **({"http_async_client": clients[0]} if async_invoke else {"http_client": clients[0]}),
+    )
+    second = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=session,
+        **({"http_async_client": clients[1]} if async_invoke else {"http_client": clients[1]}),
+    )
+
+    if async_invoke:
+
+        async def call():
+            async with clients[0], clients[1]:
+                with pytest.raises(ChatGPTSubscriptionError) as first_error:
+                    await first.ainvoke("first")
+                second_error = None
+                try:
+                    await second.ainvoke("second")
+                except ChatGPTSubscriptionError as error:
+                    second_error = error
+                assert len(requests) == 1
+                assert second_error is not None
+                assert second_error.code == "usage_limit_reached"
+                assert first_error.value.code == code
+                assert first_error.value.status_code == 429
+                assert first_error.value.param == "model"
+                if failure_surface == "http":
+                    assert first_error.value.request_id == "req-quota-limit"
+
+        anyio.run(call)
+    else:
+        try:
+            with pytest.raises(ChatGPTSubscriptionError) as first_error:
+                first.invoke("first")
+            second_error = None
+            try:
+                second.invoke("second")
+            except ChatGPTSubscriptionError as error:
+                second_error = error
+            assert len(requests) == 1
+            assert second_error is not None
+            assert second_error.code == "usage_limit_reached"
+            assert first_error.value.code == code
+            assert first_error.value.status_code == 429
+            assert first_error.value.param == "model"
+            if failure_surface == "http":
+                assert first_error.value.request_id == "req-quota-limit"
+        finally:
+            for client in clients:
+                client.close()
+
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("failure_surface", ["http", "sse"])
+@pytest.mark.parametrize("async_invoke", [False, True], ids=["invoke", "ainvoke"])
+def test_subscription_usage_unavailable_remains_transient(
+    failure_surface, async_invoke
+):
+    code = "subscription_sharing_usage_unavailable"
+    requests: list[httpx.Request] = []
+
+    class Session:
+        def access_token(self):
+            return ACCESS_TOKEN
+
+    session = Session()
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1 and failure_surface == "http":
+            return httpx.Response(
+                503,
+                headers={"x-request-id": "req-usage-unavailable"},
+                json={
+                    "error": {
+                        "code": code,
+                        "message": "Usage availability could not be checked.",
+                        "param": "model",
+                    }
+                },
+            )
+        if len(requests) == 1:
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=_sse_events(
+                    [
+                        {
+                            "type": "response.failed",
+                            "response": {
+                                "status": "failed",
+                                "error": {
+                                    "code": code,
+                                    "message": "Usage availability could not be checked.",
+                                    "param": "model",
+                                },
+                            },
+                        }
+                    ]
+                ),
+            )
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=_sse(_completed([_text_message("available again")])),
+        )
+
+    clients = [
+        httpx.AsyncClient(transport=httpx.MockTransport(handle))
+        if async_invoke
+        else httpx.Client(transport=httpx.MockTransport(handle))
+        for _ in range(2)
+    ]
+    first = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=session,
+        max_retries=1,
+        **({"http_async_client": clients[0]} if async_invoke else {"http_client": clients[0]}),
+    )
+    second = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=session,
+        **({"http_async_client": clients[1]} if async_invoke else {"http_client": clients[1]}),
+    )
+
+    if async_invoke:
+
+        async def call():
+            async with clients[0], clients[1]:
+                if failure_surface == "sse":
+                    with pytest.raises(ChatGPTSubscriptionError) as error:
+                        await first.ainvoke("temporary unavailable")
+                    assert error.value.code == code
+                    assert error.value.param == "model"
+                else:
+                    assert (await first.ainvoke("temporary unavailable")).content == "available again"
+                assert (await second.ainvoke("try later")).content == "available again"
+
+        anyio.run(call)
+    else:
+        try:
+            if failure_surface == "sse":
+                with pytest.raises(ChatGPTSubscriptionError) as error:
+                    first.invoke("temporary unavailable")
+                assert error.value.code == code
+                assert error.value.param == "model"
+            else:
+                assert first.invoke("temporary unavailable").content == "available again"
+            assert second.invoke("try later").content == "available again"
+        finally:
+            for client in clients:
+                client.close()
+
+    assert len(requests) == (3 if failure_surface == "http" else 2)
+
+
+@pytest.mark.parametrize("async_invoke", [False, True], ids=["invoke", "ainvoke"])
+def test_subscription_usage_unavailable_http_error_preserves_metadata(async_invoke):
+    requests: list[httpx.Request] = []
+
+    class Session:
+        def access_token(self):
+            return ACCESS_TOKEN
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(
+                503,
+                headers={"x-request-id": "req-usage-unavailable"},
+                json={
+                    "error": {
+                        "code": "subscription_sharing_usage_unavailable",
+                        "message": "Usage availability could not be checked.",
+                        "param": "model",
+                    }
+                },
+            )
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=_sse(_completed([_text_message("available again")])),
+        )
+
+    clients = [
+        httpx.AsyncClient(transport=httpx.MockTransport(handle))
+        if async_invoke
+        else httpx.Client(transport=httpx.MockTransport(handle))
+        for _ in range(2)
+    ]
+    first = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=Session(),
+        **({"http_async_client": clients[0]} if async_invoke else {"http_client": clients[0]}),
+    )
+    second = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=first.auth_session,
+        **({"http_async_client": clients[1]} if async_invoke else {"http_client": clients[1]}),
+    )
+
+    if async_invoke:
+
+        async def call():
+            async with clients[0], clients[1]:
+                with pytest.raises(ChatGPTSubscriptionError) as error:
+                    await first.ainvoke("temporary unavailable")
+                assert error.value.status_code == 503
+                assert error.value.code == "subscription_sharing_usage_unavailable"
+                assert error.value.param == "model"
+                assert error.value.request_id == "req-usage-unavailable"
+                assert (await second.ainvoke("try later")).content == "available again"
+
+        anyio.run(call)
+    else:
+        try:
+            with pytest.raises(ChatGPTSubscriptionError) as error:
+                first.invoke("temporary unavailable")
+            assert error.value.status_code == 503
+            assert error.value.code == "subscription_sharing_usage_unavailable"
+            assert error.value.param == "model"
+            assert error.value.request_id == "req-usage-unavailable"
+            assert second.invoke("try later").content == "available again"
+        finally:
+            for client in clients:
+                client.close()
+
+    assert len(requests) == 2
+
+
+def test_wrapper_serializes_configured_reasoning_effort():
+    recorder = Recorder([_completed([_text_message("reasoned")])])
+    http_client = httpx.Client(transport=httpx.MockTransport(recorder.handler))
+    client = ChatGPTClient(
+        "gpt-5.6-luna",
+        api_key=ACCESS_TOKEN,
+        reasoning_effort="high",
+        http_client=http_client,
+    )
+
+    try:
+        message = client.get_llm().invoke("use the configured reasoning effort")
+    finally:
+        http_client.close()
+
+    assert message.content == "reasoned"
+    assert _body(recorder.requests[0])["reasoning"] == {"effort": "high"}
