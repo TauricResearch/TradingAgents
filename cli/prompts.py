@@ -682,6 +682,69 @@ def ensure_api_key(provider: str) -> str | None:
     return key
 
 
+def select_chatgpt_account() -> str:
+    """Choose a saved account or explicitly start ChatGPT browser sign-in."""
+    from tradingagents.llm_clients import chatgpt_auth
+
+    try:
+        accounts = chatgpt_auth.saved_accounts()
+    except chatgpt_auth.OAuthError as exc:
+        console.print(f"[red]Unable to read ChatGPT accounts: {exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+    add_account = "Continue with ChatGPT"
+    choices = [
+        questionary.Choice(
+            f"Saved account {account.client_id[-8:]}"
+            f" ({'plan use enabled' if account.inference_enabled else 'plan use disabled'})",
+            value=account.client_id,
+        )
+        for account in accounts
+    ]
+    choices.append(questionary.Choice(add_account, value=add_account))
+    selected = questionary.select(
+        "Choose a ChatGPT account:",
+        choices=choices,
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+    if selected is None:
+        console.print("[red]No ChatGPT account selected. Exiting...[/red]")
+        raise typer.Exit(code=1)
+    if selected == add_account:
+        try:
+            result = chatgpt_auth.sign_in(enable_plan_use=True, add_account=bool(accounts))
+        except chatgpt_auth.OAuthError as exc:
+            console.print(f"[red]ChatGPT sign-in failed: {exc}[/red]")
+            raise typer.Exit(code=1) from None
+        if not result.inference_enabled:
+            console.print(
+                "[red]ChatGPT plan use is disabled. Run `tradingagents auth login "
+                "--provider chatgpt` to enable it before analysis.[/red]"
+            )
+            raise typer.Exit(code=1)
+        return result.client_id
+
+    account = next(account for account in accounts if account.client_id == selected)
+    if account.requires_reauthorization:
+        console.print(
+            "[red]This ChatGPT account needs sign-in. Run `tradingagents auth login "
+            "--provider chatgpt` before analysis.[/red]"
+        )
+        raise typer.Exit(code=1)
+    if not account.inference_enabled:
+        console.print(
+            "[red]ChatGPT plan use is disabled. Run `tradingagents auth login "
+            "--provider chatgpt` to enable it before analysis.[/red]"
+        )
+        raise typer.Exit(code=1)
+    return account.client_id
+
+
 def ask_output_language(default=None) -> str:
     """Ask for report output language.
 

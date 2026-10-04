@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import sys
 from pathlib import Path
 
 import typer
@@ -31,6 +32,7 @@ from cli.prompts import (
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
+    select_chatgpt_account,
     select_deep_thinking_agent,
     select_llm_provider,
     select_research_depth,
@@ -65,6 +67,20 @@ def unattended_gaps(flags) -> list[str]:
         gaps.append("TRADINGAGENTS_LLM_PROVIDER")
     if not (env("TRADINGAGENTS_QUICK_THINK_LLM") or env("TRADINGAGENTS_DEEP_THINK_LLM")):
         gaps.append("TRADINGAGENTS_QUICK_THINK_LLM or TRADINGAGENTS_DEEP_THINK_LLM")
+    if env("TRADINGAGENTS_LLM_PROVIDER", "").lower() == "chatgpt":
+        from tradingagents.llm_clients import chatgpt_auth
+
+        try:
+            session = chatgpt_auth.pinned_session()
+            account = next(
+                account for account in chatgpt_auth.saved_accounts()
+                if account.client_id == session.registration.client_id
+            )
+        except (chatgpt_auth.OAuthError, StopIteration):
+            gaps.append("tradingagents auth login --provider chatgpt")
+        else:
+            if account.requires_reauthorization or not account.inference_enabled:
+                gaps.append("tradingagents auth login --provider chatgpt to enable plan use")
     return gaps
 
 
@@ -225,6 +241,15 @@ def _prompt_selections(prefs, flags):
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
         # Still confirm/persist the API key so the run doesn't fail later.
         ensure_api_key(selected_llm_provider)
+        chatgpt_account_id = (
+            (
+                select_chatgpt_account()
+                if sys.stdin and sys.stdin.isatty()
+                else chatgpt_auth_account_for_headless()
+            )
+            if selected_llm_provider == "chatgpt"
+            else None
+        )
     else:
         console.print(
             create_question_box(
@@ -265,6 +290,11 @@ def _prompt_selections(prefs, flags):
         # one and persist it to .env if it's missing, so the analysis run
         # doesn't fail later at the first API call.
         ensure_api_key(selected_llm_provider)
+        chatgpt_account_id = (
+            select_chatgpt_account()
+            if selected_llm_provider == "chatgpt"
+            else None
+        )
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
     if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
@@ -328,6 +358,7 @@ def _prompt_selections(prefs, flags):
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
         "llm_provider": selected_llm_provider.lower(),
+        "chatgpt_account_id": chatgpt_account_id,
         "backend_url": backend_url,
         "quick_think_llm": selected_shallow_thinker,
         "deep_think_llm": selected_deep_thinker,
@@ -336,6 +367,31 @@ def _prompt_selections(prefs, flags):
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
     }
+
+
+def chatgpt_auth_account_for_headless() -> str:
+    """Return the selected, inference-enabled account without opening a browser."""
+    from tradingagents.llm_clients import chatgpt_auth
+
+    try:
+        session = chatgpt_auth.pinned_session()
+        account = next(
+            account for account in chatgpt_auth.saved_accounts()
+            if account.client_id == session.registration.client_id
+        )
+    except (chatgpt_auth.OAuthError, StopIteration):
+        console.print(
+            "[red]No usable ChatGPT account. Run `tradingagents auth login "
+            "--provider chatgpt` in an interactive terminal.[/red]"
+        )
+        raise typer.Exit(code=1) from None
+    if account.requires_reauthorization or not account.inference_enabled:
+        console.print(
+            "[red]ChatGPT plan use is disabled. Run `tradingagents auth login "
+            "--provider chatgpt` to enable it.[/red]"
+        )
+        raise typer.Exit(code=1)
+    return account.client_id
 
 
 def get_analysis_date():

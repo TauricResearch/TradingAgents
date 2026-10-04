@@ -82,6 +82,7 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     config["deep_think_llm"] = selections["deep_think_llm"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    config["chatgpt_account_id"] = selections.get("chatgpt_account_id")
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
