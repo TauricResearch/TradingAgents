@@ -196,6 +196,32 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+### Optional SiftingIO daily stock history
+
+To use SiftingIO for `get_stock_data`, set `SIFTINGIO_API_KEY` in your environment
+and select it in your Python configuration before constructing the graph:
+
+```python
+from copy import deepcopy
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = deepcopy(DEFAULT_CONFIG)
+config["data_vendors"]["core_stock_apis"] = "siftingio"
+```
+
+This experimental vendor returns daily, regular-session **US-stock OHLCV**.
+Prices are **as-traded, not split- or dividend-adjusted**; do not treat this as
+an adjusted total-return series or mix it with adjusted prices. It does not
+change the separate indicators, fundamentals or news vendors, or the default
+Yahoo configuration. Use `"siftingio,yfinance"` only if you intentionally want
+fallback and accept the sources' different adjustment conventions.
+
+Your key must have access to historical US-stock data. Requests consume your
+SiftingIO quota, including one request per pagination page. Dates are inclusive;
+empty results, stale data, invalid rows and incomplete pagination are reported
+as unavailable rather than filled or estimated. See the [SiftingIO API docs](https://sifting.io/docs)
+for coverage, account access and the historical-bars contract.
+
 ### CLI Usage
 
 Launch the interactive CLI:
