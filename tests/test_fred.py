@@ -173,6 +173,24 @@ class FredFormattingTests(unittest.TestCase):
         self.assertEqual(obs_params["observation_end"], "2025-09-30")
         self.assertEqual(obs_params["observation_start"], "2025-07-02")  # 90d back
 
+    def test_a_date_without_leading_zeros_is_sent_to_fred_as_yyyy_mm_dd(self):
+        # strptime accepts "2026-9-5", FRED does not: it 400s with "observation_end is
+        # not a YYYY-MM-DD formatted date". A model writes dates this way now and then.
+        captured = {}
+
+        def _capture(path, params):
+            captured[path] = params
+            return _META if path == "series" else _OBS
+
+        with mock.patch.object(fred, "_fred_today", return_value="2026-10-01"), \
+                mock.patch.object(fred, "_request", side_effect=_capture):
+            fred.get_macro_data("unemployment", "2026-9-5", 30)
+        obs_params = captured["series/observations"]
+        self.assertEqual(obs_params["observation_end"], "2026-09-05")
+        self.assertEqual(obs_params["observation_start"], "2026-08-06")
+        for path in ("series", "series/observations"):
+            self.assertEqual(captured[path]["realtime_end"], "2026-09-05", path)
+
     def test_requests_pin_the_data_vintage(self):
         # #1275: both the metadata and observations requests must pin the vintage
         # to as_of_date (clamped to FRED's today), or FRED serves the latest

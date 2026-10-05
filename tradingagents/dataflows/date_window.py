@@ -85,7 +85,11 @@ def as_of(requested: str | None, trade_date: str) -> str | None:
     if not trade_date:
         return requested
     parsed = _parse(requested)
-    return requested if parsed is not None and parsed <= _parse(trade_date) else trade_date
+    if parsed is not None and parsed <= _parse(trade_date):
+        # strptime also reads "2026-8-1"; vendors that check the format strictly
+        # (FRED) reject it, so a readable date is always served as YYYY-MM-DD.
+        return parsed.date().isoformat()
+    return trade_date
 
 
 def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, str]:
@@ -100,7 +104,7 @@ def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, 
         raise ValueError(f"start_date {start_date!r} is not a date; give it as YYYY-MM-DD")
     end = as_of(end_date, trade_date)
     if end == end_date or start <= _parse(end):
-        return start_date, end
+        return start.date().isoformat(), end
     span = (old_end - start) if old_end is not None and old_end >= start else timedelta(0)
     return f"{_parse(end) - span:%Y-%m-%d}", end
 
