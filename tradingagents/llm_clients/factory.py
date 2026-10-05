@@ -101,6 +101,9 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         reasoning_effort = config.get("openai_reasoning_effort")
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
+        service_tier = config.get("openai_service_tier")
+        if service_tier:
+            kwargs["service_tier"] = service_tier
 
     elif provider == "anthropic":
         effort = config.get("anthropic_effort")
