@@ -35,11 +35,14 @@ def test_a_test_saves_cli_selections_to_its_own_directory(tmp_path):
 @pytest.mark.unit
 def test_yfinance_keeps_its_cache_out_of_the_users_home():
     """yfinance caches each symbol's time zone on disk, in the home directory by default."""
+    import tempfile
     from pathlib import Path
 
     from yfinance.cache import _TzDBManager
 
-    assert not Path(_TzDBManager.get_location()).is_relative_to(Path.home())
+    location = Path(_TzDBManager.get_location())
+    assert location.is_relative_to(Path(tempfile.gettempdir()))
+    assert location.name.startswith("tradingagents-tests-yf-")
 
 
 @pytest.mark.unit
