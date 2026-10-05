@@ -212,6 +212,81 @@ def test_invoke_structured_falls_back_when_result_is_none():
 
 
 @pytest.mark.unit
+def test_invoke_structured_retries_once_when_result_is_none():
+    # A None parse is a sampling miss, not a provider failure: one same-prompt
+    # retry of the structured call must be attempted before falling back (#1390).
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = [None, MagicMock(rating="RECOVERED")]
+    plain = MagicMock()
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "RECOVERED"
+    assert structured.invoke.call_count == 2
+    plain.invoke.assert_not_called()
+
+
+@pytest.mark.unit
+def test_invoke_structured_hard_error_skips_retry():
+    # Provider-side exceptions are deterministic, not sampling artifacts:
+    # no structured retry, the free-text fallback fires immediately (#1390).
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = ValueError("bad JSON from model")
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREETEXT")
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "FREETEXT"
+    structured.invoke.assert_called_once()
+    plain.invoke.assert_called_once()
+
+
+@pytest.mark.unit
+def test_invoke_structured_gives_up_after_one_retry():
+    # Two consecutive None parses: the second miss falls back to free text —
+    # the retry budget is exactly one, not an unbounded loop (#1390).
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = [None, None]
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREETEXT")
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "FREETEXT"
+    assert structured.invoke.call_count == 2
+    plain.invoke.assert_called_once()
+
+
+@pytest.mark.unit
+def test_invoke_structured_exception_during_retry_falls_back():
+    # A miss followed by a provider exception during the retry: the exception
+    # is caught by the same handler and degrades to free text, not a crash (#1390).
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = [None, ValueError("provider died mid-retry")]
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREETEXT")
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "FREETEXT"
+    assert structured.invoke.call_count == 2
+    plain.invoke.assert_called_once()
+
+
+@pytest.mark.unit
 class TestTraderAgent:
     def test_structured_path_produces_rendered_markdown(self):
         captured = {}
