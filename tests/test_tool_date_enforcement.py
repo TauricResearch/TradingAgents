@@ -34,6 +34,18 @@ def test_as_of_takes_the_earlier_date(requested, expected):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("requested, expected", [
+    ("2026-8-1", "2026-08-01"),      # a model drops the leading zero: served as YYYY-MM-DD
+    ("2026-08-5", "2026-08-05"),
+    ("2026-8-14", "2026-08-14"),     # the run date itself, unpadded
+])
+def test_as_of_serves_a_readable_date_as_yyyy_mm_dd(requested, expected):
+    # strptime reads "2026-8-1", but a vendor that validates the format strictly
+    # (FRED: "observation_end is not a YYYY-MM-DD formatted date") rejects it.
+    assert as_of(requested, TRADE_DATE) == expected
+
+
+@pytest.mark.unit
 def test_as_of_without_a_trade_date_passes_the_request_through():
     assert as_of("2026-09-14", "") == "2026-09-14"
 
@@ -45,6 +57,15 @@ def test_as_of_without_a_trade_date_passes_the_request_through():
     ("2026-09-01", "2026-09-08", ("2026-08-07", TRADE_DATE)),  # wholly later: span kept, moved back
 ])
 def test_as_of_window(start, end, expected):
+    assert as_of_window(start, end, TRADE_DATE) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("start, end, expected", [
+    ("2026-8-1", "2026-8-10", ("2026-08-01", "2026-08-10")),   # inside: padded
+    ("2026-8-1", "2026-9-14", ("2026-08-01", TRADE_DATE)),     # end clamped
+])
+def test_as_of_window_serves_yyyy_mm_dd_when_the_model_drops_the_zero(start, end, expected):
     assert as_of_window(start, end, TRADE_DATE) == expected
 
 
