@@ -39,6 +39,9 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+streamlit = [
+    "streamlit>=1.43",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

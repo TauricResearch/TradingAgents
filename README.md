@@ -215,6 +215,17 @@ Each flag skips only its own question. Run without a terminal, a missing answer 
 
 A saved report also includes `complete_report.html`, the report as one page with its sections listed beside the text, for reading in a browser, on a phone or in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` skips it, and so does `ta.save_reports(state, "NVDA", html=False)` from Python.
 
+### Streamlit UI
+
+Install the optional UI dependency and launch the browser app from the repository root:
+
+```bash
+pip install ".[streamlit]"
+streamlit run streamlit_app.py
+```
+
+The sidebar lets you choose the ticker, analysis date, provider, quick/deep models, analysts, and debate depth. Provider credentials are read from the environment or `.env`; the UI does not collect API keys. Reports are saved under `results_dir` and can be downloaded from the results view.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.

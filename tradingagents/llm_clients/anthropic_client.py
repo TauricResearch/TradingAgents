@@ -22,6 +22,11 @@ _EFFORT_EXACT = {
 }
 _EFFORT_MODEL = re.compile(r"^claude-(opus|sonnet|fable)-(\d+)(?:-(\d+))?$")
 _EFFORT_MIN_VERSION = {"opus": (4, 5), "sonnet": (4, 6), "fable": (5, 0)}
+_JSON_SCHEMA_OUTPUT_MODELS = {
+    "claude-opus-5-5",
+    "claude-fable-5-1",
+    "claude-sonnet-5-5",
+}
 
 
 def _supports_effort(model: str) -> bool:
@@ -48,6 +53,18 @@ class NormalizedChatAnthropic(ChatAnthropic):
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
+
+    def with_structured_output(self, schema, *, include_raw=False, method="function_calling", **kwargs):
+        model = self.model.lower()
+        if method == "function_calling" and (
+            self.thinking is not None
+            or self.reasoning_effort is not None
+            or model in _JSON_SCHEMA_OUTPUT_MODELS
+        ):
+            method = "json_schema"
+        return super().with_structured_output(
+            schema, include_raw=include_raw, method=method, **kwargs
+        )
 
 
 class AnthropicClient(BaseLLMClient):

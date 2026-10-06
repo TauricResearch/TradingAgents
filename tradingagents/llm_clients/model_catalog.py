@@ -188,11 +188,13 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "ollama": {
         "quick": [
             ("Qwen3:latest (8B)", "qwen3:latest"),
+            ("Qwen3:14b (14B)", "qwen3:14b"),
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
+            ("Qwen3:14b (14B) - Fits 16GB machines", "qwen3:14b"),
             ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("Qwen3:latest (8B)", "qwen3:latest"),
