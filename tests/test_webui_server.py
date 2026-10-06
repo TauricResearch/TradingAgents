@@ -5,14 +5,19 @@ import socket
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 from langchain_core.messages import AIMessage
 
 from cli import main as cli_main
 from cli.webui import server
 from cli.webui.jobs import JobRegistry
+from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
+from tradingagents.dataflows.vendors.yahoo import company_profile as yahoo_company
 from tradingagents.graph import trading_graph
 
 pytestmark = pytest.mark.unit
@@ -127,7 +132,7 @@ def _wait_done(base, job_id):
 
 
 def test_pages_and_static_files_are_served(base):
-    for path in ("/", "/analyze", "/reports", "/backtest", "/sentiment", "/static/app.js"):
+    for path in ("/", "/analyze", "/company", "/reports", "/backtest", "/sentiment", "/static/app.js"):
         status, body = call(base, path)
         assert status == 200, path
         assert body
@@ -249,3 +254,39 @@ def test_ticker_search_falls_back_to_the_built_in_list(base, monkeypatch):
     symbols = [r["symbol"] for r in ticker_search.search_local("apple")]
     assert symbols[0] == "AAPL"
     assert ticker_search.search_local("NVDA")[0]["symbol"] == "NVDA"
+
+
+def test_the_company_page_reads_one_stock_from_yahoo(base, monkeypatch):
+    days = pd.bdate_range("2026-01-01", "2026-09-30", tz="Asia/Kolkata")
+    ticker = SimpleNamespace(
+        info={"longName": "Reliance Industries Limited", "currency": "INR", "financialCurrency": "INR",
+              "currentPrice": 1186.4, "marketCap": 1.6e13},
+        history=lambda **kwargs: pd.DataFrame({"Close": [1000.0 + i for i in range(len(days))],
+                                               "Volume": [10] * len(days)}, index=days),
+        quarterly_income_stmt=pd.DataFrame(), income_stmt=pd.DataFrame(),
+        balance_sheet=pd.DataFrame(), cashflow=pd.DataFrame())
+    asked = []
+    monkeypatch.setattr(yahoo_company, "yf", SimpleNamespace(Ticker=lambda s: asked.append(s) or ticker))
+    monkeypatch.setattr(yahoo_company, "_CACHE", {})
+    status, body = call(base, "/api/company?symbol=reliance.ns")
+    assert status == 200, body
+    assert (body["symbol"], body["name"], body["unit"]["label"]) == (
+        "RELIANCE.NS", "Reliance Industries Limited", "Rs. Crores")
+    assert {r["key"]: r["value"] for r in body["keyRatios"]}["market_cap"] == 1_600_000.0
+    assert len(body["chart"]["dates"]) == len(days) and body["profitLoss"]["periods"] == []
+    assert asked == ["RELIANCE.NS"]
+
+
+@pytest.mark.parametrize("symbol, raised, status, message", [
+    ("", None, 400, "Enter a symbol"),
+    ("NV/DA", None, 400, "Tickers"),
+    ("NOSUCH.NS", NoMarketDataError("NOSUCH.NS"), 404, ".NS for NSE"),
+    ("TCS.NS", VendorRateLimitError("Yahoo Finance is rate-limiting requests"), 503, "Try again"),
+])
+def test_bad_company_symbols_say_what_is_wrong(base, monkeypatch, symbol, raised, status, message):
+    def fail(s):
+        raise raised
+
+    monkeypatch.setattr(yahoo_company, "build_company_profile", fail)
+    code, body = call(base, "/api/company?symbol=" + urllib.parse.quote(symbol, safe=""))
+    assert code == status and message in body["error"]

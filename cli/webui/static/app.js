@@ -84,6 +84,7 @@ const svg = (body, size = 18, extra = '') => `<svg width="${size}" height="${siz
 const I = {
   logo: (s = 30) => `<svg width="${s}" height="${s}" viewBox="0 0 36 36" aria-hidden="true"><path d="M18 3 L32 11 L18 19 L4 11 Z" style="fill: var(--accent);"></path><path d="M4 11 L18 19 L18 33 L4 25 Z" style="fill: var(--accent); opacity: 0.55;"></path><path d="M32 11 L18 19 L18 33 L32 25 Z" style="fill: var(--accent); opacity: 0.8;"></path></svg>`,
   analyze: svg('<polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="15 7 21 7 21 13"></polyline>'),
+  company: svg('<path d="M4 21V7l8-4 8 4v14"></path><path d="M3 21h18"></path><path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-3h4v3"></path>'),
   reports: svg('<path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v4h4"></path><path d="M9 12h6M9 16h6"></path>'),
   backtest: svg('<path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline><path d="M12 8v4l3 2"></path>'),
   chevron: svg('<polyline points="6 9 12 15 18 9"></polyline>', 14, 'stroke-width="2.2"'),
@@ -198,6 +199,7 @@ function renderSide(nav = activeNav, editable = editableSettings) {
     <a class="brand" href="/" title="About TradingAgents">${I.logo()}<div><div class="brand-name">TradingAgents</div><div class="brand-sub">with TypeSafe Jev</div></div></a>
     <div class="nav">
       ${link('analyze', '/analyze', 'Analyze', I.analyze)}
+      ${link('company', '/company', 'Company', I.company)}
       ${link('reports', '/reports', 'Reports', I.reports)}
       ${link('backtest', '/backtest', 'Backtest', I.backtest)}
     </div>
@@ -360,9 +362,10 @@ function pageHead(title, sub, extra = '') {
 /**
  * Turn a ticker input into a combobox that searches by symbol or company name.
  * `multi` completes the last entry of a comma-separated list. Picking writes the
- * symbol into the input and fires `input`, so the page's own listeners see it.
+ * symbol into the input and fires `input`, so the page's own listeners see it,
+ * then calls `onPick` with the match.
  */
-function tickerSearch(input, { multi = false } = {}) {
+function tickerSearch(input, { multi = false, onPick = null } = {}) {
   const list = document.createElement('ul');
   list.id = input.id + '-list';
   list.className = 'combo-list';
@@ -405,6 +408,7 @@ function tickerSearch(input, { multi = false } = {}) {
     picking = true;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     picking = false;
+    if (onPick) onPick(r);
   };
   const search = async () => {
     const q = term();
@@ -564,6 +568,9 @@ PAGES['/analyze'] = {
     const f = analyze.form || (analyze.form = {
       ticker: 'SPY', date: OPTIONS.today, analysts: OPTIONS.defaults.analysts.slice(), portfolio: null, portfolioName: '',
     });
+    // Another page (Company) can open this one with a ticker filled in.
+    const asked = (new URLSearchParams(location.search).get('ticker') || '').trim();
+    if (/^[A-Za-z0-9._\-^=]{1,32}$/.test(asked)) f.ticker = asked.toUpperCase();
     main.innerHTML = `
       <div class="stack rise" style="gap: 24px;">
       ${pageHead('Analyze a ticker', 'Analyst team → Research debate → Trader → Risk debate → Portfolio manager')}
@@ -1000,6 +1007,424 @@ function itemMeta(it, ticker) {
     case 'duplicate': return `repeats an earlier ${SOURCES[it.source] || it.source} item${it.duplicate != null ? ' · ' + it.duplicate.toFixed(2) : ''}`;
     default: return it.opinion >= 0.5 ? 'opinion only · weight discounted' : `material event ${it.material.toFixed(2)}`;
   }
+}
+
+/* Page: Company -------------------------------------------------------------- */
+
+const company = { data: null, series: null, range: store.get('tradingagents-co-range', '1Y'), dma: { 50: true, 200: true }, seq: 0, observer: null, width: 0, view: null, symbol: '' };
+const COMPANY_PICKS = ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ITC.NS', 'AAPL'];
+const RANGES = [['1M', 1], ['6M', 6], ['1Y', 12], ['3Y', 36], ['5Y', 60], ['Max', 0]];
+const COMPANY_SECTIONS = [['co-chart', 'Chart'], ['co-analysis', 'Analysis'], ['co-quarters', 'Quarters'], ['co-pl', 'Profit & Loss'], ['co-bs', 'Balance Sheet'], ['co-cf', 'Cash Flows'], ['co-ratios', 'Ratios'], ['co-sh', 'Shareholding'], ['co-docs', 'Documents']];
+const BASES = [['consolidated', 'Consolidated'], ['standalone', 'Standalone']];
+const CURRENCY_SIGNS = { INR: '₹', USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', HKD: 'HK$' };
+
+const numberFormats = new Map();
+/** Grouped digits for a locale: en-IN writes 1,23,456 and en-US 123,456. */
+function grouped(value, locale, digits) {
+  const key = locale + digits;
+  if (!numberFormats.has(key)) numberFormats.set(key, new Intl.NumberFormat(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits }));
+  return minus(numberFormats.get(key).format(Number(value.toFixed(digits)) || 0));
+}
+const localeFor = (code) => (code === 'INR' ? 'en-IN' : 'en-US');
+const currencySign = (code) => CURRENCY_SIGNS[code] || (code ? code + ' ' : '');
+const priceText = (v, code) => (v == null ? '—' : currencySign(code) + grouped(v, localeFor(code), 2));
+const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+PAGES['/company'] = {
+  nav: 'company', title: 'Company',
+  mount(main) {
+    const symbol = (new URLSearchParams(location.search).get('symbol') || '').trim();
+    main.innerHTML = `<div class="stack rise" style="gap: 22px;">
+      ${symbol ? '' : pageHead('Company', 'One stock\'s fundamentals, laid out like a screener: key ratios, price chart, quarterly results, profit and loss, balance sheet, cash flows and ratios. Live figures from Yahoo Finance; for Indian stocks, NSE filings and prices from the India database where it has them.')}
+      <form class="co-search" id="co-form" role="search" novalidate>
+        <div class="grow"><label for="co-q" class="sr">Company or symbol</label>
+          <input id="co-q" class="input mono ticker" placeholder="${symbol ? 'Search another company' : 'Reliance, TCS, AAPL…'}" autocomplete="off" spellcheck="false"></div>
+        <button type="submit" class="btn b">Open${I.arrow}</button>
+      </form>
+      <div id="co-body" class="stack" style="gap: 22px;"></div></div>`;
+    const open = (s) => go('/company?symbol=' + encodeURIComponent(s.trim().toUpperCase()));
+    tickerSearch($('#co-q'), { onPick: (r) => open(r.symbol) });
+    $('#co-form').addEventListener('submit', (e) => { e.preventDefault(); if ($('#co-q').value.trim()) open($('#co-q').value); });
+    const body = $('#co-body');
+    body.addEventListener('click', (e) => this.onClick(e));
+    if (!symbol || DEMO) { body.innerHTML = this.picksHtml(); return; }
+    this.load(symbol, new URLSearchParams(location.search).get('basis'));
+  },
+  unmount() {
+    company.seq++;
+    if (company.observer) company.observer.disconnect();
+    company.observer = null;
+    company.view = null;
+  },
+
+  picksHtml() {
+    return `<div class="stack" style="gap: 10px;"><span class="label-h">Try</span><div class="chips">${COMPANY_PICKS.map((s) => `<a class="chip sm b mono" href="/company?symbol=${encodeURIComponent(s)}" data-link>${esc(s)}</a>`).join('')}</div></div>`;
+  },
+
+  async load(symbol, basis) {
+    const mine = ++company.seq;
+    const body = $('#co-body');
+    company.symbol = symbol;
+    body.innerHTML = `<p class="empty">Loading ${esc(symbol.toUpperCase())}…</p>`;
+    let data;
+    try {
+      data = await api('/company?symbol=' + encodeURIComponent(symbol) + (basis ? '&basis=' + encodeURIComponent(basis) : ''));
+    } catch (e) {
+      if (mine === company.seq) body.innerHTML = `<div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div>${this.picksHtml()}`;
+      return;
+    }
+    if (mine !== company.seq) return;
+    company.data = data;
+    company.series = data.chart.dates.length > 1 ? priceSeries(data.chart) : null;
+    document.title = `${data.name} · TradingAgents`;
+    body.innerHTML = this.html(data);
+    if (company.series) {
+      const plot = $('#co-plot');
+      company.observer = new ResizeObserver(() => { if (Math.floor(plot.clientWidth) !== company.width) drawPriceChart(); });
+      company.observer.observe(plot);
+      plot.addEventListener('pointermove', (e) => chartHover(e));
+      plot.addEventListener('pointerleave', () => chartHover(null));
+      drawPriceChart();
+    }
+    // Wide tables open on their newest periods; on a phone the oldest would fill the screen.
+    body.querySelectorAll('.co-scroll').forEach((el) => { el.scrollLeft = el.scrollWidth; });
+  },
+
+  html(d) {
+    const p = d.price;
+    const up = (p.change || 0) >= 0;
+    const change = p.change == null ? '' : `<div class="co-change ${up ? 'pos' : 'neg'}">${up ? '▲' : '▼'} ${minus(signed(p.change))}${p.changePct == null ? '' : ` (${minus(signed(p.changePct))}%)`}</div>`;
+    const web = /^https?:\/\//i.test(d.website || '') ? `<a href="${esc(d.website)}" target="_blank" rel="noopener noreferrer">${esc(d.website.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''))} ↗</a>` : '';
+    const meta = [`<span class="mono">${esc(d.symbol)}</span>`, d.exchange && esc(d.exchange), [d.sector, d.industry].filter(Boolean).map(esc).join(' · '), web].filter(Boolean).map((x) => `<span>${x}</span>`).join('');
+    const src = d.source;
+    const fetched = new Date(src.fetched);
+    const sourceLine = `Source: ${esc(src.name)} · ${src.annual} annual / ${src.quarterly} quarterly period${src.quarterly === 1 ? '' : 's'} available · fetched ${esc(fetched.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}. Live figures, not cut at any analysis date, so the agents never read this page.`;
+    const jumps = COMPANY_SECTIONS.filter(([id]) => (id !== 'co-sh' || (d.shareholding && d.shareholding.periods.length)) && (id !== 'co-docs' || (d.documents && d.documents.groups.length)));
+    const about = d.summary ? `<p class="co-about" id="co-about">${esc(d.summary)}</p>${d.summary.length > 260 ? '<button type="button" class="link-btn co-more" data-more aria-controls="co-about" aria-expanded="false">Read more</button>' : ''}` : '';
+    const sections = [['co-quarters', 'Quarterly Results', d.quarters], ['co-pl', 'Profit & Loss', d.profitLoss], ['co-bs', 'Balance Sheet', d.balanceSheet], ['co-cf', 'Cash Flows', d.cashFlows], ['co-ratios', 'Ratios', d.ratios]];
+    return `
+      <header class="co-head">
+        <div class="stack co-id"><h1 class="page-title">${esc(d.name)}</h1><div class="co-meta">${meta}</div></div>
+        <div class="co-quote"><div class="co-price">${priceText(p.value, d.currency)}</div>${change}${p.date ? `<div class="faint" style="font-size: 12px;">Last close ${esc(DAY.format(Date.parse(p.date + 'T00:00:00Z')))}</div>` : ''}</div>
+      </header>
+      ${about ? `<div class="stack" style="gap: 6px; align-items: flex-start;">${about}</div>` : ''}
+      <div class="co-actions">
+        <a class="btn btn-primary b" href="/analyze?ticker=${encodeURIComponent(d.symbol)}" data-link>${I.analyze}Analyze with agents</a>
+        <p class="hint grow">${sourceLine}</p>
+      </div>
+      ${d.notice ? `<div class="alert alert-info">${I.alert}<div>${esc(d.notice)}</div></div>` : ''}
+      ${sourcesHtml(d)}
+      <dl class="card co-ratios">${d.keyRatios.map((r) => `<div class="co-ratio" ${r.hint ? `title="${esc(r.hint)}"` : ''}><dt>${esc(r.label)}</dt><dd>${keyRatioText(r)}</dd></div>`).join('')}</dl>
+      <div class="co-nav">
+        <nav class="co-jump" aria-label="Sections">${jumps.map(([id, label]) => `<button type="button" class="chip sm b" data-jump="${id}">${label}</button>`).join('')}</nav>
+        ${basisToggle(d)}
+      </div>
+      ${this.chartHtml(d)}
+      <section id="co-analysis" class="stack" aria-label="Pros and cons" style="gap: 10px;">
+        <div class="co-pc">
+          <div class="card pad co-pros"><h2>Pros</h2>${prosCons(d.pros)}</div>
+          <div class="card pad co-cons"><h2>Cons</h2>${prosCons(d.cons)}</div>
+        </div>
+        <p class="hint">Fixed rules applied in code to the figures below, with no LLM involved. Not investment advice.</p>
+      </section>
+      ${sections.map(([id, title, t]) => statementSection(id, title, t, d.unit, id === 'co-pl' ? growthBoxes(d.growth) : '')).join('')}
+      ${d.shareholding && d.shareholding.periods.length ? shareholdingSection(d.shareholding) : ''}
+      ${d.documents && d.documents.groups.length ? documentsSection(d.documents) : ''}`;
+  },
+
+  chartHtml(d) {
+    if (!company.series) {
+      return `<section class="card co-chart" id="co-chart" aria-labelledby="co-chart-h"><h2 id="co-chart-h" class="section-h">Price</h2><p class="empty">${esc(d.chart.source || 'Yahoo Finance')} has no price history for this symbol.</p></section>`;
+    }
+    const first = company.series.t[0];
+    const last = company.series.t[company.series.t.length - 1];
+    const covers = (months) => !months || first <= monthsBefore(last, months);
+    const chosen = RANGES.find(([id]) => id === company.range);
+    if (!chosen || !covers(chosen[1])) company.range = 'Max';
+    const ranges = RANGES.map(([id, months]) => `<button type="button" class="b" data-range="${id}" aria-pressed="${attr(company.range === id)}" ${covers(months) ? '' : 'disabled title="The price history is shorter than this"'}>${id}</button>`).join('');
+    const dma = [50, 200].map((n) => `<button type="button" class="chip sm b" data-dma="${n}" aria-pressed="${attr(company.dma[n])}"><span class="co-swatch" style="background: var(--dma-${n});"></span>${n} DMA</button>`).join('');
+    return `<section class="card co-chart" id="co-chart" aria-labelledby="co-chart-h">
+      <div class="co-chart-top"><h2 id="co-chart-h" class="section-h">Price</h2>
+        <div class="seg co-ranges" role="group" aria-label="Chart range">${ranges}</div>
+        <div class="chips" role="group" aria-label="Moving averages">${dma}</div></div>
+      <div class="co-readout" id="co-readout"></div>
+      <div class="co-plot" id="co-plot"></div>
+      ${d.chart.note || d.chart.source ? `<p class="hint">${d.chart.source ? `Source: ${esc(d.chart.source)}. ` : ''}${esc(d.chart.note || '')}</p>` : ''}
+    </section>`;
+  },
+
+  onClick(e) {
+    const b = e.target.closest('[data-basis]');
+    if (b) {
+      if (b.getAttribute('aria-pressed') === 'true' || b.disabled) return;
+      const q = new URLSearchParams(location.search);
+      q.set('basis', b.dataset.basis);
+      history.replaceState(history.state, '', location.pathname + '?' + q.toString());
+      this.load(company.symbol, b.dataset.basis);
+      return;
+    }
+    const r = e.target.closest('[data-range]');
+    if (r) {
+      company.range = r.dataset.range;
+      store.set('tradingagents-co-range', company.range);
+      document.querySelectorAll('[data-range]').forEach((b) => b.setAttribute('aria-pressed', attr(b === r)));
+      drawPriceChart();
+      return;
+    }
+    const m = e.target.closest('[data-dma]');
+    if (m) {
+      const n = m.dataset.dma;
+      company.dma[n] = !company.dma[n];
+      m.setAttribute('aria-pressed', attr(company.dma[n]));
+      drawPriceChart();
+      return;
+    }
+    const j = e.target.closest('[data-jump]');
+    if (j) {
+      const smooth = window.matchMedia && window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+      document.getElementById(j.dataset.jump).scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+      return;
+    }
+    const more = e.target.closest('[data-more]');
+    if (more) {
+      const open = $('#co-about').classList.toggle('open');
+      more.setAttribute('aria-expanded', attr(open));
+      more.textContent = open ? 'Show less' : 'Read more';
+    }
+  },
+};
+
+function keyRatioText(r) {
+  const v = r.value;
+  if (r.kind === 'range') {
+    const [hi, lo] = v;
+    return hi == null && lo == null ? '—' : `${priceText(hi, r.currency)} / ${lo == null ? '—' : grouped(lo, localeFor(r.currency), 2)}`;
+  }
+  if (v == null) return '—';
+  if (r.kind === 'cap') return `${currencySign(r.unit.currency)}${grouped(v, r.unit.locale, 0)} ${esc(r.unit.short)}`;
+  if (r.kind === 'price') return priceText(v, r.currency);
+  if (r.kind === 'pct') return `${grouped(v, 'en-US', 2)}%`;
+  return grouped(v, 'en-US', 1);
+}
+
+function prosCons(items) {
+  return items.length ? `<ul>${items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="hint">None of the rules found anything here.</p>';
+}
+
+/** One statement in screener layout: line items down, periods across, oldest first. */
+function statementSection(id, title, t, unit, extra) {
+  const money = t.rows.filter((r) => r.kind === 'money').flatMap((r) => r.values).filter((v) => v != null);
+  // Large figures read best whole; a small company's few crores keep their decimals.
+  const digits = money.some((v) => Math.abs(v) >= 100) ? 0 : 2;
+  const cell = (v, kind, ttm) => {
+    const cls = `r${ttm ? ' ttm' : ''}`;
+    if (v == null) return `<td class="${cls} faint">—</td>`;
+    const text = kind === 'money' ? grouped(v, unit.locale, digits) : kind === 'pct' ? `${grouped(v, 'en-US', 0)}%` : kind === 'eps' ? grouped(v, unit.locale, 2) : grouped(v, 'en-US', 0);
+    return `<td class="${cls}">${text}</td>`;
+  };
+  const table = !t.periods.length ? `<p class="empty">${esc(t.source || 'Yahoo Finance')} has no ${esc(title.toLowerCase())} for this company.</p>`
+    : `<div class="table-scroll co-scroll" tabindex="0" role="region" aria-label="${esc(title)}, scrolls sideways"><table class="tbl co-table"><caption class="sr">${esc(title)}, oldest period first</caption>
+      <thead><tr><th scope="col"><span class="sr">Line item</span></th>${t.periods.map((p) => `<th scope="col" class="r${p.ttm ? ' ttm' : ''}" ${p.ttm ? `title="Trailing twelve months to ${esc(p.end)}"` : ''}>${esc(p.label)}</th>`).join('')}</tr></thead>
+      <tbody>${t.rows.map((r) => `<tr class="${r.strong ? 'strong' : ''}"><th scope="row">${r.hint ? `<span class="co-hint" title="${esc(r.hint)}">${esc(r.label)}</span>` : esc(r.label)}</th>${r.values.map((v, i) => cell(v, r.kind, t.periods[i].ttm)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const unitNote = t.periods.length && t.rows.some((r) => r.kind === 'money') ? `<span class="hint">Figures in ${esc(unit.label)}</span>` : '';
+  return `<section class="card co-section" id="${id}" aria-labelledby="${id}-h">
+    <div class="co-section-head"><h2 id="${id}-h" class="section-h">${esc(title)}</h2>${unitNote}</div>
+    ${t.source && t.periods.length ? `<p class="co-src">Source: ${esc(t.source)}</p>` : ''}
+    ${table}${t.note ? `<p class="hint">${esc(t.note)}</p>` : ''}${extra}</section>`;
+}
+
+/** Where each part of the page came from, when the India database supplied some of it. */
+function sourcesHtml(d) {
+  if (!d.sources || !d.sources.length) return '';
+  return `<details class="co-sources"><summary>Sources by section${d.india ? ` · ISIN ${esc(d.india.isin)}${d.india.industry ? ` · ${esc(d.india.industry)}` : ''}` : ''}</summary>
+    <dl>${d.sources.map((s) => `<div><dt>${esc(s.section)}</dt><dd>${esc(s.source || '—')}</dd></div>`).join('')}</dl></details>`;
+}
+
+/** Standalone / consolidated, when the filings in the database have either. */
+function basisToggle(d) {
+  if (!d.basis || !d.basis.available || !d.basis.available.length) return '';
+  const buttons = BASES.map(([key, label]) => {
+    const has = d.basis.available.includes(key);
+    return `<button type="button" class="b" data-basis="${key}" aria-pressed="${attr(d.basis.current === key)}" ${has ? '' : 'disabled title="No filing of this basis in the database"'}>${label}</button>`;
+  }).join('');
+  return `<div class="seg auto co-basis" role="group" aria-label="Statement basis">${buttons}</div>`;
+}
+
+const SH_LINES = [['promoter_pct', 'Promoters', 'var(--accent)'], ['fii_pct', 'FIIs', 'var(--dma-50)'], ['dii_pct', 'DIIs', 'var(--dma-200)']];
+
+/** The shareholding pattern: a small trend of promoter, FII and DII holdings, then the quarterly table. */
+function shareholdingSection(sh) {
+  const n = sh.periods.length;
+  const W = 600, H = 150, pad = 6;
+  const all = SH_LINES.flatMap(([k]) => sh.trend[k]).filter((v) => v != null);
+  const hi = Math.min(100, Math.ceil((Math.max(...all, 1) + 2) / 10) * 10);
+  const lo = Math.max(0, Math.floor((Math.min(...all, hi) - 2) / 10) * 10);
+  const x = (i) => (n > 1 ? pad + (i / (n - 1)) * (W - 2 * pad) : W / 2);
+  const y = (v) => pad + (1 - (v - lo) / ((hi - lo) || 1)) * (H - 2 * pad);
+  const line = (vals) => vals.map((v, i) => (v == null ? '' : `${x(i).toFixed(1)},${y(v).toFixed(1)}`)).filter(Boolean).join(' ');
+  const grid = [lo, (lo + hi) / 2, hi].map((v) => `<line x1="0" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" style="stroke: var(--line);" vector-effect="non-scaling-stroke"></line>`).join('');
+  const last = (k) => { const v = sh.trend[k].filter((x) => x != null); return v.length ? v[v.length - 1] : null; };
+  const label = SH_LINES.map(([k, name]) => `${name} ${last(k) == null ? 'not reported' : grouped(last(k), 'en-US', 2) + '%'}`).join(', ');
+  const legend = SH_LINES.map(([k, name, color]) => `<span><span class="co-swatch" style="background: ${color};"></span>${name} <b>${last(k) == null ? '—' : grouped(last(k), 'en-US', 2) + '%'}</b></span>`).join('');
+  const svg = `<svg class="co-sh-trend" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(`Holdings over the last ${n} quarters, latest: ${label}. Scale ${lo}% to ${hi}%.`)}">
+    ${grid}${SH_LINES.map(([k, , color]) => `<polyline points="${line(sh.trend[k])}" fill="none" stroke-width="2" stroke-linejoin="round" style="stroke: ${color};" vector-effect="non-scaling-stroke"></polyline>`).join('')}</svg>`;
+  const cell = (v, kind) => (v == null ? '<td class="r faint">—</td>' : `<td class="r">${kind === 'count' ? grouped(v, 'en-IN', 0) : grouped(v, 'en-US', 2) + '%'}</td>`);
+  const table = `<div class="table-scroll co-scroll" tabindex="0" role="region" aria-label="Shareholding pattern, scrolls sideways"><table class="tbl co-table"><caption class="sr">Shareholding pattern, oldest quarter first</caption>
+    <thead><tr><th scope="col"><span class="sr">Category</span></th>${sh.periods.map((p) => `<th scope="col" class="r" title="Filed ${esc(p.filed.replace('T', ' '))}">${esc(p.label)}</th>`).join('')}</tr></thead>
+    <tbody>${sh.rows.map((r) => `<tr class="${r.key === 'promoter_pct' ? 'strong' : ''}"><th scope="row">${esc(r.label)}</th>${r.values.map((v) => cell(v, r.kind)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<section class="card co-section" id="co-sh" aria-labelledby="co-sh-h">
+    <div class="co-section-head"><h2 id="co-sh-h" class="section-h">Shareholding Pattern</h2><span class="hint">% of shares</span></div>
+    <p class="co-src">Source: ${esc(sh.source)}</p>
+    <div class="co-sh-chart"><div class="co-readout">${legend}</div>${n > 1 ? `<div class="co-sh-plot"><span class="co-sh-axis" aria-hidden="true"><span>${hi}%</span><span>${lo}%</span></span>${svg}</div>` : ''}</div>
+    ${table}<p class="hint">${esc(sh.note)}</p></section>`;
+}
+
+const DOC_DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** Links to filings and announcements, grouped by kind; nothing is downloaded. */
+function documentsSection(docs) {
+  const link = (it) => {
+    const day = esc(DOC_DAY.format(Date.parse(it.date + 'T00:00:00Z')));
+    const title = esc(it.title);
+    return `<li><span class="co-doc-date mono">${day}</span>${/^https?:\/\//i.test(it.url || '') ? `<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" class="co-doc-title">${title}<span class="sr"> (opens NSE in a new tab)</span></a>` : `<span class="co-doc-title">${title}</span>`}</li>`;
+  };
+  return `<section class="card co-section" id="co-docs" aria-labelledby="co-docs-h">
+    <div class="co-section-head"><h2 id="co-docs-h" class="section-h">Documents</h2><span class="hint">Links only</span></div>
+    <div class="co-docs">${docs.groups.map((g, i) => `<details class="co-doc-group" ${i < 2 ? 'open' : ''}><summary>${esc(g.label)} <span class="faint">${g.items.length}</span></summary><ul>${g.items.map(link).join('')}</ul></details>`).join('')}</div>
+    <p class="hint">${esc(docs.note)}</p></section>`;
+}
+
+function growthBoxes(growth) {
+  if (!growth.length) return '';
+  return `<div class="co-growth">${growth.map((g) => `<section class="co-growth-box" aria-label="${esc(g.title)}"><h3>${esc(g.title)}</h3>
+    <dl>${g.items.map((it) => `<dt>${esc(it.label)}</dt><dd>${it.value == null ? '<span class="faint" title="Not meaningful: the figure was zero or negative at one end">—</span>' : `${grouped(it.value, 'en-US', 0)}%`}</dd>`).join('')}</dl></section>`).join('')}</div>`;
+}
+
+/* Price chart (inline SVG, drawn at the container's own width) ---------------- */
+
+function monthsBefore(t, months) {
+  const d = new Date(t);
+  d.setUTCMonth(d.getUTCMonth() - months);
+  return d.getTime();
+}
+
+/** Closes, volumes and the 50 and 200 day moving averages over the whole history. */
+function priceSeries(chart) {
+  const close = chart.close;
+  const sma = (k) => {
+    const out = new Array(close.length).fill(null);
+    let sum = 0;
+    for (let i = 0; i < close.length; i++) {
+      sum += close[i];
+      if (i >= k) sum -= close[i - k];
+      if (i >= k - 1) out[i] = sum / k;
+    }
+    return out;
+  };
+  return { t: chart.dates.map((d) => Date.parse(d + 'T00:00:00Z')), close, volume: chart.volume, dma50: sma(50), dma200: sma(200) };
+}
+
+function drawPriceChart() {
+  const plot = $('#co-plot');
+  const s = company.series;
+  if (!plot || !s) return;
+  const W = Math.max(260, Math.floor(plot.clientWidth));
+  const H = W < 560 ? 250 : 330;
+  company.width = W;
+  const end = s.t.length - 1;
+  const months = (RANGES.find(([id]) => id === company.range) || [null, 0])[1];
+  const start = months ? Math.max(0, s.t.findIndex((t) => t >= monthsBefore(s.t[end], months))) : 0;
+  const padL = 4, padR = 58, padT = 8, gap = 10, axisH = 22;
+  const plotW = W - padL - padR;
+  const volH = Math.round((H - padT - axisH) * 0.2);
+  const priceH = H - padT - axisH - volH - gap;
+  // At most one point per two pixels, so the bars stay visible; the last day always shows.
+  const step = Math.max(1, Math.ceil((end - start + 1) / Math.floor(plotW / 2)));
+  const idx = [];
+  for (let i = start; i <= end; i += step) idx.push(i);
+  if (idx[idx.length - 1] !== end) idx.push(end);
+  const shown = [s.close, company.dma[50] && s.dma50, company.dma[200] && s.dma200].filter(Boolean);
+  let lo = Infinity, hi = -Infinity;
+  for (const arr of shown) for (const i of idx) if (arr[i] != null) { lo = Math.min(lo, arr[i]); hi = Math.max(hi, arr[i]); }
+  const padY = (hi - lo) * 0.06 || Math.abs(hi) * 0.02 || 1;
+  lo -= padY; hi += padY;
+  const x = (k) => padL + (idx.length > 1 ? (k / (idx.length - 1)) * plotW : plotW / 2);
+  const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * priceH;
+  const path = (arr) => {
+    let d = '', pen = false;
+    idx.forEach((i, k) => {
+      if (arr[i] == null) { pen = false; return; }
+      d += `${pen ? 'L' : 'M'}${x(k).toFixed(1)} ${y(arr[i]).toFixed(1)}`;
+      pen = true;
+    });
+    return d;
+  };
+  const line = path(s.close);
+  const base = padT + priceH;
+  const yStep = niceStep(hi - lo);
+  const yTicks = [];
+  for (let v = Math.ceil(lo / yStep) * yStep; v <= hi; v += yStep) yTicks.push(v);
+  const locale = localeFor(company.data.currency);
+  const yDigits = yStep < 1 ? 2 : 0;
+  const grid = yTicks.map((v) => `<line x1="${padL}" x2="${padL + plotW}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" style="stroke: var(--line);"></line>
+    <text x="${padL + plotW + 8}" y="${(y(v) + 4).toFixed(1)}" font-size="11" style="fill: var(--text-3);">${grouped(v, locale, yDigits)}</text>`).join('');
+  const volTop = base + gap;
+  const vmax = Math.max(1, ...idx.map((i) => s.volume[i] || 0));
+  const barW = Math.max(1, (plotW / idx.length) * 0.7);
+  const bars = idx.map((i, k) => {
+    const h = ((s.volume[i] || 0) / vmax) * volH;
+    return h > 0 ? `<rect x="${(x(k) - barW / 2).toFixed(1)}" y="${(volTop + volH - h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}"></rect>` : '';
+  }).join('');
+  const spanDays = (s.t[end] - s.t[start]) / 864e5;
+  const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', ...(spanDays <= 62 ? { day: 'numeric', month: 'short' } : spanDays <= 1500 ? { month: 'short', year: '2-digit' } : { year: 'numeric' }) });
+  const n = Math.min(idx.length, W < 560 ? 3 : 5);
+  const ticks = [...new Set(Array.from({ length: n }, (_, j) => (n > 1 ? Math.round((j * (idx.length - 1)) / (n - 1)) : 0)))]
+    .map((k) => [k, fmt.format(s.t[idx[k]])]).filter(([, text], j, all) => j === 0 || text !== all[j - 1][1]);
+  const xTicks = ticks.map(([k, text], j) => {
+    const anchor = j === 0 ? 'start' : j === ticks.length - 1 ? 'end' : 'middle';
+    return `<text x="${x(k).toFixed(1)}" y="${H - 6}" font-size="11" text-anchor="${anchor}" style="fill: var(--text-3);">${esc(text)}</text>`;
+  }).join('');
+  const first = s.close[idx[0]], last = s.close[end];
+  const label = `${company.data.chart.symbol} closing price over ${company.range === 'Max' ? 'its whole history' : 'the last ' + company.range}: from ${grouped(first, locale, 2)} to ${grouped(last, locale, 2)}, a change of ${minus(signed(((last / first) - 1) * 100, 1))}%.`;
+  plot.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
+    <defs><linearGradient id="co-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: var(--accent); stop-opacity: 0.2;"></stop><stop offset="1" style="stop-color: var(--accent); stop-opacity: 0;"></stop></linearGradient></defs>
+    ${grid}
+    <path d="${line} L${x(idx.length - 1).toFixed(1)} ${base} L${x(0).toFixed(1)} ${base} Z" fill="url(#co-fill)"></path>
+    ${company.dma[200] ? `<path d="${path(s.dma200)}" fill="none" stroke-width="1.5" style="stroke: var(--dma-200);"></path>` : ''}
+    ${company.dma[50] ? `<path d="${path(s.dma50)}" fill="none" stroke-width="1.5" style="stroke: var(--dma-50);"></path>` : ''}
+    <path d="${line}" fill="none" stroke-width="1.8" stroke-linejoin="round" style="stroke: var(--accent);"></path>
+    <g style="fill: var(--text-3);" opacity="0.45">${bars}</g>
+    <line x1="${padL}" x2="${padL + plotW}" y1="${volTop + volH}" y2="${volTop + volH}" style="stroke: var(--line-2);"></line>
+    ${xTicks}
+    <g id="co-cross" visibility="hidden"><line id="co-cross-x" y1="${padT}" y2="${volTop + volH}" stroke-dasharray="3 3" style="stroke: var(--text-3);"></line><circle id="co-cross-dot" r="4" stroke-width="2" style="fill: var(--accent); stroke: var(--surface);"></circle></g>
+  </svg>`;
+  company.view = { idx, x, y, padL, plotW };
+  chartReadout(end);
+}
+
+function chartHover(e) {
+  const v = company.view;
+  const cross = $('#co-cross');
+  if (!v || !cross) return;
+  if (!e) { cross.setAttribute('visibility', 'hidden'); chartReadout(v.idx[v.idx.length - 1]); return; }
+  const left = $('#co-plot svg').getBoundingClientRect().left;
+  const k = Math.min(v.idx.length - 1, Math.max(0, Math.round(((e.clientX - left - v.padL) / v.plotW) * (v.idx.length - 1))));
+  const i = v.idx[k];
+  const cx = v.x(k).toFixed(1);
+  $('#co-cross-x').setAttribute('x1', cx);
+  $('#co-cross-x').setAttribute('x2', cx);
+  $('#co-cross-dot').setAttribute('cx', cx);
+  $('#co-cross-dot').setAttribute('cy', v.y(company.series.close[i]).toFixed(1));
+  cross.setAttribute('visibility', 'visible');
+  chartReadout(i);
+}
+
+function chartReadout(i) {
+  const s = company.series;
+  const code = company.data.currency;
+  const dma = [50, 200].filter((n) => company.dma[n] && s['dma' + n][i] != null)
+    .map((n) => `<span><span class="co-swatch" style="background: var(--dma-${n});"></span>${n} DMA ${priceText(s['dma' + n][i], code)}</span>`).join('');
+  patch($('#co-readout'), `<span class="mono">${esc(DAY.format(s.t[i]))}</span><span>Close <b>${priceText(s.close[i], code)}</b></span>${dma}<span>Volume ${s.volume[i] == null ? '—' : grouped(s.volume[i], localeFor(code), 0)}</span>`);
 }
 
 /* Page: Reports ------------------------------------------------------------- */

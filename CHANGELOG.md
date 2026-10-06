@@ -17,7 +17,7 @@ judgments at four points in the pipeline, and a browser UI.
 - **Debates stop when they converge.** The bull/bear and risk debates end at a round boundary once a full round adds no new argument. They never stop before round 2 or run past the configured rounds, so this applies from three rounds up. The Research Manager gets Jev's read of which side's case is better supported, as a hint.
 - **The Portfolio Manager's claims are checked.** The Investment Thesis is checked against the analyst reports, which the Portfolio Manager never reads itself. Figures are matched in code, and a claim that can only be settled by comparing numbers is marked unverified. A contradicted claim, or a thesis whose claims are mostly not found in the reports, turns the rating into `REVIEW`.
 - **Learning from the reports.** `tradingagents learn <run id>` asks Jev 14 fixed questions about each settled backtest decision and fits a small logistic model of whether the decision beat its benchmark. It then reports whether the model beats the rating alone on held-out dates, which questions help, and which decisions it predicted worst. Nothing in an analysis run uses the model yet.
-- **Browser UI.** `tradingagents ui` serves Analyze, Sentiment, Reports and Backtest pages on `127.0.0.1:8501`, and needs nothing beyond the base install.
+- **Browser UI.** `tradingagents ui` serves Analyze, Company, Sentiment, Reports and Backtest pages on `127.0.0.1:8501`, and needs nothing beyond the base install.
 
 ### Jev
 
@@ -35,6 +35,10 @@ judgments at four points in the pipeline, and a browser UI.
 - Ticker fields search by symbol or company name through Yahoo Finance, with a built-in list of well-known symbols when Yahoo is unreachable. The backtest field completes each comma-separated entry.
 - A provider retry appears in the run's activity log, so a run that is backing off does not look stalled.
 - `run_backtest` takes `on_cell` and `should_stop` callbacks. A sweep stopped between cells resumes like an interrupted one.
+- **Company** (`/company?symbol=RELIANCE.NS`, backed by `GET /api/company`) shows one stock's fundamentals in a screener layout. It has key ratios, an inline-SVG price chart (1M to Max, 50/200 DMA, volume, hover readout), and quarterly results. It also has profit and loss with a TTM column when Yahoo has four consecutive quarters, the balance sheet, cash flows, working-capital ratios and ROCE, compounded growth, and rule-based pros and cons. Rupee reporters show ₹ crores, other currencies millions, and banks get a lender's layout. Missing figures show as blanks, never estimates.
+- The Company page's data is live and present-day: Yahoo Finance, cached 15 minutes per symbol. It is built by `tradingagents/dataflows/company_profile.py` from what `vendors/yahoo/company_profile.py` fetches, so another vendor can fill the same fields. It is not a routed tool, and a test keeps agent and backtest code from importing it. A BSE listing that Yahoo has no price history for is charted from the same company's NSE listing, and the page says so.
+- The Analyze page takes `?ticker=` to start with that ticker filled in.
+- **India data layer** (`tradingagents/dataflows/vendors/india/`, `tradingagents india ...`): a SQLite database of NSE securities, daily prices with deliveries, corporate actions, shares issued and announcement links from archives.nseindia.com, plus results and shareholding XBRL imported from saved files (NSE's filing APIs serve browsers only). Every filed value keeps `filed_at`; restatements keep both rows; `store.get_*(..., as_of=...)` reads are point in time. The Company page prefers it for Indian stocks, with a standalone/consolidated toggle, per-section sources, a Shareholding Pattern section and Documents links. Phase 1's alias table moved to `dataflows/field_aliases.py` and covers both sources.
 
 ### Models
 

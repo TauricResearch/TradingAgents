@@ -99,3 +99,16 @@ def _isolate_config():
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
     yield
     config_module._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+
+
+@pytest.fixture(autouse=True)
+def _no_india_db(_isolate_config, tmp_path_factory):
+    """Point the India database at a file that does not exist.
+
+    Once a developer has synced, ~/.tradingagents/india/india.db holds real
+    filings, and the Company page would lay them over a test's fixture data.
+    Tests of the database pass their own path.
+    """
+    import tradingagents.dataflows.config as config_module
+
+    config_module._config["india_db_path"] = str(tmp_path_factory.getbasetemp() / "no-india-db" / "india.db")

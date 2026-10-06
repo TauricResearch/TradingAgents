@@ -230,6 +230,7 @@ tradingagents ui       # serves http://localhost:8501 and opens the Analyze page
 tradingagents ui --port 8600 --no-browser
 ```
 - **Analyze** — pick a ticker, date, analysts and an optional portfolio file, then watch each desk of the pipeline, the metrics, tool calls and report sections as the run streams in. The portfolio manager's rating shows at the end, and the full report is saved under `results_dir/reports`. The ticker box searches by symbol or company name, so "reliance industries" offers `RELIANCE.NS` and "tencent" offers `0700.HK`; a provider retry shows in the run's activity log instead of the run looking stalled.
+- **Company** — one stock's fundamentals laid out like a stock screener: key ratios, a price chart with 50- and 200-day averages and volume, quarterly results, profit and loss with a TTM column, balance sheet, cash flows, working-capital ratios, compounded growth, and pros and cons from fixed rules (no LLM). Indian companies show figures in ₹ crores with Indian digit grouping, and banks get a lender's layout. The figures come live from Yahoo Finance, usually about four years and five quarters, and only what Yahoo has is shown. Because they are today's figures rather than point-in-time ones, no analysis or backtest reads them. **Analyze with agents** opens the Analyze page with the ticker filled in.
 - **Sentiment** — with Jev on, every news article and social post the Sentiment Analyst judged: its stance, event type, relevance and whether it was kept, or dropped as a duplicate, off-topic or an injected instruction. Open it from a live run or from a saved report.
 - **Reports** — read any saved report by section, and browse the decision log with each call's alpha, decision and reflection.
 - **Backtest** — start a grid sweep (the tickers box completes each comma-separated entry the same way), follow the cell being run, stop it between cells, then compare mean alpha and hit rate by rating.
@@ -307,6 +308,25 @@ print(decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+### India data (NSE archives and filings)
+
+`tradingagents india ...` keeps a local SQLite database of Indian listed companies (`TRADINGAGENTS_INDIA_DB`, default `~/.tradingagents/india/india.db`; raw downloads cached under `<cache>/india/raw`). The Company page uses it for `.NS`/`.BO` symbols and falls back to Yahoo Finance section by section.
+
+```bash
+tradingagents india sync-securities                 # NSE equity list + index industries
+tradingagents india sync-prices --from 2016-01-01   # bhavcopies + delivery, one-time backfill
+tradingagents india sync-actions --from 2016-01-01  # splits, bonuses, rights, dividends, shares issued
+tradingagents india import ~/Downloads/xbrl         # results / shareholding XBRL you saved
+tradingagents india status
+tradingagents india sync-all                        # the nightly run (schedule it yourself)
+```
+
+Sources and their terms (checked 2026-10-05):
+- **archives.nseindia.com** (equity list, index lists, bhavcopies with ISIN from 2016, MTO deliveries and daily PR files from 2010) is fetched at most once a second with an honest User-Agent. NSE's Terms of Use prohibit "systematic or automated data collection"; running these syncs is your decision, for personal use.
+- **NSE's JSON APIs and nsearchives.nseindia.com** (where results and shareholding XBRL live) answer only browsers, and **BSE** refuses non-browser clients. They are not fetched. Save filings from NSE's (or BSE's) filing pages and import them; drop them in `<cache>/india/inbox` for `sync-results`, `sync-shareholding` and `sync-all`.
+
+Every financial and shareholding value keeps its `filed_at`; restatements are kept as separate rows, and `store.get_financials(isin, as_of=...)` sees only what was public by then.
 
 ### Fundamentals as filed
 

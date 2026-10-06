@@ -29,6 +29,10 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_JEV_ENABLED":             "jev_enabled",
     "TRADINGAGENTS_JEV_MODEL":               "jev_model",
     "TRADINGAGENTS_JEV_CLAIM_CHECK":         "jev_claim_check",
+    # India data layer (`tradingagents india ...`): seconds between requests to
+    # one host, and the User-Agent the exchanges see.
+    "TRADINGAGENTS_INDIA_REQUEST_INTERVAL":  "india_request_interval",
+    "TRADINGAGENTS_INDIA_USER_AGENT":        "india_user_agent",
 }
 
 
@@ -76,6 +80,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR") or os.path.join(_TRADINGAGENTS_HOME, "logs"),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR") or os.path.join(_TRADINGAGENTS_HOME, "cache"),
     "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md"),
+    # The India data layer's SQLite database: NSE securities, prices, corporate
+    # actions and the results and shareholding filings imported into it. Raw
+    # downloads are cached under data_cache_dir/india/raw.
+    "india_db_path": os.getenv("TRADINGAGENTS_INDIA_DB") or os.path.join(_TRADINGAGENTS_HOME, "india", "india.db"),
+    "india_request_interval": 1.0,   # at most one request per second per host
+    "india_user_agent": None,        # None = "TradingAgents/<version> (India data layer; +<repo>)"
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.

@@ -49,6 +49,7 @@ from cli.webui.jobs import (
 )
 from cli.webui.ticker_search import search_tickers
 from tradingagents.backtest import iter_grid
+from tradingagents.dataflows.errors import NoMarketDataError, VendorError, VendorRateLimitError
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV, get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
@@ -56,7 +57,7 @@ from tradingagents.portfolio import PortfolioContext
 
 STATIC = Path(__file__).parent / "static"
 PAGES = {"/": "landing.html", "/analyze": "app.html", "/sentiment": "app.html",
-         "/reports": "app.html", "/backtest": "app.html"}
+         "/company": "app.html", "/reports": "app.html", "/backtest": "app.html"}
 
 ANALYSTS = ["market", "social", "news", "fundamentals"]
 DEPTHS = {"Shallow": 1, "Medium": 3, "Deep": 5}
@@ -261,6 +262,33 @@ def _args(args) -> str:
     return ", ".join(f"{k}={v}" for k, v in args.items()) if isinstance(args, dict) else str(args)
 
 
+# --- Company page -------------------------------------------------------------
+
+def company(symbol: str, basis: str | None = None) -> dict:
+    """One stock's fundamentals as known today: Yahoo Finance, with the India
+    database's filings over it for Indian stocks it has. A live view only: the agents
+    and backtests never read it, since it is not cut at any analysis date."""
+    from tradingagents.dataflows.vendors.india.profile import build_company_profile
+
+    symbol = symbol.strip()
+    if not symbol:
+        raise ApiError("Enter a symbol or company name, e.g. RELIANCE.NS or AAPL.")
+    if not is_valid_ticker_input(symbol):
+        raise ApiError("Tickers use letters, digits and . _ - ^ = only.")
+    if basis not in (None, "", "standalone", "consolidated"):
+        raise ApiError("basis is standalone or consolidated.")
+    try:
+        return build_company_profile(symbol, basis or None)
+    except NoMarketDataError:
+        raise ApiError(f"Yahoo Finance has no data for {symbol.upper()}. Indian stocks need "
+                       "their exchange suffix: .NS for NSE or .BO for BSE.",
+                       HTTPStatus.NOT_FOUND) from None
+    except VendorRateLimitError as exc:
+        raise ApiError(f"{exc}. Try again in a minute.", HTTPStatus.SERVICE_UNAVAILABLE) from None
+    except VendorError as exc:
+        raise ApiError(str(exc), HTTPStatus.BAD_GATEWAY) from None
+
+
 # --- Saved reports and decision logs -----------------------------------------
 
 def _report_id(report) -> str:
@@ -415,6 +443,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(options())
             case ["tickers"]:
                 return self._send_json(search_tickers(q.get("q", "")))
+            case ["company"]:
+                return self._send_json(company(q.get("symbol", ""), q.get("basis")))
             case ["analyses"]:
                 return self._send_json(analysis_list(registry))
             case ["analyses", job_id]:

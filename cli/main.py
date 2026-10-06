@@ -186,5 +186,15 @@ def ui(
         raise typer.Exit(code=1) from None
 
 
+def _india_app():
+    from cli.india import app as india_app
+
+    return india_app
+
+
+app.add_typer(_india_app(), name="india",
+              help="India data layer: sync NSE archives and import saved XBRL filings (see README).")
+
+
 if __name__ == "__main__":
     app()
