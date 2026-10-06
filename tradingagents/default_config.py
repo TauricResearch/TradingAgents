@@ -33,6 +33,12 @@ _ENV_OVERRIDES = {
     # one host, and the User-Agent the exchanges see.
     "TRADINGAGENTS_INDIA_REQUEST_INTERVAL":  "india_request_interval",
     "TRADINGAGENTS_INDIA_USER_AGENT":        "india_user_agent",
+    # Stock screener: which securities a metrics snapshot covers (eq, listed or all).
+    "TRADINGAGENTS_SCREENER_UNIVERSE":       "screener_universe",
+    # Alerts: minutes between delayed-quote polls for price alerts while NSE is
+    # open (0, the default, is off; at least 5). Delivery channels are read from
+    # TRADINGAGENTS_ALERT_* variables directly and never enter this config.
+    "TRADINGAGENTS_ALERT_POLL_MINUTES":      "alert_poll_minutes",
 }
 
 
@@ -86,6 +92,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "india_db_path": os.getenv("TRADINGAGENTS_INDIA_DB") or os.path.join(_TRADINGAGENTS_HOME, "india", "india.db"),
     "india_request_interval": 1.0,   # at most one request per second per host
     "india_user_agent": None,        # None = "TradingAgents/<version> (India data layer; +<repo>)"
+    # Stock screener (`tradingagents screen ...`, the /screens page). Metrics
+    # snapshots live in the India database; saved screens, custom ratios,
+    # watchlists, alerts and the alert inbox are yours, so they live in their own
+    # file and survive a rebuilt India database.
+    "screener_db_path": os.getenv("TRADINGAGENTS_SCREENER_DB") or os.path.join(_TRADINGAGENTS_HOME, "screener", "screens.db"),
+    "screener_universe": "eq",       # eq: listed EQ-series stocks; listed: every listed series; all
+    "alert_poll_minutes": 0,         # delayed-quote polls for price alerts in market hours; 0 = off
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.

@@ -230,7 +230,11 @@ tradingagents ui       # serves http://localhost:8501 and opens the Analyze page
 tradingagents ui --port 8600 --no-browser
 ```
 - **Analyze** — pick a ticker, date, analysts and an optional portfolio file, then watch each desk of the pipeline, the metrics, tool calls and report sections as the run streams in. The portfolio manager's rating shows at the end, and the full report is saved under `results_dir/reports`. The ticker box searches by symbol or company name, so "reliance industries" offers `RELIANCE.NS` and "tencent" offers `0700.HK`; a provider retry shows in the run's activity log instead of the run looking stalled.
-- **Company** — one stock's fundamentals laid out like a stock screener: key ratios, a price chart with 50- and 200-day averages and volume, quarterly results, profit and loss with a TTM column, balance sheet, cash flows, working-capital ratios, compounded growth, and pros and cons from fixed rules (no LLM). Indian companies show figures in ₹ crores with Indian digit grouping, and banks get a lender's layout. The figures come live from Yahoo Finance, usually about four years and five quarters, and only what Yahoo has is shown. Because they are today's figures rather than point-in-time ones, no analysis or backtest reads them. **Analyze with agents** opens the Analyze page with the ticker filled in.
+- **Company** — one stock's fundamentals laid out like a stock screener: key ratios, a price chart with 50- and 200-day averages and volume, quarterly results, profit and loss with a TTM column, balance sheet, cash flows, working-capital ratios, compounded growth, and pros and cons from fixed rules (no LLM). Indian companies show figures in ₹ crores with Indian digit grouping, and banks get a lender's layout. The figures come live from Yahoo Finance, usually about four years and five quarters, and only what Yahoo has is shown. Because they are today's figures rather than point-in-time ones, no analysis or backtest reads them. **Analyze with agents** opens the Analyze page with the ticker filled in. For a stock in the India database the page adds a **Peer comparison** (see [Peers and industries](#peers-and-industries)), **+ Watchlist** and **Create alert**; **Export to Excel** saves the page as a workbook.
+- **Screens** — filter every NSE stock on its fundamentals, shareholding and price with conditions such as `Market Capitalization > 500 AND ROCE > 20`; see [Stock screener](#stock-screener-india) below. Selected rows go to a watchlist, a saved screen can alert you when stocks enter or leave it, and the results export as CSV or Excel.
+- **Industry** — every stock NSE files under one industry, with the industry's medians and a link that opens it as a screen.
+- **Watchlists** — named lists of stocks with notes and, optionally, holdings and their P&L; see [Watchlists](#watchlists).
+- **Alerts** — price, metric, screen, filing and shareholding alerts, with an inbox and a bell in the sidebar showing the unread count; see [Alerts](#alerts).
 - **Sentiment** — with Jev on, every news article and social post the Sentiment Analyst judged: its stance, event type, relevance and whether it was kept, or dropped as a duplicate, off-topic or an injected instruction. Open it from a live run or from a saved report.
 - **Reports** — read any saved report by section, and browse the decision log with each call's alpha, decision and reflection.
 - **Backtest** — start a grid sweep (the tickers box completes each comma-separated entry the same way), follow the cell being run, stop it between cells, then compare mean alpha and hit rate by rating.
@@ -320,6 +324,7 @@ tradingagents india sync-actions --from 2016-01-01  # splits, bonuses, rights, d
 tradingagents india import ~/Downloads/xbrl         # results / shareholding XBRL you saved
 tradingagents india status
 tradingagents india sync-all                        # the nightly run (schedule it yourself)
+tradingagents india reparse-actions                 # re-read stored corporate actions after a parser fix
 ```
 
 Sources and their terms (checked 2026-10-05):
@@ -327,6 +332,79 @@ Sources and their terms (checked 2026-10-05):
 - **NSE's JSON APIs and nsearchives.nseindia.com** (where results and shareholding XBRL live) answer only browsers, and **BSE** refuses non-browser clients. They are not fetched. Save filings from NSE's (or BSE's) filing pages and import them; drop them in `<cache>/india/inbox` for `sync-results`, `sync-shareholding` and `sync-all`.
 
 Every financial and shareholding value keeps its `filed_at`; restatements are kept as separate rows, and `store.get_financials(isin, as_of=...)` sees only what was public by then.
+
+### Stock screener (India)
+
+The **Screens** page and `tradingagents screen ...` filter every stock in the India database on about 100 metrics. Screens read a precomputed snapshot, so build one once the database has prices:
+
+```bash
+tradingagents india build-snapshot                      # the live snapshot (also rebuilt by india sync-all)
+tradingagents india build-snapshot --as-of 2025-10-06   # a historical one, kept beside it
+tradingagents screen run "Market Capitalization > 500 AND Return on capital employed > 20"
+tradingagents screen run "Return over 1 year > 20" --as-of 2025-10-06 --limit 50 --sort return_1y
+tradingagents screen list                               # your saved screens and the presets
+tradingagents screen metrics growth                     # the metrics whose names match "growth"
+```
+
+**Query syntax.** A condition compares metrics, numbers and arithmetic: `ROCE > 20`, `Current price > 200 DMA`, `Net profit / Sales * 100 > 10`. Comparisons are `> < >= <= = !=`; join conditions with `AND`, `OR`, `NOT` and brackets, or write one per line: a new line is an AND that binds loosest, so each line stands on its own (`ROCE > 20` then `ROE > 15 OR P/E < 10` on the next line means ROCE > 20 AND (ROE > 15 OR P/E < 10)). Text metrics (Name, NSE symbol, Industry, also called Sector) take quoted values, `Industry = 'Capital Goods'` or `Industry IN ('Power', 'Utilities')`, ignoring case. Metric names hold spaces and match their aliases case-insensitively (`Return on capital employed`, `ROCE`, `ROCE %`). Numbers may be written `1,000`, `1,00,000`, `1e3` or `20%`. A query is at most 4,000 characters and 40 levels deep, and runs for at most 2 seconds. Errors say where, by line and column, and suggest the metric you meant: `Unknown metric 'Retrun on equity' at col 1 — did you mean 'Return on equity'?`.
+
+**Units.** Amounts are in Rs. crores (`Market Capitalization > 500` is Rs 500 Cr), per-share figures in rupees, percentages in % (`ROE > 15`), changes in holdings in percentage points, and multiples (P/E, debt to equity) as plain numbers. Each metric's unit is listed on the page and by `screen metrics`.
+
+**Missing data never passes.** A comparison with a value the database lacks is unknown, and stays unknown under `NOT`, so the stock is left out; only a branch of an `OR` that is true for it can let it in. The page and the CLI say how many stocks were left out for missing data. Banks and NBFCs have no ROCE, margins, debt to equity or working-capital figures, so they drop out wherever those are used. Division by zero gives a blank, not an error.
+
+**What the figures are.** "TTM" is the latest four quarters summed when the newest quarter is after the newest fiscal year, else that year; "last year" is the newest fiscal year filed; balance-sheet figures are the newest year-end balance sheet's. Prices are adjusted for splits, bonuses and rights, not dividends, and a stock with no close in the 15 days before the snapshot has no price. Market capitalisation is the last close times the shares outstanding: NSE's own issued-share count from its daily PR file when the database has it, else the latest shareholding pattern's total, else equity capital over face value, each multiplied by any split or bonus since its date. Dividend yield is the past year's dividends per share over the price, 0 when none was paid, blank if the corporate-actions sync does not cover the year. Every formula is the Company page's own (`dataflows/formulas.py`), and the Company page lists every metric in its **All metrics** section, so the two always agree.
+
+**Snapshots.** `metrics_snapshot` in the India database holds a row per stock and a column per metric, keyed by `as_of_date` (`live`, or a date). A historical snapshot reads the database point in time: filings filed by its date, prices up to it, and actions known by then; its universe is the stocks that traded in the 15 days before it, so stocks delisted since stay in. The default universe is listed EQ-series stocks (`screener_universe`: `eq`, `listed`, `all`, or `--universe RELIANCE,TCS`). Pick a historical snapshot on the page, or pass `--as-of`. The fundamentals screens need results and shareholding filings imported (`tradingagents india import`); with prices only, the price, return, moving-average, market-cap and dividend metrics work and the rest are blank.
+
+**Custom ratios.** Define `Name = expression` over catalog metrics, such as `Earnings to price = Net profit / Market Capitalization`, then use the name in any query. A ratio's name may not be a catalog name or alias, ratios may use other ratios but never in a circle or more than 8 deep, and each is compiled into the query rather than stored. Saved screens and ratios live in `~/.tradingagents/screener/screens.db` (`TRADINGAGENTS_SCREENER_DB`), your own database beside the India one, with your watchlists, alerts and the alert inbox. Rebuilding or re-syncing the India database never touches it; the file's schema is versioned and upgrades itself in place.
+
+**Presets.** Nine read-only starting points, written for this project: debt-free compounders, high ROCE at a reasonable P/E, consistent five-year growers, Piotroski 8 or 9, promoters raising their stake, low price to book with positive free cash flow, near the 52-week high and still growing, dividend yield with low payout risk, and large caps in an uptrend. Duplicate one to edit it. They are not investment advice.
+
+**Analyze with agents.** Tick up to 10 result rows and confirm to queue a full analysis of each. They run one after another, never at once, and each costs LLM calls on the provider in the Analyze page's settings. The queue shows each run's progress, links to it, and can take a run off or stop it.
+
+### Peers and industries
+
+A Company page for a stock in the India database compares it with its **peers**: the ten companies of its NSE industry nearest it in market capitalisation (nearest by ratio, so 500 and 2,000 Cr are equally near 1,000 Cr), the company itself highlighted. The default columns are price, P/E, market cap, dividend yield, the latest quarter's net profit and sales with their year-on-year growth, and ROCE; for a bank or NBFC (filings in the lender formats, or, with none imported, NSE's Financial Services industry) metrics that do not apply to lenders give way to ROE, price to book and return on assets. A column picker offers every catalog metric and custom ratio, columns sort, and a median row sums up the ten.
+
+`/industry?name=Capital Goods` lists every stock of an industry with the industry's medians, and opens it on the Screens page as the screen `Industry = 'Capital Goods'`; `/industry` lists the industries. Both read the live snapshot through the screener's own engine, so a figure reads the same in a screen, among peers and in an industry. Industry comes from NSE's index lists, so only index members (about 750 stocks) have peers; without a snapshot or an industry the section says which command to run (`india build-snapshot`, `india sync-securities`).
+
+One table serves screens, peers, industries and watchlists: sortable columns, the column picker, the median row, pages and sideways scrolling inside its own box.
+
+### Watchlists
+
+The **Watchlists** page keeps any number of named lists of Indian stocks. Add stocks by name or symbol, from a Company page (**+ Watchlist**) or from selected screen results; give each a note; rename, reorder and delete lists; and import or export the symbols as CSV (a column of symbols, or `symbol,note,quantity,avg_price`; lines it cannot read are listed with the reason). Each list keeps its own columns and sort. Prices are the latest NSE close in the live snapshot, never a live tick, and the page says which day's.
+
+**Holdings mode** lets each row carry a quantity and an average price (long holdings). The table adds invested value, current value, P&L and P&L % and a total row. **Use as portfolio for agent runs** builds the same `PortfolioContext` a portfolio JSON file gives (`tradingagents.portfolio`) and hands it to the Analyze page's portfolio option, so the trader, risk desk and portfolio manager reason from your holdings; the run's activity log shows the block they read. **Analyze with agents** on a watchlist queues up to 10 runs one at a time, like the Screens page, and can send the holdings with each.
+
+### Alerts
+
+The **Alerts** page sets up five kinds of alert and keeps an inbox of what fired; the bell in the sidebar counts the unread.
+
+| Kind | Fires when |
+| --- | --- |
+| Price | a stock's close crosses above or below a level, or moves more than X% in a day (up, down or either) |
+| Metric condition | a condition in the screen query language, for one stock, turns true: `Price to Earning < 20 AND Promoter holding > 50` |
+| Screen membership | stocks enter or leave a saved screen (or a preset) from one live snapshot to the next |
+| New filings | a stock, or a watchlist's stocks, gets new results, a shareholding pattern, a corporate action, a credit rating or another announcement |
+| Shareholding change | promoter holding moves more than X points from one quarterly pattern to the next, or the pledged share rises by more than X |
+
+Alerts are **edge-triggered**: one fires when its condition goes from false to true, not on every evaluation while it stays true, and a price alert fires at most once a trading day. The first evaluation after you create, edit or switch one back on only records where things stand, and a condition missing data never fires. Each alert can have a cooldown (it stays quiet that long after firing) and a last day. Every firing goes to the inbox with what tripped it (the price and level, the condition's values, who entered and left, the filings) and the date of the data.
+
+**When they are evaluated.** After every `tradingagents india sync-all` (after the snapshot rebuild; `--no-alerts` skips it), by `tradingagents india evaluate-alerts [--kinds price,metric,...]`, and by **Evaluate now** on the page. Evaluation is idempotent: each alert remembers the data it last saw, and evaluating the same data again never fires twice. The optional intraday poller checks price alerts on Yahoo Finance's **delayed** quotes (about 15 minutes behind NSE) while NSE is open, 09:15 to 15:30 India time on weekdays; it is off unless `TRADINGAGENTS_ALERT_POLL_MINUTES` is set (5 or more) when `tradingagents ui` starts. Nothing else reads those quotes.
+
+**Delivery.** The inbox always gets every alert. These channels send it on too, and are off unless their environment variables are set (nothing else configures them, and the page shows only whether each is configured, never a value). Each has a **Send test** button; a failed delivery is noted on its inbox item and never stops the evaluation.
+
+| Channel | Variables |
+| --- | --- |
+| Telegram | `TRADINGAGENTS_ALERT_TELEGRAM_TOKEN`, `TRADINGAGENTS_ALERT_TELEGRAM_CHAT_ID` |
+| Webhook | `TRADINGAGENTS_ALERT_WEBHOOK_URL` (a JSON POST with `text` and `content`, so Slack and Discord incoming webhooks accept it) |
+| Email | `TRADINGAGENTS_ALERT_SMTP_HOST`, `TRADINGAGENTS_ALERT_SMTP_TO`, and as needed `_SMTP_PORT` (587 with STARTTLS, or 465), `_SMTP_USER`, `_SMTP_PASSWORD`, `_SMTP_FROM` |
+
+### Export
+
+**Export to Excel** on a Company page saves one workbook, `RELIANCE_financials_2026-10-05.xlsx`, with sheets Summary (key ratios and the screener's metrics), Quarters, Profit & Loss, Balance Sheet, Cash Flow, Ratios, Shareholding and Peers, plus Notes: the sources, the statement basis, the periods each sheet covers and when the file was made. Figures are the page's own, stored as numbers so formulas work on them, with money in Rs. crores as each sheet's corner cell says; headers are bold and frozen.
+
+Screen results, watchlists, peers and industries export as CSV or Excel with exactly the columns and sort on screen, over the whole result rather than the page shown (up to 5,000 rows). CSV is UTF-8 with a byte-order mark, so Excel shows ₹ and other scripts correctly. A text cell beginning with `= + - @` is prefixed with an apostrophe in CSV, and marked as text (`quotePrefix`) in Excel, so a spreadsheet never runs it as a formula. The workbooks are written by a small standard-library XLSX writer (`tradingagents/screener/xlsx.py`), so no extra package is needed; they open in Excel and LibreOffice.
 
 ### Fundamentals as filed
 

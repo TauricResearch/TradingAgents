@@ -112,3 +112,12 @@ def _no_india_db(_isolate_config, tmp_path_factory):
     import tradingagents.dataflows.config as config_module
 
     config_module._config["india_db_path"] = str(tmp_path_factory.getbasetemp() / "no-india-db" / "india.db")
+
+
+@pytest.fixture(autouse=True)
+def _own_screener_db(_isolate_config, tmp_path):
+    """Saved screens and custom ratios in a file of the test's own, never the
+    developer's ~/.tradingagents/screener/screens.db."""
+    import tradingagents.dataflows.config as config_module
+
+    config_module._config["screener_db_path"] = str(tmp_path / "screener" / "screens.db")

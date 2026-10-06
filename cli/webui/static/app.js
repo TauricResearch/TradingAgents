@@ -63,7 +63,12 @@ async function api(path, options = {}) {
   const res = await fetch('/api' + path, init);
   let data = null;
   try { data = await res.json(); } catch (e) { /* empty body */ }
-  if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const err = new Error((data && data.error) || `Request failed (${res.status})`);
+    err.data = data;
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -85,6 +90,7 @@ const I = {
   logo: (s = 30) => `<svg width="${s}" height="${s}" viewBox="0 0 36 36" aria-hidden="true"><path d="M18 3 L32 11 L18 19 L4 11 Z" style="fill: var(--accent);"></path><path d="M4 11 L18 19 L18 33 L4 25 Z" style="fill: var(--accent); opacity: 0.55;"></path><path d="M32 11 L18 19 L18 33 L32 25 Z" style="fill: var(--accent); opacity: 0.8;"></path></svg>`,
   analyze: svg('<polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="15 7 21 7 21 13"></polyline>'),
   company: svg('<path d="M4 21V7l8-4 8 4v14"></path><path d="M3 21h18"></path><path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-3h4v3"></path>'),
+  screens: svg('<path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"></path>'),
   reports: svg('<path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v4h4"></path><path d="M9 12h6M9 16h6"></path>'),
   backtest: svg('<path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline><path d="M12 8v4l3 2"></path>'),
   chevron: svg('<polyline points="6 9 12 15 18 9"></polyline>', 14, 'stroke-width="2.2"'),
@@ -106,6 +112,14 @@ const I = {
   shield: svg('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path>', 13, 'stroke-width="2"'),
   alert: svg('<circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16.5v.5"></path>', 18, 'stroke-width="2"'),
   key: svg('<circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3"></path>', 16),
+  watch: svg('<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"></path>'),
+  bell: svg('<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9z"></path><path d="M10 19a2 2 0 0 0 4 0"></path>'),
+  sheet: svg('<rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M4 9h16M4 15h16M10 3v18"></path>', 16),
+  briefcase: svg('<rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M9 7V5h6v2M3 12h18"></path>', 16),
+  edit: svg('<path d="M4 20h4L19 9l-4-4L4 16z"></path>', 14, 'stroke-width="2"'),
+  trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path>', 14, 'stroke-width="2"'),
+  up: svg('<polyline points="6 15 12 9 18 15"></polyline>', 14, 'stroke-width="2.2"'),
+  down: svg('<polyline points="6 9 12 15 18 9"></polyline>', 14, 'stroke-width="2.2"'),
   agentDone: '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0"><circle cx="12" cy="12" r="10" style="fill: var(--pos);"></circle><polyline points="7 12 11 16 17 8" fill="none" stroke="#04140C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>',
   agentWorking: '<svg class="pulse" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0"><circle cx="12" cy="12" r="10" fill="none" stroke-width="2.4" style="stroke: var(--accent);"></circle><circle cx="12" cy="12" r="4.5" style="fill: var(--accent);"></circle></svg>',
   agentWaiting: '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0"><circle cx="12" cy="12" r="9" fill="none" stroke-width="2" stroke-dasharray="3 3" style="stroke: var(--text-3);"></circle></svg>',
@@ -200,6 +214,9 @@ function renderSide(nav = activeNav, editable = editableSettings) {
     <div class="nav">
       ${link('analyze', '/analyze', 'Analyze', I.analyze)}
       ${link('company', '/company', 'Company', I.company)}
+      ${link('screens', '/screens', 'Screens', I.screens)}
+      ${link('watchlists', '/watchlists', 'Watchlists', I.watch)}
+      ${link('alerts', '/alerts', `Alerts<span class="nav-badge" id="nav-unread" ${UNREAD ? '' : 'hidden'}><span class="sr">, </span>${UNREAD > 99 ? '99+' : UNREAD}<span class="sr"> unread</span></span>`, I.bell)}
       ${link('reports', '/reports', 'Reports', I.reports)}
       ${link('backtest', '/backtest', 'Backtest', I.backtest)}
     </div>
@@ -565,12 +582,13 @@ const analyze = {
 PAGES['/analyze'] = {
   nav: 'analyze', title: 'Analyze', editsSettings: true,
   mount(main) {
-    const f = analyze.form || (analyze.form = {
-      ticker: 'SPY', date: OPTIONS.today, analysts: OPTIONS.defaults.analysts.slice(), portfolio: null, portfolioName: '',
-    });
-    // Another page (Company) can open this one with a ticker filled in.
-    const asked = (new URLSearchParams(location.search).get('ticker') || '').trim();
+    const f = analyzeForm();
+    // Another page (Company) can open this one with a ticker filled in, or (Screens) on a queued run.
+    const params = new URLSearchParams(location.search);
+    const asked = (params.get('ticker') || '').trim();
     if (/^[A-Za-z0-9._\-^=]{1,32}$/.test(asked)) f.ticker = asked.toUpperCase();
+    const job = (params.get('job') || '').trim();
+    if (/^[\w.-]{1,64}$/.test(job)) { analyze.jobId = job; store.set('tradingagents-run', job); }
     main.innerHTML = `
       <div class="stack rise" style="gap: 24px;">
       ${pageHead('Analyze a ticker', 'Analyst team → Research debate → Trader → Risk debate → Portfolio manager')}
@@ -1009,12 +1027,522 @@ function itemMeta(it, ticker) {
   }
 }
 
+/* Tables of stocks, exports and dialogs (shared by Company, Screens, Industry, Watchlists, Alerts) */
+
+const MAX_PICKS = 10; // full agent runs one "Analyze with agents" may queue
+const MAX_SELECT = 100; // rows a results table lets you select at once
+const BASE_COLS = ['name', 'current_price'];
+const CATALOG = { meta: null, pending: null };
+
+/** The metrics catalog and custom ratios, for the column pickers; fetched once, or set by the Screens page. */
+function catalogMeta(fresh = null) {
+  if (fresh) { CATALOG.meta = fresh; return Promise.resolve(fresh); }
+  if (CATALOG.meta) return Promise.resolve(CATALOG.meta);
+  if (!CATALOG.pending) {
+    CATALOG.pending = api('/screen/metrics').then((m) => { CATALOG.meta = m; return m; }).finally(() => { CATALOG.pending = null; });
+  }
+  return CATALOG.pending;
+}
+
+/** One metric's value as the tables show it: Indian grouping for rupees and counts, blanks for missing data. */
+function metricText(v, col) {
+  if (v == null) return '<span class="faint">—</span>';
+  if (col.kind === 'text') return esc(v);
+  const indian = ['Rs Cr', 'Rs', 'shares', 'count', 'Cr shares'].includes(col.unit);
+  const digits = col.unit === 'Rs Cr' && Math.abs(v) >= 100 ? 0 : col.decimals;
+  return grouped(v, indian ? 'en-IN' : 'en-US', digits);
+}
+
+const rupees = (v, digits = 2) => (v == null ? '—' : '₹' + grouped(v, 'en-IN', digits));
+const signedPct = (v) => (v == null ? '—' : minus(signed(v)) + '%');
+const plusMinus = (v, digits = 0) => (v == null ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + grouped(Math.abs(v), 'en-IN', digits));
+const toneOf = (v) => (v == null || v === 0 ? '' : v > 0 ? 'pos-text' : 'neg-text');
+
+/**
+ * One table of stocks in engine.run's layout ({columns, rows, median, sort, page, pages,
+ * pageSize, total}), drawn into `el`. It sorts, picks columns from the catalog, shows the
+ * median row and pages, and scrolls sideways inside its own box; what it cannot do itself
+ * (fetch again) it asks of its owner:
+ *   onSort(sort), onColumns(ids | null), onPage(n)
+ *   fixed(result)     column ids the picker cannot drop (a screen's own metrics)
+ *   pick              {has(symbol), full(), onChange(checkbox)}: a select column
+ *   highlight         the ISIN of the row to mark (the company among its peers)
+ *   extra             [{name, cls, cell(row), total(result)}]: columns after the metrics
+ *   totalRow(result)  the label of a total row under the median (holdings), or ''
+ *   toolbar(result), medianLabel(result), caption(result), empty(result): text around it
+ */
+function StockTable(el, opts = {}) {
+  const t = { el, result: null, filter: '' };
+  const fixed = () => new Set([...BASE_COLS, ...((opts.fixed && t.result && opts.fixed(t.result)) || [])]);
+
+  t.render = (r) => {
+    t.result = r;
+    const open = el.querySelector('.sc-cols') && el.querySelector('.sc-cols').open;
+    const scroller = el.querySelector('.sc-scroll');
+    const left = scroller ? scroller.scrollLeft : 0;
+    const extra = opts.extra || [];
+    const pick = !!opts.pick;
+    const offset = ((r.page || 1) - 1) * (r.pageSize || r.rows.length);
+    const head = r.columns.map((c) => {
+      const sorted = r.sort && r.sort.key === c.id;
+      const dir = sorted ? (r.sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+      return `<th scope="col" class="${c.kind === 'text' ? '' : 'r'}" aria-sort="${dir}"><button type="button" class="sc-sort b" data-sort="${esc(c.id)}" title="${esc(c.description)}">${esc(c.name)}${c.unit ? `<span class="sc-unit">${esc(c.unit)}</span>` : ''}${sorted ? `<span aria-hidden="true">${r.sort.dir === 'asc' ? '▲' : '▼'}</span>` : ''}</button></th>`;
+    }).join('') + extra.map((x) => `<th scope="col" class="xc ${x.cls || ''}">${x.name}</th>`).join('');
+    const rows = r.rows.map((row, i) => {
+      const name = row.values.name || row.symbol;
+      const self = opts.highlight && row.isin === opts.highlight;
+      const picked = pick && opts.pick.has(row.symbol);
+      const cells = r.columns.map((c) => (c.id === 'name'
+        ? `<th scope="row"><a href="/company?symbol=${encodeURIComponent(row.symbol)}" data-link>${esc(name)}</a><span class="sc-sym mono">${esc(row.nseSymbol || row.symbol)}${row.missing ? ' · not in the snapshot' : ''}</span></th>`
+        : `<td class="${c.kind === 'text' ? '' : 'r'}">${metricText(row.values[c.id], c)}</td>`)).join('');
+      const extras = extra.map((x) => `<td class="${x.cls || ''}">${x.cell(row)}</td>`).join('');
+      const box = pick ? `<td class="sc-pick"><input type="checkbox" data-pick="${esc(row.symbol)}" data-name="${esc(name)}" ${picked ? 'checked' : ''} ${!picked && opts.pick.full() ? 'disabled' : ''} aria-label="Select ${esc(name)}"></td>` : '';
+      return `<tr class="${self ? 'is-self' : ''}" ${self ? 'aria-current="true"' : ''}>${box}<td class="r faint num">${offset + i + 1}</td>${cells}${extras}</tr>`;
+    }).join('');
+    const lead = (pick ? '<td></td>' : '') + '<td></td>';
+    const median = r.median || {};
+    const medianRow = r.rows.length && Object.keys(median).length ? `<tr class="sc-median">${lead}${r.columns.map((c) => (c.id === 'name' ? `<th scope="row">${esc(opts.medianLabel ? opts.medianLabel(r) : 'Median')}</th>` : `<td class="${c.kind === 'text' ? '' : 'r'}">${c.kind === 'text' ? '' : metricText(median[c.id], c)}</td>`)).join('')}${extra.map(() => '<td></td>').join('')}</tr>` : '';
+    const totalLabel = opts.totalRow ? opts.totalRow(r) : '';
+    const totalRow = totalLabel ? `<tr class="sc-median sc-total">${lead}${r.columns.map((c) => (c.id === 'name' ? `<th scope="row">${esc(totalLabel)}</th>` : '<td></td>')).join('')}${extra.map((x) => `<td class="${x.cls || ''}">${x.total ? x.total(r) : ''}</td>`).join('')}</tr>` : '';
+    const table = r.rows.length ? `<div class="card table-card"><div class="table-scroll sc-scroll" tabindex="0" role="region" aria-label="${esc(opts.caption ? opts.caption(r) : 'Stocks')}, scrolls sideways">
+        <table class="tbl sc-table"><caption class="sr">${esc(opts.caption ? opts.caption(r) : 'Stocks')}</caption>
+        <thead><tr>${pick ? '<th scope="col" class="sc-pick"><span class="sr">Select</span></th>' : ''}<th scope="col" class="r">#</th>${head}</tr></thead>
+        <tbody>${rows}</tbody>${medianRow || totalRow ? `<tfoot>${medianRow}${totalRow}</tfoot>` : ''}</table></div></div>`
+      : `<p class="empty">${opts.empty ? opts.empty(r) : 'No stocks.'}</p>`;
+    const pager = r.pages > 1 ? `<nav class="sc-pager" aria-label="Pages"><button type="button" class="btn b" data-page="${r.page - 1}" ${r.page <= 1 ? 'disabled' : ''}>Previous</button><span class="muted num">Page ${r.page} of ${r.pages}</span><button type="button" class="btn b" data-page="${r.page + 1}" ${r.page >= r.pages ? 'disabled' : ''}>Next</button></nav>` : '';
+    const picker = opts.onColumns ? `<details class="sc-cols" ${open ? 'open' : ''}><summary class="btn b">Columns · ${r.columns.length}</summary><div class="sc-cols-pop"><input class="input" data-cols-filter placeholder="Find a column" value="${esc(t.filter)}" autocomplete="off" aria-label="Find a column"><div class="sc-cols-list"></div><button type="button" class="link-btn" data-cols-reset>${esc(opts.resetLabel || 'Back to the default columns')}</button></div></details>` : '';
+    el.innerHTML = `${picker || opts.toolbar ? `<div class="sc-toolbar">${picker}${opts.toolbar ? opts.toolbar(r) : ''}</div>` : ''}${table}${pager}`;
+    const fresh = el.querySelector('.sc-scroll');
+    if (fresh) fresh.scrollLeft = left;
+    t.renderColumns();
+  };
+
+  t.renderColumns = () => {
+    const box = el.querySelector('.sc-cols-list');
+    if (!box || !t.result) return;
+    if (!CATALOG.meta) {
+      box.innerHTML = '<p class="hint">Loading the metrics…</p>';
+      catalogMeta().then(() => t.renderColumns(), () => { box.innerHTML = '<p class="hint">The metrics catalog could not be loaded.</p>'; });
+      return;
+    }
+    const shown = new Set(t.result.columns.map((c) => c.id));
+    const keep = fixed();
+    const needle = t.filter.trim().toLowerCase();
+    const all = [...CATALOG.meta.metrics.map((m) => ({ id: m.key, name: m.name, category: m.category })),
+      ...CATALOG.meta.ratios.map((r) => ({ id: r.column, name: r.name, category: 'Custom ratios' }))]
+      .filter((c) => c.id !== 'name' && (!needle || c.name.toLowerCase().includes(needle)));
+    const groups = new Map();
+    for (const c of all) { if (!groups.has(c.category)) groups.set(c.category, []); groups.get(c.category).push(c); }
+    box.innerHTML = [...groups].map(([cat, cs]) => `<fieldset><legend>${esc(cat)}</legend>${cs.map((c) => `<label class="sc-col" ${keep.has(c.id) ? 'title="Always shown"' : ''}><input type="checkbox" data-col="${esc(c.id)}" ${shown.has(c.id) ? 'checked' : ''} ${keep.has(c.id) ? 'disabled' : ''}>${esc(c.name)}</label>`).join('')}</fieldset>`).join('') || '<p class="hint">No column matches.</p>';
+  };
+
+  el.addEventListener('click', (e) => {
+    const s = e.target.closest('[data-sort]');
+    if (s && opts.onSort) {
+      const key = s.dataset.sort;
+      const col = t.result.columns.find((c) => c.id === key);
+      const same = t.result.sort && t.result.sort.key === key;
+      opts.onSort({ key, dir: same ? (t.result.sort.dir === 'asc' ? 'desc' : 'asc') : (col && col.kind === 'text' ? 'asc' : 'desc') });
+      return;
+    }
+    const p = e.target.closest('[data-page]');
+    if (p && opts.onPage) { opts.onPage(+p.dataset.page); return; }
+    if (e.target.closest('[data-cols-reset]') && opts.onColumns) opts.onColumns(null);
+  });
+  el.addEventListener('change', (e) => {
+    const box = e.target;
+    if (box.matches('[data-col]') && opts.onColumns) {
+      const keep = fixed();
+      const ids = t.result.columns.map((c) => c.id).filter((id) => !keep.has(id) && id !== box.dataset.col);
+      if (box.checked) ids.push(box.dataset.col);
+      opts.onColumns(ids);
+    } else if (box.matches('[data-pick]') && opts.pick) opts.pick.onChange(box);
+  });
+  el.addEventListener('input', (e) => {
+    if (e.target.matches('[data-cols-filter]')) { t.filter = e.target.value; t.renderColumns(); }
+  });
+  return t;
+}
+
+/** Fetch a file from the API and save it; an error (no database, a bad query) shows as a toast. */
+async function download(url, button) {
+  if (DEMO) return;
+  if (button) button.disabled = true;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      let message = `The download failed (${res.status}).`;
+      try { message = (await res.json()).error || message; } catch (e) { /* not JSON */ }
+      throw new Error(message);
+    }
+    const blob = await res.blob();
+    const name = (/filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '') || [])[1] || 'download';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    toast(`Saved ${name}.`);
+  } catch (e) { toast(e.message); } finally { if (button) button.disabled = false; }
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-export]');
+  if (b) { e.preventDefault(); download(b.dataset.export, b); }
+});
+
+/** CSV and Excel buttons for a table of stocks; `path` is /api/export/<kind> without its extension. */
+function exportButtons(path, params = {}) {
+  const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+  const url = (ext) => `${path}.${ext}${q ? '?' + q : ''}`;
+  return `<div class="row export-btns" role="group" aria-label="Export"><button type="button" class="btn b" data-export="${esc(url('csv'))}" title="Every row, as CSV">${I.download}CSV</button><button type="button" class="btn b" data-export="${esc(url('xlsx'))}" title="Every row, as an Excel workbook">${I.sheet}Excel</button></div>`;
+}
+
+/** The app's one modal dialog element. */
+function appDialog() {
+  let dlg = $('#app-dialog');
+  if (!dlg) {
+    dlg = document.createElement('dialog');
+    dlg.id = 'app-dialog';
+    dlg.className = 'sc-dialog';
+    dlg.setAttribute('aria-labelledby', 'app-dialog-h');
+    document.body.appendChild(dlg);
+  }
+  return dlg;
+}
+
+/** Every named field in `root`: checkbox groups as lists, a `data-bool` checkbox as true or false. */
+function formFields(root) {
+  const out = {};
+  root.querySelectorAll('[name]').forEach((el) => {
+    if (el.type === 'checkbox' && el.hasAttribute('data-bool')) out[el.name] = el.checked;
+    else if (el.type === 'checkbox') { out[el.name] = out[el.name] || []; if (el.checked) out[el.name].push(el.value); }
+    else if (el.type === 'radio') { if (el.checked) out[el.name] = el.value; }
+    else out[el.name] = el.value;
+  });
+  return out;
+}
+
+/** A modal confirmation; resolves to false, or to the dialog's field values (truthy) when confirmed. */
+function confirmDialog(title, bodyHtml, okLabel, danger = false) {
+  const dlg = appDialog();
+  dlg.innerHTML = `<form method="dialog" class="stack" style="gap: 16px;">
+    <h2 id="app-dialog-h" class="section-h" style="font-size: 20px;">${esc(title)}</h2>
+    <div class="stack sc-dlg-body" style="gap: 10px;">${bodyHtml}</div>
+    <div class="row" style="justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+      <button type="submit" value="cancel" class="btn b">Cancel</button>
+      <button type="submit" value="ok" class="btn ${danger ? 'btn-danger' : 'btn-primary'} b">${esc(okLabel)}</button>
+    </div></form>`;
+  return new Promise((resolve) => {
+    dlg.addEventListener('close', () => {
+      if (dlg.returnValue !== 'ok') return resolve(false);
+      const date = dlg.querySelector('#sc-dlg-date');
+      const analysts = [...dlg.querySelectorAll('input[name="sc-dlg-analyst"]:checked')].map((b) => b.value);
+      return resolve({ date: date ? date.value : null, analysts, fields: formFields(dlg) });
+    }, { once: true });
+    dlg.returnValue = '';
+    dlg.showModal();
+    const okBtn = dlg.querySelector('button[value="ok"]');
+    if (okBtn) okBtn.focus();
+  });
+}
+
+/** A dialog whose OK runs `submit(fields, dialog)` and stays open, showing the error, until it succeeds. */
+function formDialog(title, bodyHtml, okLabel, submit, { onMount = null, danger = false } = {}) {
+  const dlg = appDialog();
+  dlg.innerHTML = `<form class="stack" style="gap: 16px;" novalidate>
+    <h2 id="app-dialog-h" class="section-h" style="font-size: 20px;">${esc(title)}</h2>
+    <div class="stack sc-dlg-body" style="gap: 12px;">${bodyHtml}</div>
+    <div class="dlg-error" role="alert"></div>
+    <div class="row" style="justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+      <button type="button" class="btn b" data-dlg-cancel>Cancel</button>
+      <button type="submit" class="btn ${danger ? 'btn-danger' : 'btn-primary'} b">${esc(okLabel)}</button>
+    </div></form>`;
+  return new Promise((resolve) => {
+    const form = dlg.querySelector('form');
+    let settled = false;
+    const done = (value) => { settled = true; dlg.close(); resolve(value); };
+    dlg.querySelector('[data-dlg-cancel]').addEventListener('click', () => done(false));
+    dlg.addEventListener('close', () => { if (!settled) { settled = true; resolve(false); } }, { once: true });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      form.querySelector('.dlg-error').innerHTML = '';
+      try { done(await submit(formFields(dlg), dlg)); } catch (err) {
+        form.querySelector('.dlg-error').innerHTML = `<div class="alert alert-neg">${I.alert}<div>${esc(err.message)}</div></div>`;
+        if (err.focus) err.focus();
+      } finally { button.disabled = false; }
+    });
+    dlg.returnValue = '';
+    dlg.showModal();
+    if (onMount) onMount(dlg);
+    const first = dlg.querySelector('input:not([type=hidden]):not([type=checkbox]), select, textarea');
+    if (first) first.focus();
+  });
+}
+
+/** Ask which watchlist to add `symbols` to (or name a new one), then add them. */
+async function addToWatchlist(symbols) {
+  if (DEMO || !symbols.length) return null;
+  let lists;
+  try { lists = await api('/watchlists'); } catch (e) { toast(e.message); return null; }
+  const last = String(store.get('tradingagents-watchlist', ''));
+  const chosen = lists.some((w) => String(w.id) === last) ? last : (lists[0] ? String(lists[0].id) : '');
+  const what = symbols.length === 1 ? `<span class="mono">${esc(symbols[0])}</span>` : `${symbols.length} stocks`;
+  const body = `<p>Add ${what} to:</p>
+    ${lists.length ? `<div class="field"><label for="wl-pick">Watchlist</label>${selectWrap(`<select id="wl-pick" name="watchlist">${lists.map((w) => `<option value="${w.id}" ${String(w.id) === chosen ? 'selected' : ''}>${esc(w.name)} (${w.count})</option>`).join('')}<option value="">A new watchlist…</option></select>`)}</div>` : ''}
+    <div class="field" id="wl-new-f"><label for="wl-new">New watchlist's name</label><input id="wl-new" class="input" name="name" maxlength="60" autocomplete="off" placeholder="e.g. Long term"></div>`;
+  const result = await formDialog('Add to a watchlist', body, 'Add', async (f) => {
+    let id = f.watchlist;
+    if (!id) {
+      if (!(f.name || '').trim()) throw new Error('Name the new watchlist, or pick one.');
+      id = (await api('/watchlists', { body: { name: f.name } })).id;
+    }
+    const out = await api(`/watchlists/${id}/items`, { body: { symbols } });
+    store.set('tradingagents-watchlist', id);
+    return { id, out };
+  }, {
+    onMount(dlg) {
+      const pick = dlg.querySelector('#wl-pick');
+      if (!pick) return;
+      const sync = () => { dlg.querySelector('#wl-new-f').hidden = !!pick.value; };
+      pick.addEventListener('change', sync);
+      sync();
+    },
+  });
+  if (!result) return null;
+  const { out } = result;
+  const bits = [`Added ${out.added.length}`];
+  if (out.already.length) bits.push(`${out.already.length} already there`);
+  if (out.rejected.length) bits.push(`${out.rejected.length} not found (${out.rejected.slice(0, 3).map((r) => r.symbol).join(', ')})`);
+  toast(bits.join(' · ') + '.');
+  return result;
+}
+
+/* Alerts: the editor dialog and the unread count ------------------------------ */
+
+const ALERT_KINDS = [['price', 'Price'], ['metric', 'Metric condition'], ['screen', 'Screen membership'], ['filing', 'New filings'], ['shareholding', 'Shareholding change']];
+const FILING_KINDS = [['results', 'Results'], ['shareholding', 'Shareholding patterns'], ['corporate_action', 'Corporate actions'], ['credit_rating', 'Credit ratings'], ['other', 'Other announcements']];
+let UNREAD = 0;
+
+/** The bell's count, patched in place so a settings field being typed in keeps its focus. */
+function setUnread(n) {
+  UNREAD = n || 0;
+  const badge = $('#nav-unread');
+  if (!badge) return;
+  badge.hidden = !UNREAD;
+  badge.innerHTML = `<span class="sr">, </span>${UNREAD > 99 ? '99+' : UNREAD}<span class="sr"> unread</span>`;
+}
+
+async function refreshUnread() {
+  if (DEMO) return;
+  try {
+    const { unread } = await api('/alerts/unread');
+    const changed = unread !== UNREAD;
+    setUnread(unread);
+    if (changed && current === PAGES['/alerts']) PAGES['/alerts'].load();
+  } catch (e) { /* the server may be busy; the next poll tries again */ }
+}
+
+/** An alert as the editor's flat fields. */
+function flattenAlert(x) {
+  if (!x || !x.params) return { ...x };
+  return { id: x.id, kind: x.kind, name: x.name, symbol: x.symbol, watchlistId: x.watchlistId, ...x.params,
+    target: x.watchlistId ? 'watchlist' : 'stock', cooldownMinutes: x.cooldownMinutes, expiresOn: x.expiresOn, enabled: x.enabled };
+}
+
+function alertFields(a, screensList, lists) {
+  const opt = (v, label, cur) => `<option value="${esc(v)}" ${String(cur) === String(v) ? 'selected' : ''}>${esc(label)}</option>`;
+  const stock = `<div class="field"><label for="al-sym">Stock</label><input id="al-sym" name="symbol" class="input mono ticker" value="${esc(a.symbol || '')}" placeholder="Reliance, TCS…" autocomplete="off" spellcheck="false"></div>`;
+  const many = a.kind === 'filing' || a.kind === 'shareholding';
+  const target = !many ? stock : `<input type="hidden" name="target" value="${a.target === 'watchlist' ? 'watchlist' : 'stock'}">
+    <fieldset><legend class="legend">Watch</legend><div class="seg auto"><button type="button" class="b" data-al-target="stock" aria-pressed="${attr(a.target !== 'watchlist')}">One stock</button><button type="button" class="b" data-al-target="watchlist" aria-pressed="${attr(a.target === 'watchlist')}" ${lists.length ? '' : 'disabled title="Make a watchlist first"'}>A watchlist</button></div></fieldset>
+    ${a.target === 'watchlist' ? `<div class="field"><label for="al-wl">Watchlist</label>${selectWrap(`<select id="al-wl" name="watchlistId">${lists.map((w) => opt(w.id, `${w.name} (${w.count})`, a.watchlistId)).join('')}</select>`)}</div>` : stock}`;
+  let body = '';
+  if (a.kind === 'price') {
+    body = `${stock}<div class="al-row"><div class="field"><label for="al-op">When the price</label>${selectWrap(`<select id="al-op" name="op" data-al-re>${opt('above', 'crosses above', a.op)}${opt('below', 'crosses below', a.op)}${opt('move', 'moves in a day by', a.op)}</select>`)}</div>
+      ${a.op === 'move' ? `<div class="field"><label for="al-pct">At least (%)</label><input id="al-pct" name="pct" class="input mono" type="number" min="0.1" step="0.1" value="${esc(a.pct ?? 5)}"></div>
+        <div class="field"><label for="al-dir">Direction</label>${selectWrap(`<select id="al-dir" name="direction">${opt('either', 'up or down', a.direction)}${opt('up', 'up', a.direction)}${opt('down', 'down', a.direction)}</select>`)}</div>`
+        : `<div class="field"><label for="al-level">Level (₹)</label><input id="al-level" name="level" class="input mono" type="number" min="0" step="any" value="${esc(a.level ?? '')}"></div>`}</div>
+      <p class="hint">Checked on each NSE close (adjusted for splits and bonuses) and, when the server's quote poller is on, on Yahoo's delayed quotes in market hours. It fires when the price crosses, not on every day it stays beyond: at most once a trading day.</p>`;
+  } else if (a.kind === 'metric') {
+    body = `${stock}<div class="field"><label for="al-q">Condition</label><textarea id="al-q" name="query" class="input al-q mono" rows="3" spellcheck="false" placeholder="Price to Earning &lt; 20 AND Promoter holding &gt; 50">${esc(a.query || '')}</textarea><div id="al-q-msg" class="sc-msg" role="status" aria-live="polite"></div></div>
+      <p class="hint">The screener's query language, on this stock's figures in the live snapshot. It fires when the condition turns true; a condition missing data never fires.</p>`;
+  } else if (a.kind === 'screen') {
+    const saved = screensList.saved || [];
+    body = `<div class="field"><label for="al-screen">Screen</label>${selectWrap(`<select id="al-screen" name="screen">${saved.length ? `<optgroup label="Your screens">${saved.map((s) => opt(s.id, s.name, a.screen)).join('')}</optgroup>` : ''}<optgroup label="Presets">${(screensList.presets || []).map((s) => opt(s.id, s.name, a.screen)).join('')}</optgroup></select>`)}</div>
+      <div class="field"><label for="al-on">Tell me when stocks</label>${selectWrap(`<select id="al-on" name="on">${opt('both', 'enter or leave', a.on)}${opt('enter', 'enter', a.on)}${opt('leave', 'leave', a.on)}</select>`)}</div>
+      <p class="hint">Each new live snapshot is compared with the one before; the alert lists who came and went.</p>`;
+  } else if (a.kind === 'filing') {
+    const kinds = Array.isArray(a.kinds) ? a.kinds : [a.kinds];
+    body = `${target}<fieldset><legend class="legend">Filings</legend><div class="row" style="gap: 6px 16px; flex-wrap: wrap;">${FILING_KINDS.map(([k, label]) => `<label class="sc-col"><input type="checkbox" name="kinds" value="${k}" ${kinds.includes(k) ? 'checked' : ''}>${label}</label>`).join('')}</div></fieldset>
+      <p class="hint">New rows in the India database's documents and corporate actions, as each sync brings them in.</p>`;
+  } else {
+    body = `${target}<div class="al-row"><div class="field"><label for="al-measure">Watch</label>${selectWrap(`<select id="al-measure" name="measure" data-al-re>${opt('promoter', 'Promoter holding', a.measure)}${opt('pledge', 'Pledged share rising', a.measure)}</select>`)}</div>
+      <div class="field"><label for="al-pts">By at least (% pts)</label><input id="al-pts" name="points" class="input mono" type="number" min="0.01" step="0.01" value="${esc(a.points ?? 1)}"></div>
+      ${a.measure === 'promoter' ? `<div class="field"><label for="al-sdir">Direction</label>${selectWrap(`<select id="al-sdir" name="direction">${opt('either', 'up or down', a.direction)}${opt('up', 'up', a.direction)}${opt('down', 'down', a.direction)}</select>`)}</div>` : ''}</div>
+      <p class="hint">Each new quarterly pattern is compared with the quarter before.</p>`;
+  }
+  return `<div class="field"><label for="al-kind">Alert on</label>${selectWrap(`<select id="al-kind" name="kind" data-al-re>${ALERT_KINDS.map(([k, label]) => opt(k, label, a.kind)).join('')}</select>`)}</div>
+    ${body}
+    <details class="adv"><summary>${I.chevronRight}Name, cooldown and expiry</summary><div>
+      <div class="field"><label for="al-name">Name</label><input id="al-name" name="name" class="input" maxlength="120" value="${esc(a.name || '')}" placeholder="Named from its settings"></div>
+      <div class="al-row"><div class="field"><label for="al-cool">Cooldown (minutes)</label><input id="al-cool" name="cooldownMinutes" class="input mono" type="number" min="0" max="43200" value="${esc(a.cooldownMinutes ?? 0)}"></div>
+      <div class="field"><label for="al-exp">Last day</label><input id="al-exp" name="expiresOn" class="input" type="date" value="${esc(a.expiresOn || '')}"></div></div>
+      <p class="hint">After firing it stays quiet for the cooldown. After its last day it is no longer evaluated. Clear the name to name it from its settings again.</p></div></details>`;
+}
+
+/** Create an alert (`preset` fills the form: kind, symbol, screen) or edit one (`preset` is the alert). */
+async function alertDialog(preset = {}) {
+  if (DEMO) return null;
+  let screensList = { presets: [], saved: [] };
+  let lists = [];
+  try { [screensList, lists] = await Promise.all([api('/screens'), api('/watchlists')]); } catch (e) { /* stock alerts still work */ }
+  const a = { kind: 'price', op: 'above', direction: 'either', on: 'both', measure: 'promoter', target: 'stock',
+    kinds: FILING_KINDS.map(([k]) => k), cooldownMinutes: 0, ...flattenAlert(preset) };
+  if (a.kind === 'screen' && a.screen == null) a.screen = (screensList.saved[0] || screensList.presets[0] || {}).id;
+  if (a.watchlistId == null && lists[0]) a.watchlistId = lists[0].id;
+  let timer = null;
+  const paint = (dlg) => {
+    dlg.querySelector('#al-form').innerHTML = alertFields(a, screensList, lists);
+    const sym = dlg.querySelector('#al-sym');
+    if (sym) tickerSearch(sym);
+    const q = dlg.querySelector('#al-q');
+    if (q) {
+      const check = async () => {
+        const msg = dlg.querySelector('#al-q-msg');
+        if (!q.value.trim()) { msg.className = 'sc-msg'; msg.textContent = ''; return; }
+        try {
+          const res = await api('/screen/validate', { body: { query: q.value } });
+          msg.className = `sc-msg ${res.ok ? 'pos' : 'neg'}`;
+          msg.innerHTML = res.ok ? `${I.check(15)}<span>Valid${res.warnings.length ? ` · ${esc(res.warnings.join(' '))}` : ''}</span>` : `${I.alert}<span>${esc(res.errors[0].message)}</span>`;
+        } catch (e) { /* checked again on save */ }
+      };
+      q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(check, 300); });
+      check();
+    }
+  };
+  const editing = !!a.id;
+  return formDialog(editing ? 'Edit alert' : 'New alert', '<div id="al-form" class="stack" style="gap: 12px;"></div>', editing ? 'Save alert' : 'Create alert', async (f, dlg) => {
+    Object.assign(a, f);
+    const body = { kind: a.kind, name: a.name, cooldownMinutes: a.cooldownMinutes, expiresOn: a.expiresOn || null };
+    if (editing) { body.id = a.id; body.enabled = a.enabled !== false; }
+    const toList = (a.kind === 'filing' || a.kind === 'shareholding') && a.target === 'watchlist';
+    if (a.kind !== 'screen') { if (toList) body.watchlistId = a.watchlistId; else body.symbol = a.symbol; }
+    if (a.kind === 'price') Object.assign(body, a.op === 'move' ? { op: 'move', pct: a.pct, direction: a.direction } : { op: a.op, level: a.level });
+    if (a.kind === 'metric') body.query = a.query;
+    if (a.kind === 'screen') Object.assign(body, { screen: a.screen, on: a.on });
+    if (a.kind === 'filing') body.kinds = a.kinds;
+    if (a.kind === 'shareholding') Object.assign(body, { measure: a.measure, points: a.points }, a.measure === 'promoter' ? { direction: a.direction } : {});
+    try { return await api('/alerts', { body }); } catch (err) {
+      const span = err.data && err.data.errors && err.data.errors[0];
+      const q = dlg.querySelector('#al-q');
+      if (span && q) err.focus = () => { q.focus(); q.setSelectionRange(span.start, Math.max(span.end, span.start + 1)); };
+      throw err;
+    }
+  }, {
+    onMount(dlg) {
+      paint(dlg);
+      dlg.querySelector('#al-form').addEventListener('change', (e) => {
+        if (e.target.matches('[data-al-re]')) { Object.assign(a, formFields(dlg)); paint(dlg); }
+      });
+      dlg.querySelector('#al-form').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-al-target]');
+        if (b && !b.disabled) { Object.assign(a, formFields(dlg), { target: b.dataset.alTarget }); paint(dlg); }
+      });
+    },
+  }).then((saved) => {
+    if (saved) toast(editing ? 'Alert saved. Its next evaluation starts afresh.' : `Alert created: “${saved.name}”. Its first evaluation sets the baseline.`);
+    return saved;
+  });
+}
+
+/* Agent analyses queued from a table ----------------------------------------------- */
+
+/** The Analyze page's form state, made with its defaults when that page has not been opened yet. */
+function analyzeForm() {
+  return analyze.form || (analyze.form = {
+    ticker: 'SPY', date: OPTIONS.today, analysts: OPTIONS.defaults.analysts.slice(), portfolio: null, portfolioName: '',
+  });
+}
+
+/** Confirm, then queue one full analysis per picked stock, run one after another. `holdings`
+ * ({label, load()}) offers to send a watchlist's holdings with each run as its portfolio. */
+async function queueAnalysis(picks, { date = OPTIONS.today, holdings = null } = {}) {
+  if (!picks.length || DEMO) return null;
+  const p = provider();
+  const chosen = analyzeForm().analysts.length ? analyzeForm().analysts.slice() : OPTIONS.defaults.analysts.slice();
+  const body = `<p>This queues <b>${picks.length} full multi-agent analys${picks.length === 1 ? 'is' : 'es'}</b>, run one after another, not at once. Each run makes many LLM calls on your <b>${esc(p.name)}</b> account (${esc(settings.quick)} / ${esc(settings.deep)}, ${esc(settings.depth)} depth), so each one costs money and takes several minutes.</p>
+    <ol class="sc-dlg-list">${picks.map(([sym, name]) => `<li><span class="mono">${esc(sym)}</span> · ${esc(name)}</li>`).join('')}</ol>
+    <div class="field" style="max-width: 220px;"><label for="sc-dlg-date">Analysis date</label><input id="sc-dlg-date" class="input" type="date" value="${esc(date)}" max="${esc(OPTIONS.today)}"></div>
+    <fieldset><legend class="legend">Analysts (fewer is cheaper)</legend><div class="row" style="gap: 6px 16px; flex-wrap: wrap;">${ANALYSTS.map(([id, label]) => `<label class="sc-col"><input type="checkbox" name="sc-dlg-analyst" value="${id}" ${chosen.includes(id) ? 'checked' : ''}>${label}</label>`).join('')}</div></fieldset>
+    ${holdings ? `<label class="sc-col"><input type="checkbox" name="holdings" data-bool checked>Send ${esc(holdings.label)} with each run as its portfolio</label>` : ''}
+    <p class="hint">Change the provider and models in the sidebar of the Analyze page.</p>`;
+  const ok = await confirmDialog(`Analyze ${picks.length} stock${picks.length === 1 ? '' : 's'} with agents?`, body, `Queue ${picks.length} run${picks.length === 1 ? '' : 's'}`);
+  if (!ok) return null;
+  try {
+    const portfolio = holdings && ok.fields.holdings ? await holdings.load() : null;
+    const res = await api('/screen/analyze', { body: { tickers: picks.map(([sym]) => sym), date: ok.date || date, analysts: ok.analysts, settings: runSettings(), portfolio } });
+    toast(`Queued ${res.ids.length} run${res.ids.length === 1 ? '' : 's'}; they start one at a time.`);
+    return res;
+  } catch (e) { toast(e.message); return null; }
+}
+
+/** The analysis queue, drawn into `el` and polled while it has work. */
+function QueuePanel(el) {
+  const q = { data: null, timer: null };
+  q.render = () => {
+    const d = q.data;
+    if (!d || !d.runs.length) { patch(el, ''); return; }
+    const done = d.runs.filter((r) => !['pending', 'running'].includes(r.status)).length;
+    const pill = (r) => ({
+      running: '<span class="pill sm pill-info"><span class="dot pulse" style="background: var(--info);"></span>Running</span>',
+      pending: `<span class="pill sm">Queued${r.position ? ` · #${r.position}` : ''}</span>`,
+      done: '<span class="pill sm pill-pos">Done</span>',
+      failed: '<span class="pill sm pill-neg">Failed</span>',
+      cancelled: '<span class="pill sm pill-plain">Stopped</span>',
+    }[r.status] || esc(r.status));
+    const rows = d.runs.map((r) => `<li class="sc-q-row">
+      <span class="mono sc-q-t">${esc(r.ticker)}</span><span class="faint">${esc(r.date)}</span>${pill(r)}${r.rating ? ratingPill(r.rating) : ''}
+      <span class="grow"></span>
+      <a href="/analyze?job=${encodeURIComponent(r.id)}" data-link>Open run${I.arrow}</a>
+      ${['pending', 'running'].includes(r.status) ? `<button type="button" class="link-btn sc-danger" data-queue-cancel="${esc(r.id)}">${r.status === 'running' ? 'Stop' : 'Remove'}</button>` : ''}</li>`).join('');
+    patch(el, `<div class="row" style="justify-content: space-between; gap: 12px; flex-wrap: wrap;"><h2 class="section-h">Agent analysis queue</h2>
+        <span class="muted" style="font-size: 13px;">${done} of ${d.runs.length} finished · one run at a time${d.current || d.waiting ? ' · <button type="button" class="link-btn sc-danger" data-queue-cancel-all>Stop all</button>' : ''}</span></div>
+      <ul class="card sc-queue">${rows}</ul>`);
+  };
+  q.poll = async () => {
+    clearTimeout(q.timer);
+    try { q.data = await api('/queue'); } catch (e) { return; }
+    if (!el.isConnected) return;
+    q.render();
+    if (q.data.current || q.data.waiting) q.timer = setTimeout(q.poll, 2000);
+  };
+  q.show = (data) => { q.data = data; q.render(); q.poll(); };
+  q.stop = () => clearTimeout(q.timer);
+  el.addEventListener('click', async (e) => {
+    const one = e.target.closest('[data-queue-cancel]');
+    if (one) {
+      one.disabled = true;
+      try { await api(`/queue/${encodeURIComponent(one.dataset.queueCancel)}/cancel`, { body: {} }); } catch (err) { toast(err.message); }
+      q.poll();
+    } else if (e.target.closest('[data-queue-cancel-all]')) {
+      try { await api('/queue/cancel', { body: {} }); } catch (err) { toast(err.message); }
+      q.poll();
+    }
+  });
+  return q;
+}
+
 /* Page: Company -------------------------------------------------------------- */
 
-const company = { data: null, series: null, range: store.get('tradingagents-co-range', '1Y'), dma: { 50: true, 200: true }, seq: 0, observer: null, width: 0, view: null, symbol: '' };
+const company = { data: null, series: null, range: store.get('tradingagents-co-range', '1Y'), dma: { 50: true, 200: true }, seq: 0, observer: null, width: 0, view: null, symbol: '', peers: null, peerSort: null, peerTable: null };
+const PEER_COLS_KEY = 'tradingagents-peer-cols';
 const COMPANY_PICKS = ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ITC.NS', 'AAPL'];
 const RANGES = [['1M', 1], ['6M', 6], ['1Y', 12], ['3Y', 36], ['5Y', 60], ['Max', 0]];
-const COMPANY_SECTIONS = [['co-chart', 'Chart'], ['co-analysis', 'Analysis'], ['co-quarters', 'Quarters'], ['co-pl', 'Profit & Loss'], ['co-bs', 'Balance Sheet'], ['co-cf', 'Cash Flows'], ['co-ratios', 'Ratios'], ['co-sh', 'Shareholding'], ['co-docs', 'Documents']];
+const COMPANY_SECTIONS = [['co-chart', 'Chart'], ['co-analysis', 'Analysis'], ['co-peers', 'Peers'], ['co-quarters', 'Quarters'], ['co-pl', 'Profit & Loss'], ['co-bs', 'Balance Sheet'], ['co-cf', 'Cash Flows'], ['co-ratios', 'Ratios'], ['co-metrics', 'All metrics'], ['co-sh', 'Shareholding'], ['co-docs', 'Documents']];
 const BASES = [['consolidated', 'Consolidated'], ['standalone', 'Standalone']];
 const CURRENCY_SIGNS = { INR: '₹', USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', HKD: 'HK$' };
 
@@ -1088,6 +1616,38 @@ PAGES['/company'] = {
     }
     // Wide tables open on their newest periods; on a phone the oldest would fill the screen.
     body.querySelectorAll('.co-scroll').forEach((el) => { el.scrollLeft = el.scrollWidth; });
+    company.peerTable = null;
+    if (data.india) this.loadPeers();
+  },
+
+  /** The industry's ten companies nearest in market cap, from the live snapshot, in the shared table. */
+  async loadPeers() {
+    const mine = company.seq;
+    const cols = store.get(PEER_COLS_KEY, null);
+    const q = new URLSearchParams({ symbol: company.data.symbol });
+    if (cols && cols.length) q.set('columns', cols.join(','));
+    if (company.peerSort) q.set('sort', `${company.peerSort.key}:${company.peerSort.dir}`);
+    let data;
+    try { data = await api('/peers?' + q.toString()); } catch (e) { data = { available: false, note: e.message }; }
+    if (mine !== company.seq || !$('#co-peers-body')) return;
+    if (!data.available) {
+      $('#co-peers').classList.add('co-peers-off');
+      $('#co-peers-body').innerHTML = `<p class="hint">${esc(data.note)}</p>`;
+      return;
+    }
+    company.peers = data;
+    $('#co-peers-sub').innerHTML = `<a href="/industry?name=${encodeURIComponent(data.industry)}" data-link>${esc(data.industry)}</a> · ${data.industryCount} stocks · the ${data.rows.length} nearest in market cap`;
+    if (!company.peerTable) {
+      company.peerTable = StockTable($('#co-peers-body'), {
+        highlight: data.isin,
+        onSort: (sort) => { company.peerSort = sort; this.loadPeers(); },
+        onColumns: (ids) => { store.set(PEER_COLS_KEY, ids); this.loadPeers(); },
+        toolbar: (r) => `<span class="hint grow">Live snapshot, data to ${esc(r.snapshot.data_date)}${company.peers.lender ? ' · lender columns' : ''}</span>${exportButtons('/api/export/peers', { symbol: company.data.symbol, columns: r.columns.map((c) => c.id).join(','), sort: r.sort ? `${r.sort.key}:${r.sort.dir}` : '' })}`,
+        medianLabel: (r) => `Median of ${r.rows.length}`,
+        caption: () => `Peers of ${company.data.name}`,
+      });
+    }
+    company.peerTable.render(data);
   },
 
   html(d) {
@@ -1099,7 +1659,7 @@ PAGES['/company'] = {
     const src = d.source;
     const fetched = new Date(src.fetched);
     const sourceLine = `Source: ${esc(src.name)} · ${src.annual} annual / ${src.quarterly} quarterly period${src.quarterly === 1 ? '' : 's'} available · fetched ${esc(fetched.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}. Live figures, not cut at any analysis date, so the agents never read this page.`;
-    const jumps = COMPANY_SECTIONS.filter(([id]) => (id !== 'co-sh' || (d.shareholding && d.shareholding.periods.length)) && (id !== 'co-docs' || (d.documents && d.documents.groups.length)));
+    const jumps = COMPANY_SECTIONS.filter(([id]) => (id !== 'co-sh' || (d.shareholding && d.shareholding.periods.length)) && (id !== 'co-docs' || (d.documents && d.documents.groups.length)) && (id !== 'co-metrics' || d.metrics) && (id !== 'co-peers' || d.india));
     const about = d.summary ? `<p class="co-about" id="co-about">${esc(d.summary)}</p>${d.summary.length > 260 ? '<button type="button" class="link-btn co-more" data-more aria-controls="co-about" aria-expanded="false">Read more</button>' : ''}` : '';
     const sections = [['co-quarters', 'Quarterly Results', d.quarters], ['co-pl', 'Profit & Loss', d.profitLoss], ['co-bs', 'Balance Sheet', d.balanceSheet], ['co-cf', 'Cash Flows', d.cashFlows], ['co-ratios', 'Ratios', d.ratios]];
     return `
@@ -1110,6 +1670,8 @@ PAGES['/company'] = {
       ${about ? `<div class="stack" style="gap: 6px; align-items: flex-start;">${about}</div>` : ''}
       <div class="co-actions">
         <a class="btn btn-primary b" href="/analyze?ticker=${encodeURIComponent(d.symbol)}" data-link>${I.analyze}Analyze with agents</a>
+        ${d.india ? `<button type="button" class="btn b" data-co="watch">${I.plus}Watchlist</button><button type="button" class="btn b" data-co="alert">${I.bell}Create alert</button>` : ''}
+        <button type="button" class="btn b" data-export="/api/export/company.xlsx?${esc(new URLSearchParams({ symbol: d.symbol, ...(d.basis && d.basis.current ? { basis: d.basis.current } : {}) }).toString())}">${I.sheet}Export to Excel</button>
         <p class="hint grow">${sourceLine}</p>
       </div>
       ${d.notice ? `<div class="alert alert-info">${I.alert}<div>${esc(d.notice)}</div></div>` : ''}
@@ -1127,7 +1689,11 @@ PAGES['/company'] = {
         </div>
         <p class="hint">Fixed rules applied in code to the figures below, with no LLM involved. Not investment advice.</p>
       </section>
+      ${d.india ? `<section class="card co-section" id="co-peers" aria-labelledby="co-peers-h">
+        <div class="co-section-head"><h2 id="co-peers-h" class="section-h">Peer comparison</h2><span class="hint" id="co-peers-sub"></span></div>
+        <div id="co-peers-body" class="stack" style="gap: 12px;"><p class="hint">Loading peers…</p></div></section>` : ''}
       ${sections.map(([id, title, t]) => statementSection(id, title, t, d.unit, id === 'co-pl' ? growthBoxes(d.growth) : '')).join('')}
+      ${d.metrics ? metricsSection(d.metrics) : ''}
       ${d.shareholding && d.shareholding.periods.length ? shareholdingSection(d.shareholding) : ''}
       ${d.documents && d.documents.groups.length ? documentsSection(d.documents) : ''}`;
   },
@@ -1154,6 +1720,12 @@ PAGES['/company'] = {
   },
 
   onClick(e) {
+    const co = e.target.closest('[data-co]');
+    if (co && company.data) {
+      if (co.dataset.co === 'watch') addToWatchlist([company.data.symbol]);
+      else alertDialog({ kind: 'price', symbol: company.data.symbol });
+      return;
+    }
     const b = e.target.closest('[data-basis]');
     if (b) {
       if (b.getAttribute('aria-pressed') === 'true' || b.disabled) return;
@@ -1248,6 +1820,26 @@ function basisToggle(d) {
     return `<button type="button" class="b" data-basis="${key}" aria-pressed="${attr(d.basis.current === key)}" ${has ? '' : 'disabled title="No filing of this basis in the database"'}>${label}</button>`;
   }).join('');
   return `<div class="seg auto co-basis" role="group" aria-label="Statement basis">${buttons}</div>`;
+}
+
+/** Every screener metric for this stock, computed by the code that builds the screener's snapshot. */
+function metricsSection(m) {
+  const text = (it) => {
+    if (it.notApplicable) return '<span class="faint" title="Does not apply to banks and NBFCs">n/a</span>';
+    if (it.value == null) return '<span class="faint">—</span>';
+    if (it.kind === 'text') return esc(it.value);
+    const indian = ['Rs Cr', 'Rs', 'shares', 'count', 'Cr shares'].includes(it.unit);
+    const digits = it.unit === 'Rs Cr' && Math.abs(it.value) >= 100 ? 0 : it.decimals;
+    const unit = it.unit && !['Rs', 'count', 'score'].includes(it.unit) ? ` <span class="faint" style="font-weight: 400;">${esc(it.unit)}</span>` : '';
+    return (it.unit === 'Rs' ? '₹' : '') + grouped(it.value, indian ? 'en-IN' : 'en-US', digits) + unit;
+  };
+  const shares = m.shares ? ` Shares outstanding come from the ${esc(m.shares.source)} of ${esc(m.shares.date)}.` : '';
+  return `<section class="card co-section" id="co-metrics" aria-labelledby="co-metrics-h">
+    <div class="co-section-head"><h2 id="co-metrics-h" class="section-h">All metrics</h2><a href="/screens" data-link class="hint">Screen on these${I.arrow}</a></div>
+    <p class="co-src">The screener's figures for this stock, computed now from the India database (prices to ${esc(m.day)}${m.basis ? `, ${esc(m.basis)} filings` : ', no filings imported'}) by the same code that builds its snapshot.${shares}</p>
+    <div class="co-metrics">${m.groups.map((g, i) => `<details class="co-metric-group" ${i < 4 ? 'open' : ''}><summary>${esc(g.category)}</summary>
+      <dl>${g.items.map((it) => `<dt title="${esc(it.description)}">${esc(it.name)}</dt><dd data-metric="${esc(it.key)}">${text(it)}</dd>`).join('')}</dl></details>`).join('')}</div>
+    <p class="hint">A dash is a figure the database cannot give yet; screens leave the stock out wherever they need it. Hover a name for its definition.</p></section>`;
 }
 
 const SH_LINES = [['promoter_pct', 'Promoters', 'var(--accent)'], ['fii_pct', 'FIIs', 'var(--dma-50)'], ['dii_pct', 'DIIs', 'var(--dma-200)']];
@@ -1426,6 +2018,609 @@ function chartReadout(i) {
     .map((n) => `<span><span class="co-swatch" style="background: var(--dma-${n});"></span>${n} DMA ${priceText(s['dma' + n][i], code)}</span>`).join('');
   patch($('#co-readout'), `<span class="mono">${esc(DAY.format(s.t[i]))}</span><span>Close <b>${priceText(s.close[i], code)}</b></span>${dma}<span>Volume ${s.volume[i] == null ? '—' : grouped(s.volume[i], localeFor(code), 0)}</span>`);
 }
+
+/* Page: Screens -------------------------------------------------------------- */
+
+const SCREEN_KEY = 'tradingagents-screen';
+const SCREEN_EXAMPLE = 'Market Capitalization > 1000\nReturn over 1 year > 20\nPrice vs 200 DMA > 0';
+const screener = {
+  meta: null, list: null, names: [], current: null, asOf: '', result: null, page: 1, sort: null, columns: null,
+  picked: new Map(), validateTimer: null, validateSeq: 0, runSeq: 0, error: null, table: null, queue: null,
+  ac: { items: [], active: -1, start: 0, end: 0 }, docsFilter: '', editingRatio: null,
+};
+
+PAGES['/screens'] = {
+  nav: 'screens', title: 'Screens',
+  async mount(main) {
+    const saved = store.get(SCREEN_KEY, null);
+    screener.current = screener.current || (saved && typeof saved.query === 'string' ? saved
+      : { id: null, name: 'Untitled screen', description: '', query: SCREEN_EXAMPLE, preset: false });
+    main.innerHTML = `<div class="stack rise" style="gap: 22px;">
+      ${pageHead('Screens', 'Filter every Indian stock on its fundamentals, shareholding and price: write conditions over the metrics below, one per line or joined with AND / OR. Figures come from the India database\'s precomputed snapshot.')}
+      <div id="sc-setup"></div>
+      <div class="sc-top">
+        <section class="card sc-editor" aria-labelledby="sc-name-l">
+          <div class="sc-head">
+            <label id="sc-name-l" for="sc-name" class="sr">Screen name</label>
+            <input id="sc-name" class="input sc-name" autocomplete="off" spellcheck="false">
+            <span id="sc-state" class="pill sm"></span>
+          </div>
+          <div class="field">
+            <label for="sc-q">Query</label>
+            <div class="sc-code combo" id="sc-code">
+              <div class="sc-backdrop" id="sc-backdrop" aria-hidden="true"></div>
+              <textarea id="sc-q" class="sc-text mono" rows="5" spellcheck="false" autocomplete="off" aria-describedby="sc-msg"
+                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sc-ac"></textarea>
+              <ul class="combo-list sc-ac" id="sc-ac" role="listbox" aria-label="Matching metrics" hidden></ul>
+            </div>
+            <div id="sc-msg" class="sc-msg" role="status" aria-live="polite"></div>
+          </div>
+          <div class="sc-actions">
+            <button type="button" class="btn btn-primary b" data-sc="run">${I.play}Run screen</button>
+            <button type="button" class="btn b" data-sc="save">Save</button>
+            <button type="button" class="btn b" data-sc="duplicate">Duplicate</button>
+            <button type="button" class="btn btn-danger b" data-sc="delete">Delete</button>
+            <div class="grow"></div>
+            <div class="field sc-asof"><label for="sc-asof">Snapshot</label>${selectWrap('<select id="sc-asof"></select>', 'raised')}</div>
+          </div>
+          <details class="sc-docs" id="sc-docs"><summary>${I.chevronRight}Metrics and query syntax</summary><div id="sc-docs-body"></div></details>
+        </section>
+        <aside class="sc-side" aria-label="Screens and custom ratios">
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="sc-saved-h">
+            <div class="row" style="justify-content: space-between; gap: 8px;"><h2 id="sc-saved-h" class="sc-side-h">Your screens</h2><button type="button" class="link-btn sc-new" data-sc="new">${I.plus}New</button></div>
+            <ul class="sc-list" id="sc-saved"></ul>
+          </section>
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="sc-presets-h">
+            <h2 id="sc-presets-h" class="sc-side-h">Presets</h2>
+            <p class="hint">Read-only starting points we wrote; duplicate one to change it. Not investment advice.</p>
+            <ul class="sc-list" id="sc-presets"></ul>
+          </section>
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="sc-ratios-h">
+            <h2 id="sc-ratios-h" class="sc-side-h">Custom ratios</h2>
+            <p class="hint">Define a ratio once and use its name in any query, e.g. <span class="mono">Earnings to price = Net profit / Market Capitalization</span>.</p>
+            <ul class="sc-list" id="sc-ratios"></ul>
+            <form id="sc-ratio-form" class="stack" style="gap: 8px;" novalidate>
+              <label for="sc-ratio" class="sr">New custom ratio</label>
+              <input id="sc-ratio" class="input mono" placeholder="Name = expression" autocomplete="off" spellcheck="false">
+              <div class="row" style="gap: 8px;"><button type="submit" class="btn b" id="sc-ratio-save">Add ratio</button><button type="button" class="link-btn" id="sc-ratio-cancel" hidden>Cancel edit</button></div>
+              <div id="sc-ratio-msg" role="alert"></div>
+            </form>
+          </section>
+        </aside>
+      </div>
+      <section id="sc-results" class="stack" style="gap: 14px;" aria-labelledby="sc-res-h"><div id="sc-res-head"></div><div id="sc-table" class="stack" style="gap: 14px;"></div></section>
+      <section id="sc-queue" class="stack" style="gap: 10px;" aria-label="Agent analysis queue"></section>
+    </div>`;
+    this.bind(main);
+    screener.table = StockTable($('#sc-table'), {
+      fixed: (r) => ['current_price', ...r.used],
+      resetLabel: 'Show only the query\'s metrics',
+      onSort: (sort) => { screener.sort = sort; this.run(); },
+      onColumns: (ids) => { screener.columns = ids; if (screener.current.id) this.markDirty(); this.run(true); },
+      onPage: async (n) => { screener.page = n; await this.run(true); $('#sc-results').scrollIntoView({ block: 'start' }); },
+      pick: { has: (s) => screener.picked.has(s), full: () => screener.picked.size >= MAX_SELECT, onChange: (box) => this.onPick(box) },
+      toolbar: (r) => this.toolbarHtml(r),
+      medianLabel: (r) => `Median of ${r.total.toLocaleString()}`,
+      caption: (r) => `Stocks matching the screen, page ${r.page} of ${r.pages}`,
+      empty: (r) => `No stock matches${r.excluded ? `; ${r.excluded.toLocaleString()} were left out because a value the condition needs is missing` : ''}.`,
+    });
+    screener.queue = QueuePanel($('#sc-queue'));
+    this.renderEditor();
+    try {
+      [screener.meta, screener.list] = await Promise.all([api('/screen/metrics'), api('/screens')]);
+    } catch (e) {
+      $('#sc-setup').innerHTML = `<div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+    if (current !== PAGES['/screens']) return;
+    catalogMeta(screener.meta);
+    this.buildNames();
+    this.renderSetup();
+    this.renderAsOf();
+    this.renderLists();
+    this.renderDocs();
+    screener.queue.poll();
+    const params = new URLSearchParams(location.search);
+    const asked = this.find(params.get('screen'));
+    if (asked) { this.load(asked); return; }
+    if (params.get('query')) {  // another page (an industry) opens its own screen
+      this.load({ id: null, name: params.get('name') || 'Untitled screen', description: '', query: params.get('query'), preset: false });
+      return;
+    }
+    this.renderEditor();
+    this.validate(true);
+    if (screener.meta.snapshots.length) this.run();
+  },
+  unmount() {
+    clearTimeout(screener.validateTimer);
+    if (screener.queue) screener.queue.stop();
+  },
+
+  find(id) {
+    const l = screener.list || { presets: [], saved: [] };
+    return [...l.saved, ...l.presets].find((s) => String(s.id) === String(id));
+  },
+
+  remember() { store.set(SCREEN_KEY, screener.current); },
+
+  /** Every name a query may use, for autocomplete: catalog names, aliases and custom ratios. */
+  buildNames() {
+    const out = [];
+    for (const m of screener.meta.metrics) {
+      out.push({ text: m.name, key: m.key, name: m.name, unit: m.unit, category: m.category });
+      for (const a of m.aliases) out.push({ text: a, key: m.key, name: m.name, unit: m.unit, category: m.category, alias: true });
+    }
+    for (const r of screener.meta.ratios) out.push({ text: r.name, key: r.column, name: r.name, unit: '', category: 'Custom ratio' });
+    screener.names = out;
+  },
+
+  bind(main) {
+    const q = $('#sc-q');
+    q.addEventListener('input', () => {
+      screener.current.query = q.value;
+      this.markDirty();
+      this.paintBackdrop();
+      this.autocomplete();
+      clearTimeout(screener.validateTimer);
+      screener.validateTimer = setTimeout(() => this.validate(), 300);
+    });
+    q.addEventListener('scroll', () => { $('#sc-backdrop').scrollTop = q.scrollTop; });
+    q.addEventListener('keydown', (e) => this.onKey(e));
+    q.addEventListener('click', () => this.autocomplete());
+    q.addEventListener('blur', () => setTimeout(() => this.closeAc(), 120));
+    $('#sc-ac').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const o = e.target.closest('[data-i]');
+      if (o) this.pick(+o.dataset.i);
+    });
+    $('#sc-name').addEventListener('input', (e) => { screener.current.name = e.target.value; this.markDirty(); });
+    $('#sc-asof').addEventListener('change', (e) => { screener.asOf = e.target.value; screener.page = 1; this.run(); });
+    main.addEventListener('click', (e) => this.onClick(e));
+    main.addEventListener('input', (e) => {
+      if (e.target.id === 'sc-docs-filter') { screener.docsFilter = e.target.value; this.renderDocsList(); }
+    });
+    $('#sc-ratio-form').addEventListener('submit', (e) => { e.preventDefault(); this.saveRatio(); });
+    $('#sc-ratio-cancel').addEventListener('click', () => this.editRatio(null));
+  },
+
+  markDirty() {
+    screener.current.dirty = true;
+    this.remember();
+    this.renderState();
+  },
+
+  renderEditor() {
+    const c = screener.current;
+    $('#sc-name').value = c.name || '';
+    if ($('#sc-q').value !== c.query) $('#sc-q').value = c.query || '';
+    this.paintBackdrop();
+    this.renderState();
+  },
+
+  renderState() {
+    const c = screener.current;
+    const el = $('#sc-state');
+    if (c.preset) { el.className = 'pill sm'; el.textContent = c.dirty ? 'Preset · edited' : 'Preset · read-only'; }
+    else if (c.id) { el.className = c.dirty ? 'pill sm pill-info' : 'pill sm pill-pos'; el.textContent = c.dirty ? 'Unsaved changes' : 'Saved'; }
+    else { el.className = 'pill sm pill-plain'; el.textContent = 'Not saved'; }
+    const del = $('[data-sc="delete"]');
+    del.disabled = !c.id || c.preset;
+    del.title = c.preset ? 'Presets cannot be deleted' : c.id ? '' : 'This screen is not saved';
+    $('[data-sc="save"]').textContent = c.preset ? 'Save as my screen' : 'Save';
+  },
+
+  renderSetup() {
+    const m = screener.meta;
+    $('#sc-setup').innerHTML = m.snapshots.length ? '' : `<div class="alert alert-info">${I.alert}<div><strong style="color: var(--text);">No metrics snapshot yet.</strong> Screens run on a snapshot precomputed from the India database. Build it with <span class="mono">python -m cli.main india build-snapshot</span> (after <span class="mono">india sync-all</span>), then reload this page.</div></div>`;
+  },
+
+  renderAsOf() {
+    const snaps = screener.meta.snapshots;
+    if (!snaps.some((s) => s.as_of === (screener.asOf || 'live'))) screener.asOf = snaps.some((s) => s.as_of === 'live') ? '' : (snaps[0] ? snaps[0].as_of : '');
+    $('#sc-asof').innerHTML = snaps.length ? snaps.map((s) => {
+      const value = s.as_of === 'live' ? '' : s.as_of;
+      const label = s.as_of === 'live' ? `Live · data to ${s.data_date}` : `As of ${s.as_of}`;
+      return `<option value="${esc(value)}" ${value === screener.asOf ? 'selected' : ''}>${esc(label)} (${s.rows.toLocaleString()})</option>`;
+    }).join('') : '<option value="">No snapshot built</option>';
+    $('#sc-asof').disabled = !snaps.length;
+  },
+
+  renderLists() {
+    const l = screener.list;
+    const c = screener.current;
+    const item = (s) => `<li><button type="button" class="sc-item b" data-load="${esc(s.id)}" aria-pressed="${attr(String(c.id) === String(s.id))}">
+      <span class="sc-item-name">${esc(s.name)}</span><span class="sc-item-q mono">${esc(s.query.replace(/\n/g, ' · '))}</span></button></li>`;
+    $('#sc-saved').innerHTML = l.saved.length ? l.saved.map(item).join('') : '<li class="hint">Screens you save appear here.</li>';
+    $('#sc-presets').innerHTML = l.presets.map(item).join('');
+    const ratios = screener.meta.ratios;
+    $('#sc-ratios').innerHTML = ratios.length ? ratios.map((r) => `<li class="sc-ratio-row"><span class="mono sc-ratio-def"><b>${esc(r.name)}</b> = ${esc(r.expression)}</span>
+      <span class="row" style="gap: 10px;"><button type="button" class="link-btn" data-ratio-edit="${r.id}">Edit</button><button type="button" class="link-btn sc-danger" data-ratio-del="${r.id}">Delete</button></span></li>`).join('')
+      : '<li class="hint">No custom ratios yet.</li>';
+  },
+
+  /* Docs ---------------------------------------------------------------- */
+  renderDocs() {
+    $('#sc-docs-body').innerHTML = `<div class="sc-syntax">
+        <p><b>Conditions</b> compare metrics, numbers and arithmetic: <span class="mono">ROCE &gt; 20</span>, <span class="mono">Current price &gt; 200 DMA</span>, <span class="mono">Net profit / Sales * 100 &gt; 10</span>. Comparisons: <span class="mono">&gt; &lt; &gt;= &lt;= = !=</span>. Join them with <span class="mono">AND</span>, <span class="mono">OR</span>, <span class="mono">NOT</span> and brackets, or put each on its own line: a new line is an AND, so each line stands as one condition.</p>
+        <p><b>Text</b> metrics (Name, NSE symbol, Industry) take quoted values: <span class="mono">Industry = 'Capital Goods'</span>, <span class="mono">Industry IN ('Power', 'Utilities')</span>. Matching ignores case.</p>
+        <p><b>Units</b>: amounts are in Rs. crores (<span class="mono">Market Capitalization &gt; 500</span> means Rs 500 Cr), percentages in % (<span class="mono">ROE &gt; 15</span>), multiples as plain numbers. Numbers may be written 1,000 or 1,00,000 or 1e3.</p>
+        <p><b>Missing data never passes.</b> A comparison with a value the database lacks is unknown, and so is its NOT: the stock is left out (and counted as left out for missing data) unless another branch of an OR is true for it. Banks and NBFCs have no ROCE, margins or debt to equity, so they drop out wherever those are used.</p>
+      </div>
+      <div class="field" style="max-width: 360px;"><label for="sc-docs-filter">Find a metric</label><input id="sc-docs-filter" class="input" placeholder="growth, pledge, P/E…" value="${esc(screener.docsFilter)}" autocomplete="off"></div>
+      <div id="sc-docs-list" class="sc-docs-list"></div>`;
+    this.renderDocsList();
+  },
+
+  renderDocsList() {
+    const needle = screener.docsFilter.trim().toLowerCase();
+    const groups = new Map();
+    for (const m of screener.meta.metrics) {
+      if (needle && ![m.name, m.key, m.description, ...m.aliases].some((t) => t.toLowerCase().includes(needle))) continue;
+      if (!groups.has(m.category)) groups.set(m.category, []);
+      groups.get(m.category).push(m);
+    }
+    const ratios = screener.meta.ratios.filter((r) => !needle || r.name.toLowerCase().includes(needle));
+    const html = [...groups].map(([cat, ms]) => `<section class="sc-doc-group"><h3>${esc(cat)}</h3><dl>${ms.map((m) => `
+        <div class="sc-doc"><dt><button type="button" class="link-btn" data-insert="${esc(m.name)}" title="Insert into the query">${esc(m.name)}</button>${m.unit ? ` <span class="sc-unit">${esc(m.unit)}</span>` : ''}${m.applies === 'non_financial' ? ' <span class="sc-unit" title="Blank for banks and NBFCs">not banks</span>' : ''}</dt>
+        <dd>${esc(m.description)}${m.aliases.length ? `<span class="sc-aka">Also: ${m.aliases.map(esc).join(', ')}</span>` : ''}</dd></div>`).join('')}</dl></section>`).join('')
+      + (ratios.length ? `<section class="sc-doc-group"><h3>Custom ratios</h3><dl>${ratios.map((r) => `<div class="sc-doc"><dt><button type="button" class="link-btn" data-insert="${esc(r.name)}">${esc(r.name)}</button></dt><dd class="mono">${esc(r.expression)}</dd></div>`).join('')}</dl></section>` : '');
+    $('#sc-docs-list').innerHTML = html || '<p class="hint">No metric matches.</p>';
+  },
+
+  insert(text) {
+    const q = $('#sc-q');
+    const start = q.selectionStart ?? q.value.length;
+    const end = q.selectionEnd ?? start;
+    const before = q.value.slice(0, start);
+    const pad = before && !/[\s(]$/.test(before) ? ' ' : '';
+    q.setRangeText(pad + text + ' ', start, end, 'end');
+    q.focus();
+    q.dispatchEvent(new Event('input'));
+  },
+
+  /* Autocomplete --------------------------------------------------------- */
+  /** The partial name before the caret: after the last operator, bracket, comma, newline or keyword. */
+  wordAtCaret() {
+    const q = $('#sc-q');
+    const caret = q.selectionStart;
+    if (caret !== q.selectionEnd) return null;
+    const before = q.value.slice(0, caret);
+    if ((before.match(/['"]/g) || []).length % 2) return null; // inside a quoted value
+    let start = 0;
+    const delim = /[<>=!(),+*\n]|\s[-/]\s|\b(?:AND|OR|NOT|IN)\b/gi;
+    let m;
+    while ((m = delim.exec(before)) !== null) start = m.index + m[0].length;
+    const lead = before.slice(start).match(/^\s*/)[0].length;
+    const word = before.slice(start + lead);
+    if (!/[A-Za-z]/.test(word) || word.length < 2) return null;
+    return { word, start: start + lead, end: caret };
+  },
+
+  autocomplete() {
+    const hit = this.wordAtCaret();
+    if (!hit || !screener.names.length) return this.closeAc();
+    const w = hit.word.toLowerCase().replace(/\s+/g, ' ');
+    const seen = new Set();
+    const score = (n) => (n.text.toLowerCase().startsWith(w) ? 0 : 1) + (n.alias ? 0.5 : 0);
+    const items = screener.names.filter((n) => n.text.toLowerCase().includes(w))
+      .sort((a, b) => score(a) - score(b) || a.text.length - b.text.length)
+      .filter((n) => { if (seen.has(n.key)) return false; seen.add(n.key); return true; }).slice(0, 8);
+    if (!items.length || (items.length === 1 && items[0].text.toLowerCase() === w)) return this.closeAc();
+    screener.ac = { items, active: 0, start: hit.start, end: hit.end };
+    this.renderAc();
+  },
+
+  renderAc() {
+    const ac = screener.ac;
+    const list = $('#sc-ac');
+    list.innerHTML = ac.items.map((n, i) => `<li id="sc-ac-${i}" role="option" class="combo-opt" data-i="${i}" aria-selected="${attr(i === ac.active)}">
+      <span class="combo-sym">${esc(n.text)}</span><span class="combo-meta">${esc([n.alias ? n.name : '', n.unit, n.category].filter(Boolean).join(' · '))}</span></li>`).join('');
+    list.hidden = false;
+    $('#sc-q').setAttribute('aria-expanded', 'true');
+    $('#sc-q').setAttribute('aria-activedescendant', `sc-ac-${ac.active}`);
+  },
+
+  closeAc() {
+    const list = $('#sc-ac');
+    if (!list) return;
+    list.hidden = true;
+    screener.ac.items = [];
+    $('#sc-q').setAttribute('aria-expanded', 'false');
+    $('#sc-q').removeAttribute('aria-activedescendant');
+  },
+
+  pick(i) {
+    const ac = screener.ac;
+    const n = ac.items[i];
+    if (!n) return;
+    const q = $('#sc-q');
+    q.setRangeText(n.text + ' ', ac.start, ac.end, 'end');
+    this.closeAc();
+    q.focus();
+    q.dispatchEvent(new Event('input'));
+    this.closeAc();
+  },
+
+  onKey(e) {
+    const ac = screener.ac;
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); this.run(); return; }
+    if (!ac.items.length || $('#sc-ac').hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      ac.active = (ac.active + (e.key === 'ArrowDown' ? 1 : -1) + ac.items.length) % ac.items.length;
+      this.renderAc();
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      this.pick(ac.active);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      this.closeAc();
+    }
+  },
+
+  /* Validation ----------------------------------------------------------- */
+  paintBackdrop() {
+    const text = $('#sc-q').value;
+    const err = screener.error;
+    let html;
+    if (err && err.start <= text.length) {
+      const end = Math.min(Math.max(err.end, err.start), text.length);
+      const span = text.slice(err.start, end);
+      html = esc(text.slice(0, err.start)) + `<mark>${span ? esc(span) : ' '}</mark>` + esc(text.slice(end));
+    } else html = esc(text);
+    $('#sc-backdrop').innerHTML = html + '\n';
+    $('#sc-backdrop').scrollTop = $('#sc-q').scrollTop;
+  },
+
+  async validate(quiet = false) {
+    if (!screener.meta) return;
+    const mine = ++screener.validateSeq;
+    const query = $('#sc-q').value;
+    let res;
+    try { res = await api('/screen/validate', { body: { query } }); } catch (e) { if (!quiet) toast(e.message); return; }
+    if (mine !== screener.validateSeq || current !== PAGES['/screens']) return;
+    const msg = $('#sc-msg');
+    if (!res.ok) {
+      screener.error = res.errors[0];
+      msg.className = 'sc-msg neg';
+      msg.innerHTML = `${I.alert}<span>${esc(screener.error.message)}</span>`;
+    } else {
+      screener.error = null;
+      const n = res.columns.length;
+      msg.className = 'sc-msg pos';
+      msg.innerHTML = `${I.check(15)}<span>Valid · ${n} metric${n === 1 ? '' : 's'}${res.warnings.length ? ` · ${esc(res.warnings.join(' '))}` : ''}. Ctrl+Enter runs it.</span>`;
+    }
+    this.paintBackdrop();
+  },
+
+  /* Running -------------------------------------------------------------- */
+  async run(keepPage = false) {
+    if (!screener.meta) return;
+    if (!keepPage) screener.page = 1;
+    const mine = ++screener.runSeq;
+    const c = screener.current;
+    if (!$('#sc-table table')) patch($('#sc-res-head'), '<p class="empty">Running…</p>');
+    let res;
+    try {
+      res = await api('/screen/run', { body: { query: c.query, columns: screener.columns, sort: screener.sort, page: screener.page, as_of: screener.asOf || null } });
+    } catch (e) {
+      if (mine !== screener.runSeq) return;
+      patch($('#sc-res-head'), `<h2 id="sc-res-h" class="section-h">Results</h2><div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div>`);
+      $('#sc-table').innerHTML = '';
+      this.validate(true);
+      return;
+    }
+    if (mine !== screener.runSeq || current !== PAGES['/screens']) return;
+    screener.result = res;
+    screener.sort = res.sort;
+    this.renderResults();
+  },
+
+  renderResults() {
+    const r = screener.result;
+    const snap = r.snapshot;
+    const when = snap.as_of === 'live' ? `live snapshot, data to ${esc(snap.data_date)}` : `snapshot as of ${esc(snap.as_of)}`;
+    const left = r.excluded ? ` · <span title="A condition needed a value these stocks do not have">${r.excluded.toLocaleString()} left out for missing data</span>${r.excludedFinancial ? ` (${r.excludedFinancial.toLocaleString()} of them banks or NBFCs, for which a metric does not apply)` : ''}` : '';
+    patch($('#sc-res-head'), `<div class="sc-res-head">
+        <h2 id="sc-res-h" class="section-h">Results</h2>
+        <p class="sc-summary"><b>${r.total.toLocaleString()}</b> of ${r.universe.toLocaleString()} stocks match${left} · ${when} · ${r.elapsedMs.toLocaleString()} ms</p>
+      </div>`);
+    screener.table.render(r);
+    this.renderPicks();
+  },
+
+  toolbarHtml(r) {
+    const c = screener.current;
+    const exports = exportButtons('/api/export/screen', {
+      query: c.query, columns: r.columns.map((col) => col.id).join(','), sort: r.sort ? `${r.sort.key}:${r.sort.dir}` : '',
+      as_of: screener.asOf, name: c.name,
+    });
+    return `${exports}<button type="button" class="btn b" data-sc="alert" title="Tell me when stocks enter or leave this screen">${I.bell}Alert me</button>
+      <div class="grow"></div>
+      <span class="muted" id="sc-picked-n" style="font-size: 13px;"></span>
+      <button type="button" class="link-btn" data-pick-clear hidden>Clear</button>
+      <button type="button" class="btn b" data-sc="watch" disabled>${I.watch}Add to watchlist</button>
+      <button type="button" class="btn btn-primary b" data-analyze disabled>${I.analyze}Analyze with agents</button>`;
+  },
+
+  renderPicks() {
+    const n = screener.picked.size;
+    const label = $('#sc-picked-n');
+    if (!label) return;
+    label.textContent = n ? `${n} selected${n > MAX_PICKS ? ` · agents take ${MAX_PICKS} at most` : ''}` : 'Select stocks to analyze or add to a watchlist';
+    $('[data-pick-clear]').hidden = !n;
+    $('[data-analyze]').disabled = !n || n > MAX_PICKS || DEMO;
+    $('[data-analyze]').title = n > MAX_PICKS ? `Each run is a full, paid analysis: pick ${MAX_PICKS} at most` : '';
+    $('[data-sc="watch"]').disabled = !n || DEMO;
+    document.querySelectorAll('#sc-table [data-pick]').forEach((b) => { b.disabled = !b.checked && n >= MAX_SELECT; });
+  },
+
+  onPick(box) {
+    if (box.checked) {
+      if (screener.picked.size >= MAX_SELECT) { box.checked = false; toast(`Select at most ${MAX_SELECT} stocks at a time.`); return; }
+      screener.picked.set(box.dataset.pick, box.dataset.name);
+    } else screener.picked.delete(box.dataset.pick);
+    this.renderPicks();
+  },
+
+  /* Clicks --------------------------------------------------------------- */
+  async onClick(e) {
+    const t = e.target;
+    const act = t.closest('[data-sc]');
+    if (act) {
+      const a = act.dataset.sc;
+      if (a === 'run') return this.run();
+      if (a === 'save') return this.save();
+      if (a === 'duplicate') return this.duplicate();
+      if (a === 'delete') return this.remove();
+      if (a === 'new') return this.load({ id: null, name: 'Untitled screen', description: '', query: '', preset: false });
+      if (a === 'watch') return addToWatchlist([...screener.picked.keys()]);
+      if (a === 'alert') return this.alertOnScreen();
+    }
+    const load = t.closest('[data-load]');
+    if (load) {
+      const s = this.find(load.dataset.load);
+      if (s) this.load(s);
+      return;
+    }
+    const ins = t.closest('[data-insert]');
+    if (ins) return this.insert(ins.dataset.insert);
+    if (t.closest('[data-pick-clear]')) { screener.picked.clear(); document.querySelectorAll('#sc-table [data-pick]').forEach((b) => { b.checked = false; }); return this.renderPicks(); }
+    if (t.closest('[data-analyze]')) return this.confirmAnalyze();
+    const rEdit = t.closest('[data-ratio-edit]');
+    if (rEdit) return this.editRatio(screener.meta.ratios.find((r) => String(r.id) === rEdit.dataset.ratioEdit));
+    const rDel = t.closest('[data-ratio-del]');
+    if (rDel) return this.deleteRatio(screener.meta.ratios.find((r) => String(r.id) === rDel.dataset.ratioDel));
+  },
+
+  alertOnScreen() {
+    const c = screener.current;
+    if (!c.id || (c.dirty && !c.preset)) { toast('Save the screen first: an alert watches a saved screen.'); return; }
+    alertDialog({ kind: 'screen', screen: c.id });
+  },
+
+  load(s) {
+    screener.current = { id: s.id, name: s.name, description: s.description || '', query: s.query, preset: !!s.preset, dirty: false };
+    screener.columns = s.columns && s.columns.length ? s.columns.slice() : null; // extras beside the query's own metrics
+    screener.sort = s.sort || null;
+    screener.error = null;
+    this.remember();
+    history.replaceState(null, '', s.id ? '/screens?screen=' + encodeURIComponent(s.id) : '/screens');
+    this.renderEditor();
+    this.renderLists();
+    this.validate(true);
+    if (s.query.trim() && screener.meta && screener.meta.snapshots.length) this.run(); else $('#sc-q').focus();
+  },
+
+  body(extra = {}) {
+    const c = screener.current;
+    return { name: c.name, description: c.description, query: c.query, columns: screener.columns || [], sort: screener.sort, ...extra };
+  },
+
+  async refreshLists(selectId) {
+    [screener.list, screener.meta] = await Promise.all([api('/screens'), api('/screen/metrics')]);
+    catalogMeta(screener.meta);
+    this.buildNames();
+    if (selectId != null) {
+      const s = this.find(selectId);
+      if (s) screener.current = { ...screener.current, id: s.id, name: s.name, preset: false, dirty: false };
+      history.replaceState(null, '', '/screens?screen=' + encodeURIComponent(selectId));
+    }
+    this.remember();
+    this.renderLists();
+    this.renderDocsList();
+    this.renderEditor();
+  },
+
+  async save() {
+    const c = screener.current;
+    const create = !c.id || c.preset;
+    let name = c.name.trim();
+    if (create && c.preset && name === (this.find(c.id) || {}).name) name = `${name} (my copy)`;
+    try {
+      const saved = await api('/screens', { body: this.body(create ? { name } : { id: c.id, name }) });
+      await this.refreshLists(saved.id);
+      toast(create ? `Saved “${saved.name}”.` : 'Saved.');
+    } catch (e) { this.showSaveError(e); }
+  },
+
+  async duplicate() {
+    const c = screener.current;
+    try {
+      const saved = await api('/screens', { body: this.body({ name: `${c.name.trim() || 'Screen'} (copy)` }) });
+      await this.refreshLists(saved.id);
+      toast(`Duplicated as “${saved.name}”. Edit it freely.`);
+    } catch (e) { this.showSaveError(e); }
+  },
+
+  showSaveError(e) {
+    toast(e.message);
+    this.validate(true);
+  },
+
+  async remove() {
+    const c = screener.current;
+    if (!c.id || c.preset) return;
+    const ok = await confirmDialog('Delete this screen?', `<p>“${esc(c.name)}” will be deleted. This cannot be undone. Alerts that watch it stop working.</p>`, 'Delete screen', true);
+    if (!ok) return;
+    try {
+      await api(`/screens/${encodeURIComponent(c.id)}/delete`, { body: {} });
+      screener.current = { ...c, id: null, preset: false, dirty: true };
+      await this.refreshLists(null);
+      history.replaceState(null, '', '/screens');
+      toast('Screen deleted. Its query is still in the editor.');
+    } catch (e) { toast(e.message); }
+  },
+
+  /* Custom ratios -------------------------------------------------------- */
+  editRatio(r) {
+    screener.editingRatio = r || null;
+    $('#sc-ratio').value = r ? `${r.name} = ${r.expression}` : '';
+    $('#sc-ratio-save').textContent = r ? 'Save ratio' : 'Add ratio';
+    $('#sc-ratio-cancel').hidden = !r;
+    $('#sc-ratio-msg').innerHTML = '';
+    if (r) $('#sc-ratio').focus();
+  },
+
+  async saveRatio() {
+    const msg = $('#sc-ratio-msg');
+    msg.innerHTML = '';
+    const editing = screener.editingRatio;
+    try {
+      const r = await api('/ratios', { body: { definition: $('#sc-ratio').value, id: editing ? editing.id : null } });
+      this.editRatio(null);
+      await this.refreshLists(null);
+      this.validate(true);
+      toast(`“${r.name}” works in queries now.`);
+    } catch (e) {
+      msg.innerHTML = `<p class="sc-msg neg" style="margin: 0;">${I.alert}<span>${esc(e.message)}</span></p>`;
+    }
+  },
+
+  async deleteRatio(r) {
+    if (!r) return;
+    const ok = await confirmDialog('Delete this custom ratio?', `<p class="mono">${esc(r.name)} = ${esc(r.expression)}</p><p>Screens that use it will show an error until you change them.</p>`, 'Delete ratio', true);
+    if (!ok) return;
+    try {
+      await api(`/ratios/${r.id}/delete`, { body: {} });
+      await this.refreshLists(null);
+      this.validate(true);
+    } catch (e) { toast(e.message); }
+  },
+
+  /* Agent analysis queue -------------------------------------------------- */
+  async confirmAnalyze() {
+    const picks = [...screener.picked];
+    if (!picks.length || picks.length > MAX_PICKS) return;
+    const snap = screener.result && screener.result.snapshot;
+    const res = await queueAnalysis(picks, { date: snap && snap.as_of !== 'live' ? snap.as_of : OPTIONS.today });
+    if (!res) return;
+    screener.picked.clear();
+    this.renderResults();
+    screener.queue.show(res.queue);
+    $('#sc-queue').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+};
 
 /* Page: Reports ------------------------------------------------------------- */
 
@@ -1755,6 +2950,561 @@ PAGES['/backtest'] = {
   },
 };
 
+/* Page: Industry ------------------------------------------------------------- */
+
+const IND_COLS_KEY = 'tradingagents-industry-cols';
+const industryPage = { name: '', page: 1, sort: null, result: null, table: null, seq: 0 };
+
+PAGES['/industry'] = {
+  nav: 'screens', title: 'Industry',
+  mount(main) {
+    const name = (new URLSearchParams(location.search).get('name') || '').trim();
+    Object.assign(industryPage, { name, page: 1, sort: null, result: null });
+    main.innerHTML = `<div class="stack rise" style="gap: 22px;"><div id="in-head"></div><div id="in-cards"></div><div id="in-body" class="stack" style="gap: 14px;"></div></div>`;
+    if (!name) { this.renderIndex(); return; }
+    $('#in-head').innerHTML = `<p class="crumbs"><a href="/industry" data-link>Industries</a><span class="sep">/</span>${esc(name)}</p>${pageHead(esc(name), 'Loading…')}`;
+    industryPage.table = StockTable($('#in-body'), {
+      onSort: (sort) => { industryPage.sort = sort; industryPage.page = 1; this.load(); },
+      onColumns: (ids) => { store.set(IND_COLS_KEY, ids); this.load(); },
+      onPage: (n) => { industryPage.page = n; this.load().then(() => $('#in-body').scrollIntoView({ block: 'start' })); },
+      toolbar: (r) => `<div class="grow"></div>${exportButtons('/api/export/industry', { name: r.industry, columns: r.columns.map((c) => c.id).join(','), sort: r.sort ? `${r.sort.key}:${r.sort.dir}` : '' })}`,
+      medianLabel: (r) => `Industry median (${r.total})`,
+      caption: (r) => `${r.industry}, page ${r.page} of ${r.pages}`,
+    });
+    this.load();
+  },
+  unmount() { industryPage.seq++; },
+
+  async renderIndex() {
+    $('#in-head').innerHTML = pageHead('Industries', 'NSE\'s industries, from its index lists, with the number of stocks the live snapshot has in each. Only index members carry an industry.');
+    if (DEMO) return;
+    let list;
+    try { list = await api('/industries'); } catch (e) {
+      $('#in-body').innerHTML = `<div class="alert alert-info">${I.alert}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+    $('#in-body').innerHTML = list.length ? `<ul class="in-grid">${list.map((i) => `<li><a class="card in-card lift" href="/industry?name=${encodeURIComponent(i.name)}" data-link><span class="in-name">${esc(i.name)}</span><span class="faint">${i.count} stock${i.count === 1 ? '' : 's'} · ${rupees(i.marketCap, 0)} Cr</span></a></li>`).join('')}</ul>`
+      : '<p class="empty">No stock in the live snapshot has an industry. Refresh them with <span class="mono">python -m cli.main india sync-securities</span>, then rebuild the snapshot.</p>';
+  },
+
+  async load() {
+    const mine = ++industryPage.seq;
+    const cols = store.get(IND_COLS_KEY, null);
+    const q = new URLSearchParams({ name: industryPage.name, page: String(industryPage.page) });
+    if (cols && cols.length) q.set('columns', cols.join(','));
+    if (industryPage.sort) q.set('sort', `${industryPage.sort.key}:${industryPage.sort.dir}`);
+    let r;
+    try { r = await api('/industry?' + q.toString()); } catch (e) {
+      if (mine !== industryPage.seq) return;
+      $('#in-head').innerHTML = `<p class="crumbs"><a href="/industry" data-link>Industries</a><span class="sep">/</span>${esc(industryPage.name)}</p>${pageHead(esc(industryPage.name), '')}`;
+      $('#in-body').innerHTML = `<div class="alert ${/sync|build/.test(e.message) ? 'alert-info' : 'alert-neg'}">${I.alert}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+    if (mine !== industryPage.seq) return;
+    industryPage.result = r;
+    industryPage.sort = r.sort;
+    document.title = `${r.industry} · TradingAgents`;
+    const snap = r.snapshot;
+    const screen = `/screens?${new URLSearchParams({ query: r.query, name: r.industry }).toString()}`;
+    $('#in-head').innerHTML = `<p class="crumbs"><a href="/industry" data-link>Industries</a><span class="sep">/</span>${esc(r.industry)}</p>
+      ${pageHead(esc(r.industry), `${r.total.toLocaleString()} stock${r.total === 1 ? '' : 's'} NSE classifies here · live snapshot, data to ${esc(snap.data_date)}${r.lender ? ' · lender columns (ROE, P/B, ROA) by default' : ''}`,
+    `<a class="btn b" href="${esc(screen)}" data-link>${I.screens}Open as a screen</a>`)}`;
+    const cards = [['market_cap', 'Median market cap'], ['pe', 'Median P/E'], [r.lender ? 'roe' : 'roce', r.lender ? 'Median ROE' : 'Median ROCE'], ['dividend_yield', 'Median dividend yield']]
+      .map(([key, label]) => [r.columns.find((c) => c.id === key), label]).filter(([c]) => c && r.median[c.id] != null);
+    patch($('#in-cards'), cards.length ? `<dl class="metrics in-medians">${cards.map(([c, label]) => `<div class="metric"><dd>${metricText(r.median[c.id], c)}${c.unit && !['Rs', 'x'].includes(c.unit) ? `<span class="in-unit">${esc(c.unit)}</span>` : ''}</dd><dt>${label}</dt></div>`).join('')}</dl>` : '');
+    industryPage.table.render(r);
+  },
+};
+
+/* Page: Watchlists ------------------------------------------------------------- */
+
+const WL_KEY = 'tradingagents-watchlist';
+const wl = { lists: [], id: null, data: null, picked: new Map(), table: null, queue: null, seq: 0, notice: '' };
+
+PAGES['/watchlists'] = {
+  nav: 'watchlists', title: 'Watchlists',
+  async mount(main) {
+    const asked = new URLSearchParams(location.search).get('id');
+    wl.id = asked || store.get(WL_KEY, null);
+    wl.picked = new Map();
+    wl.notice = '';
+    main.innerHTML = `<div class="stack rise" style="gap: 22px;">
+      ${pageHead('Watchlists', 'Lists of stocks to follow, with notes and, if you like, what you hold. Figures come from the live metrics snapshot: the latest NSE close, never a live tick.')}
+      <div class="wl-layout">
+        <aside class="card pad stack wl-side" style="gap: 12px;" aria-labelledby="wl-side-h">
+          <h2 id="wl-side-h" class="sc-side-h">Your watchlists</h2>
+          <ul class="sc-list wl-list" id="wl-list"><li class="hint">Loading…</li></ul>
+          <form id="wl-new" class="row" style="gap: 8px;" novalidate><label for="wl-new-name" class="sr">New watchlist's name</label><input id="wl-new-name" class="input" placeholder="New watchlist" maxlength="60" autocomplete="off"><button type="submit" class="btn b">${I.plus}Add</button></form>
+        </aside>
+        <section class="wl-main stack" style="gap: 16px;" id="wl-main" aria-label="Watchlist"></section>
+      </div>
+      <section id="wl-queue" class="stack" style="gap: 10px;" aria-label="Agent analysis queue"></section>
+    </div>`;
+    wl.queue = QueuePanel($('#wl-queue'));
+    main.addEventListener('click', (e) => this.onClick(e));
+    main.addEventListener('change', (e) => this.onChange(e));
+    $('#wl-new').addEventListener('submit', (e) => { e.preventDefault(); this.create(); });
+    if (DEMO) { $('#wl-list').innerHTML = ''; $('#wl-main').innerHTML = '<p class="empty">Watchlists live on your own server.</p>'; return; }
+    await this.loadLists();
+    wl.queue.poll();
+  },
+  unmount() { wl.seq++; if (wl.queue) wl.queue.stop(); },
+
+  async loadLists() {
+    try { wl.lists = await api('/watchlists'); } catch (e) {
+      $('#wl-main').innerHTML = `<div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+    if (current !== PAGES['/watchlists']) return;
+    if (!wl.lists.some((w) => String(w.id) === String(wl.id))) wl.id = wl.lists[0] ? wl.lists[0].id : null;
+    this.renderLists();
+    if (wl.id != null) await this.open(wl.id);
+    else $('#wl-main').innerHTML = '<p class="empty">No watchlists yet. Name one on the left, or add stocks from a screen\'s results or a Company page.</p>';
+  },
+
+  renderLists() {
+    const n = wl.lists.length;
+    $('#wl-list').innerHTML = n ? wl.lists.map((w, i) => `<li class="wl-item">
+      <button type="button" class="sc-item b" data-wl-open="${w.id}" aria-pressed="${attr(String(w.id) === String(wl.id))}">
+        <span class="sc-item-name">${esc(w.name)}</span><span class="sc-item-q">${w.count} stock${w.count === 1 ? '' : 's'}${w.holdings ? ' · holdings' : ''}</span></button>
+      <span class="wl-move"><button type="button" class="icon-btn b" data-wl-move="${i}" data-dir="-1" ${i ? '' : 'disabled'} aria-label="Move ${esc(w.name)} up">${I.up}</button><button type="button" class="icon-btn b" data-wl-move="${i}" data-dir="1" ${i < n - 1 ? '' : 'disabled'} aria-label="Move ${esc(w.name)} down">${I.down}</button></span></li>`).join('')
+      : '<li class="hint">Watchlists you make appear here.</li>';
+  },
+
+  async open(id, keepPicks = false) {
+    const mine = ++wl.seq;
+    if (String(id) !== String(wl.id) || !keepPicks) wl.picked = new Map();
+    wl.id = id;
+    store.set(WL_KEY, id);
+    history.replaceState(null, '', '/watchlists?id=' + encodeURIComponent(id));
+    let d;
+    try { d = await api(`/watchlists/${encodeURIComponent(id)}`); } catch (e) {
+      if (mine === wl.seq) $('#wl-main').innerHTML = `<div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+    if (mine !== wl.seq || current !== PAGES['/watchlists']) return;
+    wl.data = d;
+    this.renderLists();
+    this.render();
+  },
+
+  render() {
+    const d = wl.data;
+    const w = d.watchlist;
+    const snap = d.snapshot;
+    const asOf = snap ? `prices as of ${esc(snap.data_date)} (NSE close, not live)` : 'no snapshot yet';
+    const h = d.holdings;
+    const holdings = w.holdings ? `<section class="card pad stack wl-hold" style="gap: 12px;" aria-labelledby="wl-hold-h">
+        <div class="row" style="justify-content: space-between; gap: 10px; flex-wrap: wrap;"><h3 id="wl-hold-h" class="sc-side-h">Holdings</h3>
+          <button type="button" class="btn b" data-wl="portfolio" ${h && h.positions ? '' : 'disabled title="Enter a quantity for at least one stock"'}>${I.briefcase}Use as portfolio for agent runs</button></div>
+        <dl class="metrics wl-sum">
+          <div class="metric"><dd>${rupees(h && h.invested, 0)}</dd><dt>Invested</dt></div>
+          <div class="metric"><dd>${rupees(h && h.current, 0)}</dd><dt>Current value</dt></div>
+          <div class="metric"><dd class="${toneOf(h && h.pnl)}">${h && h.pnl != null ? (h.pnl < 0 ? '−' : '+') + rupees(Math.abs(h.pnl), 0) : '—'}</dd><dt>P&amp;L</dt></div>
+          <div class="metric"><dd class="${toneOf(h && h.pnlPct)}">${signedPct(h && h.pnlPct)}</dd><dt>P&amp;L %</dt></div>
+        </dl>
+        <div class="row wl-cash"><label for="wl-cash" class="legend" style="margin: 0;">Cash (₹, optional)</label><input id="wl-cash" class="input mono" type="number" min="0" step="any" value="${esc(w.cash ?? '')}" data-wl="cash" placeholder="Free cash for the agents"></div>
+        <p class="hint">${h ? `${h.counted} of ${h.positions} holding${h.positions === 1 ? '' : 's'} valued at the snapshot's close` : 'Enter a quantity and an average price for a stock with Edit'}. Long holdings only. The agents read the holdings as their portfolio when you send them.</p>
+      </section>` : '';
+    $('#wl-main').innerHTML = `
+      <div class="wl-head">
+        <div class="stack" style="gap: 4px; min-width: 0;"><h2 class="section-h wl-title">${esc(w.name)}</h2><p class="hint">${d.rows.length} stock${d.rows.length === 1 ? '' : 's'} · ${asOf}</p></div>
+        <div class="row wl-tools">
+          <label class="toggle wl-toggle">Holdings mode<input type="checkbox" data-wl="holdings" ${w.holdings ? 'checked' : ''}></label>
+          <button type="button" class="btn b" data-wl="rename">Rename</button>
+          <button type="button" class="btn btn-danger b" data-wl="delete">Delete</button>
+        </div>
+      </div>
+      ${d.note ? `<div class="alert alert-info">${I.alert}<div>${esc(d.note)}</div></div>` : ''}
+      ${wl.notice}
+      <form id="wl-add" class="co-search wl-add" novalidate><div class="grow"><label for="wl-sym" class="sr">Add a stock</label><input id="wl-sym" class="input mono ticker" placeholder="Add a stock: Reliance, TCS…" autocomplete="off" spellcheck="false"></div><button type="submit" class="btn b">${I.plus}Add</button></form>
+      <div class="row wl-io">
+        <input id="wl-csv" type="file" accept=".csv,text/csv" class="sr"><label for="wl-csv" class="btn b" title="A column of symbols, or symbol,note,quantity,avg_price">${I.upload}Import CSV</label>
+        <button type="button" class="btn b" data-export="/api/watchlists/${w.id}/symbols.csv">${I.download}Symbols CSV</button>
+        <div class="grow"></div>
+        <button type="button" class="btn b" data-wl="alert" title="Alerts for new filings at these companies">${I.bell}Filing alerts</button>
+      </div>
+      ${holdings}
+      <div id="wl-table" class="stack" style="gap: 14px;"></div>`;
+    wl.notice = '';
+    tickerSearch($('#wl-sym'), { onPick: () => this.addTyped() });
+    $('#wl-add').addEventListener('submit', (e) => { e.preventDefault(); this.addTyped(); });
+    $('#wl-csv').addEventListener('change', (e) => this.importCsv(e));
+    wl.table = StockTable($('#wl-table'), {
+      onSort: (sort) => this.save({ sort }),
+      onColumns: (ids) => this.save({ columns: ids || [] }),
+      pick: { has: (s) => wl.picked.has(s), full: () => wl.picked.size >= MAX_PICKS, onChange: (box) => this.onPick(box) },
+      extra: this.extraColumns(w.holdings),
+      totalRow: () => (w.holdings && h && h.positions ? 'Total' : ''),
+      toolbar: (r) => `${exportButtons(`/api/export/watchlist/${w.id}`, { columns: r.columns.map((c) => c.id).join(','), sort: r.sort ? `${r.sort.key}:${r.sort.dir}` : '' })}
+        <div class="grow"></div><span class="muted" id="wl-picked-n" style="font-size: 13px;"></span>
+        <button type="button" class="btn btn-primary b" data-wl="analyze" disabled>${I.analyze}Analyze with agents</button>`,
+      medianLabel: () => 'Median',
+      caption: () => `Stocks on ${w.name}`,
+      empty: () => 'No stocks yet. Add one above, select rows on a screen\'s results, or use + Watchlist on a Company page.',
+    });
+    wl.table.render(d);
+    this.renderPicks();
+  },
+
+  extraColumns(holdings) {
+    const actions = { name: '<span class="sr">Actions</span>', cls: 'wl-act', cell: (r) => `<button type="button" class="icon-btn b" data-wl-edit="${esc(r.symbol)}" aria-label="Edit ${esc(r.symbol)}" title="Note${holdings ? ', quantity and price' : ''}">${I.edit}</button><button type="button" class="icon-btn b sc-danger" data-wl-remove="${esc(r.symbol)}" aria-label="Remove ${esc(r.symbol)}" title="Remove">${I.trash}</button>` };
+    const note = { name: 'Note', cls: 'wl-note', cell: (r) => (r.item.note ? `<span title="${esc(r.item.note)}">${esc(r.item.note)}</span>` : '<span class="faint">—</span>') };
+    if (!holdings) return [note, actions];
+    const pos = (r) => r.position || {};
+    const money = (v) => (v == null ? '<span class="faint">—</span>' : grouped(v, 'en-IN', 0));
+    const tone = (v, text) => `<span class="${toneOf(v)}">${text}</span>`;
+    const h = () => wl.data.holdings || {};
+    return [note,
+      { name: 'Qty', cls: 'r', cell: (r) => (r.item.quantity == null ? '<span class="faint">—</span>' : grouped(r.item.quantity, 'en-IN', r.item.quantity % 1 ? 2 : 0)) },
+      { name: 'Avg price', cls: 'r', cell: (r) => (r.item.avgPrice == null ? '<span class="faint">—</span>' : grouped(r.item.avgPrice, 'en-IN', 2)) },
+      { name: 'Invested', cls: 'r', cell: (r) => money(pos(r).invested), total: () => money(h().invested) },
+      { name: 'Current', cls: 'r', cell: (r) => money(pos(r).current), total: () => money(h().current) },
+      { name: 'P&amp;L', cls: 'r', cell: (r) => (pos(r).pnl == null ? '<span class="faint">—</span>' : tone(pos(r).pnl, plusMinus(pos(r).pnl))), total: () => (h().pnl == null ? '' : tone(h().pnl, plusMinus(h().pnl))) },
+      { name: 'P&amp;L %', cls: 'r', cell: (r) => tone(pos(r).pnlPct, signedPct(pos(r).pnlPct)), total: () => tone(h().pnlPct, signedPct(h().pnlPct)) },
+      actions];
+  },
+
+  renderPicks() {
+    const n = wl.picked.size;
+    const label = $('#wl-picked-n');
+    if (!label) return;
+    label.textContent = n ? `${n} selected` : `Select up to ${MAX_PICKS} to analyze`;
+    $('[data-wl="analyze"]').disabled = !n || DEMO;
+    document.querySelectorAll('#wl-table [data-pick]').forEach((b) => { b.disabled = !b.checked && n >= MAX_PICKS; });
+  },
+
+  onPick(box) {
+    if (box.checked) {
+      if (wl.picked.size >= MAX_PICKS) { box.checked = false; toast(`Pick at most ${MAX_PICKS} stocks: each is a full, paid run.`); return; }
+      wl.picked.set(box.dataset.pick, box.dataset.name);
+    } else wl.picked.delete(box.dataset.pick);
+    this.renderPicks();
+  },
+
+  async save(fields) {
+    try {
+      await api('/watchlists', { body: { id: wl.id, ...fields } });
+      await this.open(wl.id, true);
+      wl.lists = await api('/watchlists');
+      this.renderLists();
+    } catch (e) { toast(e.message); }
+  },
+
+  async create() {
+    const input = $('#wl-new-name');
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    try {
+      const w = await api('/watchlists', { body: { name } });
+      input.value = '';
+      wl.id = w.id;
+      await this.loadLists();
+      $('#wl-sym') && $('#wl-sym').focus();
+    } catch (e) { toast(e.message); }
+  },
+
+  async addTyped() {
+    const input = $('#wl-sym');
+    const symbol = input.value.trim();
+    if (!symbol) return;
+    try {
+      const out = await api(`/watchlists/${wl.id}/items`, { body: { symbols: [symbol] } });
+      if (out.rejected.length) toast(`${out.rejected[0].symbol}: ${out.rejected[0].reason}.`);
+      else if (out.already.length) toast(`${out.already[0]} is already on this watchlist.`);
+      input.value = '';
+      await this.refresh();
+    } catch (e) { toast(e.message); }
+  },
+
+  async refresh() {
+    await this.open(wl.id, true);
+    try { wl.lists = await api('/watchlists'); this.renderLists(); } catch (e) { /* the list stays as it was */ }
+  },
+
+  async importCsv(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 1_000_000) { toast('That file is over 1 MB.'); return; }
+    try {
+      const out = await api(`/watchlists/${wl.id}/import`, { body: { csv: await file.text() } });
+      const skipped = out.rejected.map((r) => `<li>${r.line ? `Line ${r.line}: ` : ''}<span class="mono">${esc(r.symbol || '(blank)')}</span>: ${esc(r.reason)}</li>`).join('');
+      wl.notice = `<div class="alert ${out.rejected.length ? 'alert-warn' : 'alert-info'}">${I.alert}<div>Imported ${out.added.length} new stock${out.added.length === 1 ? '' : 's'} from ${esc(file.name)}${out.already.length ? ` (${out.already.length} already here)` : ''}.${skipped ? `<details style="margin-top: 6px;"><summary>${out.rejected.length} line${out.rejected.length === 1 ? '' : 's'} skipped</summary><ul class="wl-skipped">${skipped}</ul></details>` : ''}</div></div>`;
+      await this.refresh();
+    } catch (err) { toast(err.message); }
+  },
+
+  async editItem(symbol) {
+    const row = wl.data.rows.find((r) => r.symbol === symbol);
+    if (!row) return;
+    const holdings = wl.data.watchlist.holdings;
+    const it = row.item;
+    const body = `<div class="field"><label for="wl-note">Note</label><textarea id="wl-note" name="note" class="input al-q" rows="3" maxlength="500">${esc(it.note)}</textarea></div>
+      ${holdings ? `<div class="al-row"><div class="field"><label for="wl-qty">Quantity</label><input id="wl-qty" name="quantity" class="input mono" type="number" min="0" step="any" value="${esc(it.quantity ?? '')}"></div>
+        <div class="field"><label for="wl-avg">Average price (₹)</label><input id="wl-avg" name="avgPrice" class="input mono" type="number" min="0" step="any" value="${esc(it.avgPrice ?? '')}"></div></div>
+        <p class="hint">Leave the quantity empty for a stock you watch but do not hold.</p>` : ''}`;
+    const saved = await formDialog(`${row.values.name || symbol}`, body, 'Save', (f) => api(`/watchlists/${wl.id}/items/update`, { body: { symbol, ...f } }));
+    if (saved) await this.open(wl.id, true);
+  },
+
+  async removeItem(symbol) {
+    try {
+      await api(`/watchlists/${wl.id}/items/remove`, { body: { symbols: [symbol] } });
+      wl.picked.delete(symbol);
+      await this.refresh();
+      toast(`Removed ${symbol}.`);
+    } catch (e) { toast(e.message); }
+  },
+
+  holdingsLabel() { return `the holdings of “${wl.data.watchlist.name}”`; },
+
+  async usePortfolio() {
+    try {
+      const portfolio = await api(`/watchlists/${wl.id}/portfolio`);
+      const f = analyzeForm();
+      f.portfolio = portfolio;
+      f.portfolioName = `Holdings of “${wl.data.watchlist.name}” (${portfolio.positions.length})`;
+      toast(`${portfolio.positions.length} holding${portfolio.positions.length === 1 ? '' : 's'} will go with your next run on the Analyze page, as its portfolio.`);
+    } catch (e) { toast(e.message); }
+  },
+
+  async onClick(e) {
+    const t = e.target;
+    const openBtn = t.closest('[data-wl-open]');
+    if (openBtn) return this.open(openBtn.dataset.wlOpen);
+    const move = t.closest('[data-wl-move]');
+    if (move) {
+      const i = +move.dataset.wlMove;
+      const j = i + +move.dataset.dir;
+      const ids = wl.lists.map((w) => w.id);
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      try { wl.lists = await api('/watchlists/order', { body: { ids } }); this.renderLists(); } catch (err) { toast(err.message); }
+      return;
+    }
+    const edit = t.closest('[data-wl-edit]');
+    if (edit) return this.editItem(edit.dataset.wlEdit);
+    const rm = t.closest('[data-wl-remove]');
+    if (rm) return this.removeItem(rm.dataset.wlRemove);
+    const act = t.closest('[data-wl]');
+    if (!act || act.tagName === 'INPUT') return;
+    const w = wl.data && wl.data.watchlist;
+    if (act.dataset.wl === 'rename') {
+      const saved = await formDialog('Rename watchlist', `<div class="field"><label for="wl-rename">Name</label><input id="wl-rename" name="name" class="input" maxlength="60" value="${esc(w.name)}"></div>`, 'Rename',
+        (f) => api('/watchlists', { body: { id: w.id, name: f.name } }));
+      if (saved) { wl.lists = await api('/watchlists'); this.renderLists(); this.open(w.id, true); }
+    } else if (act.dataset.wl === 'delete') {
+      const ok = await confirmDialog('Delete this watchlist?', `<p>“${esc(w.name)}” and its ${wl.data.rows.length} stock${wl.data.rows.length === 1 ? '' : 's'}, notes and holdings will be deleted. This cannot be undone. Alerts that watch it stop working.</p>`, 'Delete watchlist', true);
+      if (!ok) return;
+      try { await api(`/watchlists/${w.id}/delete`, { body: {} }); wl.id = null; await this.loadLists(); } catch (err) { toast(err.message); }
+    } else if (act.dataset.wl === 'portfolio') {
+      this.usePortfolio();
+    } else if (act.dataset.wl === 'alert') {
+      alertDialog({ kind: 'filing', target: 'watchlist', watchlistId: w.id });
+    } else if (act.dataset.wl === 'analyze') {
+      const picks = [...wl.picked];
+      const holdings = w.holdings && wl.data.holdings && wl.data.holdings.positions
+        ? { label: this.holdingsLabel(), load: () => api(`/watchlists/${w.id}/portfolio`) } : null;
+      const res = await queueAnalysis(picks, { holdings });
+      if (!res) return;
+      wl.picked.clear();
+      wl.table.render(wl.data);
+      this.renderPicks();
+      wl.queue.show(res.queue);
+      $('#wl-queue').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  },
+
+  onChange(e) {
+    const t = e.target;
+    if (t.matches('[data-wl="holdings"]')) this.save({ holdings: t.checked });
+    else if (t.matches('[data-wl="cash"]')) this.save({ cash: t.value === '' ? null : t.value });
+  },
+};
+
+/* Page: Alerts ------------------------------------------------------------------- */
+
+const alertsPage = { data: null, inbox: null, unreadOnly: false, open: new Set(), busy: false };
+const KIND_LABEL = Object.fromEntries(ALERT_KINDS);
+
+PAGES['/alerts'] = {
+  nav: 'alerts', title: 'Alerts',
+  mount(main) {
+    alertsPage.data = null;
+    alertsPage.inbox = null;
+    main.innerHTML = `<div class="stack rise" style="gap: 22px;">
+      ${pageHead('Alerts', 'Hear when a price crosses a level, a condition turns true, a screen gains or loses stocks, or a company files something new. Alerts are evaluated after each <span class="mono">india sync-all</span>, on demand here, and, if switched on, on delayed quotes in market hours.',
+    `<div class="page-actions"><button type="button" class="btn b" data-al="eval">Evaluate now</button><button type="button" class="btn btn-primary b" data-al="new">${I.plus}New alert</button></div>`)}
+      <div class="al-layout">
+        <section class="stack" style="gap: 12px; min-width: 0;" aria-labelledby="al-inbox-h">
+          <div class="row al-inbox-head"><h2 id="al-inbox-h" class="section-h">Inbox</h2><span class="grow"></span>
+            <label class="toggle al-filter">Unread only<input type="checkbox" data-al="unread" ${alertsPage.unreadOnly ? 'checked' : ''}></label>
+            <button type="button" class="link-btn" data-al="read-all">Mark all read</button>
+            <button type="button" class="link-btn sc-danger" data-al="clear">Clear read</button></div>
+          <ul class="al-inbox" id="al-inbox"><li class="hint">Loading…</li></ul>
+        </section>
+        <aside class="stack" style="gap: 16px; min-width: 0;" aria-label="Your alerts and channels">
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="al-list-h"><h2 id="al-list-h" class="sc-side-h">Your alerts</h2><ul class="al-list" id="al-list"></ul></section>
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="al-ch-h"><h2 id="al-ch-h" class="sc-side-h">Delivery</h2><div id="al-channels" class="stack" style="gap: 10px;"></div></section>
+        </aside>
+      </div></div>`;
+    main.addEventListener('click', (e) => this.onClick(e));
+    main.addEventListener('change', (e) => this.onChange(e));
+    if (DEMO) { $('#al-inbox').innerHTML = '<li class="empty">Alerts live on your own server.</li>'; return; }
+    this.load();
+  },
+
+  async load() {
+    try {
+      [alertsPage.data, alertsPage.inbox] = await Promise.all([api('/alerts'), api('/alerts/inbox' + (alertsPage.unreadOnly ? '?unread=1' : ''))]);
+    } catch (e) {
+      $('#al-inbox').innerHTML = `<li><div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div></li>`;
+      return;
+    }
+    if (current !== PAGES['/alerts']) return;
+    setUnread(alertsPage.inbox.unread);
+    this.renderInbox();
+    this.renderAlerts();
+    this.renderChannels();
+  },
+
+  renderInbox() {
+    const items = alertsPage.inbox.items;
+    const when = (iso) => (iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '');
+    const delivery = (d) => Object.entries(d || {}).map(([ch, r]) => `<span class="pill sm ${r.ok ? 'pill-pos' : 'pill-neg'}" ${r.error ? `title="${esc(r.error)}"` : ''}>${esc(ch)} ${r.ok ? 'sent' : 'failed'}</span>`).join('');
+    const links = (detail) => (detail.items || []).filter((i) => /^https?:\/\//i.test(i.url || '')).slice(0, 10)
+      .map((i) => `<li><a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.symbol)} · ${esc(i.title)}</a></li>`).join('');
+    $('#al-inbox').innerHTML = items.length ? items.map((ev) => {
+      const open = alertsPage.open.has(ev.id);
+      const failed = Object.values(ev.delivery || {}).filter((r) => !r.ok);
+      return `<li class="card al-ev ${ev.read_at ? '' : 'unread'}">
+        <button type="button" class="al-ev-main b" data-ev="${ev.id}" aria-expanded="${attr(open)}">
+          ${ev.read_at ? '' : '<span class="al-dot" aria-hidden="true"></span><span class="sr">Unread: </span>'}
+          <span class="stack" style="gap: 3px; min-width: 0;"><span class="al-ev-title">${esc(ev.title)}</span>
+          <span class="al-ev-meta faint">${esc(KIND_LABEL[ev.kind] || ev.kind)} · ${esc(ev.alert_name)} · ${esc(when(ev.fired_at))}${ev.data_date ? ` · data as of ${esc(ev.data_date)}` : ''}${failed.length ? ` · <span class="neg-text">delivery failed</span>` : ''}</span></span></button>
+        <div class="al-ev-body" ${open ? '' : 'hidden'}>
+          ${ev.body ? `<p class="al-ev-text">${esc(ev.body)}</p>` : ''}
+          ${links(ev.detail) ? `<ul class="al-links">${links(ev.detail)}</ul>` : ''}
+          ${ev.symbol ? `<a href="/company?symbol=${encodeURIComponent(ev.symbol)}" data-link>Open ${esc(ev.symbol)}${I.arrow}</a>` : ''}
+          ${Object.keys(ev.delivery || {}).length ? `<div class="row" style="gap: 6px; flex-wrap: wrap;">${delivery(ev.delivery)}</div>` : ''}
+          <div class="row" style="gap: 14px;"><button type="button" class="link-btn" data-ev-read="${ev.id}" data-read="${ev.read_at ? '0' : '1'}">Mark ${ev.read_at ? 'unread' : 'read'}</button><button type="button" class="link-btn sc-danger" data-ev-del="${ev.id}">Delete</button></div>
+        </div></li>`;
+    }).join('') : `<li class="empty">${alertsPage.unreadOnly ? 'Nothing unread.' : 'Nothing has fired yet. Fired alerts land here, with what tripped them and the date of the data.'}</li>`;
+  },
+
+  statusText(a) {
+    const s = a.status;
+    if (!a.enabled) return 'Off.';
+    if (!s) return 'Not evaluated yet: its first evaluation sets the baseline.';
+    if (s.expired) return esc(s.message);
+    if (!s.ok) return `<span class="neg-text">${esc(s.message)}</span>`;
+    const at = s.at ? ` · checked ${esc(new Date(s.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}` : '';
+    const data = s.dataDate ? ` · data ${esc(s.dataDate)}` : '';
+    if (a.kind === 'price' && s.price != null) return `Now ${s.value ? 'true' : 'false'} at ${rupees(s.price)}${s.source && /delayed/i.test(s.source) ? ' (delayed quote)' : ''}${data}${at}`;
+    if (a.kind === 'metric') {
+      const vals = Object.entries(s.values || {}).map(([k, v]) => `${esc(k)} ${typeof v === 'number' ? grouped(v, 'en-US', 2) : esc(v)}`).join(', ');
+      return `Now ${s.value === true ? 'true' : s.value === false ? 'false' : 'unknown'}${vals ? ` (${vals})` : ''}${data}${at}`;
+    }
+    return `${esc(s.message || '')}${data}${at}`;
+  },
+
+  renderAlerts() {
+    const list = alertsPage.data.alerts;
+    $('#al-list').innerHTML = list.length ? list.map((a) => `<li class="al-item ${a.enabled ? '' : 'off'}">
+      <div class="row" style="justify-content: space-between; gap: 8px;"><span class="pill sm">${esc(KIND_LABEL[a.kind] || a.kind)}</span>
+        <label class="toggle al-on"><span class="sr">Alert on</span><input type="checkbox" data-al-toggle="${a.id}" ${a.enabled ? 'checked' : ''} aria-label="${esc(a.name)} is on"></label></div>
+      <div class="al-name">${esc(a.name)}</div>
+      <p class="hint">${this.statusText(a)}</p>
+      <div class="row al-actions"><button type="button" class="link-btn" data-al-edit="${a.id}">Edit</button><button type="button" class="link-btn sc-danger" data-al-del="${a.id}">Delete</button><span class="grow"></span><span class="faint" style="font-size: 12px;">${a.fired} fired${a.cooldownMinutes ? ` · cooldown ${a.cooldownMinutes} min` : ''}${a.expiresOn ? ` · until ${esc(a.expiresOn)}` : ''}</span></div></li>`).join('')
+      : '<li class="hint">No alerts yet. Make one here, from a Company page, or from a saved screen.</li>';
+  },
+
+  renderChannels() {
+    const d = alertsPage.data;
+    const channels = Object.entries(d.channels).map(([key, c]) => `<div class="al-ch">
+      <div class="row" style="justify-content: space-between; gap: 8px;"><b>${esc(c.label)}</b>${c.configured ? '<span class="pill sm pill-pos">Configured</span>' : '<span class="pill sm pill-plain">Not configured</span>'}</div>
+      ${c.configured ? `<button type="button" class="btn b al-test" data-al-test="${key}">Send test</button>` : `<p class="hint">Set <span class="mono">${c.variables.slice(0, key === 'email' ? 2 : c.variables.length).map(esc).join('</span>, <span class="mono">')}</span>${key === 'email' ? ' (and the port, user and password as needed)' : ''} in the server's environment and restart it.</p>`}</div>`).join('');
+    const p = d.poller;
+    const poller = `<div class="al-ch"><div class="row" style="justify-content: space-between; gap: 8px;"><b>Intraday price checks</b>${p.enabled ? '<span class="pill sm pill-info">On</span>' : '<span class="pill sm pill-plain">Off</span>'}</div>
+      <p class="hint">${p.enabled ? `Every ${p.minutes} minutes while NSE is open (09:15 to 15:30 India time, weekdays)${p.last ? `; last ${esc(p.last.at)}: ${esc(p.last.message || (p.last.ran ? `${p.last.quotes} quotes, ${p.last.fired} fired` : ''))}` : ''}.` : esc(p.note)} Quotes are Yahoo Finance's, delayed about 15 minutes; only price alerts read them.</p></div>`;
+    $('#al-channels').innerHTML = `<p class="hint">The inbox always gets every alert. These send it on as well; they are set up only through environment variables, so this page never sees a token or password.</p>${channels}${poller}`;
+  },
+
+  async onClick(e) {
+    const t = e.target;
+    const a = t.closest('[data-al]');
+    if (a && a.tagName !== 'INPUT') {
+      if (a.dataset.al === 'new') { const saved = await alertDialog(); if (saved) this.load(); return; }
+      if (a.dataset.al === 'eval') return this.evaluate(a);
+      if (a.dataset.al === 'read-all') { await this.post('/alerts/inbox/read', { ids: 'all' }); return; }
+      if (a.dataset.al === 'clear') { await this.post('/alerts/inbox/delete', { ids: 'all' }); return; }
+    }
+    const ev = t.closest('[data-ev]');
+    if (ev) {
+      const id = +ev.dataset.ev;
+      const item = alertsPage.inbox.items.find((x) => x.id === id);
+      if (alertsPage.open.has(id)) alertsPage.open.delete(id); else alertsPage.open.add(id);
+      if (item && !item.read_at) { await this.post('/alerts/inbox/read', { ids: [id] }); return; }
+      this.renderInbox();
+      return;
+    }
+    const read = t.closest('[data-ev-read]');
+    if (read) { await this.post('/alerts/inbox/read', { ids: [+read.dataset.evRead], read: read.dataset.read === '1' }); return; }
+    const del = t.closest('[data-ev-del]');
+    if (del) { await this.post('/alerts/inbox/delete', { ids: [+del.dataset.evDel] }); return; }
+    const edit = t.closest('[data-al-edit]');
+    if (edit) {
+      const alert = alertsPage.data.alerts.find((x) => String(x.id) === edit.dataset.alEdit);
+      if (alert && await alertDialog(alert)) this.load();
+      return;
+    }
+    const rm = t.closest('[data-al-del]');
+    if (rm) {
+      const alert = alertsPage.data.alerts.find((x) => String(x.id) === rm.dataset.alDel);
+      if (!alert || !await confirmDialog('Delete this alert?', `<p>“${esc(alert.name)}” will be deleted. What it already fired stays in the inbox.</p>`, 'Delete alert', true)) return;
+      await this.post(`/alerts/${alert.id}/delete`, {});
+      return;
+    }
+    const test = t.closest('[data-al-test]');
+    if (test) {
+      test.disabled = true;
+      try {
+        const r = await api(`/alerts/channels/${test.dataset.alTest}/test`, { body: {} });
+        toast(r.ok ? 'Test sent. Check that it arrived.' : `The test failed: ${r.error}`);
+      } catch (err) { toast(err.message); } finally { test.disabled = false; }
+    }
+  },
+
+  async onChange(e) {
+    const t = e.target;
+    if (t.matches('[data-al="unread"]')) { alertsPage.unreadOnly = t.checked; this.load(); return; }
+    if (t.matches('[data-al-toggle]')) {
+      try { await api('/alerts', { body: { id: +t.dataset.alToggle, enabled: t.checked } }); } catch (err) { toast(err.message); }
+      this.load();
+    }
+  },
+
+  async post(path, body) {
+    try {
+      const r = await api(path, { body });
+      if (r && r.unread != null) setUnread(r.unread);
+    } catch (e) { toast(e.message); }
+    await this.load();
+  },
+
+  async evaluate(button) {
+    if (alertsPage.busy) return;
+    alertsPage.busy = true;
+    button.disabled = true;
+    try {
+      const r = await api('/alerts/evaluate', { body: {} });
+      setUnread(r.unread);
+      toast(`Evaluated ${r.evaluated}: ${r.fired} fired${r.suppressed ? `, ${r.suppressed} held back by cooldowns` : ''}${r.errors.length ? `, ${r.errors.length} could not be evaluated` : ''}.`);
+    } catch (e) { toast(e.message); } finally { alertsPage.busy = false; button.disabled = false; }
+    this.load();
+  },
+};
+
 /* Charts ----------------------------------------------------------------- */
 
 function niceStep(span) {
@@ -1905,6 +3655,10 @@ async function boot() {
   if (DEMO) { settings = { ...DEMO_OPTIONS.defaults, effort: null, backendUrl: '', custom: { quick: false, deep: false } }; }
   else initSettings();
   route();
+  if (!DEMO) {
+    refreshUnread();
+    setInterval(refreshUnread, 60000);
+  }
 }
 
 boot();

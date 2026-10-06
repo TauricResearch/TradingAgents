@@ -314,6 +314,38 @@ class Syncer:
                 changes += store.record_shares(self.conn, isin, key, row.issue_size, row.face_value, "NSE PR (mcap)")
         return stored + changes, f"{stored} actions, {changes} share-count changes, {sum(unmapped.values())} unmapped"
 
+    def reparse_actions(self) -> JobResult:
+        """Read every stored action's purpose text again with today's parser, after a
+        fix to it: ratios, amounts and factors are rewritten, and a row whose kind the
+        text no longer gives is dropped. Nothing is downloaded."""
+        result, began = JobResult("reparse-actions"), time.monotonic()
+        face = {r[0]: r[1] for r in self.conn.execute("SELECT isin, face_value FROM securities")}
+        rows = self.conn.execute("SELECT isin, ex_date, type, details, ratio_num, ratio_den, amount, factor "
+                                 "FROM corporate_actions").fetchall()
+        self.progress.start("reparse-actions", len(rows))
+        for isin, ex_date, kind, details, *old in rows:
+            parsed = {a.type: a for a in parse_purpose(details, face.get(isin))}
+            action = parsed.get(kind)
+            if action is None:
+                self.conn.execute("DELETE FROM corporate_actions WHERE isin=? AND ex_date=? AND type=? AND details=?",
+                                  (isin, ex_date, kind, details))
+                result.done += 1
+            elif [action.ratio_num, action.ratio_den, action.amount, action.factor] != list(old):
+                self.conn.execute("UPDATE corporate_actions SET ratio_num=?, ratio_den=?, amount=?, factor=? "
+                                  "WHERE isin=? AND ex_date=? AND type=? AND details=?",
+                                  (action.ratio_num, action.ratio_den, action.amount, action.factor,
+                                   isin, ex_date, kind, details))
+                result.done += 1
+            else:
+                result.skipped += 1
+            self.progress.advance("reparse-actions")
+        self.conn.commit()
+        result.rows = len(rows)
+        result.notes.append(f"{result.done} of {len(rows)} stored actions changed")
+        self.progress.finish("reparse-actions")
+        result.elapsed = time.monotonic() - began
+        return result
+
     def sync_announcements(self, start: date, end: date, isins: set[str] | None, label: str) -> JobResult:
         return self._days(f"announcements:{label}", start, end, lambda day: self._announcements_day(day, isins))
 

@@ -111,6 +111,10 @@ def test_each_day_reads_prices_from_the_file_that_covers_it():
     ("BONUS 1:1", [("bonus", 2.0, None)]),
     ("BONUS 2:1", [("bonus", 3.0, None)]),
     ("BONUS 1:1/FV SPL 10 TO 2", [("split", 5.0, None), ("bonus", 2.0, None)]),
+    # A scheme of arrangement's bonus of redeemable preference shares leaves the equity count alone.
+    ("SCH AGMT-BONUS NCRPS46:1", [("bonus", None, None)]),
+    ("SCH AGMT-BONUS NCRPS 4:1", [("bonus", None, None)]),
+    ("BONUS DEBENTURES 1:1", [("bonus", None, None)]),
     ("DIV - RS 1.50 PER SH", [("dividend", None, 1.5)]),
     ("INTDIV - RS 8 PER SH", [("dividend", None, 8.0)]),
     ("AGM/DIV - RS 5 PER SH/SPL DIV - RS 2 PER SH", [("dividend", None, 7.0)]),
