@@ -87,6 +87,29 @@ def unattended_gaps(flags) -> list[str]:
     return gaps
 
 
+def _check_tier_providers(main_provider: str) -> None:
+    """Check each provider the model tiers use (#1440) before the run.
+
+    A tier on another provider needs its model from its variable, since the
+    model question offers the main provider's models. Each provider a tier uses
+    has its key checked now, prompting for a missing one, rather than at its
+    first call, which for the deep tier comes after everything else has been
+    paid for; a provider no tier uses needs no key.
+    """
+    used = []
+    for tier in ("quick", "deep"):
+        provider = (DEFAULT_CONFIG.get(f"{tier}_think_provider") or main_provider).lower()
+        if provider != main_provider.lower():
+            variable = f"TRADINGAGENTS_{tier.upper()}_THINK_LLM"
+            if not os.environ.get(variable):
+                console.print(f"[red]The {tier} tier runs on {provider}; set {variable} to one of its models.[/red]")
+                raise typer.Exit(code=1)
+        if provider not in used:
+            used.append(provider)
+    for provider in used:
+        ensure_api_key(provider)
+
+
 def _from_flag(parse, value, *args):
     """A flag's value through the same check its prompt applies; a bad one ends the run."""
     try:
@@ -234,17 +257,6 @@ def _prompt_selections(prefs, flags):
         )
         console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
-        # Still confirm/persist the API key so the run doesn't fail later.
-        ensure_api_key(selected_llm_provider)
-        chatgpt_account_id = (
-            (
-                select_chatgpt_account()
-                if sys.stdin and sys.stdin.isatty()
-                else chatgpt_auth_account_for_headless()
-            )
-            if selected_llm_provider == "chatgpt"
-            else None
-        )
     else:
         console.print(create_question_box("Step 6: LLM Provider", "Select your LLM provider"))
         selected_llm_provider, backend_url = select_llm_provider(prefs.get("llm_provider"))
@@ -280,13 +292,19 @@ def _prompt_selections(prefs, flags):
         if selected_llm_provider == "ollama":
             confirm_ollama_endpoint(backend_url)
 
-        # Confirm the provider's API key is present; prompt the user to paste
-        # one and persist it to .env if it's missing, so the analysis run
-        # doesn't fail later at the first API call.
-        ensure_api_key(selected_llm_provider)
+    _check_tier_providers(selected_llm_provider)
+    uses_chatgpt = selected_llm_provider == "chatgpt" or any(
+        (DEFAULT_CONFIG.get(f"{tier}_think_provider") or selected_llm_provider).lower() == "chatgpt"
+        for tier in ("quick", "deep")
+    )
+    if uses_chatgpt:
         chatgpt_account_id = (
-            select_chatgpt_account() if selected_llm_provider == "chatgpt" else None
+            select_chatgpt_account()
+            if sys.stdin and sys.stdin.isatty()
+            else chatgpt_auth_account_for_headless()
         )
+    else:
+        chatgpt_account_id = None
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
     if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get(

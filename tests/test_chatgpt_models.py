@@ -296,14 +296,14 @@ def test_graph_pins_one_session_before_factories_across_account_switch(
         )
 
     monkeypatch.setattr(chatgpt_auth, "pinned_session", pinned_session)
-    original_factory = trading_graph.create_llm_client
+    original_factory = trading_graph.create_tier_client
     sessions = []
 
-    def observe_factory(*args, **kwargs):
+    def observe_factory(config, tier, **kwargs):
         sessions.append(kwargs["auth_session"])
-        return original_factory(*args, **kwargs)
+        return original_factory(config, tier, **kwargs)
 
-    monkeypatch.setattr(trading_graph, "create_llm_client", observe_factory)
+    monkeypatch.setattr(trading_graph, "create_tier_client", observe_factory)
     config = dict(
         DEFAULT_CONFIG,
         results_dir=str(tmp_path / "results"),
@@ -326,3 +326,38 @@ def test_graph_pins_one_session_before_factories_across_account_switch(
         for request in requests
     )
     assert ACCOUNT_A not in graph._run_signature("stock")
+
+
+@pytest.mark.unit
+def test_chatgpt_tier_uses_pinned_session_with_other_main_provider(monkeypatch, tmp_path: Path):
+    path = tmp_path / "auth.json"
+    _account_store(path)
+    transport, requests = _transport({
+        ACCOUNT_A: [{"visibility": "list", "display_name": "Deep", "slug": "deep-a"}],
+    })
+    original_pinned_session = chatgpt_auth.pinned_session
+
+    def pinned_session(*, client_id=None):
+        return original_pinned_session(
+            store_path=path, client_id=client_id, http_transport=transport
+        )
+
+    monkeypatch.setattr(chatgpt_auth, "pinned_session", pinned_session)
+    config = dict(
+        DEFAULT_CONFIG,
+        results_dir=str(tmp_path / "results"),
+        data_cache_dir=str(tmp_path / "cache"),
+        llm_provider="openai",
+        deep_think_provider="chatgpt",
+        chatgpt_account_id=ACCOUNT_A,
+        quick_think_llm="gpt-6-luna",
+        deep_think_llm="deep-a",
+    )
+
+    graph = trading_graph.TradingAgentsGraph(selected_analysts=("market",), config=config)
+
+    assert graph.deep_thinking_llm._llm_type == "chatgpt-responses"
+    assert graph._chatgpt_registration_session is not None
+    assert len(requests) == 1
+    assert requests[0].headers["Authorization"] == "Bearer access-oaiapp_account_a"
+    assert "chatgpt-account=" in graph._run_signature("stock")

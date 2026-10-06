@@ -691,22 +691,22 @@ def _install_factory_transport(
         )
 
     monkeypatch.setattr(chatgpt_auth, "pinned_session", pinned_session)
-    original_factory = trading_graph.create_llm_client
+    original_factory = trading_graph.create_tier_client
     sessions: list[RegistrationSession] = []
     factory_models: list[dict[str, Any]] = []
 
-    def create_fixture_client(*args: Any, **kwargs: Any) -> Any:
+    def create_fixture_client(config: dict[str, Any], tier: str, **kwargs: Any) -> Any:
         sessions.append(kwargs["auth_session"])
         factory_models.append(
             {
-                "provider": args[0] if args else kwargs.get("provider"),
-                "model": args[1] if len(args) > 1 else kwargs.get("model"),
+                "provider": kwargs.get("provider", config.get(f"{tier}_think_provider") or "chatgpt"),
+                "model": config[f"{tier}_think_llm"],
             }
         )
         kwargs["http_client"] = fixture.responses_client
-        return original_factory(*args, **kwargs)
+        return original_factory(config, tier, **kwargs)
 
-    monkeypatch.setattr(trading_graph, "create_llm_client", create_fixture_client)
+    monkeypatch.setattr(trading_graph, "create_tier_client", create_fixture_client)
     return sessions, factory_models
 
 
