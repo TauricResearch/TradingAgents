@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+from contextvars import ContextVar
 from pathlib import Path
 
 import questionary
@@ -10,7 +11,7 @@ from dotenv import find_dotenv, set_key
 from cli.display import console
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
-from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.model_catalog import ModelOption, get_model_options
 
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
@@ -22,6 +23,22 @@ ANALYST_CHOICES = [
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
+_CHATGPT_ACCOUNT_ID: ContextVar[str | None] = ContextVar(
+    "tradingagents_chatgpt_account_id", default=None
+)
+
+
+def _chatgpt_model_catalog(
+    account_id: str | None = None,
+) -> tuple[str, list[ModelOption]]:
+    """Load the models displayed for one explicitly selected ChatGPT account."""
+    from tradingagents.llm_clients import chatgpt_auth
+    from tradingagents.llm_clients.model_catalog import get_chatgpt_model_options
+
+    session = chatgpt_auth.pinned_session(
+        client_id=account_id or _CHATGPT_ACCOUNT_ID.get()
+    )
+    return session.registration.client_id, get_chatgpt_model_options(session)
 
 
 def is_valid_ticker_input(value: str) -> bool:
@@ -306,6 +323,21 @@ def _select_model(provider: str, mode: str, default=None) -> str:
     if provider.lower() == "openrouter":
         return select_openrouter_model(mode)
 
+    if provider.lower() == "chatgpt":
+        from tradingagents.llm_clients import chatgpt_auth
+        from tradingagents.llm_clients.model_catalog import ChatGPTModelCatalogError
+
+        try:
+            _, options = _chatgpt_model_catalog()
+        except (chatgpt_auth.OAuthError, ChatGPTModelCatalogError) as exc:
+            console.print(f"[red]Unable to load ChatGPT models: {exc}[/red]")
+            raise typer.Exit(code=1) from None
+        from tradingagents.llm_clients.model_catalog import add_chatgpt_picker_suggestions
+
+        options = add_chatgpt_picker_suggestions(options)
+    else:
+        options = get_model_options(provider, mode)
+
     if provider.lower() == "azure":
         return _require_text(
             f"Enter Azure deployment name ({mode}-thinking):",
@@ -316,9 +348,9 @@ def _select_model(provider: str, mode: str, default=None) -> str:
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, mode)
+            for display, value in options
         ],
-        default=_matching_choice(get_model_options(provider, mode), default),
+        default=_matching_choice(options, default),
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -377,6 +409,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("NVIDIA NIM", "nvidia", "https://integrate.api.nvidia.com/v1"),
         ("Azure OpenAI", "azure", None),
         ("Amazon Bedrock", "bedrock", None),
+        ("ChatGPT subscription (Sign in with ChatGPT)", "chatgpt", None),
         ("Ollama", "ollama", ollama_url),
         ("OpenAI-compatible (vLLM, LM Studio, llama.cpp, custom relay)", "openai_compatible", None),
     ]
@@ -680,6 +713,71 @@ def ensure_api_key(provider: str) -> str | None:
     os.environ[env_var] = key
     console.print(f"[green]Saved {env_var} to {env_path}[/green]")
     return key
+
+
+def select_chatgpt_account() -> str:
+    """Choose a saved account or explicitly start ChatGPT browser sign-in."""
+    from tradingagents.llm_clients import chatgpt_auth
+
+    try:
+        accounts = chatgpt_auth.saved_accounts()
+    except chatgpt_auth.OAuthError as exc:
+        console.print(f"[red]Unable to read ChatGPT accounts: {exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+    add_account = "Continue with ChatGPT"
+    choices = [
+        questionary.Choice(
+            f"Saved account {account.client_id[-8:]}"
+            f" ({'plan use enabled' if account.inference_enabled else 'plan use disabled'})",
+            value=account.client_id,
+        )
+        for account in accounts
+    ]
+    choices.append(questionary.Choice(add_account, value=add_account))
+    selected = questionary.select(
+        "Choose a ChatGPT account:",
+        choices=choices,
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+    if selected is None:
+        console.print("[red]No ChatGPT account selected. Exiting...[/red]")
+        raise typer.Exit(code=1)
+    if selected == add_account:
+        try:
+            result = chatgpt_auth.sign_in(enable_plan_use=True, add_account=bool(accounts))
+        except chatgpt_auth.OAuthError as exc:
+            console.print(f"[red]ChatGPT sign-in failed: {exc}[/red]")
+            raise typer.Exit(code=1) from None
+        if not result.inference_enabled:
+            console.print(
+                "[red]ChatGPT plan use is disabled. Run `tradingagents auth login "
+                "--provider chatgpt` to enable it before analysis.[/red]"
+            )
+            raise typer.Exit(code=1)
+        _CHATGPT_ACCOUNT_ID.set(result.client_id)
+        return result.client_id
+
+    account = next(account for account in accounts if account.client_id == selected)
+    if account.requires_reauthorization:
+        console.print(
+            "[red]This ChatGPT account needs sign-in. Run `tradingagents auth login "
+            "--provider chatgpt` before analysis.[/red]"
+        )
+        raise typer.Exit(code=1)
+    if not account.inference_enabled:
+        console.print(
+            "[red]ChatGPT plan use is disabled. Run `tradingagents auth login "
+            "--provider chatgpt` to enable it before analysis.[/red]"
+        )
+        raise typer.Exit(code=1)
+    _CHATGPT_ACCOUNT_ID.set(account.client_id)
+    return account.client_id
 
 
 def ask_output_language(default=None) -> str:

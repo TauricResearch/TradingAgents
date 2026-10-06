@@ -2,6 +2,7 @@ import sys
 
 import typer
 
+from cli import auth
 from cli.display import console
 from cli.models import AnalystType, AssetType
 from cli.prompts import filter_analysts_for_asset_type, parse_analysts
@@ -27,6 +28,7 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+app.add_typer(auth.app, name="auth")
 
 
 @app.callback(invoke_without_command=True)

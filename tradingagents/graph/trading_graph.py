@@ -75,9 +75,25 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
+        providers = {tier: tier_provider(self.config, tier) for tier in ("quick", "deep")}
+        self._chatgpt_registration_session = None
+        if "chatgpt" in providers.values():
+            from tradingagents.llm_clients.chatgpt_auth import pinned_session
+
+            self._chatgpt_registration_session = pinned_session(
+                client_id=self.config.get("chatgpt_account_id")
+            )
+
         extra = {"callbacks": self.callbacks} if self.callbacks else {}
-        self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
-        self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
+        for tier in ("deep", "quick"):
+            tier_extra = dict(extra)
+            if providers[tier] == "chatgpt":
+                tier_extra.update(
+                    auth_session=self._chatgpt_registration_session,
+                    chatgpt_account_id=self.config.get("chatgpt_account_id"),
+                )
+            client = create_tier_client(self.config, tier, **tier_extra).get_llm()
+            setattr(self, f"{tier}_thinking_llm", client)
 
         self.memory_log = TradingMemoryLog(self.config)
 
@@ -148,8 +164,15 @@ class TradingAgentsGraph:
         the run keeps its files and how it retries are left out.
         """
         settings = {k: v for k, v in self.config.items() if k not in _NOT_IN_SIGNATURE}
+        providers = {
+            (self.config.get(f"{tier}_think_provider") or self.config.get("llm_provider", "")).lower()
+            for tier in ("quick", "deep")
+        }
+        uses_chatgpt = "chatgpt" in providers
+        if uses_chatgpt:
+            settings.pop("chatgpt_account_id", None)
         digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode()).hexdigest()[:12]
-        return "|".join([
+        signature_parts = [
             "analysts=" + ",".join(self.selected_analysts),
             f"debate={self.config['max_debate_rounds']}",
             f"risk={self.config['max_risk_discuss_rounds']}",
@@ -162,7 +185,15 @@ class TradingAgentsGraph:
             "analysts=parallel",
             "memory=parallel",
             f"settings={digest}",
-        ])
+        ]
+        if uses_chatgpt:
+            session = getattr(self, "_chatgpt_registration_session", None)
+            if session is None:
+                raise ValueError("ChatGPT checkpoint identity requires a pinned account session")
+            signature_parts.append(
+                f"chatgpt-account={session.registration.discriminator}"
+            )
+        return "|".join(signature_parts)
 
     def propagate(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Run the trading agents graph for a company on a specific date.

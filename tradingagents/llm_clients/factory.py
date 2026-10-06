@@ -49,6 +49,26 @@ def create_llm_client(
         from .bedrock_client import BedrockClient
         return BedrockClient(model, base_url, **kwargs)
 
+    if provider_lower == "chatgpt":
+        from .chatgpt_auth import RegistrationSession, pinned_session
+        from .chatgpt_client import ChatGPTClient
+
+        account_id = kwargs.pop("chatgpt_account_id", None)
+        auth_session = kwargs.pop("auth_session", None)
+        if auth_session is None:
+            auth_session = pinned_session(client_id=account_id)
+        elif account_id is not None and auth_session.registration.client_id != account_id:
+            raise ValueError("ChatGPT account selection does not match its pinned session")
+        if not isinstance(auth_session, RegistrationSession):
+            raise ValueError("ChatGPT requires a pinned account session")
+        # /v1/models is a display catalog, not an inference allowlist. Keep
+        # account authorization local, then let public Responses adjudicate the
+        # explicitly selected model instead of blocking unlisted IDs here.
+        auth_session.access_token()
+        return ChatGPTClient(
+            model, base_url, provider=provider_lower, auth_session=auth_session, **kwargs
+        )
+
     from .openai_client import OpenAIClient, is_openai_compatible
     if is_openai_compatible(provider_lower):
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
@@ -97,7 +117,7 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         if thinking_level:
             kwargs["thinking_level"] = thinking_level
 
-    elif provider == "openai":
+    elif provider in ("openai", "chatgpt"):
         reasoning_effort = config.get("openai_reasoning_effort")
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
@@ -111,6 +131,8 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
     # float() here so a value coming from a TRADINGAGENTS_TEMPERATURE env
     # string ("0.2") works the same as a programmatic float.
     temperature = config.get("temperature")
+    if provider == "chatgpt" and temperature is not None and temperature != "":
+        raise ValueError("ChatGPT Responses does not support temperature")
     if temperature is not None and temperature != "":
         kwargs["temperature"] = float(temperature)
 
@@ -123,6 +145,8 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
     # Output-token cap is cross-provider, but Gemini names it
     # ``max_output_tokens``; forward under the right key when set (#1204).
     max_tokens = config.get("max_tokens")
+    if provider == "chatgpt" and max_tokens is not None and max_tokens != "":
+        raise ValueError("ChatGPT Responses does not support output-token caps")
     if max_tokens is not None and max_tokens != "":
         key = "max_output_tokens" if provider == "google" else "max_tokens"
         kwargs[key] = _coerce_max_tokens(max_tokens)

@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import sys
 from pathlib import Path
 
 import typer
@@ -31,6 +32,7 @@ from cli.prompts import (
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
+    select_chatgpt_account,
     select_deep_thinking_agent,
     select_llm_provider,
     select_research_depth,
@@ -48,8 +50,10 @@ def get_user_selections(flags=None):
 
 def depth_from_env() -> bool:
     """Both round counts come from the environment, so the depth question is skipped."""
-    return bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")
-                and os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"))
+    return bool(
+        os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")
+        and os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS")
+    )
 
 
 def unattended_gaps(flags) -> list[str]:
@@ -65,6 +69,21 @@ def unattended_gaps(flags) -> list[str]:
         gaps.append("TRADINGAGENTS_LLM_PROVIDER")
     if not (env("TRADINGAGENTS_QUICK_THINK_LLM") or env("TRADINGAGENTS_DEEP_THINK_LLM")):
         gaps.append("TRADINGAGENTS_QUICK_THINK_LLM or TRADINGAGENTS_DEEP_THINK_LLM")
+    if env("TRADINGAGENTS_LLM_PROVIDER", "").lower() == "chatgpt":
+        from tradingagents.llm_clients import chatgpt_auth
+
+        try:
+            session = chatgpt_auth.pinned_session()
+            account = next(
+                account
+                for account in chatgpt_auth.saved_accounts()
+                if account.client_id == session.registration.client_id
+            )
+        except (chatgpt_auth.OAuthError, StopIteration):
+            gaps.append("tradingagents auth login --provider chatgpt")
+        else:
+            if account.requires_reauthorization or not account.inference_enabled:
+                gaps.append("tradingagents auth login --provider chatgpt to enable plan use")
     return gaps
 
 
@@ -109,9 +128,7 @@ def _prompt_selections(prefs, flags):
     welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
     welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
-    welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
-    )
+    welcome_content += "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
 
     welcome_box = Panel(
         welcome_content,
@@ -166,9 +183,7 @@ def _prompt_selections(prefs, flags):
     # Only announce when it's not the default stock path, to avoid printing
     # "stock" on every run.
     if asset_type.value != "stock":
-        console.print(
-            f"[green]Detected asset type:[/green] {asset_type.value}"
-        )
+        console.print(f"[green]Detected asset type:[/green] {asset_type.value}")
 
     # Step 2: Analysis date
     if flags.get("date") is not None:
@@ -188,14 +203,12 @@ def _prompt_selections(prefs, flags):
     # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
     if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
         output_language = DEFAULT_CONFIG["output_language"]
-        console.print(
-            f"[green]✓ Output language from environment:[/green] {output_language}"
-        )
+        console.print(f"[green]✓ Output language from environment:[/green] {output_language}")
     else:
         console.print(
             create_question_box(
                 "Step 3: Output Language",
-                "Select the language for analyst reports and final decision"
+                "Select the language for analyst reports and final decision",
             )
         )
         output_language = ask_output_language(prefs.get("output_language"))
@@ -228,9 +241,7 @@ def _prompt_selections(prefs, flags):
         )
     else:
         console.print(
-            create_question_box(
-                "Step 5: Research Depth", "Select your research depth level"
-            )
+            create_question_box("Step 5: Research Depth", "Select your research depth level")
         )
         selected_research_depth = select_research_depth(prefs.get("research_depth"))
 
@@ -247,11 +258,7 @@ def _prompt_selections(prefs, flags):
         console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
     else:
-        console.print(
-            create_question_box(
-                "Step 6: LLM Provider", "Select your LLM provider"
-            )
-        )
+        console.print(create_question_box("Step 6: LLM Provider", "Select your LLM provider"))
         selected_llm_provider, backend_url = select_llm_provider(prefs.get("llm_provider"))
 
         # Providers with regional endpoints prompt for the region as a secondary
@@ -273,8 +280,11 @@ def _prompt_selections(prefs, flags):
         # The generic OpenAI-compatible endpoint has no default; ask for it if
         # neither the menu nor the environment supplied one.
         if selected_llm_provider == "openai_compatible" and not backend_url:
-            remembered_url = (prefs.get("backend_url")
-                              if prefs.get("llm_provider") == selected_llm_provider else None)
+            remembered_url = (
+                prefs.get("backend_url")
+                if prefs.get("llm_provider") == selected_llm_provider
+                else None
+            )
             backend_url = prompt_openai_compatible_url(remembered_url)
 
         # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
@@ -282,11 +292,24 @@ def _prompt_selections(prefs, flags):
         if selected_llm_provider == "ollama":
             confirm_ollama_endpoint(backend_url)
 
-
     _check_tier_providers(selected_llm_provider)
+    uses_chatgpt = selected_llm_provider == "chatgpt" or any(
+        (DEFAULT_CONFIG.get(f"{tier}_think_provider") or selected_llm_provider).lower() == "chatgpt"
+        for tier in ("quick", "deep")
+    )
+    if uses_chatgpt:
+        chatgpt_account_id = (
+            select_chatgpt_account()
+            if sys.stdin and sys.stdin.isatty()
+            else chatgpt_auth_account_for_headless()
+        )
+    else:
+        chatgpt_account_id = None
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
-    if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
+    if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get(
+        "TRADINGAGENTS_DEEP_THINK_LLM"
+    ):
         selected_shallow_thinker = DEFAULT_CONFIG["quick_think_llm"]
         selected_deep_thinker = DEFAULT_CONFIG["deep_think_llm"]
         console.print(
@@ -323,21 +346,32 @@ def _prompt_selections(prefs, flags):
         anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
     elif provider_lower == "google":
         thinking_level = thinking_value_or_prompt(
-            "TRADINGAGENTS_GOOGLE_THINKING_LEVEL", "google_thinking_level",
-            "Gemini thinking mode", "Step 8: Thinking Mode",
-            "Configure Gemini thinking mode", ask_gemini_thinking_config,
+            "TRADINGAGENTS_GOOGLE_THINKING_LEVEL",
+            "google_thinking_level",
+            "Gemini thinking mode",
+            "Step 8: Thinking Mode",
+            "Configure Gemini thinking mode",
+            ask_gemini_thinking_config,
         )
     elif provider_lower == "openai":
         reasoning_effort = thinking_value_or_prompt(
-            "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
-            "Reasoning effort", "Step 8: Reasoning Effort",
-            "Configure OpenAI reasoning effort level", ask_openai_reasoning_effort,
+            "TRADINGAGENTS_OPENAI_REASONING_EFFORT",
+            "openai_reasoning_effort",
+            "Reasoning effort",
+            "Step 8: Reasoning Effort",
+            "Configure OpenAI reasoning effort level",
+            ask_openai_reasoning_effort,
         )
+    elif provider_lower == "chatgpt" and os.environ.get("TRADINGAGENTS_OPENAI_REASONING_EFFORT"):
+        reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
     elif provider_lower == "anthropic":
         anthropic_effort = thinking_value_or_prompt(
-            "TRADINGAGENTS_ANTHROPIC_EFFORT", "anthropic_effort",
-            "Claude effort", "Step 8: Effort Level",
-            "Configure Claude effort level", ask_anthropic_effort,
+            "TRADINGAGENTS_ANTHROPIC_EFFORT",
+            "anthropic_effort",
+            "Claude effort",
+            "Step 8: Effort Level",
+            "Configure Claude effort level",
+            ask_anthropic_effort,
         )
 
     return {
@@ -347,6 +381,7 @@ def _prompt_selections(prefs, flags):
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
         "llm_provider": selected_llm_provider.lower(),
+        "chatgpt_account_id": chatgpt_account_id,
         "backend_url": backend_url,
         "quick_think_llm": selected_shallow_thinker,
         "deep_think_llm": selected_deep_thinker,
@@ -357,12 +392,36 @@ def _prompt_selections(prefs, flags):
     }
 
 
+def chatgpt_auth_account_for_headless() -> str:
+    """Return the selected, inference-enabled account without opening a browser."""
+    from tradingagents.llm_clients import chatgpt_auth
+
+    try:
+        session = chatgpt_auth.pinned_session()
+        account = next(
+            account
+            for account in chatgpt_auth.saved_accounts()
+            if account.client_id == session.registration.client_id
+        )
+    except (chatgpt_auth.OAuthError, StopIteration):
+        console.print(
+            "[red]No usable ChatGPT account. Run `tradingagents auth login "
+            "--provider chatgpt` in an interactive terminal.[/red]"
+        )
+        raise typer.Exit(code=1) from None
+    if account.requires_reauthorization or not account.inference_enabled:
+        console.print(
+            "[red]ChatGPT plan use is disabled. Run `tradingagents auth login "
+            "--provider chatgpt` to enable it.[/red]"
+        )
+        raise typer.Exit(code=1)
+    return account.client_id
+
+
 def get_analysis_date():
     """Get the analysis date from user input."""
     while True:
-        date_str = typer.prompt(
-            "", default=datetime.datetime.now().strftime("%Y-%m-%d")
-        )
+        date_str = typer.prompt("", default=datetime.datetime.now().strftime("%Y-%m-%d"))
         try:
             return parse_analysis_date(date_str)
         except ValueError as exc:

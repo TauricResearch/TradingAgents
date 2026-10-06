@@ -196,6 +196,43 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+### ChatGPT subscription (optional)
+
+The `chatgpt` provider runs analyses on your own ChatGPT plan instead of an API key. It's separate from the `openai` provider: `openai` uses `OPENAI_API_KEY` and bills your OpenAI API account, while `chatgpt` signs in through your browser and counts against your ChatGPT plan's usage limits. Neither falls back to the other. If the plan runs out, the run stops; it never switches to an API key.
+
+It's meant for local and self-hosted use, where a browser is available on the machine running TradingAgents. Whether your plan and workspace can use it is up to OpenAI, and the sign-in is a documented preview, so it may not work for every account. The usage it consumes is yours; it doesn't make plan access unlimited.
+
+```bash
+tradingagents auth login --provider chatgpt       # opens your browser; waits up to 3 minutes for the callback
+tradingagents auth status --provider chatgpt      # saved accounts and whether plan use is enabled
+tradingagents auth logout --provider chatgpt      # clear the selected account
+```
+
+- `--provider` defaults to `chatgpt`, the only value the auth commands accept.
+- Add another account with `tradingagents auth login --provider chatgpt --add-account`. Accounts are listed by the last eight characters of the sign-in ID, not by email. `logout` clears the selected account only.
+- Plan use is a separate permission. `login` always asks for it, and there's no CLI option to skip or enable it on its own. If `status` reports `plan use disabled` or `sign-in required`, run `login` again and approve it. (The Python function `chatgpt_auth.sign_in` takes an `enable_plan_use` argument; the CLI always sets it.)
+- Credentials live in `~/.tradingagents/chatgpt/auth.json`, owned by TradingAgents and kept separate from `.env`. On macOS and Linux the folder is mode 700 and the file mode 600. Nothing is read from another tool's login, and the file shouldn't be copied between machines.
+- `status` never prints credentials. With nothing saved it prints `ChatGPT is not signed in.`
+
+In the interactive CLI, pick "ChatGPT subscription (Sign in with ChatGPT)", then either a saved account or "Continue with ChatGPT" to sign in. The quick and deep model pickers show models listed by the selected account plus clearly marked suggestions and a custom-ID option. The `/v1/models` listing is for display and may omit models accepted by public Responses; suggestions are not an entitlement guarantee. The pinned account's permission is checked locally, and the public Responses service decides whether it can use the selected model.
+
+For a scheduled job, sign in once in a terminal, then run with `TRADINGAGENTS_LLM_PROVIDER=chatgpt` and an explicit model ID. A run without a terminal uses the selected saved account. It never opens a browser, and with no usable account it stops and tells you to run `tradingagents auth login --provider chatgpt`. An unlisted or custom ID is still subject to the service's access check. From Python:
+
+```python
+config["llm_provider"] = "chatgpt"
+config["chatgpt_account_id"] = None   # selected account; set a saved sign-in ID to pin another
+config["deep_think_llm"] = "..."      # any model ID; public Responses checks access
+config["quick_think_llm"] = "..."
+```
+
+The subscription endpoint is stricter than the API. Requests are streamed and stateless, and go to OpenAI's public Responses endpoint only. A custom `backend_url`, API key or token override is refused. Temperature and output-token caps aren't supported, so leave `TRADINGAGENTS_TEMPERATURE` and `TRADINGAGENTS_MAX_TOKENS` unset (setting them with this provider is an error). The API-key providers keep their usual behavior.
+
+When something goes wrong:
+
+- **Usage limit reached.** The run stops with a ChatGPT plan usage error instead of finishing. Check your ChatGPT usage, wait for it to reset, then run again.
+- **Access revoked or expired.** `status` shows `sign-in required`. Run `tradingagents auth login --provider chatgpt` again to approve it.
+- **Logout warning.** "Credentials were cleared locally, but remote revocation was not confirmed" means the local file is clean but OpenAI didn't confirm. Revoke the grant from your ChatGPT account if it still shows there.
+
 ### CLI Usage
 
 Launch the interactive CLI:

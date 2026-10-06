@@ -54,6 +54,10 @@ def test_ollama_has_no_key():
     assert get_api_key_env("ollama") is None
 
 
+def test_chatgpt_subscription_has_no_api_key():
+    assert get_api_key_env("chatgpt") is None
+
+
 def test_unknown_provider_returns_none():
     assert get_api_key_env("not-a-real-provider") is None
 

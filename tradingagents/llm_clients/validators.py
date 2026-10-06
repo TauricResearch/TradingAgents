@@ -9,6 +9,7 @@ _ANY_MODEL_PROVIDERS = (
     "ollama", "openrouter", "openai_compatible",
     "mistral", "kimi", "groq", "nvidia", "bedrock",
 )
+_DYNAMIC_MODEL_PROVIDERS = ("chatgpt",)
 
 VALID_MODELS = {
     provider: models
@@ -20,11 +21,12 @@ VALID_MODELS = {
 def validate_model(provider: str, model: str) -> bool:
     """Check if model name is valid for the given provider.
 
-    For ollama, openrouter, and openai_compatible - any model is accepted.
+    ChatGPT model IDs are sent to the public Responses API, which adjudicates
+    access for the pinned account; custom-model providers accept any model string.
     """
     provider_lower = provider.lower()
 
-    if provider_lower in _ANY_MODEL_PROVIDERS:
+    if provider_lower in _ANY_MODEL_PROVIDERS or provider_lower in _DYNAMIC_MODEL_PROVIDERS:
         return True
 
     if provider_lower not in VALID_MODELS:

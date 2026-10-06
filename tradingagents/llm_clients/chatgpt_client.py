@@ -1,0 +1,1255 @@
+"""ChatGPT subscription Responses adapter.
+
+Public LangChain chat model over the OpenAI SDK, plus a BaseLLMClient wrapper.
+Requests stay on the documented public Responses endpoint: stateless, streamed,
+and with local tools grouped under the ``tradingagents`` namespace. API-key
+provider capabilities are left untouched.
+"""
+
+from __future__ import annotations
+
+import copy
+import json
+import threading
+import weakref
+from collections.abc import AsyncIterator, Iterable, Mapping
+from typing import Any
+from urllib.parse import urlparse
+
+import anyio
+from langchain_core.language_models import LanguageModelInput
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
+    BaseMessage,
+    ChatMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
+from langchain_core.messages.utils import message_chunk_to_message
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from langchain_core.runnables import Runnable
+from langchain_core.utils.function_calling import convert_to_openai_tool
+from openai import APIConnectionError, APIStatusError, AsyncOpenAI, OpenAI
+from pydantic import ConfigDict, Field, PrivateAttr, SecretStr, model_validator
+
+from tradingagents.llm_clients.base_client import BaseLLMClient
+
+PUBLIC_RESPONSES_BASE_URL = "https://api.openai.com/v1"
+TOOL_NAMESPACE = "tradingagents"
+RESPONSES_OUTPUT_KEY = "responses_output"
+_NAMESPACE_DESCRIPTION = "TradingAgents local function and custom tools."
+
+# Temperature and output caps are omitted rather than applied. Conversation
+# state is resent in full instead of previous_response_id.
+_OMIT_BODY_KEYS = frozenset(
+    {
+        "temperature",
+        "max_output_tokens",
+        "max_tokens",
+        "max_completion_tokens",
+        "previous_response_id",
+        "use_previous_response_id",
+    }
+)
+_REJECT_BODY_KEYS = frozenset(
+    {
+        "background",
+        "conversation",
+        "max_tool_calls",
+        "metadata",
+        "moderation",
+        "multi_agent",
+        "prompt",
+        "prompt_cache_key",
+        "prompt_cache_retention",
+        "response_format",
+        "safety_identifier",
+        "text",
+        "top_logprobs",
+        "top_p",
+        "truncation",
+        "user",
+    }
+)
+_ENDPOINT_KEYS = frozenset(
+    {
+        "base_url",
+        "openai_api_base",
+        "api_base",
+        "endpoint",
+        "openai_base_url",
+        "azure_endpoint",
+        "url",
+    }
+)
+_CREDENTIAL_KEYS = frozenset(
+    {
+        "api_key",
+        "openai_api_key",
+        "token",
+        "access_token",
+        "authorization",
+        "default_headers",
+        "extra_headers",
+        "headers",
+        "http_client",
+        "http_async_client",
+    }
+)
+_ALLOWED_HOSTED_TOOLS = frozenset({"web_search", "web_search_preview"})
+_LANGCHAIN_NOISE = frozenset({"callbacks", "tags", "run_id", "configurable", "recursion_limit"})
+_QUOTA_ERROR_CODES = frozenset(
+    {"insufficient_quota", "usage_limit_reached", "subscription_sharing_usage_limit_exceeded"}
+)
+
+
+class ChatGPTResponsesError(ValueError):
+    """The Responses request or tool call cannot be sent or accepted."""
+
+
+class ChatGPTSubscriptionError(ChatGPTResponsesError):
+    """A terminal ChatGPT subscription request or stream failure."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        code: str | None = None,
+        param: str | None = None,
+        request_id: str | None = None,
+    ):
+        super().__init__(message)
+        self.status_code = status_code
+        self.code = code
+        self.param = param
+        self.request_id = request_id
+
+
+class _AdmissionState:
+    """Shared quota gate for all model views of one pinned auth session."""
+
+    __slots__ = ("quota_paused", "__weakref__")
+
+    def __init__(self) -> None:
+        self.quota_paused = False
+
+
+_ADMISSION_LOCK = threading.Lock()
+_ADMISSION_STATES: dict[int, weakref.ReferenceType[_AdmissionState]] = {}
+
+
+def _admission_state(session: Any) -> _AdmissionState:
+    """Share the quota gate among models that use the same session object."""
+    if session is None:
+        return _AdmissionState()
+    key = id(session)
+    with _ADMISSION_LOCK:
+        reference = _ADMISSION_STATES.get(key)
+        state = reference() if reference is not None else None
+        if state is None:
+            state = _AdmissionState()
+
+            def discard(reference: weakref.ReferenceType[_AdmissionState]) -> None:
+                with _ADMISSION_LOCK:
+                    if _ADMISSION_STATES.get(key) is reference:
+                        del _ADMISSION_STATES[key]
+
+            _ADMISSION_STATES[key] = weakref.ref(state, discard)
+        return state
+
+
+def _is_public_base_url(url: str | None) -> bool:
+    """True only for the documented public API root, with no user, query, or port."""
+    if url is None:
+        return True
+    if not isinstance(url, str):
+        return False
+    parsed = urlparse(url.strip())
+    if parsed.scheme != "https" or (parsed.hostname or "").lower() != "api.openai.com":
+        return False
+    if parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.port:
+        return False
+    return parsed.path.rstrip("/") == "/v1"
+
+
+def _text_parts(content: Any) -> list[dict[str, Any]]:
+    if isinstance(content, str):
+        return [{"type": "input_text", "text": content}]
+    if not isinstance(content, list):
+        text = "" if content is None else str(content)
+        return [{"type": "input_text", "text": text}]
+    parts: list[dict[str, Any]] = []
+    for block in content:
+        if isinstance(block, str):
+            parts.append({"type": "input_text", "text": block})
+            continue
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        if block_type in {"text", "output_text", "input_text"}:
+            parts.append({"type": "input_text", "text": str(block.get("text") or "")})
+        elif block_type == "image_url":
+            image = block.get("image_url")
+            url = image.get("url") if isinstance(image, dict) else image
+            if isinstance(url, str) and url:
+                parts.append({"type": "input_image", "image_url": url})
+        elif block_type in {"input_image", "input_file"}:
+            parts.append(dict(block))
+        elif isinstance(block.get("text"), str):
+            parts.append({"type": "input_text", "text": block["text"]})
+    return parts or [{"type": "input_text", "text": ""}]
+
+
+def _plain_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    return "\n".join(
+        part["text"]
+        for part in _text_parts(content)
+        if part.get("type") == "input_text" and part.get("text")
+    )
+
+
+def _message_item(role: str, content: Any) -> dict[str, Any]:
+    if role == "system":
+        role = "developer"
+    return {"type": "message", "role": role, "content": _text_parts(content)}
+
+
+def _require_object_schema(parameters: Any, name: str) -> dict[str, Any]:
+    label = name or "<unnamed>"
+    if not isinstance(parameters, dict):
+        raise ChatGPTResponsesError(f"bad tool schema for {label}")
+    schema_type = parameters.get("type")
+    if schema_type not in {None, "object"}:
+        raise ChatGPTResponsesError(f"bad tool schema for {label}")
+    properties = parameters.get("properties")
+    if properties is not None and not isinstance(properties, dict):
+        raise ChatGPTResponsesError(f"bad tool schema for {label}")
+    return parameters
+
+
+def _function_spec(name: Any, description: Any, parameters: Any, strict: Any) -> dict[str, Any]:
+    if not isinstance(name, str) or not name:
+        raise ChatGPTResponsesError("bad tool schema for <unnamed>")
+    spec: dict[str, Any] = {
+        "type": "function",
+        "name": name,
+        "parameters": _require_object_schema(parameters, name),
+    }
+    if isinstance(description, str) and description:
+        spec["description"] = description
+    if isinstance(strict, bool):
+        spec["strict"] = strict
+    return spec
+
+
+def _normalize_tool(tool: Any) -> dict[str, Any]:
+    """Return a function, custom, or allowed hosted tool. Other hosted tools are rejected."""
+    if isinstance(tool, dict):
+        tool_type = tool.get("type")
+        if tool_type == "custom" or (tool_type is None and "name" in tool and "format" in tool):
+            name = tool.get("name")
+            if not isinstance(name, str) or not name:
+                raise ChatGPTResponsesError("bad tool schema for <unnamed>")
+            spec: dict[str, Any] = {"type": "custom", "name": name}
+            description = tool.get("description")
+            if isinstance(description, str) and description:
+                spec["description"] = description
+            if isinstance(tool.get("format"), dict):
+                spec["format"] = dict(tool["format"])
+            return spec
+        if tool_type == "function" and isinstance(tool.get("function"), dict):
+            function = tool["function"]
+            return _function_spec(
+                function.get("name"),
+                function.get("description"),
+                function.get("parameters"),
+                function.get("strict", tool.get("strict")),
+            )
+        if tool_type == "function" and "name" in tool and "function" not in tool:
+            return _function_spec(
+                tool.get("name"),
+                tool.get("description"),
+                tool.get("parameters"),
+                tool.get("strict"),
+            )
+        if isinstance(tool_type, str) and tool_type in _ALLOWED_HOSTED_TOOLS:
+            return dict(tool)
+        if isinstance(tool_type, str):
+            raise ChatGPTResponsesError(f"unsupported hosted tool {tool_type}")
+    converted = convert_to_openai_tool(tool)
+    function = converted.get("function", converted)
+    return _function_spec(
+        function.get("name"),
+        function.get("description"),
+        function.get("parameters"),
+        function.get("strict"),
+    )
+
+
+def _wire_tools(tools: Iterable[Any]) -> tuple[list[dict[str, Any]], set[str], set[str]]:
+    functions: list[dict[str, Any]] = []
+    customs: list[dict[str, Any]] = []
+    hosted: list[dict[str, Any]] = []
+    function_names: set[str] = set()
+    custom_names: set[str] = set()
+    for tool in tools:
+        spec = _normalize_tool(tool)
+        if spec["type"] == "function":
+            functions.append(spec)
+            function_names.add(spec["name"])
+        elif spec["type"] == "custom":
+            customs.append(spec)
+            custom_names.add(spec["name"])
+        else:
+            hosted.append(spec)
+    wired: list[dict[str, Any]] = []
+    local = functions + customs
+    if local:
+        wired.append(
+            {
+                "type": "namespace",
+                "name": TOOL_NAMESPACE,
+                "description": _NAMESPACE_DESCRIPTION,
+                "tools": local,
+            }
+        )
+    wired.extend(hosted)
+    return wired, function_names, custom_names
+
+
+def _tool_choice_value(tool_choice: Any, *, structured: bool) -> Any:
+    if structured or tool_choice in {"any", "required"}:
+        return "required"
+    if tool_choice is None:
+        return None
+    if tool_choice in {"auto", "none"}:
+        return tool_choice
+    if isinstance(tool_choice, str):
+        return {"type": "function", "name": tool_choice}
+    if isinstance(tool_choice, dict):
+        choice_type = tool_choice.get("type")
+        allowed = choice_type in _ALLOWED_HOSTED_TOOLS or choice_type in {"function", "custom"}
+        if allowed:
+            return dict(tool_choice)
+        if choice_type:
+            raise ChatGPTResponsesError(f"unsupported hosted tool {choice_type}")
+    raise ChatGPTResponsesError("unsupported tool_choice")
+
+
+def _output_item(item: Any) -> dict[str, Any]:
+    if isinstance(item, dict):
+        return copy.deepcopy(item)
+    dump = getattr(item, "model_dump", None)
+    if dump is None:
+        raise ChatGPTResponsesError("response output item is not serializable")
+    dumped = dump(exclude_none=True, mode="json", by_alias=True)
+    if not isinstance(dumped, dict):
+        raise ChatGPTResponsesError("response output item is not serializable")
+    return dumped
+
+
+def _parse_arguments(raw: Any, name: str) -> dict[str, Any]:
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str):
+        raise ChatGPTResponsesError(f"malformed function call arguments for {name}")
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ChatGPTResponsesError(f"malformed function call arguments for {name}") from exc
+    if not isinstance(parsed, dict):
+        raise ChatGPTResponsesError(f"function call arguments for {name} must be an object")
+    return parsed
+
+
+def _remember_call(item: dict[str, Any], kinds: dict[str, str], names: dict[str, str]) -> None:
+    call_id = item.get("call_id")
+    if not isinstance(call_id, str) or not call_id:
+        return
+    item_type = item.get("type")
+    if item_type == "function_call":
+        kinds[call_id] = "function"
+        if isinstance(item.get("name"), str):
+            names[call_id] = item["name"]
+    elif item_type == "custom_tool_call":
+        kinds[call_id] = "custom"
+        if isinstance(item.get("name"), str):
+            names[call_id] = item["name"]
+
+
+def _with_namespace(item: dict[str, Any]) -> dict[str, Any]:
+    cloned = copy.deepcopy(item)
+    if cloned.get("type") in {"function_call", "custom_tool_call", "function_call_output"}:
+        cloned["namespace"] = TOOL_NAMESPACE
+    return cloned
+
+
+def _assistant_items(
+    message: AIMessage,
+    kinds: dict[str, str],
+    names: dict[str, str],
+) -> list[dict[str, Any]]:
+    stored = message.additional_kwargs.get(RESPONSES_OUTPUT_KEY)
+    if stored is not None:
+        if not isinstance(stored, list):
+            raise ChatGPTResponsesError("stored responses output is malformed")
+        # Lossless items already contain reasoning, text, and calls in order.
+        # Do not rebuild that turn from the normalized text content.
+        replayed: list[dict[str, Any]] = []
+        for item in stored:
+            if not isinstance(item, dict):
+                raise ChatGPTResponsesError("stored responses output item is malformed")
+            cloned = _with_namespace(item)
+            replayed.append(cloned)
+            _remember_call(cloned, kinds, names)
+        return replayed
+    items: list[dict[str, Any]] = []
+    text = _plain_text(message.content)
+    if text or not message.tool_calls:
+        items.append(
+            {
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": text}],
+            }
+        )
+    for tool_call in message.tool_calls:
+        call_id = tool_call.get("id")
+        name = tool_call.get("name")
+        if not isinstance(call_id, str) or not call_id or not isinstance(name, str) or not name:
+            raise ChatGPTResponsesError("malformed function call")
+        item = {
+            "type": "function_call",
+            "name": name,
+            "arguments": json.dumps(tool_call.get("args") or {}),
+            "call_id": call_id,
+            "namespace": TOOL_NAMESPACE,
+        }
+        items.append(item)
+        _remember_call(item, kinds, names)
+    return items
+
+
+def _tool_result(
+    message: ToolMessage,
+    kinds: dict[str, str],
+    names: dict[str, str],
+) -> dict[str, Any]:
+    call_id = message.tool_call_id
+    if not isinstance(call_id, str) or not call_id:
+        raise ChatGPTResponsesError("malformed function call output")
+    output = message.content if isinstance(message.content, str) else json.dumps(message.content)
+    if kinds.get(call_id) == "custom":
+        return {"type": "custom_tool_call_output", "call_id": call_id, "output": output}
+    result: dict[str, Any] = {
+        "type": "function_call_output",
+        "call_id": call_id,
+        "output": output,
+        "namespace": TOOL_NAMESPACE,
+    }
+    name = message.name or names.get(call_id)
+    if isinstance(name, str) and name:
+        result["name"] = name
+    return result
+
+
+def _history_items(messages: Iterable[BaseMessage]) -> list[dict[str, Any]]:
+    """Convert the full LangChain turn, including prior tool calls, to Responses input."""
+    items: list[dict[str, Any]] = []
+    kinds: dict[str, str] = {}
+    names: dict[str, str] = {}
+    for message in messages:
+        if isinstance(message, AIMessage):
+            items.extend(_assistant_items(message, kinds, names))
+        elif isinstance(message, ToolMessage):
+            items.append(_tool_result(message, kinds, names))
+        elif isinstance(message, SystemMessage):
+            items.append(_message_item("developer", message.content))
+        elif isinstance(message, HumanMessage):
+            items.append(_message_item("user", message.content))
+        elif isinstance(message, ChatMessage):
+            role = "developer" if message.role == "system" else message.role
+            if role not in {"developer", "user", "assistant"}:
+                raise ChatGPTResponsesError(f"unsupported message role {role}")
+            items.append(_message_item(role, message.content))
+        else:
+            raise ChatGPTResponsesError(f"unsupported message type {type(message).__name__}")
+    return items
+
+
+def _calls_from_items(
+    items: list[dict[str, Any]],
+    function_names: set[str],
+    custom_names: set[str],
+) -> list[dict[str, Any]]:
+    tool_calls: list[dict[str, Any]] = []
+    for item in items:
+        item_type = item.get("type")
+        if item_type not in {"function_call", "custom_tool_call"}:
+            continue
+        name = item.get("name")
+        namespace = item.get("namespace")
+        call_id = item.get("call_id")
+        if namespace != TOOL_NAMESPACE:
+            raise ChatGPTResponsesError(
+                f"function call namespace {namespace!r} is not {TOOL_NAMESPACE}"
+            )
+        if not isinstance(call_id, str) or not call_id:
+            raise ChatGPTResponsesError("function call is missing call_id")
+        if item_type == "function_call":
+            if not isinstance(name, str) or name not in function_names:
+                raise ChatGPTResponsesError(f"unknown function call {name!r}")
+            args = _parse_arguments(item.get("arguments"), name)
+            tool_calls.append({"name": name, "args": args, "id": call_id, "type": "tool_call"})
+            continue
+        if not isinstance(name, str) or name not in custom_names:
+            raise ChatGPTResponsesError(f"unknown function call {name!r}")
+        custom_input = item.get("input")
+        if not isinstance(custom_input, str):
+            raise ChatGPTResponsesError(f"malformed function call arguments for {name}")
+        tool_calls.append(
+            {"name": name, "args": {"__arg1": custom_input}, "id": call_id, "type": "tool_call"}
+        )
+    return tool_calls
+
+
+def _message_text(items: list[dict[str, Any]]) -> str:
+    texts: list[str] = []
+    for item in items:
+        if item.get("type") != "message":
+            continue
+        for part in item.get("content") or []:
+            if isinstance(part, dict) and part.get("type") in {"output_text", "text"}:
+                text = part.get("text")
+                if isinstance(text, str) and text:
+                    texts.append(text)
+    return "\n".join(texts)
+
+
+def _field(value: Any, name: str, default: Any = None) -> Any:
+    if isinstance(value, Mapping):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _error_details(value: Any) -> tuple[str | None, str | None, str | None]:
+    error = _field(value, "error", value)
+    message = _field(error, "message")
+    code = _field(error, "code")
+    param = _field(error, "param")
+    return (
+        message if isinstance(message, str) else None,
+        code if isinstance(code, str) else None,
+        param if isinstance(param, str) else None,
+    )
+
+
+def _event_failure(event: Any, event_type: str) -> ChatGPTSubscriptionError:
+    source = _field(event, "response", event)
+    message, code, param = _error_details(source)
+    details = [f"ChatGPT stream ended with {event_type}"]
+    if code:
+        details.append(f"code={code}")
+    if param:
+        details.append(f"param={param}")
+    if message:
+        details.append(message)
+    return ChatGPTSubscriptionError(": ".join(details), code=code, param=param)
+
+
+def _request_failure(exc: Exception) -> ChatGPTSubscriptionError:
+    status_code = getattr(exc, "status_code", None)
+    response = getattr(exc, "response", None)
+    request_id = None
+    if response is not None:
+        request_id = response.headers.get("x-request-id")
+    code = None
+    param = None
+    detail = None
+    body = getattr(exc, "body", None)
+    if isinstance(body, Mapping):
+        detail, code, param = _error_details(body)
+    if detail is None and isinstance(exc, APIConnectionError):
+        detail = "The ChatGPT response stream was interrupted by a transport failure."
+    if status_code == 429 or code in _QUOTA_ERROR_CODES:
+        detail = "ChatGPT plan usage limit reached. Check ChatGPT Usage before retrying."
+        code = code or "usage_limit_reached"
+    parts = ["ChatGPT request failed"]
+    if isinstance(status_code, int):
+        parts.append(f"HTTP {status_code}")
+    if code:
+        parts.append(f"code={code}")
+    if param:
+        parts.append(f"param={param}")
+    if request_id:
+        parts.append(f"request_id={request_id}")
+    if detail:
+        parts.append(detail)
+    return ChatGPTSubscriptionError(
+        ": ".join(parts),
+        status_code=status_code if isinstance(status_code, int) else None,
+        code=code,
+        param=param,
+        request_id=request_id,
+    )
+
+
+def _is_retryable(exc: Exception) -> bool:
+    if isinstance(exc, APIConnectionError):
+        return True
+    return isinstance(exc, APIStatusError) and exc.status_code in {408, 409, 500, 502, 503, 504}
+
+
+def _response_usage(response: Any) -> dict[str, Any] | None:
+    usage = _field(response, "usage")
+    if usage is None:
+        return None
+    if hasattr(usage, "model_dump"):
+        usage = usage.model_dump(exclude_none=True)
+    if not isinstance(usage, Mapping):
+        return None
+    input_tokens = usage.get("input_tokens")
+    output_tokens = usage.get("output_tokens")
+    if not isinstance(input_tokens, int) or not isinstance(output_tokens, int):
+        return None
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": usage.get("total_tokens", input_tokens + output_tokens),
+    }
+
+
+def _tool_argument_deltas(event: Any, accumulated: dict[str, str]) -> None:
+    """Track interleaved argument fragments by response item, without exposing them."""
+    event_type = _field(event, "type")
+    if event_type not in {
+        "response.function_call_arguments.delta",
+        "response.function_call_arguments.done",
+    }:
+        return
+    item_id = _field(event, "item_id")
+    output_index = _field(event, "output_index")
+    key = item_id if isinstance(item_id, str) and item_id else f"index:{output_index}"
+    if event_type.endswith(".delta"):
+        delta = _field(event, "delta")
+        if isinstance(delta, str):
+            accumulated[key] = accumulated.get(key, "") + delta
+        return
+    complete = _field(event, "arguments")
+    if not isinstance(complete, str):
+        raise ChatGPTSubscriptionError("ChatGPT stream ended with malformed function arguments.")
+    prior = accumulated.get(key)
+    if prior is not None and prior != complete:
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream function argument deltas did not match the completed arguments."
+        )
+    try:
+        parsed = json.loads(complete)
+    except json.JSONDecodeError as exc:
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream returned malformed function arguments."
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise ChatGPTSubscriptionError("ChatGPT function call arguments must be an object.")
+    accumulated[key] = complete
+
+
+def _remember_completed_item(event: Any, items: dict[int, dict[str, Any]]) -> None:
+    output_index = _field(event, "output_index")
+    if not isinstance(output_index, int) or isinstance(output_index, bool) or output_index < 0:
+        raise ChatGPTSubscriptionError("ChatGPT stream completed item has an invalid output index.")
+    try:
+        item = _output_item(_field(event, "item"))
+    except ChatGPTResponsesError as exc:
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream completed item is not serializable."
+        ) from exc
+    previous = items.get(output_index)
+    if previous is not None and previous != item:
+        raise ChatGPTSubscriptionError(
+            "ChatGPT stream emitted conflicting completed items at one output index."
+        )
+    items[output_index] = item
+
+
+def _completed_output(
+    response: Any, completed_items: Mapping[int, dict[str, Any]]
+) -> dict[int, dict[str, Any]]:
+    output = _field(response, "output", []) or []
+    items: dict[int, dict[str, Any]] = {}
+    for index, raw_item in enumerate(output):
+        item = _output_item(raw_item)
+        completed = completed_items.get(index)
+        if completed is not None and completed != item:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT terminal output conflicts with a completed stream item."
+            )
+        items[index] = item
+    items.update(completed_items)
+    return items
+
+
+def _validate_completed_arguments(
+    items: Mapping[int, dict[str, Any]], accumulated: Mapping[str, str]
+) -> None:
+    for index, item in sorted(items.items()):
+        if item.get("type") != "function_call":
+            continue
+        item_id = item.get("id")
+        observed = accumulated.get(item_id) if isinstance(item_id, str) else None
+        if observed is None:
+            observed = accumulated.get(f"index:{index}")
+        arguments = item.get("arguments")
+        if not isinstance(arguments, str):
+            raise ChatGPTSubscriptionError(
+                "ChatGPT completed function call has malformed arguments."
+            )
+        try:
+            parsed = json.loads(arguments)
+        except json.JSONDecodeError as exc:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT completed function call has malformed arguments."
+            ) from exc
+        if not isinstance(parsed, dict):
+            raise ChatGPTSubscriptionError("ChatGPT function call arguments must be an object.")
+        if observed is not None and observed != arguments:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT completed function arguments did not match streamed deltas."
+            )
+
+
+class ChatGPTResponses(BaseChatModel):
+    """Responses-only chat model for a ChatGPT plan access token.
+
+    ``store`` is always false, ``stream`` is always true, and
+    ``use_previous_response_id`` stays false. System messages are sent as
+    developer messages. The complete prior turn is replayed from ordered
+    Responses output items stored on the assistant message.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
+
+    model_name: str = Field(alias="model")
+    api_key: SecretStr | None = Field(default=None, repr=False)
+    auth_session: Any = Field(default=None, exclude=True, repr=False)
+    base_url: str = PUBLIC_RESPONSES_BASE_URL
+    use_previous_response_id: bool = False
+    max_retries: int = 0
+    reasoning_effort: str | None = None
+    timeout: float | None = None
+    http_client: Any = Field(default=None, exclude=True, repr=False)
+    http_async_client: Any = Field(default=None, exclude=True, repr=False)
+    _admission: _AdmissionState = PrivateAttr(default_factory=_AdmissionState)
+
+    @model_validator(mode="after")
+    def _share_admission_state(self) -> ChatGPTResponses:
+        self._admission = _admission_state(self.auth_session)
+        return self
+
+    @model_validator(mode="after")
+    def _pin_public_endpoint(self) -> ChatGPTResponses:
+        if not isinstance(self.model_name, str) or not self.model_name.strip():
+            raise ValueError("model is required")
+        if not _is_public_base_url(self.base_url):
+            raise ValueError("ChatGPT Responses rejects a custom endpoint")
+        if self.use_previous_response_id:
+            raise ValueError("ChatGPT Responses keeps use_previous_response_id false")
+        self.base_url = PUBLIC_RESPONSES_BASE_URL
+        return self
+
+    @property
+    def _llm_type(self) -> str:
+        return "chatgpt-responses"
+
+    @property
+    def _identifying_params(self) -> dict[str, Any]:
+        return {"model": self.model_name}
+
+    def bind_tools(
+        self,
+        tools: Iterable[Any],
+        *,
+        tool_choice: Any = None,
+        **kwargs: Any,
+    ) -> Runnable[LanguageModelInput, AIMessage]:
+        formatted = [_normalize_tool(tool) for tool in tools]
+        return super().bind(tools=formatted, tool_choice=tool_choice, **kwargs)
+
+    def _access_token(self) -> str:
+        if self.auth_session is None:
+            raise ChatGPTSubscriptionError("ChatGPT Responses requires a pinned app-owned session")
+        try:
+            token = self.auth_session.access_token()
+        except Exception as exc:
+            raise ChatGPTSubscriptionError(f"ChatGPT account authorization failed: {exc}") from exc
+        if isinstance(token, str) and token:
+            return token
+        raise ChatGPTSubscriptionError("ChatGPT account did not provide an access token.")
+
+    def _reject_transport_overrides(self, params: Mapping[str, Any]) -> None:
+        if _ENDPOINT_KEYS.intersection(params):
+            raise ChatGPTResponsesError("ChatGPT Responses rejects a custom endpoint")
+        if _CREDENTIAL_KEYS.intersection(params):
+            raise ChatGPTResponsesError("ChatGPT Responses rejects token and API-key overrides")
+
+    def _consume_extra_body(self, extra: Any) -> None:
+        if extra is None:
+            return
+        if not isinstance(extra, Mapping):
+            raise ChatGPTResponsesError("malformed extra_body")
+        keys = set(extra)
+        if keys.intersection(_ENDPOINT_KEYS) or keys.intersection(_CREDENTIAL_KEYS):
+            raise ChatGPTResponsesError("malformed extra_body")
+        remaining = keys - _OMIT_BODY_KEYS
+        if remaining:
+            raise ChatGPTResponsesError("malformed extra_body")
+
+    def _prepare_body(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None,
+        params: dict[str, Any],
+    ) -> tuple[dict[str, Any], set[str], set[str], float | None]:
+        # Overrides are rejected before the SDK client, which is what attaches the bearer.
+        self._reject_transport_overrides(params)
+        self._consume_extra_body(params.pop("extra_body", None))
+        if params.get("use_previous_response_id"):
+            raise ChatGPTResponsesError("ChatGPT Responses keeps use_previous_response_id false")
+        if stop:
+            raise ChatGPTResponsesError("unsupported setting stop")
+        for key in list(params):
+            if key in _OMIT_BODY_KEYS:
+                params.pop(key)
+        if params.get("store") is True:
+            raise ChatGPTResponsesError("ChatGPT Responses requires store false")
+        if params.get("stream") is False:
+            raise ChatGPTResponsesError("ChatGPT Responses requires streaming")
+        for key in ("store", "stream", "max_retries"):
+            params.pop(key, None)
+        tools = params.pop("tools", None)
+        tool_choice = params.pop("tool_choice", None)
+        structured = params.pop("ls_structured_output_format", None) is not None
+        timeout = params.pop("timeout", None)
+        reasoning_effort = params.pop("reasoning_effort", self.reasoning_effort)
+        for key in list(params):
+            if key.startswith("ls_") or key in _LANGCHAIN_NOISE:
+                params.pop(key)
+        unsupported = _REJECT_BODY_KEYS.intersection(params)
+        if unsupported:
+            raise ChatGPTResponsesError(f"unsupported setting {sorted(unsupported)[0]}")
+        if params:
+            raise ChatGPTResponsesError(f"unsupported setting {sorted(params)[0]}")
+
+        wired: list[dict[str, Any]] = []
+        function_names: set[str] = set()
+        custom_names: set[str] = set()
+        if tools:
+            wired, function_names, custom_names = _wire_tools(tools)
+        choice = _tool_choice_value(tool_choice, structured=structured)
+        body: dict[str, Any] = {
+            "model": self.model_name,
+            "input": _history_items(messages),
+            "store": False,
+            "stream": True,
+            "include": ["reasoning.encrypted_content"],
+        }
+        if reasoning_effort is not None:
+            body["reasoning"] = {"effort": reasoning_effort}
+        if wired:
+            body["tools"] = wired
+        if choice is not None and wired:
+            body["tool_choice"] = choice
+        # LangChain pops ls_structured_output_format before _generate. A schema
+        # bind is tool_choice any/required plus one local tool; that must force
+        # a single Responses tool call.
+        one_local_tool = len(function_names) + len(custom_names) == 1
+        if structured or (choice == "required" and one_local_tool):
+            body["tool_choice"] = "required"
+            body["parallel_tool_calls"] = False
+        if _OMIT_BODY_KEYS.intersection(body):
+            raise ChatGPTResponsesError("omitted Responses fields were still serialized")
+        return body, function_names, custom_names, timeout
+
+    def _client(self) -> OpenAI:
+        kwargs: dict[str, Any] = {
+            "api_key": self._access_token(),
+            "base_url": PUBLIC_RESPONSES_BASE_URL,
+            "max_retries": 0,
+        }
+        if self.http_client is not None:
+            kwargs["http_client"] = self.http_client
+        if self.timeout is not None:
+            kwargs["timeout"] = self.timeout
+        return OpenAI(**kwargs)
+
+    def _async_client(self) -> AsyncOpenAI:
+        kwargs: dict[str, Any] = {
+            "api_key": self._access_token(),
+            "base_url": PUBLIC_RESPONSES_BASE_URL,
+            "max_retries": 0,
+        }
+        if self.http_async_client is not None:
+            kwargs["http_client"] = self.http_async_client
+        if self.timeout is not None:
+            kwargs["timeout"] = self.timeout
+        return AsyncOpenAI(**kwargs)
+
+    def _message_from_response(
+        self,
+        response: Any,
+        function_names: set[str],
+        custom_names: set[str],
+        items: list[dict[str, Any]],
+    ) -> AIMessage:
+        tool_calls = _calls_from_items(items, function_names, custom_names)
+        fields: dict[str, Any] = {
+            "content": _message_text(items),
+            "additional_kwargs": {RESPONSES_OUTPUT_KEY: items},
+            "response_metadata": {"model_provider": "chatgpt", "model": self.model_name},
+        }
+        if tool_calls:
+            fields["tool_calls"] = tool_calls
+        response_id = getattr(response, "id", None)
+        if isinstance(response_id, str):
+            fields["id"] = response_id
+        return AIMessage(**fields)
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        del run_manager
+        chunks = list(self._stream(messages, stop=stop, **kwargs))
+        if not chunks:
+            raise ChatGPTSubscriptionError("ChatGPT stream ended without a completed response.")
+        message = chunks[0].message
+        for chunk in chunks[1:]:
+            message = message + chunk.message
+        return ChatResult(generations=[ChatGeneration(message=message_chunk_to_message(message))])
+
+    async def _agenerate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        del run_manager
+        chunks = [chunk async for chunk in self._astream(messages, stop=stop, **kwargs)]
+        if not chunks:
+            raise ChatGPTSubscriptionError("ChatGPT stream ended without a completed response.")
+        message = chunks[0].message
+        for chunk in chunks[1:]:
+            message = message + chunk.message
+        return ChatResult(generations=[ChatGeneration(message=message_chunk_to_message(message))])
+
+    def _stream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> Iterable[ChatGenerationChunk]:
+        del run_manager
+        if self._admission.quota_paused:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT plan usage limit reached. Check ChatGPT Usage before retrying.",
+                status_code=429,
+                code="usage_limit_reached",
+            )
+        body, function_names, custom_names, timeout = self._prepare_body(
+            messages, stop, dict(kwargs)
+        )
+        request = dict(body)
+        if timeout is not None:
+            request["timeout"] = timeout
+        retry_count = 0
+        while True:
+            received_event = False
+            emitted_text = False
+            argument_deltas: dict[str, str] = {}
+            completed_items: dict[int, dict[str, Any]] = {}
+            client: OpenAI | None = None
+            try:
+                client = self._client()
+                with client.responses.create(**request) as stream:
+                    response = None
+                    for event in stream:
+                        received_event = True
+                        event_type = _field(event, "type")
+                        if event_type == "response.output_text.delta":
+                            delta = _field(event, "delta")
+                            if isinstance(delta, str) and delta:
+                                emitted_text = True
+                                yield ChatGenerationChunk(message=AIMessageChunk(content=delta))
+                        if event_type == "response.output_item.done":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted an item after response.completed."
+                                )
+                            _remember_completed_item(event, completed_items)
+                        _tool_argument_deltas(event, argument_deltas)
+                        if event_type in {"response.failed", "response.incomplete", "error"}:
+                            failure = _event_failure(event, event_type)
+                            if (
+                                failure.code in _QUOTA_ERROR_CODES
+                                or _field(event, "status_code") == 429
+                            ):
+                                self._admission.quota_paused = True
+                                failure.status_code = 429
+                                failure.code = failure.code or "usage_limit_reached"
+                                failure.args = (
+                                    "ChatGPT plan usage limit reached. "
+                                    "Check ChatGPT Usage before retrying.",
+                                )
+                            raise failure
+                        if event_type == "response.completed":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted more than one completed response."
+                                )
+                            response = _field(event, "response")
+                    if response is None:
+                        raise ChatGPTSubscriptionError(
+                            "ChatGPT stream ended without response.completed."
+                        )
+                    if _field(response, "status") != "completed":
+                        raise ChatGPTSubscriptionError(
+                            f"ChatGPT completed event had non-completed status "
+                            f"{_field(response, 'status')!r}."
+                        )
+                    output_items = _completed_output(response, completed_items)
+                    _validate_completed_arguments(output_items, argument_deltas)
+                    items = [output_items[index] for index in sorted(output_items)]
+                    try:
+                        final_message = self._message_from_response(
+                            response, function_names, custom_names, items
+                        )
+                    except ChatGPTResponsesError as exc:
+                        raise ChatGPTSubscriptionError(
+                            f"ChatGPT completed response was invalid: {exc}"
+                        ) from exc
+                if not emitted_text and final_message.content:
+                    yield ChatGenerationChunk(message=AIMessageChunk(content=final_message.content))
+                tool_chunks = [
+                    {
+                        "name": call["name"],
+                        "args": json.dumps(call["args"]),
+                        "id": call["id"],
+                        "index": index,
+                        "type": "tool_call_chunk",
+                    }
+                    for index, call in enumerate(final_message.tool_calls)
+                ]
+                yield ChatGenerationChunk(
+                    message=AIMessageChunk(
+                        content="",
+                        additional_kwargs=final_message.additional_kwargs,
+                        id=final_message.id,
+                        tool_call_chunks=tool_chunks,
+                        response_metadata=final_message.response_metadata,
+                        usage_metadata=_response_usage(response),
+                        chunk_position="last",
+                    )
+                )
+                return
+            except ChatGPTSubscriptionError as exc:
+                if exc.status_code == 429 or exc.code in _QUOTA_ERROR_CODES:
+                    self._admission.quota_paused = True
+                raise
+            except Exception as exc:
+                failure = _request_failure(exc)
+                if failure.status_code == 429 or failure.code in _QUOTA_ERROR_CODES:
+                    self._admission.quota_paused = True
+                if not received_event and retry_count < self.max_retries and _is_retryable(exc):
+                    retry_count += 1
+                    continue
+                raise failure from exc
+            finally:
+                if client is not None and self.http_client is None:
+                    client.close()
+
+    async def _astream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[ChatGenerationChunk]:
+        del run_manager
+        if self._admission.quota_paused:
+            raise ChatGPTSubscriptionError(
+                "ChatGPT plan usage limit reached. Check ChatGPT Usage before retrying.",
+                status_code=429,
+                code="usage_limit_reached",
+            )
+        body, function_names, custom_names, timeout = self._prepare_body(
+            messages, stop, dict(kwargs)
+        )
+        request = dict(body)
+        if timeout is not None:
+            request["timeout"] = timeout
+        retry_count = 0
+        while True:
+            received_event = False
+            emitted_text = False
+            argument_deltas: dict[str, str] = {}
+            completed_items: dict[int, dict[str, Any]] = {}
+            client: AsyncOpenAI | None = None
+            try:
+                client = self._async_client()
+                stream = await client.responses.create(**request)
+                async with stream:
+                    response = None
+                    async for event in stream:
+                        received_event = True
+                        event_type = _field(event, "type")
+                        if event_type == "response.output_text.delta":
+                            delta = _field(event, "delta")
+                            if isinstance(delta, str) and delta:
+                                emitted_text = True
+                                yield ChatGenerationChunk(message=AIMessageChunk(content=delta))
+                        if event_type == "response.output_item.done":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted an item after response.completed."
+                                )
+                            _remember_completed_item(event, completed_items)
+                        _tool_argument_deltas(event, argument_deltas)
+                        if event_type in {
+                            "response.failed",
+                            "response.incomplete",
+                            "error",
+                        }:
+                            failure = _event_failure(event, event_type)
+                            if (
+                                failure.code in _QUOTA_ERROR_CODES
+                                or _field(event, "status_code") == 429
+                            ):
+                                self._admission.quota_paused = True
+                                failure.status_code = 429
+                                failure.code = failure.code or "usage_limit_reached"
+                                failure.args = (
+                                    "ChatGPT plan usage limit reached. "
+                                    "Check ChatGPT Usage before retrying.",
+                                )
+                            raise failure
+                        if event_type == "response.completed":
+                            if response is not None:
+                                raise ChatGPTSubscriptionError(
+                                    "ChatGPT stream emitted more than one completed response."
+                                )
+                            response = _field(event, "response")
+                    if response is None:
+                        raise ChatGPTSubscriptionError(
+                            "ChatGPT stream ended without response.completed."
+                        )
+                    if _field(response, "status") != "completed":
+                        raise ChatGPTSubscriptionError(
+                            "ChatGPT completed event had non-completed status "
+                            f"{_field(response, 'status')!r}."
+                        )
+                    output_items = _completed_output(response, completed_items)
+                    _validate_completed_arguments(output_items, argument_deltas)
+                    items = [output_items[index] for index in sorted(output_items)]
+                    try:
+                        final_message = self._message_from_response(
+                            response, function_names, custom_names, items
+                        )
+                    except ChatGPTResponsesError as exc:
+                        raise ChatGPTSubscriptionError(
+                            f"ChatGPT completed response was invalid: {exc}"
+                        ) from exc
+                if not emitted_text and final_message.content:
+                    yield ChatGenerationChunk(message=AIMessageChunk(content=final_message.content))
+                tool_chunks = [
+                    {
+                        "name": call["name"],
+                        "args": json.dumps(call["args"]),
+                        "id": call["id"],
+                        "index": index,
+                        "type": "tool_call_chunk",
+                    }
+                    for index, call in enumerate(final_message.tool_calls)
+                ]
+                yield ChatGenerationChunk(
+                    message=AIMessageChunk(
+                        content="",
+                        additional_kwargs=final_message.additional_kwargs,
+                        id=final_message.id,
+                        tool_call_chunks=tool_chunks,
+                        response_metadata=final_message.response_metadata,
+                        usage_metadata=_response_usage(response),
+                        chunk_position="last",
+                    )
+                )
+                return
+            except ChatGPTSubscriptionError as exc:
+                if exc.status_code == 429 or exc.code in _QUOTA_ERROR_CODES:
+                    self._admission.quota_paused = True
+                raise
+            except Exception as exc:
+                failure = _request_failure(exc)
+                if failure.status_code == 429 or failure.code in _QUOTA_ERROR_CODES:
+                    self._admission.quota_paused = True
+                if not received_event and retry_count < self.max_retries and _is_retryable(exc):
+                    retry_count += 1
+                    continue
+                raise failure from exc
+            finally:
+                if client is not None and self.http_async_client is None:
+                    with anyio.CancelScope(shield=True):
+                        await client.close()
+
+
+class ChatGPTClient(BaseLLMClient):
+    """Wrapper that returns the ChatGPT Responses chat model.
+
+    Custom endpoints are rejected here, before a token can be attached. Temperature
+    and output-cap kwargs are not forwarded, so they cannot be presented as if
+    this route applied them. Model-capability tables for API-key providers are
+    not consulted or updated.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        base_url: str | None = None,
+        provider: str = "chatgpt",
+        **kwargs: Any,
+    ):
+        super().__init__(model, base_url, **kwargs)
+        self.provider = provider
+        if not _is_public_base_url(base_url):
+            raise ValueError("ChatGPT Responses rejects a custom endpoint")
+        if _ENDPOINT_KEYS.intersection(kwargs):
+            raise ValueError("ChatGPT Responses rejects a custom endpoint")
+
+    def get_llm(self) -> ChatGPTResponses:
+        self.warn_if_unknown_model()
+        forwarded: dict[str, Any] = {}
+        for key in (
+            "api_key",
+            "auth_session",
+            "reasoning_effort",
+            "timeout",
+            "max_retries",
+            "callbacks",
+            "http_client",
+            "http_async_client",
+        ):
+            if key in self.kwargs and self.kwargs[key] is not None:
+                forwarded[key] = self.kwargs[key]
+        return ChatGPTResponses(model=self.model, **forwarded)
+
+    def validate_model(self) -> bool:
+        return isinstance(self.model, str) and bool(self.model.strip())
