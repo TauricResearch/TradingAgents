@@ -1,0 +1,8 @@
+# Syntax: <path pattern> <owner1> <owner2> ...
+# Wildcard: every path — existing and future — is owned by all four members.
+# GitHub does not allow self-approval, so every path needs at least two owners.
+*                               @JHB11Hinson @AKAScarlett @zihao9462-creator @SY1433
+
+# Optional: to narrow one directory to fewer people, add a MORE SPECIFIC line.
+# More specific patterns take precedence over the wildcard.
+# /docs/req/                    @AKAScarlett @SY1433
