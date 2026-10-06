@@ -9,7 +9,8 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src"
 VENDOR_LIBRARIES = {"yfinance"}
 
 
@@ -25,11 +26,11 @@ def _imports(path: Path) -> set[str]:
 
 @pytest.mark.unit
 def test_vendor_libraries_are_imported_only_by_the_data_layer():
-    data_layer = ROOT / "tradingagents" / "dataflows"
+    data_layer = SRC / "tradingagents" / "dataflows"
     offenders = sorted(
-        str(path.relative_to(ROOT))
+        str(path.relative_to(SRC))
         for package in ("tradingagents", "cli")
-        for path in (ROOT / package).rglob("*.py")
+        for path in (SRC / package).rglob("*.py")
         if data_layer not in path.parents and _imports(path) & VENDOR_LIBRARIES
     )
     assert offenders == []

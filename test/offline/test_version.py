@@ -7,7 +7,7 @@ import pytest
 
 import tradingagents
 
-PYPROJECT = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+PYPROJECT = (Path(__file__).resolve().parents[2] / "pyproject.toml").read_text(encoding="utf-8")
 
 
 @pytest.mark.unit

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="tradingagents/assets/tauric-logo.svg" width="60%" alt="Tauric Research">
+  <img src="src/tradingagents/assets/tauric-logo.svg" width="60%" alt="Tauric Research">
 </p>
 
 <div align="center" style="line-height: 1;">
@@ -203,6 +203,8 @@ Launch the interactive CLI:
 tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
+Running from source (`python main.py` or `python -m cli.main`) requires the package to be installed first (`python3 -m pip install -e .`) or `PYTHONPATH=src` to be set, because the `src` layout does not put `src/` on `sys.path` by itself.
+
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more. Your previous run's answers come back as the defaults, so pressing Enter accepts them. The `TRADINGAGENTS_*` variables in `.env` still skip their step entirely.
 
 To run without questions, for a scheduled job or a script, answer the per-run steps with flags and the rest with `TRADINGAGENTS_*` variables:

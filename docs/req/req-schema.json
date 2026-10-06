@@ -1,1 +1,19 @@
-{}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CS5351 requirements registry",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "type", "statement", "fit_criterion", "priority"],
+    "properties": {
+      "id":            { "type": "string" },
+      "type":          { "type": "string",
+                         "enum": ["functional","invariant","quality","performance","cost","governance","security"] },
+      "statement":     { "type": "string" },
+      "fit_criterion": { "type": "string" },
+      "priority":      { "type": "string", "enum": ["must","should","could","wont"] },
+      "tradeoff":      { "type": "string" },
+      "source":        { "type": "string" }
+    }
+  }
+}

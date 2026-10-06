@@ -12,7 +12,7 @@ import pytest
 
 from tradingagents.agents.context import get_language_instruction
 
-_AGENTS_DIR = Path(__file__).resolve().parents[1] / "tradingagents" / "agents"
+_AGENTS_DIR = Path(__file__).resolve().parents[2] / "src" / "tradingagents" / "agents"
 
 # Every node whose text reaches the saved report. If you add a report-producing
 # agent, add it here — and make it call get_language_instruction().

@@ -1,2 +1,25 @@
 # AI use log
-[]
+- id: AI-2026-10-06-001
+  date: 2026-10-06
+  members: ["JHB11Hinson"]
+  agent: opencode
+  summary: >-
+    CHG-001 structural alignment: move the inherited packages under src/ (src/tradingagents,
+    src/cli), split the inherited suite into test/offline and test/live, declare the src layout in
+    pyproject.toml, and keep every inherited test green with no logic or interface changes.
+  human_interventions:
+    - type: approve
+      what: >-
+        Approved the CHG-001 plan at the task's STOP POINT 1 and instructed the agent to execute
+        the task end to end automatically, including push and PR creation (no merge).
+      why: >-
+        The human is the approver named in the task file; execution is delegated under auditable
+        supervision, and the plan was fixed before any file moved.
+    - type: constrain
+      what: >-
+        Chose `.opencode/manual/` (the real directory) over the task's `.opencode/manuals/` for
+        the .gitignore rule, and asked for this session to be exported to transcripts/.
+      why: >-
+        The task text did not match the checkout; ignoring the actual manual directory is what
+        keeps the non-English manuals out of the repository.
+  transcript: transcripts/JHB11Hinson.md#L16-L23

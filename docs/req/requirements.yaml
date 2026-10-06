@@ -1,2 +1,7 @@
-# Requirements registry
-[]
+- id: D1-REQ-GOV-001
+  type: governance
+  statement: The repository layout must satisfy the required structure before any feature work starts.
+  fit_criterion: src/ holds all application source; test/offline and test/live exist; pip install -e ".[dev]" succeeds; pytest -q is green; README states how to run the offline, the live and the full suite.
+  priority: must
+  tradeoff: One structural commit touches many paths, so file history shifts once.
+  source: project brief section 5 and D8; intro slide "Assessment 3" (enhance an existing prototype)
