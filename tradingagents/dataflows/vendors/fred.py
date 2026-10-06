@@ -87,6 +87,15 @@ MACRO_SERIES = {
     "germany_10y": "IRLTLT01DEM156N",
     "france_10y": "IRLTLT01FRM156N",
     "eur_usd": "DEXUSEU",
+    # India (for NSE/BSE .NS/.BO tickers): FRED mirrors IMF CPI, the RBI
+    # policy rate, OECD long-term yields and IMF GDP per capita, so the same
+    # vintage pinning keeps India data point-in-time.
+    "india_cpi": "INDCPIALLMINMEI",
+    "india_inflation": "INDCPIALLMINMEI",
+    "rbi_lending_rate": "INTDSRINM193N",
+    "india_10y_yield": "INDIRLTLT01STM",
+    "usdinr": "DEXINUS",
+    "india_gdp_per_capita": "INDGDPRPCPPPT",
 }
 
 
