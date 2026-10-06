@@ -189,7 +189,8 @@ class TradingAgentsGraph:
         from the ticker; programmatic callers pass it explicitly. When
         ``checkpoint_enabled`` is set in config, the graph is recompiled with
         a per-ticker SqliteSaver so a crashed run can resume from the last
-        successful node on a subsequent invocation with the same ticker+date.
+        successful node on a subsequent invocation with the same ticker, date,
+        and :meth:`_run_signature`.
 
         Returns ``(final_state, signal)`` where ``signal`` is one of the 5-tier
         ratings (Buy / Overweight / Hold / Underweight / Sell) or ``"REVIEW"``
@@ -433,8 +434,7 @@ class TradingAgentsGraph:
         init_agent_state = self.create_run_state(company_name, trade_date, asset_type, portfolio)
         args = self.propagator.get_graph_args()
 
-        # Inject the checkpoint thread_id (from checkpoint_scope) so the same
-        # ticker+date+graph-shape resumes; a different one starts fresh (#1089).
+        # Use checkpoint_scope's identity for both resume and successful cleanup.
         if checkpoint_thread_id is not None:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = (
                 checkpoint_thread_id
