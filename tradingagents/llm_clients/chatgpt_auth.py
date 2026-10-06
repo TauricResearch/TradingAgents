@@ -445,6 +445,11 @@ def _access_token(
         refresh = record.get("refresh_token")
         if record.get("requires_reauthorization", False) or not access or not refresh:
             raise ReauthorizationRequired("Sign in again to renew this ChatGPT account.")
+        if not record.get("inference_enabled", False):
+            raise ReauthorizationRequired(
+                "ChatGPT plan use is not enabled for this account. "
+                "Sign in again and explicitly enable plan use to continue."
+            )
         if record.get("expires_at", 0.0) > time.time() + _TOKEN_SKEW_SECONDS:
             return access
 
@@ -512,6 +517,11 @@ def _access_token(
         record["rotation_pending"] = False
         record["requires_reauthorization"] = False
         _save(path, state)
+        if not record.get("inference_enabled", False):
+            raise ReauthorizationRequired(
+                "ChatGPT plan use is not enabled for this account. "
+                "Sign in again and explicitly enable plan use to continue."
+            )
         return new_access
 
 

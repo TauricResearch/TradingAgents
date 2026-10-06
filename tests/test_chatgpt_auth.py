@@ -610,7 +610,7 @@ def test_concurrent_sessions_reload_one_rotated_token_set(tmp_path: Path) -> Non
     assert session.registration.client_id == quick.registration.client_id
 
 
-def test_refresh_updates_granted_scopes_and_disables_revoked_plan_use(
+def test_refresh_revoking_plan_use_persists_grant_but_returns_no_access_token(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "auth.json"
@@ -619,7 +619,8 @@ def test_refresh_updates_granted_scopes_and_disables_revoked_plan_use(
     fixture.refresh_scope = IDENTITY_SCOPE
     session = chatgpt_auth.pinned_session(store_path=path, http_transport=fixture.transport)
 
-    assert session.access_token() == "rotated-access"
+    with pytest.raises(chatgpt_auth.ReauthorizationRequired, match="plan use"):
+        session.access_token()
 
     saved = json.loads(path.read_text(encoding="utf-8"))["accounts"][CLIENT_ID]
     account = chatgpt_auth.saved_accounts(store_path=path)[0]
@@ -629,6 +630,64 @@ def test_refresh_updates_granted_scopes_and_disables_revoked_plan_use(
     assert saved["access_token"] == "rotated-access"
     assert saved["refresh_token"] == "rotated-refresh"
     assert saved["rotation_pending"] is False
+    assert saved["requires_reauthorization"] is False
+
+    with pytest.raises(chatgpt_auth.ReauthorizationRequired, match="plan use"):
+        session.access_token()
+    assert len(fixture.refresh_forms) == 1
+
+
+def test_responses_client_sends_nothing_after_refresh_revokes_plan_use(
+    tmp_path: Path,
+) -> None:
+    from tradingagents.llm_clients.chatgpt_client import (
+        ChatGPTResponses,
+        ChatGPTSubscriptionError,
+    )
+
+    path = tmp_path / "auth.json"
+    fixture = OAuthFixture()
+    _sign_in(fixture, path)
+    with chatgpt_auth._locked(path):
+        state = chatgpt_auth._load_locked(path)
+        state["accounts"][ISSUED_ID]["expires_at"] = 0.0
+        chatgpt_auth._save(path, state)
+    fixture.refresh_scope = IDENTITY_SCOPE
+    session = chatgpt_auth.pinned_session(store_path=path, http_transport=fixture.transport)
+    model = ChatGPTResponses(
+        model="gpt-test",
+        auth_session=session,
+        http_client=httpx.Client(transport=fixture.transport),
+    )
+
+    with pytest.raises(ChatGPTSubscriptionError, match="plan use"):
+        model.invoke("No request should be sent")
+
+    assert fixture.responses_requests == 0
+    assert len(fixture.refresh_forms) == 1
+
+
+def test_cached_session_with_disabled_plan_use_returns_no_access_token(tmp_path: Path) -> None:
+    path = tmp_path / "auth.json"
+    _seed_expiring_account(path)
+    with chatgpt_auth._locked(path):
+        state = chatgpt_auth._load_locked(path)
+        record = state["accounts"][CLIENT_ID]
+        record["inference_enabled"] = False
+        record["scopes"] = sorted(IDENTITY_SCOPE.split())
+        record["expires_at"] = 4_102_444_800
+        chatgpt_auth._save(path, state)
+    fixture = OAuthFixture()
+    session = chatgpt_auth.pinned_session(store_path=path, http_transport=fixture.transport)
+
+    with pytest.raises(chatgpt_auth.ReauthorizationRequired, match="plan use"):
+        session.access_token()
+
+    saved = json.loads(path.read_text(encoding="utf-8"))["accounts"][CLIENT_ID]
+    assert saved["access_token"] == "old-access"
+    assert saved["refresh_token"] == "old-refresh"
+    assert saved["inference_enabled"] is False
+    assert fixture.refresh_forms == []
 
 
 def test_revoked_refresh_clears_tokens_but_retains_registration(tmp_path: Path) -> None:

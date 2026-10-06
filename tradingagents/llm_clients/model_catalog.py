@@ -33,7 +33,12 @@ def get_chatgpt_model_options(session: RegistrationSession) -> list[ModelOption]
         raise ChatGPTModelCatalogError(
             "ChatGPT plan use is not enabled for the selected account."
         )
-    token = session.access_token()
+    try:
+        token = session.access_token()
+    except chatgpt_auth.ReauthorizationRequired as exc:
+        raise ChatGPTModelCatalogError(
+            "ChatGPT plan use is not enabled for the selected account."
+        ) from exc
     account = next(
         (
             saved
