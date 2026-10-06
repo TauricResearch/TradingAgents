@@ -489,6 +489,7 @@ def _access_token(
         new_access = tokens.get("access_token")
         new_refresh = tokens.get("refresh_token", refresh)
         expires_in = tokens.get("expires_in", 3600)
+        granted_scope = tokens.get("scope")
         if (
             not isinstance(new_access, str)
             or not new_access
@@ -496,6 +497,7 @@ def _access_token(
             or not new_refresh
             or not isinstance(expires_in, (int, float))
             or isinstance(expires_in, bool)
+            or (granted_scope is not None and not isinstance(granted_scope, str))
         ):
             raise ReauthorizationRequired(
                 "ChatGPT returned an uncertain token rotation; sign in again."
@@ -503,6 +505,9 @@ def _access_token(
         record["access_token"] = new_access
         record["refresh_token"] = new_refresh
         record["id_token"] = tokens.get("id_token", record.get("id_token"))
+        if granted_scope is not None:
+            record["scopes"] = sorted(granted_scope.split())
+            record["inference_enabled"] = PLAN_SCOPE in record["scopes"]
         record["expires_at"] = time.time() + expires_in
         record["rotation_pending"] = False
         record["requires_reauthorization"] = False

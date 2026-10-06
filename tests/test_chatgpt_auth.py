@@ -70,6 +70,7 @@ class OAuthFixture:
         self.issued_client_id = ISSUED_ID
         self.refresh_forms: list[dict[str, str]] = []
         self.refresh_status = 200
+        self.refresh_scope: str | None = None
         self.access_token = "fixture-access"
         self.refresh_submitted: threading.Event | None = None
         self.allow_refresh: threading.Event | None = None
@@ -125,15 +126,15 @@ class OAuthFixture:
                 if self.refresh_status >= 400:
                     error = "invalid_grant" if self.refresh_status == 400 else "temporary"
                     return httpx.Response(self.refresh_status, json={"error": error})
-                return httpx.Response(
-                    200,
-                    json={
-                        "access_token": "rotated-access",
-                        "refresh_token": "rotated-refresh",
-                        "expires_in": 3600,
-                        "token_type": "Bearer",
-                    },
-                )
+                tokens = {
+                    "access_token": "rotated-access",
+                    "refresh_token": "rotated-refresh",
+                    "expires_in": 3600,
+                    "token_type": "Bearer",
+                }
+                if self.refresh_scope is not None:
+                    tokens["scope"] = self.refresh_scope
+                return httpx.Response(200, json=tokens)
             self.exchange_forms.append(normalized)
             token = self._token(normalized["client_id"], self.authorization["nonce"])
             return httpx.Response(
@@ -607,6 +608,27 @@ def test_concurrent_sessions_reload_one_rotated_token_set(tmp_path: Path) -> Non
     assert stored["refresh_token"] == "rotated-refresh"
     assert stored["rotation_pending"] is False
     assert session.registration.client_id == quick.registration.client_id
+
+
+def test_refresh_updates_granted_scopes_and_disables_revoked_plan_use(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "auth.json"
+    _seed_expiring_account(path)
+    fixture = OAuthFixture()
+    fixture.refresh_scope = IDENTITY_SCOPE
+    session = chatgpt_auth.pinned_session(store_path=path, http_transport=fixture.transport)
+
+    assert session.access_token() == "rotated-access"
+
+    saved = json.loads(path.read_text(encoding="utf-8"))["accounts"][CLIENT_ID]
+    account = chatgpt_auth.saved_accounts(store_path=path)[0]
+    assert saved["scopes"] == sorted(IDENTITY_SCOPE.split())
+    assert saved["inference_enabled"] is False
+    assert account.inference_enabled is False
+    assert saved["access_token"] == "rotated-access"
+    assert saved["refresh_token"] == "rotated-refresh"
+    assert saved["rotation_pending"] is False
 
 
 def test_revoked_refresh_clears_tokens_but_retains_registration(tmp_path: Path) -> None:
