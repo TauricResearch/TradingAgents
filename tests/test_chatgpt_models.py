@@ -159,10 +159,10 @@ def test_malformed_account_catalog_is_rejected(tmp_path: Path, models):
 
 
 @pytest.mark.unit
-def test_factory_validates_model_against_the_pinned_account(tmp_path: Path):
+def test_factory_accepts_model_absent_from_display_catalog(tmp_path: Path):
     path = tmp_path / "auth.json"
     _account_store(path)
-    transport, _ = _transport({
+    transport, requests = _transport({
         ACCOUNT_A: [{"visibility": "list", "display_name": "A", "slug": "model-a"}],
         ACCOUNT_B: [{"visibility": "list", "display_name": "B", "slug": "model-b"}],
     })
@@ -170,12 +170,12 @@ def test_factory_validates_model_against_the_pinned_account(tmp_path: Path):
         store_path=path, client_id=ACCOUNT_A, http_transport=transport
     )
 
-    client = create_llm_client("chatgpt", "model-a", auth_session=session)
+    client = create_llm_client("chatgpt", "model-b", auth_session=session)
 
     assert client.kwargs["auth_session"] is session
-    assert validate_model("chatgpt", "model-a")
-    with pytest.raises(ValueError, match="not available"):
-        create_llm_client("chatgpt", "model-b", auth_session=session)
+    assert client.model == "model-b"
+    assert requests == []
+    assert validate_model("chatgpt", "model-b")
 
 
 @pytest.mark.unit
@@ -226,6 +226,44 @@ def test_preferences_do_not_fetch_chatgpt_catalog_for_other_providers(monkeypatc
 
 
 @pytest.mark.unit
+def test_chatgpt_picker_offers_unlisted_suggestions_and_custom_ids(monkeypatch):
+    monkeypatch.setattr(
+        prompts, "_chatgpt_model_catalog", lambda: (ACCOUNT_A, [("Listed", "listed")])
+    )
+    selection = Mock()
+    selection.return_value.ask.return_value = "gpt-6-luna"
+    monkeypatch.setattr(prompts.questionary, "select", selection)
+
+    assert prompts.select_shallow_thinking_agent("chatgpt") == "gpt-6-luna"
+    choices = selection.call_args.kwargs["choices"]
+    values = [choice.value for choice in choices]
+    assert "listed" in values
+    assert {
+        "gpt-6.1-sol",
+        "gpt-6-sol",
+        "gpt-6-luna",
+        "gpt-6-astra",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+        "custom",
+    } <= set(values)
+    assert "suggested" in next(
+        choice.title.lower() for choice in choices if choice.value == "gpt-6-luna"
+    )
+
+    custom_selection = Mock()
+    custom_selection.return_value.ask.return_value = "custom"
+    monkeypatch.setattr(prompts.questionary, "select", custom_selection)
+    custom_text = Mock()
+    custom_text.return_value.ask.return_value = "provider-model-id"
+    monkeypatch.setattr(prompts.questionary, "text", custom_text)
+
+    assert prompts.select_deep_thinking_agent("chatgpt") == "provider-model-id"
+    assert custom_text.call_args.args[0] == "Enter model ID:"
+
+
+@pytest.mark.unit
 def test_account_switch_refreshes_picker_and_drops_stale_default(
     monkeypatch, tmp_path: Path
 ):
@@ -254,9 +292,9 @@ def test_account_switch_refreshes_picker_and_drops_stale_default(
     monkeypatch.setattr(prompts.questionary, "select", model_select)
     assert prompts.select_shallow_thinking_agent("chatgpt", "model-a") == "model-b"
     model_choices = model_select.call_args.kwargs["choices"]
-    assert [(choice.title, choice.value) for choice in model_choices] == [
-        ("B", "model-b")
-    ]
+    assert model_choices[0].title == "B"
+    assert model_choices[0].value == "model-b"
+    assert "model-a" not in {choice.value for choice in model_choices}
     assert model_select.call_args.kwargs["default"] is None
 
     assert len(requests) == 1
@@ -271,13 +309,6 @@ def test_graph_pins_one_session_before_factories_across_account_switch(
     _account_store(path)
     switched = Event()
 
-    def switch_selected_account() -> None:
-        with chatgpt_auth._locked(path):
-            state = chatgpt_auth._load_locked(path)
-            state["selected_client_id"] = ACCOUNT_B
-            chatgpt_auth._save(path, state)
-        switched.set()
-
     transport, requests = _transport({
         ACCOUNT_A: [
             {"visibility": "list", "display_name": "Quick", "slug": "quick-a"},
@@ -287,7 +318,7 @@ def test_graph_pins_one_session_before_factories_across_account_switch(
             {"visibility": "list", "display_name": "Quick B", "slug": "quick-b"},
             {"visibility": "list", "display_name": "Deep B", "slug": "deep-b"},
         ],
-    }, on_first_catalog=switch_selected_account)
+    })
     original_pinned_session = chatgpt_auth.pinned_session
 
     def pinned_session(*, client_id=None):
@@ -318,13 +349,18 @@ def test_graph_pins_one_session_before_factories_across_account_switch(
         selected_analysts=("market",), config=config
     )
 
+    with chatgpt_auth._locked(path):
+        state = chatgpt_auth._load_locked(path)
+        state["selected_client_id"] = ACCOUNT_B
+        chatgpt_auth._save(path, state)
+    switched.set()
+
     assert switched.is_set()
     assert len(sessions) == 2
     assert sessions[0] is sessions[1] is graph._chatgpt_registration_session
-    assert all(
-        request.headers["Authorization"] == "Bearer access-oaiapp_account_a"
-        for request in requests
-    )
+    assert graph._chatgpt_registration_session.registration.client_id == ACCOUNT_A
+    assert graph._chatgpt_registration_session.access_token() == "access-oaiapp_account_a"
+    assert requests == []
     assert ACCOUNT_A not in graph._run_signature("stock")
 
 
@@ -358,6 +394,5 @@ def test_chatgpt_tier_uses_pinned_session_with_other_main_provider(monkeypatch, 
 
     assert graph.deep_thinking_llm._llm_type == "chatgpt-responses"
     assert graph._chatgpt_registration_session is not None
-    assert len(requests) == 1
-    assert requests[0].headers["Authorization"] == "Bearer access-oaiapp_account_a"
+    assert requests == []
     assert "chatgpt-account=" in graph._run_signature("stock")

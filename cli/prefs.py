@@ -92,11 +92,10 @@ def sanitize(prefs: dict, asset_type) -> dict:
             if account_id is not None and not isinstance(account_id, str):
                 return kept
             try:
-                selected_account_id, options = _chatgpt_model_catalog(account_id)
+                selected_account_id, _options = _chatgpt_model_catalog(account_id)
             except (chatgpt_auth.OAuthError, ChatGPTModelCatalogError):
                 return kept
             kept["chatgpt_account_id"] = selected_account_id
-            offered = {model for _, model in options}
         else:
             offered_by_mode = {}
             for field, mode in (("quick_think_llm", "quick"), ("deep_think_llm", "deep")):
@@ -111,8 +110,10 @@ def sanitize(prefs: dict, asset_type) -> dict:
         if isinstance(prefs.get("backend_url"), str) and prefs["backend_url"]:
             kept["backend_url"] = prefs["backend_url"]
         for field, _mode in (("quick_think_llm", "quick"), ("deep_think_llm", "deep")):
-            if base != "chatgpt":
-                offered = offered_by_mode[field]
-            if prefs.get(field) in offered:
-                kept[field] = prefs[field]
+            model = prefs.get(field)
+            if base == "chatgpt":
+                if isinstance(model, str) and model.strip():
+                    kept[field] = model
+            elif model in offered_by_mode[field]:
+                kept[field] = model
     return kept

@@ -52,7 +52,6 @@ def create_llm_client(
     if provider_lower == "chatgpt":
         from .chatgpt_auth import RegistrationSession, pinned_session
         from .chatgpt_client import ChatGPTClient
-        from .model_catalog import get_chatgpt_model_options
 
         account_id = kwargs.pop("chatgpt_account_id", None)
         auth_session = kwargs.pop("auth_session", None)
@@ -62,17 +61,13 @@ def create_llm_client(
             raise ValueError("ChatGPT account selection does not match its pinned session")
         if not isinstance(auth_session, RegistrationSession):
             raise ValueError("ChatGPT requires a pinned account session")
-        client = ChatGPTClient(
+        # /v1/models is a display catalog, not an inference allowlist. Keep
+        # account authorization local, then let public Responses adjudicate the
+        # explicitly selected model instead of blocking unlisted IDs here.
+        auth_session.access_token()
+        return ChatGPTClient(
             model, base_url, provider=provider_lower, auth_session=auth_session, **kwargs
         )
-        available_models = {
-            slug for _, slug in get_chatgpt_model_options(auth_session)
-        }
-        if model not in available_models:
-            raise ValueError(
-                f"Model {model!r} is not available to the selected ChatGPT account"
-            )
-        return client
 
     from .openai_client import OpenAIClient, is_openai_compatible
     if is_openai_compatible(provider_lower):

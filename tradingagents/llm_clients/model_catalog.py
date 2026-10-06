@@ -15,6 +15,28 @@ class ChatGPTModelCatalogError(RuntimeError):
     """The selected ChatGPT account's model catalog could not be used."""
 
 
+CHATGPT_SUGGESTED_MODELS: tuple[ModelOption, ...] = (
+    ("GPT-6.1 Sol — suggested; OpenAI checks access", "gpt-6.1-sol"),
+    ("GPT-6 Sol — suggested; OpenAI checks access", "gpt-6-sol"),
+    ("GPT-6 Luna — suggested; OpenAI checks access", "gpt-6-luna"),
+    ("GPT-6 Astra — suggested; OpenAI checks access", "gpt-6-astra"),
+    ("GPT-5.6 Sol — suggested; OpenAI checks access", "gpt-5.6-sol"),
+    ("GPT-5.6 Terra — suggested; OpenAI checks access", "gpt-5.6-terra"),
+    ("GPT-5.6 Luna — suggested; OpenAI checks access", "gpt-5.6-luna"),
+)
+
+
+def add_chatgpt_picker_suggestions(listed: list[ModelOption]) -> list[ModelOption]:
+    """Add unverified suggestions and custom choice without relabeling listed IDs."""
+    listed_ids = {model_id for _, model_id in listed}
+    options = listed + [
+        option for option in CHATGPT_SUGGESTED_MODELS if option[1] not in listed_ids
+    ]
+    if "custom" not in listed_ids:
+        options.append(("Custom model ID — access checked by OpenAI", "custom"))
+    return options
+
+
 def get_chatgpt_model_options(session: RegistrationSession) -> list[ModelOption]:
     """Fetch the selected account's displayable models in server order."""
     import httpx
@@ -88,10 +110,6 @@ def get_chatgpt_model_options(session: RegistrationSession) -> list[ModelOption]
             raise ChatGPTModelCatalogError("A displayable ChatGPT model is malformed.")
         options.append((display_name, slug))
 
-    if not options:
-        raise ChatGPTModelCatalogError(
-            "The selected ChatGPT account has no displayable models."
-        )
     return options
 
 

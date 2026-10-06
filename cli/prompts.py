@@ -31,7 +31,7 @@ _CHATGPT_ACCOUNT_ID: ContextVar[str | None] = ContextVar(
 def _chatgpt_model_catalog(
     account_id: str | None = None,
 ) -> tuple[str, list[ModelOption]]:
-    """Load current choices for one explicitly selected ChatGPT account."""
+    """Load the models displayed for one explicitly selected ChatGPT account."""
     from tradingagents.llm_clients import chatgpt_auth
     from tradingagents.llm_clients.model_catalog import get_chatgpt_model_options
 
@@ -332,6 +332,9 @@ def _select_model(provider: str, mode: str, default=None) -> str:
         except (chatgpt_auth.OAuthError, ChatGPTModelCatalogError) as exc:
             console.print(f"[red]Unable to load ChatGPT models: {exc}[/red]")
             raise typer.Exit(code=1) from None
+        from tradingagents.llm_clients.model_catalog import add_chatgpt_picker_suggestions
+
+        options = add_chatgpt_picker_suggestions(options)
     else:
         options = get_model_options(provider, mode)
 

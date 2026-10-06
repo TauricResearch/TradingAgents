@@ -80,7 +80,7 @@ def test_headless_env_selection_uses_the_saved_chatgpt_account(monkeypatch, tmp_
 
 
 @pytest.mark.unit
-def test_chatgpt_preferences_keep_only_models_in_the_saved_account_catalog(
+def test_chatgpt_preferences_preserve_unlisted_model_ids(
     monkeypatch, tmp_path: Path
 ):
     auth_path = tmp_path / "auth.json"
@@ -121,6 +121,6 @@ def test_chatgpt_preferences_keep_only_models_in_the_saved_account_catalog(
 
     assert kept["chatgpt_account_id"] == ACCOUNT
     assert kept["quick_think_llm"] == "quick-a"
-    assert "deep_think_llm" not in kept
+    assert kept["deep_think_llm"] == "retired-model"
     assert len(requests) == 1
     assert requests[0].headers["Authorization"] == "Bearer cli-access"

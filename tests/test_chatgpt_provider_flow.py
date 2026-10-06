@@ -1066,11 +1066,15 @@ def _repo_snapshot() -> dict[str, Any]:
     ).stdout.splitlines()
     changed = [line[3:] for line in status]
     allowed = {
-        "cli/selections.py",
-        "tests/test_chatgpt_client.py",
+        "README.md",
+        "cli/prefs.py",
+        "cli/prompts.py",
+        "tests/test_chatgpt_cli_models.py",
+        "tests/test_chatgpt_models.py",
         "tests/test_chatgpt_provider_flow.py",
-        "tests/test_cli_prefs.py",
-        "tradingagents/llm_clients/chatgpt_client.py",
+        "tradingagents/llm_clients/factory.py",
+        "tradingagents/llm_clients/model_catalog.py",
+        "tradingagents/llm_clients/validators.py",
         ".debug-journal.md",
     }
     return {
@@ -1430,6 +1434,7 @@ def _run_authorized_live_flow(
                     "chatgpt_account_id": session.registration.client_id,
                     "quick_think_llm": quick_model,
                     "deep_think_llm": deep_model,
+                    "openai_reasoning_effort": "medium",
                     "checkpoint_enabled": False,
                 }
             )
@@ -1457,8 +1462,8 @@ def _run_authorized_live_flow(
                 "requests_submitted": "public Responses requests only",
                 "public_endpoint": "https://api.openai.com/v1",
                 "provider": "chatgpt",
-                "models": {"quick": options[0][0], "deep": options[-1][0]},
-                "catalog_retry": diagnostics,
+                "models": {"quick": quick_model, "deep": deep_model},
+                "model_selection": diagnostics,
                 "response_ids_sha256": {
                     "text": hashlib.sha256(text_message.id.encode()).hexdigest(),
                     "tool_call": hashlib.sha256(tool_message.id.encode()).hexdigest(),
@@ -1479,18 +1484,14 @@ def _create_live_quick_client(
     options: list[tuple[str, str]],
     diagnostics: dict[str, Any],
 ) -> tuple[Any, str, str, list[tuple[str, str]]]:
-    if not options:
-        raise ValueError("eligible account returned no visible models")
-    quick_model, deep_model = options[0][1], options[-1][1]
-    diagnostics.update(
-        {
-            "refresh_attempted": False,
-        }
-    )
+    quick_model = deep_model = "gpt-6-luna"
+    diagnostics["selection"] = "explicit_unlisted_model"
 
     def construct(model: str) -> Any:
         try:
-            client = create_llm_client("chatgpt", model, auth_session=session)
+            client = create_llm_client(
+                "chatgpt", model, auth_session=session, reasoning_effort="medium"
+            )
         except Exception as error:
             diagnostics.update(
                 {
@@ -1519,100 +1520,55 @@ def _create_live_quick_client(
             )
             raise
 
-    try:
-        quick = construct(quick_model)
-    except ValueError as error:
-        if "is not available to the selected ChatGPT account" not in str(error):
-            raise
-        diagnostics.update(
-            {
-                "refresh_attempted": True,
-                "validation_code_path": "create_llm_client_catalog_validation",
-                "validation_error_type": type(error).__name__,
-            }
-        )
-        options = get_chatgpt_model_options(session)
-        if not options:
-            raise ValueError("eligible account returned no visible models") from None
-        quick_model, deep_model = options[0][1], options[-1][1]
-        diagnostics.pop("failure_stage", None)
-        diagnostics.pop("failure_kind", None)
-        quick = construct(quick_model)
-    diagnostics["refresh_succeeded"] = diagnostics["refresh_attempted"]
+    quick = construct(quick_model)
     return quick, quick_model, deep_model, options
 
 
 @pytest.mark.unit
-def test_live_factory_refreshes_dynamic_catalog_once_on_stale_model(
+def test_live_factory_uses_explicit_gpt6_luna_without_catalog_validation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
-    refreshed_options = [("Quick", "fresh-quick"), ("Deep", "fresh-deep")]
+    selected_options = [("Listed Quick", "listed-quick"), ("Suggested Luna", "gpt-6-luna")]
 
     class _Client:
         def get_llm(self) -> str:
-            return "live-quick-client"
+            return "quick-client"
 
     def factory(provider: str, model: str, **kwargs: Any) -> _Client:
         assert provider == "chatgpt"
         assert kwargs["auth_session"] is session
         calls.append(model)
-        if model == "stale-quick":
-            raise ValueError("Model 'stale-quick' is not available to the selected ChatGPT account")
         return _Client()
 
     session = object()
-    refreshes = 0
-
-    def refresh(_session: Any) -> list[tuple[str, str]]:
-        nonlocal refreshes
-        refreshes += 1
-        return refreshed_options
-
-    monkeypatch.setattr(
-        "tests.test_chatgpt_provider_flow.create_llm_client",
-        factory,
-    )
-    monkeypatch.setattr(
-        "tests.test_chatgpt_provider_flow.get_chatgpt_model_options",
-        refresh,
-    )
+    monkeypatch.setattr("tests.test_chatgpt_provider_flow.create_llm_client", factory)
     diagnostics: dict[str, Any] = {}
 
     client, quick_model, deep_model, options = _create_live_quick_client(
-        session, [("Old Quick", "stale-quick"), ("Old Deep", "stale-deep")], diagnostics
+        session, selected_options, diagnostics
     )
 
-    assert client == "live-quick-client"
-    assert calls == ["stale-quick", "fresh-quick"]
-    assert refreshes == 1
-    assert (quick_model, deep_model) == ("fresh-quick", "fresh-deep")
-    assert options == refreshed_options
-    assert diagnostics == {
-        "refresh_attempted": True,
-        "validation_code_path": "create_llm_client_catalog_validation",
-        "validation_error_type": "ValueError",
-        "refresh_succeeded": True,
-    }
-    assert all(
-        slug not in json.dumps(diagnostics)
-        for slug in ("stale-quick", "stale-deep", "fresh-quick", "fresh-deep")
-    )
+    assert client == "quick-client"
+    assert calls == ["gpt-6-luna"]
+    assert (quick_model, deep_model) == ("gpt-6-luna", "gpt-6-luna")
+    assert options == selected_options
+    assert diagnostics == {"selection": "explicit_unlisted_model"}
 
 
 @pytest.mark.unit
 def test_live_factory_classifies_llm_initialization_without_raw_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    private_model = "private-model-slug"
+    private_error = "private-model-and-account"
 
     class _Client:
         def get_llm(self) -> Any:
-            raise ValueError(f"LLM rejected {private_model}")
+            raise ValueError(f"LLM rejected {private_error}")
 
     def factory(provider: str, model: str, **kwargs: Any) -> _Client:
         assert provider == "chatgpt"
-        assert model == private_model
+        assert model == "gpt-6-luna"
         assert kwargs["auth_session"] is session
         return _Client()
 
@@ -1624,14 +1580,14 @@ def test_live_factory_classifies_llm_initialization_without_raw_error(
     diagnostics: dict[str, Any] = {}
 
     with pytest.raises(ValueError):
-        _create_live_quick_client(session, [("Quick", private_model)], diagnostics)
+        _create_live_quick_client(session, [("Quick", "gpt-6-luna")], diagnostics)
 
     assert diagnostics == {
-        "refresh_attempted": False,
+        "selection": "explicit_unlisted_model",
         "failure_stage": "llm_initialization",
         "failure_kind": "value_error",
     }
-    assert private_model not in json.dumps(diagnostics)
+    assert private_error not in json.dumps(diagnostics)
 
 
 @pytest.mark.unit

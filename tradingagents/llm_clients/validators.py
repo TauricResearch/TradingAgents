@@ -21,8 +21,8 @@ VALID_MODELS = {
 def validate_model(provider: str, model: str) -> bool:
     """Check if model name is valid for the given provider.
 
-    ChatGPT models are checked against the selected account's live catalog by
-    the provider factory; custom-model providers accept any model string.
+    ChatGPT model IDs are sent to the public Responses API, which adjudicates
+    access for the pinned account; custom-model providers accept any model string.
     """
     provider_lower = provider.lower()
 

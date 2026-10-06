@@ -214,14 +214,14 @@ tradingagents auth logout --provider chatgpt      # clear the selected account
 - Credentials live in `~/.tradingagents/chatgpt/auth.json`, owned by TradingAgents and kept separate from `.env`. On macOS and Linux the folder is mode 700 and the file mode 600. Nothing is read from another tool's login, and the file shouldn't be copied between machines.
 - `status` never prints credentials. With nothing saved it prints `ChatGPT is not signed in.`
 
-In the interactive CLI, pick "ChatGPT subscription (Sign in with ChatGPT)", then either a saved account or "Continue with ChatGPT" to sign in. The quick and deep model lists come from the models your selected account can use right now, so they can differ between accounts and over time. A model name the account's list doesn't include is rejected.
+In the interactive CLI, pick "ChatGPT subscription (Sign in with ChatGPT)", then either a saved account or "Continue with ChatGPT" to sign in. The quick and deep model pickers show models listed by the selected account plus clearly marked suggestions and a custom-ID option. The `/v1/models` listing is for display and may omit models accepted by public Responses; suggestions are not an entitlement guarantee. The pinned account's permission is checked locally, and the public Responses service decides whether it can use the selected model.
 
-For a scheduled job, sign in once in a terminal, then run with `TRADINGAGENTS_LLM_PROVIDER=chatgpt` and model names from that account's list. A run without a terminal uses the selected saved account. It never opens a browser, and with no usable account it stops and tells you to run `tradingagents auth login --provider chatgpt`. From Python:
+For a scheduled job, sign in once in a terminal, then run with `TRADINGAGENTS_LLM_PROVIDER=chatgpt` and an explicit model ID. A run without a terminal uses the selected saved account. It never opens a browser, and with no usable account it stops and tells you to run `tradingagents auth login --provider chatgpt`. An unlisted or custom ID is still subject to the service's access check. From Python:
 
 ```python
 config["llm_provider"] = "chatgpt"
 config["chatgpt_account_id"] = None   # selected account; set a saved sign-in ID to pin another
-config["deep_think_llm"] = "..."      # a model your account lists
+config["deep_think_llm"] = "..."      # any model ID; public Responses checks access
 config["quick_think_llm"] = "..."
 ```
 
