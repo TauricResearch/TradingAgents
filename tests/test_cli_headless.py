@@ -227,7 +227,7 @@ def test_each_tier_provider_s_key_is_checked_before_the_run(monkeypatch):
 
     selections._prompt_selections({}, FLAGS)
 
-    assert checked == ["openai", "anthropic"]
+    assert checked == ["ollama", "anthropic"]
 
 
 def _report_graph(tmp_path):

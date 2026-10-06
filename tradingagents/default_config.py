@@ -89,9 +89,12 @@ def build_default_config() -> dict:
         # Pending entries are never pruned. None disables rotation entirely.
         "memory_log_max_entries": None,
         # LLM settings
-        "llm_provider": "openai",
-        "deep_think_llm": "gpt-6-sol",
-        "quick_think_llm": "gpt-6-luna",
+        # Free by default: local models served by Ollama (no API key, no usage
+        # cost). Pull them first: `ollama pull qwen3 && ollama pull qwen3:14b`.
+        # qwen3:14b (~9GB) fits a 16GB Apple Silicon machine; 30B models do not.
+        "llm_provider": "ollama",
+        "deep_think_llm": "qwen3:14b",
+        "quick_think_llm": "qwen3:latest",
         # When None, each provider's client falls back to its own default endpoint
         # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
         # The CLI overrides this per provider when the user picks one. Keeping a

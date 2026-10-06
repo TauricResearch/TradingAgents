@@ -97,3 +97,22 @@ class TestEffortGate:
         assert captured["kwargs"]["max_tokens"] == 1024
         assert captured["kwargs"]["timeout"] == 30
         assert "effort" not in captured["kwargs"]
+
+    @pytest.mark.parametrize(
+        "model, expected_method",
+        [
+            ("claude-opus-5-5", "json_schema"),
+            ("claude-fable-5-1", "json_schema"),
+            ("claude-sonnet-5-5", "json_schema"),
+            ("claude-sonnet-5", "function_calling"),
+        ],
+    )
+    def test_structured_output_uses_supported_method(self, monkeypatch, model, expected_method):
+        monkeypatch.setattr(
+            mod.ChatAnthropic,
+            "with_structured_output",
+            lambda self, schema, **kwargs: kwargs["method"],
+        )
+        llm = mod.NormalizedChatAnthropic(model=model, anthropic_api_key="test-key")
+
+        assert llm.with_structured_output(dict) == expected_method
