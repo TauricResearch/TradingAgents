@@ -91,6 +91,60 @@ def test_account_catalog_filters_visibility_and_preserves_server_order(tmp_path:
 
 
 @pytest.mark.unit
+def test_model_catalog_rechecks_plan_scope_after_token_refresh(tmp_path: Path):
+    path = tmp_path / "auth.json"
+    _account_store(path)
+    with chatgpt_auth._locked(path):
+        state = chatgpt_auth._load_locked(path)
+        state["accounts"][ACCOUNT_A]["expires_at"] = 0.0
+        chatgpt_auth._save(path, state)
+
+    requests = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.host == "auth.openai.com" and request.url.path.endswith(
+            "openid-configuration"
+        ):
+            return httpx.Response(
+                200,
+                json={"token_endpoint": "https://auth.openai.com/api/accounts/oauth/token"},
+            )
+        if request.url.host == "auth.openai.com" and request.url.path.endswith(
+            "/oauth/token"
+        ):
+            return httpx.Response(
+                200,
+                json={
+                    "access_token": "refreshed-access",
+                    "refresh_token": "refreshed-refresh",
+                    "expires_in": 3600,
+                    "scope": "openid profile email offline_access resource.invoke",
+                },
+            )
+        return httpx.Response(
+            200,
+            json={"models": [{"visibility": "list", "display_name": "A", "slug": "a"}]},
+        )
+
+    transport = httpx.MockTransport(handle)
+    session = chatgpt_auth.pinned_session(
+        store_path=path, client_id=ACCOUNT_A, http_transport=transport
+    )
+
+    with pytest.raises(ChatGPTModelCatalogError, match="plan use is not enabled"):
+        get_chatgpt_model_options(session)
+
+    assert [request.url.path for request in requests] == [
+        "/.well-known/openid-configuration",
+        "/api/accounts/oauth/token",
+    ]
+    saved = chatgpt_auth._stored_auth(path)["accounts"][ACCOUNT_A]
+    assert saved["inference_enabled"] is False
+    assert chatgpt_auth.PLAN_SCOPE not in saved["scopes"]
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("models", [None, ["malformed"], [{"visibility": "list", "slug": "missing-name"}]])
 def test_malformed_account_catalog_is_rejected(tmp_path: Path, models):
     path = tmp_path / "auth.json"

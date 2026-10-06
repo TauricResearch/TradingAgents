@@ -34,6 +34,18 @@ def get_chatgpt_model_options(session: RegistrationSession) -> list[ModelOption]
             "ChatGPT plan use is not enabled for the selected account."
         )
     token = session.access_token()
+    account = next(
+        (
+            saved
+            for saved in chatgpt_auth.saved_accounts(store_path=session.store_path)
+            if saved.client_id == session.registration.client_id
+        ),
+        None,
+    )
+    if account is None or account.requires_reauthorization or not account.inference_enabled:
+        raise ChatGPTModelCatalogError(
+            "ChatGPT plan use is not enabled for the selected account."
+        )
     try:
         with httpx.Client(timeout=10.0, transport=session.http_transport) as client:
             response = client.get(
