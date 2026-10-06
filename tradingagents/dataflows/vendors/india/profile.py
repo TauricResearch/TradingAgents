@@ -10,6 +10,11 @@ Yahoo does not have. A section the database lacks stays Yahoo's, and the page
 says which source each section came from. With no database, or nothing in it
 for the company, the page is exactly Phase 1's.
 
+The screener's metrics are computed here too, by the code that builds its live
+snapshot (``screener.company`` and ``screener.catalog``) on the same rows, so
+every figure a screen filters on reads the same on this page. The key ratios
+take them where the database has them; Yahoo's quote fills the rest, and says so.
+
 Yahoo's statements are consolidated. A standalone view therefore never falls
 back to them: a section without standalone filings is left empty and says why,
 rather than mixing two bases on one page.
@@ -23,20 +28,18 @@ from datetime import date, datetime
 
 from tradingagents.dataflows.company_profile import CompanyData, build_profile, period_label, scale
 from tradingagents.dataflows.errors import NoMarketDataError, VendorRateLimitError
-from tradingagents.dataflows.field_aliases import ALIASES
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.india import store
+from tradingagents.dataflows.vendors.india.statements import load_statements
 from tradingagents.dataflows.vendors.yahoo import company_profile as yahoo
+from tradingagents.screener import catalog
+from tradingagents.screener.company import dividends_covered, load_company
+from tradingagents.screener.snapshot import newest_price_day
 
 CACHE_TTL_SECONDS = 15 * 60
 _CACHE: dict[tuple, tuple[float, dict]] = {}
 _CACHE_LOCK = threading.Lock()
 _CACHE_MAX = 64
-
-_INCOME = set(ALIASES["xbrl"]["income"]) | {"total_expenses", "net_interest_income", "sales"}
-_BALANCE = set(ALIASES["xbrl"]["balance"])
-_CASHFLOW = set(ALIASES["xbrl"]["cashflow"]) | {"free_cash_flow"}
-_PER_SHARE = {"eps", "eps_basic"}
 
 SHAREHOLDING_ROWS = (
     ("promoter_pct", "Promoters", "pct"), ("fii_pct", "FIIs", "pct"), ("dii_pct", "DIIs", "pct"),
@@ -64,50 +67,21 @@ def _span(ends: list[str], label=period_label) -> str:
 
 
 def load(conn, security: dict, basis: str | None = None) -> dict:
-    """Everything the database has for one company, laid out for the page."""
+    """Everything the database has for one company, laid out for the page. The
+    statements come from ``statements``, the loader the screener's snapshot uses."""
     isin = security["isin"]
-    rows = store.get_financials(isin, conn=conn)
-    bases = sorted({r["basis"] for r in rows}, key=lambda b: b != "consolidated")
-    chosen = basis if basis in bases else (bases[0] if bases else basis or "consolidated")
-    events = store.adjustment_events(isin, conn=conn)
-    by_type: dict[str, dict[str, dict[str, float]]] = {"Q": {}, "A": {}, "I": {}}
-    face_values: dict[str, float] = {}
-    for r in rows:
-        if r["basis"] != chosen or r["period_type"] not in by_type:
-            continue
-        value = r["value"]
-        if r["field"] in _PER_SHARE:
-            value = value / store.per_share_factor(r["filed_at"], events)
-        if r["field"] == "face_value":
-            face_values[r["period_end"]] = value
-        by_type[r["period_type"]].setdefault(r["period_end"], {})[r["field"]] = value
-    quarterly = {e: {k: v for k, v in p.items() if k in _INCOME} for e, p in by_type["Q"].items()}
-    annual = {e: {k: v for k, v in p.items() if k in _INCOME} for e, p in by_type["A"].items()}
-    cashflow = {e: c for e, p in by_type["A"].items() if (c := {k: v for k, v in p.items() if k in _CASHFLOW})
-                and "operating" in c}
-    year_ends = set(annual) | {e for e in by_type["I"] if date.fromisoformat(e).month == 3}
-    balance = {}
-    for end, fields in by_type["I"].items():
-        if end not in year_ends:
-            continue
-        b = {k: v for k, v in fields.items() if k in _BALANCE}
-        fv = face_values.get(end) or security.get("face_value")
-        if fv and b.get("share_capital"):
-            b["shares"] = b["share_capital"] / fv
-        balance[end] = b
-    filings = store.get_filings(isin, conn=conn)
-    formats = {f["format"] for f in filings if f["kind"] == "results"}
+    s = load_statements(conn, security, basis)
     prices = store.get_prices(isin, conn=conn)
     return {
-        "security": security, "bases": bases, "basis": chosen,
-        "quarterly": quarterly, "annual": annual, "balance": balance, "cashflow": cashflow,
-        "financial": (bool(formats & {"banking", "nbfc"}) if formats else None),
+        "security": security, "bases": s.bases, "basis": s.basis,
+        "quarterly": s.quarterly, "annual": s.annual, "balance": s.balance, "cashflow": s.cashflow,
+        "financial": s.financial,
         "prices": [(p["date"], p["close"], p["volume"]) for p in prices],
-        "price_events": events,
+        "price_events": s.events,
         "shares": store.get_shares_outstanding(isin, conn=conn),
         "shareholding": store.get_shareholding(isin, conn=conn),
         "documents": store.get_documents(isin, conn=conn, limit=400),
-        "filings": filings,
+        "filings": s.filings,
     }
 
 
@@ -239,6 +213,55 @@ def _with_india(profile: dict, india: dict, data: CompanyData) -> dict:
     }
 
 
+# Key ratio -> the screener metric it shows, for India-database stocks.
+KEY_RATIO_METRICS = {"market_cap": "market_cap", "price": "current_price", "pe": "pe", "book_value": "book_value",
+                     "dividend_yield": "dividend_yield", "roce": "roce", "roe": "roe", "face_value": "face_value"}
+
+
+def screener_metrics(conn, security: dict) -> dict:
+    """Every catalog metric for one security, as the live snapshot computes it."""
+    day = newest_price_day(conn) or date.today()
+    company = load_company(conn, security, day, dividends_known=dividends_covered(conn, day))
+    groups = {}
+    for m in catalog.METRICS.values():
+        value = m.value(company)
+        groups.setdefault(m.category, []).append({
+            "key": m.key, "name": m.name, "unit": m.unit, "kind": m.kind, "decimals": m.decimals,
+            "description": m.description, "value": value,
+            "applies": m.applies, "notApplicable": m.applies == catalog.NON_FINANCIAL and company.financial})
+    return {
+        "day": day.isoformat(), "basis": company.statements.basis if not company.statements.empty else None,
+        "financial": company.financial,
+        "shares": company.shares and {"count": company.shares.count, "source": company.shares.source,
+                                      "date": company.shares.date},
+        "groups": [{"category": c, "items": groups[c]} for c in catalog.CATEGORIES if c in groups],
+        "values": {item["key"]: item["value"] for items in groups.values() for item in items},
+    }
+
+
+def _screened_key_ratios(profile: dict, metrics: dict) -> None:
+    """The key ratios the screener also computes, set to its figures (same formulas,
+    same rows); where it has none, Yahoo's figure stays and its hint says so."""
+    values = metrics["values"]
+    for r in profile["keyRatios"]:
+        if r["key"] == "high_low":
+            high, low = values.get("high_52w"), values.get("low_52w")
+            if high is not None and low is not None:
+                r["value"], r["hint"] = [high, low], "52 weeks, from the India database's adjusted prices"
+            continue
+        key = KEY_RATIO_METRICS.get(r["key"])
+        if key is None:
+            continue
+        value = values.get(key)
+        if value is not None:
+            r["value"] = value
+            r["hint"] = f"Screener figure: {catalog.METRICS[key].description}"
+            r["screener"] = key
+        elif r["value"] is not None:
+            r["hint"] = ((r.get("hint") or "") + " · Yahoo Finance's figure: the India database has none, "
+                         "so screens leave this stock out on it").lstrip(" ·")
+
+
 def _db_stamp() -> float:
     try:
         return store.db_path().stat().st_mtime
@@ -259,6 +282,7 @@ def build_company_profile(symbol: str, basis: str | None = None) -> dict:
     try:
         security = store.resolve(canonical, conn)
         india = load(conn, security, basis) if security else None
+        metrics = screener_metrics(conn, security) if india is not None and not _is_empty(india) else None
     finally:
         conn.close()
     if india is None or _is_empty(india):
@@ -277,6 +301,10 @@ def build_company_profile(symbol: str, basis: str | None = None) -> dict:
         data = CompanyData(symbol=canonical, source="NSE filings", fetched=datetime.now())
         yahoo_note = f"Yahoo Finance had nothing to add ({exc}); the quote and ratios that need it are blank."
     profile = _with_india(build_profile(overlay(data, india)), india, data)
+    if metrics is not None:
+        profile["metrics"] = metrics
+        if metrics["basis"] in (None, india["basis"]):  # the standalone view keeps its own ratios
+            _screened_key_ratios(profile, metrics)
     if yahoo_note:
         profile["notice"] = yahoo_note
     with _CACHE_LOCK:

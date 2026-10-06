@@ -37,8 +37,10 @@ from cli.webui.jobs import (
     SECTION_TITLES,
     TEAMS,
     AnalysisJob,
+    AnalysisQueue,
     BacktestJob,
     JobRegistry,
+    QueueFull,
     backtest_summary,
     list_backtests,
     list_saved_reports,
@@ -57,7 +59,8 @@ from tradingagents.portfolio import PortfolioContext
 
 STATIC = Path(__file__).parent / "static"
 PAGES = {"/": "landing.html", "/analyze": "app.html", "/sentiment": "app.html",
-         "/company": "app.html", "/reports": "app.html", "/backtest": "app.html"}
+         "/company": "app.html", "/screens": "app.html", "/reports": "app.html", "/backtest": "app.html"}
+MAX_QUEUED_PICKS = 10  # stocks one "Analyze with agents" may queue from the Screens page
 
 ANALYSTS = ["market", "social", "news", "fundamentals"]
 DEPTHS = {"Shallow": 1, "Medium": 3, "Deep": 5}
@@ -78,9 +81,10 @@ PORTFOLIO_HELP = ('JSON like {"cash": 10000, "currency": "USD", "positions": '
 
 
 class ApiError(Exception):
-    def __init__(self, message: str, status: HTTPStatus = HTTPStatus.BAD_REQUEST):
+    def __init__(self, message: str, status: HTTPStatus = HTTPStatus.BAD_REQUEST, **extra):
         super().__init__(message)
         self.status = status
+        self.extra = extra  # more fields for the JSON body (error spans, a setup hint)
 
 
 # --- Model settings ---------------------------------------------------------
@@ -204,23 +208,47 @@ def _analysts(value, crypto: bool) -> list[str]:
 
 # --- Analysis ---------------------------------------------------------------
 
-def start_analysis(registry: JobRegistry, body: dict) -> dict:
-    ticker = str(body.get("ticker") or "").strip()
-    if not is_valid_ticker_input(ticker):
-        raise ApiError("Tickers use letters, digits and . _ - ^ = only.")
-    ticker = normalize_ticker_symbol(ticker or "SPY")
+def _analysis_jobs(body: dict, tickers: list[str]) -> list[AnalysisJob]:
+    """One validated AnalysisJob per ticker, all on the body's date and settings."""
+    for ticker in tickers:
+        if not is_valid_ticker_input(ticker):
+            raise ApiError("Tickers use letters, digits and . _ - ^ = only.")
     trade_date = _date(body.get("date"), "Analysis date")
     if trade_date > date.today():
         raise ApiError("The analysis date cannot be in the future.")
-    asset_type = detect_asset_type(ticker)
-    analysts = _analysts(body.get("analysts"), asset_type == AssetType.CRYPTO)
+    picks = []
+    for raw in tickers:
+        ticker = normalize_ticker_symbol(raw or "SPY")
+        asset_type = detect_asset_type(ticker)
+        picks.append((ticker, asset_type, _analysts(body.get("analysts"), asset_type == AssetType.CRYPTO)))
     selections = _selections(body.get("settings") or {})
     portfolio = _portfolio(body.get("portfolio"))
     config = _build_run_config(selections, bool((body.get("settings") or {}).get("checkpoint")))
-    save_last_run({**selections, "analysts": analysts})
-    job = AnalysisJob(ticker, trade_date.isoformat(), asset_type.value, analysts, config, portfolio)
+    save_last_run({**selections, "analysts": picks[0][2]})
+    return [AnalysisJob(ticker, trade_date.isoformat(), asset_type.value, analysts, config, portfolio)
+            for ticker, asset_type, analysts in picks]
+
+
+def start_analysis(registry: JobRegistry, body: dict) -> dict:
+    [job] = _analysis_jobs(body, [str(body.get("ticker") or "").strip()])
     registry.add(job.start())
     return {"id": job.id}
+
+
+def queue_analyses(queue: AnalysisQueue, body: dict) -> dict:
+    """Queue one analysis per picked stock; they run one after another."""
+    tickers = body.get("tickers")
+    if not isinstance(tickers, list) or not tickers or not all(isinstance(t, str) and t.strip() for t in tickers):
+        raise ApiError("Pick at least one stock to analyze.")
+    tickers = list(dict.fromkeys(t.strip() for t in tickers))
+    if len(tickers) > MAX_QUEUED_PICKS:
+        raise ApiError(f"Pick at most {MAX_QUEUED_PICKS} stocks at a time; each one is a full, paid run.")
+    jobs = _analysis_jobs(body, tickers)
+    try:
+        ids = queue.submit(jobs)
+    except QueueFull as exc:
+        raise ApiError(str(exc), HTTPStatus.CONFLICT) from None
+    return {"ids": ids, "queue": queue.status()}
 
 
 def _date(value, label: str) -> date:
@@ -287,6 +315,115 @@ def company(symbol: str, basis: str | None = None) -> dict:
         raise ApiError(f"{exc}. Try again in a minute.", HTTPStatus.SERVICE_UNAVAILABLE) from None
     except VendorError as exc:
         raise ApiError(str(exc), HTTPStatus.BAD_GATEWAY) from None
+
+
+# --- Screens ------------------------------------------------------------------
+
+def _screener_errors(fn):
+    """Screener failures as API errors: a query's span, or what to run when the
+    India database or its snapshot is missing. Never a 500 for those."""
+    from tradingagents.screener.engine import ScreenerUnavailable, ScreenTimeout
+    from tradingagents.screener.query import QueryError
+    from tradingagents.screener.screens import ScreenError
+    from tradingagents.screener.snapshot import SnapshotError
+
+    try:
+        return fn()
+    except QueryError as exc:
+        raise ApiError(str(exc), errors=[exc.to_dict()]) from None
+    except ScreenError as exc:
+        raise ApiError(str(exc), errors=exc.errors) from None
+    except (ScreenerUnavailable, SnapshotError) as exc:
+        raise ApiError(str(exc), HTTPStatus.SERVICE_UNAVAILABLE, setup=True) from None
+    except ScreenTimeout as exc:
+        raise ApiError(str(exc), HTTPStatus.REQUEST_TIMEOUT) from None
+
+
+def _with_user_store(work):
+    """``work(conn)`` on the saved-screens database, closed afterwards."""
+    from tradingagents.screener import screens
+
+    conn = screens.connect()
+    try:
+        return _screener_errors(lambda: work(conn))
+    finally:
+        conn.close()
+
+
+def screen_metrics() -> dict:
+    from tradingagents.dataflows.vendors.india import store
+    from tradingagents.screener import engine
+
+    india = store.open_existing()
+    try:
+        return _with_user_store(lambda user: engine.metrics_payload(user, india))
+    finally:
+        if india is not None:
+            india.close()
+
+
+def screen_validate(body: dict) -> dict:
+    from tradingagents.screener import engine
+
+    return _with_user_store(lambda user: engine.validate(str(body.get("query") or ""), user))
+
+
+def screen_run(body: dict) -> dict:
+    from tradingagents.screener import engine
+
+    query = body.get("query")
+    if not isinstance(query, str):
+        raise ApiError("Send the screen's query as text.")
+    try:
+        page = int(body.get("page") or 1)
+        page_size = int(body.get("pageSize") or engine.PAGE_SIZE)
+    except (TypeError, ValueError):
+        raise ApiError("page and pageSize are numbers.") from None
+    return _with_user_store(lambda user: engine.run(
+        query, columns=body.get("columns") or None, sort=body.get("sort") or None, page=page,
+        page_size=page_size, as_of=body.get("as_of") or body.get("asOf"), user_conn=user))
+
+
+def screens_list() -> dict:
+    from tradingagents.screener import screens
+
+    return _with_user_store(lambda user: {"presets": screens.presets(), "saved": screens.list_screens(user)})
+
+
+def screen_save(body: dict) -> dict:
+    from tradingagents.screener import screens
+
+    return _with_user_store(lambda user: screens.save_screen(user, body, screens.list_ratios(user)))
+
+
+def screen_delete(screen_id: str) -> dict:
+    from tradingagents.screener import screens
+
+    if not (screen_id.isdigit() or screen_id.startswith("preset:")):
+        raise ApiError("No such screen.", HTTPStatus.NOT_FOUND)
+    _with_user_store(lambda user: screens.delete_screen(user, screen_id))
+    return {"ok": True}
+
+
+def ratios_list() -> list[dict]:
+    from tradingagents.screener import screens
+
+    return _with_user_store(lambda user: [r.describe() for r in screens.list_ratios(user)])
+
+
+def ratio_save(body: dict) -> dict:
+    from tradingagents.screener import screens
+
+    return _with_user_store(lambda user: screens.save_ratio(user, body).describe())
+
+
+def ratio_delete(ratio_id: str) -> dict:
+    from tradingagents.screener import screens
+
+    if not ratio_id.isdigit():
+        raise ApiError("No such custom ratio.", HTTPStatus.NOT_FOUND)
+    _with_user_store(lambda user: screens.delete_ratio(user, int(ratio_id)))
+    return {"ok": True}
 
 
 # --- Saved reports and decision logs -----------------------------------------
@@ -412,6 +549,7 @@ def backtest_detail(run: str) -> dict:
 class Handler(BaseHTTPRequestHandler):
     server_version = "TradingAgentsUI"
     registry: JobRegistry  # set by make_server
+    queue: AnalysisQueue  # set by make_server
 
     def log_message(self, format, *args):  # noqa: A002 — the stdlib's signature
         pass  # the terminal belongs to the runs' own logging
@@ -429,7 +567,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._get_api(path.removeprefix("/api"), query)
             self._send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
         except ApiError as exc:
-            self._send_json({"error": str(exc)}, exc.status)
+            self._send_json({"error": str(exc), **exc.extra}, exc.status)
         except Exception as exc:  # noqa: BLE001 — one bad request must not stop the server
             self._send_json({"error": f"{type(exc).__name__}: {exc}"},
                             HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -445,6 +583,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(search_tickers(q.get("q", "")))
             case ["company"]:
                 return self._send_json(company(q.get("symbol", ""), q.get("basis")))
+            case ["screen", "metrics"]:
+                return self._send_json(screen_metrics())
+            case ["screens"]:
+                return self._send_json(screens_list())
+            case ["ratios"]:
+                return self._send_json(ratios_list())
+            case ["queue"]:
+                return self._send_json(self.queue.status())
             case ["analyses"]:
                 return self._send_json(analysis_list(registry))
             case ["analyses", job_id]:
@@ -500,8 +646,29 @@ class Handler(BaseHTTPRequestHandler):
                 case ["api", "analyses"]:
                     return self._send_json(start_analysis(registry, body), HTTPStatus.CREATED)
                 case ["api", "analyses", job_id, "stop"]:
-                    self._analysis(job_id).cancel()
+                    job = self._analysis(job_id)
+                    if not self.queue.cancel(job_id):
+                        job.cancel()
                     return self._send_json({"ok": True})
+                case ["api", "screen", "validate"]:
+                    return self._send_json(screen_validate(body))
+                case ["api", "screen", "run"]:
+                    return self._send_json(screen_run(body))
+                case ["api", "screen", "analyze"]:
+                    return self._send_json(queue_analyses(self.queue, body), HTTPStatus.CREATED)
+                case ["api", "screens"]:
+                    return self._send_json(screen_save(body))
+                case ["api", "screens", screen_id, "delete"]:
+                    return self._send_json(screen_delete(unquote(screen_id)))
+                case ["api", "ratios"]:
+                    return self._send_json(ratio_save(body))
+                case ["api", "ratios", ratio_id, "delete"]:
+                    return self._send_json(ratio_delete(ratio_id))
+                case ["api", "queue", "cancel"]:
+                    return self._send_json({"cancelled": self.queue.cancel_all(), "queue": self.queue.status()})
+                case ["api", "queue", job_id, "cancel"]:
+                    self._analysis(job_id)
+                    return self._send_json({"ok": self.queue.cancel(job_id), "queue": self.queue.status()})
                 case ["api", "backtests"]:
                     return self._send_json(start_backtest(registry, body), HTTPStatus.CREATED)
                 case ["api", "backtests", job_id, "stop"]:
@@ -512,7 +679,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send_json({"ok": True})
             raise ApiError("Not found", HTTPStatus.NOT_FOUND)
         except ApiError as exc:
-            self._send_json({"error": str(exc)}, exc.status)
+            self._send_json({"error": str(exc), **exc.extra}, exc.status)
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": f"{type(exc).__name__}: {exc}"},
                             HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -566,7 +733,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def make_server(host: str = "127.0.0.1", port: int = 8501,
                 registry: JobRegistry | None = None) -> ThreadingHTTPServer:
-    handler = type("BoundHandler", (Handler,), {"registry": registry or JobRegistry()})
+    registry = registry or JobRegistry()
+    handler = type("BoundHandler", (Handler,), {"registry": registry, "queue": AnalysisQueue(registry)})
     server = ThreadingHTTPServer((host, port), handler)
     server.daemon_threads = True
     return server

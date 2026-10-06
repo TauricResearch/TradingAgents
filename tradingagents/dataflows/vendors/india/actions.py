@@ -8,7 +8,10 @@ years ("FV SPLT FRM RS 10 TO RS 2" in 2015, "FVSPLT FRM RS 10 TO RS 5" in 2026).
     dividend      amount per share in rupees (a percentage of face value when the
                   face value is known)
     split         old and new face value; consolidation is a split with factor < 1
-    bonus         a new shares for every b held, as "BONUS a:b"
+    bonus         a new shares for every b held, as "BONUS a:b"; a bonus of preference
+                  shares, debentures or warrants ("SCH AGMT-BONUS NCRPS 4:1", a scheme
+                  of arrangement's redeemable preference shares) is recorded with no
+                  factor, since the equity holders' share count does not change
     rights        a new for every b held at a price (face value plus premium)
     demerger, buyback, capital_reduction   recorded, never adjusted for
 
@@ -34,6 +37,9 @@ _SPLIT = re.compile(r"(?:SPLT|SPLIT|\bSPL\b(?!\s*DIV)|SUB-?DIVISION)[^/+]*?(?:FR
 _CONSOLIDATION = re.compile(r"CONSOLIDAT[^/+]*?(?:FRM|FROM)?\s*" + _FACE + r"\s*TO\s*" + _FACE)
 _RATIO = r"(\d+)\s*:\s*(\d+)"
 _BONUS = re.compile(r"BONUS[^0-9]*" + _RATIO)
+# What a bonus can be of besides equity shares: (non-)convertible redeemable preference
+# shares, preference shares, debentures, bonds, warrants.
+_NOT_EQUITY = re.compile(r"N?C?RPS|PREF(?:ERENCE)?\b|DEBENTURE|\bNCDS?\b|\bBONDS?\b|WARRANT")
 _RIGHTS = re.compile(r"(?:RGHTS|RIGHTS)[^0-9]*" + _RATIO + r"(.*)")
 # DIV, DIVIDEND, INTDIV, FNLDIV, SPL DIV; not the DIV of SUB-DIVISION.
 _DIVIDEND = re.compile(r"\b(?:INT|FNL|SPL)?DIV(?:IDEND)?\b")
@@ -74,7 +80,8 @@ def parse_purpose(purpose: str, face_value: float | None = None) -> list[Action]
     if (m := _BONUS.search(text)) is not None:
         a, b = _float(m.group(1)), _float(m.group(2))
         if a > 0 and b > 0:
-            actions.append(Action("bonus", a, b, factor=(a + b) / b))
+            equity = not _NOT_EQUITY.search(m.group(0))
+            actions.append(Action("bonus", a, b, factor=(a + b) / b if equity else None))
     if (m := _RIGHTS.search(text)) is not None:
         a, b, rest = _float(m.group(1)), _float(m.group(2)), m.group(3)
         price = None

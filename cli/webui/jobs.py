@@ -127,6 +127,18 @@ class AnalysisJob:
         """Stop after the current graph step; a checkpointed run can resume later."""
         self._cancel.set()
 
+    def wait(self, timeout: float | None = None) -> None:
+        """Block until the run's thread ends (at once if it never started)."""
+        if self._thread is not None:
+            self._thread.join(timeout)
+
+    def drop(self, reason: str) -> None:
+        """Cancel a run that never started (a queued one taken off the queue)."""
+        with self.lock:
+            self.buffer.add_message("System", reason)
+            self.status = CANCELLED
+            self.finished = time.time()
+
     def elapsed(self) -> float:
         return (self.finished or time.time()) - self.started if self.started else 0.0
 
@@ -336,6 +348,107 @@ class JobRegistry:
         with self._lock:
             jobs = [j for j in self._jobs.values() if isinstance(j, cls)]
         return sorted(jobs, key=lambda j: j.started, reverse=True)
+
+
+class QueueFull(ValueError):
+    pass
+
+
+class AnalysisQueue:
+    """Analyses run one at a time, in the order they were queued.
+
+    A run started from the Analyze page starts at once, as before; runs queued
+    together (the Screens page's "Analyze with agents") wait here, so ten picks
+    cost one run's worth of concurrency, not ten. One worker thread takes the
+    next run when the last ends, and exits when the queue is empty. A queued run
+    can be taken off before it starts; the running one stops after its current
+    graph step, like any run.
+    """
+
+    def __init__(self, registry: JobRegistry, max_waiting: int = 10, history: int = 50):
+        self.registry = registry
+        self.max_waiting = max_waiting
+        self._waiting: list[AnalysisJob] = []
+        self._order: list[str] = []  # every queued run's id, oldest first (the last ``history``)
+        self._history = history
+        self.current: AnalysisJob | None = None
+        self._lock = threading.Lock()
+        self._worker: threading.Thread | None = None
+
+    def submit(self, jobs: list[AnalysisJob]) -> list[str]:
+        with self._lock:
+            if len(self._waiting) + len(jobs) > self.max_waiting:
+                room = self.max_waiting - len(self._waiting)
+                raise QueueFull(f"The queue holds at most {self.max_waiting} waiting runs; "
+                                f"{room} more can be added now.")
+            for job in jobs:
+                job.status = PENDING
+                self.registry.add(job)
+                self._waiting.append(job)
+                self._order.append(job.id)
+            del self._order[:-self._history]
+            if self._worker is None:
+                self._worker = threading.Thread(target=self._drain, name="analysis-queue", daemon=True)
+                self._worker.start()
+        return [j.id for j in jobs]
+
+    def cancel(self, job_id: str) -> bool:
+        """Take a waiting run off the queue, or stop the running one. False if neither."""
+        with self._lock:
+            job = next((j for j in self._waiting if j.id == job_id), None)
+            if job is not None:
+                self._waiting.remove(job)
+            running = self.current if self.current is not None and self.current.id == job_id else None
+        if job is not None:
+            job.drop("Taken off the queue before it started")
+            return True
+        if running is not None:
+            running.cancel()
+            return True
+        return False
+
+    def cancel_all(self) -> int:
+        with self._lock:
+            waiting, self._waiting = self._waiting, []
+            running = self.current
+        for job in waiting:
+            job.drop("Taken off the queue before it started")
+        if running is not None:
+            running.cancel()
+        return len(waiting) + (running is not None)
+
+    def holds(self, job_id: str) -> bool:
+        with self._lock:
+            return any(j.id == job_id for j in self._waiting)
+
+    def _drain(self) -> None:
+        while True:
+            with self._lock:
+                if not self._waiting:
+                    self.current = None
+                    self._worker = None
+                    return
+                job = self._waiting.pop(0)
+                self.current = job
+            if job._cancel.is_set():  # stopped in the moment between leaving the queue and starting
+                job.drop("Stopped before it started")
+                continue
+            job.start()
+            job.wait()
+
+    def status(self) -> dict:
+        with self._lock:
+            ids = list(self._order)
+            waiting = [j.id for j in self._waiting]
+            current = self.current.id if self.current is not None else None
+        runs = []
+        for job_id in ids:
+            job = self.registry.get(job_id)
+            if isinstance(job, AnalysisJob):
+                runs.append({"id": job.id, "ticker": job.ticker, "date": job.trade_date, "status": job.status,
+                             "rating": job.rating, "elapsed": job.elapsed(),
+                             "position": waiting.index(job.id) + 1 if job.id in waiting else None})
+        return {"current": current, "waiting": len(waiting), "max": self.max_waiting, "runs": runs}
 
 
 # --- History on disk -------------------------------------------------------

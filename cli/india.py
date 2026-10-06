@@ -130,6 +130,12 @@ def sync_actions(start: str = typer.Option(None, "--from", help="First day, YYYY
     _run(lambda s: s.sync_actions(first, last), force=force)
 
 
+@app.command("reparse-actions")
+def reparse_actions():
+    """Re-read the stored corporate actions' purpose text with the current parser (after a fix to it)."""
+    _run(lambda s: s.reparse_actions())
+
+
 def _import(syncer, kinds, symbols, universe, from_year, folder):
     folder = Path(folder) if folder else india_sync.inbox_dir()
     if not folder.exists():
@@ -187,9 +193,50 @@ def import_files(paths: list[Path] = PATHS,
 @app.command("sync-all")
 def sync_all(universe: str = typer.Option("nifty500", "--universe",
                                           help="Universe for announcements: nifty50, nifty500 or all"),
-             folder: str = INBOX, force: bool = FORCE):
-    """The nightly run: securities, new days of prices, actions and announcements, and the inbox."""
+             folder: str = INBOX, force: bool = FORCE,
+             snapshot: bool = typer.Option(True, "--snapshot/--no-snapshot",
+                                           help="Rebuild the screener's live metrics snapshot afterwards")):
+    """The nightly run: securities, new days of prices, actions and announcements, and the inbox;
+    then the screener's live snapshot."""
     _run(lambda s: s.sync_all(universe=universe, inbox=Path(folder) if folder else None), force=force)
+    if snapshot:
+        _build_snapshot(None, None)
+
+
+def _build_snapshot(as_of: str | None, universe: str | None) -> None:
+    from tradingagents.dataflows.config import get_config
+    from tradingagents.screener import snapshot as snapshots
+
+    if as_of:
+        _date(as_of, "--as-of")
+    universe = universe or get_config().get("screener_universe") or "eq"
+    conn = store.connect()
+    try:
+        with Progress(TextColumn("[bold]{task.description}"), BarColumn(), MofNCompleteColumn(),
+                      TimeElapsedColumn(), console=console, transient=True) as progress:
+            task = progress.add_task(f"Snapshot {as_of or 'live'}", total=None)
+            result = snapshots.build_snapshot(
+                conn, as_of=as_of, universe=universe,
+                progress=lambda done, total: progress.update(task, completed=done, total=total))
+    except snapshots.SnapshotError as exc:
+        console.print(f"[red]No snapshot: {escape(str(exc))}[/red]", soft_wrap=True)
+        raise typer.Exit(code=1) from None
+    finally:
+        conn.close()
+    console.print(f"Snapshot [bold]{result.as_of_date}[/bold] (data to {result.data_date}): {result.rows:,} "
+                  f"securities ({result.universe}) in {result.elapsed:,.1f}s. Database now "
+                  f"{result.db_bytes / 1e6:,.1f} MB ({result.added_bytes / 1e6:+,.1f} MB).", soft_wrap=True)
+
+
+@app.command("build-snapshot")
+def build_snapshot(as_of: str = typer.Option(None, "--as-of",
+                                             help="Build a historical snapshot as of YYYY-MM-DD, from filings "
+                                                  "filed and prices traded by then (default: live, the latest)"),
+                   universe: str = typer.Option(None, "--universe",
+                                                help="eq (listed EQ-series stocks, the default), listed, all, "
+                                                     "or comma-separated symbols")):
+    """Precompute every screener metric for every stock: the snapshot screens run on."""
+    _build_snapshot(as_of, universe)
 
 
 @app.command("status")

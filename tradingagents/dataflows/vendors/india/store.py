@@ -452,9 +452,10 @@ def get_corporate_actions(isin: str, as_of=None, conn=None) -> list[dict]:
 
 def adjustment_events(isin: str, as_of=None, conn=None) -> list[dict]:
     """The split, bonus and rights actions that moved per-share figures by
-    ``as_of`` (ex-date on or before it), each with its factor; rights get theirs
-    from the close before the ex-date."""
-    day = _day(as_of)
+    ``as_of`` (ex-date on or before it; today without one, since NSE lists an
+    action before its ex-date), each with its factor; rights get theirs from the
+    close before the ex-date."""
+    day = _day(as_of) or date.today().isoformat()
     out = []
     with _conn(conn) as c:
         for a in get_corporate_actions(isin, as_of, c):

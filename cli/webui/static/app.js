@@ -85,6 +85,7 @@ const I = {
   logo: (s = 30) => `<svg width="${s}" height="${s}" viewBox="0 0 36 36" aria-hidden="true"><path d="M18 3 L32 11 L18 19 L4 11 Z" style="fill: var(--accent);"></path><path d="M4 11 L18 19 L18 33 L4 25 Z" style="fill: var(--accent); opacity: 0.55;"></path><path d="M32 11 L18 19 L18 33 L32 25 Z" style="fill: var(--accent); opacity: 0.8;"></path></svg>`,
   analyze: svg('<polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="15 7 21 7 21 13"></polyline>'),
   company: svg('<path d="M4 21V7l8-4 8 4v14"></path><path d="M3 21h18"></path><path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-3h4v3"></path>'),
+  screens: svg('<path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"></path>'),
   reports: svg('<path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v4h4"></path><path d="M9 12h6M9 16h6"></path>'),
   backtest: svg('<path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline><path d="M12 8v4l3 2"></path>'),
   chevron: svg('<polyline points="6 9 12 15 18 9"></polyline>', 14, 'stroke-width="2.2"'),
@@ -200,6 +201,7 @@ function renderSide(nav = activeNav, editable = editableSettings) {
     <div class="nav">
       ${link('analyze', '/analyze', 'Analyze', I.analyze)}
       ${link('company', '/company', 'Company', I.company)}
+      ${link('screens', '/screens', 'Screens', I.screens)}
       ${link('reports', '/reports', 'Reports', I.reports)}
       ${link('backtest', '/backtest', 'Backtest', I.backtest)}
     </div>
@@ -568,9 +570,12 @@ PAGES['/analyze'] = {
     const f = analyze.form || (analyze.form = {
       ticker: 'SPY', date: OPTIONS.today, analysts: OPTIONS.defaults.analysts.slice(), portfolio: null, portfolioName: '',
     });
-    // Another page (Company) can open this one with a ticker filled in.
-    const asked = (new URLSearchParams(location.search).get('ticker') || '').trim();
+    // Another page (Company) can open this one with a ticker filled in, or (Screens) on a queued run.
+    const params = new URLSearchParams(location.search);
+    const asked = (params.get('ticker') || '').trim();
     if (/^[A-Za-z0-9._\-^=]{1,32}$/.test(asked)) f.ticker = asked.toUpperCase();
+    const job = (params.get('job') || '').trim();
+    if (/^[\w.-]{1,64}$/.test(job)) { analyze.jobId = job; store.set('tradingagents-run', job); }
     main.innerHTML = `
       <div class="stack rise" style="gap: 24px;">
       ${pageHead('Analyze a ticker', 'Analyst team → Research debate → Trader → Risk debate → Portfolio manager')}
@@ -1014,7 +1019,7 @@ function itemMeta(it, ticker) {
 const company = { data: null, series: null, range: store.get('tradingagents-co-range', '1Y'), dma: { 50: true, 200: true }, seq: 0, observer: null, width: 0, view: null, symbol: '' };
 const COMPANY_PICKS = ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ITC.NS', 'AAPL'];
 const RANGES = [['1M', 1], ['6M', 6], ['1Y', 12], ['3Y', 36], ['5Y', 60], ['Max', 0]];
-const COMPANY_SECTIONS = [['co-chart', 'Chart'], ['co-analysis', 'Analysis'], ['co-quarters', 'Quarters'], ['co-pl', 'Profit & Loss'], ['co-bs', 'Balance Sheet'], ['co-cf', 'Cash Flows'], ['co-ratios', 'Ratios'], ['co-sh', 'Shareholding'], ['co-docs', 'Documents']];
+const COMPANY_SECTIONS = [['co-chart', 'Chart'], ['co-analysis', 'Analysis'], ['co-quarters', 'Quarters'], ['co-pl', 'Profit & Loss'], ['co-bs', 'Balance Sheet'], ['co-cf', 'Cash Flows'], ['co-ratios', 'Ratios'], ['co-metrics', 'All metrics'], ['co-sh', 'Shareholding'], ['co-docs', 'Documents']];
 const BASES = [['consolidated', 'Consolidated'], ['standalone', 'Standalone']];
 const CURRENCY_SIGNS = { INR: '₹', USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', HKD: 'HK$' };
 
@@ -1099,7 +1104,7 @@ PAGES['/company'] = {
     const src = d.source;
     const fetched = new Date(src.fetched);
     const sourceLine = `Source: ${esc(src.name)} · ${src.annual} annual / ${src.quarterly} quarterly period${src.quarterly === 1 ? '' : 's'} available · fetched ${esc(fetched.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}. Live figures, not cut at any analysis date, so the agents never read this page.`;
-    const jumps = COMPANY_SECTIONS.filter(([id]) => (id !== 'co-sh' || (d.shareholding && d.shareholding.periods.length)) && (id !== 'co-docs' || (d.documents && d.documents.groups.length)));
+    const jumps = COMPANY_SECTIONS.filter(([id]) => (id !== 'co-sh' || (d.shareholding && d.shareholding.periods.length)) && (id !== 'co-docs' || (d.documents && d.documents.groups.length)) && (id !== 'co-metrics' || d.metrics));
     const about = d.summary ? `<p class="co-about" id="co-about">${esc(d.summary)}</p>${d.summary.length > 260 ? '<button type="button" class="link-btn co-more" data-more aria-controls="co-about" aria-expanded="false">Read more</button>' : ''}` : '';
     const sections = [['co-quarters', 'Quarterly Results', d.quarters], ['co-pl', 'Profit & Loss', d.profitLoss], ['co-bs', 'Balance Sheet', d.balanceSheet], ['co-cf', 'Cash Flows', d.cashFlows], ['co-ratios', 'Ratios', d.ratios]];
     return `
@@ -1128,6 +1133,7 @@ PAGES['/company'] = {
         <p class="hint">Fixed rules applied in code to the figures below, with no LLM involved. Not investment advice.</p>
       </section>
       ${sections.map(([id, title, t]) => statementSection(id, title, t, d.unit, id === 'co-pl' ? growthBoxes(d.growth) : '')).join('')}
+      ${d.metrics ? metricsSection(d.metrics) : ''}
       ${d.shareholding && d.shareholding.periods.length ? shareholdingSection(d.shareholding) : ''}
       ${d.documents && d.documents.groups.length ? documentsSection(d.documents) : ''}`;
   },
@@ -1248,6 +1254,26 @@ function basisToggle(d) {
     return `<button type="button" class="b" data-basis="${key}" aria-pressed="${attr(d.basis.current === key)}" ${has ? '' : 'disabled title="No filing of this basis in the database"'}>${label}</button>`;
   }).join('');
   return `<div class="seg auto co-basis" role="group" aria-label="Statement basis">${buttons}</div>`;
+}
+
+/** Every screener metric for this stock, computed by the code that builds the screener's snapshot. */
+function metricsSection(m) {
+  const text = (it) => {
+    if (it.notApplicable) return '<span class="faint" title="Does not apply to banks and NBFCs">n/a</span>';
+    if (it.value == null) return '<span class="faint">—</span>';
+    if (it.kind === 'text') return esc(it.value);
+    const indian = ['Rs Cr', 'Rs', 'shares', 'count', 'Cr shares'].includes(it.unit);
+    const digits = it.unit === 'Rs Cr' && Math.abs(it.value) >= 100 ? 0 : it.decimals;
+    const unit = it.unit && !['Rs', 'count', 'score'].includes(it.unit) ? ` <span class="faint" style="font-weight: 400;">${esc(it.unit)}</span>` : '';
+    return (it.unit === 'Rs' ? '₹' : '') + grouped(it.value, indian ? 'en-IN' : 'en-US', digits) + unit;
+  };
+  const shares = m.shares ? ` Shares outstanding come from the ${esc(m.shares.source)} of ${esc(m.shares.date)}.` : '';
+  return `<section class="card co-section" id="co-metrics" aria-labelledby="co-metrics-h">
+    <div class="co-section-head"><h2 id="co-metrics-h" class="section-h">All metrics</h2><a href="/screens" data-link class="hint">Screen on these${I.arrow}</a></div>
+    <p class="co-src">The screener's figures for this stock, computed now from the India database (prices to ${esc(m.day)}${m.basis ? `, ${esc(m.basis)} filings` : ', no filings imported'}) by the same code that builds its snapshot.${shares}</p>
+    <div class="co-metrics">${m.groups.map((g, i) => `<details class="co-metric-group" ${i < 4 ? 'open' : ''}><summary>${esc(g.category)}</summary>
+      <dl>${g.items.map((it) => `<dt title="${esc(it.description)}">${esc(it.name)}</dt><dd data-metric="${esc(it.key)}">${text(it)}</dd>`).join('')}</dl></details>`).join('')}</div>
+    <p class="hint">A dash is a figure the database cannot give yet; screens leave the stock out wherever they need it. Hover a name for its definition.</p></section>`;
 }
 
 const SH_LINES = [['promoter_pct', 'Promoters', 'var(--accent)'], ['fii_pct', 'FIIs', 'var(--dma-50)'], ['dii_pct', 'DIIs', 'var(--dma-200)']];
@@ -1425,6 +1451,727 @@ function chartReadout(i) {
   const dma = [50, 200].filter((n) => company.dma[n] && s['dma' + n][i] != null)
     .map((n) => `<span><span class="co-swatch" style="background: var(--dma-${n});"></span>${n} DMA ${priceText(s['dma' + n][i], code)}</span>`).join('');
   patch($('#co-readout'), `<span class="mono">${esc(DAY.format(s.t[i]))}</span><span>Close <b>${priceText(s.close[i], code)}</b></span>${dma}<span>Volume ${s.volume[i] == null ? '—' : grouped(s.volume[i], localeFor(code), 0)}</span>`);
+}
+
+/* Page: Screens -------------------------------------------------------------- */
+
+const SCREEN_KEY = 'tradingagents-screen';
+const MAX_PICKS = 10;
+const SCREEN_EXAMPLE = 'Market Capitalization > 1000\nReturn over 1 year > 20\nPrice vs 200 DMA > 0';
+const screener = {
+  meta: null, list: null, names: [], current: null, asOf: '', result: null, page: 1, sort: null, columns: null,
+  picked: new Map(), validateTimer: null, validateSeq: 0, runSeq: 0, error: null, queue: null, queueTimer: null,
+  ac: { items: [], active: -1, start: 0, end: 0 }, docsFilter: '', colsFilter: '', editingRatio: null,
+};
+
+PAGES['/screens'] = {
+  nav: 'screens', title: 'Screens',
+  async mount(main) {
+    const saved = store.get(SCREEN_KEY, null);
+    screener.current = screener.current || (saved && typeof saved.query === 'string' ? saved
+      : { id: null, name: 'Untitled screen', description: '', query: SCREEN_EXAMPLE, preset: false });
+    main.innerHTML = `<div class="stack rise" style="gap: 22px;">
+      ${pageHead('Screens', 'Filter every Indian stock on its fundamentals, shareholding and price: write conditions over the metrics below, one per line or joined with AND / OR. Figures come from the India database\'s precomputed snapshot.')}
+      <div id="sc-setup"></div>
+      <div class="sc-top">
+        <section class="card sc-editor" aria-labelledby="sc-name-l">
+          <div class="sc-head">
+            <label id="sc-name-l" for="sc-name" class="sr">Screen name</label>
+            <input id="sc-name" class="input sc-name" autocomplete="off" spellcheck="false">
+            <span id="sc-state" class="pill sm"></span>
+          </div>
+          <div class="field">
+            <label for="sc-q">Query</label>
+            <div class="sc-code combo" id="sc-code">
+              <div class="sc-backdrop" id="sc-backdrop" aria-hidden="true"></div>
+              <textarea id="sc-q" class="sc-text mono" rows="5" spellcheck="false" autocomplete="off" aria-describedby="sc-msg"
+                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sc-ac"></textarea>
+              <ul class="combo-list sc-ac" id="sc-ac" role="listbox" aria-label="Matching metrics" hidden></ul>
+            </div>
+            <div id="sc-msg" class="sc-msg" role="status" aria-live="polite"></div>
+          </div>
+          <div class="sc-actions">
+            <button type="button" class="btn btn-primary b" data-sc="run">${I.play}Run screen</button>
+            <button type="button" class="btn b" data-sc="save">Save</button>
+            <button type="button" class="btn b" data-sc="duplicate">Duplicate</button>
+            <button type="button" class="btn btn-danger b" data-sc="delete">Delete</button>
+            <div class="grow"></div>
+            <div class="field sc-asof"><label for="sc-asof">Snapshot</label>${selectWrap('<select id="sc-asof"></select>', 'raised')}</div>
+          </div>
+          <details class="sc-docs" id="sc-docs"><summary>${I.chevronRight}Metrics and query syntax</summary><div id="sc-docs-body"></div></details>
+        </section>
+        <aside class="sc-side" aria-label="Screens and custom ratios">
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="sc-saved-h">
+            <div class="row" style="justify-content: space-between; gap: 8px;"><h2 id="sc-saved-h" class="sc-side-h">Your screens</h2><button type="button" class="link-btn sc-new" data-sc="new">${I.plus}New</button></div>
+            <ul class="sc-list" id="sc-saved"></ul>
+          </section>
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="sc-presets-h">
+            <h2 id="sc-presets-h" class="sc-side-h">Presets</h2>
+            <p class="hint">Read-only starting points we wrote; duplicate one to change it. Not investment advice.</p>
+            <ul class="sc-list" id="sc-presets"></ul>
+          </section>
+          <section class="card pad stack" style="gap: 10px;" aria-labelledby="sc-ratios-h">
+            <h2 id="sc-ratios-h" class="sc-side-h">Custom ratios</h2>
+            <p class="hint">Define a ratio once and use its name in any query, e.g. <span class="mono">Earnings to price = Net profit / Market Capitalization</span>.</p>
+            <ul class="sc-list" id="sc-ratios"></ul>
+            <form id="sc-ratio-form" class="stack" style="gap: 8px;" novalidate>
+              <label for="sc-ratio" class="sr">New custom ratio</label>
+              <input id="sc-ratio" class="input mono" placeholder="Name = expression" autocomplete="off" spellcheck="false">
+              <div class="row" style="gap: 8px;"><button type="submit" class="btn b" id="sc-ratio-save">Add ratio</button><button type="button" class="link-btn" id="sc-ratio-cancel" hidden>Cancel edit</button></div>
+              <div id="sc-ratio-msg" role="alert"></div>
+            </form>
+          </section>
+        </aside>
+      </div>
+      <section id="sc-results" class="stack" style="gap: 14px;" aria-labelledby="sc-res-h"></section>
+      <section id="sc-queue" class="stack" style="gap: 10px;" aria-label="Agent analysis queue"></section>
+      <dialog id="sc-dialog" class="sc-dialog" aria-labelledby="sc-dialog-h"></dialog>
+    </div>`;
+    this.bind(main);
+    this.renderEditor();
+    try {
+      [screener.meta, screener.list] = await Promise.all([api('/screen/metrics'), api('/screens')]);
+    } catch (e) {
+      $('#sc-setup').innerHTML = `<div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+    if (current !== PAGES['/screens']) return;
+    this.buildNames();
+    this.renderSetup();
+    this.renderAsOf();
+    this.renderLists();
+    this.renderDocs();
+    this.pollQueue();
+    const asked = this.find(new URLSearchParams(location.search).get('screen'));
+    if (asked) { this.load(asked); return; }
+    this.renderEditor();
+    this.validate(true);
+    if (screener.meta.snapshots.length) this.run();
+  },
+  unmount() {
+    clearTimeout(screener.validateTimer);
+    clearTimeout(screener.queueTimer);
+  },
+
+  find(id) {
+    const l = screener.list || { presets: [], saved: [] };
+    return [...l.saved, ...l.presets].find((s) => String(s.id) === String(id));
+  },
+
+  remember() { store.set(SCREEN_KEY, screener.current); },
+
+  /** Every name a query may use, for autocomplete: catalog names, aliases and custom ratios. */
+  buildNames() {
+    const out = [];
+    for (const m of screener.meta.metrics) {
+      out.push({ text: m.name, key: m.key, name: m.name, unit: m.unit, category: m.category });
+      for (const a of m.aliases) out.push({ text: a, key: m.key, name: m.name, unit: m.unit, category: m.category, alias: true });
+    }
+    for (const r of screener.meta.ratios) out.push({ text: r.name, key: r.column, name: r.name, unit: '', category: 'Custom ratio' });
+    screener.names = out;
+  },
+
+  bind(main) {
+    const q = $('#sc-q');
+    q.addEventListener('input', () => {
+      screener.current.query = q.value;
+      this.markDirty();
+      this.paintBackdrop();
+      this.autocomplete();
+      clearTimeout(screener.validateTimer);
+      screener.validateTimer = setTimeout(() => this.validate(), 300);
+    });
+    q.addEventListener('scroll', () => { $('#sc-backdrop').scrollTop = q.scrollTop; });
+    q.addEventListener('keydown', (e) => this.onKey(e));
+    q.addEventListener('click', () => this.autocomplete());
+    q.addEventListener('blur', () => setTimeout(() => this.closeAc(), 120));
+    $('#sc-ac').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const o = e.target.closest('[data-i]');
+      if (o) this.pick(+o.dataset.i);
+    });
+    $('#sc-name').addEventListener('input', (e) => { screener.current.name = e.target.value; this.markDirty(); });
+    $('#sc-asof').addEventListener('change', (e) => { screener.asOf = e.target.value; screener.page = 1; this.run(); });
+    main.addEventListener('click', (e) => this.onClick(e));
+    main.addEventListener('change', (e) => this.onChange(e));
+    main.addEventListener('input', (e) => {
+      if (e.target.id === 'sc-docs-filter') { screener.docsFilter = e.target.value; this.renderDocsList(); }
+      if (e.target.id === 'sc-cols-filter') { screener.colsFilter = e.target.value; this.renderColumnList(); }
+    });
+    $('#sc-ratio-form').addEventListener('submit', (e) => { e.preventDefault(); this.saveRatio(); });
+    $('#sc-ratio-cancel').addEventListener('click', () => this.editRatio(null));
+  },
+
+  markDirty() {
+    screener.current.dirty = true;
+    this.remember();
+    this.renderState();
+  },
+
+  renderEditor() {
+    const c = screener.current;
+    $('#sc-name').value = c.name || '';
+    if ($('#sc-q').value !== c.query) $('#sc-q').value = c.query || '';
+    this.paintBackdrop();
+    this.renderState();
+  },
+
+  renderState() {
+    const c = screener.current;
+    const el = $('#sc-state');
+    if (c.preset) { el.className = 'pill sm'; el.textContent = c.dirty ? 'Preset · edited' : 'Preset · read-only'; }
+    else if (c.id) { el.className = c.dirty ? 'pill sm pill-info' : 'pill sm pill-pos'; el.textContent = c.dirty ? 'Unsaved changes' : 'Saved'; }
+    else { el.className = 'pill sm pill-plain'; el.textContent = 'Not saved'; }
+    const del = $('[data-sc="delete"]');
+    del.disabled = !c.id || c.preset;
+    del.title = c.preset ? 'Presets cannot be deleted' : c.id ? '' : 'This screen is not saved';
+    $('[data-sc="save"]').textContent = c.preset ? 'Save as my screen' : 'Save';
+  },
+
+  renderSetup() {
+    const m = screener.meta;
+    $('#sc-setup').innerHTML = m.snapshots.length ? '' : `<div class="alert alert-info">${I.alert}<div><strong style="color: var(--text);">No metrics snapshot yet.</strong> Screens run on a snapshot precomputed from the India database. Build it with <span class="mono">python -m cli.main india build-snapshot</span> (after <span class="mono">india sync-all</span>), then reload this page.</div></div>`;
+  },
+
+  renderAsOf() {
+    const snaps = screener.meta.snapshots;
+    if (!snaps.some((s) => s.as_of === (screener.asOf || 'live'))) screener.asOf = snaps.some((s) => s.as_of === 'live') ? '' : (snaps[0] ? snaps[0].as_of : '');
+    $('#sc-asof').innerHTML = snaps.length ? snaps.map((s) => {
+      const value = s.as_of === 'live' ? '' : s.as_of;
+      const label = s.as_of === 'live' ? `Live · data to ${s.data_date}` : `As of ${s.as_of}`;
+      return `<option value="${esc(value)}" ${value === screener.asOf ? 'selected' : ''}>${esc(label)} (${s.rows.toLocaleString()})</option>`;
+    }).join('') : '<option value="">No snapshot built</option>';
+    $('#sc-asof').disabled = !snaps.length;
+  },
+
+  renderLists() {
+    const l = screener.list;
+    const c = screener.current;
+    const item = (s) => `<li><button type="button" class="sc-item b" data-load="${esc(s.id)}" aria-pressed="${attr(String(c.id) === String(s.id))}">
+      <span class="sc-item-name">${esc(s.name)}</span><span class="sc-item-q mono">${esc(s.query.replace(/\n/g, ' · '))}</span></button></li>`;
+    $('#sc-saved').innerHTML = l.saved.length ? l.saved.map(item).join('') : '<li class="hint">Screens you save appear here.</li>';
+    $('#sc-presets').innerHTML = l.presets.map(item).join('');
+    const ratios = screener.meta.ratios;
+    $('#sc-ratios').innerHTML = ratios.length ? ratios.map((r) => `<li class="sc-ratio-row"><span class="mono sc-ratio-def"><b>${esc(r.name)}</b> = ${esc(r.expression)}</span>
+      <span class="row" style="gap: 10px;"><button type="button" class="link-btn" data-ratio-edit="${r.id}">Edit</button><button type="button" class="link-btn sc-danger" data-ratio-del="${r.id}">Delete</button></span></li>`).join('')
+      : '<li class="hint">No custom ratios yet.</li>';
+  },
+
+  /* Docs ---------------------------------------------------------------- */
+  renderDocs() {
+    $('#sc-docs-body').innerHTML = `<div class="sc-syntax">
+        <p><b>Conditions</b> compare metrics, numbers and arithmetic: <span class="mono">ROCE &gt; 20</span>, <span class="mono">Current price &gt; 200 DMA</span>, <span class="mono">Net profit / Sales * 100 &gt; 10</span>. Comparisons: <span class="mono">&gt; &lt; &gt;= &lt;= = !=</span>. Join them with <span class="mono">AND</span>, <span class="mono">OR</span>, <span class="mono">NOT</span> and brackets, or put each on its own line: a new line is an AND, so each line stands as one condition.</p>
+        <p><b>Text</b> metrics (Name, NSE symbol, Industry) take quoted values: <span class="mono">Industry = 'Capital Goods'</span>, <span class="mono">Industry IN ('Power', 'Utilities')</span>. Matching ignores case.</p>
+        <p><b>Units</b>: amounts are in Rs. crores (<span class="mono">Market Capitalization &gt; 500</span> means Rs 500 Cr), percentages in % (<span class="mono">ROE &gt; 15</span>), multiples as plain numbers. Numbers may be written 1,000 or 1,00,000 or 1e3.</p>
+        <p><b>Missing data never passes.</b> A comparison with a value the database lacks is unknown, and so is its NOT: the stock is left out (and counted as left out for missing data) unless another branch of an OR is true for it. Banks and NBFCs have no ROCE, margins or debt to equity, so they drop out wherever those are used.</p>
+      </div>
+      <div class="field" style="max-width: 360px;"><label for="sc-docs-filter">Find a metric</label><input id="sc-docs-filter" class="input" placeholder="growth, pledge, P/E…" value="${esc(screener.docsFilter)}" autocomplete="off"></div>
+      <div id="sc-docs-list" class="sc-docs-list"></div>`;
+    this.renderDocsList();
+  },
+
+  renderDocsList() {
+    const needle = screener.docsFilter.trim().toLowerCase();
+    const groups = new Map();
+    for (const m of screener.meta.metrics) {
+      if (needle && ![m.name, m.key, m.description, ...m.aliases].some((t) => t.toLowerCase().includes(needle))) continue;
+      if (!groups.has(m.category)) groups.set(m.category, []);
+      groups.get(m.category).push(m);
+    }
+    const ratios = screener.meta.ratios.filter((r) => !needle || r.name.toLowerCase().includes(needle));
+    const html = [...groups].map(([cat, ms]) => `<section class="sc-doc-group"><h3>${esc(cat)}</h3><dl>${ms.map((m) => `
+        <div class="sc-doc"><dt><button type="button" class="link-btn" data-insert="${esc(m.name)}" title="Insert into the query">${esc(m.name)}</button>${m.unit ? ` <span class="sc-unit">${esc(m.unit)}</span>` : ''}${m.applies === 'non_financial' ? ' <span class="sc-unit" title="Blank for banks and NBFCs">not banks</span>' : ''}</dt>
+        <dd>${esc(m.description)}${m.aliases.length ? `<span class="sc-aka">Also: ${m.aliases.map(esc).join(', ')}</span>` : ''}</dd></div>`).join('')}</dl></section>`).join('')
+      + (ratios.length ? `<section class="sc-doc-group"><h3>Custom ratios</h3><dl>${ratios.map((r) => `<div class="sc-doc"><dt><button type="button" class="link-btn" data-insert="${esc(r.name)}">${esc(r.name)}</button></dt><dd class="mono">${esc(r.expression)}</dd></div>`).join('')}</dl></section>` : '');
+    $('#sc-docs-list').innerHTML = html || '<p class="hint">No metric matches.</p>';
+  },
+
+  insert(text) {
+    const q = $('#sc-q');
+    const start = q.selectionStart ?? q.value.length;
+    const end = q.selectionEnd ?? start;
+    const before = q.value.slice(0, start);
+    const pad = before && !/[\s(]$/.test(before) ? ' ' : '';
+    q.setRangeText(pad + text + ' ', start, end, 'end');
+    q.focus();
+    q.dispatchEvent(new Event('input'));
+  },
+
+  /* Autocomplete --------------------------------------------------------- */
+  /** The partial name before the caret: after the last operator, bracket, comma, newline or keyword. */
+  wordAtCaret() {
+    const q = $('#sc-q');
+    const caret = q.selectionStart;
+    if (caret !== q.selectionEnd) return null;
+    const before = q.value.slice(0, caret);
+    if ((before.match(/['"]/g) || []).length % 2) return null; // inside a quoted value
+    let start = 0;
+    const delim = /[<>=!(),+*\n]|\s[-/]\s|\b(?:AND|OR|NOT|IN)\b/gi;
+    let m;
+    while ((m = delim.exec(before)) !== null) start = m.index + m[0].length;
+    const lead = before.slice(start).match(/^\s*/)[0].length;
+    const word = before.slice(start + lead);
+    if (!/[A-Za-z]/.test(word) || word.length < 2) return null;
+    return { word, start: start + lead, end: caret };
+  },
+
+  autocomplete() {
+    const hit = this.wordAtCaret();
+    if (!hit || !screener.names.length) return this.closeAc();
+    const w = hit.word.toLowerCase().replace(/\s+/g, ' ');
+    const seen = new Set();
+    const score = (n) => (n.text.toLowerCase().startsWith(w) ? 0 : 1) + (n.alias ? 0.5 : 0);
+    const items = screener.names.filter((n) => n.text.toLowerCase().includes(w))
+      .sort((a, b) => score(a) - score(b) || a.text.length - b.text.length)
+      .filter((n) => { if (seen.has(n.key)) return false; seen.add(n.key); return true; }).slice(0, 8);
+    if (!items.length || (items.length === 1 && items[0].text.toLowerCase() === w)) return this.closeAc();
+    screener.ac = { items, active: 0, start: hit.start, end: hit.end };
+    this.renderAc();
+  },
+
+  renderAc() {
+    const ac = screener.ac;
+    const list = $('#sc-ac');
+    list.innerHTML = ac.items.map((n, i) => `<li id="sc-ac-${i}" role="option" class="combo-opt" data-i="${i}" aria-selected="${attr(i === ac.active)}">
+      <span class="combo-sym">${esc(n.text)}</span><span class="combo-meta">${esc([n.alias ? n.name : '', n.unit, n.category].filter(Boolean).join(' · '))}</span></li>`).join('');
+    list.hidden = false;
+    $('#sc-q').setAttribute('aria-expanded', 'true');
+    $('#sc-q').setAttribute('aria-activedescendant', `sc-ac-${ac.active}`);
+  },
+
+  closeAc() {
+    const list = $('#sc-ac');
+    if (!list) return;
+    list.hidden = true;
+    screener.ac.items = [];
+    $('#sc-q').setAttribute('aria-expanded', 'false');
+    $('#sc-q').removeAttribute('aria-activedescendant');
+  },
+
+  pick(i) {
+    const ac = screener.ac;
+    const n = ac.items[i];
+    if (!n) return;
+    const q = $('#sc-q');
+    q.setRangeText(n.text + ' ', ac.start, ac.end, 'end');
+    this.closeAc();
+    q.focus();
+    q.dispatchEvent(new Event('input'));
+    this.closeAc();
+  },
+
+  onKey(e) {
+    const ac = screener.ac;
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); this.run(); return; }
+    if (!ac.items.length || $('#sc-ac').hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      ac.active = (ac.active + (e.key === 'ArrowDown' ? 1 : -1) + ac.items.length) % ac.items.length;
+      this.renderAc();
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      this.pick(ac.active);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      this.closeAc();
+    }
+  },
+
+  /* Validation ----------------------------------------------------------- */
+  paintBackdrop() {
+    const text = $('#sc-q').value;
+    const err = screener.error;
+    let html;
+    if (err && err.start <= text.length) {
+      const end = Math.min(Math.max(err.end, err.start), text.length);
+      const span = text.slice(err.start, end);
+      html = esc(text.slice(0, err.start)) + `<mark>${span ? esc(span) : ' '}</mark>` + esc(text.slice(end));
+    } else html = esc(text);
+    $('#sc-backdrop').innerHTML = html + '\n';
+    $('#sc-backdrop').scrollTop = $('#sc-q').scrollTop;
+  },
+
+  async validate(quiet = false) {
+    if (!screener.meta) return;
+    const mine = ++screener.validateSeq;
+    const query = $('#sc-q').value;
+    let res;
+    try { res = await api('/screen/validate', { body: { query } }); } catch (e) { if (!quiet) toast(e.message); return; }
+    if (mine !== screener.validateSeq || current !== PAGES['/screens']) return;
+    const msg = $('#sc-msg');
+    if (!res.ok) {
+      screener.error = res.errors[0];
+      msg.className = 'sc-msg neg';
+      msg.innerHTML = `${I.alert}<span>${esc(screener.error.message)}</span>`;
+    } else {
+      screener.error = null;
+      const n = res.columns.length;
+      msg.className = 'sc-msg pos';
+      msg.innerHTML = `${I.check(15)}<span>Valid · ${n} metric${n === 1 ? '' : 's'}${res.warnings.length ? ` · ${esc(res.warnings.join(' '))}` : ''}. Ctrl+Enter runs it.</span>`;
+    }
+    this.paintBackdrop();
+  },
+
+  /* Running -------------------------------------------------------------- */
+  async run(keepPage = false) {
+    if (!screener.meta) return;
+    if (!keepPage) screener.page = 1;
+    const mine = ++screener.runSeq;
+    const el = $('#sc-results');
+    const c = screener.current;
+    if (!el.querySelector('table')) el.innerHTML = '<p class="empty">Running…</p>';
+    let res;
+    try {
+      res = await api('/screen/run', { body: { query: c.query, columns: screener.columns, sort: screener.sort, page: screener.page, as_of: screener.asOf || null } });
+    } catch (e) {
+      if (mine !== screener.runSeq) return;
+      el.innerHTML = `<h2 id="sc-res-h" class="section-h">Results</h2><div class="alert alert-neg">${I.alert}<div>${esc(e.message)}</div></div>`;
+      this.validate(true);
+      return;
+    }
+    if (mine !== screener.runSeq || current !== PAGES['/screens']) return;
+    screener.result = res;
+    screener.sort = res.sort;
+    this.renderResults();
+  },
+
+  cell(v, col) {
+    if (v == null) return '<span class="faint">—</span>';
+    if (col.kind === 'text') return esc(v);
+    const indian = ['Rs Cr', 'Rs', 'shares', 'count', 'Cr shares'].includes(col.unit);
+    const digits = col.unit === 'Rs Cr' && Math.abs(v) >= 100 ? 0 : col.decimals;
+    return grouped(v, indian ? 'en-IN' : 'en-US', digits);
+  },
+
+  renderResults() {
+    const r = screener.result;
+    const el = $('#sc-results');
+    const snap = r.snapshot;
+    const when = snap.as_of === 'live' ? `live snapshot, data to ${esc(snap.data_date)}` : `snapshot as of ${esc(snap.as_of)}`;
+    const left = r.excluded ? ` · <span title="A condition needed a value these stocks do not have">${r.excluded.toLocaleString()} left out for missing data</span>${r.excludedFinancial ? ` (${r.excludedFinancial.toLocaleString()} of them banks or NBFCs, for which a metric does not apply)` : ''}` : '';
+    const head = r.columns.map((c) => {
+      const sorted = r.sort.key === c.id;
+      const dir = sorted ? (r.sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+      return `<th scope="col" class="${c.kind === 'text' ? '' : 'r'}" aria-sort="${dir}"><button type="button" class="sc-sort b" data-sort="${esc(c.id)}" title="${esc(c.description)}">${esc(c.name)}${c.unit ? `<span class="sc-unit">${esc(c.unit)}</span>` : ''}${sorted ? `<span aria-hidden="true">${r.sort.dir === 'asc' ? '▲' : '▼'}</span>` : ''}</button></th>`;
+    }).join('');
+    const full = screener.picked.size >= MAX_PICKS;
+    const rows = r.rows.map((row, i) => {
+      const picked = screener.picked.has(row.symbol);
+      const cells = r.columns.map((c) => {
+        if (c.id === 'name') {
+          return `<th scope="row"><a href="/company?symbol=${encodeURIComponent(row.symbol)}" data-link>${esc(row.values.name || row.symbol)}</a><span class="sc-sym mono">${esc(row.nseSymbol || row.symbol)}</span></th>`;
+        }
+        return `<td class="${c.kind === 'text' ? '' : 'r'}">${this.cell(row.values[c.id], c)}</td>`;
+      }).join('');
+      return `<tr><td class="sc-pick"><input type="checkbox" data-pick="${esc(row.symbol)}" data-name="${esc(row.values.name || row.symbol)}" ${picked ? 'checked' : ''} ${!picked && full ? 'disabled' : ''} aria-label="Select ${esc(row.values.name || row.symbol)} for agent analysis"></td><td class="r faint num">${(r.page - 1) * r.pageSize + i + 1}</td>${cells}</tr>`;
+    }).join('');
+    const median = r.rows.length ? `<tfoot><tr class="sc-median"><td></td><td></td>${r.columns.map((c) => (c.id === 'name' ? `<th scope="row">Median of ${r.total.toLocaleString()}</th>` : `<td class="${c.kind === 'text' ? '' : 'r'}">${c.kind === 'text' ? '' : this.cell(r.median[c.id], c)}</td>`)).join('')}</tr></tfoot>` : '';
+    const table = r.rows.length ? `<div class="card table-card"><div class="table-scroll sc-scroll" tabindex="0" role="region" aria-label="Matching stocks, scrolls sideways">
+        <table class="tbl sc-table"><caption class="sr">Stocks matching the screen, page ${r.page} of ${r.pages}</caption>
+        <thead><tr><th scope="col" class="sc-pick"><span class="sr">Select</span></th><th scope="col" class="r">#</th>${head}</tr></thead>
+        <tbody>${rows}</tbody>${median}</table></div></div>`
+      : `<p class="empty">No stock matches${r.excluded ? `; ${r.excluded.toLocaleString()} were left out because a value the condition needs is missing` : ''}.</p>`;
+    const pager = r.pages > 1 ? `<nav class="sc-pager" aria-label="Pages"><button type="button" class="btn b" data-page="${r.page - 1}" ${r.page <= 1 ? 'disabled' : ''}>Previous</button><span class="muted num">Page ${r.page} of ${r.pages}</span><button type="button" class="btn b" data-page="${r.page + 1}" ${r.page >= r.pages ? 'disabled' : ''}>Next</button></nav>` : '';
+    const openCols = el.querySelector('#sc-cols') && el.querySelector('#sc-cols').open;
+    el.innerHTML = `<div class="sc-res-head">
+        <h2 id="sc-res-h" class="section-h">Results</h2>
+        <p class="sc-summary"><b>${r.total.toLocaleString()}</b> of ${r.universe.toLocaleString()} stocks match${left} · ${when} · ${r.elapsedMs.toLocaleString()} ms</p>
+      </div>
+      <div class="sc-toolbar">
+        <details class="sc-cols" id="sc-cols" ${openCols ? 'open' : ''}><summary class="btn b">Columns · ${r.columns.length}</summary><div class="sc-cols-pop"><input id="sc-cols-filter" class="input" placeholder="Find a column" value="${esc(screener.colsFilter)}" autocomplete="off" aria-label="Find a column"><div id="sc-cols-list"></div><button type="button" class="link-btn" data-cols-reset>Show only the query's metrics</button></div></details>
+        <div class="grow"></div>
+        <span class="muted" id="sc-picked-n" style="font-size: 13px;"></span>
+        <button type="button" class="link-btn" data-pick-clear hidden>Clear</button>
+        <button type="button" class="btn btn-primary b" data-analyze disabled>${I.analyze}Analyze with agents</button>
+      </div>
+      ${table}${pager}`;
+    this.renderColumnList();
+    this.renderPicks();
+    el.querySelectorAll('.sc-scroll').forEach((s) => { s.scrollLeft = 0; });
+  },
+
+  renderColumnList() {
+    const box = $('#sc-cols-list');
+    if (!box || !screener.result) return;
+    const shown = new Set(screener.result.columns.map((c) => c.id));
+    const fixed = new Set(['current_price', ...screener.result.used]);
+    const needle = screener.colsFilter.trim().toLowerCase();
+    const all = [...screener.meta.metrics.map((m) => ({ id: m.key, name: m.name, category: m.category })),
+      ...screener.meta.ratios.map((r) => ({ id: r.column, name: r.name, category: 'Custom ratios' }))]
+      .filter((c) => c.id !== 'name' && (!needle || c.name.toLowerCase().includes(needle)));
+    const groups = new Map();
+    for (const c of all) { if (!groups.has(c.category)) groups.set(c.category, []); groups.get(c.category).push(c); }
+    box.innerHTML = [...groups].map(([cat, cs]) => `<fieldset><legend>${esc(cat)}</legend>${cs.map((c) => `<label class="sc-col" ${fixed.has(c.id) ? 'title="Always shown: the query uses it"' : ''}><input type="checkbox" data-col="${esc(c.id)}" ${shown.has(c.id) ? 'checked' : ''} ${fixed.has(c.id) ? 'disabled' : ''}>${esc(c.name)}</label>`).join('')}</fieldset>`).join('') || '<p class="hint">No column matches.</p>';
+  },
+
+  renderPicks() {
+    const n = screener.picked.size;
+    const label = $('#sc-picked-n');
+    if (!label) return;
+    label.textContent = n ? `${n} selected${n >= MAX_PICKS ? ` (at most ${MAX_PICKS})` : ''}` : 'Select up to 10 stocks to analyze';
+    $('[data-pick-clear]').hidden = !n;
+    $('[data-analyze]').disabled = !n || DEMO;
+    document.querySelectorAll('[data-pick]').forEach((b) => { b.disabled = !b.checked && n >= MAX_PICKS; });
+  },
+
+  /* Clicks and changes --------------------------------------------------- */
+  async onClick(e) {
+    const t = e.target;
+    const act = t.closest('[data-sc]');
+    if (act) {
+      const a = act.dataset.sc;
+      if (a === 'run') return this.run();
+      if (a === 'save') return this.save();
+      if (a === 'duplicate') return this.duplicate();
+      if (a === 'delete') return this.remove();
+      if (a === 'new') return this.load({ id: null, name: 'Untitled screen', description: '', query: '', preset: false });
+    }
+    const load = t.closest('[data-load]');
+    if (load) {
+      const s = this.find(load.dataset.load);
+      if (s) this.load(s);
+      return;
+    }
+    const ins = t.closest('[data-insert]');
+    if (ins) return this.insert(ins.dataset.insert);
+    const sort = t.closest('[data-sort]');
+    if (sort) {
+      const key = sort.dataset.sort;
+      const col = screener.result.columns.find((c) => c.id === key);
+      const same = screener.sort && screener.sort.key === key;
+      screener.sort = { key, dir: same ? (screener.sort.dir === 'asc' ? 'desc' : 'asc') : (col && col.kind === 'text' ? 'asc' : 'desc') };
+      return this.run();
+    }
+    const page = t.closest('[data-page]');
+    if (page) { screener.page = +page.dataset.page; await this.run(true); $('#sc-results').scrollIntoView({ block: 'start' }); return; }
+    if (t.closest('[data-cols-reset]')) { screener.columns = null; return this.run(true); }
+    if (t.closest('[data-pick-clear]')) { screener.picked.clear(); document.querySelectorAll('[data-pick]').forEach((b) => { b.checked = false; }); return this.renderPicks(); }
+    if (t.closest('[data-analyze]')) return this.confirmAnalyze();
+    const rEdit = t.closest('[data-ratio-edit]');
+    if (rEdit) return this.editRatio(screener.meta.ratios.find((r) => String(r.id) === rEdit.dataset.ratioEdit));
+    const rDel = t.closest('[data-ratio-del]');
+    if (rDel) return this.deleteRatio(screener.meta.ratios.find((r) => String(r.id) === rDel.dataset.ratioDel));
+    const qc = t.closest('[data-queue-cancel]');
+    if (qc) {
+      qc.disabled = true;
+      try { await api(`/queue/${encodeURIComponent(qc.dataset.queueCancel)}/cancel`, { body: {} }); } catch (err) { toast(err.message); }
+      return this.pollQueue();
+    }
+    if (t.closest('[data-queue-cancel-all]')) {
+      try { await api('/queue/cancel', { body: {} }); } catch (err) { toast(err.message); }
+      return this.pollQueue();
+    }
+  },
+
+  onChange(e) {
+    const t = e.target;
+    if (t.matches('[data-pick]')) {
+      if (t.checked) {
+        if (screener.picked.size >= MAX_PICKS) { t.checked = false; toast(`Pick at most ${MAX_PICKS} stocks: each is a full, paid run.`); return; }
+        screener.picked.set(t.dataset.pick, t.dataset.name);
+      } else screener.picked.delete(t.dataset.pick);
+      this.renderPicks();
+      return;
+    }
+    if (t.matches('[data-col]')) {
+      const extras = (screener.columns || []).filter((id) => id !== t.dataset.col);
+      if (t.checked) extras.push(t.dataset.col);
+      screener.columns = extras;
+      if (screener.current.id) this.markDirty();
+      this.run(true);
+    }
+  },
+
+  load(s) {
+    screener.current = { id: s.id, name: s.name, description: s.description || '', query: s.query, preset: !!s.preset, dirty: false };
+    screener.columns = s.columns && s.columns.length ? s.columns.slice() : null; // extras beside the query's own metrics
+    screener.sort = s.sort || null;
+    screener.error = null;
+    this.remember();
+    history.replaceState(null, '', s.id ? '/screens?screen=' + encodeURIComponent(s.id) : '/screens');
+    this.renderEditor();
+    this.renderLists();
+    this.validate(true);
+    if (s.query.trim() && screener.meta && screener.meta.snapshots.length) this.run(); else $('#sc-q').focus();
+  },
+
+  body(extra = {}) {
+    const c = screener.current;
+    return { name: c.name, description: c.description, query: c.query, columns: screener.columns || [], sort: screener.sort, ...extra };
+  },
+
+  async refreshLists(selectId) {
+    [screener.list, screener.meta] = await Promise.all([api('/screens'), api('/screen/metrics')]);
+    this.buildNames();
+    if (selectId != null) {
+      const s = this.find(selectId);
+      if (s) screener.current = { ...screener.current, id: s.id, name: s.name, preset: false, dirty: false };
+      history.replaceState(null, '', '/screens?screen=' + encodeURIComponent(selectId));
+    }
+    this.remember();
+    this.renderLists();
+    this.renderDocsList();
+    this.renderEditor();
+  },
+
+  async save() {
+    const c = screener.current;
+    const create = !c.id || c.preset;
+    let name = c.name.trim();
+    if (create && c.preset && name === (this.find(c.id) || {}).name) name = `${name} (my copy)`;
+    try {
+      const saved = await api('/screens', { body: this.body(create ? { name } : { id: c.id, name }) });
+      await this.refreshLists(saved.id);
+      toast(create ? `Saved “${saved.name}”.` : 'Saved.');
+    } catch (e) { this.showSaveError(e); }
+  },
+
+  async duplicate() {
+    const c = screener.current;
+    try {
+      const saved = await api('/screens', { body: this.body({ name: `${c.name.trim() || 'Screen'} (copy)` }) });
+      await this.refreshLists(saved.id);
+      toast(`Duplicated as “${saved.name}”. Edit it freely.`);
+    } catch (e) { this.showSaveError(e); }
+  },
+
+  showSaveError(e) {
+    toast(e.message);
+    this.validate(true);
+  },
+
+  async remove() {
+    const c = screener.current;
+    if (!c.id || c.preset) return;
+    const ok = await confirmDialog('Delete this screen?', `<p>“${esc(c.name)}” will be deleted. This cannot be undone.</p>`, 'Delete screen', true);
+    if (!ok) return;
+    try {
+      await api(`/screens/${encodeURIComponent(c.id)}/delete`, { body: {} });
+      screener.current = { ...c, id: null, preset: false, dirty: true };
+      await this.refreshLists(null);
+      history.replaceState(null, '', '/screens');
+      toast('Screen deleted. Its query is still in the editor.');
+    } catch (e) { toast(e.message); }
+  },
+
+  /* Custom ratios -------------------------------------------------------- */
+  editRatio(r) {
+    screener.editingRatio = r || null;
+    $('#sc-ratio').value = r ? `${r.name} = ${r.expression}` : '';
+    $('#sc-ratio-save').textContent = r ? 'Save ratio' : 'Add ratio';
+    $('#sc-ratio-cancel').hidden = !r;
+    $('#sc-ratio-msg').innerHTML = '';
+    if (r) $('#sc-ratio').focus();
+  },
+
+  async saveRatio() {
+    const msg = $('#sc-ratio-msg');
+    msg.innerHTML = '';
+    const editing = screener.editingRatio;
+    try {
+      const r = await api('/ratios', { body: { definition: $('#sc-ratio').value, id: editing ? editing.id : null } });
+      this.editRatio(null);
+      await this.refreshLists(null);
+      this.validate(true);
+      toast(`“${r.name}” works in queries now.`);
+    } catch (e) {
+      msg.innerHTML = `<p class="sc-msg neg" style="margin: 0;">${I.alert}<span>${esc(e.message)}</span></p>`;
+    }
+  },
+
+  async deleteRatio(r) {
+    if (!r) return;
+    const ok = await confirmDialog('Delete this custom ratio?', `<p class="mono">${esc(r.name)} = ${esc(r.expression)}</p><p>Screens that use it will show an error until you change them.</p>`, 'Delete ratio', true);
+    if (!ok) return;
+    try {
+      await api(`/ratios/${r.id}/delete`, { body: {} });
+      await this.refreshLists(null);
+      this.validate(true);
+    } catch (e) { toast(e.message); }
+  },
+
+  /* Agent analysis queue -------------------------------------------------- */
+  async confirmAnalyze() {
+    const picks = [...screener.picked];
+    if (!picks.length) return;
+    const snap = screener.result && screener.result.snapshot;
+    const date = snap && snap.as_of !== 'live' ? snap.as_of : OPTIONS.today;
+    const p = provider();
+    const chosen = (analyze.form && analyze.form.analysts.length ? analyze.form.analysts : OPTIONS.defaults.analysts).slice();
+    const body = `<p>This queues <b>${picks.length} full multi-agent analys${picks.length === 1 ? 'is' : 'es'}</b>, run one after another, not at once. Each run makes many LLM calls on your <b>${esc(p.name)}</b> account (${esc(settings.quick)} / ${esc(settings.deep)}, ${esc(settings.depth)} depth), so each one costs money and takes several minutes.</p>
+      <ol class="sc-dlg-list">${picks.map(([sym, name]) => `<li><span class="mono">${esc(sym)}</span> · ${esc(name)}</li>`).join('')}</ol>
+      <div class="field" style="max-width: 220px;"><label for="sc-dlg-date">Analysis date</label><input id="sc-dlg-date" class="input" type="date" value="${esc(date)}" max="${esc(OPTIONS.today)}"></div>
+      <fieldset><legend class="legend">Analysts (fewer is cheaper)</legend><div class="row" style="gap: 6px 16px; flex-wrap: wrap;">${ANALYSTS.map(([id, label]) => `<label class="sc-col"><input type="checkbox" name="sc-dlg-analyst" value="${id}" ${chosen.includes(id) ? 'checked' : ''}>${label}</label>`).join('')}</div></fieldset>
+      <p class="hint">Change the provider and models in the sidebar of the Analyze page.</p>`;
+    const ok = await confirmDialog(`Analyze ${picks.length} stock${picks.length === 1 ? '' : 's'} with agents?`, body, `Queue ${picks.length} run${picks.length === 1 ? '' : 's'}`);
+    if (!ok) return;
+    try {
+      const res = await api('/screen/analyze', { body: { tickers: picks.map(([sym]) => sym), date: ok.date || date, analysts: ok.analysts, settings: runSettings() } });
+      screener.picked.clear();
+      this.renderResults();
+      screener.queue = res.queue;
+      this.renderQueue();
+      toast(`Queued ${res.ids.length} run${res.ids.length === 1 ? '' : 's'}; they start one at a time.`);
+      this.pollQueue();
+      $('#sc-queue').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) { toast(e.message); }
+  },
+
+  async pollQueue() {
+    clearTimeout(screener.queueTimer);
+    try { screener.queue = await api('/queue'); } catch (e) { return; }
+    if (current !== PAGES['/screens']) return;
+    this.renderQueue();
+    const q = screener.queue;
+    if (q.current || q.waiting) screener.queueTimer = setTimeout(() => this.pollQueue(), 2000);
+  },
+
+  /** Re-rendered only when a run's status changes (no ticking clock), so its buttons stay put under the pointer. */
+  renderQueue() {
+    const q = screener.queue;
+    const el = $('#sc-queue');
+    if (!q || !q.runs.length) { patch(el, ''); return; }
+    const done = q.runs.filter((r) => !['pending', 'running'].includes(r.status)).length;
+    const pill = (r) => ({
+      running: `<span class="pill sm pill-info"><span class="dot pulse" style="background: var(--info);"></span>Running</span>`,
+      pending: `<span class="pill sm">Queued${r.position ? ` · #${r.position}` : ''}</span>`,
+      done: `<span class="pill sm pill-pos">Done</span>`,
+      failed: '<span class="pill sm pill-neg">Failed</span>',
+      cancelled: '<span class="pill sm pill-plain">Stopped</span>',
+    }[r.status] || esc(r.status));
+    const rows = q.runs.map((r) => `<li class="sc-q-row">
+      <span class="mono sc-q-t">${esc(r.ticker)}</span><span class="faint">${esc(r.date)}</span>${pill(r)}${r.rating ? ratingPill(r.rating) : ''}
+      <span class="grow"></span>
+      <a href="/analyze?job=${encodeURIComponent(r.id)}" data-link>Open run${I.arrow}</a>
+      ${['pending', 'running'].includes(r.status) ? `<button type="button" class="link-btn sc-danger" data-queue-cancel="${esc(r.id)}">${r.status === 'running' ? 'Stop' : 'Remove'}</button>` : ''}</li>`).join('');
+    patch(el, `<div class="row" style="justify-content: space-between; gap: 12px; flex-wrap: wrap;"><h2 class="section-h">Agent analysis queue</h2>
+        <span class="muted" style="font-size: 13px;">${done} of ${q.runs.length} finished · one run at a time${q.current || q.waiting ? ' · <button type="button" class="link-btn sc-danger" data-queue-cancel-all>Stop all</button>' : ''}</span></div>
+      <ul class="card sc-queue">${rows}</ul>`);
+  },
+};
+
+/** A modal confirmation; resolves to false, or to the dialog's field values (truthy) when confirmed. */
+function confirmDialog(title, bodyHtml, okLabel, danger = false) {
+  const dlg = $('#sc-dialog');
+  dlg.innerHTML = `<form method="dialog" class="stack" style="gap: 16px;">
+    <h2 id="sc-dialog-h" class="section-h" style="font-size: 20px;">${esc(title)}</h2>
+    <div class="stack sc-dlg-body" style="gap: 10px;">${bodyHtml}</div>
+    <div class="row" style="justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+      <button type="submit" value="cancel" class="btn b">Cancel</button>
+      <button type="submit" value="ok" class="btn ${danger ? 'btn-danger' : 'btn-primary'} b">${esc(okLabel)}</button>
+    </div></form>`;
+  return new Promise((resolve) => {
+    dlg.addEventListener('close', () => {
+      if (dlg.returnValue !== 'ok') return resolve(false);
+      const date = dlg.querySelector('#sc-dlg-date');
+      const analysts = [...dlg.querySelectorAll('input[name="sc-dlg-analyst"]:checked')].map((b) => b.value);
+      return resolve({ date: date ? date.value : null, analysts });
+    }, { once: true });
+    dlg.returnValue = '';
+    dlg.showModal();
+    const okBtn = dlg.querySelector('button[value="ok"]');
+    if (okBtn) okBtn.focus();
+  });
 }
 
 /* Page: Reports ------------------------------------------------------------- */

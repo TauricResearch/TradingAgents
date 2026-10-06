@@ -196,5 +196,15 @@ app.add_typer(_india_app(), name="india",
               help="India data layer: sync NSE archives and import saved XBRL filings (see README).")
 
 
+def _screen_app():
+    from cli.screen import app as screen_app
+
+    return screen_app
+
+
+app.add_typer(_screen_app(), name="screen",
+              help="Stock screener: run screens over the India database's metrics snapshot (see README).")
+
+
 if __name__ == "__main__":
     app()

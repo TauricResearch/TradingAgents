@@ -231,6 +231,7 @@ tradingagents ui --port 8600 --no-browser
 ```
 - **Analyze** — pick a ticker, date, analysts and an optional portfolio file, then watch each desk of the pipeline, the metrics, tool calls and report sections as the run streams in. The portfolio manager's rating shows at the end, and the full report is saved under `results_dir/reports`. The ticker box searches by symbol or company name, so "reliance industries" offers `RELIANCE.NS` and "tencent" offers `0700.HK`; a provider retry shows in the run's activity log instead of the run looking stalled.
 - **Company** — one stock's fundamentals laid out like a stock screener: key ratios, a price chart with 50- and 200-day averages and volume, quarterly results, profit and loss with a TTM column, balance sheet, cash flows, working-capital ratios, compounded growth, and pros and cons from fixed rules (no LLM). Indian companies show figures in ₹ crores with Indian digit grouping, and banks get a lender's layout. The figures come live from Yahoo Finance, usually about four years and five quarters, and only what Yahoo has is shown. Because they are today's figures rather than point-in-time ones, no analysis or backtest reads them. **Analyze with agents** opens the Analyze page with the ticker filled in.
+- **Screens** — filter every NSE stock on its fundamentals, shareholding and price with conditions such as `Market Capitalization > 500 AND ROCE > 20`; see [Stock screener](#stock-screener-india) below.
 - **Sentiment** — with Jev on, every news article and social post the Sentiment Analyst judged: its stance, event type, relevance and whether it was kept, or dropped as a duplicate, off-topic or an injected instruction. Open it from a live run or from a saved report.
 - **Reports** — read any saved report by section, and browse the decision log with each call's alpha, decision and reflection.
 - **Backtest** — start a grid sweep (the tickers box completes each comma-separated entry the same way), follow the cell being run, stop it between cells, then compare mean alpha and hit rate by rating.
@@ -320,6 +321,7 @@ tradingagents india sync-actions --from 2016-01-01  # splits, bonuses, rights, d
 tradingagents india import ~/Downloads/xbrl         # results / shareholding XBRL you saved
 tradingagents india status
 tradingagents india sync-all                        # the nightly run (schedule it yourself)
+tradingagents india reparse-actions                 # re-read stored corporate actions after a parser fix
 ```
 
 Sources and their terms (checked 2026-10-05):
@@ -327,6 +329,35 @@ Sources and their terms (checked 2026-10-05):
 - **NSE's JSON APIs and nsearchives.nseindia.com** (where results and shareholding XBRL live) answer only browsers, and **BSE** refuses non-browser clients. They are not fetched. Save filings from NSE's (or BSE's) filing pages and import them; drop them in `<cache>/india/inbox` for `sync-results`, `sync-shareholding` and `sync-all`.
 
 Every financial and shareholding value keeps its `filed_at`; restatements are kept as separate rows, and `store.get_financials(isin, as_of=...)` sees only what was public by then.
+
+### Stock screener (India)
+
+The **Screens** page and `tradingagents screen ...` filter every stock in the India database on about 100 metrics. Screens read a precomputed snapshot, so build one once the database has prices:
+
+```bash
+tradingagents india build-snapshot                      # the live snapshot (also rebuilt by india sync-all)
+tradingagents india build-snapshot --as-of 2025-10-06   # a historical one, kept beside it
+tradingagents screen run "Market Capitalization > 500 AND Return on capital employed > 20"
+tradingagents screen run "Return over 1 year > 20" --as-of 2025-10-06 --limit 50 --sort return_1y
+tradingagents screen list                               # your saved screens and the presets
+tradingagents screen metrics growth                     # the metrics whose names match "growth"
+```
+
+**Query syntax.** A condition compares metrics, numbers and arithmetic: `ROCE > 20`, `Current price > 200 DMA`, `Net profit / Sales * 100 > 10`. Comparisons are `> < >= <= = !=`; join conditions with `AND`, `OR`, `NOT` and brackets, or write one per line: a new line is an AND that binds loosest, so each line stands on its own (`ROCE > 20` then `ROE > 15 OR P/E < 10` on the next line means ROCE > 20 AND (ROE > 15 OR P/E < 10)). Text metrics (Name, NSE symbol, Industry, also called Sector) take quoted values, `Industry = 'Capital Goods'` or `Industry IN ('Power', 'Utilities')`, ignoring case. Metric names hold spaces and match their aliases case-insensitively (`Return on capital employed`, `ROCE`, `ROCE %`). Numbers may be written `1,000`, `1,00,000`, `1e3` or `20%`. A query is at most 4,000 characters and 40 levels deep, and runs for at most 2 seconds. Errors say where, by line and column, and suggest the metric you meant: `Unknown metric 'Retrun on equity' at col 1 — did you mean 'Return on equity'?`.
+
+**Units.** Amounts are in Rs. crores (`Market Capitalization > 500` is Rs 500 Cr), per-share figures in rupees, percentages in % (`ROE > 15`), changes in holdings in percentage points, and multiples (P/E, debt to equity) as plain numbers. Each metric's unit is listed on the page and by `screen metrics`.
+
+**Missing data never passes.** A comparison with a value the database lacks is unknown, and stays unknown under `NOT`, so the stock is left out; only a branch of an `OR` that is true for it can let it in. The page and the CLI say how many stocks were left out for missing data. Banks and NBFCs have no ROCE, margins, debt to equity or working-capital figures, so they drop out wherever those are used. Division by zero gives a blank, not an error.
+
+**What the figures are.** "TTM" is the latest four quarters summed when the newest quarter is after the newest fiscal year, else that year; "last year" is the newest fiscal year filed; balance-sheet figures are the newest year-end balance sheet's. Prices are adjusted for splits, bonuses and rights, not dividends, and a stock with no close in the 15 days before the snapshot has no price. Market capitalisation is the last close times the shares outstanding: NSE's own issued-share count from its daily PR file when the database has it, else the latest shareholding pattern's total, else equity capital over face value, each multiplied by any split or bonus since its date. Dividend yield is the past year's dividends per share over the price, 0 when none was paid, blank if the corporate-actions sync does not cover the year. Every formula is the Company page's own (`dataflows/formulas.py`), and the Company page lists every metric in its **All metrics** section, so the two always agree.
+
+**Snapshots.** `metrics_snapshot` in the India database holds a row per stock and a column per metric, keyed by `as_of_date` (`live`, or a date). A historical snapshot reads the database point in time: filings filed by its date, prices up to it, and actions known by then; its universe is the stocks that traded in the 15 days before it, so stocks delisted since stay in. The default universe is listed EQ-series stocks (`screener_universe`: `eq`, `listed`, `all`, or `--universe RELIANCE,TCS`). Pick a historical snapshot on the page, or pass `--as-of`. The fundamentals screens need results and shareholding filings imported (`tradingagents india import`); with prices only, the price, return, moving-average, market-cap and dividend metrics work and the rest are blank.
+
+**Custom ratios.** Define `Name = expression` over catalog metrics, such as `Earnings to price = Net profit / Market Capitalization`, then use the name in any query. A ratio's name may not be a catalog name or alias, ratios may use other ratios but never in a circle or more than 8 deep, and each is compiled into the query rather than stored. Saved screens and ratios live in `~/.tradingagents/screener/screens.db` (`TRADINGAGENTS_SCREENER_DB`).
+
+**Presets.** Nine read-only starting points, written for this project: debt-free compounders, high ROCE at a reasonable P/E, consistent five-year growers, Piotroski 8 or 9, promoters raising their stake, low price to book with positive free cash flow, near the 52-week high and still growing, dividend yield with low payout risk, and large caps in an uptrend. Duplicate one to edit it. They are not investment advice.
+
+**Analyze with agents.** Tick up to 10 result rows and confirm to queue a full analysis of each. They run one after another, never at once, and each costs LLM calls on the provider in the Analyze page's settings. The queue shows each run's progress, links to it, and can take a run off or stop it.
 
 ### Fundamentals as filed
 
