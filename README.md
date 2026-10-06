@@ -342,6 +342,8 @@ To settle decisions without running an analysis, for a scheduled job, call `ta.s
 
 Checkpoint resume is opt-in via `--checkpoint`. When enabled, LangGraph saves state after each node so a crashed or interrupted run resumes from the last successful step instead of starting over. The run view says whether it resumed a saved run or started fresh. Checkpoints are cleared automatically on successful completion.
 
+When checkpointing is enabled for `run_backtest`, each backtest run ID has its own checkpoint namespace, separate from live runs and other backtest run IDs, even when they share the cache directory. Reuse the same `run_id` with matching ticker, date, settings, analysts, asset type, and portfolio to resume an interrupted cell. Completing a cell clears only its own checkpoint. See [Evaluating decisions over time](#evaluating-decisions-over-time) for backtest usage.
+
 Per-ticker SQLite databases live at `~/.tradingagents/cache/checkpoints/<TICKER>.db` (override the base with `TRADINGAGENTS_CACHE_DIR`). Use `--clear-checkpoints` to reset all of them before a run.
 
 ```bash
