@@ -77,6 +77,21 @@ class FredResolutionTests(unittest.TestCase):
         self.assertEqual(fred._resolve_series_id("ECB Deposit Rate"), "ECBDFR")
         self.assertEqual(fred._resolve_series_id("euro-hicp"), "CP0000EZ19M086NEST")
 
+    def test_india_aliases_map_to_series_ids(self):
+        # India context for NSE/BSE tickers (.NS/.BO): FRED mirrors IMF CPI,
+        # the RBI policy rate, OECD long-term yields and IMF GDP per capita.
+        expected = {
+            "india_cpi": "INDCPIALLMINMEI",
+            "india_inflation": "INDCPIALLMINMEI",
+            "rbi_lending_rate": "INTDSRINM193N",
+            "india_10y_yield": "INDIRLTLT01STM",
+            "usdinr": "DEXINUS",
+            "india_gdp_per_capita": "INDGDPRPCPPPT",
+        }
+        for alias, series_id in expected.items():
+            with self.subTest(alias=alias):
+                self.assertEqual(fred._resolve_series_id(alias), series_id)
+
     def test_unknown_alias_is_treated_as_raw_series_id(self):
         # Power users can pass any FRED series ID; we uppercase by convention.
         self.assertEqual(fred._resolve_series_id("dgs30"), "DGS30")
