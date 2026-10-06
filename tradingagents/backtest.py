@@ -148,8 +148,17 @@ def run_backtest(
     run_id = safe_ticker_component(run_id or datetime.now().strftime("%Y%m%d_%H%M%S"))
     run_dir = Path(config["results_dir"]) / "backtest" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
+    # A backtest shares the live run's price caches but must not share its
+    # checkpoints: the same ticker, date, settings, analysts and portfolio would
+    # otherwise hash to the same thread ID, so a backtest would resume — and on
+    # success clear — a live run's saved context, and two distinct backtest run
+    # IDs would collide with each other. ``checkpoint_namespace`` is deliberately
+    # not in ``_NOT_IN_SIGNATURE``, so it folds into the checkpoint thread ID and
+    # gives each backtest identity its own namespace while the same ``run_id``
+    # still resumes.
     run_config = {**config, "results_dir": str(run_dir),
-                  "memory_log_path": str(run_dir / "trading_memory.md")}
+                  "memory_log_path": str(run_dir / "trading_memory.md"),
+                  "checkpoint_namespace": f"backtest:{run_id}"}
 
     graph = TradingAgentsGraph(selected_analysts, config=run_config)
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))

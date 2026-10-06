@@ -42,7 +42,10 @@ def _validate_trade_date(trade_date) -> str:
 
 
 # Config keys that do not change what a run writes: where it keeps its files,
-# whether it checkpoints, and how often it retries a provider.
+# whether it checkpoints, and how often it retries a provider. ``checkpoint_namespace``
+# (set by run_backtest to ``backtest:<run_id>``) is intentionally NOT listed here:
+# it must fold into the thread ID so a backtest never resumes or clears a live
+# run's checkpoint, and distinct backtest run IDs stay apart.
 _NOT_IN_SIGNATURE = frozenset({
     "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
 })
