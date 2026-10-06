@@ -1,8 +1,8 @@
 """Saved screens, custom ratios and the preset screens.
 
-Both are the user's own data, so they live in their own SQLite file
-(``screener_db_path``, default ``~/.tradingagents/screener/screens.db``) and
-survive the India database being rebuilt.
+Both are the user's own data, so they live in the user database
+(``userdb``: ``screener_db_path``, default ``~/.tradingagents/screener/screens.db``)
+with the watchlists and alerts, and survive the India database being rebuilt.
 
 A custom ratio is ``Name = expression`` over catalog metrics and other custom
 ratios: ``Earnings to price = Net profit / Market Capitalization``. Its name then
@@ -19,13 +19,10 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 
-from tradingagents.dataflows.config import get_config
-from tradingagents.screener import catalog
+from tradingagents.screener import catalog, userdb
 from tradingagents.screener.compiler import MAX_RATIO_DEPTH
 from tradingagents.screener.query import (
     NUMBER_TYPE,
@@ -38,22 +35,6 @@ from tradingagents.screener.query import (
     parse,
     references,
 )
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS screens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', query TEXT NOT NULL,
-    columns TEXT NOT NULL DEFAULT '[]',   -- JSON list of column ids
-    sort TEXT,                            -- JSON {"key": column id, "dir": "asc" | "desc"}
-    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS custom_ratios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL, key TEXT NOT NULL UNIQUE,   -- key: the name normalised (lower case, single spaces)
-    expression TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-);
-"""
 
 MAX_NAME = 60
 MAX_SCREENS = 500
@@ -85,17 +66,8 @@ class Ratio:
                 "description": self.description, "createdAt": self.created_at, "updatedAt": self.updated_at}
 
 
-def db_path() -> Path:
-    return Path(get_config()["screener_db_path"]).expanduser()
-
-
-def connect(path: str | Path | None = None) -> sqlite3.Connection:
-    path = Path(path) if path else db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
-    return conn
+db_path = userdb.db_path
+connect = userdb.connect  # the user database, its schema brought up to date
 
 
 def _now() -> str:

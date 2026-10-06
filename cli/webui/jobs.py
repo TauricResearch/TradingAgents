@@ -171,6 +171,8 @@ class AnalysisJob:
         _current_job.set(self)
         try:
             self._log(f"Analyzing {self.ticker} on {self.trade_date} with: {', '.join(self.analysts)}")
+            if self.portfolio is not None:  # the block the decision agents read
+                self._log(self.portfolio.render(self.ticker))
             graph = TradingAgentsGraph(
                 self.analysts, config=self.config, debug=False, callbacks=[self.stats]
             )

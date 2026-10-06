@@ -4,6 +4,12 @@ A run reports, beside the matching rows, how many stocks the condition left out
 only because a value it needs is missing (``excluded``), the median of each
 column over the matches, and which snapshot it read. Queries run under a time
 limit enforced inside SQLite.
+
+Every table of stocks the UI shows goes through ``run``: a screen's results, a
+company's peers and an industry (``peers``, a query on the Industry metric), a
+watchlist (``isins`` restricts the run to its stocks, with or without a query)
+and the exports of each. So a column, a sort or a median reads the same in all
+of them.
 """
 
 from __future__ import annotations
@@ -14,12 +20,13 @@ from datetime import date
 
 from tradingagents.dataflows.vendors.india import store
 from tradingagents.screener import catalog, screens, snapshot
-from tradingagents.screener.compiler import Compiler, column
+from tradingagents.screener.compiler import Compiled, Compiler, column
 from tradingagents.screener.query import NUMBER_TYPE, QueryError, Ref, parse, references
 
 TIME_LIMIT_SECONDS = 2.0
 PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
+MAX_ISINS = 2000  # stocks one restricted run may name
 DEFAULT_SORT = {"key": "market_cap", "dir": "desc"}
 BASE_COLUMNS = ("name", "current_price")
 
@@ -104,14 +111,29 @@ def _median(values: list) -> float | None:
 
 def run(query: str, *, columns: list[str] | None = None, sort: dict | None = None, page: int = 1,
         page_size: int = PAGE_SIZE, as_of: str | None = None, user_conn=None, india_conn=None,
-        time_limit: float = TIME_LIMIT_SECONDS) -> dict:
-    """Run ``query`` over the snapshot for ``as_of`` (the live one by default)."""
+        time_limit: float = TIME_LIMIT_SECONDS, isins: list[str] | None = None, show_used: bool = True,
+        max_page_size: int = MAX_PAGE_SIZE) -> dict:
+    """Run ``query`` over the snapshot for ``as_of`` (the live one by default).
+
+    ``isins`` limits the run to those stocks (a watchlist, a company's peers); the
+    query may then be empty, matching all of them. ``show_used=False`` leaves the
+    query's own metrics out of the columns unless ``columns`` names them (an
+    industry's table need not repeat its industry). ``max_page_size`` lets an
+    export or a peer search read more than a page of the UI's."""
     began = time.monotonic()
     ratios, names, asts = _names_and_ratios(user_conn)
     by_key = {r.key: r for r in ratios}
-    node = parse(query or "", names)
-    compiler = Compiler(asts, query)
-    where = compiler.compile(node)
+    compiler = Compiler(asts, query or "")
+    if isins is not None and not (query or "").strip():
+        node, where = None, Compiled("1", [])
+    else:
+        node = parse(query or "", names)
+        where = compiler.compile(node)
+    scope, scope_params = "", []
+    if isins is not None:
+        isins = list(dict.fromkeys(str(i) for i in isins))[:MAX_ISINS]
+        scope = f" AND isin IN ({', '.join('?' * len(isins))})" if isins else " AND 0"
+        scope_params = isins
 
     if as_of not in (None, "", snapshot.LIVE):
         try:
@@ -126,11 +148,12 @@ def run(query: str, *, columns: list[str] | None = None, sort: dict | None = Non
         info = snapshot.snapshot_info(conn, as_of)
         key = info["as_of"]
 
-        used = [_column_id(n) for n in references(node)]
+        used = [_column_id(n) for n in references(node)] if node is not None else []
         extras = screens.clean_columns(columns, ratios) if columns else []
-        shown = list(dict.fromkeys([*BASE_COLUMNS, *used, *extras]))  # the query's metrics always show
+        forced = used if show_used else []
+        shown = list(dict.fromkeys([*BASE_COLUMNS, *forced, *extras]))  # the query's metrics show by default
         sort = screens.clean_sort(sort, ratios) or (
-            DEFAULT_SORT if "market_cap" in shown or not used else {"key": used[0], "dir": "desc"})
+            DEFAULT_SORT if "market_cap" in shown or not forced else {"key": forced[0], "dir": "desc"})
         if sort["key"] not in shown:
             shown.append(sort["key"])
 
@@ -146,7 +169,7 @@ def run(query: str, *, columns: list[str] | None = None, sort: dict | None = Non
         select_params = [p for _, params in compiled for p in params]
         sort_sql, sort_params = expr(sort["key"])
         direction = "ASC" if sort["dir"] == "asc" else "DESC"
-        page_size = max(1, min(int(page_size or PAGE_SIZE), MAX_PAGE_SIZE))
+        page_size = max(1, min(int(page_size or PAGE_SIZE), max(MAX_PAGE_SIZE, int(max_page_size))))
 
         _deadline(conn, time_limit)
         try:
@@ -154,22 +177,23 @@ def run(query: str, *, columns: list[str] | None = None, sort: dict | None = Non
                 f"SELECT COUNT(*), COALESCE(SUM(CASE WHEN {where.sql} THEN 1 ELSE 0 END), 0), "
                 f"COALESCE(SUM(CASE WHEN ({where.sql}) IS NULL THEN 1 ELSE 0 END), 0), "
                 f"COALESCE(SUM(CASE WHEN ({where.sql}) IS NULL AND financial = 1 THEN 1 ELSE 0 END), 0) "
-                "FROM metrics_snapshot WHERE as_of_date = ?",
-                [*where.params, *where.params, *where.params, key]).fetchone()
+                f"FROM metrics_snapshot WHERE as_of_date = ?{scope}",
+                [*where.params, *where.params, *where.params, key, *scope_params]).fetchone()
             pages = max(1, -(-matched // page_size))
             page = max(1, min(int(page or 1), pages))
             rows = conn.execute(
                 f"SELECT isin, nse_symbol, bse_code, price_date, financial, {', '.join(selected)} "
-                f"FROM metrics_snapshot WHERE as_of_date = ? AND {where.sql} "
+                f"FROM metrics_snapshot WHERE as_of_date = ?{scope} AND {where.sql} "
                 f"ORDER BY {sort_sql} {direction} NULLS LAST, name COLLATE NOCASE LIMIT ? OFFSET ?",
-                [*select_params, key, *where.params, *sort_params, page_size, (page - 1) * page_size]).fetchall()
+                [*select_params, key, *scope_params, *where.params, *sort_params, page_size,
+                 (page - 1) * page_size]).fetchall()
             numeric = [i for i, c in enumerate(shown) if describe_column(c, by_key)["kind"] == "number"]
             medians = {}
             if matched and numeric:
                 every = conn.execute(
                     f"SELECT {', '.join(selected[i] for i in numeric)} FROM metrics_snapshot "
-                    f"WHERE as_of_date = ? AND {where.sql}",
-                    [*[p for i in numeric for p in compiled[i][1]], key, *where.params]).fetchall()
+                    f"WHERE as_of_date = ?{scope} AND {where.sql}",
+                    [*[p for i in numeric for p in compiled[i][1]], key, *scope_params, *where.params]).fetchall()
                 medians = {shown[i]: _median([r[j] for r in every]) for j, i in enumerate(numeric)}
         except Exception as exc:
             if "interrupted" in str(exc):

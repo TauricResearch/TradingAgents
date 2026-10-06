@@ -195,12 +195,16 @@ def sync_all(universe: str = typer.Option("nifty500", "--universe",
                                           help="Universe for announcements: nifty50, nifty500 or all"),
              folder: str = INBOX, force: bool = FORCE,
              snapshot: bool = typer.Option(True, "--snapshot/--no-snapshot",
-                                           help="Rebuild the screener's live metrics snapshot afterwards")):
+                                           help="Rebuild the screener's live metrics snapshot afterwards"),
+             alerts: bool = typer.Option(True, "--alerts/--no-alerts",
+                                         help="Evaluate your alerts on the new data afterwards")):
     """The nightly run: securities, new days of prices, actions and announcements, and the inbox;
-    then the screener's live snapshot."""
+    then the screener's live snapshot, then your alerts."""
     _run(lambda s: s.sync_all(universe=universe, inbox=Path(folder) if folder else None), force=force)
     if snapshot:
         _build_snapshot(None, None)
+    if alerts:
+        _evaluate_alerts(None)
 
 
 def _build_snapshot(as_of: str | None, universe: str | None) -> None:
@@ -237,6 +241,54 @@ def build_snapshot(as_of: str = typer.Option(None, "--as-of",
                                                      "or comma-separated symbols")):
     """Precompute every screener metric for every stock: the snapshot screens run on."""
     _build_snapshot(as_of, universe)
+
+
+def _printable(text: str) -> str:
+    """``text`` as the terminal can show it: a Windows console on a legacy code page
+    has no rupee sign, and printing one would stop the command."""
+    encoding = getattr(console.file, "encoding", None) or "utf-8"
+    try:
+        text.encode(encoding)
+        return text
+    except (UnicodeEncodeError, LookupError):
+        return text.replace("₹", "Rs ").encode(encoding, errors="replace").decode(encoding)
+
+
+def _evaluate_alerts(kinds: str | None) -> None:
+    from tradingagents.screener import alerts as alerting, userdb
+
+    wanted = {k.strip() for k in kinds.split(",") if k.strip()} if kinds else None
+    if wanted and not wanted <= set(alerting.KINDS):
+        raise typer.BadParameter(f"--kinds takes {', '.join(alerting.KINDS)}")
+    user = userdb.connect()
+    try:
+        if not user.execute("SELECT COUNT(*) FROM alerts").fetchone()[0]:
+            console.print("Alerts: none set up yet (add them on the Alerts page).")
+            return
+        result = alerting.evaluate(user, kinds=wanted)
+        console.print(f"Alerts: {result.evaluated} evaluated, [bold]{len(result.fired)} fired[/bold], "
+                      f"{result.suppressed} held back by cooldowns, {result.skipped} off or expired. "
+                      f"Unread in the inbox: {alerting.unread(user)}.")
+        for event_id in result.fired:
+            row = user.execute("SELECT title, data_date FROM alert_events WHERE id=?", (event_id,)).fetchone()
+            delivered = result.deliveries.get(event_id) or {}
+            failed = [name for name, d in delivered.items() if not d.get("ok")]
+            console.print(_printable(f"  [green]*[/green] {escape(row['title'])} [dim](data {row['data_date'] or '-'})[/dim]"
+                                     + (f" [yellow]delivery failed: {', '.join(failed)}[/yellow]" if failed else "")),
+                          soft_wrap=True)
+        for error in result.errors[:20]:
+            console.print(_printable(f"  [yellow]{escape(error)}[/yellow]"), soft_wrap=True)
+    finally:
+        user.close()
+
+
+@app.command("evaluate-alerts")
+def evaluate_alerts(kinds: str = typer.Option(None, "--kinds",
+                                              help="Only these kinds, comma-separated: price, metric, screen, "
+                                                   "filing, shareholding")):
+    """Evaluate your alerts on the data in the database now. Safe to run again: a change
+    already recorded never fires twice."""
+    _evaluate_alerts(kinds)
 
 
 @app.command("status")
