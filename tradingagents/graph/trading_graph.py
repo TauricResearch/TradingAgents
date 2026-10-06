@@ -44,9 +44,15 @@ def _validate_trade_date(trade_date) -> str:
 # Config keys that do not change what a run writes: where it keeps its files,
 # whether it checkpoints, and how often it retries a provider. Keep
 # ``checkpoint_namespace`` in the signature; run_backtest owns its assignment.
-_NOT_IN_SIGNATURE = frozenset({
-    "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
-})
+_NOT_IN_SIGNATURE = frozenset(
+    {
+        "results_dir",
+        "data_cache_dir",
+        "memory_log_path",
+        "checkpoint_enabled",
+        "llm_max_retries",
+    }
+)
 
 
 class TradingAgentsGraph:
@@ -89,7 +95,10 @@ class TradingAgentsGraph:
         # An analyst takes two graph steps per tool round, plus its first turn
         # and its wrap-up; a limit past the recursion limit would end the run
         # there instead.
-        max_tool_rounds, max_recur_limit = self.config["max_tool_rounds"], self.config["max_recur_limit"]
+        max_tool_rounds, max_recur_limit = (
+            self.config["max_tool_rounds"],
+            self.config["max_recur_limit"],
+        )
         if 2 * max_tool_rounds + 2 >= max_recur_limit:
             raise ValueError(
                 f"max_tool_rounds={max_tool_rounds} needs max_recur_limit above {2 * max_tool_rounds + 2}"
@@ -110,13 +119,16 @@ class TradingAgentsGraph:
         self.selected_analysts = tuple(selected_analysts)
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts, memory_node=self._memory_step)
+        self.workflow = self.graph_setup.setup_graph(
+            selected_analysts, memory_node=self._memory_step
+        )
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
         self._resuming = False
 
-    def resolve_instrument_context(self, ticker: str, asset_type: str = "stock",
-                                   trade_date: str | None = None) -> str:
+    def resolve_instrument_context(
+        self, ticker: str, asset_type: str = "stock", trade_date: str | None = None
+    ) -> str:
         """Resolve ticker identity once and return the full instrument context.
 
         Deterministic yfinance lookup (cached, fail-open) injected into a
@@ -149,21 +161,25 @@ class TradingAgentsGraph:
         the run keeps its files and how it retries are left out.
         """
         settings = {k: v for k, v in self.config.items() if k not in _NOT_IN_SIGNATURE}
-        digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode()).hexdigest()[:12]
-        return "|".join([
-            "analysts=" + ",".join(self.selected_analysts),
-            f"debate={self.config['max_debate_rounds']}",
-            f"risk={self.config['max_risk_discuss_rounds']}",
-            f"asset={asset_type}",
-            # None, an empty book and a changed book are three different runs.
-            f"portfolio={portfolio.fingerprint() if portfolio is not None else 'none'}",
-            # The layout itself: a checkpoint saved when analysts ran one after
-            # another has pending nodes this graph no longer has, and one saved
-            # before the Memory Log step would resume without the lessons.
-            "analysts=parallel",
-            "memory=parallel",
-            f"settings={digest}",
-        ])
+        digest = hashlib.sha256(
+            json.dumps(settings, sort_keys=True, default=str).encode()
+        ).hexdigest()[:12]
+        return "|".join(
+            [
+                "analysts=" + ",".join(self.selected_analysts),
+                f"debate={self.config['max_debate_rounds']}",
+                f"risk={self.config['max_risk_discuss_rounds']}",
+                f"asset={asset_type}",
+                # None, an empty book and a changed book are three different runs.
+                f"portfolio={portfolio.fingerprint() if portfolio is not None else 'none'}",
+                # The layout itself: a checkpoint saved when analysts ran one after
+                # another has pending nodes this graph no longer has, and one saved
+                # before the Memory Log step would resume without the lessons.
+                "analysts=parallel",
+                "memory=parallel",
+                f"settings={digest}",
+            ]
+        )
 
     def propagate(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Run the trading agents graph for a company on a specific date.
@@ -183,14 +199,23 @@ class TradingAgentsGraph:
         """
         trade_date = _validate_trade_date(trade_date)
 
-        with run_config(self.config), \
-                self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
+        with (
+            run_config(self.config),
+            self.checkpoint_scope(
+                company_name, trade_date, asset_type, portfolio
+            ) as thread_id_value,
+        ):
             return self._run_graph(
-                company_name, trade_date, asset_type=asset_type,
-                checkpoint_thread_id=thread_id_value, portfolio=portfolio,
+                company_name,
+                trade_date,
+                asset_type=asset_type,
+                checkpoint_thread_id=thread_id_value,
+                portfolio=portfolio,
             )
 
-    def begin_checkpoint(self, company_name, trade_date, asset_type: str = "stock", portfolio=None) -> str | None:
+    def begin_checkpoint(
+        self, company_name, trade_date, asset_type: str = "stock", portfolio=None
+    ) -> str | None:
         """Recompile the graph with a per-ticker checkpointer and return the
         ``thread_id`` to inject into the stream/invoke ``config`` (or ``None``
         when checkpointing is disabled).
@@ -245,11 +270,15 @@ class TradingAgentsGraph:
         finally:
             self.end_checkpoint()
 
-    def clear_checkpoint_on_success(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
+    def clear_checkpoint_on_success(
+        self, company_name, trade_date, asset_type: str = "stock", portfolio=None
+    ):
         """Drop a completed run's checkpoint so a later run starts fresh (#1249)."""
         if self.config.get("checkpoint_enabled"):
             clear_checkpoint(
-                self.config["data_cache_dir"], company_name, str(trade_date),
+                self.config["data_cache_dir"],
+                company_name,
+                str(trade_date),
                 self._run_signature(asset_type, portfolio),
             )
 
@@ -265,7 +294,9 @@ class TradingAgentsGraph:
             "llm_provider": cfg.get("llm_provider"),
             "deep_think_provider": tier_provider(cfg, "deep") if cfg.get("llm_provider") else None,
             "deep_think_llm": cfg.get("deep_think_llm"),
-            "quick_think_provider": tier_provider(cfg, "quick") if cfg.get("llm_provider") else None,
+            "quick_think_provider": tier_provider(cfg, "quick")
+            if cfg.get("llm_provider")
+            else None,
             "quick_think_llm": cfg.get("quick_think_llm"),
             "analysts": list(self.selected_analysts),
             "max_debate_rounds": cfg.get("max_debate_rounds"),
@@ -284,12 +315,18 @@ class TradingAgentsGraph:
         """
         if save_path is None:
             save_path = self.default_report_path(ticker)
-        return write_report_tree(final_state, ticker, save_path, settings=self.run_settings(), html=html)
+        return write_report_tree(
+            final_state, ticker, save_path, settings=self.run_settings(), html=html
+        )
 
     def default_report_path(self, ticker) -> Path:
         """Where a run's reports go unless told otherwise: under results_dir, stamped now."""
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return Path(self.config["results_dir"]) / "reports" / f"{safe_ticker_component(ticker)}_{stamp}"
+        return (
+            Path(self.config["results_dir"])
+            / "reports"
+            / f"{safe_ticker_component(ticker)}_{stamp}"
+        )
 
     def create_run_state(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Build a run's initial state; propagate() and the CLI both start here.
@@ -302,7 +339,9 @@ class TradingAgentsGraph:
             company_name,
             trade_date,
             asset_type=asset_type,
-            instrument_context=self.resolve_instrument_context(company_name, asset_type, trade_date),
+            instrument_context=self.resolve_instrument_context(
+                company_name, asset_type, trade_date
+            ),
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
 
@@ -321,14 +360,17 @@ class TradingAgentsGraph:
             # Another run settling the same log does the work; this one goes on.
             done = self.settle_all_pending(wait=False)
             if done.failed:
-                note = (f"{len(done.failed)} past decision(s) could not be settled this run "
-                        "and stay pending.")
+                note = (
+                    f"{len(done.failed)} past decision(s) could not be settled this run "
+                    "and stay pending."
+                )
         except Exception as exc:
             logger.warning("Settling past decisions failed: %s", exc)
             note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."
         try:
             past_context = self.memory_log.get_past_context(
-                state["company_of_interest"], as_of=self._memory_as_of(state["trade_date"]))
+                state["company_of_interest"], as_of=self._memory_as_of(state["trade_date"])
+            )
         except Exception as exc:
             logger.warning("Reading the memory log failed: %s", exc)
             past_context = ""
@@ -344,7 +386,9 @@ class TradingAgentsGraph:
         settle it now. Returns what was settled and what failed.
         """
         with run_config(self.config):
-            return settlement.settle_pending(company_name, self.memory_log, self.reflector, self.config)
+            return settlement.settle_pending(
+                company_name, self.memory_log, self.reflector, self.config
+            )
 
     def settle_all_pending(self, wait: bool = True) -> settlement.Settlement:
         """Settle every ticker's decisions whose holding window has now traded (#1445).
@@ -354,7 +398,9 @@ class TradingAgentsGraph:
         With ``wait=False`` a pass already running on the same log is not waited for.
         """
         with run_config(self.config):
-            return settlement.settle_all_pending(self.memory_log, self.reflector, self.config, wait=wait)
+            return settlement.settle_all_pending(
+                self.memory_log, self.reflector, self.config, wait=wait
+            )
 
     def record_decision(self, company_name, trade_date, final_state):
         """Record a finished run: its state log, and its decision in the memory log
@@ -362,16 +408,27 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
         decision = final_state.get("final_trade_decision")
         if not decision:
-            logger.warning("No final decision for %s on %s; nothing added to the memory log",
-                           company_name, trade_date)
+            logger.warning(
+                "No final decision for %s on %s; nothing added to the memory log",
+                company_name,
+                trade_date,
+            )
             return
         self.memory_log.store_decision(
-            ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+            ticker=company_name,
+            trade_date=trade_date,
+            final_trade_decision=decision,
             rating=run_rating(final_state),
         )
 
-    def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
-                   checkpoint_thread_id: str | None = None, portfolio=None):
+    def _run_graph(
+        self,
+        company_name,
+        trade_date,
+        asset_type: str = "stock",
+        checkpoint_thread_id: str | None = None,
+        portfolio=None,
+    ):
         """Execute the graph and write the resulting state to disk and memory log."""
         init_agent_state = self.create_run_state(company_name, trade_date, asset_type, portfolio)
         args = self.propagator.get_graph_args()
@@ -379,7 +436,9 @@ class TradingAgentsGraph:
         # Inject the checkpoint thread_id (from checkpoint_scope) so the same
         # ticker+date+graph-shape resumes; a different one starts fresh (#1089).
         if checkpoint_thread_id is not None:
-            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_thread_id
+            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = (
+                checkpoint_thread_id
+            )
 
         # None resumes an existing checkpoint; init_agent_state starts fresh (#1249).
         graph_input = self.checkpoint_input(init_agent_state)
@@ -388,7 +447,10 @@ class TradingAgentsGraph:
             final_state, printed = {}, set()
             for messages, state in self.stream_run(graph_input, **args):
                 for msg in messages:
-                    key = getattr(msg, "id", None) or (type(msg).__name__, getattr(msg, "content", None))
+                    key = getattr(msg, "id", None) or (
+                        type(msg).__name__,
+                        getattr(msg, "content", None),
+                    )
                     if key not in printed:
                         printed.add(key)
                         msg.pretty_print()
@@ -448,9 +510,7 @@ class TradingAgentsGraph:
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
                 "history": final_state["investment_debate_state"]["history"],
-                "current_response": final_state["investment_debate_state"][
-                    "current_response"
-                ],
+                "current_response": final_state["investment_debate_state"]["current_response"],
             },
             "trader_investment_plan": final_state["trader_investment_plan"],
             "risk_debate_state": {

@@ -83,8 +83,12 @@ class _CheckpointGraph(TradingAgentsGraph):
 
 def _checkpoint_config(tmp_path):
     cfg = copy.deepcopy(DEFAULT_CONFIG)
-    cfg.update(results_dir=str(tmp_path / "results"), data_cache_dir=str(tmp_path / "cache"),
-               memory_log_path=str(tmp_path / "live.md"), checkpoint_enabled=True)
+    cfg.update(
+        results_dir=str(tmp_path / "results"),
+        data_cache_dir=str(tmp_path / "cache"),
+        memory_log_path=str(tmp_path / "live.md"),
+        checkpoint_enabled=True,
+    )
     return cfg
 
 
@@ -102,14 +106,20 @@ def test_a_backtest_starts_fresh_and_leaves_the_live_checkpoint_untouched(tmp_pa
     assert checkpoint_step(cfg["data_cache_dir"], "NVDA", "2026-01-05", live_signature) is not None
 
     seen = {}
-    monkeypatch.setattr(bt, "TradingAgentsGraph",
-                        lambda analysts=None, config=None, **kw: _CheckpointGraph(
-                            config, observations=seen, selected_analysts=analysts))
-    result = bt.run_backtest(["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"])
+    monkeypatch.setattr(
+        bt,
+        "TradingAgentsGraph",
+        lambda analysts=None, config=None, **kw: _CheckpointGraph(
+            config, observations=seen, selected_analysts=analysts
+        ),
+    )
+    result = bt.run_backtest(
+        ["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"]
+    )
 
     assert result.cells_run == 1
-    assert seen["resuming"] is False                       # started fresh, not from the live run
-    assert seen["thread_id"] != live_tid                   # its own checkpoint namespace
+    assert seen["resuming"] is False  # started fresh, not from the live run
+    assert seen["thread_id"] != live_tid  # its own checkpoint namespace
     assert checkpoint_step(cfg["data_cache_dir"], "NVDA", "2026-01-05", live_signature) is not None
 
 
@@ -121,13 +131,19 @@ def test_distinct_backtest_run_ids_do_not_resume_or_clear_each_other(tmp_path, m
     crash = {"on": True}
 
     def make(analysts=None, config=None, observations=None):
-        return _CheckpointGraph(config, crash=crash["on"], observations=observations,
-                                selected_analysts=analysts)
+        return _CheckpointGraph(
+            config, crash=crash["on"], observations=observations, selected_analysts=analysts
+        )
 
     seen_a = {}
-    monkeypatch.setattr(bt, "TradingAgentsGraph",
-                        lambda analysts=None, config=None, **kw: make(analysts, config, seen_a))
-    first = bt.run_backtest(["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"])
+    monkeypatch.setattr(
+        bt,
+        "TradingAgentsGraph",
+        lambda analysts=None, config=None, **kw: make(analysts, config, seen_a),
+    )
+    first = bt.run_backtest(
+        ["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"]
+    )
 
     assert first.failures == [("NVDA", "2026-01-05", "simulated crash")]
     sig_a = seen_a["signature"]
@@ -136,13 +152,18 @@ def test_distinct_backtest_run_ids_do_not_resume_or_clear_each_other(tmp_path, m
 
     crash["on"] = False
     seen_b = {}
-    monkeypatch.setattr(bt, "TradingAgentsGraph",
-                        lambda analysts=None, config=None, **kw: make(analysts, config, seen_b))
-    result = bt.run_backtest(["NVDA"], ["2026-01-05"], cfg, run_id="bt-b", selected_analysts=["market"])
+    monkeypatch.setattr(
+        bt,
+        "TradingAgentsGraph",
+        lambda analysts=None, config=None, **kw: make(analysts, config, seen_b),
+    )
+    result = bt.run_backtest(
+        ["NVDA"], ["2026-01-05"], cfg, run_id="bt-b", selected_analysts=["market"]
+    )
 
     assert result.cells_run == 1
-    assert seen_b["resuming"] is False                   # did not resume bt-a's checkpoint
-    assert seen_b["thread_id"] != seen_a["thread_id"]    # distinct run IDs, distinct namespaces
+    assert seen_b["resuming"] is False  # did not resume bt-a's checkpoint
+    assert seen_b["thread_id"] != seen_a["thread_id"]  # distinct run IDs, distinct namespaces
     assert checkpoint_step(cfg["data_cache_dir"], "NVDA", "2026-01-05", sig_a) is not None
 
 
@@ -153,21 +174,29 @@ def test_the_same_backtest_run_id_resumes_its_own_checkpoint(tmp_path, monkeypat
     cfg = _checkpoint_config(tmp_path)
     crash = {"on": True}
     seen = {}
-    monkeypatch.setattr(bt, "TradingAgentsGraph",
-                        lambda analysts=None, config=None, **kw: _CheckpointGraph(
-                            config, crash=crash["on"], observations=seen, selected_analysts=analysts))
+    monkeypatch.setattr(
+        bt,
+        "TradingAgentsGraph",
+        lambda analysts=None, config=None, **kw: _CheckpointGraph(
+            config, crash=crash["on"], observations=seen, selected_analysts=analysts
+        ),
+    )
 
-    first = bt.run_backtest(["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"])
+    first = bt.run_backtest(
+        ["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"]
+    )
 
     assert first.failures == [("NVDA", "2026-01-05", "simulated crash")]
     first_tid = seen["thread_id"]
     assert seen["resuming"] is False
 
     crash["on"] = False
-    result = bt.run_backtest(["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"])
+    result = bt.run_backtest(
+        ["NVDA"], ["2026-01-05"], cfg, run_id="bt-a", selected_analysts=["market"]
+    )
 
     assert result.cells_run == 1
-    assert seen["resuming"] is True                      # same run identity resumes its cell
+    assert seen["resuming"] is True  # same run identity resumes its cell
     assert seen["thread_id"] == first_tid
 
 
@@ -176,14 +205,24 @@ def test_a_backtest_without_checkpoints_still_runs(tmp_path, monkeypatch):
     import tradingagents.backtest as bt
 
     cfg = copy.deepcopy(DEFAULT_CONFIG)
-    cfg.update(results_dir=str(tmp_path / "results"), data_cache_dir=str(tmp_path / "cache"),
-               memory_log_path=str(tmp_path / "live.md"), checkpoint_enabled=False)
+    cfg.update(
+        results_dir=str(tmp_path / "results"),
+        data_cache_dir=str(tmp_path / "cache"),
+        memory_log_path=str(tmp_path / "live.md"),
+        checkpoint_enabled=False,
+    )
 
     seen = {}
-    monkeypatch.setattr(bt, "TradingAgentsGraph",
-                        lambda analysts=None, config=None, **kw: _CheckpointGraph(
-                            config, observations=seen, selected_analysts=analysts))
-    result = bt.run_backtest(["NVDA"], ["2026-01-05"], cfg, run_id="bt-off", selected_analysts=["market"])
+    monkeypatch.setattr(
+        bt,
+        "TradingAgentsGraph",
+        lambda analysts=None, config=None, **kw: _CheckpointGraph(
+            config, observations=seen, selected_analysts=analysts
+        ),
+    )
+    result = bt.run_backtest(
+        ["NVDA"], ["2026-01-05"], cfg, run_id="bt-off", selected_analysts=["market"]
+    )
 
     assert result.cells_run == 1
     assert seen["thread_id"] is None
