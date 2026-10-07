@@ -237,3 +237,24 @@ class TestBaseClassIsolation:
             NormalizedChatOpenAI._get_request_payload
             is NormalizedChatOpenAI.__bases__[0]._get_request_payload
         )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("provider", ["openai", "openai_compatible", "openrouter"])
+def test_hosted_deepseek_deployment_preserves_reasoning(monkeypatch, provider):
+    from tradingagents.llm_clients.openai_client import OpenAIClient
+
+    monkeypatch.setenv("OPENAI_API_KEY", "placeholder")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "placeholder")
+    model = "DeepSeek-V4-Flash-0731"
+    client = OpenAIClient(
+        model, provider=provider, base_url="https://gateway.example/openai/v1"
+    ).get_llm()
+    assert client.model_name == model  # Preserve the case-sensitive deployment ID.
+    payload = client._get_request_payload([
+        AIMessage(content="Plan", additional_kwargs={"reasoning_content": "Reason"}),
+        HumanMessage(content="Continue"),
+    ])
+    assert payload["messages"][0]["reasoning_content"] == "Reason"
+    bound = client.with_structured_output(TestStructuredOutputCapabilityDispatch._Sample)
+    assert _bound_kwargs(bound).get("tool_choice") is None

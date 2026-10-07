@@ -330,7 +330,11 @@ class OpenAIClient(BaseLLMClient):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
-        # The subclass (provider quirks) comes from the registry spec.
+        # Hosted DeepSeek deployments also need reasoning history preserved,
+        # even when accessed through an OpenAI-compatible gateway provider.
+        if get_capabilities(self.model).requires_reasoning_content_roundtrip:
+            chat_cls = DeepSeekChatOpenAI
+
         return chat_cls(**llm_kwargs)
 
     def validate_model(self) -> bool:
