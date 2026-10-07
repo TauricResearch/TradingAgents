@@ -42,6 +42,7 @@ __all__ = [
     "build_instrument_context",
     "resolve_instrument_identity",
     "get_instrument_context_from_state",
+    "get_investor_profile_instruction",
     "get_language_instruction",
     "create_msg_delete",
 ]
@@ -63,6 +64,22 @@ def get_language_instruction() -> str:
     if lang.strip().lower() == "english":
         return ""
     return f" Write your entire response in {lang}."
+
+
+def get_investor_profile_instruction() -> str:
+    """Return the shared investor-profile instruction for every agent prompt.
+
+    Read from the ``investor_profile`` config key so the whole pipeline —
+    analysts, researchers, debaters, managers and trader — reasons about the
+    same holder (horizon, objective, what drives the rating) instead of each
+    agent defaulting to a generic short-term trading lens. Returns an empty
+    string when the profile is unset or blank, adding no tokens.
+    """
+    from tradingagents.dataflows.config import get_config
+    profile = get_config().get("investor_profile")
+    if not isinstance(profile, str) or not profile.strip():
+        return ""
+    return f" Investor profile (applies to all analysis and recommendations): {profile.strip()}"
 
 
 def get_macro_guidance(ticker: str) -> str:

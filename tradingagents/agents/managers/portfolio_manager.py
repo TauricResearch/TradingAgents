@@ -13,6 +13,7 @@ from __future__ import annotations
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
     get_instrument_context_from_state,
+    get_investor_profile_instruction,
     get_language_instruction,
 )
 from tradingagents.agents.utils.structured import (
@@ -64,7 +65,7 @@ def create_portfolio_manager(llm):
 
 Ground every conclusion in specific evidence from the analysts. Commit to a directional call only when the evidence clearly supports one; choose Hold when the case is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure, rather than forcing a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
 
-{NO_EXTERNAL_TOOLS}{get_language_instruction()}"""
+{NO_EXTERNAL_TOOLS}{get_investor_profile_instruction()}{get_language_instruction()}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,
