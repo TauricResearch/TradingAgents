@@ -13,6 +13,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
     "TRADINGAGENTS_LLM_BACKEND_URL":      "backend_url",
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
+    "TRADINGAGENTS_INVESTOR_PROFILE":     "investor_profile",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
@@ -112,6 +113,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
+    # Shared investor profile appended to every agent's prompt, so the whole
+    # pipeline rates the instrument for this holder rather than for a generic
+    # short-term trader. Replace via TRADINGAGENTS_INVESTOR_PROFILE, or set
+    # config["investor_profile"] = "" to disable (an empty env var is ignored).
+    "investor_profile": (
+        "The investor is a long-term, income-focused holder (3–5+ years) of "
+        "Malaysian bank stocks. Base the final rating mainly on dividend "
+        "sustainability, earnings trend, asset quality, capital strength and "
+        "valuation versus history. Use technical indicators only to suggest "
+        "entry timing (e.g., staged buying levels), not to change the rating."
+    ),
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
