@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from cli import utils
+from cli import prompts
 
 
 def _asks(value):
@@ -23,10 +23,10 @@ class TestOpenRouterPromptLabel:
             captured["message"] = message
             return _asks("openrouter/some-model")
 
-        with mock.patch.object(utils, "_fetch_openrouter_models",
+        with mock.patch.object(prompts, "_fetch_openrouter_models",
                                return_value=[("Some Model", "openrouter/some-model")]), \
-             mock.patch.object(utils.questionary, "select", side_effect=fake_select):
-            out = utils.select_openrouter_model(mode)
+             mock.patch.object(prompts.questionary, "select", side_effect=fake_select):
+            out = prompts.select_openrouter_model(mode)
 
         assert label in captured["message"]
         assert out == "openrouter/some-model"
@@ -44,7 +44,7 @@ class TestOpenRouterLatestFirst:
         resp.json.return_value = payload
         resp.raise_for_status = mock.Mock()
         with mock.patch("requests.get", return_value=resp):
-            out = utils._fetch_openrouter_models()
+            out = prompts._fetch_openrouter_models()
         assert [mid for _, mid in out] == ["new/model", "mid/model", "old/model"]
 
 
@@ -64,9 +64,9 @@ class TestMainstreamFilter:
             captured["values"] = [c.value for c in kwargs["choices"]]
             return _asks("anthropic/claude-x")
 
-        with mock.patch.object(utils, "_fetch_openrouter_models", return_value=models), \
-             mock.patch.object(utils.questionary, "select", side_effect=fake_select):
-            utils.select_openrouter_model("quick")
+        with mock.patch.object(prompts, "_fetch_openrouter_models", return_value=models), \
+             mock.patch.object(prompts.questionary, "select", side_effect=fake_select):
+            prompts.select_openrouter_model("quick")
 
         assert "anthropic/claude-x" in captured["values"]
         assert "openai/gpt-x" in captured["values"]
@@ -82,9 +82,9 @@ class TestMainstreamFilter:
             captured["values"] = [c.value for c in kwargs["choices"]]
             return _asks("nex-agi/x")
 
-        with mock.patch.object(utils, "_fetch_openrouter_models", return_value=models), \
-             mock.patch.object(utils.questionary, "select", side_effect=fake_select):
-            utils.select_openrouter_model("deep")
+        with mock.patch.object(prompts, "_fetch_openrouter_models", return_value=models), \
+             mock.patch.object(prompts.questionary, "select", side_effect=fake_select):
+            prompts.select_openrouter_model("deep")
 
         assert "nex-agi/x" in captured["values"]  # fallback keeps the list usable
 
@@ -92,31 +92,31 @@ class TestMainstreamFilter:
 @pytest.mark.unit
 class TestCancelExitsCleanly:
     def test_dropdown_cancel_exits(self):
-        with mock.patch.object(utils, "_fetch_openrouter_models", return_value=[]), \
-             mock.patch.object(utils.questionary, "select", return_value=_asks(None)), \
+        with mock.patch.object(prompts, "_fetch_openrouter_models", return_value=[]), \
+             mock.patch.object(prompts.questionary, "select", return_value=_asks(None)), \
              pytest.raises(SystemExit):
-            utils.select_openrouter_model("quick")
+            prompts.select_openrouter_model("quick")
 
     def test_custom_id_cancel_exits(self):
-        with mock.patch.object(utils, "_fetch_openrouter_models", return_value=[]), \
-             mock.patch.object(utils.questionary, "select", return_value=_asks("custom")), \
-             mock.patch.object(utils.questionary, "text", return_value=_asks(None)), \
+        with mock.patch.object(prompts, "_fetch_openrouter_models", return_value=[]), \
+             mock.patch.object(prompts.questionary, "select", return_value=_asks("custom")), \
+             mock.patch.object(prompts.questionary, "text", return_value=_asks(None)), \
              pytest.raises(SystemExit):
-            utils.select_openrouter_model("deep")
+            prompts.select_openrouter_model("deep")
 
     def test_prompt_custom_model_id_cancel_exits(self):
-        with mock.patch.object(utils.questionary, "text", return_value=_asks(None)), \
+        with mock.patch.object(prompts.questionary, "text", return_value=_asks(None)), \
              pytest.raises(SystemExit):
-            utils._prompt_custom_model_id()
+            prompts._prompt_custom_model_id()
 
 
 @pytest.mark.unit
 class TestLanguageDefaultsToEnglish:
     def test_select_cancel_defaults_english(self):
-        with mock.patch.object(utils.questionary, "select", return_value=_asks(None)):
-            assert utils.ask_output_language() == "English"
+        with mock.patch.object(prompts.questionary, "select", return_value=_asks(None)):
+            assert prompts.ask_output_language() == "English"
 
     def test_custom_language_cancel_defaults_english(self):
-        with mock.patch.object(utils.questionary, "select", return_value=_asks("custom")), \
-             mock.patch.object(utils.questionary, "text", return_value=_asks(None)):
-            assert utils.ask_output_language() == "English"
+        with mock.patch.object(prompts.questionary, "select", return_value=_asks("custom")), \
+             mock.patch.object(prompts.questionary, "text", return_value=_asks(None)):
+            assert prompts.ask_output_language() == "English"

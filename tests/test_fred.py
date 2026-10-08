@@ -8,11 +8,13 @@ import unittest
 from unittest import mock
 
 import pytest
+import requests
 
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
-from tradingagents.dataflows import fred, interface
+from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.vendors import fred
 
 # A small, stable set of observations to format against.
 _META = {
@@ -56,6 +58,25 @@ class FredResolutionTests(unittest.TestCase):
         self.assertEqual(fred._resolve_series_id("Fed Funds Rate"), "FEDFUNDS")
         self.assertEqual(fred._resolve_series_id("10y-treasury"), "DGS10")
 
+    def test_euro_area_aliases_map_to_series_ids(self):
+        # Euro-area context for non-US tickers (e.g. Euronext .PA): FRED mirrors
+        # the ECB policy rates, Eurostat HICP/GDP and OECD long-term yields.
+        expected = {
+            "ecb_deposit_rate": "ECBDFR",
+            "ecb_main_refi_rate": "ECBMRRFR",
+            "euro_hicp": "CP0000EZ19M086NEST",
+            "euro_core_hicp": "00XEFDEZ19M086NEST",
+            "euro_real_gdp": "CLVMNACSCAB1GQEA19",
+            "germany_10y": "IRLTLT01DEM156N",
+            "france_10y": "IRLTLT01FRM156N",
+            "eur_usd": "DEXUSEU",
+        }
+        for alias, series_id in expected.items():
+            with self.subTest(alias=alias):
+                self.assertEqual(fred._resolve_series_id(alias), series_id)
+        self.assertEqual(fred._resolve_series_id("ECB Deposit Rate"), "ECBDFR")
+        self.assertEqual(fred._resolve_series_id("euro-hicp"), "CP0000EZ19M086NEST")
+
     def test_unknown_alias_is_treated_as_raw_series_id(self):
         # Power users can pass any FRED series ID; we uppercase by convention.
         self.assertEqual(fred._resolve_series_id("dgs30"), "DGS30")
@@ -96,8 +117,10 @@ class FredFormattingTests(unittest.TestCase):
         self.assertIn("Units: %", out)
         self.assertIn("Frequency: Monthly (SA)", out)
         self.assertIn("**Latest:** 4.4 (2025-09-01)", out)
-        # change over the window: 4.4 - 4.1 = +0.30
-        self.assertIn("+0.30", out)
+        # The change names the observations it spans, not the lookback window,
+        # so a 3-month move on a monthly series cannot read as year on year.
+        self.assertIn("**Change from 2025-06-01 to 2025-09-01:** +0.30 (+7.32%), from 4.1", out)
+        self.assertNotIn("Change over window", out)
         self.assertIn("| 2025-06-01 | 4.1 |", out)
 
     def test_missing_value_is_skipped(self):
@@ -131,13 +154,13 @@ class FredFormattingTests(unittest.TestCase):
         with mock.patch.object(fred, "_request", side_effect=_request_stub(obs=obs)):
             out = fred.get_macro_data("unemployment", "2025-12-31", 365)
         self.assertIn(f"most recent {fred.MAX_ROWS}", out)
-        # change-over-window must reference the true first (0) and last value
-        self.assertIn("from 0 ", out)
+        # the change must reference the true first (0) and last value
+        self.assertIn("+49.00, from 0\n", out)
         body_rows = [ln for ln in out.splitlines() if ln.startswith("| 2025")]
         self.assertEqual(len(body_rows), fred.MAX_ROWS)
 
     def test_window_is_lookahead_safe(self):
-        # observation_end must equal curr_date so a past date never pulls future data.
+        # observation_end must equal as_of_date so a past date never pulls future data.
         captured = {}
 
         def _capture(path, params):
@@ -152,9 +175,9 @@ class FredFormattingTests(unittest.TestCase):
 
     def test_requests_pin_the_data_vintage(self):
         # #1275: both the metadata and observations requests must pin the vintage
-        # to curr_date (clamped to FRED's today), or FRED serves the latest
+        # to as_of_date (clamped to FRED's today), or FRED serves the latest
         # revision and revision-prone series leak future information. A past
-        # curr_date sits below FRED's today, so it pins through unchanged.
+        # as_of_date sits below FRED's today, so it pins through unchanged.
         captured = {}
 
         def _capture(path, params):
@@ -170,11 +193,11 @@ class FredFormattingTests(unittest.TestCase):
             self.assertEqual(captured[path]["realtime_end"], "2025-09-30", path)
 
     def test_future_curr_date_clamps_vintage_to_fred_today(self):
-        # #1275 regression: on a live run curr_date is the caller's LOCAL date,
+        # #1275 regression: on a live run as_of_date is the caller's LOCAL date,
         # which can be a day ahead of FRED's US-Central clock. Pinning the vintage
         # to that future date 400s, and the routing layer then drops macro data
         # silently. The pin must clamp to FRED's today; the observation window
-        # (future bars can't exist yet) stays at curr_date.
+        # (future bars can't exist yet) stays at as_of_date.
         captured = {}
 
         def _capture(path, params):
@@ -188,7 +211,7 @@ class FredFormattingTests(unittest.TestCase):
         for path in ("series", "series/observations"):
             self.assertEqual(captured[path]["realtime_start"], "2026-08-31", path)
             self.assertEqual(captured[path]["realtime_end"], "2026-08-31", path)
-        # the observation window still tracks curr_date, not the clamped vintage
+        # the observation window still tracks as_of_date, not the clamped vintage
         self.assertEqual(captured["series/observations"]["observation_end"], "2026-09-01")
 
 
@@ -202,15 +225,15 @@ class FredRoutingTests(unittest.TestCase):
 
     def test_macro_category_routes_to_fred(self):
         self.assertEqual(
-            interface.get_category_for_method("get_macro_indicators"), "macro_data"
+            router.get_category_for_method("get_macro_indicators"), "macro_data"
         )
         set_config({"data_vendors": {"macro_data": "fred"}})
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_macro_indicators": {"fred": lambda *a, **k: "MACRO_OK"}},
             clear=False,
         ):
-            out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+            out = router.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
         self.assertEqual(out, "MACRO_OK")
 
     def test_not_configured_degrades_gracefully(self):
@@ -223,13 +246,63 @@ class FredRoutingTests(unittest.TestCase):
             raise fred.FredNotConfiguredError("FRED_API_KEY not set")
 
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_macro_indicators": {"fred": _unconfigured}},
             clear=False,
         ):
-            out = interface.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
+            out = router.route_to_vendor("get_macro_indicators", "cpi", "2026-06-01", 365)
         self.assertIn("DATA_UNAVAILABLE", out)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+_KEY = "abcdef0123456789abcdef0123456789"
+
+
+@pytest.mark.unit
+class TestKeyKeptOutOfErrors:
+    """The key travels as a query parameter, and requests quotes the full URL in
+    its error messages, so any log or traceback would carry it (#1324)."""
+
+    def _raises(self, side_effect):
+        with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
+             mock.patch("tradingagents.dataflows.net.requests.get", side_effect=side_effect), \
+             pytest.raises(requests.RequestException) as caught:
+            fred._request("series", {"series_id": "DGS10"})
+        return caught.value
+
+    def test_http_error_message_carries_no_key(self):
+        response = mock.Mock(status_code=502)
+        response.raise_for_status.side_effect = requests.HTTPError(
+            f"502 Server Error for url: https://api.stlouisfed.org/fred/series?api_key={_KEY}",
+            response=response,
+        )
+        with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
+             mock.patch("tradingagents.dataflows.net.requests.get", return_value=response), \
+             pytest.raises(requests.HTTPError) as caught:
+            fred._request("series", {"series_id": "DGS10"})
+        exc = caught.value
+        assert _KEY not in str(exc) and _KEY not in repr(exc)
+        # The response and request carry the full URL, so they are not attached.
+        assert exc.response is None and exc.request is None
+        assert exc.__cause__ is None and exc.__context__ is None  # no chain holds the key
+
+    def test_connection_error_before_any_response_carries_no_key(self):
+        exc = self._raises(requests.ConnectionError(
+            f"Max retries exceeded with url: /fred/series?series_id=DGS10&api_key={_KEY}"))
+        assert isinstance(exc, requests.ConnectionError)
+        assert _KEY not in str(exc) and exc.__context__ is None
+
+
+@pytest.mark.unit
+def test_error_without_the_key_in_its_message_still_drops_the_request():
+    # Some timeout messages omit the URL, but the attached request still has it.
+    import requests as rq
+    req = rq.Request("GET", f"https://api.stlouisfed.org/fred/series?api_key={_KEY}").prepare()
+    with mock.patch.dict("os.environ", {"FRED_API_KEY": _KEY}), \
+         mock.patch("tradingagents.dataflows.net.requests.get", side_effect=rq.Timeout("Read timed out.", request=req)), \
+         pytest.raises(rq.Timeout) as caught:
+        fred._request("series", {"series_id": "DGS10"})
+    assert caught.value.request is None

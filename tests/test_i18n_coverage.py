@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.agents.context import get_language_instruction
 
 _AGENTS_DIR = Path(__file__).resolve().parents[1] / "tradingagents" / "agents"
 
@@ -45,6 +45,15 @@ class TestLanguageInstruction:
         out = get_language_instruction()
         assert "中文" in out
         assert "entire response" in out
+
+    def test_the_labelled_lines_stay_as_the_format_gives_them(self):
+        # The rating is read from its "**Rating**:" line; a translated label
+        # leaves the reader a translated negation ("不建议卖出 (Sell)") to find
+        # instead, and a Buy reads as Sell (#1435).
+        from tradingagents.dataflows.config import set_config
+        set_config({"output_language": "中文"})
+        out = get_language_instruction()
+        assert "**Rating**:" in out and "FINAL TRANSACTION PROPOSAL" in out
 
 
 @pytest.mark.unit

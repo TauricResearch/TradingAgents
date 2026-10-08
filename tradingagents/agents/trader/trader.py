@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import functools
-
 from langchain_core.messages import AIMessage
 
-from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
+    get_portfolio_context_from_state,
 )
-from tradingagents.agents.utils.structured import (
+from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
+from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,
@@ -21,7 +20,7 @@ from tradingagents.agents.utils.structured import (
 def create_trader(llm):
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
 
-    def trader_node(state, name):
+    def trader_node(state):
         company_name = state["company_of_interest"]
         instrument_context = get_instrument_context_from_state(state)
         investment_plan = state["investment_plan"]
@@ -31,6 +30,7 @@ def create_trader(llm):
         # report is empty when the user did not select the market analyst, so
         # only offer it (and the grounding instruction) when it has content.
         market_report = (state["market_report"] or "").strip()
+        portfolio_context = get_portfolio_context_from_state(state)
 
         if market_report:
             grounding = (
@@ -67,8 +67,17 @@ def create_trader(llm):
                     f"Here is the research team's investment plan for {company_name}. "
                     f"{instrument_context}\n\n"
                     f"{report_section}"
+                    f"{portfolio_context}\n\n"
                     f"Proposed Investment Plan:\n{investment_plan}\n\n"
-                    f"Make an informed, strategic trading decision."
+                    "Make an informed, strategic trading decision.\n\n"
+                    "## Output\n\n"
+                    "Write these sections, in this order, starting with the action "
+                    "on its own line:\n\n"
+                    "- **Action**: exactly one of Buy / Hold / Sell. A research "
+                    "recommendation of Overweight is a Buy and Underweight is a Sell, "
+                    "sized by how strong the case is; conflict alone is not a Hold.\n"
+                    "- **Reasoning**: why, against the plan and the price structure\n"
+                    "- **Entry Price**, **Stop Loss**, **Position Sizing**: when you can state them"
                 ),
             },
         ]
@@ -84,7 +93,6 @@ def create_trader(llm):
         return {
             "messages": [AIMessage(content=trader_plan)],
             "trader_investment_plan": trader_plan,
-            "sender": name,
         }
 
-    return functools.partial(trader_node, name="Trader")
+    return trader_node

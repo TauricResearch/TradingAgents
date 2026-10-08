@@ -12,7 +12,7 @@ _PASSTHROUGH_KWARGS = (
 )
 
 # Anthropic's extended-thinking ``effort`` parameter is accepted by Opus 4.5+,
-# Sonnet 4.6+, and the Claude 5 family (Sonnet 5, Fable 5). Sonnet 4.5 and any
+# Sonnet 4.6+, and the Claude 5 family (Sonnet 5, Opus 5.5, Fable 5). Sonnet 4.5 and any
 # Haiku version 400 with ``"This model does not support the effort parameter"``
 # (#831). Versions may be dotted (``opus-4-8``) or single-number (``sonnet-5``,
 # ``fable-5``); the per-family minimum below is forward-compatible.

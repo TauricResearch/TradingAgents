@@ -13,7 +13,7 @@ from pathlib import Path
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.dataflows.symbols import safe_ticker_component
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:
@@ -51,11 +51,6 @@ def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver
         conn.close()
 
 
-def has_checkpoint(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> bool:
-    """Check whether a resumable checkpoint exists for ticker+date."""
-    return checkpoint_step(data_dir, ticker, date, signature) is not None
-
-
 def checkpoint_step(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> int | None:
     """Return the step number of the latest checkpoint, or None if none exists."""
     db = _db_path(data_dir, ticker)
@@ -71,13 +66,19 @@ def checkpoint_step(data_dir: str | Path, ticker: str, date: str, signature: str
 
 
 def clear_all_checkpoints(data_dir: str | Path) -> int:
-    """Remove all checkpoint DBs. Returns number of files deleted."""
+    """Remove all checkpoint databases. Returns the number of databases deleted.
+
+    SQLite keeps committed state in ``-wal`` and ``-shm`` files beside the
+    database, so deleting only the ``.db`` leaves a cleared checkpoint with data
+    still on disk.
+    """
     cp_dir = Path(data_dir) / "checkpoints"
     if not cp_dir.exists():
         return 0
     dbs = list(cp_dir.glob("*.db"))
     for db in dbs:
-        db.unlink()
+        for path in (db, *cp_dir.glob(f"{db.name}-*")):
+            path.unlink(missing_ok=True)
     return len(dbs)
 
 

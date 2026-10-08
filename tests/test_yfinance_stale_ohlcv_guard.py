@@ -13,12 +13,12 @@ import pandas as pd
 import pytest
 
 import tradingagents.dataflows.config as config_module
-import tradingagents.dataflows.y_finance as y_finance
+import tradingagents.dataflows.vendors.yahoo.market as yahoo_market
 import tradingagents.default_config as default_config
-from tradingagents.dataflows import interface
+from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
-from tradingagents.dataflows.stockstats_utils import _assert_ohlcv_not_stale
-from tradingagents.dataflows.symbol_utils import NoMarketDataError
+from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.vendors.yahoo.ohlcv import _assert_ohlcv_not_stale
 
 
 def _frame(date):
@@ -76,9 +76,9 @@ class StaleGuardPropagationTests(unittest.TestCase):
             def history(self, start, end):
                 return stale
 
-        with mock.patch.object(y_finance.yf, "Ticker", DummyTicker), \
+        with mock.patch.object(yahoo_market.yf, "Ticker", DummyTicker), \
                 self.assertRaises(NoMarketDataError):
-            y_finance.get_YFin_data_online("CB", "2026-06-01", "2026-06-11")
+            yahoo_market.get_YFin_data_online("CB", "2026-06-01", "2026-06-11")
 
 
 @pytest.mark.unit
@@ -98,11 +98,11 @@ class StaleGuardRoutingTests(unittest.TestCase):
             )
 
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_stock_data": {"yfinance": _stale}},
             clear=False,
         ):
-            out = interface.route_to_vendor(
+            out = router.route_to_vendor(
                 "get_stock_data", "CB", "2026-06-01", "2026-06-11"
             )
         self.assertIn("NO_DATA_AVAILABLE", out)
