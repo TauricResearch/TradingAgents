@@ -25,6 +25,26 @@ text is a poor fit, and keeps numbers, dates and counting in code.
 The survey of where Jev fits, and how each fit was built and checked, is in
 [docs/jev-use-cases.md](docs/jev-use-cases.md).
 
+## From research to a paper trade
+
+![From multi-agent research to a controlled paper trade: TradingAgents-Jev, the Research Bridge and the 129BOB workstation](assets/research-to-paper-trade.jpg)
+
+The top half is this repo. Four analysts on the quick LLM write the market,
+sentiment, news and fundamentals reports. The bull and bear researchers debate
+them, the Research Manager (deep LLM) writes the plan, the Trader turns it into
+a proposal, the aggressive, neutral and conservative risk analysts argue it, and
+the Portfolio Manager (deep LLM) gives the final rating. Jev is called where the
+chart shows **J**: it judges each sentiment item, ends debate rounds that add
+nothing new, and checks the final thesis against the reports. Each run is saved
+as `<results_dir>/<TICKER>/TradingAgentsStrategy_logs/full_states_log_<date>.json`.
+
+The bottom half is [129BOB](https://github.com/sushant-mishra-dtu/129BOB). It
+takes the four analyst reports as evidence and the rating as context only, asks
+Jev its own three questions, and lets a versioned policy, a person's approval
+and the C++ engine's risk checks decide what may trade, on paper only. Today
+129BOB imports a saved `full_states_log_<date>.json`; the Research Bridge in
+the middle, which would start runs and deliver them, is proposed and not built.
+
 ## Quick start
 
 ```bash
