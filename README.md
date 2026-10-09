@@ -63,7 +63,7 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
 Our framework decomposes complex trading tasks into specialized roles.
 
 ### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags. On this fork it also reviews dividend history (per-share trend, cuts, yield and payout) to judge dividend sustainability.
+- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags. On this fork it also reviews dividend history (per-share trend, cuts, yield and payout) to judge dividend sustainability, and compares the current dividend yield, P/B and P/E with the stock's own multi-year history.
 - Sentiment Analyst: Aggregates news headlines, StockTwits, Reddit chatter, and (for Bursa Malaysia tickers) KLSE Screener comments into a single sentiment read to gauge short-term market mood.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
@@ -288,6 +288,28 @@ graceful-degradation behavior handle everything else:
   ```bash
   python -c "from tradingagents.dataflows.y_finance import get_dividend_history as g; print(g('1155.KL', '2026-10-09'))"
   ```
+- **`get_valuation_history` tool** (`tradingagents/dataflows/y_finance.py`):
+  compares the current dividend yield, price-to-book (P/B) and
+  price-to-earnings (P/E) with the stock's own monthly history — average and
+  ±1 std band, median, low and high with dates, where the current value sits
+  (e.g. "cheap vs own history: higher than 8% of months"), plus year-end
+  snapshots and the fiscal years used.
+  - The **dividend-yield band covers the full 10 years** (prices and dividends
+    only).
+  - **P/B and P/E cover only about the last 4 fiscal years**, because Yahoo
+    serves at most 4 years of annual statements; the output states each
+    band's coverage. They use market cap ÷ full-year net income or equity,
+    with each fiscal year's share count restated for later splits and bonus
+    issues (Yahoo adjusts old prices but not old EPS, so price ÷ EPS would
+    understate older multiples).
+  - Point-in-time: prices and dividends after the analysis date are left out,
+    and a fiscal year is only used from two months after it ends (Bursa's
+    reporting deadline).
+  - Own `valuation_data` vendor category (default `yfinance`), handled the
+    same way as `dividend_data`. To check it directly:
+    ```bash
+    python -c "from tradingagents.dataflows.y_finance import get_valuation_history as g; print(g('1155.KL', '2026-10-09'))"
+    ```
 - **Investor profile** (`investor_profile` in `tradingagents/default_config.py`):
   a shared instruction appended to every agent's prompt (analysts,
   researchers, risk debaters, managers and trader), so the whole pipeline

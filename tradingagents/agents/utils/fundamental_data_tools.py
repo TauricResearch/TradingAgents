@@ -98,3 +98,24 @@ def get_dividend_history(
         str: A formatted report of the company's dividend history
     """
     return route_to_vendor("get_dividend_history", ticker, curr_date, years)
+
+
+@tool
+def get_valuation_history(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    years: Annotated[int, "years of history to compare against (default 10)"] = 10,
+) -> str:
+    """
+    Compare the current dividend yield, price-to-book (P/B) and price-to-earnings
+    (P/E) with their own monthly history: average, ±1 std band, median, low,
+    high, where the current value sits, and year-end snapshots.
+    Uses the configured valuation_data vendor.
+    Args:
+        ticker (str): Ticker symbol of the company
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+        years (int): Years of history to compare against (default 10)
+    Returns:
+        str: A formatted report of current valuation versus history
+    """
+    return route_to_vendor("get_valuation_history", ticker, curr_date, years)

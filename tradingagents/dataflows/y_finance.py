@@ -511,6 +511,29 @@ def _cash_payout_lines(ticker_obj, curr_date: str | None) -> list[str]:
     return lines
 
 
+def _price_history(ticker_obj, ticker: str, canonical: str) -> pd.DataFrame:
+    """Full daily history with dividends and splits, indexed by local date.
+
+    ``auto_adjust=False`` keeps closes undiscounted by dividends (an adjusted
+    close would overstate past yields). Yahoo still adjusts closes and
+    dividends for splits/bonus issues, including ones after a backtest date.
+    """
+    hist = yf_retry(lambda: ticker_obj.history(period="max", auto_adjust=False, actions=True))
+    if hist is None or hist.empty or "Close" not in hist.columns:
+        raise NoMarketDataError(ticker, canonical, "no price history returned")
+    index = pd.DatetimeIndex(hist.index)
+    if index.tz is not None:
+        index = index.tz_localize(None)  # keep exchange-local calendar dates
+    return hist.set_axis(index.normalize())
+
+
+def _up_to(hist: pd.DataFrame, ticker: str, canonical: str, cutoff: pd.Timestamp) -> pd.DataFrame:
+    hist = hist[hist.index <= cutoff]
+    if hist.empty:
+        raise NoMarketDataError(ticker, canonical, f"no price history on or before {cutoff.date()}")
+    return hist
+
+
 def get_dividend_history(
     ticker: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
@@ -530,19 +553,8 @@ def get_dividend_history(
 
     try:
         ticker_obj = yf.Ticker(canonical)
-        # One request yields both the dividend series and unadjusted closes for
-        # the yield (auto_adjust=True would discount past prices by dividends).
-        hist = yf_retry(lambda: ticker_obj.history(period="max", auto_adjust=False, actions=True))
-        if hist is None or hist.empty or "Close" not in hist.columns:
-            raise NoMarketDataError(ticker, canonical, "no price history returned")
-
-        index = pd.DatetimeIndex(hist.index)
-        if index.tz is not None:
-            index = index.tz_localize(None)  # keep exchange-local calendar dates
-        hist = hist.set_axis(index.normalize())
-        hist = hist[hist.index <= cutoff]
-        if hist.empty:
-            raise NoMarketDataError(ticker, canonical, f"no price history on or before {cutoff.date()}")
+        hist = _price_history(ticker_obj, ticker, canonical)
+        hist = _up_to(hist, ticker, canonical, cutoff)
 
         header = (
             f"# Dividend history for {canonical}\n"
@@ -650,6 +662,196 @@ def get_dividend_history(
         raise
     except Exception as e:
         return f"Error retrieving dividend history for {ticker}: {str(e)}"
+
+
+# Bursa requires quarterly results within two months of quarter end, so a
+# fiscal year's figures are treated as public two months after it closes.
+_REPORTING_LAG = pd.DateOffset(months=2)
+_VAL_EARNINGS_ROWS = ("Net Income Common Stockholders", "Net Income")
+_VAL_EQUITY_ROWS = ("Common Stock Equity", "Stockholders Equity")
+_VAL_SHARES_ROWS = ("Ordinary Shares Number", "Share Issued")
+
+
+def _fiscal_years(ticker_obj, splits: pd.Series, cutoff: pd.Timestamp) -> list[dict]:
+    """Annual net income, equity and split-adjusted shares, public by ``cutoff``.
+
+    Shares are restated to Yahoo's current split/bonus basis (every split after
+    the fiscal year end, even ones after ``cutoff``) so that multiplying by
+    Yahoo's split-adjusted close gives the market cap actually traded then.
+    Price ÷ reported EPS would not: Yahoo adjusts old prices but not old EPS.
+    """
+    income = yf_retry(lambda: ticker_obj.income_stmt)
+    balance = yf_retry(lambda: ticker_obj.balance_sheet)
+    if income is None or balance is None or income.empty or balance.empty:
+        return []
+    earnings = _first_row(income, _VAL_EARNINGS_ROWS)
+    equity = _first_row(balance, _VAL_EQUITY_ROWS)
+    shares = _first_row(balance, _VAL_SHARES_ROWS)
+    if earnings is None or equity is None or shares is None:
+        return []
+
+    years = []
+    for period in sorted(set(income.columns) & set(balance.columns)):
+        end = pd.Timestamp(period).normalize()
+        public = end + _REPORTING_LAG
+        ni, eq, sh = earnings.get(period), equity.get(period), shares.get(period)
+        if public > cutoff or any(pd.isna(v) for v in (ni, eq, sh)) or sh <= 0:
+            continue
+        factor = float(splits[splits.index > end].prod()) if not splits.empty else 1.0
+        years.append({"end": end, "public": public, "net_income": float(ni),
+                      "equity": float(eq), "shares": float(sh) * factor})
+    return years
+
+
+def _band_line(name: str, series: pd.Series, fmt, higher_is_cheaper: bool = False) -> str:
+    """One summary-table row: current value against its own history."""
+    series = series.dropna()
+    if len(series) < 12:
+        return f"| {name} | n/a | — | — | — | — | — | not enough history ({len(series)} month(s)) |"
+    current, mean, std = series.iloc[-1], series.mean(), series.std()
+    pct = (series < current).mean() * 100  # share of months below the current value
+    cheap_pct = pct if higher_is_cheaper else 100 - pct
+    if cheap_pct >= 80:
+        verdict = "cheap vs own history"
+    elif cheap_pct <= 20:
+        verdict = "expensive vs own history"
+    else:
+        verdict = "within its usual range"
+    z = (current - mean) / std if std > 0 else 0.0
+    return (
+        f"| {name} | {fmt(current)} | {fmt(mean)} ({fmt(mean - std)}–{fmt(mean + std)}) | "
+        f"{fmt(series.median())} | {fmt(series.min())} ({series.idxmin():%Y-%m}) | "
+        f"{fmt(series.max())} ({series.idxmax():%Y-%m}) | "
+        f"{series.index[0]:%Y-%m}→{series.index[-1]:%Y-%m}, {len(series)} months | "
+        f"{verdict}: higher than {pct:.0f}% of months, {z:+.1f} std from average |"
+    )
+
+
+def get_valuation_history(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
+    years: Annotated[int, "number of years of history to compare against"] = 10,
+):
+    """Current dividend yield, P/B and P/E against their own monthly history.
+
+    The yield band covers the full ``years`` (it needs only prices and
+    dividends). P/B and P/E need annual statements, which Yahoo serves for
+    only the last ~4 fiscal years, so their bands are shorter and say so.
+    Point-in-time: prices and dividends after ``curr_date`` are excluded, and
+    a fiscal year is used only from two months after it ends.
+    """
+    canonical = normalize_symbol(ticker)
+    years = max(1, min(int(years or 10), 30))
+    cutoff = pd.Timestamp(curr_date).normalize() if curr_date else pd.Timestamp.today().normalize()
+
+    try:
+        ticker_obj = yf.Ticker(canonical)
+        full = _price_history(ticker_obj, ticker, canonical)
+        splits = full["Stock Splits"] if "Stock Splits" in full.columns else pd.Series(dtype=float)
+        splits = splits[splits > 0]
+        hist = _up_to(full, ticker, canonical, cutoff)
+
+        closes = hist["Close"].dropna()
+        # Last trading day of each month; the final point is the latest close.
+        monthly = closes.groupby(closes.index.to_period("M")).tail(1)
+        monthly = monthly[monthly.index > cutoff - pd.DateOffset(years=years)]
+
+        # --- Dividend yield (TTM) --------------------------------------------
+        divs = hist["Dividends"] if "Dividends" in hist.columns else pd.Series(dtype=float)
+        divs = divs[divs > 0]
+        first_full_ttm = closes.index[0] + pd.DateOffset(years=1)
+        yields = pd.Series(
+            {
+                d: divs[(divs.index > d - pd.DateOffset(years=1)) & (divs.index <= d)].sum() / c
+                for d, c in monthly.items()
+                if d >= first_full_ttm and c > 0
+            },
+            dtype=float,
+        )
+
+        # --- P/B and P/E from the latest public fiscal year -----------------
+        try:
+            fiscal = _fiscal_years(ticker_obj, splits, cutoff)
+        except Exception as e:  # noqa: BLE001 — the yield band still stands alone
+            logger.debug("Statements unavailable for valuation history: %s", e)
+            fiscal = []
+        pb, pe = {}, {}
+        for d, c in monthly.items():
+            known = [fy for fy in fiscal if fy["public"] <= d]
+            if not known:
+                continue
+            fy = known[-1]
+            mcap = c * fy["shares"]
+            if fy["equity"] > 0:
+                pb[d] = mcap / fy["equity"]
+            if fy["net_income"] > 0:
+                pe[d] = mcap / fy["net_income"]
+        pb, pe = pd.Series(pb, dtype=float), pd.Series(pe, dtype=float)
+
+        def ratio(v):
+            return f"{v:.2f}x"
+
+        def pct(v):
+            return f"{v * 100:.2f}%"
+
+        if divs.empty:
+            yield_row = "| Dividend yield (TTM) | n/a | — | — | — | — | — | no dividends recorded |"
+        else:
+            yield_row = _band_line("Dividend yield (TTM)", yields, pct, higher_is_cheaper=True)
+
+        out = [
+            f"# Valuation history for {canonical}",
+            f"# Point-in-time as of: {cutoff.date()} (monthly, last trading day of each month)",
+            "",
+            "## Current valuation vs own history",
+            "| Metric | Current | Average (±1 std) | Median | Low | High | Coverage | Current vs history |",
+            "|---|---|---|---|---|---|---|---|",
+            yield_row,
+            _band_line("Price / book (P/B)", pb, ratio) if fiscal else
+            "| Price / book (P/B) | n/a | — | — | — | — | — | annual statements unavailable |",
+            _band_line("Price / earnings (P/E)", pe, ratio) if fiscal else
+            "| Price / earnings (P/E) | n/a | — | — | — | — | — | annual statements unavailable |",
+        ]
+
+        # Year-end snapshots show the trend behind the averages.
+        year_end = monthly.groupby(monthly.index.year).tail(1)
+        out += ["", "## Year-end snapshots", "| Date | Close (split-adjusted) | Dividend yield | P/B | P/E |",
+                "|---|---|---|---|---|"]
+        for d, c in year_end.items():
+            out.append(
+                f"| {d.date()} | {_fmt_amount(float(c))} | "
+                f"{pct(yields[d]) if d in yields.index else '—'} | "
+                f"{ratio(pb[d]) if d in pb.index else '—'} | "
+                f"{ratio(pe[d]) if d in pe.index else '—'} |"
+            )
+
+        if fiscal:
+            out += ["", "## Fiscal years used for P/B and P/E",
+                    "| Fiscal year end | Used from | Net income | Equity | Shares (current basis) |",
+                    "|---|---|---|---|---|"]
+            out += [
+                f"| {fy['end'].date()} | {fy['public'].date()} | {fy['net_income']:,.0f} | "
+                f"{fy['equity']:,.0f} | {fy['shares']:,.0f} |"
+                for fy in fiscal
+            ]
+
+        out += ["", (
+            "Notes: P/B and P/E use market cap (close × that fiscal year's share count, restated "
+            "for later splits and bonus issues) over "
+            "that year's equity and full-year net income, each year used from two months "
+            "after it ends (Bursa's reporting deadline); they are not trailing-12-month "
+            "figures. Yahoo provides only about 4 fiscal years of statements, so the P/B and "
+            "P/E bands are much shorter than the dividend-yield band — weigh the yield band "
+            "for the long-run comparison. A year with a loss has no P/E. 'Cheap' and "
+            "'expensive' here only compare the stock with its own past, not with peers, and "
+            "a low multiple can be justified by weaker earnings or asset quality."
+        )]
+        return "\n".join(out)
+
+    except NoMarketDataError:
+        raise
+    except Exception as e:
+        return f"Error retrieving valuation history for {ticker}: {str(e)}"
 
 
 def get_insider_transactions(

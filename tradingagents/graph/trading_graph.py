@@ -26,6 +26,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_prediction_markets,
     get_stock_data,
+    get_valuation_history,
     get_verified_market_snapshot,
     resolve_instrument_identity,
 )
@@ -247,6 +248,7 @@ class TradingAgentsGraph:
                     get_cashflow,
                     get_income_statement,
                     get_dividend_history,
+                    get_valuation_history,
                 ]
             ),
         }

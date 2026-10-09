@@ -14,6 +14,7 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_dividend_history,
     get_fundamentals,
     get_income_statement,
+    get_valuation_history,
 )
 from tradingagents.agents.utils.macro_data_tools import get_macro_indicators
 from tradingagents.agents.utils.market_data_validation_tools import get_verified_market_snapshot
@@ -35,6 +36,7 @@ __all__ = [
     "get_cashflow",
     "get_dividend_history",
     "get_income_statement",
+    "get_valuation_history",
     "get_news",
     "get_global_news",
     "get_insider_transactions",

@@ -32,6 +32,7 @@ from .y_finance import (
     get_income_statement as get_yfinance_income_statement,
     get_insider_transactions as get_yfinance_insider_transactions,
     get_stock_stats_indicators_window,
+    get_valuation_history as get_yfinance_valuation_history,
     get_YFin_data_online,
 )
 from .yfinance_news import get_global_news_yfinance, get_news_yfinance
@@ -67,6 +68,12 @@ TOOLS_CATEGORIES = {
             "get_dividend_history",
         ]
     },
+    "valuation_data": {
+        "description": "Valuation multiples against their own history",
+        "tools": [
+            "get_valuation_history",
+        ]
+    },
     "news_data": {
         "description": "News and insider data",
         "tools": [
@@ -98,12 +105,12 @@ VENDOR_LIST = [
     "google_news_my",
 ]
 
-# Optional enrichment categories. These add macro/event/dividend context to an
+# Optional enrichment categories. These add macro/event/dividend/valuation context to an
 # analyst but are not core to a decision, so a vendor failure here degrades to a
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "dividend_data"}
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "dividend_data", "valuation_data"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
@@ -137,6 +144,10 @@ VENDOR_METHODS = {
     # dividend_data
     "get_dividend_history": {
         "yfinance": get_yfinance_dividend_history,
+    },
+    # valuation_data
+    "get_valuation_history": {
+        "yfinance": get_yfinance_valuation_history,
     },
     # news_data
     "get_news": {
