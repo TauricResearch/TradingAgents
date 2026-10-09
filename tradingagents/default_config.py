@@ -152,6 +152,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
+        # Own category (not fundamental_data) so pointing fundamentals at
+        # alpha_vantage doesn't leave this tool without a vendor.
+        "dividend_data": "yfinance",         # Options: yfinance
         # Bursa fork default: try the MY-localized vendor first, fall back to
         # yfinance for non-KLSE tickers (google_news_my resolves any ticker's
         # name via yfinance, so it degrades gracefully rather than failing).

@@ -11,6 +11,7 @@ from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import (
     get_balance_sheet,
     get_cashflow,
+    get_dividend_history,
     get_fundamentals,
     get_income_statement,
 )
@@ -32,6 +33,7 @@ __all__ = [
     "get_fundamentals",
     "get_balance_sheet",
     "get_cashflow",
+    "get_dividend_history",
     "get_income_statement",
     "get_news",
     "get_global_news",

@@ -77,3 +77,24 @@ def get_income_statement(
         str: A formatted report containing income statement data
     """
     return route_to_vendor("get_income_statement", ticker, freq, curr_date)
+
+
+@tool
+def get_dividend_history(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
+    years: Annotated[int, "years of history to show (default 10)"] = 10,
+) -> str:
+    """
+    Retrieve dividend history for a given ticker symbol: dividend per share by
+    year, year-on-year changes and cuts, payment streak, 5-year growth rate,
+    trailing 12-month yield, recent ex-dates, and cash payout ratio.
+    Uses the configured dividend_data vendor.
+    Args:
+        ticker (str): Ticker symbol of the company
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+        years (int): Years of history to show (default 10)
+    Returns:
+        str: A formatted report of the company's dividend history
+    """
+    return route_to_vendor("get_dividend_history", ticker, curr_date, years)

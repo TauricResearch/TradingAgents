@@ -265,6 +265,18 @@ graceful-degradation behavior handle everything else:
   for non-Bursa runs. Degrades the same way as the other social sources: a
   failed fetch reports `<unavailable>`, never "no comments found", so an
   outage is never mistaken for genuine silence.
+- **`get_dividend_history` tool** (`get_dividend_history` in
+  `tradingagents/dataflows/y_finance.py`): gives the fundamentals analyst
+  dividend per share by year (grouped by ex-date), year-on-year changes and
+  cuts, the unbroken payment streak, 5-year DPS growth, trailing 12-month DPS
+  and yield, recent ex-dates, and a cash payout ratio from the cash flow
+  statement. Point-in-time: nothing dated after the analysis date is shown.
+  It has its own `dividend_data` vendor category (default `yfinance`), so
+  pointing `fundamental_data` at `alpha_vantage` doesn't break it.
+- **Investor profile** (`investor_profile` in `default_config.py`): a shared
+  instruction appended to every agent's prompt describing the holder (default:
+  long-term, income-focused holder of Malaysian bank stocks). Override with
+  `TRADINGAGENTS_INVESTOR_PROFILE`, or set it to `""` in config to disable.
 
 ## TradingAgents Package
 

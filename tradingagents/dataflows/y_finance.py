@@ -454,6 +454,204 @@ def get_income_statement(
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
 
+_DIVIDEND_PAID_ROWS = ("Cash Dividends Paid", "Common Stock Dividend Paid")
+_NET_INCOME_ROWS = (
+    "Net Income From Continuing Operations",
+    "Net Income",
+    "Net Income Common Stockholders",
+)
+
+
+def _fmt_amount(value: float) -> str:
+    """Per-share amount without float noise (0.280000001 -> 0.28)."""
+    return f"{value:.4f}".rstrip("0").rstrip(".")
+
+
+def _fmt_pct(value: float | None) -> str:
+    return "n/a" if value is None else f"{value * 100:+.1f}%"
+
+
+def _first_row(data: pd.DataFrame, names: tuple[str, ...]) -> pd.Series | None:
+    for name in names:
+        if name in data.index:
+            return data.loc[name]
+    return None
+
+
+def _cash_payout_lines(ticker_obj, curr_date: str | None) -> list[str]:
+    """Cash payout ratio per fiscal year: dividends paid / net income.
+
+    Both figures come from the same cash flow statement period, so no fiscal
+    year attribution is needed — unlike matching ex-dates to EPS, which breaks
+    for Malaysian banks whose final dividend for FY N goes ex in FY N+1.
+    """
+    try:
+        data = filter_financials_by_date(yf_retry(lambda: ticker_obj.cashflow), curr_date)
+    except Exception as e:  # noqa: BLE001 — payout is a supplement, not the core table
+        logger.debug("Cash flow unavailable for payout ratio: %s", e)
+        return ["Cash payout ratio: unavailable (cash flow statement could not be retrieved)."]
+
+    paid = _first_row(data, _DIVIDEND_PAID_ROWS) if not data.empty else None
+    income = _first_row(data, _NET_INCOME_ROWS) if not data.empty else None
+    if paid is None or income is None:
+        return ["Cash payout ratio: unavailable (dividends paid or net income not reported)."]
+
+    lines = ["| Fiscal period end | Dividends paid | Net income | Cash payout ratio |",
+             "|---|---|---|---|"]
+    for period in sorted(data.columns):
+        div, ni = paid.get(period), income.get(period)
+        if pd.isna(div) or pd.isna(ni):
+            continue
+        ratio = f"{abs(div) / ni * 100:.1f}%" if ni > 0 else "n/a (loss)"
+        lines.append(
+            f"| {pd.Timestamp(period).date()} | {abs(div):,.0f} | {ni:,.0f} | {ratio} |"
+        )
+    if len(lines) == 2:
+        return ["Cash payout ratio: unavailable (no overlapping periods)."]
+    return lines
+
+
+def get_dividend_history(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
+    years: Annotated[int, "number of years of history to show"] = 10,
+):
+    """Dividend history, growth, trailing yield and cash payout from yfinance.
+
+    Point-in-time: only ex-dates and prices on or before ``curr_date`` are used,
+    and the payout table is filtered to fiscal periods ending by then, so a
+    historical run never sees a dividend declared after its decision date.
+    Amounts are per share in the quote currency, split/bonus-adjusted by Yahoo
+    (bonus issues are common on Bursa, so raw announced amounts can differ).
+    """
+    canonical = normalize_symbol(ticker)
+    years = max(1, min(int(years or 10), 30))
+    cutoff = pd.Timestamp(curr_date).normalize() if curr_date else pd.Timestamp.today().normalize()
+
+    try:
+        ticker_obj = yf.Ticker(canonical)
+        # One request yields both the dividend series and unadjusted closes for
+        # the yield (auto_adjust=True would discount past prices by dividends).
+        hist = yf_retry(lambda: ticker_obj.history(period="max", auto_adjust=False, actions=True))
+        if hist is None or hist.empty or "Close" not in hist.columns:
+            raise NoMarketDataError(ticker, canonical, "no price history returned")
+
+        index = pd.DatetimeIndex(hist.index)
+        if index.tz is not None:
+            index = index.tz_localize(None)  # keep exchange-local calendar dates
+        hist = hist.set_axis(index.normalize())
+        hist = hist[hist.index <= cutoff]
+        if hist.empty:
+            raise NoMarketDataError(ticker, canonical, f"no price history on or before {cutoff.date()}")
+
+        header = (
+            f"# Dividend history for {canonical}\n"
+            f"# Point-in-time as of: {cutoff.date()} (ex-dividend dates on or before it)\n"
+            f"# Amounts are per share in the quote currency (RM for .KL), adjusted by "
+            f"Yahoo for splits and bonus issues\n\n"
+        )
+
+        divs = hist["Dividends"] if "Dividends" in hist.columns else pd.Series(dtype=float)
+        divs = divs[divs > 0]
+        if divs.empty:
+            return header + (
+                f"No cash dividends recorded for {canonical} on or before {cutoff.date()}. "
+                "Treat this as a non-dividend payer for the period covered; do not infer a yield."
+            )
+
+        # Start on 1 January so the oldest year shown is complete; a mid-year
+        # start would drop its first payment and fake a hike the year after.
+        window = divs[divs.index.year >= cutoff.year - years]
+
+        # --- Trailing 12 months -------------------------------------------
+        ttm = divs[divs.index > cutoff - pd.DateOffset(years=1)]
+        ttm_dps = float(ttm.sum())
+        closes = hist["Close"].dropna()
+        last_close = float(closes.iloc[-1]) if not closes.empty else None
+        ttm_yield = ttm_dps / last_close if last_close else None
+
+        # --- Calendar-year totals (by ex-date) ------------------------------
+        annual = window.groupby(window.index.year).agg(["sum", "count"])
+        complete_years = [y for y in annual.index if y < cutoff.year]
+
+        rows = ["| Year (ex-date) | Total DPS | Payments | YoY change |", "|---|---|---|---|"]
+        prev_year, prev_total = None, None
+        cuts = []
+        for year, (total, count) in annual.iterrows():
+            partial = year == cutoff.year
+            if partial:
+                change_text = "—"
+            elif prev_year is not None and prev_year != year - 1:
+                change_text = f"n/a (no dividend in {year - 1})"
+            elif prev_total:
+                change = total / prev_total - 1
+                change_text = _fmt_pct(change)
+                if change < -0.01:
+                    cuts.append(f"{year} ({change_text})")
+            else:
+                change_text = "n/a"
+            label = f"{year} (YTD, partial)" if partial else str(year)
+            rows.append(f"| {label} | {_fmt_amount(total)} | {int(count)} | {change_text} |")
+            if not partial:
+                prev_year, prev_total = year, total
+
+        # Consecutive complete years with a payment, counting back from last year.
+        paid_years = set(divs.index.year)
+        streak, year = 0, cutoff.year - 1
+        while year in paid_years:
+            streak += 1
+            year -= 1
+
+        cagr_line = "5-year DPS CAGR: n/a (fewer than 6 complete years of payments in range)"
+        if len(complete_years) >= 6:
+            last_y, base_y = complete_years[-1], complete_years[-1] - 5
+            if base_y in annual.index and annual.loc[base_y, "sum"] > 0:
+                cagr = (annual.loc[last_y, "sum"] / annual.loc[base_y, "sum"]) ** (1 / 5) - 1
+                cagr_line = f"5-year DPS CAGR ({base_y}→{last_y}): {_fmt_pct(cagr)} a year"
+
+        latest_date, latest_amt = divs.index[-1], float(divs.iloc[-1])
+        summary = [
+            "## Summary",
+            f"- Trailing 12-month DPS: {_fmt_amount(ttm_dps)} ({len(ttm)} payment(s))",
+            (
+                f"- Trailing dividend yield: {ttm_yield * 100:.2f}% "
+                f"(on close of {_fmt_amount(last_close)} at {closes.index[-1].date()})"
+                if ttm_yield is not None else "- Trailing dividend yield: n/a (no closing price)"
+            ),
+            f"- Latest ex-date: {latest_date.date()} ({_fmt_amount(latest_amt)} per share)",
+            f"- Consecutive complete years with a dividend: {streak}",
+            f"- {cagr_line}",
+            f"- Years with a lower total than the year before: {', '.join(cuts) if cuts else 'none in range'}",
+        ]
+
+        recent = ["| Ex-date | DPS |", "|---|---|"] + [
+            f"| {d.date()} | {_fmt_amount(float(a))} |" for d, a in divs.tail(8).items()
+        ]
+
+        notes = (
+            "Notes: years are grouped by ex-dividend date, not by the fiscal year the "
+            "dividend relates to (a final dividend for FY N usually goes ex in year N+1). "
+            "Special dividends are not separated from regular ones; a one-off spike in a "
+            "year's total should be checked against news before treating it as recurring. "
+            "The cash payout ratio uses dividends actually paid in each fiscal period, "
+            "which includes the prior year's final dividend."
+        )
+
+        return header + "\n".join(
+            summary
+            + ["", f"## Annual dividends (last {years} years)"] + rows
+            + ["", "## Recent payments"] + recent
+            + ["", "## Cash payout ratio (from cash flow statement)"]
+            + _cash_payout_lines(ticker_obj, curr_date)
+            + ["", notes]
+        )
+
+    except NoMarketDataError:
+        raise
+    except Exception as e:
+        return f"Error retrieving dividend history for {ticker}: {str(e)}"
+
+
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"]
 ):
