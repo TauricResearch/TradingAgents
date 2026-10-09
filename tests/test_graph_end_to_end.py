@@ -290,6 +290,57 @@ def test_a_tool_limit_the_recursion_limit_cannot_hold_is_refused(tmp_path, monke
         _graph(tmp_path, monkeypatch, ScriptedModel(), max_tool_rounds=60, max_recur_limit=100)
 
 
+@pytest.mark.unit
+def test_a_full_tool_context_budget_wraps_the_analyst_up_early(tmp_path, monkeypatch, offline, caplog):
+    """Rounds alone do not bound the prompt: many parallel calls per round crash
+    small-context local setups (#1492). A filled budget ends the analyst the
+    same way spent rounds do, and the wrap-up turn still reads its results."""
+    model = LoopingModel(structured=True)
+    graph = _graph(tmp_path, monkeypatch, model, max_tool_rounds=20,
+                   max_tool_context_chars=50)          # a few small results fill it
+
+    final_state, rating = graph.propagate("NVDA", TRADE_DATE)
+
+    assert rating == "Overweight"
+    for key in ("market_report", "news_report", "fundamentals_report"):
+        assert final_state[key] == TEXT
+    # The budget, not the rounds, ended each analyst: every tool-using analyst
+    # wrapped up long before its 20 rounds (3 x 20 tool turns) were spent.
+    assert len(model.tool_turns) < 12
+    assert sum("filled its 50-char tool-result budget" in r.message for r in caplog.records) == 3
+    wrap_ups = [h for h in model.last_turns if isinstance(h[-1], HumanMessage) and "tool round" in h[-1].content]
+    assert len(wrap_ups) == 3
+    for history in wrap_ups:
+        assert any("returned]" in str(m.content) for m in history)
+
+
+@pytest.mark.unit
+def test_a_single_result_over_the_budget_is_truncated_to_it(tmp_path, monkeypatch, offline):
+    """A vendor answer larger than the whole budget must not reach the history
+    untrimmed (#1492); the model is told what share of the rows it holds."""
+    big = "row\n" + "\n".join(f"line {i}" for i in range(10_000))
+    for method, vendors in router.VENDOR_METHODS.items():
+        for vendor in vendors:
+            monkeypatch.setitem(vendors, vendor, lambda *a, _m=method, **k: f"{_m}\n{big}")
+    monkeypatch.setattr(sentiment_analyst, "fetch_stocktwits_messages", lambda *a, **k: "no posts")
+    monkeypatch.setattr(sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "no posts")
+    monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: type("T", (), {"info": {"longName": "NVIDIA"}})())
+    context._identity.cache_clear()
+
+    model = LoopingModel(structured=True)
+    graph = _graph(tmp_path, monkeypatch, model, max_tool_rounds=20,
+                   max_tool_context_chars=1_000)
+
+    final_state, rating = graph.propagate("NVDA", TRADE_DATE)
+
+    assert rating == "Overweight"
+    for history in (h for h in model.last_turns if isinstance(h[-1], HumanMessage) and "tool round" in h[-1].content):
+        tool_texts = [str(m.content) for m in history if "returned]" in str(m.content)]
+        assert tool_texts, "the wrap-up turn should read the tool results as text"
+        for text in tool_texts:
+            assert "[Truncated:" in text and len(text) < 2_000
+
+
 class TimedModel(ScriptedModel):
     """ScriptedModel that records each call's graph step, prompt and timing."""
 
