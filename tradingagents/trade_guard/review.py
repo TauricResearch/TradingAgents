@@ -114,9 +114,10 @@ def validate_paper_decision(
         reasons.append("NO_CONSISTENT_ACTIONABLE_AGENT_DIRECTION")
     elif rating != action:
         reasons.append("TRADER_PORTFOLIO_DIRECTION_CONFLICT")
-    elif rating == "Buy" and intent.action != "SPOT_BUY":
-        reasons.append("INTENT_CONTRADICTS_AGENT_DIRECTION")
-    elif rating == "Sell" and intent.action not in ("SPOT_SELL", "SHORT_OPEN"):
+    elif (
+        (rating == "Buy" and intent.action != "SPOT_BUY")
+        or (rating == "Sell" and intent.action not in ("SPOT_SELL", "SHORT_OPEN"))
+    ):
         reasons.append("INTENT_CONTRADICTS_AGENT_DIRECTION")
 
     numeric_verdict = validate_intent(intent, market, portfolio, now=now, limits=limits)
