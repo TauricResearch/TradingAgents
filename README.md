@@ -63,7 +63,7 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
 Our framework decomposes complex trading tasks into specialized roles.
 
 ### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
+- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags. On this fork it also reviews dividend history (per-share trend, cuts, yield and payout) to judge dividend sustainability.
 - Sentiment Analyst: Aggregates news headlines, StockTwits, Reddit chatter, and (for Bursa Malaysia tickers) KLSE Screener comments into a single sentiment read to gauge short-term market mood.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
@@ -265,18 +265,47 @@ graceful-degradation behavior handle everything else:
   for non-Bursa runs. Degrades the same way as the other social sources: a
   failed fetch reports `<unavailable>`, never "no comments found", so an
   outage is never mistaken for genuine silence.
-- **`get_dividend_history` tool** (`get_dividend_history` in
-  `tradingagents/dataflows/y_finance.py`): gives the fundamentals analyst
-  dividend per share by year (grouped by ex-date), year-on-year changes and
-  cuts, the unbroken payment streak, 5-year DPS growth, trailing 12-month DPS
-  and yield, recent ex-dates, and a cash payout ratio from the cash flow
-  statement. Point-in-time: nothing dated after the analysis date is shown.
-  It has its own `dividend_data` vendor category (default `yfinance`), so
-  pointing `fundamental_data` at `alpha_vantage` doesn't break it.
-- **Investor profile** (`investor_profile` in `default_config.py`): a shared
-  instruction appended to every agent's prompt describing the holder (default:
-  long-term, income-focused holder of Malaysian bank stocks). Override with
-  `TRADINGAGENTS_INVESTOR_PROFILE`, or set it to `""` in config to disable.
+- **`get_dividend_history` tool** (`tradingagents/dataflows/y_finance.py`):
+  gives the fundamentals analyst a dividend report for the ticker:
+  - a summary: trailing 12-month dividend per share (DPS) and yield, latest
+    ex-date, years of unbroken payments, 5-year DPS growth rate, and any year
+    whose total fell below the year before;
+  - DPS by calendar year (grouped by ex-date) with year-on-year change;
+  - the last 8 ex-dates and amounts;
+  - a cash payout ratio per fiscal year (dividends paid ÷ net income, both
+    from the cash flow statement).
+
+  It is point-in-time: dividends, prices and fiscal periods after the
+  analysis date are left out, so backtests don't see later dividends. The
+  yield uses the unadjusted close. Amounts are per share in the quote
+  currency (RM for `.KL`) and adjusted by Yahoo for splits and bonus issues,
+  so older years may not match the originally announced figures; special
+  dividends are not separated from regular ones. It has its own
+  `dividend_data` vendor category (default `yfinance`), so pointing
+  `fundamental_data` at `alpha_vantage` doesn't leave it without a vendor,
+  and a Yahoo outage reports the data as unavailable instead of stopping the
+  run. To check it directly:
+  ```bash
+  python -c "from tradingagents.dataflows.y_finance import get_dividend_history as g; print(g('1155.KL', '2026-10-09'))"
+  ```
+- **Investor profile** (`investor_profile` in `tradingagents/default_config.py`):
+  a shared instruction appended to every agent's prompt (analysts,
+  researchers, risk debaters, managers and trader), so the whole pipeline
+  rates the stock for the same holder. The default describes a long-term,
+  income-focused holder (3–5+ years) of Malaysian bank stocks: the rating
+  rests mainly on dividend sustainability, earnings trend, asset quality,
+  capital strength and valuation versus history, and technical indicators
+  only suggest entry timing (e.g. staged buying levels). Note the default
+  applies to every ticker, including non-banks, so change it when analysing
+  other kinds of stocks:
+  ```bash
+  # .env
+  TRADINGAGENTS_INVESTOR_PROFILE="Long-term growth investor, 5-year horizon."
+  ```
+  ```python
+  config = DEFAULT_CONFIG.copy()
+  config["investor_profile"] = ""   # disable entirely (an empty env var is ignored)
+  ```
 
 ## TradingAgents Package
 
