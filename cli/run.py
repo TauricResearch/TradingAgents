@@ -373,6 +373,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
 
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
+    if final_state.get("trade_guard_review"):
+        console.print("[yellow]Trade guard: BLOCKED — analysis is not an executable order.[/yellow]")
 
     # A decision nobody can read is not a position. Say so here rather than
     # leaving the run to look like a normal result.
