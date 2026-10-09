@@ -1,6 +1,6 @@
 """Fail-closed paper trade guard; no LLMs, exchange keys or network needed."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -13,33 +13,33 @@ from tradingagents.trade_guard import (
     validate_intent,
 )
 
-NOW = datetime(2026, 10, 9, 16, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 9, 16, 0, tzinfo=UTC)
 
 
 def market(**overrides):
-    params = dict(symbol="BTC-USD", price="82403.44", observed_at=NOW, source="exchange")
+    params = {"symbol": "BTC-USD", "price": "82403.44", "observed_at": NOW, "source": "exchange"}
     params.update(overrides)
     return MarketSnapshot(**params)
 
 
 def portfolio(**overrides):
-    params = dict(equity_quote="100000", free_quote="10000", free_base="0.3")
+    params = {"equity_quote": "100000", "free_quote": "10000", "free_base": "0.3"}
     params.update(overrides)
     return PortfolioSnapshot(**params)
 
 
 def intent(**overrides):
-    params = dict(
-        symbol="BTC-USD",
-        market="PERPETUAL",
-        action="SHORT_OPEN",
-        order_type="LIMIT",
-        quantity_base="0.025",
-        limit_price="84500",
-        stop_loss="87800",
-        take_profit="80000",
-        idempotency_key="analysis-20261009-btc-01",
-    )
+    params = {
+        "symbol": "BTC-USD",
+        "market": "PERPETUAL",
+        "action": "SHORT_OPEN",
+        "order_type": "LIMIT",
+        "quantity_base": "0.025",
+        "limit_price": "84500",
+        "stop_loss": "87800",
+        "take_profit": "80000",
+        "idempotency_key": "analysis-20261009-btc-01",
+    }
     params.update(overrides)
     return TradeIntent(**params)
 
