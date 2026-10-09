@@ -34,6 +34,27 @@ def test_position_in_the_analyzed_instrument_leads_the_render():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("quantity,price,other,expected_position,expected_other", [
+    (0.123456789, 1.2345, 0.987654321,
+     "0.123456789 units, average price 1.2345", "OTHER 0.987654321"),
+    (-0.000123456789, 0.0000123456789, -0.987654321,
+     "-0.000123456789 units, average price 1.23456789e-05", "OTHER -0.987654321"),
+    (123456.789012345, 1234.56789, -123456.789012345,
+     "123,456.789012345 units, average price 1,234.56789", "OTHER -123,456.789012345"),
+], ids=["fractional", "small-short", "large"])
+def test_render_preserves_holding_quantity_and_entry_price(
+    quantity, price, other, expected_position, expected_other,
+):
+    book = PortfolioContext.model_validate({"positions": [
+        {"ticker": "EXAMPLE", "quantity": quantity, "average_price": price},
+        {"ticker": "OTHER", "quantity": other},
+    ]})
+    text = book.render("EXAMPLE")
+    assert expected_position in text
+    assert expected_other in text
+
+
+@pytest.mark.unit
 def test_flat_book_says_no_position_rather_than_omitting_it():
     text = PortfolioContext.model_validate({"cash": 1000.0, "positions": []}).render("AAPL")
     assert "No current position in AAPL" in text

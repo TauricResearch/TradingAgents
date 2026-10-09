@@ -41,13 +41,13 @@ class PortfolioContext(BaseModel):
         if held is None:
             lines = [f"- No current position in {symbol}"]
         else:
-            price = f", average price {held.average_price:,.2f}" if held.average_price is not None else ""
-            lines = [f"- Current position in {symbol}: {held.quantity:,.4g} units{price}"]
+            price = f", average price {held.average_price:,}" if held.average_price is not None else ""
+            lines = [f"- Current position in {symbol}: {held.quantity:,} units{price}"]
         if self.cash is not None:
             lines.append(f"- Cash available: {self.cash:,.2f}{' ' + self.currency if self.currency else ''}")
         others = [p for p in self.positions if p is not held]
         if others:
-            lines.append("- Other positions: " + ", ".join(f"{p.ticker.upper()} {p.quantity:,.4g}" for p in others))
+            lines.append("- Other positions: " + ", ".join(f"{p.ticker.upper()} {p.quantity:,}" for p in others))
         return "Portfolio at the analysis date:\n" + "\n".join(lines)
 
     def fingerprint(self) -> str:
