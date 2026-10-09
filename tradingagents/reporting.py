@@ -43,6 +43,8 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
             lines.append("- Data vendors: " + ", ".join(f"{k} {v}" for k, v in vendors.items()))
     if final_state.get("memory_note"):
         lines.append(f"- Memory log: {final_state['memory_note']}")
+    if final_state.get("trade_guard_review"):
+        lines.append("- Trade execution: BLOCKED (advisory only; no order submitted)")
     return "\n".join(lines) + "\n\n"
 
 
@@ -69,6 +71,9 @@ _SECTIONS = (
     )),
     ("V. Portfolio Manager Decision", "5_portfolio", (
         ("Portfolio Manager", "decision.md", ("final_trade_decision",)),
+    )),
+    ("VI. Paper Trade Guard", "6_trade_guard", (
+        ("Deterministic Order Safety Review", "review.md", ("trade_guard_report",)),
     )),
 )
 
