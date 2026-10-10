@@ -255,8 +255,8 @@ def validate(symbol: str) -> dict:
     then does the data layer raise NoMarketDataError — an expensive way to learn
     the symbol was wrong, especially on a rate-limited free tier.
     """
-    from tradingagents.dataflows.stockstats_utils import load_ohlcv
-    from tradingagents.dataflows.symbol_utils import is_yahoo_safe, normalize_symbol
+    from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
+    from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv
 
     raw = (symbol or "").strip()
     if not raw:
@@ -265,17 +265,16 @@ def validate(symbol: str) -> dict:
     upper = raw.upper()
     hint = _SUGGESTIONS.get(upper)
 
-    if not is_yahoo_safe(upper):
+    try:
+        safe_ticker_component(upper)
+    except ValueError:
         return {
             "ok": False,
             "message": f"`{raw}` isn't a valid symbol format.",
             "suggestion": hint,
         }
 
-    try:
-        canonical = normalize_symbol(raw)
-    except Exception:
-        canonical = upper
+    canonical = normalize_symbol(raw)
 
     # A bare suffix like ".NS" is a common half-edit; name it specifically
     # rather than letting it read as a generic lookup failure.

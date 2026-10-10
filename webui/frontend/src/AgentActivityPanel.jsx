@@ -1,319 +1,179 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AgentBot from './AgentBot.jsx'
-import { HANDOFF, STATUS_LABEL, agentBySection, visibleAgents } from './agents.js'
+import { STATUS_LABEL, visibleAgents } from './agents.js'
 
-const STATION_H = 76
-const WALK_MS = 1500
-const PAUSE_MS = 420
-
-function prefersReducedMotion() {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
+const STATION_H = 56
+const TRAVEL_MS = 1350
+const DESCRIPTIONS = {
+  market: 'Reading price action & trends',
+  social: 'Listening to market sentiment',
+  news: 'Connecting the latest headlines',
+  fundamentals: 'Looking beneath the numbers',
+  research: 'Bringing the evidence together',
+  trader: 'Building the trading plan',
+  portfolio: 'Making the final decision',
 }
 
-function formatTime(ts) {
-  try {
-    return new Date(ts).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  } catch {
-    return ''
-  }
-}
-
-function stationState(agent, { doneKeys, next, awayIds, receivingIds, running }) {
-  if (awayIds.has(agent.id)) return 'walking'
-  if (receivingIds.has(agent.id)) return 'receiving'
-  if (doneKeys.has(agent.section)) return 'done'
-  if (running && next === agent.section) return 'processing'
-  if (running) return 'idle'
-  return 'idle'
-}
-
-function Walker({ job, yMap, accent, onDone }) {
-  const [top, setTop] = useState(yMap[job.from] ?? 0)
-  const [phase, setPhase] = useState('go')
-  const reduce = prefersReducedMotion()
-
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   useEffect(() => {
-    if (reduce) {
-      onDone(job.id)
-      return undefined
-    }
-    const go = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setTop(yMap[job.to] ?? 0))
-    })
-    const pause = setTimeout(() => setPhase('pause'), WALK_MS)
-    const back = setTimeout(() => {
-      setPhase('back')
-      setTop(yMap[job.from] ?? 0)
-    }, WALK_MS + PAUSE_MS)
-    const done = setTimeout(() => onDone(job.id), WALK_MS * 2 + PAUSE_MS + 40)
-    return () => {
-      cancelAnimationFrame(go)
-      clearTimeout(pause)
-      clearTimeout(back)
-      clearTimeout(done)
-    }
-    // yMap is keyed by agent id; jobs only start after stations are known.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job.id, job.from, job.to, onDone, reduce])
-
-  const walking = phase === 'go' || phase === 'back'
-  return (
-    <div
-      className={`walker${walking ? ' is-walking' : ''}${phase === 'back' ? ' facing-up' : ''}`}
-      style={{
-        top,
-        left: 8 + job.lane,
-        transitionDuration: `${WALK_MS}ms`,
-      }}
-    >
-      <AgentBot
-        accent={accent}
-        state={walking ? 'walking' : 'sending'}
-        speaking
-        size={48}
-      />
-      <span className="packet" aria-hidden />
-    </div>
-  )
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const change = () => setReduced(media.matches)
+    media.addEventListener('change', change)
+    return () => media.removeEventListener('change', change)
+  }, [])
+  return reduced
 }
 
-function ActivityRow({ row, agent, expanded, onToggle, dim }) {
+function ActivityRow({ row, expanded, onToggle }) {
   return (
-    <div className={`act-row${dim ? ' dim' : ''}`}>
-      <button
-        type="button"
-        className="act-main"
-        onClick={() => row.detail && onToggle(row.id)}
-        aria-expanded={expanded}
-      >
-        <span className="act-icon">
-          {agent ? (
-            <AgentBot accent={agent.accent} state={row.status} size={28} />
-          ) : (
-            <span className="act-dot" />
-          )}
-        </span>
+    <div className="act-row">
+      <button type="button" className="act-main" onClick={() => row.detail && onToggle(row.id)}
+        aria-expanded={row.detail ? expanded : undefined} disabled={!row.detail}>
+        <span className={`act-dot ${row.status === 'done' ? 'complete' : ''}`} aria-hidden="true" />
         <span className="act-copy">
           <span className="act-name">{row.title}</span>
-          <span className="act-meta">{formatTime(row.ts)}</span>
+          <span className="act-meta">{new Date(row.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </span>
-        <span className={`pill pill-${row.status}`}>{STATUS_LABEL[row.status] || row.status}</span>
+        {row.detail && <span className="act-expand" aria-hidden="true">{expanded ? '−' : '+'}</span>}
       </button>
-      {row.detail && expanded && (
-        <pre className="act-detail">{row.detail}</pre>
-      )}
+      {row.detail && expanded && <pre className="act-detail">{row.detail}</pre>}
     </div>
   )
 }
 
-export default function AgentActivityPanel({
-  selectedAnalysts,
-  sections,
-  running,
-  statusMsg,
-  activity,
-  walks,
-  onWalkDone,
-  filterId,
-  onFilter,
-}) {
-  const agents = useMemo(
-    () => visibleAgents(selectedAnalysts),
-    [selectedAnalysts],
-  )
+export default function AgentActivityPanel({ selectedAnalysts, sections, running, statusMsg, activity, filterId, onFilter }) {
+  const agents = useMemo(() => visibleAgents(selectedAnalysts), [selectedAnalysts])
+  const doneKeys = useMemo(() => new Set(sections.map((s) => s.key)), [sections])
+  const firstPending = agents.findIndex((a) => !doneKeys.has(a.section))
+  const actualTarget = firstPending === -1 ? agents.length - 1 : firstPending
+  const [cursor, setCursor] = useState(0)
+  const [travel, setTravel] = useState(null)
+  const [demoTarget, setDemoTarget] = useState(null)
   const [openId, setOpenId] = useState(null)
-  const [tip, setTip] = useState(null)
-  const [demoWalks, setDemoWalks] = useState([])
+  const reduced = useReducedMotion()
   const logRef = useRef(null)
-
-  const doneKeys = useMemo(
-    () => new Set(sections.map((s) => s.key)),
-    [sections],
-  )
-  const next = useMemo(() => {
-    return agents.find((a) => !doneKeys.has(a.section))?.section ?? null
-  }, [agents, doneKeys])
-
-  const allWalks = walks.concat(demoWalks)
-  const awayIds = useMemo(
-    () => new Set(allWalks.map((w) => w.from)),
-    [allWalks],
-  )
-  const receivingIds = useMemo(() => {
-    const s = new Set()
-    for (const w of allWalks) s.add(w.to)
-    return s
-  }, [allWalks])
-
-  const yMap = useMemo(() => {
-    const m = {}
-    agents.forEach((a, i) => {
-      m[a.id] = i * STATION_H + 8
-    })
-    return m
-  }, [agents])
-
-  const stageH = agents.length * STATION_H + 16
+  const demo = demoTarget !== null && !running
+  const target = demo ? demoTarget : actualTarget
+  const routeKey = agents.map((a) => a.id).join(',')
 
   useEffect(() => {
-    const el = logRef.current
-    if (el) el.scrollTop = 0
+    setDemoTarget(null)
+    setCursor(0)
+    setTravel(null)
+  }, [routeKey])
+
+  // Reports may arrive in a burst. Visit every checkpoint with one robot.
+  useEffect(() => {
+    if (running) setDemoTarget(null)
+    if (!demo && (target < cursor || sections.length === 0)) {
+      setCursor(target)
+      setTravel(null)
+    }
+  }, [running, demo, target, cursor, sections.length, routeKey])
+
+  useEffect(() => {
+    if (travel || cursor >= target) return undefined
+    if (reduced) { setCursor(target); return undefined }
+    const timer = setTimeout(() => setTravel({ from: cursor, to: cursor + 1 }), 380)
+    return () => clearTimeout(timer)
+  }, [cursor, target, travel, reduced])
+
+  useEffect(() => {
+    if (!travel) return undefined
+    const timer = setTimeout(() => {
+      setCursor(travel.to)
+      setTravel(null)
+    }, reduced ? 0 : TRAVEL_MS)
+    return () => clearTimeout(timer)
+  }, [travel, reduced])
+
+  useEffect(() => {
+    if (!demo || travel || cursor !== demoTarget) return undefined
+    const timer = setTimeout(() => {
+      setDemoTarget(demoTarget === agents.length - 1 ? null : demoTarget + 1)
+    }, 1800)
+    return () => clearTimeout(timer)
+  }, [demo, demoTarget, cursor, travel, agents.length])
+
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = 0
   }, [activity.length])
 
-  const lastByAgent = useMemo(() => {
-    const m = {}
-    for (const row of activity) {
-      if (row.agentId && !m[row.agentId]) m[row.agentId] = row
-    }
-    return m
-  }, [activity])
-
-  const filtered = filterId
-    ? activity.filter((r) => r.agentId === filterId)
-    : activity
-
-  const finishWalk = (id) => {
-    if (String(id).startsWith('demo-')) {
-      setDemoWalks((d) => d.filter((w) => w.id !== id))
-    } else {
-      onWalkDone(id)
-    }
-  }
-
-  const previewWalk = () => {
-    if (allWalks.length) return
-    const from = agents[0]
-    const to = agents.find((a) => a.id === 'research') || agents[1]
-    if (!from || !to || from.id === to.id) return
-    setDemoWalks((d) => [
-      ...d,
-      { id: `demo-${Date.now()}`, from: from.id, to: to.id, lane: 0 },
-    ])
+  const safeCursor = Math.min(cursor, agents.length - 1)
+  const current = agents[safeCursor]
+  const destination = agents[Math.min(travel?.to ?? safeCursor + 1, agents.length - 1)]
+  const complete = !demo && firstPending === -1 && !travel && cursor === target
+  const working = running || demo || cursor < target
+  const state = travel ? 'walking' : complete ? 'done' : working ? 'processing' : 'idle'
+  const completedCount = demo ? demoTarget : agents.filter((a) => doneKeys.has(a.section)).length
+  const filtered = filterId ? activity.filter((row) => row.agentId === filterId) : activity
+  const preview = () => {
+    setTravel(null)
+    setCursor(demo ? actualTarget : 0)
+    setDemoTarget(demo ? null : 0)
   }
 
   return (
     <div className="agent-panel">
-      <div className="rail-title">Agent activity</div>
-
-      <div className="agent-stage" style={{ height: stageH }}>
-        <div className="track" />
-        {agents.map((a) => {
-          const st = stationState(a, {
-            doneKeys,
-            next,
-            awayIds,
-            receivingIds,
-            running,
-          })
-          const last = lastByAgent[a.id]
-          return (
-            <button
-              key={a.id}
-              type="button"
-              className={`station${filterId === a.id ? ' on' : ''}${st === 'processing' ? ' live' : ''}`}
-              style={{ top: yMap[a.id] }}
-              onClick={() => onFilter(filterId === a.id ? null : a.id)}
-              onMouseEnter={() =>
-                setTip({
-                  id: a.id,
-                  text: last
-                    ? last.title
-                    : st === 'processing'
-                      ? statusMsg || 'Working…'
-                      : STATUS_LABEL[st],
-                })
-              }
-              onMouseLeave={() => setTip(null)}
-              aria-pressed={filterId === a.id}
-              title={a.label}
-            >
-              <span className="station-slot">
-                {!awayIds.has(a.id) && (
-                  <AgentBot
-                    accent={a.accent}
-                    state={st}
-                    speaking={st === 'receiving' || st === 'sending'}
-                    size={46}
-                    title={a.label}
-                  />
-                )}
-              </span>
-              <span className="station-label">{a.short}</span>
-              <span className={`station-badge badge-${st}`}>{STATUS_LABEL[st]}</span>
-              {tip?.id === a.id && <span className="station-tip">{tip.text}</span>}
-            </button>
-          )
-        })}
-
-        {allWalks.map((job) => {
-          const src = agents.find((a) => a.id === job.from)
-          return (
-            <Walker
-              key={job.id}
-              job={job}
-              yMap={yMap}
-              accent={src?.accent || '#2ee6d6'}
-              onDone={finishWalk}
-            />
-          )
-        })}
+      <div className="journey-heading">
+        <span className="rail-title">Agent journey</span>
+        <span className={`journey-indicator${working ? ' live' : ''}`}>
+          <i />{demo ? 'Preview' : running ? 'Live' : complete ? 'Complete' : working ? 'Finishing' : sections.length ? 'Paused' : 'Standby'}
+        </span>
       </div>
 
-      <div className="panel-actions">
-        {!running && (
-          <button type="button" className="filter-clear" onClick={previewWalk}>
-            Preview a walking handoff
-          </button>
-        )}
-        {filterId && (
-          <button type="button" className="filter-clear" onClick={() => onFilter(null)}>
-            Showing {agents.find((a) => a.id === filterId)?.short} · Clear
-          </button>
-        )}
-      </div>
+      <div className="journey-card">
+        <div className="journey-intro" role="status" aria-live="polite">
+          <span className="journey-eyebrow">{travel ? 'On the move' : complete ? 'Journey complete' : `Stage ${safeCursor + 1} / ${agents.length}`}</span>
+          <h2>{travel ? `Next stop: ${destination.short}` : current.label}</h2>
+          <p>{travel ? 'Carrying the research forward' : complete ? 'Your analysis is ready to explore.' : running && statusMsg ? statusMsg : DESCRIPTIONS[current.id]}</p>
+        </div>
 
-      <div className="act-log" ref={logRef}>
-        {filtered.length === 0 ? (
-          <div className="act-empty">
-            {running
-              ? 'Waiting for the first agent to report…'
-              : 'Agents idle. Start a run to watch handoffs.'}
+        <div className={`journey-route${travel ? ' is-traveling' : ''}`} style={{ height: agents.length * STATION_H, '--station-height': `${STATION_H}px` }}>
+          <div className="journey-track" aria-hidden="true" />
+          <div className="journey-track-fill" style={{ height: (travel?.to ?? safeCursor) * STATION_H }} aria-hidden="true" />
+          {agents.map((agent, index) => {
+            const done = demo ? index < demoTarget : doneKeys.has(agent.section)
+            const active = index === safeCursor
+            return (
+              <button key={agent.id} type="button"
+                className={`journey-stop${active ? ' active' : ''}${done ? ' done' : ''}${filterId === agent.id ? ' selected' : ''}`}
+                style={{ top: index * STATION_H }}
+                onClick={() => onFilter(filterId === agent.id ? null : agent.id)}
+                aria-pressed={filterId === agent.id} aria-current={active ? 'step' : undefined}
+                aria-label={`${agent.label}, ${done ? 'complete' : active ? STATUS_LABEL[state] : 'upcoming'}. Filter activity`}>
+                <span className="checkpoint" aria-hidden="true">{done ? '✓' : String(index + 1).padStart(2, '0')}</span>
+                <span className="stop-copy"><span className="stop-name">{agent.short}</span>
+                  <span className="stop-status">{active ? (travel ? 'Passing the baton' : complete ? 'Analysis complete' : working ? 'Working on it' : sections.length ? 'Paused' : 'Ready to begin') : done ? 'Complete' : 'Up next'}</span>
+                </span>
+                {active && <span className={`stop-beacon${travel ? ' traveling' : ''}`} aria-hidden="true" />}
+              </button>
+            )
+          })}
+          <div className={`journey-companion${travel ? ' traveling' : ''}`}
+            style={{ transform: `translateY(${(travel?.to ?? safeCursor) * STATION_H}px)` }}>
+            <AgentBot state={state} size={48} title={travel ? `Robot traveling to ${destination.label}` : `Friendly robot at ${current.label}`} />
           </div>
-        ) : (
-          filtered.map((row) => (
-            <ActivityRow
-              key={row.id}
-              row={row}
-              agent={agentBySection(row.section) || agents.find((a) => a.id === row.agentId)}
-              expanded={openId === row.id}
-              onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))}
-              dim={filterId && row.agentId !== filterId}
-            />
-          ))
-        )}
+        </div>
+
+        <div className="journey-footer">
+          <span>{complete ? 'All checkpoints complete' : `${completedCount} of ${agents.length} checkpoints`}</span>
+          <span className="journey-footer-mark" aria-hidden="true">✦</span>
+        </div>
+      </div>
+
+      {!running && <button type="button" className={`journey-preview${demo ? ' playing' : ''}`} onClick={preview}>
+        <span className="preview-icon" aria-hidden="true">{demo ? '■' : '▷'}</span>
+        {demo ? 'Stop preview' : 'Preview the journey'}<span aria-hidden="true">{demo ? '' : '↗'}</span>
+      </button>}
+
+      <div className="activity-heading"><span className="rail-title">Activity feed</span><span>{filtered.length}</span></div>
+      {filterId && <button type="button" className="filter-clear" onClick={() => onFilter(null)}>Showing {agents.find((a) => a.id === filterId)?.short} · Clear</button>}
+      <div className="act-log" ref={logRef}>
+        {filtered.length === 0 ? <div className="act-empty">{running ? 'The journey has started. Updates appear here.' : 'A little teamwork. A clearer picture.\nStart an analysis to follow along.'}</div>
+          : filtered.map((row) => <ActivityRow key={row.id} row={row} expanded={openId === row.id} onToggle={(id) => setOpenId((value) => value === id ? null : id)} />)}
       </div>
     </div>
   )
-}
-
-export function nextHandoffJob(sectionKey, selectedAnalysts, lane) {
-  const from = agentBySection(sectionKey)
-  const toId = HANDOFF[sectionKey]
-  if (!from || !toId) return null
-  const team = visibleAgents(selectedAnalysts)
-  if (!team.some((a) => a.id === from.id) || !team.some((a) => a.id === toId)) {
-    return null
-  }
-  return {
-    from: from.id,
-    to: toId,
-    lane: lane ?? 0,
-  }
 }

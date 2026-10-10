@@ -5,3 +5,11 @@ cd D:\TradingAgents
 Terminal 2 — frontend:
 cd D:\TradingAgents\webui\frontend
 npm run dev
+
+UI preview (no backend needed):
+http://localhost:5173/?preview=journey
+
+Use 'Preview the journey' to watch the robot visit every stage.
+Use 'Complete ... stage' to simulate report completion and handoffs.
+'Light' and 'Dark' let you compare the UI themes.
+On Windows, use npm.cmd run dev if PowerShell blocks npm.ps1.

@@ -1,87 +1,48 @@
-/** Cute station robot — SVG inspired by the round cyan-eyed bot. */
-export default function AgentBot({
-  accent = '#2ee6d6',
-  state = 'idle',
-  speaking = false,
-  size = 52,
-  title,
-}) {
-  const id = accent.replace('#', '')
+import { useId } from 'react'
+
+/** A friendly companion with soft ceramic panels and a smiling display. */
+export default function AgentBot({ accent = '#74dac5', state = 'idle', size = 52, title }) {
+  const id = useId().replace(/:/g, '')
   return (
-    <svg
-      className={`bot bot-${state}${speaking ? ' speaking' : ''}`}
-      width={size}
-      height={Math.round(size * 1.22)}
-      viewBox="0 0 80 98"
-      aria-hidden={!title}
-      role={title ? 'img' : 'presentation'}
-    >
+    <svg className={`bot bot-${state}`} width={size} height={size * 1.18}
+      viewBox="0 0 100 118" aria-hidden={!title} role={title ? 'img' : 'presentation'}>
       {title && <title>{title}</title>}
       <defs>
-        <radialGradient id={`body-${id}`} cx="38%" cy="28%" r="72%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="55%" stopColor="#e8edf4" />
-          <stop offset="100%" stopColor="#b7c0ce" />
-        </radialGradient>
-        <radialGradient id={`head-${id}`} cx="40%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="70%" stopColor="#eef2f7" />
-          <stop offset="100%" stopColor="#c5ceda" />
-        </radialGradient>
-        <radialGradient id={`eye-${id}`} cx="40%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="#ecfffb" />
-          <stop offset="45%" stopColor={accent} />
-          <stop offset="100%" stopColor="#0b6b63" />
-        </radialGradient>
-        <filter id={`glow-${id}`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="1.6" result="b" />
-          <feMerge>
-            <feMergeNode in="b" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
+        <linearGradient id={`${id}-shell`} x1="0" y1="0" x2="0.8" y2="1">
+          <stop stopColor="#fff" /><stop offset="0.6" stopColor="#edf3f6" />
+          <stop offset="1" stopColor="#bdcdd8" />
+        </linearGradient>
+        <linearGradient id={`${id}-screen`} x2="0" y2="1">
+          <stop stopColor="#243e4c" /><stop offset="1" stopColor="#132630" />
+        </linearGradient>
       </defs>
-
-      <ellipse className="bot-shadow" cx="40" cy="92" rx="18" ry="4.2" fill="#000" />
-
-      {speaking && (
-        <g className="bot-bubbles">
-          <rect x="58" y="10" width="16" height="11" rx="5" fill="#f4f7fb" />
-          <rect x="66" y="24" width="10" height="7" rx="3.5" fill="#f4f7fb" />
-        </g>
-      )}
-
+      <ellipse className="bot-shadow" cx="50" cy="110" rx="26" ry="4" fill="#091b22" opacity=".16" />
       <g className="bot-figure">
-        <line className="antenna" x1="28" y1="18" x2="22" y2="4" stroke="#d7dde6" strokeWidth="2.2" strokeLinecap="round" />
-        <circle cx="21" cy="3" r="2.4" fill={accent} />
-        <line className="antenna" x1="52" y1="18" x2="58" y2="4" stroke="#d7dde6" strokeWidth="2.2" strokeLinecap="round" />
-        <circle cx="59" cy="3" r="2.4" fill={accent} />
-
-        <g className="arm arm-l">
-          <path d="M18 48 C8 52, 8 62, 16 66" fill="none" stroke="#d5dce6" strokeWidth="5.5" strokeLinecap="round" />
+        <path d="M50 17V9" stroke="#b8cbd5" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="50" cy="7" r="4" fill={accent} />
+        <g className="leg leg-l"><rect x="33" y="87" width="12" height="19" rx="6" fill="#c6d5de" />
+          <rect x="29" y="99" width="18" height="8" rx="4" fill={`url(#${id}-shell)`} /></g>
+        <g className="leg leg-r"><rect x="55" y="87" width="12" height="19" rx="6" fill="#c6d5de" />
+          <rect x="53" y="99" width="18" height="8" rx="4" fill={`url(#${id}-shell)`} /></g>
+        <g className="arm arm-l"><path d="M27 68Q15 69 17 84" fill="none" stroke="#dce7ed" strokeWidth="9" strokeLinecap="round" />
+          <circle cx="17" cy="85" r="5" fill="#eef4f7" /></g>
+        <g className="arm arm-r"><path d="M73 68Q85 69 83 84" fill="none" stroke="#dce7ed" strokeWidth="9" strokeLinecap="round" />
+          <circle cx="83" cy="85" r="5" fill="#eef4f7" /></g>
+        <rect x="27" y="59" width="46" height="37" rx="17" fill={`url(#${id}-shell)`} />
+        <rect x="40" y="71" width="20" height="11" rx="5.5" fill={accent} opacity=".18" />
+        <path d="M46 76h8" stroke={accent} strokeWidth="3" strokeLinecap="round" />
+        <rect x="13" y="32" width="9" height="18" rx="4.5" fill="#bbcfd9" />
+        <rect x="78" y="32" width="9" height="18" rx="4.5" fill="#bbcfd9" />
+        <rect x="19" y="17" width="62" height="48" rx="21" fill={`url(#${id}-shell)`} />
+        <rect x="26" y="26" width="48" height="30" rx="13" fill={`url(#${id}-screen)`} />
+        <path d="M31 30Q47 26 65 30" stroke="#fff" strokeWidth="2" opacity=".09" fill="none" />
+        <g className="eyes" fill={accent}>
+          <rect className="eye" x="35" y="34" width="6" height="9" rx="3" />
+          <rect className="eye" x="59" y="34" width="6" height="9" rx="3" />
         </g>
-        <g className="arm arm-r">
-          <path d="M62 48 C72 52, 72 62, 64 66" fill="none" stroke="#d5dce6" strokeWidth="5.5" strokeLinecap="round" />
-        </g>
-
-        <ellipse cx="40" cy="62" rx="22" ry="20" fill={`url(#body-${id})`} />
-        <ellipse cx="40" cy="54" rx="16" ry="8" fill="#ffffff" opacity="0.35" />
-
-        <ellipse cx="40" cy="30" rx="20" ry="18" fill={`url(#head-${id})`} />
-
-        <g className="eyes" filter={`url(#glow-${id})`}>
-          <ellipse className="eye" cx="32" cy="30" rx="5.2" ry="6.2" fill={`url(#eye-${id})`} />
-          <ellipse className="eye" cx="48" cy="30" rx="5.2" ry="6.2" fill={`url(#eye-${id})`} />
-          <ellipse cx="30.6" cy="28" rx="1.5" ry="2" fill="#fff" opacity="0.85" />
-          <ellipse cx="46.6" cy="28" rx="1.5" ry="2" fill="#fff" opacity="0.85" />
-        </g>
-
-        <g className="leg leg-l">
-          <rect x="29" y="78" width="7" height="11" rx="3.4" fill="#d7dee8" />
-        </g>
-        <g className="leg leg-r">
-          <rect x="44" y="78" width="7" height="11" rx="3.4" fill="#d7dee8" />
-        </g>
+        <path d="M45 46Q50 51 55 46" fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" />
+        <ellipse cx="33" cy="46" rx="3" ry="1.5" fill="#edb8c2" opacity=".55" />
+        <ellipse cx="67" cy="46" rx="3" ry="1.5" fill="#edb8c2" opacity=".55" />
       </g>
     </svg>
   )

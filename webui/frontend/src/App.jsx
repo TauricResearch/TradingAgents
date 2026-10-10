@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import AgentActivityPanel, { nextHandoffJob } from './AgentActivityPanel.jsx'
-import { AGENT_DEFS, agentBySection } from './agents.js'
+import AgentActivityPanel from './AgentActivityPanel.jsx'
+import { agentBySection } from './agents.js'
+import JourneyPreview from './JourneyPreview.jsx'
 
 const THEME_KEY = 'ta-theme'
 
@@ -59,6 +60,12 @@ function Report({ label, content, highlight }) {
 }
 
 export default function App() {
+  return new URLSearchParams(window.location.search).get('preview') === 'journey'
+    ? <JourneyPreview />
+    : <TradingApp />
+}
+
+function TradingApp() {
   const [theme, setTheme] = useState(readTheme)
   const [opts, setOpts] = useState(null)
   const [bootError, setBootError] = useState('')
@@ -75,24 +82,17 @@ export default function App() {
   const [atBottom, setAtBottom] = useState(true)
   const [checking, setChecking] = useState(false)
   const [activity, setActivity] = useState([])
-  const [walks, setWalks] = useState([])
   const [filterId, setFilterId] = useState(null)
 
   const chatRef = useRef(null)
   const wsRef = useRef(null)
   const activityId = useRef(0)
-  const walkId = useRef(0)
-  const walkLane = useRef(0)
   const seenSections = useRef(new Set())
   const lastStatus = useRef('')
 
   const pushActivity = useCallback((row) => {
     const id = ++activityId.current
     setActivity((prev) => [{ id, ts: Date.now(), ...row }, ...prev])
-  }, [])
-
-  const onWalkDone = useCallback((id) => {
-    setWalks((prev) => prev.filter((w) => w.id !== id))
   }, [])
 
   /* ---------- theme ---------- */
@@ -314,7 +314,6 @@ export default function App() {
     setRunError(null)
     setAtBottom(true)
     setActivity([])
-    setWalks([])
     setFilterId(null)
     seenSections.current = new Set()
     lastStatus.current = ''
@@ -359,24 +358,6 @@ export default function App() {
           status: 'done',
           detail: typeof m.content === 'string' ? m.content.slice(0, 480) : '',
         })
-        if (first) {
-          const job = nextHandoffJob(
-            m.key,
-            finalSel.analysts,
-            (walkLane.current++ % 3) * 18 - 18,
-          )
-          if (job) {
-            const hid = ++walkId.current
-            setWalks((prev) => [...prev, { ...job, id: hid }])
-            const dest = AGENT_DEFS.find((a) => a.id === job.to)
-            pushActivity({
-              title: `${agent?.short || 'Agent'} walking to ${dest?.short || 'next station'}`,
-              agentId: agent?.id || null,
-              section: m.key,
-              status: 'walking',
-            })
-          }
-        }
         setSections((prev) => {
           const i = prev.findIndex((s) => s.key === m.key)
           if (i === -1) return [...prev, { key: m.key, label: m.label, content: m.content }]
@@ -424,7 +405,6 @@ export default function App() {
     setAnalystPick(opts.defaults.analysts)
     setAtBottom(true)
     setActivity([])
-    setWalks([])
     setFilterId(null)
     seenSections.current = new Set()
     lastStatus.current = ''
@@ -498,8 +478,6 @@ export default function App() {
           running={running}
           statusMsg={statusMsg}
           activity={activity}
-          walks={walks}
-          onWalkDone={onWalkDone}
           filterId={filterId}
           onFilter={setFilterId}
         />
