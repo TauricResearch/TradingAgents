@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>TradingAgents</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Resolve the theme before first paint so a dark-mode reload never
+      // flashes white. Storage can throw in private mode, hence the guard.
+      (function () {
+        try {
+          var t = localStorage.getItem('ta-theme')
+          if (t === 'light' || t === 'dark') {
+            document.documentElement.setAttribute('data-theme', t)
+          }
+        } catch (e) {
+          /* no stored preference available */
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

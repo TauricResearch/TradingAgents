@@ -1,0 +1,15 @@
+Terminal 1 — backend:
+cd D:\TradingAgents
+.\.venv\Scripts\python.exe -m uvicorn webui.backend.app:app --port 8000
+
+Terminal 2 — frontend:
+cd D:\TradingAgents\webui\frontend
+npm run dev
+
+UI preview (no backend needed):
+http://localhost:5173/?preview=journey
+
+Use 'Preview the journey' to watch the robot visit every stage.
+Use 'Complete ... stage' to simulate report completion and handoffs.
+'Light' and 'Dark' let you compare the UI themes.
+On Windows, use npm.cmd run dev if PowerShell blocks npm.ps1.
