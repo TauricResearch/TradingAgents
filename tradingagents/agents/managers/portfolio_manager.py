@@ -47,12 +47,14 @@ def create_portfolio_manager(llm):
 
 ---
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
+**Rating Scale** (use exactly one). The reader may hold this instrument or may
+be considering it for the first time, so rate it at its current price rather
+than assuming a position exists:
+- **Buy**: Strong conviction at the current price - enter, or add if already held
+- **Overweight**: Favorable outlook - build exposure gradually
+- **Hold**: No action at the current price - neither entering nor exiting here
+- **Underweight**: Reduce exposure if held; do not enter
+- **Sell**: Exit if held; avoid entry
 
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
