@@ -7,11 +7,10 @@ import pytest
 
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
-from tradingagents.decision_log import TradingMemoryLog
-from tradingagents.graph import settlement
 from tradingagents.graph.propagation import Propagator
-from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.memory import TradingMemoryLog, settlement
+from tradingagents.memory.reflection import Reflector
 
 _SEP = TradingMemoryLog._SEPARATOR
 
@@ -75,7 +74,6 @@ def _make_pm_state(past_context=""):
             "aggressive_history": "",
             "conservative_history": "",
             "neutral_history": "",
-            "judge_decision": "",
             "current_aggressive_response": "",
             "current_conservative_response": "",
             "current_neutral_response": "",
@@ -628,6 +626,16 @@ class TestDeferredReflection:
                              "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
         assert settlement.resolve_benchmark("PETR4.SA", config) == "^BVSP"
 
+    @pytest.mark.parametrize(("ticker", "index"), [
+        ("2330.TW", "^TWII"), ("6488.TWO", "^TWII"), ("005930.KS", "^KS11"), ("247540.KQ", "^KQ11"), ("D05.SI", "^STI"), ("SAP.DE", "^GDAXI"),
+        ("MC.PA", "^FCHI"), ("ASML.AS", "^AEX"), ("NESN.SW", "^SSMI"), ("ENI.MI", "FTSEMIB.MI"),
+    ])
+    def test_resolve_benchmark_regional_indexes(self, ticker, index):
+        """Taiwan, Korea, Singapore and the main European exchanges were measured against SPY."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        config = {"benchmark_ticker": None, "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
+        assert settlement.resolve_benchmark(ticker, config) == index
+
     def test_resolve_benchmark_us_ticker_defaults_to_spy(self):
         """US tickers (no dotted suffix) take the empty-suffix entry."""
         config = {
@@ -863,12 +871,12 @@ class TestLegacyRemoval:
 
     def test_financial_situation_memory_removed(self):
         """FinancialSituationMemory must not be importable from the memory module."""
-        import tradingagents.decision_log as m
+        import tradingagents.memory as m
         assert not hasattr(m, "FinancialSituationMemory")
 
     def test_bm25_not_imported(self):
         """rank_bm25 must not be present in the memory module namespace."""
-        import tradingagents.decision_log as m
+        import tradingagents.memory as m
         assert not hasattr(m, "BM25Okapi")
 
     def test_reflect_and_remember_removed(self):
@@ -888,6 +896,7 @@ class TestLegacyRemoval:
 
         fake_state = {
             "final_trade_decision": "Rating: Buy\nBuy NVDA.",
+            "final_rating": "Buy",
             "company_of_interest": "NVDA",
             "trade_date": "2026-01-10",
             "market_report": "",
@@ -896,13 +905,13 @@ class TestLegacyRemoval:
             "fundamentals_report": "",
             "investment_debate_state": {
                 "bull_history": "", "bear_history": "", "history": "",
-                "current_response": "", "judge_decision": "",
+                "current_response": "",
             },
             "investment_plan": "",
             "trader_investment_plan": "",
             "risk_debate_state": {
                 "aggressive_history": "", "conservative_history": "",
-                "neutral_history": "", "history": "", "judge_decision": "",
+                "neutral_history": "", "history": "",
                 "current_aggressive_response": "", "current_conservative_response": "",
                 "current_neutral_response": "", "count": 1, "latest_speaker": "",
             },
@@ -914,7 +923,6 @@ class TestLegacyRemoval:
         mock_graph.graph.invoke.return_value = fake_state
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
-        mock_graph.process_signal.return_value = "Buy"
         # Bind the real _run_graph so propagate's call to self._run_graph executes
         # the actual write path instead of the auto-MagicMock.
         mock_graph._run_graph = functools.partial(
@@ -934,8 +942,8 @@ class TestLegacyRemoval:
 def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp_path, monkeypatch):
     """Settling past decisions happens on the way into a new run, and reflection
     calls an LLM. A transient failure there must not stop the new analysis."""
-    from tradingagents.decision_log import TradingMemoryLog
     from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from tradingagents.memory import TradingMemoryLog
 
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md")}
@@ -967,8 +975,8 @@ def test_a_failed_reflection_leaves_the_entry_pending_and_lets_the_run_start(tmp
 def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
     """A decision written for months should not be graded at a week without the
     operator choosing that window."""
-    from tradingagents.decision_log import TradingMemoryLog
     from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from tradingagents.memory import TradingMemoryLog
 
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {"memory_log_path": str(tmp_path / "m.md"), "holding_period_days": 21}
@@ -994,7 +1002,7 @@ def test_the_holding_window_is_configurable(tmp_path, monkeypatch):
 def test_the_reflection_states_the_window_it_judges():
     """Judging a months-long thesis on a week's alpha, without saying so, turns
     a scope mismatch into a lesson that the call was wrong."""
-    from tradingagents.graph.reflection import Reflector
+    from tradingagents.memory.reflection import Reflector
 
     prompt = Reflector(None)._system_prompt(holding_days=5)
     assert "5" in prompt and "trading day" in prompt
@@ -1021,3 +1029,272 @@ def test_a_longer_window_asks_for_enough_price_history(monkeypatch):
     raw, alpha, days, resolved = settlement.fetch_returns("NVDA", "2026-06-01", 21, benchmark="SPY")
 
     assert days == 21 and resolved is not None, (raw, alpha, days, resolved)
+
+
+@pytest.mark.unit
+def test_concurrent_writers_keep_every_decision_and_outcome(tmp_path):
+    """Graphs sharing one log record and settle at the same time; none may lose another's write."""
+    import threading
+
+    path = tmp_path / "memory.md"
+    tickers = [f"T{i}" for i in range(8)]
+    dates = [f"2026-01-{day:02d}" for day in range(1, 13)]
+    errors = []
+
+    def work(ticker):
+        log = TradingMemoryLog({"memory_log_path": str(path)})
+        try:
+            for date in dates:
+                log.store_decision(ticker, date, "**Rating**: Buy")
+                log.update_with_outcome(ticker, date, 0.01, 0.005, 5, "held up")
+        except Exception as exc:  # noqa: BLE001 — collected for the assertion
+            errors.append(exc)
+
+    threads = [threading.Thread(target=work, args=(t,)) for t in tickers]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    entries = TradingMemoryLog({"memory_log_path": str(path)}).load_entries()
+    assert errors == []
+    assert len(entries) == len(tickers) * len(dates)
+    assert all(not e["pending"] for e in entries)
+
+
+def _closes(by_symbol):
+    """A get_closes stand-in serving each symbol's series between the dates asked."""
+    def get_closes(symbol, start_date, end_date):
+        series = by_symbol[symbol]
+        return series[(series.index >= start_date) & (series.index < end_date)]
+    return get_closes
+
+
+@pytest.mark.unit
+class TestSettlementWindow:
+    """Stock and benchmark are measured over the same dates, whatever their calendars."""
+
+    def test_a_seven_day_market_is_scored_against_the_benchmark_over_the_same_dates(self, monkeypatch):
+        coin = pd.Series([100.0 + i for i in range(10)], index=pd.date_range("2026-01-03", periods=10, freq="D"))
+        weekdays = pd.bdate_range("2025-12-29", "2026-01-16")
+        spy = pd.Series([400.0 + 2 * i for i in range(len(weekdays))], index=weekdays)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"BTC-USD": coin, "SPY": spy}))
+
+        raw, alpha, days, resolved = settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY")
+
+        # The coin is held Sat 3 -> Thu 8; SPY over the same span is Fri 2 -> Thu 8.
+        assert resolved == "2026-01-08"
+        assert raw == pytest.approx(105.0 / 100.0 - 1)
+        assert alpha == pytest.approx(raw - (spy["2026-01-08"] / spy["2026-01-02"] - 1))
+
+    def test_bars_stamped_in_different_time_zones_meet_on_their_dates(self, monkeypatch):
+        # Yahoo stamps a coin's daily bar at midnight UTC and SPY's at midnight
+        # New York, five hours later: the same day, not the day after.
+        coin = pd.Series([100.0 + i for i in range(10)],
+                         index=pd.date_range("2026-01-03", periods=10, freq="D", tz="UTC"))
+        weekdays = pd.bdate_range("2025-12-29", "2026-01-16", tz="America/New_York")
+        spy = pd.Series([400.0 + 2 * i for i in range(len(weekdays))], index=weekdays)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"BTC-USD": coin, "SPY": spy}))
+
+        raw, alpha, _, resolved = settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY")
+
+        assert resolved == "2026-01-08"
+        spy_by_day = spy.tz_localize(None)
+        assert alpha == pytest.approx(raw - (spy_by_day["2026-01-08"] / spy_by_day["2026-01-02"] - 1))
+
+    def test_the_outcome_waits_for_the_benchmark_to_trade_through_the_window(self, monkeypatch):
+        coin = pd.Series([100.0 + i for i in range(10)], index=pd.date_range("2026-01-03", periods=10, freq="D"))
+        spy = pd.Series([400.0, 401.0, 402.0], index=pd.to_datetime(["2026-01-02", "2026-01-05", "2026-01-06"]))
+        monkeypatch.setattr(settlement, "get_closes", _closes({"BTC-USD": coin, "SPY": spy}))
+
+        assert settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY") == (None, None, None, None)
+
+    def test_a_missing_close_is_skipped_not_scored(self, monkeypatch):
+        idx = pd.bdate_range("2026-01-05", periods=8)
+        stock = pd.Series([100.0, float("nan"), 101.0, 102.0, 103.0, 104.0, 105.0, 106.0], index=idx)
+        spy = pd.Series([400.0 + i for i in range(8)], index=idx)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
+
+        raw, alpha, _, resolved = settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY")
+
+        assert raw == pytest.approx(105.0 / 100.0 - 1)
+        assert resolved == "2026-01-13"
+        assert alpha == pytest.approx(raw - (spy["2026-01-13"] / spy["2026-01-05"] - 1))
+
+
+@pytest.mark.unit
+def test_a_close_that_is_not_a_price_is_skipped_not_scored(monkeypatch):
+    """A zero close would score as an infinite return and be written to the memory log."""
+    idx = pd.bdate_range("2026-01-05", periods=8)
+    stock = pd.Series([0.0, 100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0], index=idx)
+    spy = pd.Series([400.0 + i for i in range(8)], index=idx)
+    monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
+
+    raw, alpha, _, _ = settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY")
+
+    assert raw == pytest.approx(105.0 / 100.0 - 1)   # the window opens on the first real close
+
+
+@pytest.mark.unit
+class TestSettleAll:
+    """A scheduler that stops analysing a ticker can still settle its decisions (#1445)."""
+
+    def _setup(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        log.store_decision("AAPL", "2026-01-05", DECISION_BUY)
+        log.store_decision("MSFT", "2026-01-05", DECISION_BUY)
+        idx = pd.bdate_range("2026-01-02", periods=12)
+        series = pd.Series([100.0 + i for i in range(12)], index=idx)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"AAPL": series, "MSFT": series, "SPY": series}))
+
+        class _Reflector:
+            def reflect_on_final_decision(self, **kwargs):
+                return "Held up."
+        return log, _Reflector()
+
+    def test_every_ticker_with_a_due_decision_is_settled(self, tmp_path, monkeypatch):
+        log, reflector = self._setup(tmp_path, monkeypatch)
+
+        result = settlement.settle_all_pending(log, reflector, {"holding_period_days": 5})
+
+        assert sorted(result.settled) == [("AAPL", "2026-01-05"), ("MSFT", "2026-01-05")]
+        assert result.failed == []
+        assert not log.get_pending_entries()
+
+    def test_a_failed_reflection_is_reported_and_left_pending(self, tmp_path, monkeypatch):
+        log, _ = self._setup(tmp_path, monkeypatch)
+
+        class _Down:
+            def reflect_on_final_decision(self, **kwargs):
+                raise RuntimeError("provider down")
+
+        result = settlement.settle_pending("AAPL", log, _Down(), {"holding_period_days": 5})
+
+        assert result.settled == [] and [f[:2] for f in result.failed] == [("AAPL", "2026-01-05")]
+        assert {e["ticker"] for e in log.get_pending_entries()} == {"AAPL", "MSFT"}
+
+
+@pytest.mark.unit
+def test_the_graph_settles_every_ticker_under_its_own_config(tmp_path, monkeypatch):
+    from tradingagents.dataflows.config import get_config
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"holding_period_days": 5, "output_language": "Deutsch"}
+    graph.memory_log, graph.reflector = make_log(tmp_path), object()
+    seen = []
+    monkeypatch.setattr(settlement, "settle_all_pending",
+                        lambda log, reflector, config, wait=True: seen.append(get_config()["output_language"])
+                        or settlement.Settlement(settled=[("AAPL", "2026-01-05")]))
+
+    assert graph.settle_all_pending().settled == [("AAPL", "2026-01-05")]
+    assert seen == ["Deutsch"]
+
+
+@pytest.mark.unit
+class TestSettlementOnceAndDurably:
+    """Settlement is paid for in reflection calls, so it runs once per decision and
+    keeps what it finished; what it could not do is reported (#1428, #1445)."""
+
+    def _log(self, tmp_path, monkeypatch, *dates):
+        log = make_log(tmp_path)
+        for date in dates:
+            log.store_decision("AAPL", date, DECISION_BUY)
+        series = pd.Series([100.0 + i for i in range(40)], index=pd.bdate_range("2026-01-02", periods=40))
+        monkeypatch.setattr(settlement, "get_closes", _closes({"AAPL": series, "SPY": series}))
+        return log
+
+    def test_two_runs_settling_at_once_reflect_once(self, tmp_path, monkeypatch):
+        import threading
+        import time
+
+        self._log(tmp_path, monkeypatch, "2026-01-05")
+        calls = []
+
+        class _Slow:
+            def reflect_on_final_decision(self, **kwargs):
+                calls.append(1)
+                time.sleep(0.2)
+                return "Held up."
+
+        results = []
+        threads = [threading.Thread(target=lambda: results.append(
+            settlement.settle_pending("AAPL", make_log(tmp_path), _Slow(), {"holding_period_days": 5})))
+            for _ in range(2)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+
+        assert len(calls) == 1
+        assert sorted(len(r.settled) for r in results) == [0, 1]
+
+    def test_an_interrupted_pass_keeps_the_outcomes_it_finished(self, tmp_path, monkeypatch):
+        log = self._log(tmp_path, monkeypatch, "2026-01-05", "2026-01-12")
+
+        class _Interrupted:
+            calls = 0
+
+            def reflect_on_final_decision(self, **kwargs):
+                _Interrupted.calls += 1
+                if _Interrupted.calls == 2:
+                    raise KeyboardInterrupt
+                return "Held up."
+
+        with pytest.raises(KeyboardInterrupt):
+            settlement.settle_pending("AAPL", log, _Interrupted(), {"holding_period_days": 5})
+
+        assert [e["date"] for e in log.get_pending_entries()] == ["2026-01-12"]
+
+    def test_a_price_request_that_fails_is_reported_not_taken_for_not_due(self, tmp_path, monkeypatch):
+        from tradingagents.dataflows.errors import VendorUnavailableError
+
+        log = self._log(tmp_path, monkeypatch, "2026-01-05")
+
+        def down(*args, **kwargs):
+            raise VendorUnavailableError("Yahoo Finance request failed: TimeoutError")
+
+        monkeypatch.setattr(settlement, "get_closes", down)
+
+        result = settlement.settle_pending("AAPL", log, object(), {"holding_period_days": 5})
+
+        assert result.settled == [] and "prices unavailable" in result.failed[0][2]
+
+
+@pytest.mark.unit
+def test_any_failure_to_price_a_decision_is_reported(tmp_path, monkeypatch):
+    log = make_log(tmp_path)
+    log.store_decision("AAPL", "2026-01-05", DECISION_BUY)
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("vendor outage")
+
+    monkeypatch.setattr(settlement, "get_closes", broken)
+
+    result = settlement.settle_pending("AAPL", log, object(), {"holding_period_days": 5})
+
+    assert result.settled == [] and "vendor outage" in result.failed[0][2]
+
+
+@pytest.mark.unit
+def test_a_run_does_not_wait_on_another_settlement_pass(tmp_path):
+    """The other pass settles the same log; a run's step goes on without waiting."""
+    import threading
+    import time
+
+    log = make_log(tmp_path)
+    log.store_decision("AAPL", "2026-01-05", DECISION_BUY)
+    held, release = threading.Event(), threading.Event()
+
+    def other_pass():
+        with make_log(tmp_path).settling():
+            held.set()
+            release.wait(5)
+
+    worker = threading.Thread(target=other_pass)
+    worker.start()
+    held.wait(5)
+    started = time.monotonic()
+    result = settlement.settle_all_pending(log, object(), {"holding_period_days": 5}, wait=False)
+    elapsed = time.monotonic() - started
+    release.set()
+    worker.join()
+
+    assert elapsed < 1 and result.settled == [] and result.failed == []

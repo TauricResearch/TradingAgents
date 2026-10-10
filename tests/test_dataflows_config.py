@@ -49,7 +49,7 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         fresh = get_config()
         self.assertEqual(fresh["data_vendors"]["core_stock_apis"], "alpha_vantage")
         self.assertEqual(fresh["data_vendors"]["technical_indicators"], "yfinance")
-        self.assertEqual(fresh["data_vendors"]["fundamental_data"], "yfinance")
+        self.assertEqual(fresh["data_vendors"]["fundamental_data"], "sec_edgar,yfinance")
         self.assertEqual(fresh["data_vendors"]["news_data"], "yfinance")
 
     def test_nested_dict_updates_merge_one_level_deep(self):
@@ -95,7 +95,7 @@ def test_a_run_reads_its_own_graphs_vendors_not_the_last_graph_built():
     set_config(first)                                   # graph A is built
     second = _graph(copy.deepcopy(default_config.DEFAULT_CONFIG))
 
-    assert _vendors_seen_by_a_run(second) == ["yfinance"]
+    assert _vendors_seen_by_a_run(second) == ["sec_edgar,yfinance"]
 
 
 @pytest.mark.unit
@@ -148,7 +148,7 @@ def test_settling_reads_the_graphs_own_config(monkeypatch):
     graph = _graph(config)
     graph.memory_log = graph.reflector = None      # the settlement below is a stand-in
     seen = []
-    from tradingagents.graph import settlement
+    from tradingagents.memory import settlement
 
     monkeypatch.setattr(settlement, "settle_pending",
                         lambda *a: seen.append(get_vendor("core_stock_apis", "get_stock_data")))

@@ -25,6 +25,9 @@ from cli.prompts import (
     detect_asset_type,
     ensure_api_key,
     get_ticker,
+    parse_analysis_date,
+    parse_analysts,
+    parse_ticker,
     prompt_openai_compatible_url,
     resolve_backend_url,
     select_analysts,
@@ -36,15 +39,69 @@ from cli.prompts import (
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def get_user_selections():
+def get_user_selections(flags=None):
     """Ask for the run's settings, offering the previous run's answers."""
-    selections = _prompt_selections(load_last_run())
+    selections = _prompt_selections(load_last_run(), flags or {})
     save_last_run(selections)
     return selections
 
 
-def _prompt_selections(prefs):
-    """Walk the selection steps. ``prefs`` prefills, the environment skips."""
+def depth_from_env() -> bool:
+    """Both round counts come from the environment, so the depth question is skipped."""
+    return bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")
+                and os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS"))
+
+
+def unattended_gaps(flags) -> list[str]:
+    """The flags and environment variables a run with no terminal still needs."""
+    env = os.environ.get
+    gaps = [f"--{name}" for name in ("ticker", "date", "analysts") if flags.get(name) is None]
+    gaps += [f"--{name} or --no-{name}" for name in ("save", "show") if flags.get(name) is None]
+    if not env("TRADINGAGENTS_OUTPUT_LANGUAGE"):
+        gaps.append("TRADINGAGENTS_OUTPUT_LANGUAGE")
+    if not depth_from_env():
+        gaps.append("TRADINGAGENTS_MAX_DEBATE_ROUNDS and TRADINGAGENTS_MAX_RISK_ROUNDS")
+    if not env("TRADINGAGENTS_LLM_PROVIDER"):
+        gaps.append("TRADINGAGENTS_LLM_PROVIDER")
+    if not (env("TRADINGAGENTS_QUICK_THINK_LLM") or env("TRADINGAGENTS_DEEP_THINK_LLM")):
+        gaps.append("TRADINGAGENTS_QUICK_THINK_LLM or TRADINGAGENTS_DEEP_THINK_LLM")
+    return gaps
+
+
+def _check_tier_providers(main_provider: str) -> None:
+    """Check each provider the model tiers use (#1440) before the run.
+
+    A tier on another provider needs its model from its variable, since the
+    model question offers the main provider's models. Each provider a tier uses
+    has its key checked now, prompting for a missing one, rather than at its
+    first call, which for the deep tier comes after everything else has been
+    paid for; a provider no tier uses needs no key.
+    """
+    used = []
+    for tier in ("quick", "deep"):
+        provider = (DEFAULT_CONFIG.get(f"{tier}_think_provider") or main_provider).lower()
+        if provider != main_provider.lower():
+            variable = f"TRADINGAGENTS_{tier.upper()}_THINK_LLM"
+            if not os.environ.get(variable):
+                console.print(f"[red]The {tier} tier runs on {provider}; set {variable} to one of its models.[/red]")
+                raise typer.Exit(code=1)
+        if provider not in used:
+            used.append(provider)
+    for provider in used:
+        ensure_api_key(provider)
+
+
+def _from_flag(parse, value, *args):
+    """A flag's value through the same check its prompt applies; a bad one ends the run."""
+    try:
+        return parse(value, *args)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+
+def _prompt_selections(prefs, flags):
+    """Walk the selection steps. ``prefs`` prefills; flags and the environment skip."""
     with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
@@ -93,14 +150,18 @@ def _prompt_selections(prefs):
         return prompt_fn()
 
     # Step 1: Ticker symbol
-    console.print(
-        create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
-            "SPY",
+    if flags.get("ticker") is not None:
+        selected_ticker = _from_flag(parse_ticker, flags["ticker"])
+        console.print(f"[green]✓ Ticker from --ticker:[/green] {selected_ticker}")
+    else:
+        console.print(
+            create_question_box(
+                "Step 1: Ticker Symbol",
+                "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
+                "SPY",
+            )
         )
-    )
-    selected_ticker = get_ticker()
+        selected_ticker = get_ticker()
     asset_type = detect_asset_type(selected_ticker)
     # Only announce when it's not the default stock path, to avoid printing
     # "stock" on every run.
@@ -110,15 +171,19 @@ def _prompt_selections(prefs):
         )
 
     # Step 2: Analysis date
-    default_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    console.print(
-        create_question_box(
-            "Step 2: Analysis Date",
-            "Enter the analysis date (YYYY-MM-DD)",
-            default_date,
+    if flags.get("date") is not None:
+        analysis_date = _from_flag(parse_analysis_date, flags["date"])
+        console.print(f"[green]✓ Analysis date from --date:[/green] {analysis_date}")
+    else:
+        default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        console.print(
+            create_question_box(
+                "Step 2: Analysis Date",
+                "Enter the analysis date (YYYY-MM-DD)",
+                default_date,
+            )
         )
-    )
-    analysis_date = get_analysis_date()
+        analysis_date = get_analysis_date()
 
     # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
     if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
@@ -136,13 +201,16 @@ def _prompt_selections(prefs):
         output_language = ask_output_language(prefs.get("output_language"))
 
     # Step 4: Select analysts
-    console.print(
-        create_question_box(
-            "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
-        )
-    )
     prefs = sanitize(prefs, asset_type.value)
-    selected_analysts = select_analysts(asset_type, prefs.get("analysts"))
+    if flags.get("analysts") is not None:
+        selected_analysts = _from_flag(parse_analysts, flags["analysts"], asset_type)
+    else:
+        console.print(
+            create_question_box(
+                "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+            )
+        )
+        selected_analysts = select_analysts(asset_type, prefs.get("analysts"))
     console.print(
         f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
@@ -151,10 +219,7 @@ def _prompt_selections(prefs):
     # Research depth maps to the debate + risk round counts; when both are
     # supplied through TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS we keep
     # the run non-interactive and honor the env values (#977).
-    depth_from_env = bool(os.environ.get("TRADINGAGENTS_MAX_DEBATE_ROUNDS")) and bool(
-        os.environ.get("TRADINGAGENTS_MAX_RISK_ROUNDS")
-    )
-    if depth_from_env:
+    if depth_from_env():
         selected_research_depth = DEFAULT_CONFIG["max_debate_rounds"]
         console.print(
             f"[green]✓ Research depth from environment:[/green] "
@@ -181,8 +246,6 @@ def _prompt_selections(prefs):
         )
         console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
         console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
-        # Still confirm/persist the API key so the run doesn't fail later.
-        ensure_api_key(selected_llm_provider)
     else:
         console.print(
             create_question_box(
@@ -219,10 +282,8 @@ def _prompt_selections(prefs):
         if selected_llm_provider == "ollama":
             confirm_ollama_endpoint(backend_url)
 
-        # Confirm the provider's API key is present; prompt the user to paste
-        # one and persist it to .env if it's missing, so the analysis run
-        # doesn't fail later at the first API call.
-        ensure_api_key(selected_llm_provider)
+
+    _check_tier_providers(selected_llm_provider)
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
     if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
@@ -303,13 +364,6 @@ def get_analysis_date():
             "", default=datetime.datetime.now().strftime("%Y-%m-%d")
         )
         try:
-            # Validate date format and ensure it's not in the future
-            analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            if analysis_date.date() > datetime.datetime.now().date():
-                console.print("[red]Error: Analysis date cannot be in the future[/red]")
-                continue
-            return date_str
-        except ValueError:
-            console.print(
-                "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
-            )
+            return parse_analysis_date(date_str)
+        except ValueError as exc:
+            console.print(f"[red]Error: {exc}[/red]")

@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 import tradingagents.dataflows.vendors.yahoo.snapshot as validator
+from tradingagents.dataflows.errors import NoMarketDataError
 
 
 def _sample_ohlcv() -> pd.DataFrame:
@@ -47,12 +48,12 @@ class TestVerifiedSnapshot:
 
     def test_raises_when_no_rows_on_or_before_date(self, monkeypatch):
         monkeypatch.setattr(validator, "load_ohlcv", lambda s, d, fill_gaps=True: _sample_ohlcv())
-        with pytest.raises(ValueError):
+        with pytest.raises(NoMarketDataError):
             validator.build_verified_market_snapshot("COF", "2020-01-01")
 
     def test_raises_on_empty_data(self, monkeypatch):
         monkeypatch.setattr(validator, "load_ohlcv", lambda s, d, fill_gaps=True: pd.DataFrame())
-        with pytest.raises(ValueError):
+        with pytest.raises(NoMarketDataError):
             validator.build_verified_market_snapshot("COF", "2026-05-13")
 
     def test_look_back_window_capped_at_30(self, monkeypatch):

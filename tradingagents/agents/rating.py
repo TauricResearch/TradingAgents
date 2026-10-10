@@ -2,8 +2,7 @@
 
 The same five-tier scale (Buy, Overweight, Hold, Underweight, Sell) is used by:
 - The Research Manager (investment plan recommendation)
-- The Portfolio Manager (final position decision)
-- The signal processor (rating extracted for downstream consumers)
+- The Portfolio Manager (final position decision; its free-text fallback is read here)
 - The memory log (rating tag stored alongside each decision entry)
 
 Centralising it here avoids drift between those call sites.
@@ -33,49 +32,65 @@ RATING_REVIEW = "REVIEW"
 _RATING_SET = {r.lower() for r in RATINGS_5_TIER}
 
 # Matches "Rating: X" / "rating - X" / "Rating — **X**" — tolerates markdown
-# bold wrappers and any dash or colon a model writes as the separator.
-_RATING_LABEL_RE = re.compile(r"rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
+# bold wrappers and any dash or colon a model writes as the separator. "rating"
+# must start a word, so "Operating margin: Sell-side" is not a label.
+_RATING_LABEL_RE = re.compile(r"(?<![a-z])rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
                               re.IGNORECASE)
+
+# The decision's own rating line, in the shape the Portfolio Manager is asked to
+# open with ("- **Rating**: X", "**Final Rating**: X", "## Our rating - X"): an
+# optional list marker, emphasis and heading marks, and only words naming the
+# decision itself before "rating". "Consensus rating: Buy" or "Trader's rating:
+# Buy" is someone else's rating.
+_OWN_QUALIFIER = r"(?:(?:final|our|overall|my|recommended|updated|revised|new|current)\s+)*"
+_RATING_LINE_RE = re.compile(
+    r"\s*(?P<item>(?:[-+*\u2022]|\d+[.)])\s+)?[\s*_#]*" + _OWN_QUALIFIER
+    + r"rating[^\w:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(?P<value>\w+)",
+    re.IGNORECASE,
+)
 
 # A line presenting the scale rather than a decision ("Rating Scale: Buy, ...").
 _RATING_SCALE_RE = re.compile(r"rating\s*(scale|options|legend)", re.IGNORECASE)
 
-# Standalone 5-tier word anywhere (word boundaries so "Buyer"/"Holding" don't match).
-_RATING_WORD_RE = re.compile(
-    r"\b(" + "|".join(RATINGS_5_TIER) + r")\b", re.IGNORECASE
-)
-
-
 def extract_rating(text: str) -> str | None:
-    """Extract a 5-tier rating from prose, or ``None`` if none is present.
+    """Extract a 5-tier rating from its label, or ``None`` if there is none.
 
-    Two-pass strategy on the NFKC-normalized text (so fullwidth punctuation like
-    ``Rating：Overweight`` is matched the same as ASCII):
-    1. An explicit "Rating: X" label (tolerant of markdown bold).
-    2. The first standalone 5-tier rating word found anywhere.
+    Reads an explicit "Rating: X" label (tolerant of markdown bold) in the
+    NFKC-normalized text, so fullwidth punctuation like ``Rating：Overweight``
+    matches as ASCII does: the decision's opening rating line, else its own
+    rating lines or, failing those, every label, when they agree.
     """
     if not text:
         return None
     norm = unicodedata.normalize("NFKC", text)
 
-    # The labelled rating, taking the last one written: a decision states its
-    # rating after discussing the alternatives. Lines presenting the scale
-    # itself are a legend the model echoed, not a call.
-    labelled = None
-    for line in norm.splitlines():
-        if _RATING_SCALE_RE.search(line):
-            continue
-        m = _RATING_LABEL_RE.search(line)
-        if m and m.group(1).lower() in _RATING_SET:
-            labelled = m.group(1).capitalize()
-    if labelled:
-        return labelled
+    # The decision is asked to open with its rating, so a first line (after any
+    # headings) in that shape is the call. A list item there may also be a quote
+    # heading a list of other parties' ratings, so it counts with the decision's
+    # other rating lines, which leave out list items; failing those, every label
+    # counts. Either way they must agree: ratings that differ, with nothing
+    # marking which one is the call, are no call (#1170). Lines presenting the
+    # scale itself are a legend the model echoed, not a call.
+    lines = [line for line in norm.splitlines() if line.strip() and not _RATING_SCALE_RE.search(line)]
+    first = next((line for line in lines if not line.lstrip().startswith("#")
+                  or _RATING_LINE_RE.match(line)), "")
+    m = _RATING_LINE_RE.match(first)
+    opening = m if m and m.group("value").lower() in _RATING_SET else None
+    if opening and not opening.group("item"):
+        return opening.group("value").capitalize()
 
-    # No label. A single rating word in the text is the call; several are an
-    # argument, and picking one of them reports a direction nobody decided --
-    # prose that rejects a Buy before concluding Underweight read as Buy.
-    named = {m.group(1).capitalize() for m in _RATING_WORD_RE.finditer(norm)}
-    return named.pop() if len(named) == 1 else None
+    own = [opening.group("value").capitalize()] if opening else []
+    labels = []
+    for line in lines:
+        m = _RATING_LINE_RE.match(line)
+        if m and not m.group("item") and m.group("value").lower() in _RATING_SET:
+            own.append(m.group("value").capitalize())
+        labels += [v.capitalize() for v in _RATING_LABEL_RE.findall(line) if v.lower() in _RATING_SET]
+    # Without a label there is no call to read: a rating word in the prose may be
+    # one the text argues against ("not a Sell"), and reading it reports a
+    # direction nobody decided.
+    found = own or labels
+    return found[0] if found and len(set(found)) == 1 else None
 
 
 def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
@@ -86,6 +101,15 @@ def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
     """
     rating = extract_rating(text)
     return rating if rating is not None else default
+
+
+def run_rating(final_state: dict) -> str:
+    """A finished run's rating: the Portfolio Manager's own, else read from its decision.
+
+    The fallback serves a state without ``final_rating``, such as a run an older
+    version completed and a checkpoint hands back unchanged.
+    """
+    return final_state.get("final_rating") or parse_rating(final_state.get("final_trade_decision", ""))
 
 
 def is_review(signal: str) -> bool:

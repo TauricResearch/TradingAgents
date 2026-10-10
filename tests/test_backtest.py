@@ -1,4 +1,4 @@
-"""Backtesting: many single-shot decisions, scored by the decision log.
+"""Backtesting: many single-shot decisions, scored by the memory log.
 
 A run already records its rating and later settles it with realized and alpha
 return against the regional benchmark. A backtest is that machinery over a grid
@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from tradingagents.backtest import iter_grid, run_backtest, summarize
-from tradingagents.decision_log import TradingMemoryLog
+from tradingagents.memory import TradingMemoryLog
 
 DECISION = "Rating: Buy\n\nbuy it"
 
@@ -76,7 +76,7 @@ def _config(tmp_path):
 
 
 @pytest.mark.unit
-def test_the_live_decision_log_is_never_written(tmp_path):
+def test_the_live_memory_log_is_never_written(tmp_path):
     config = _config(tmp_path)
     result = run_backtest(["NVDA"], ["2026-01-05", "2026-01-12"], config)
 
@@ -274,3 +274,33 @@ def test_a_result_whose_cells_all_failed_summarizes_as_empty(tmp_path):
     result = BacktestResult(run_id="r", log_path=tmp_path / "never-written.md")
 
     assert summarize(result).resolved == 0
+
+
+@pytest.mark.unit
+def test_progress_is_reported_before_each_cell(tmp_path):
+    seen = []
+
+    run_backtest(["NVDA", "AAPL"], ["2026-01-05", "2026-01-12"], _config(tmp_path),
+                 progress=lambda done, total, ticker, date: seen.append((done, total, ticker, date)))
+
+    assert seen == [(1, 4, "NVDA", "2026-01-05"), (2, 4, "NVDA", "2026-01-12"),
+                    (3, 4, "AAPL", "2026-01-05"), (4, 4, "AAPL", "2026-01-12")]
+
+
+@pytest.mark.unit
+def test_a_resumed_sweep_reports_only_the_cells_it_runs(tmp_path):
+    first = run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path))
+    seen = []
+
+    run_backtest(["NVDA"], ["2026-01-05", "2026-01-12"], _config(tmp_path), run_id=first.run_id,
+                 progress=lambda done, total, ticker, date: seen.append((done, total, date)))
+
+    assert seen == [(1, 1, "2026-01-12")]
+
+
+@pytest.mark.unit
+def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
+    run_backtest(["NVDA", "NVDA"], ["2026-01-05", "2026-01-05"], _config(tmp_path))
+    graph = _FakeGraph.instances[-1]
+    assert graph.calls == [("NVDA", "2026-01-05")]
+    assert graph.settled == ["NVDA"]

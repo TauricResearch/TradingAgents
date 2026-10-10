@@ -9,10 +9,8 @@ import pytest
 
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.factory import create_llm_client
+from tradingagents.llm_clients.openai_client import LocalCompatibleChatOpenAI, OpenAIClient
 from tradingagents.llm_clients.validators import validate_model
-
-# Note: assert by class NAME, not isinstance — other tests reload the
-# openai_client module, which would otherwise create a second class identity.
 
 
 @pytest.mark.unit
@@ -20,7 +18,7 @@ def test_factory_routes_to_openai_client():
     client = create_llm_client(
         provider="openai_compatible", model="my-model", base_url="http://localhost:8000/v1"
     )
-    assert type(client).__name__ == "OpenAIClient"
+    assert isinstance(client, OpenAIClient)
 
 
 @pytest.mark.unit
@@ -36,7 +34,7 @@ def test_keyless_local_uses_placeholder_and_chat_completions(monkeypatch):
     llm = create_llm_client(
         provider="openai_compatible", model="qwen2.5", base_url="http://localhost:8000/v1"
     ).get_llm()
-    assert type(llm).__name__ == "LocalCompatibleChatOpenAI"
+    assert isinstance(llm, LocalCompatibleChatOpenAI)
     assert str(llm.openai_api_base) == "http://localhost:8000/v1"
     # keyless local servers: a placeholder key is sent
     key = llm.openai_api_key.get_secret_value() if hasattr(llm.openai_api_key, "get_secret_value") else llm.openai_api_key

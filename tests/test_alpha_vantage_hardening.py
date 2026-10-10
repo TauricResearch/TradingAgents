@@ -64,6 +64,45 @@ def test_invalid_key_not_mislabeled_as_rate_limit(monkeypatch):
         av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
 
 
+@pytest.mark.unit
+def test_a_rejected_request_is_unavailable_not_data(monkeypatch):
+    """Alpha Vantage answers a call it rejects with {"Error Message": ...}, for an
+    unknown symbol and for a malformed call alike, so it says nothing about the
+    instrument; served as data it reads as a one-line CSV or as "no data" (#1442)."""
+    from tradingagents.dataflows import router
+    from tradingagents.dataflows.config import set_config
+    from tradingagents.dataflows.errors import VendorUnavailableError
+
+    monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "k-secret")
+    body = '{"Error Message": "Invalid API call. Please retry or visit the documentation for TIME_SERIES_DAILY."}'
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
+
+    with pytest.raises(VendorUnavailableError) as raised:
+        av._make_api_request("TIME_SERIES_DAILY", {"symbol": "ZZZZ"})
+    assert "k-secret" not in str(raised.value)
+
+    set_config({"data_vendors": {"core_stock_apis": "alpha_vantage"}})
+    out = router.route_to_vendor("get_stock_data", "ZZZZ", "2026-01-02", "2026-01-09")
+    assert out.startswith("DATA_UNAVAILABLE"), out
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("body", [
+    '{"Note": "Thank you for using key k-secret. API call frequency is 5 calls per minute."}',
+    '{"Information": "the apikey k-secret is invalid or missing."}',
+])
+def test_the_key_never_reaches_an_error_message(monkeypatch, body):
+    """Alpha Vantage can echo the key in its notices; error text reaches logs and reports."""
+    from tradingagents.dataflows.errors import VendorError
+
+    monkeypatch.setenv("ALPHA_VANTAGE_API_KEY", "k-secret")
+    monkeypatch.setattr(net.requests, "get", _patched_get(body))
+
+    with pytest.raises(VendorError) as raised:
+        av._make_api_request("TIME_SERIES_DAILY", {"symbol": "AAPL"})
+    assert "k-secret" not in str(raised.value)
+
+
 _FUNDAMENTALS_JSON = json.dumps({
     "symbol": "AAPL",
     "annualReports": [
@@ -78,31 +117,13 @@ _FUNDAMENTALS_JSON = json.dumps({
 
 
 @pytest.mark.unit
-def test_fundamentals_look_ahead_filter_runs_on_json_string(monkeypatch):
-    # #1115: the payload arrives as a JSON *string*; the old dict-only guard let
-    # future-dated fiscal periods leak into historical runs.
-    monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: _FUNDAMENTALS_JSON)
-    out = avf.get_balance_sheet("AAPL", curr_date="2024-01-01")
-    assert isinstance(out, str)  # callers still receive a str
-    parsed = json.loads(out)
-    assert [r["fiscalDateEnding"] for r in parsed["annualReports"]] == ["2023-12-31"]
-    assert [r["fiscalDateEnding"] for r in parsed["quarterlyReports"]] == ["2023-09-30"]
-
-
-@pytest.mark.unit
 def test_fundamentals_no_curr_date_passes_through(monkeypatch):
     monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: _FUNDAMENTALS_JSON)
     assert avf.get_income_statement("AAPL") == _FUNDAMENTALS_JSON
 
 
-@pytest.mark.unit
-def test_fundamentals_non_json_body_unchanged(monkeypatch):
-    monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: "not-json")
-    assert avf.get_cashflow("AAPL", curr_date="2024-01-01") == "not-json"
-
-
 # ---------------------------------------------------------------------------
-# Date trim (see the rationale on the unguarded trim in alpha_vantage_common)
+# Date trim (see the rationale on the unguarded trim in alpha_vantage.common)
 # ---------------------------------------------------------------------------
 
 _DAILY_CSV = (

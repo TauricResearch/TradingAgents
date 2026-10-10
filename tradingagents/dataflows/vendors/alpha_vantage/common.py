@@ -5,7 +5,7 @@ from io import StringIO
 
 import pandas as pd
 
-from tradingagents.dataflows.errors import VendorNotConfiguredError, VendorRateLimitError
+from tradingagents.dataflows.errors import VendorNotConfiguredError, VendorUnavailableError
 from tradingagents.dataflows.net import get_scrubbed
 
 API_BASE_URL = "https://www.alphavantage.co/query"
@@ -62,7 +62,7 @@ def format_datetime_for_api(date_input, end_of_day: bool = False) -> str:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
 
-class AlphaVantageRateLimitError(VendorRateLimitError):
+class AlphaVantageRateLimitError(VendorUnavailableError):
     """Raised when the Alpha Vantage API rate limit is exceeded."""
     pass
 
@@ -109,8 +109,13 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
     # genuine rate limit and an invalid/missing key aren't conflated (#991):
     # rate-limit phrasing is checked first because those notices also mention
     # "API key" ("your API key ... 25 requests per day").
+    def scrubbed(text: str) -> str:
+        # Alpha Vantage can echo the key in its notices; error text reaches logs.
+        return text.replace(api_key, "***") if api_key else text
+
     notice = response_json.get("Information") or response_json.get("Note")
     if notice:
+        notice = scrubbed(notice)
         low = notice.lower()
         if any(m in low for m in ("rate limit", "requests per day", "call frequency", "premium")):
             raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {notice}")
@@ -118,6 +123,13 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
             # Reuse the existing "not configured" error so a bad key surfaces as
             # a real, actionable failure rather than a mislabeled rate limit (#991).
             raise AlphaVantageNotConfiguredError(f"Alpha Vantage API key invalid or missing: {notice}")
+
+    # A call it rejects comes back as {"Error Message": ...}, for an unknown
+    # symbol and for a malformed call alike, so it says nothing about the
+    # instrument (#1442).
+    rejection = response_json.get("Error Message")
+    if rejection:
+        raise VendorUnavailableError(f"Alpha Vantage rejected the request: {scrubbed(rejection)}")
 
     return response_text
 

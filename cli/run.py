@@ -1,8 +1,9 @@
 """Running one analysis from the CLI: build the graph, stream it into the live view, save the report."""
 
-import datetime
 import os
+import sys
 import time
+import webbrowser
 from functools import wraps
 from pathlib import Path
 
@@ -21,16 +22,15 @@ from cli.display import (
     update_display,
     update_research_team_status,
 )
-from cli.selections import get_user_selections
+from cli.selections import depth_from_env, get_user_selections, unattended_gaps
 from cli.stats_handler import StatsCallbackHandler
-from tradingagents.agents.rating import is_review
+from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.reporting import write_report_tree
 
 
 def _run_directory(config: dict, ticker: str, trade_date: str) -> Path:
@@ -66,17 +66,19 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     # Research depth sets both round counts, but an explicit env override
     # (TRADINGAGENTS_MAX_DEBATE_ROUNDS / _MAX_RISK_ROUNDS) wins over the
     # interactive selection — leave the env-applied value in place (#977).
-    for env_var, key in (("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "max_debate_rounds"),
-                         ("TRADINGAGENTS_MAX_RISK_ROUNDS", "max_risk_discuss_rounds")):
-        if os.environ.get(env_var):
-            # The depth prompt still appeared (it is skipped only when both are
+    rounds = (("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "max_debate_rounds"),
+              ("TRADINGAGENTS_MAX_RISK_ROUNDS", "max_risk_discuss_rounds"))
+    depth_was_asked = not depth_from_env()
+    for env_var, key in rounds:
+        if not os.environ.get(env_var):
+            config[key] = selections["research_depth"]
+        elif depth_was_asked:
+            # The depth question appeared (it is skipped only when both are
             # set), so say which half of the answer the environment overrode.
             console.print(
                 f"[green]✓ {key} from environment:[/green] {config[key]} "
                 f"(set by {env_var}, so the research depth you chose does not apply to it)"
             )
-        else:
-            config[key] = selections["research_depth"]
     config["quick_think_llm"] = selections["quick_think_llm"]
     config["deep_think_llm"] = selections["deep_think_llm"]
     config["backend_url"] = selections["backend_url"]
@@ -93,9 +95,19 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None, portfolio=None):
-    # First get all user selections
-    selections = get_user_selections()
+def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
+    flags = flags or {}
+    # With no terminal nothing can answer a prompt: name every question still
+    # open before any model is called, rather than stopping at the first one.
+    if not (sys.stdin and sys.stdin.isatty()):
+        gaps = unattended_gaps(flags)
+        if gaps:
+            console.print("[red]No terminal to answer the setup questions. Set:[/red]")
+            for gap in gaps:
+                console.print(f"  {gap}")
+            raise typer.Exit(code=1)
+
+    selections = get_user_selections(flags)
 
     config = _build_run_config(selections, checkpoint)
 
@@ -189,9 +201,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        first_analyst = analyst_execution_plan.specs[0].agent_node
-        message_buffer.update_agent_status(first_analyst, "in_progress")
-        analyst_wall_time_tracker.mark_started(selected_analyst_keys[0])
+        # The analysts start together.
+        for spec in analyst_execution_plan.specs:
+            message_buffer.update_agent_status(spec.agent_node, "in_progress")
+            analyst_wall_time_tracker.mark_started(spec.key)
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         spinner_text = (
@@ -199,8 +212,9 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # The same initial state propagate() builds: settled decision log, past
-        # context and resolved instrument identity.
+        # The same initial state propagate() builds, with the resolved
+        # instrument identity; the graph's Memory Log step settles past
+        # decisions and loads their lessons alongside the analysts.
         init_agent_state = graph.create_run_state(
             selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
         )
@@ -223,8 +237,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
         # try/finally tears the checkpointer down even if the stream raises.
         trace = []
         try:
-            for chunk in graph.graph.stream(graph.checkpoint_input(init_agent_state), **args):
-                for message in chunk.get("messages", []):
+            for messages, chunk in graph.stream_run(graph.checkpoint_input(init_agent_state), **args):
+                for message in messages:
                     msg_id = getattr(message, "id", None)
                     if msg_id is not None:
                         if msg_id in message_buffer._processed_message_ids:
@@ -242,6 +256,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
                             else:
                                 message_buffer.add_tool_call(tool_call.name, tool_call.args)
 
+                if chunk is None:   # a step inside an analyst's graph: messages only
+                    update_display(layout, stats_handler=stats_handler, start_time=start_time)
+                    continue
+
                 update_analyst_statuses(
                     message_buffer,
                     chunk,
@@ -253,7 +271,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None):
                     debate_state = chunk["investment_debate_state"]
                     bull_hist = debate_state.get("bull_history", "").strip()
                     bear_hist = debate_state.get("bear_history", "").strip()
-                    judge = debate_state.get("judge_decision", "").strip()
+                    judge = (chunk.get("investment_plan") or "").strip()
 
                     # Only update status when there's actual content
                     if bull_hist or bear_hist:
