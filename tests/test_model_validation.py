@@ -76,6 +76,19 @@ def test_an_explicit_alias_of_a_listed_model_is_known():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("provider, model", [
+    ("openai", "GPT-5.6-SOL"),
+    ("google", "Gemini-3.8-Flash"),
+    ("anthropic", "Claude-Sonnet-5"),
+    ("minimax", "MiniMax-M3"),
+])
+def test_case_insensitive_model_names_are_valid(provider, model):
+    """User-picked IDs often arrive with the provider's canonical case; they
+    must resolve to the same known model without false warnings."""
+    assert validate_model(provider, model)
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("provider", ["openai", "anthropic", "google", "xai"])
 @pytest.mark.parametrize("mode", ["quick", "deep"])
 def test_every_provider_lets_you_name_your_own_model(provider, mode):

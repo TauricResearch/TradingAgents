@@ -10,8 +10,14 @@ _ANY_MODEL_PROVIDERS = (
     "mistral", "kimi", "groq", "nvidia", "bedrock",
 )
 
+
+def _normalize_model_name(model: str) -> str:
+    """Canonicalize model IDs for case-insensitive validation."""
+    return str(model).strip().lower()
+
+
 VALID_MODELS = {
-    provider: models
+    provider: {_normalize_model_name(model) for model in models}
     for provider, models in get_known_models().items()
     if provider not in _ANY_MODEL_PROVIDERS
 }
@@ -30,4 +36,4 @@ def validate_model(provider: str, model: str) -> bool:
     if provider_lower not in VALID_MODELS:
         return True
 
-    return model in VALID_MODELS[provider_lower]
+    return _normalize_model_name(model) in VALID_MODELS[provider_lower]
