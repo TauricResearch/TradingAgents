@@ -19,6 +19,7 @@ from pathlib import Path
 
 from langchain_core.callbacks import BaseCallbackHandler
 
+from api import share
 from api.db import (
     DB_PATH,
     defer_due_google_pending_requests,
@@ -406,6 +407,15 @@ def _run_analysis(
         llm_provider, requested_deep_model, requested_quick_model
     )
 
+    shared = share.find_existing(ticker, analysis_date, deep_model, quick_model)
+    if shared:
+        recommendation = str(shared["recommendation"])
+        print(
+            f"[Analysis] skipped request_id={req_id}: shared result found for "
+            f"{ticker} {analysis_date} deep={deep_model} quick={quick_model}"
+        )
+        return recommendation, "", {}, provider, deep_model, quick_model, 0.0, {}
+
     config = DEFAULT_CONFIG.copy()
     config["llm_provider"] = provider
     config["backend_url"] = backend_url
@@ -539,6 +549,8 @@ def _run_analysis(
                 ]
             )
         )
+
+    share.publish(ticker, analysis_date, provider, deep_model, quick_model, recommendation)
 
     return recommendation, filename, stats, provider, deep_model, quick_model, estimated_cost_usd, agent_recommendations
 
