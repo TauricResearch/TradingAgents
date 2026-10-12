@@ -23,6 +23,7 @@ services:
       - QUICK_THINK_MODEL=qwen3.5:2b
       - TRADINGAGENTS_API_DB_PATH=/data/db/tradingagents_api.db
       - API_DEBUG_MODE=true
+      - SHARE_RESULTS_DIR=/data/share_results
     ports:
       - "9000:9000"
     volumes:
