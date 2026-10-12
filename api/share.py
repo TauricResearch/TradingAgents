@@ -13,6 +13,7 @@ swallowed so sharing never breaks an analysis run.
 from __future__ import annotations
 
 import atexit
+import base64
 import datetime
 import json
 import os
@@ -64,8 +65,14 @@ def _log(msg: str) -> None:
 
 
 def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
+    # Identity and credentials are passed per command so nothing is written to .git/config.
+    prefix = ["-c", "user.name=TradingAgents", "-c", "user.email=tradingagents@users.noreply.github.com"]
+    token = _env("SHARE_RESULTS_TOKEN", "")
+    if token:
+        basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+        prefix += ["-c", f"http.https://github.com/.extraheader=AUTHORIZATION: basic {basic}"]
     return subprocess.run(
-        ["git", *args], cwd=_clone_dir(), capture_output=True, text=True, check=check, timeout=120
+        ["git", *prefix, *args], cwd=_clone_dir(), capture_output=True, text=True, check=check, timeout=120
     )
 
 

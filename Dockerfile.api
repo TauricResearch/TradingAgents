@@ -38,7 +38,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN useradd --create-home appuser && \
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    useradd --create-home appuser && \
     mkdir -p /data/analysis /data/cache /data/logs /data/memory /data/db && \
     chown -R appuser:appuser /data
 
