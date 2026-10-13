@@ -12,8 +12,9 @@ import requests
 
 import tradingagents.dataflows.config as config_module
 import tradingagents.default_config as default_config
-from tradingagents.dataflows import interface, polymarket
+from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.vendors import polymarket
 
 
 def _market(question, prob, *, volume, end_date, closed=False, wk=None):
@@ -112,16 +113,16 @@ class PolymarketRoutingTests(unittest.TestCase):
 
     def test_category_routes_to_polymarket(self):
         self.assertEqual(
-            interface.get_category_for_method("get_prediction_markets"),
+            router.get_category_for_method("get_prediction_markets"),
             "prediction_markets",
         )
         set_config({"data_vendors": {"prediction_markets": "polymarket"}})
         with mock.patch.dict(
-            interface.VENDOR_METHODS,
+            router.VENDOR_METHODS,
             {"get_prediction_markets": {"polymarket": lambda *a, **k: "POLY_OK"}},
             clear=False,
         ):
-            out = interface.route_to_vendor("get_prediction_markets", "fed", 5)
+            out = router.route_to_vendor("get_prediction_markets", "fed", 5)
         self.assertEqual(out, "POLY_OK")
 
 
