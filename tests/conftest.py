@@ -58,27 +58,33 @@ def pytest_configure(config):
 
 @pytest.fixture(autouse=True)
 def _no_network(request, monkeypatch):
-    """Tests do not reach the network; one that must is marked integration."""
-    if request.node.get_closest_marker("integration"):
+    """Tests do not reach the network; one that must is marked integration or smoke."""
+    if request.node.get_closest_marker("integration") or request.node.get_closest_marker("smoke"):
         return
 
     orig_connect = socket.socket.connect
     orig_connect_ex = socket.socket.connect_ex
+    orig_getaddrinfo = socket.getaddrinfo
 
     def refuse(sock, *args, **kwargs):
         # Allow loopback connections used by Windows asyncio ProactorEventLoop self-pipe
-        if args and isinstance(args[0], tuple) and args[0][0] in ("127.0.0.1", "::1"):
+        if args and isinstance(args[0], tuple) and args[0][0] in ("127.0.0.1", "::1", "localhost"):
             return orig_connect(sock, *args, **kwargs)
         raise OSError(f"test tried to reach the network: {args[1:] or kwargs}")
 
     def refuse_ex(sock, *args, **kwargs):
-        if args and isinstance(args[0], tuple) and args[0][0] in ("127.0.0.1", "::1"):
+        if args and isinstance(args[0], tuple) and args[0][0] in ("127.0.0.1", "::1", "localhost"):
             return orig_connect_ex(sock, *args, **kwargs)
         raise OSError(f"test tried to reach the network: {args[1:] or kwargs}")
 
+    def refuse_getaddrinfo(*args, **kwargs):
+        if args and args[0] in ("127.0.0.1", "::1", "localhost"):
+            return orig_getaddrinfo(*args, **kwargs)
+        raise OSError(f"test tried to reach the network: {args or kwargs}")
+
     monkeypatch.setattr(socket.socket, "connect", refuse)
     monkeypatch.setattr(socket.socket, "connect_ex", refuse_ex)
-    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: refuse(None, *a))
+    monkeypatch.setattr(socket, "getaddrinfo", refuse_getaddrinfo)
     # yfinance's HTTP client is libcurl, which never touches Python's sockets.
     from curl_cffi import requests as curl_requests
 

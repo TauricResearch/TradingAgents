@@ -180,7 +180,7 @@ def publish(
         "deep_think_llm": deep_model,
         "quick_think_llm": quick_model,
         "recommendation": recommendation,
-        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
     }
     try:
         with _lock:
