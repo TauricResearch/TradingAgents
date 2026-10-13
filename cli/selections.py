@@ -312,9 +312,11 @@ def _prompt_selections(prefs, flags):
     # provider itself came from env) the prompt is skipped and the configured
     # value is used — same env-precedence rule as the steps above. None = each
     # provider's own default.
-    thinking_level = None
-    reasoning_effort = None
-    anthropic_effort = None
+    # A tier on another provider still needs its configured thinking setting,
+    # even though this step only prompts for the main provider.
+    thinking_level = DEFAULT_CONFIG["google_thinking_level"]
+    reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
+    anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
 
     provider_lower = selected_llm_provider.lower()
     if provider_from_env:

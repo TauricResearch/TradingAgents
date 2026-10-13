@@ -6,6 +6,8 @@ another provider gets that provider's own settings and endpoint, never the main
 provider's URL, and the run's settings and report say which provider each used.
 """
 
+from unittest.mock import Mock
+
 import pytest
 
 from tradingagents import default_config
@@ -88,3 +90,76 @@ def test_the_tier_settings_are_read_from_the_environment(monkeypatch):
     assert config["deep_think_provider"] == "anthropic"
     assert config["quick_think_backend_url"] == "http://localhost:8000/v1"
     assert config["quick_think_provider"] is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("tier", ["quick", "deep"])
+@pytest.mark.parametrize("provider_from_env", [False, True], ids=["provider-menu", "provider-env"])
+@pytest.mark.parametrize(
+    "main_provider,other_provider,env_var,config_key,client_key,value",
+    [
+        ("openai", "google", "TRADINGAGENTS_GOOGLE_THINKING_LEVEL", "google_thinking_level", "thinking_level", "high"),
+        ("openai", "anthropic", "TRADINGAGENTS_ANTHROPIC_EFFORT", "anthropic_effort", "effort", "low"),
+        ("google", "openai", "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort", "reasoning_effort", "low"),
+    ],
+)
+def test_cli_preserves_other_tiers_thinking_settings(
+    monkeypatch, tier, provider_from_env, main_provider, other_provider,
+    env_var, config_key, client_key, value,
+):
+    """A menu-selected main provider must not clear the other tier's env setting."""
+    import cli.run as cli_run
+    import cli.selections as cli_selections
+
+    for variable in default_config._ENV_OVERRIDES:
+        monkeypatch.delenv(variable, raising=False)
+    env = {
+        "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
+        "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "1",
+        "TRADINGAGENTS_MAX_RISK_ROUNDS": "1",
+        "TRADINGAGENTS_QUICK_THINK_LLM": "main-model",
+        "TRADINGAGENTS_DEEP_THINK_LLM": "main-model",
+        f"TRADINGAGENTS_{tier.upper()}_THINK_PROVIDER": other_provider,
+        f"TRADINGAGENTS_{tier.upper()}_THINK_LLM": "tier-model",
+        env_var: value,
+    }
+    if provider_from_env:
+        env["TRADINGAGENTS_LLM_PROVIDER"] = main_provider
+    for variable, setting in env.items():
+        monkeypatch.setenv(variable, setting)
+    defaults = default_config.build_default_config()
+    monkeypatch.setattr(cli_selections, "DEFAULT_CONFIG", defaults)
+    monkeypatch.setattr(cli_run, "DEFAULT_CONFIG", defaults)
+    monkeypatch.setattr(cli_selections, "fetch_announcements", lambda: [])
+    monkeypatch.setattr(cli_selections, "display_announcements", lambda *a: None)
+    monkeypatch.setattr(cli_selections, "ensure_api_key", lambda provider: None)
+    monkeypatch.setattr(cli_selections.console, "print", lambda *a, **k: None)
+    provider_prompt = Mock(return_value=(main_provider, None))
+    monkeypatch.setattr(cli_selections, "select_llm_provider", provider_prompt)
+    openai_prompt = Mock(return_value="medium")
+    google_prompt = Mock(return_value="minimal")
+    monkeypatch.setattr(cli_selections, "ask_openai_reasoning_effort", openai_prompt)
+    monkeypatch.setattr(cli_selections, "ask_gemini_thinking_config", google_prompt)
+
+    selections = cli_selections.get_user_selections({
+        "ticker": "NVDA", "date": "2026-09-01", "analysts": "market",
+    })
+    config = cli_run._build_run_config(selections, checkpoint=None)
+    made = _captured(monkeypatch)
+    factory.create_tier_client(config, tier)
+
+    assert made[0][:2] == (other_provider, "tier-model")
+    assert made[0][3].get(client_key) == value
+    main_key, main_value, main_prompt = (
+        ("openai_reasoning_effort", "medium", openai_prompt) if main_provider == "openai"
+        else ("google_thinking_level", "minimal", google_prompt)
+    )
+    assert config[config_key] == value
+    if provider_from_env:
+        provider_prompt.assert_not_called()
+        main_prompt.assert_not_called()
+        assert config[main_key] is None
+    else:
+        provider_prompt.assert_called_once()
+        main_prompt.assert_called_once()
+        assert config[main_key] == main_value
