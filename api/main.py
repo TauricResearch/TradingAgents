@@ -94,13 +94,13 @@ _SCHEDULER_POLL_SECONDS = 30
 
 
 def _utc_now() -> datetime.datetime:
-    return datetime.datetime.now(datetime.timezone.utc)
+    return datetime.datetime.now(datetime.UTC)
 
 
 def _next_midnight_utc_iso(now: datetime.datetime | None = None) -> str:
     current = now or _utc_now()
     next_day = (current + datetime.timedelta(days=1)).date()
-    return datetime.datetime.combine(next_day, datetime.time.min, tzinfo=datetime.timezone.utc).isoformat()
+    return datetime.datetime.combine(next_day, datetime.time.min, tzinfo=datetime.UTC).isoformat()
 
 
 def _next_run_utc_iso(frequency: str, from_time: datetime.datetime | None = None) -> str:
@@ -570,7 +570,7 @@ async def submit_analysis(body: AnalyzeRequest, request: Request):
         analysis_date=analysis_date,
         llm_provider=llm_provider,
         status="pending",
-        submitted_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        submitted_at=datetime.datetime.now(datetime.UTC).isoformat(),
     )
 
 
@@ -814,7 +814,7 @@ async def cancel_open_request(request_id: str):
     return CancelResponse(
         request_id=request_id,
         status="canceled",
-        canceled_at=updated["completed_at"] if updated and updated.get("completed_at") else datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        canceled_at=updated["completed_at"] if updated and updated.get("completed_at") else datetime.datetime.now(datetime.UTC).isoformat(),
     )
 
 
@@ -824,7 +824,7 @@ async def cancel_all_open_requests_endpoint():
     count = await cancel_all_open_requests(db_path=DB_PATH)
     return CancelAllResponse(
         canceled_count=count,
-        canceled_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        canceled_at=datetime.datetime.now(datetime.UTC).isoformat(),
     )
 
 
@@ -981,7 +981,7 @@ async def latest_recommendation_for_ticker(ticker: str, provider: str | None = N
 async def get_today_llm_calls_by_provider():
     """Return today's LLM calls grouped by provider (UTC day), including in-flight requests."""
     now = _utc_now()
-    start = datetime.datetime.combine(now.date(), datetime.time.min, tzinfo=datetime.timezone.utc)
+    start = datetime.datetime.combine(now.date(), datetime.time.min, tzinfo=datetime.UTC)
     end = start + datetime.timedelta(days=1)
     # Completed requests from DB
     db_items = await get_llm_calls_by_provider_between(

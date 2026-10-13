@@ -4,7 +4,6 @@ Temperature is a cross-provider knob: when set it must reach the underlying
 chat client; when unset the provider keeps its own default.
 """
 
-import importlib
 
 import pytest
 
@@ -45,30 +44,24 @@ class TestTemperatureEnvOverlay:
     def test_env_sets_temperature(self, monkeypatch):
         import tradingagents.default_config as dc
         monkeypatch.setenv("TRADINGAGENTS_TEMPERATURE", "0.2")
-        importlib.reload(dc)
+        config = dc.build_default_config()
         # Stored on config (string from env is fine; consumed via float()).
-        assert dc.DEFAULT_CONFIG["temperature"] in ("0.2", 0.2)
-        assert float(dc.DEFAULT_CONFIG["temperature"]) == 0.2
-        monkeypatch.delenv("TRADINGAGENTS_TEMPERATURE", raising=False)
-        importlib.reload(dc)
+        assert config["temperature"] in ("0.2", 0.2)
+        assert float(config["temperature"]) == 0.2
 
     def test_default_temperature_is_none(self, monkeypatch):
         import tradingagents.default_config as dc
         monkeypatch.delenv("TRADINGAGENTS_TEMPERATURE", raising=False)
-        importlib.reload(dc)
-        assert dc.DEFAULT_CONFIG["temperature"] is None
+        assert dc.build_default_config()["temperature"] is None
 
 
 @pytest.mark.unit
 class TestProviderKwargsTemperature:
-    """_get_provider_kwargs float-coerces and forwards temperature, or omits it."""
+    """build_llm_kwargs float-coerces and forwards temperature, or omits it."""
 
     def _kwargs_for(self, temperature):
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
-        # Call the method without constructing the full graph.
-        graph = TradingAgentsGraph.__new__(TradingAgentsGraph)
-        graph.config = {"llm_provider": "openai", "temperature": temperature}
-        return TradingAgentsGraph._get_provider_kwargs(graph)
+        from tradingagents.llm_clients import build_llm_kwargs
+        return build_llm_kwargs({"llm_provider": "openai", "temperature": temperature})
 
     def test_float_string_coerced(self):
         assert self._kwargs_for("0.3")["temperature"] == 0.3

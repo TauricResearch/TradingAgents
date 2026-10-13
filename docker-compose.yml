@@ -4,7 +4,7 @@ services:
     env_file:
       - .env
     volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
     tty: true
     stdin_open: true
 
@@ -23,6 +23,7 @@ services:
       - QUICK_THINK_MODEL=qwen3.5:2b
       - TRADINGAGENTS_API_DB_PATH=/data/db/tradingagents_api.db
       - API_DEBUG_MODE=true
+      - SHARE_RESULTS_DIR=/data/share_results
     ports:
       - "9000:9000"
     volumes:
@@ -53,7 +54,7 @@ services:
       - TRADINGAGENTS_LLM_PROVIDER=ollama
       - OLLAMA_BASE_URL=http://ollama:11434/v1
     volumes:
-      - tradingagents_data:/home/appuser/.tradingagents
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
     depends_on:
       - ollama
     tty: true

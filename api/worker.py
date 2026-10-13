@@ -19,6 +19,7 @@ from pathlib import Path
 
 from langchain_core.callbacks import BaseCallbackHandler
 
+from api import share
 from api.db import (
     DB_PATH,
     defer_due_google_pending_requests,
@@ -117,7 +118,7 @@ SUPPORTED_PROVIDERS = {
 def _append_request_log(req_id: str, message: str) -> None:
     Path(ANALYSIS_DIR).mkdir(parents=True, exist_ok=True)
     log_path = Path(ANALYSIS_DIR) / f"{req_id}.live.log"
-    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    timestamp = datetime.datetime.now(datetime.UTC).isoformat()
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] {message}\n")
 
@@ -132,7 +133,7 @@ class _TimestampedTextStream:
         self._buffer += data
         while "\n" in self._buffer:
             line, self._buffer = self._buffer.split("\n", 1)
-            timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            timestamp = datetime.datetime.now(datetime.UTC).isoformat()
             with self._lock:
                 self._stream.write(f"[{timestamp}] {line}\n")
                 self._stream.flush()
@@ -140,7 +141,7 @@ class _TimestampedTextStream:
 
     def flush(self) -> None:
         if self._buffer:
-            timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            timestamp = datetime.datetime.now(datetime.UTC).isoformat()
             with self._lock:
                 self._stream.write(f"[{timestamp}] {self._buffer}")
                 self._stream.flush()
@@ -254,14 +255,14 @@ def _google_daily_call_limit() -> int:
 
 
 def _next_midnight_utc_iso(now: datetime.datetime | None = None) -> str:
-    current = now or datetime.datetime.now(datetime.timezone.utc)
+    current = now or datetime.datetime.now(datetime.UTC)
     next_day = (current + datetime.timedelta(days=1)).date()
-    return datetime.datetime.combine(next_day, datetime.time.min, tzinfo=datetime.timezone.utc).isoformat()
+    return datetime.datetime.combine(next_day, datetime.time.min, tzinfo=datetime.UTC).isoformat()
 
 
 def _in_one_day_window_iso(now: datetime.datetime | None = None) -> tuple[str, str]:
-    current = now or datetime.datetime.now(datetime.timezone.utc)
-    start = datetime.datetime.combine(current.date(), datetime.time.min, tzinfo=datetime.timezone.utc)
+    current = now or datetime.datetime.now(datetime.UTC)
+    start = datetime.datetime.combine(current.date(), datetime.time.min, tzinfo=datetime.UTC)
     end = start + datetime.timedelta(days=1)
     return start.isoformat(), end.isoformat()
 
@@ -406,6 +407,15 @@ def _run_analysis(
         llm_provider, requested_deep_model, requested_quick_model
     )
 
+    shared = share.find_existing(ticker, analysis_date, deep_model, quick_model)
+    if shared:
+        recommendation = str(shared["recommendation"])
+        print(
+            f"[Analysis] skipped request_id={req_id}: shared result found for "
+            f"{ticker} {analysis_date} deep={deep_model} quick={quick_model}"
+        )
+        return recommendation, "", {}, provider, deep_model, quick_model, 0.0, {}
+
     config = DEFAULT_CONFIG.copy()
     config["llm_provider"] = provider
     config["backend_url"] = backend_url
@@ -438,7 +448,7 @@ def _run_analysis(
         )
         stdout_proxy.set_thread_target(tee)
 
-        analysis_started_utc = datetime.datetime.now(datetime.timezone.utc)
+        analysis_started_utc = datetime.datetime.now(datetime.UTC)
         analysis_started_timer = time.perf_counter()
         print(f"[Analysis] start_time={analysis_started_utc.isoformat()} request_id={req_id}")
         print(
@@ -461,7 +471,7 @@ def _run_analysis(
             )
             final_state, decision = ta.propagate(ticker, analysis_date)
         finally:
-            analysis_ended_utc = datetime.datetime.now(datetime.timezone.utc)
+            analysis_ended_utc = datetime.datetime.now(datetime.UTC)
             analysis_duration = time.perf_counter() - analysis_started_timer
             print(
                 f"[Analysis] end_time={analysis_ended_utc.isoformat()} "
@@ -517,7 +527,7 @@ def _run_analysis(
 
     # Save detailed analysis to file
     Path(ANALYSIS_DIR).mkdir(parents=True, exist_ok=True)
-    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
     filename = f"{ticker}_{analysis_date}_{ts}.txt"
     filepath = str(Path(ANALYSIS_DIR) / filename)
     with open(filepath, "w", encoding="utf-8") as f:
@@ -540,6 +550,8 @@ def _run_analysis(
             )
         )
 
+    share.publish(ticker, analysis_date, provider, deep_model, quick_model, recommendation)
+
     return recommendation, filename, stats, provider, deep_model, quick_model, estimated_cost_usd, agent_recommendations
 
 
@@ -548,7 +560,7 @@ async def worker_loop(db_path: str = DB_PATH) -> None:
     loop = asyncio.get_running_loop()
     while True:
         req_id, ticker, analysis_date = await task_queue.get()
-        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now_iso = datetime.datetime.now(datetime.UTC).isoformat()
         due_rows = await list_due_pending_requests(now_iso=now_iso, db_path=db_path)
         if due_rows and int(due_rows[0].get("deferred_for_quota") or 0) == 1 and due_rows[0]["id"] != req_id:
             # Preserve FIFO for normal traffic but let deferred quota work run first.
@@ -578,7 +590,7 @@ async def worker_loop(db_path: str = DB_PATH) -> None:
         if (request_provider or "").strip().lower() == "google":
             if not (os.getenv("GOOGLE_API_KEY") or "").strip():
                 retry_at = (
-                    datetime.datetime.now(datetime.timezone.utc)
+                    datetime.datetime.now(datetime.UTC)
                     + datetime.timedelta(seconds=GOOGLE_MISSING_KEY_RETRY_DELAY_SECONDS)
                 ).isoformat()
                 await reschedule_running_request(
@@ -609,7 +621,7 @@ async def worker_loop(db_path: str = DB_PATH) -> None:
                     available_after=next_day_iso,
                     reason=defer_reason,
                     deferred_for_quota=1,
-                    analysis_date=(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)).date().isoformat(),
+                    analysis_date=(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)).date().isoformat(),
                     db_path=db_path,
                 )
                 await defer_due_google_pending_requests(

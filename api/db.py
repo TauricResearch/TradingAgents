@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import aiosqlite
 
@@ -14,7 +14,7 @@ DB_PATH = os.getenv("TRADINGAGENTS_API_DB_PATH", "/data/db/tradingagents_api.db"
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 async def _ensure_column(
