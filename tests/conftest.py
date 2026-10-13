@@ -62,11 +62,22 @@ def _no_network(request, monkeypatch):
     if request.node.get_closest_marker("integration"):
         return
 
-    def refuse(*args, **kwargs):
+    orig_connect = socket.socket.connect
+    orig_connect_ex = socket.socket.connect_ex
+
+    def refuse(sock, *args, **kwargs):
+        # Allow loopback connections used by Windows asyncio ProactorEventLoop self-pipe
+        if args and isinstance(args[0], tuple) and args[0][0] in ("127.0.0.1", "::1"):
+            return orig_connect(sock, *args, **kwargs)
+        raise OSError(f"test tried to reach the network: {args[1:] or kwargs}")
+
+    def refuse_ex(sock, *args, **kwargs):
+        if args and isinstance(args[0], tuple) and args[0][0] in ("127.0.0.1", "::1"):
+            return orig_connect_ex(sock, *args, **kwargs)
         raise OSError(f"test tried to reach the network: {args[1:] or kwargs}")
 
     monkeypatch.setattr(socket.socket, "connect", refuse)
-    monkeypatch.setattr(socket.socket, "connect_ex", refuse)
+    monkeypatch.setattr(socket.socket, "connect_ex", refuse_ex)
     monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: refuse(None, *a))
     # yfinance's HTTP client is libcurl, which never touches Python's sockets.
     from curl_cffi import requests as curl_requests
