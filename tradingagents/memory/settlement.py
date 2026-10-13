@@ -53,7 +53,12 @@ def fetch_returns(
     ticker: str, trade_date: str, holding_days: int = 5,
     benchmark: str = "SPY",
 ) -> tuple[float | None, float | None, int | None, str | None]:
-    """Fetch raw and alpha return for ticker over holding_days from trade_date.
+    """Score holding_days sessions from the first valid close after trade_date.
+
+    A dated decision can read news and filings published after that day's
+    close. Entry is therefore the first valid close on a strictly later
+    calendar date, with holding_days subsequent instrument sessions to exit
+    (#1518). Dates use each bar's market time zone, as in ``_by_day``.
 
     ``benchmark`` is the index used as the alpha baseline (resolved by the
     caller via ``resolve_benchmark``). Returns ``(raw_return, alpha_return,
@@ -64,13 +69,18 @@ def fetch_returns(
     to report.
     """
     start = datetime.strptime(trade_date, "%Y-%m-%d")
+    earliest_entry = start + timedelta(days=1)
     # holding_days counts trading days, so ask for the calendar span they
-    # occupy (about 7 for every 5) plus a week for holidays.
-    end = start + timedelta(days=round(holding_days * 7 / 5) + 7)
+    # occupy (about 7 for every 5) after entry, plus a week for holidays.
+    end = earliest_entry + timedelta(days=round(holding_days * 7 / 5) + 7)
     end_str = end.strftime("%Y-%m-%d")
 
     # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984).
     stock = _by_day(get_closes(ticker, trade_date, end_str))
+    if not stock.empty:
+        # Filter by date: the first returned bar may already follow a weekend
+        # or holiday decision, in which case it is the intended entry.
+        stock = stock[stock.index >= earliest_entry]
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
     bench = _by_day(get_closes(benchmark, bench_start, end_str))

@@ -376,6 +376,10 @@ tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. Your own memory log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
 
+Backtests and memory-log settlement enter at the first valid close on a session strictly after the decision date, then measure `holding_period_days` subsequent instrument sessions (5 by default). For example, a Monday decision enters at Tuesday's close and a one-session holding period exits at Wednesday's close, assuming both are trading days. News and filings can include information published after Monday's close, so the move into Tuesday's close is excluded from the score. Weekend and holiday decisions use the next available session's close. The benchmark is valued at its last available close on or before each endpoint; incomplete windows remain pending, and the resolution date is the actual exit date.
+
+Previously settled results are not recalculated. To evaluate an existing grid with this scoring convention, start a fresh backtest with a new `run_id` rather than resuming its old log.
+
 ## Reproducibility
 
 TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.

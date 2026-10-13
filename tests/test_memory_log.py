@@ -512,8 +512,8 @@ class TestDeferredReflection:
     # settlement.fetch_returns
 
     def test_fetch_returns_valid_ticker(self):
-        stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
-        spy_prices   = [400.0, 402.0, 404.0, 403.0, 405.0, 406.0]
+        stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0, 107.0]
+        spy_prices   = [400.0, 402.0, 404.0, 403.0, 405.0, 406.0, 407.0]
         with patch("yfinance.Ticker") as mock_ticker_cls:
             def _make_ticker(sym):
                 m = MagicMock()
@@ -524,8 +524,10 @@ class TestDeferredReflection:
         assert raw is not None and alpha is not None and days is not None
         assert isinstance(raw, float) and isinstance(alpha, float) and isinstance(days, int)
         assert days == 5
-        # resolution date = the bar `days` sessions after the trade date (#1251)
-        assert resolved == "2026-01-10"
+        assert raw == pytest.approx(107.0 / 102.0 - 1)
+        assert alpha == pytest.approx(raw - (407.0 / 402.0 - 1))
+        # Resolution is `days` sessions after the post-decision entry (#1251, #1518).
+        assert resolved == "2026-01-11"
 
     def test_fetch_returns_too_recent(self):
         """Only 1 data point available → returns all-None, no crash."""
@@ -549,7 +551,7 @@ class TestDeferredReflection:
         """SPY having fewer rows than the stock (but still a full window) must
         not raise IndexError."""
         stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0, 107.0, 108.0]  # 8 rows
-        spy_prices   = [400.0, 402.0, 403.0, 405.0, 406.0, 407.0]                # 6 rows
+        spy_prices   = [400.0, 402.0, 403.0, 405.0, 406.0, 407.0, 408.0]         # 7 rows
         with patch("yfinance.Ticker") as mock_ticker_cls:
             def _make_ticker(sym):
                 m = MagicMock()
@@ -559,7 +561,7 @@ class TestDeferredReflection:
             raw, alpha, days, resolved = settlement.fetch_returns("NVDA", "2026-01-05")
         assert raw is not None and alpha is not None
         assert days == 5  # full holding window used for both series
-        assert resolved == "2026-01-10"
+        assert resolved == "2026-01-11"
 
     def test_fetch_returns_incomplete_window_stays_pending(self):
         """#1169: a rerun before the full holding window has traded returns
@@ -1074,6 +1076,97 @@ def _closes(by_symbol):
 class TestSettlementWindow:
     """Stock and benchmark are measured over the same dates, whatever their calendars."""
 
+    @pytest.mark.parametrize(("trade_date", "exit_date"), [
+        ("2026-01-05", "2026-01-07"), ("2026-06-01", "2026-06-03"),
+    ])
+    @pytest.mark.parametrize("timezone", [None, "America/New_York", "Asia/Tokyo"])
+    def test_after_close_earnings_move_is_excluded(self, monkeypatch, trade_date, exit_date, timezone):
+        """#1518: the prompt can already explain the move into the next close."""
+        idx = pd.bdate_range(trade_date, periods=3, tz=timezone)
+        # Earnings after the decision-day close cause a 20% drop into entry.
+        # Only the subsequent 10% recovery belongs to the scored window.
+        stock = pd.Series([100.0, 80.0, 88.0], index=idx)
+        spy = pd.Series([400.0, 440.0, 462.0], index=idx)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
+
+        raw, alpha, days, resolved = settlement.fetch_returns("NVDA", trade_date, 1, "SPY")
+
+        assert raw == pytest.approx(0.10)
+        assert alpha == pytest.approx(0.05)
+        assert days == 1
+        assert resolved == exit_date
+
+    @pytest.mark.parametrize("trade_date", [
+        "2026-01-16",  # Friday before the holiday weekend
+        "2026-01-17",  # Saturday
+        "2026-01-18",  # Sunday
+        "2026-01-19",  # Monday holiday: the first returned bar is already entry
+    ])
+    def test_weekend_and_holiday_decisions_keep_the_next_session(self, monkeypatch, trade_date):
+        idx = pd.to_datetime(["2026-01-16", "2026-01-20", "2026-01-21", "2026-01-22"])
+        stock = pd.Series([50.0, 100.0, 110.0, 132.0], index=idx)
+        spy = pd.Series([200.0, 400.0, 420.0, 450.0], index=idx)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
+
+        raw, alpha, days, resolved = settlement.fetch_returns("NVDA", trade_date, 1, "SPY")
+
+        assert raw == pytest.approx(0.10)
+        assert alpha == pytest.approx(0.05)
+        assert days == 1
+        assert resolved == "2026-01-21"
+
+    @pytest.mark.parametrize(("holding_days", "exit_date"), [
+        (1, "2026-01-07"), (5, "2026-01-13"), (21, "2026-02-04"),
+    ])
+    def test_full_window_is_counted_from_the_post_decision_entry(
+        self, monkeypatch, holding_days, exit_date,
+    ):
+        idx = pd.bdate_range("2026-01-05", periods=holding_days + 2)
+        stock = pd.Series([100.0 + i for i in range(len(idx))], index=idx)
+        available = {"NVDA": stock.iloc[:-1], "SPY": stock}
+        monkeypatch.setattr(settlement, "get_closes", _closes(available))
+
+        # Enough bars for the old decision-day entry, but one short for the
+        # full holding period from the next session's close.
+        assert settlement.fetch_returns("NVDA", "2026-01-05", holding_days) == (None, None, None, None)
+
+        available["NVDA"] = stock
+        raw, alpha, days, resolved = settlement.fetch_returns("NVDA", "2026-01-05", holding_days)
+
+        assert raw == pytest.approx(holding_days / 101.0)
+        assert alpha == pytest.approx(0.0)
+        assert days == holding_days
+        assert resolved == exit_date
+
+    def test_settlement_waits_and_records_the_actual_exit(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
+        idx = pd.bdate_range("2026-01-05", periods=7)
+        stock = pd.Series([100.0 + i for i in range(len(idx))], index=idx)
+        available = {"NVDA": stock.iloc[:-1], "SPY": stock}
+        monkeypatch.setattr(settlement, "get_closes", _closes(available))
+        reflector = MagicMock()
+        reflector.reflect_on_final_decision.return_value = "Recovery continued."
+
+        result = settlement.settle_pending("NVDA", log, reflector, {"holding_period_days": 5})
+
+        assert result.settled == [] and result.failed == []
+        assert len(log.get_pending_entries()) == 1
+        reflector.reflect_on_final_decision.assert_not_called()
+
+        available["NVDA"] = stock
+        result = settlement.settle_pending("NVDA", log, reflector, {"holding_period_days": 5})
+
+        assert result.settled == [("NVDA", "2026-01-05")] and result.failed == []
+        assert log.get_pending_entries() == []
+        assert log.load_entries()[0]["resolved"] == "2026-01-13"
+        reflector.reflect_on_final_decision.assert_called_once_with(
+            final_decision=DECISION_BUY, raw_return=pytest.approx(5.0 / 101.0),
+            alpha_return=pytest.approx(0.0), benchmark_name="SPY", holding_days=5,
+        )
+        assert log.get_past_context("NVDA", as_of="2026-01-12") == ""
+        assert "Recovery continued." in log.get_past_context("NVDA", as_of="2026-01-13")
+
     def test_a_seven_day_market_is_scored_against_the_benchmark_over_the_same_dates(self, monkeypatch):
         coin = pd.Series([100.0 + i for i in range(10)], index=pd.date_range("2026-01-03", periods=10, freq="D"))
         weekdays = pd.bdate_range("2025-12-29", "2026-01-16")
@@ -1082,10 +1175,11 @@ class TestSettlementWindow:
 
         raw, alpha, days, resolved = settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY")
 
-        # The coin is held Sat 3 -> Thu 8; SPY over the same span is Fri 2 -> Thu 8.
-        assert resolved == "2026-01-08"
-        assert raw == pytest.approx(105.0 / 100.0 - 1)
-        assert alpha == pytest.approx(raw - (spy["2026-01-08"] / spy["2026-01-02"] - 1))
+        # The coin is held Sun 4 -> Fri 9; SPY over the same span is Fri 2 -> Fri 9.
+        assert days == 5
+        assert resolved == "2026-01-09"
+        assert raw == pytest.approx(106.0 / 101.0 - 1)
+        assert alpha == pytest.approx(raw - (spy["2026-01-09"] / spy["2026-01-02"] - 1))
 
     def test_bars_stamped_in_different_time_zones_meet_on_their_dates(self, monkeypatch):
         # Yahoo stamps a coin's daily bar at midnight UTC and SPY's at midnight
@@ -1098,28 +1192,30 @@ class TestSettlementWindow:
 
         raw, alpha, _, resolved = settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY")
 
-        assert resolved == "2026-01-08"
+        assert resolved == "2026-01-09"
+        assert raw == pytest.approx(106.0 / 101.0 - 1)
         spy_by_day = spy.tz_localize(None)
-        assert alpha == pytest.approx(raw - (spy_by_day["2026-01-08"] / spy_by_day["2026-01-02"] - 1))
+        assert alpha == pytest.approx(raw - (spy_by_day["2026-01-09"] / spy_by_day["2026-01-02"] - 1))
 
     def test_the_outcome_waits_for_the_benchmark_to_trade_through_the_window(self, monkeypatch):
         coin = pd.Series([100.0 + i for i in range(10)], index=pd.date_range("2026-01-03", periods=10, freq="D"))
-        spy = pd.Series([400.0, 401.0, 402.0], index=pd.to_datetime(["2026-01-02", "2026-01-05", "2026-01-06"]))
+        spy = pd.Series([400.0, 401.0, 402.0], index=pd.to_datetime(["2026-01-02", "2026-01-05", "2026-01-08"]))
         monkeypatch.setattr(settlement, "get_closes", _closes({"BTC-USD": coin, "SPY": spy}))
 
         assert settlement.fetch_returns("BTC-USD", "2026-01-03", 5, "SPY") == (None, None, None, None)
 
-    def test_a_missing_close_is_skipped_not_scored(self, monkeypatch):
+    @pytest.mark.parametrize("missing", [float("nan"), 0.0, -1.0])
+    def test_a_missing_close_is_skipped_not_scored(self, monkeypatch, missing):
         idx = pd.bdate_range("2026-01-05", periods=8)
-        stock = pd.Series([100.0, float("nan"), 101.0, 102.0, 103.0, 104.0, 105.0, 106.0], index=idx)
+        stock = pd.Series([100.0, missing, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0], index=idx)
         spy = pd.Series([400.0 + i for i in range(8)], index=idx)
         monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
 
         raw, alpha, _, resolved = settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY")
 
-        assert raw == pytest.approx(105.0 / 100.0 - 1)
-        assert resolved == "2026-01-13"
-        assert alpha == pytest.approx(raw - (spy["2026-01-13"] / spy["2026-01-05"] - 1))
+        assert raw == pytest.approx(106.0 / 101.0 - 1)
+        assert resolved == "2026-01-14"
+        assert alpha == pytest.approx(raw - (spy["2026-01-14"] / spy["2026-01-07"] - 1))
 
 
 @pytest.mark.unit
