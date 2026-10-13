@@ -1247,7 +1247,7 @@ async def batching_page():
         h1 { margin:0; font-size:30px; }
         .muted { color:var(--muted); font-size:13px; }
         .card { background:var(--paper); border:1px solid var(--line); border-radius:14px; box-shadow:0 12px 30px rgba(16,24,39,0.08); padding:14px; }
-        .toolbar { display:grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap:10px; align-items:end; }
+        .toolbar { display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; align-items:end; }
         label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
         input, select { width:100%; border:1px solid #c8d4ef; border-radius:10px; padding:10px; font-size:14px; }
         button { border:0; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700; }
@@ -1310,7 +1310,7 @@ async def batching_page():
                     <select id=\"provider\">
                         <option value=\"ollama\">Ollama</option>
                         <option value=\"google\">Google</option>
-                        <option value="openrouter">OpenRouter</option>
+                        <option value=\"openrouter\">OpenRouter</option>
                     </select>
                 </div>
                 <div>
@@ -1321,10 +1321,18 @@ async def batching_page():
                         <option value=\"monthly\">Monthly</option>
                     </select>
                 </div>
+                <div id=\"quickModelField\">
+                    <label for=\"quickModel\">Quick Model</label>
+                    <input id=\"quickModel\" placeholder=\"qwen2.5:3b\" value=\"qwen2.5:3b\" />
+                </div>
+                <div id=\"deepModelField\">
+                    <label for=\"deepModel\">Deep Model</label>
+                    <input id=\"deepModel\" placeholder=\"qwen3.5:4b\" value=\"qwen3.5:4b\" />
+                </div>
                 <div>
                     <button id=\"add\" class=\"primary\">Add Schedule</button>
                 </div>
-                <div class=\"muted\" id=\"message\"></div>
+                <div class=\"muted\" id=\"message\" style=\"grid-column: 1 / -1\"></div>
             </div>
 
             <div class=\"table-wrap\">
@@ -1422,7 +1430,7 @@ async def batching_page():
                         <option value="monthly" ${item.frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
                     </select>
                 `;
-                const quickModelInput = `<input class="row-model" data-quick-model-id="${safe(item.id)}" placeholder="llama3.2:1b" value="${safe(item.quick_model || 'llama3.2:1b')}" />`;
+                const quickModelInput = `<input class="row-model" data-quick-model-id="${safe(item.id)}" placeholder="qwen2.5:3b" value="${safe(item.quick_model || 'qwen2.5:3b')}" />`;
                 const deepModelInput = `<input class="row-model" data-deep-model-id="${safe(item.id)}" placeholder="qwen3.5:4b" value="${safe(item.deep_model || 'qwen3.5:4b')}" />`;
                 const recLink = rec === '—'
                     ? '—'
@@ -1515,7 +1523,7 @@ async def batching_page():
 
             const llm_provider = providerEl.value || 'ollama';
             const frequency = frequencyEl.value || 'daily';
-            const quick_model = llm_provider === 'ollama' ? ((quickModelEl && quickModelEl.value) || 'llama3.2:1b') : null;
+            const quick_model = llm_provider === 'ollama' ? ((quickModelEl && quickModelEl.value) || 'qwen2.5:3b') : null;
             const deep_model = llm_provider === 'ollama' ? ((deepModelEl && deepModelEl.value) || 'qwen3.5:4b') : null;
             const res = await fetch(`/batching/schedules/${encodeURIComponent(scheduleId)}`, {
                 method: 'PUT',
@@ -1558,7 +1566,7 @@ async def batching_page():
             const llm_provider = (providerEl && providerEl.value) ? providerEl.value : 'ollama';
             const quickModelEl = document.querySelector(`[data-quick-model-id="${CSS.escape(scheduleId)}"]`);
             const deepModelEl = document.querySelector(`[data-deep-model-id="${CSS.escape(scheduleId)}"]`);
-            const quick_model = llm_provider === 'ollama' ? ((quickModelEl && quickModelEl.value) || 'llama3.2:1b') : null;
+            const quick_model = llm_provider === 'ollama' ? ((quickModelEl && quickModelEl.value) || 'qwen2.5:3b') : null;
             const deep_model = llm_provider === 'ollama' ? ((deepModelEl && deepModelEl.value) || 'qwen3.5:4b') : null;
 
             const res = await fetch(`/batching/schedules/${encodeURIComponent(scheduleId)}/rerun`, {
@@ -1616,7 +1624,7 @@ async def batching_page():
             const ticker = (document.getElementById('ticker').value || '').trim().toUpperCase();
             const llm_provider = (document.getElementById('provider').value || 'ollama').trim();
             const frequency = (document.getElementById('frequency').value || 'daily').trim();
-            const quick_model = llm_provider === 'ollama' ? ((document.getElementById('quickModel').value || '').trim() || 'llama3.2:1b') : null;
+            const quick_model = llm_provider === 'ollama' ? ((document.getElementById('quickModel').value || '').trim() || 'qwen2.5:3b') : null;
             const deep_model = llm_provider === 'ollama' ? ((document.getElementById('deepModel').value || '').trim() || 'qwen3.5:4b') : null;
             const message = document.getElementById('message');
 

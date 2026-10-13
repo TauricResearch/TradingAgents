@@ -45,6 +45,10 @@ def test_batching_page_contains_history_popup_elements() -> None:
     assert "historyModal" in html
     assert "showRecommendationHistory" in html
     assert "/batching/history/" in html
+    assert 'id="quickModelField"' in html
+    assert 'id="deepModelField"' in html
+    assert 'id="quickModel"' in html
+    assert 'id="deepModel"' in html
 
 
 @pytest.mark.smoke
