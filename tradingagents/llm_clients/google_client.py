@@ -1,8 +1,4 @@
-import asyncio
-import os
 import re
-import time
-import warnings
 from typing import Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -31,89 +27,16 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     This normalizes to string for consistent downstream handling.
     """
 
-    @staticmethod
-    def _is_rate_limited(exc: Exception) -> bool:
-        msg = str(exc).lower()
-        return (
-            "429" in msg
-            or "resource_exhausted" in msg
-            or "rate limit" in msg
-            or "too many requests" in msg
-        )
-
-    @staticmethod
-    def _rate_limit_delay_seconds() -> int:
-        raw = os.getenv("GOOGLE_429_RETRY_DELAY_SECONDS", "60").strip()
-        try:
-            value = int(raw)
-        except ValueError:
-            return 60
-        return value if value > 0 else 60
-
-    def _invoke_with_rate_limit_retry(self, call):
-        try:
-            return call()
-        except Exception as exc:
-            if not self._is_rate_limited(exc):
-                raise
-            delay = self._rate_limit_delay_seconds()
-            warnings.warn(
-                (
-                    f"Google API rate limit encountered (429). "
-                    f"Retrying once after {delay} seconds."
-                ),
-                RuntimeWarning,
-                stacklevel=2,
-            )
-            time.sleep(delay)
-            return call()
-
-    async def _ainvoke_with_rate_limit_retry(self, call):
-        try:
-            return await call()
-        except Exception as exc:
-            if not self._is_rate_limited(exc):
-                raise
-            delay = self._rate_limit_delay_seconds()
-            warnings.warn(
-                (
-                    f"Google API rate limit encountered (429). "
-                    f"Retrying once after {delay} seconds."
-                ),
-                RuntimeWarning,
-                stacklevel=2,
-            )
-            await asyncio.sleep(delay)
-            return await call()
-
     def invoke(self, input, config=None, **kwargs):
-        parent_invoke = super().invoke
-        response = self._invoke_with_rate_limit_retry(
-            lambda: parent_invoke(input, config, **kwargs)
-        )
-        return normalize_content(response)
+        return normalize_content(super().invoke(input, config, **kwargs))
 
-    def _generate(self, *args, **kwargs):
-        parent_generate = super()._generate
-        return self._invoke_with_rate_limit_retry(
-            lambda: parent_generate(*args, **kwargs)
-        )
 
-    async def _agenerate(self, *args, **kwargs):
-        parent_agenerate = super()._agenerate
-        return await self._ainvoke_with_rate_limit_retry(
-            lambda: parent_agenerate(*args, **kwargs)
-        )
+# The read timeout the OpenAI and Anthropic SDKs use by default.
+REQUEST_TIMEOUT_SECONDS = 600
 
 
 class GoogleClient(BaseLLMClient):
     """Client for Google Gemini models."""
-
-    _MODEL_ALIASES = {
-        # Retired preview IDs: route to their stable 2.5 equivalents.
-        "gemini-3-flash-preview": "gemini-2.5-flash",
-        "gemini-3.1-flash-lite-preview": "gemini-2.5-flash-lite",
-    }
 
     def __init__(self, model: str, base_url: str | None = None, **kwargs):
         super().__init__(model, base_url, **kwargs)
@@ -121,19 +44,7 @@ class GoogleClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatGoogleGenerativeAI instance."""
         self.warn_if_unknown_model()
-        requested_model = self.model
-        model = self._MODEL_ALIASES.get(requested_model, requested_model)
-        if model != requested_model:
-            warnings.warn(
-                (
-                    f"Google model '{requested_model}' is deprecated or unavailable; "
-                    f"using fallback '{model}'."
-                ),
-                UserWarning,
-                stacklevel=2,
-            )
-
-        llm_kwargs = {"model": model}
+        llm_kwargs = {"model": self.model}
 
         if self.base_url:
             llm_kwargs["base_url"] = self.base_url
@@ -142,6 +53,9 @@ class GoogleClient(BaseLLMClient):
                     "callbacks", "http_client", "http_async_client"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+        # Without a timeout a stalled Gemini call waits forever; the OpenAI and
+        # Anthropic SDKs give up after the same 600 seconds (#1417).
+        llm_kwargs.setdefault("timeout", REQUEST_TIMEOUT_SECONDS)
 
         # Unified api_key maps to provider-specific google_api_key
         google_api_key = self.kwargs.get("api_key") or self.kwargs.get("google_api_key")
@@ -154,12 +68,9 @@ class GoogleClient(BaseLLMClient):
         # accepted everywhere, so it is the fallback.
         thinking_level = self.kwargs.get("thinking_level")
         if thinking_level:
-            if model.startswith("gemini-2.5-"):
-                llm_kwargs["thinking_budget"] = -1 if thinking_level == "high" else 0
-            else:
-                if thinking_level == "minimal" and not _accepts_minimal_thinking(model):
-                    thinking_level = "low"
-                llm_kwargs["thinking_level"] = thinking_level
+            if thinking_level == "minimal" and not _accepts_minimal_thinking(self.model):
+                thinking_level = "low"
+            llm_kwargs["thinking_level"] = thinking_level
 
         return NormalizedChatGoogleGenerativeAI(**llm_kwargs)
 

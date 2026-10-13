@@ -4,7 +4,373 @@ All notable changes to TradingAgents are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-Breaking changes within the 0.x line are called out explicitly.
+Changes that need action when upgrading are listed under "Upgrading from" in their release.
+
+## [0.6.0] — 2026-10-03
+
+HTML reports, a provider per model tier, past decisions settled for every ticker while the analysts work, and company news read while Yahoo's news feed is down.
+
+### Added
+
+- **HTML report.** A saved report also includes `complete_report.html`, the report as one page with its sections listed beside the text, that reads well in a browser, on a phone and in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` or `save_reports(..., html=False)` skips it. The page is self-contained: it loads nothing and runs nothing. (#1419)
+- **A provider per model tier.** The quick and deep models can run on different providers, for example the managers on Claude while the analysts run on OpenAI: set `deep_think_provider` or `quick_think_provider` (`TRADINGAGENTS_DEEP_THINK_PROVIDER`, `TRADINGAGENTS_QUICK_THINK_PROVIDER`) with the tier's model. The report header names each tier's provider. (#1440)
+- **Past decisions settle alongside the analysts.** While a run's analysts work, every logged decision whose holding period has passed is settled, for any ticker, not only the one being analyzed. If settling fails, the run goes on and the report header says so. (#1428, #1445)
+- **Crypto on Reddit.** For a crypto ticker the Sentiment Analyst reads r/CryptoCurrency and r/CryptoMarkets, plus r/Bitcoin, r/ethereum or r/solana for those coins, instead of the stock subreddits. (#1461)
+- `settle_all_pending()` settles every due decision without running an analysis, for a scheduled job; it and `settle_pending()` return the decisions settled and any that could not be. (#1445)
+- The report header names the run's rating.
+- Euro-area macro series by name: `ecb_deposit_rate`, `ecb_main_refi_rate`, `euro_hicp`, `euro_core_hicp`, `euro_real_gdp`, `germany_10y`, `france_10y` and `eur_usd`. (#1465)
+
+### Models
+
+- A Gemini call times out after 600 seconds, as OpenAI and Anthropic calls do, so a stalled call no longer hangs the run. (#1417)
+
+### Upgrading from 0.5.2
+
+- markdown-it-py 4.0 or later is installed.
+- A saved report also writes `complete_report.html`; pass `--no-html`, or `html=False` to `save_reports()`, to keep only the Markdown.
+- A run no longer settles its ticker's decisions before it starts; the Memory Log step settles every ticker's during the run.
+- `settle_pending()` returns a `Settlement` with `settled` and `failed` (was `None`).
+- Checkpoints from 0.5.2 are not resumed.
+
+### Fixed
+
+- Company news is read from Yahoo search while Yahoo's news feed returns nothing. When Yahoo has no article about the symbol, its news is reported unavailable, not absent, and a configured next news vendor is tried. (#1467, #1469)
+- A rating quoted from someone else, such as "Consensus rating: Buy", no longer replaces the Portfolio Manager's own. (#1466)
+- A Yahoo news article with a null field no longer loses the ticker's news. (#1458)
+- A start date a model writes with stray characters is sent back to it to correct, instead of failing the news or price request. (#1476)
+- A request Alpha Vantage rejects is reported as unavailable, not served as data; the API key is kept out of every Alpha Vantage error. (#1442)
+- Yahoo fundamentals print each money figure in its own currency: London prices in GBp, market cap and per-share figures in GBP, and an ADR's income figures in its reporting currency, such as TWD for TSMC. (#1456)
+- Jev screening uses the endpoint `TYPESAFE_BASE_URL` names, so it can run through OpenRouter. (#1416)
+- Runs sharing a memory log settle each decision once, and an interrupted settlement keeps the outcomes it finished.
+- The report header names the sentiment analyst `sentiment`, as the CLI does.
+- `requirements.txt` says the dependencies are declared in `pyproject.toml`.
+
+### Contributors
+
+[@amitbhansali](https://github.com/amitbhansali), [@AyushJain-601](https://github.com/AyushJain-601), [@BichengWang](https://github.com/BichengWang), [@byte7m](https://github.com/byte7m), [@Dangerboi](https://github.com/Dangerboi), [@davidalmeida90](https://github.com/davidalmeida90), [@Jackzigen](https://github.com/Jackzigen), [@jhill-cmd](https://github.com/jhill-cmd), [@Recnelis0](https://github.com/Recnelis0), [@seaaxe](https://github.com/seaaxe), [@vaegev](https://github.com/vaegev).
+
+## [0.5.2] — 2026-09-29
+
+Parallel analysts, unattended CLI runs, reports that record what produced them,
+and past runs served only what was known on their date.
+
+### Added
+
+- **Parallel analysts.** The selected analysts run at the same time, so the analyst phase takes about as long as the slowest one; the CLI shows each analyst's progress and time as it finishes, and the debate starts when all reports are in. (#1255, #433)
+- **Unattended CLI runs.** Flags answer the per-run questions, and `TRADINGAGENTS_*` variables the rest, so a scheduled job or script asks nothing: `tradingagents --ticker NVDA --date 2026-09-26 --analysts market,news --save --no-show`. Without a terminal, a missing answer stops the run before it starts and names what to set. (#1127, #1133)
+- **Reports record what produced them.** Each report opens with the analysis date, version, provider, models, analysts, rounds and data vendors; the state log keeps them as `run_settings`. (#752, #1197)
+- **Docker data folder.** `TRADINGAGENTS_DATA_DIR` keeps results, reports and the memory log in a host folder. (#865)
+- **A cap on an analyst's tool calls.** After `max_tool_rounds` rounds (default 20, `TRADINGAGENTS_MAX_TOOL_ROUNDS`) the analyst writes its report from what it has. (#1420)
+- `tradingagents backtest` shows each cell as it starts and the `--run-id` to continue; `--analysts` accepts `sentiment`.
+- Benchmarks for Taiwan, Korea, Singapore and the main European exchanges. (#1392)
+- Python 3.14 support; the Docker image runs Python 3.13.
+
+### Models
+
+- `deepseek-flash` is treated as a thinking model, so structured output works. (#1388)
+
+### Upgrading from 0.5.1
+
+- Python 3.11 or later is required; pandas 3 is installed.
+- Minimum versions: yfinance 1.7.0, langchain-core 1.6.5, langchain-openai 1.6.6, langchain-anthropic 1.7.4, langchain-google-genai 4.4.0, langgraph 1.2.12, langgraph-checkpoint-sqlite 3.1.1, langchain-aws 1.7.9 (`bedrock` extra).
+- Statements default to SEC EDGAR, then Yahoo (`fundamental_data = "sec_edgar,yfinance"`).
+- A past-dated run gets no Yahoo or Alpha Vantage statements or insider trades, which carry no filing date, and only the company's current name, marked as such.
+- The memory log is the `tradingagents.memory` package (was `tradingagents.decision_log`); settlement and reflection moved there from `tradingagents.graph`, and `Reflector` is no longer exported from `tradingagents.graph`.
+- `process_signal` is removed; the rating is `propagate()`'s second value or `final_state["final_rating"]`.
+- A rating is read only from its `Rating:` label; a free-text decision without one is `REVIEW`.
+- Data-layer functions take `as_of_date=` (was `curr_date=`); `build_instrument_context` and `resolve_instrument_context` take `trade_date=`.
+- `VendorRateLimitError` is `VendorUnavailableError`.
+- Data tools take the instrument from the run's state; tool calls no longer carry `symbol` or `ticker`.
+- State log: `trader_investment_plan` (was `trader_investment_decision`), `judge_decision` removed, `final_rating` and `run_settings` added.
+- Checkpoints from 0.5.1, or saved under different settings, are not resumed.
+
+### Fixed
+
+- Data tools serve the run's instrument, even when the model passes another symbol.
+- A failed vendor request is reported as unavailable, not as a missing or delisted symbol; one vendor's "no data" no longer speaks for a chain in which another failed. (#1386)
+- The rating is the Portfolio Manager's own, not one its thesis quotes (#1383); its line keeps an English label in other output languages (#1435).
+- Backtest cells given twice run once (#1415), and settlement compares a decision with its benchmark over the same dates.
+- A snapshot for a symbol with no prices no longer ends the run.
+- Concurrent runs no longer drop memory log entries.
+- SEC EDGAR quarterly figures filed only year to date are served, labelled with their span.
+- Yahoo dividend yield and debt-to-equity print as percentages. (#1414)
+- The FRED change line names the dates it spans. (#1397)
+- `stream_run` serves the graph's own config to its tools.
+- The test suite stays off the network and out of the user's files, and passes in any order; integration tests run with `-m integration`. (#1395)
+
+### Contributors
+
+[@1Wizzy](https://github.com/1Wizzy), [@BichengWang](https://github.com/BichengWang), [@Chaoqi31](https://github.com/Chaoqi31), [@davidalmeida90](https://github.com/davidalmeida90), [@djconnexion77](https://github.com/djconnexion77), [@fuzing](https://github.com/fuzing), [@hailampy123](https://github.com/hailampy123), [@hesam-shams](https://github.com/hesam-shams), [@HEYALT](https://github.com/HEYALT), [@Jackzigen](https://github.com/Jackzigen), [@kagura-agent](https://github.com/kagura-agent), [@loulanyue](https://github.com/loulanyue), [@mannubaveja007](https://github.com/mannubaveja007), [@olivergpt](https://github.com/olivergpt), [@rita112025-cpu](https://github.com/rita112025-cpu), [@shuyan-code](https://github.com/shuyan-code), [@SingTheCode](https://github.com/SingTheCode), [@sjq597](https://github.com/sjq597), [@xiaodu55](https://github.com/xiaodu55), [@Youholdme](https://github.com/Youholdme).
+
+## [0.5.1] — 2026-09-24
+
+A package layout organised by what each module holds, social posts screened by
+TypeSafe's Jev when a key is set, GPT-6 Sol and Luna as the default models, and
+fixes to run isolation, SEC EDGAR statements and historical runs.
+
+### Upgrading from 0.5.0
+
+Some modules moved, and the old import paths are gone. Update imports as follows:
+
+- `tradingagents.dataflows.interface` is `tradingagents.dataflows.router`, and `dataflows.symbol_utils` is `dataflows.symbols`. `dataflows.utils` is gone: `get_current_date` is in `dataflows.date_window`, `safe_ticker_component` in `dataflows.symbols`, and `get_scrubbed` and `vendor_reachable` in `dataflows.net`.
+- Vendor modules live under `tradingagents.dataflows.vendors`: `yahoo` (`ohlcv`, `market`, `fundamentals`, `news`, `snapshot`, from the former `stockstats_utils`, `y_finance`, `yfinance_news` and `market_data_validator`), `alpha_vantage` (a package, from the `alpha_vantage_*` modules), and `sec_edgar`, `fred`, `polymarket`, `reddit`, `stocktwits`.
+- `tradingagents.agents.utils` is gone: the agent tools are in `agents.tools`, and `agent_utils`, `agent_states`, `rating` and `structured` are `agents.context`, `agents.state`, `agents.rating` and `agents.structured`.
+- The decision log is `tradingagents.decision_log` (was `agents.utils.memory`), and `cli.utils` is `cli.prompts`.
+- `backtest.summarize` takes a `run_backtest` result or the path of a decision log, in place of a `TradingMemoryLog`.
+- Removed: `SignalProcessor` (the rating is parsed by `process_signal`), the `create_social_media_analyst` alias (use `create_sentiment_analyst`), `symbol_utils.is_yahoo_safe`, the unused `project_dir` config key, and the graph attributes `curr_state`, `ticker` and `log_states_dict`, which held the previous run's state.
+
+### Added
+
+- **Jev post screening.** With `TYPESAFE_API_KEY` set, TypeSafe's Jev reads each StockTwits and Reddit post the Sentiment Analyst fetches: posts that are not about the company are dropped, and each source opens with a count of the rest by stance. Without the key nothing changes. (#1376)
+- B3 tickers (`.SA`) are benchmarked against the Ibovespa. (#1366)
+
+### Models
+
+- GPT-6 Sol and GPT-6 Luna are the default deep and quick models, and Claude Opus 5.5 replaces Opus 5 in the picker. Opus 5 and GPT-5.4 Mini remain valid model IDs.
+
+### Fixed
+
+- Several graphs in one process each read their own data vendors. (#1369)
+- SEC EDGAR cash flow statements find capital expenditure for filers that moved it to purchases of productive assets (NVIDIA since fiscal 2022, Amazon since 2016), whose recent periods read as empty. (#1370)
+- SEC EDGAR annual statements list fiscal years only.
+- A historical run is no longer told today's date, or a date after the run, in coverage notices and the instrument context.
+- The Fundamentals Analyst can call the insider transactions tool.
+- An unreachable Yahoo on insider transactions is reported as unavailable, not as a symbol without data.
+- A graph reused across runs, as in a backtest, no longer keeps every run's full state.
+- A checkpointed CLI run says whether it resumed or started fresh.
+- A blank path variable (`TRADINGAGENTS_RESULTS_DIR` and the like) keeps the default path.
+- StockTwits messages reach the prompt as plain text rather than HTML-escaped.
+- The test suite is independent of the developer's `.env`, time zone and network. (#1368, #1372)
+
+### Contributors
+
+Thanks to everyone who reported these or sent a fix:
+
+[@codify88](https://github.com/codify88), [@davidalmeida90](https://github.com/davidalmeida90), [@duongylinh](https://github.com/duongylinh), [@jccl2](https://github.com/jccl2), [@yuina368](https://github.com/yuina368).
+
+## [0.5.0] — 2026-09-18
+
+Point-in-time integrity across every dated path, decisions that are recorded as
+they were made, backtesting over a grid of tickers and dates, the caller's
+portfolio as run input, and SEC EDGAR fundamentals served as filed.
+
+### Highlights
+
+- **Fundamentals as filed.** SEC EDGAR serves US company statements as they stood on the run's date: a period that has ended but has not been filed is not served, and a figure restated later still reads as first reported. Keyless, opt-in via the vendor chain.
+- **Backtesting.** `run_backtest` runs the pipeline over a ticker and date grid into its own decision log, and `summarize` scores the settled cells; `tradingagents backtest` does the same from the CLI.
+- **Portfolio context.** `propagate(..., portfolio=...)` and `--portfolio` let the trader, risk and portfolio agents size against real holdings. A run without one is never treated as a flat book.
+- **Decisions are recorded as made.** An unreadable decision is flagged for review everywhere instead of becoming a tradeable Hold, and a rating argued against is no longer read as the call.
+
+### Point-in-time and honest attribution
+
+- Dated tools take the run's date from graph state, so an omitted or later date cannot reach a vendor. (#1331, #1319, #1118)
+- Insider filings and prediction-market odds are bounded by the run date; insider rows state that a trade becomes public when its Form 4 is filed.
+- A feed that never observed a window reports it as unavailable rather than as an absence, across news, Reddit and StockTwits.
+- The resolved company identity says when it describes today rather than the run date.
+- The verification snapshot quotes the prices the vendor reported, never a gap-filled value.
+- A vendor failure is a vendor failure: yfinance raises instead of returning its errors as text, an outage is not reported as a company with no data, and a chain where every vendor is unavailable says so instead of ending the run.
+- The macro vintage pin is clamped to the vendor's own clock, so a run dated today cannot ask for a vintage it does not have.
+- A historical run is not served a present-day company profile by either fundamentals vendor. (#1300)
+
+### Decisions and evaluation
+
+- The labelled rating decides, whatever separates it, and prose naming several ratings is reviewed rather than guessed.
+- Decision prompts state the shape of their answer, so a provider without structured output still returns a readable decision.
+- A report that was not produced says so, instead of appearing as an empty section.
+- Backtest scoring reads the direction each rating claimed: a Sell that fell is a hit, and Hold reports no hit rate.
+- The outcome window is configurable (`holding_period_days`), and reflection states the window it judges.
+- A settled decision is not logged twice, and a failed reflection no longer stops the next run. (#645)
+- The trader states entry and stop levels as prices, so a percentage no longer fails the whole proposal. (#1288)
+
+### CLI
+
+- `tradingagents backtest`, with `--run-id` to continue an interrupted sweep. (#1234)
+- The previous run's selections come back as prompt defaults. (#1236, #920)
+- A run with no readable rating says so; the live view no longer scrolls; messages that read like Python values are shown. (#649, #784)
+- The state log keeps non-ASCII readable. (#1081)
+
+### Data sources
+
+- SEC EDGAR fundamentals vendor (US filers, keyless).
+- Hong Kong and Shanghai tickers resolve to the symbols Yahoo serves. (#1342, #957, #1260)
+- Reddit is fetched as one combined request per run. (#1286)
+- One OHLCV cache file per symbol. (#1330)
+
+### Models
+
+- Current lineups for every provider: GPT-6 Astra and the GPT-5.6 family, Gemini 3.8 Flash, Claude Opus 5 and Fable 5.1, Grok 4.6, DeepSeek Flash, Qwen 3.8, GLM-5.3, MiniMax M3, Kimi K3 and the current Mistral snapshots.
+- Every provider accepts a model ID the picker does not list.
+- GLM traffic goes to the platform its key belongs to, and Ollama structured output no longer sends a tool_choice it rejects. (#1062)
+
+### Changed
+
+- The memory log records `REVIEW` for a decision with no readable rating, where it previously recorded `Hold`.
+- Optional fields the model did not provide are named as such rather than omitted.
+- Removed dependencies nothing imports: backtrader, redis, setuptools, langchain-experimental, parsel, tqdm. (#1353, #1070)
+
+### Contributors
+
+Thanks to everyone who reported these or sent a fix:
+
+[@akashkpfreelancer](https://github.com/akashkpfreelancer), [@angziii](https://github.com/angziii), [@anupamme](https://github.com/anupamme), [@AyushKar2005](https://github.com/AyushKar2005), [@bulkypanda](https://github.com/bulkypanda), [@CadeYu](https://github.com/CadeYu), [@chiang21fcb](https://github.com/chiang21fcb), [@dajiaohuang](https://github.com/dajiaohuang), [@dewrama](https://github.com/dewrama), [@DogInfantry](https://github.com/DogInfantry), [@emitov](https://github.com/emitov), [@farukerdem34](https://github.com/farukerdem34), [@flydragon2018](https://github.com/flydragon2018), [@fusshell](https://github.com/fusshell), [@Ganesh1729-ui](https://github.com/Ganesh1729-ui), [@gyx09212214-prog](https://github.com/gyx09212214-prog), [@hamzabudeir](https://github.com/hamzabudeir), [@ihsieh31](https://github.com/ihsieh31), [@jaylew20250206](https://github.com/jaylew20250206), [@kaushik-yadav](https://github.com/kaushik-yadav), [@kbnnf](https://github.com/kbnnf), [@kevinkda](https://github.com/kevinkda), [@LudwigJMarx](https://github.com/LudwigJMarx), [@lx7720](https://github.com/lx7720), [@malandrindev](https://github.com/malandrindev), [@mhd325ic-hash](https://github.com/mhd325ic-hash), [@minhdn90](https://github.com/minhdn90), [@miznan](https://github.com/miznan), [@mmssix](https://github.com/mmssix), [@mrbob-git](https://github.com/mrbob-git), [@newnewself](https://github.com/newnewself), [@prithvirajrh](https://github.com/prithvirajrh), [@PyriteResearch](https://github.com/PyriteResearch), [@Rajatendu1](https://github.com/Rajatendu1), [@Recnelis0](https://github.com/Recnelis0), [@Rodvask](https://github.com/Rodvask), [@samhoooo](https://github.com/samhoooo), [@sheiun-xu](https://github.com/sheiun-xu), [@shivsin25](https://github.com/shivsin25), [@SmileShaun](https://github.com/SmileShaun), [@SonnyRajagopalan](https://github.com/SonnyRajagopalan), [@taro0915](https://github.com/taro0915), [@wupengbo125](https://github.com/wupengbo125), [@wxggzz](https://github.com/wxggzz), [@Yixiang-Wu](https://github.com/Yixiang-Wu), [@ZahirBodrike](https://github.com/ZahirBodrike), [@ZHUYAWEI](https://github.com/ZHUYAWEI), [@zkwang616](https://github.com/zkwang616).
+
+## [0.4.0] — 2026-08-31
+
+Look-ahead and point-in-time fixes across the data and memory layers, clearer
+decision signals, working CLI checkpoint resume, and the GPT-5.6 / GLM-5.3 models.
+
+### Fixed
+
+- **FRED macro look-ahead.** Historical macro requests were served from today's
+  data vintage, leaking later revisions into a backtest; both the observations
+  and metadata requests now pin the vintage to the as-of date. (#1275)
+- **Social sentiment look-ahead.** StockTwits and Reddit were fetched with no
+  date, so a historical run showed today's chatter as if it were from the as-of
+  date; the social path is now trimmed to the analysis window, via one shared
+  UTC half-open window rule (`dataflows/date_window`) used by news too. (#1220)
+- **Memory point-in-time guard.** `get_past_context` returned every resolved
+  lesson regardless of the run date; each resolved entry now records the date
+  its outcome became known, and a historical run only sees lessons resolved by
+  the trade date. (#1251)
+- **Premature reflection.** A decision was settled on a partial return if a rerun
+  happened before its holding window fully traded; resolution now waits for the
+  full window. (#1169)
+- **Latest OHLCV bar dropped.** The newest bar with a NaN close was silently
+  dropped before the date cutoff, making the previous trading day look like the
+  latest; dates are normalized per element (DST- and non-US-market safe) and a
+  missing latest close raises rather than falling back. (#1201)
+- **Debate opening fabrication.** The first speaker in each debate round rebutted
+  an empty opponent response, fabricating the other side; all five debators now
+  open with their own case when no opponent has spoken. (#1176)
+- **Silent Hold.** An unparseable Portfolio Manager rating (including a fullwidth
+  colon) was coerced to a tradeable Hold; it now surfaces a `REVIEW` sentinel,
+  with `parse_rating` keeping its silent default for compatibility callers. (#1170)
+- **`--checkpoint` was a no-op on the CLI.** Checkpoint setup lived only in
+  `propagate()`; the CLI streamed the checkpointer-less graph. The lifecycle is
+  now shared, and a resume feeds `None` so LangGraph continues the interrupted
+  run instead of duplicating messages. (#1249)
+- **DeepSeek via OpenRouter.** `deepseek/<id>` fell through to default
+  capabilities and had object-form `tool_choice` forced on it; the official
+  namespace is stripped so it reuses the native DeepSeek quirks. (#1199)
+- **Trader price grounding.** The Trader saw only the digested plan; it now also
+  receives the technical market report so entry/stop levels anchor to real price
+  structure. (#1167)
+
+### Added
+
+- **Configurable output-token cap.** `max_tokens` / `TRADINGAGENTS_MAX_TOKENS`,
+  forwarded to every provider (Gemini as `max_output_tokens`), so a model that
+  emits unbounded reasoning can be bounded instead of hanging. (#1204)
+- **Latest models.** Added the GPT-5.6 family (`gpt-5.6` / `gpt-5.6-terra` /
+  `gpt-5.6-luna`) and GLM-5.3 (`glm-5.3`, `glm-5.3-flash`). The default models
+  are now `gpt-5.6` (deep) and `gpt-5.6-luna` (quick).
+
+### Contributors
+
+Thanks to everyone who reported these or sent a fix:
+
+[@PyriteResearch](https://github.com/PyriteResearch), [@yiran1268](https://github.com/yiran1268), [@fabiolenine](https://github.com/fabiolenine), [@lx7720](https://github.com/lx7720), [@taro0915](https://github.com/taro0915), [@Jaswanth-Sriram-Veturi](https://github.com/Jaswanth-Sriram-Veturi), [@ariesy](https://github.com/ariesy), [@liangzj1999](https://github.com/liangzj1999), [@zkwang616](https://github.com/zkwang616), [@aniketshukla1](https://github.com/aniketshukla1), [@loulanyue](https://github.com/loulanyue), [@hudsonwa](https://github.com/hudsonwa), [@daleselaji-dev](https://github.com/daleselaji-dev), [@wolfoswald777-crypto](https://github.com/wolfoswald777-crypto).
+
+## [0.3.1] — 2026-07-05
+
+Correctness and stability patch: data look-ahead, graph-router crash-safety,
+checkpoint identity, crypto sentiment sources, and configurable resilience.
+
+### Fixed
+
+- **Alpha Vantage look-ahead filter now runs.** The fundamentals payload is a
+  JSON string, so the dict-only guard skipped filtering and future-dated reports
+  leaked into historical runs; parse before filtering. (#1115, @zachthebird)
+- **News analyst prompt matches the tool.** The prompt advertised
+  `get_news(query, ...)` but the tool takes a ticker; aligned to stop
+  hallucinated free-text query calls. (#1116, @shcheuk)
+- **Shared debate/risk routers can't crash mid-run.** Both routers return more
+  targets than any one edge mapped; every edge now shares the complete path map,
+  so a fall-through under prompt/i18n/refactor drift stays routable.
+  (#1088, @Fr3ya, @sa7an7, @Sushanth012)
+- **Checkpoint resume respects graph shape.** The thread id folds in selected
+  analysts, debate/risk depth, and asset mode, so a resume under different
+  choices no longer continues the wrong graph. (#1089, @bossjoker1, @Ghraven)
+- **Crypto sentiment sources resolve.** StockTwits lists crypto as `<BASE>.X`
+  (Yahoo's `BTC-USD` 404s) and Reddit needs the base symbol to match; the social
+  path now maps crypto correctly for both. (#1113, @suremadoreai)
+
+### Added
+
+- **Configurable LLM retry budget.** `llm_max_retries` /
+  `TRADINGAGENTS_LLM_MAX_RETRIES` is forwarded to every provider, so a transient
+  429 burst no longer aborts a run. (#1091, @yanggaome)
+- **Bedrock API-key auth.** `AWS_BEARER_TOKEN_BEDROCK` authenticates Amazon
+  Bedrock without AWS access keys and takes precedence over an ambient
+  `AWS_PROFILE`. (#1103, @praxstack)
+- **Latest Claude models.** Added Claude Sonnet 5 (`claude-sonnet-5`) and
+  Fable 5 (`claude-fable-5`); effort control now covers the Claude 5 line.
+
+## [0.3.0] — 2026-06-22
+
+Stabilization and extensibility release: a CI gate, a unified verified
+data-access contract, a provider and data-vendor registry, and a maintenance
+sweep that hardened config precedence, the model catalog, data resilience, and
+structured output.
+
+### Added
+
+- **CI gate.** GitHub Actions runs the pytest suite across Python 3.10-3.13,
+  strict `ruff`, and a clean-install smoke that imports the package and CLI to
+  catch undeclared dependencies. (#994, #197)
+- **Provider registry.** OpenAI-compatible providers register as a single spec,
+  and a generic `openai_compatible` endpoint covers vLLM, LM Studio, and relays.
+  Adds NVIDIA NIM, Kimi, Groq, Mistral, and a native Amazon Bedrock client.
+- **Macro and prediction-market vendors.** FRED macro indicators and Polymarket
+  event probabilities, surfaced to the news and macro analysts.
+- **Programmatic report output.** `TradingAgentsGraph.save_reports()` writes the
+  same report tree the CLI produces, for headless and API runs. (#1037)
+- **Env-configurable reasoning depth** via `TRADINGAGENTS_OPENAI_REASONING_EFFORT`,
+  `TRADINGAGENTS_GOOGLE_THINKING_LEVEL`, and `TRADINGAGENTS_ANTHROPIC_EFFORT`,
+  each gated to the models that accept it.
+
+### Changed
+
+- **Verified data-access contract.** Symbol normalization on every vendor path
+  (identity, returns, CLI, news); the configured vendor list is the exact
+  resolution chain with no silent fallback to unselected vendors; a typed
+  `VendorError` taxonomy; look-ahead-safe news windows; stale-OHLCV rejection;
+  inclusive yfinance date ranges.
+- **Config precedence.** An explicit `TRADINGAGENTS_*` value or CLI flag now wins
+  over interactive defaults for debate and risk round counts,
+  `--checkpoint / --no-checkpoint`, and the Docker provider profile; invalid
+  boolean env values fail loudly. (#975, #976, #977)
+- **Current-generation model catalog.** Refreshed provider lineups; retired
+  `gpt-4.1`, Claude Sonnet 4.5, and the Gemini 2.5 line.
+- **Optional vendors degrade** instead of aborting a run: a failed macro or
+  prediction-market lookup returns a no-data sentinel.
+- **Analyst prompts lead with the current date** so tool-call date ranges anchor
+  to the run date rather than the model's training cutoff. (#836)
+
+### Fixed
+
+- **Instrument identity.** Deterministic ticker-to-company resolution prevents
+  wrong-company hallucination, and a verified market-data snapshot grounds price
+  and indicator claims. (#814, #830)
+- **Social and market data sources.** Reddit RSS-first with 429 backoff,
+  StockTwits transport hardening, and Alpha Vantage timeout plus
+  key-versus-rate-limit handling.
+- **Structured output.** Local OpenAI-compatible servers no longer reject
+  object-form `tool_choice`; a thinking model that returns no parsed result falls
+  back to free text; null-ish strings in optional price fields coerce to `None`.
+  (#1038, #1051, #1057)
+
+### Removed
+
+- The no-op `analyst_concurrency_limit` config knob; parallel analyst execution
+  is planned for a later release. (#979)
+- The unused committed `uv.lock`. (#1030)
+
+### Contributors
+
+Thanks to everyone who shaped this release through code, design, and reports:
+
+[@CadeYu](https://github.com/CadeYu), [@Zavianx](https://github.com/Zavianx), [@weijianz-opc](https://github.com/weijianz-opc), [@naltun](https://github.com/naltun), [@brahmasky](https://github.com/brahmasky), [@nik2208](https://github.com/nik2208), [@thieucong98](https://github.com/thieucong98), [@Derekko-web](https://github.com/Derekko-web), [@LukiPrince](https://github.com/LukiPrince), [@Eddieargenal](https://github.com/Eddieargenal), [@Ghraven](https://github.com/Ghraven), [@ms32035](https://github.com/ms32035), [@yting27](https://github.com/yting27), [@nyxst4ck](https://github.com/nyxst4ck), [@KenCheung-AIxFinance](https://github.com/KenCheung-AIxFinance), [@yangyusheng2n](https://github.com/yangyusheng2n), [@fareloj](https://github.com/fareloj), [@haosenwang1018](https://github.com/haosenwang1018), [@octo-patch](https://github.com/octo-patch), [@seifenk](https://github.com/seifenk), [@CaoYuhaoCarl](https://github.com/CaoYuhaoCarl), [@mihailnica10](https://github.com/mihailnica10), [@Dado-hash](https://github.com/Dado-hash), [@Handsomemikezzz](https://github.com/Handsomemikezzz), [@ydhawesome](https://github.com/ydhawesome), [@macd2](https://github.com/macd2), [@AyushKar2005](https://github.com/AyushKar2005), [@wildhuman](https://github.com/wildhuman), [@robert23kim](https://github.com/robert23kim), [@bngness](https://github.com/bngness), [@tedix-rodrigo](https://github.com/tedix-rodrigo), [@malaccan](https://github.com/malaccan), [@rfalken78](https://github.com/rfalken78), [@dengli1971-droid](https://github.com/dengli1971-droid), [@proofconcept39](https://github.com/proofconcept39), [@prasta1](https://github.com/prasta1), [@liximin](https://github.com/liximin), [@jeffhuen](https://github.com/jeffhuen), [@mazar](https://github.com/mazar), [@soyangelromero](https://github.com/soyangelromero), [@CNQQC](https://github.com/CNQQC), [@dovetaill](https://github.com/dovetaill), [@fperdigon](https://github.com/fperdigon), [@gyx09212214-prog](https://github.com/gyx09212214-prog), [@RSXLX](https://github.com/RSXLX).
 
 ## [0.5.0] — 2026-09-18
 

@@ -1,7 +1,7 @@
 import pytest
 
 from api.worker import _pick_provider_config
-from cli.utils import _prefer_openrouter_free_models
+from cli.prompts import _prefer_openrouter_free_models
 
 
 @pytest.mark.unit

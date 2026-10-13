@@ -1,12 +1,13 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_utils import (
-    calculate_put_call_ratio,
-    get_indicators,
-    get_instrument_context_from_state,
-    get_language_instruction,
-    get_options_chain,
+from tradingagents.agents.analysts.turn import take_turn
+from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.tools import get_indicators, get_stock_data, get_verified_market_snapshot
+
+# The tools this analyst is offered; its tool node is built from the same tuple.
+TOOLS = (
     get_stock_data,
+    get_indicators,
     get_verified_market_snapshot,
 )
 
@@ -17,16 +18,8 @@ def create_market_analyst(llm):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
 
-        tools = [
-            get_stock_data,
-            get_indicators,
-            get_options_chain,
-            calculate_put_call_ratio,
-            get_verified_market_snapshot,
-        ]
-
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators and data sources** for a given market condition or trading strategy. The goal is to choose up to **8 technical indicators** that provide complementary insights without redundancy, plus options chain analysis where available. Categories and each category's indicators are:
+            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
@@ -54,9 +47,7 @@ Volume-Based Indicators:
 
 Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim. If another tool's output conflicts with the verified snapshot, flag the discrepancy rather than inventing a reconciled number. Do not claim historical validation, support/resistance bounces, or exact percentage moves unless they are directly supported by tool output with concrete dates and prices.
 
-For liquid, widely traded stocks, use get_options_chain and calculate_put_call_ratio to assess options sentiment. Compare volume and open-interest put/call ratios where available, including ITM and OTM positioning. Treat options data as sentiment evidence, not a substitute for the verified market snapshot.
-
-Write a detailed report covering trends, technical alignment or divergences, options sentiment when available, and risk factors. Provide specific, actionable insights supported by tool output."""
+Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )
@@ -79,18 +70,11 @@ Write a detailed report covering trends, technical alignment or divergences, opt
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
+        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in TOOLS]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = chain.invoke(state["messages"])
-
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        result, report = take_turn(prompt, llm, TOOLS, state["messages"])
 
         return {
             "messages": [result],
