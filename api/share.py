@@ -87,14 +87,17 @@ def _parse(raw: str) -> dict | None:
 def find_existing(ticker: str, analysis_date: str, deep_model: str, quick_model: str) -> dict | None:
     """Return the shared result for this run, or None if it has not been analysed."""
     if not is_enabled():
+        _log("pre-check disabled (SHARE_RESULTS_ENABLED is not true)")
         return None
     rel = result_path(ticker, analysis_date, deep_model, quick_model)
+    _log(f"pre-check: looking up {rel}")
 
     # Unpushed local results count too.
     local = _clone_dir() / rel
     if local.is_file():
         found = _parse(local.read_text(encoding="utf-8"))
         if found:
+            _log(f"pre-check HIT (local clone): {rel}")
             return found
 
     url = f"https://raw.githubusercontent.com/{_repo()}/{_branch()}/{rel}"
@@ -104,12 +107,16 @@ def find_existing(ticker: str, analysis_date: str, deep_model: str, quick_model:
         request.add_header("Authorization", f"token {token}")
     try:
         with urllib.request.urlopen(request, timeout=15) as resp:
-            return _parse(resp.read().decode("utf-8"))
+            found = _parse(resp.read().decode("utf-8"))
+        _log(f"pre-check {'HIT (remote)' if found else 'MISS (invalid file)'}: {rel}")
+        return found
     except urllib.error.HTTPError as exc:
-        if exc.code != 404:
-            _log(f"lookup failed ({exc.code}) for {rel}; running analysis")
+        if exc.code == 404:
+            _log(f"pre-check MISS: {rel}; running analysis")
+        else:
+            _log(f"pre-check lookup failed ({exc.code}) for {rel}; running analysis")
     except Exception as exc:
-        _log(f"lookup failed ({exc}) for {rel}; running analysis")
+        _log(f"pre-check lookup failed ({exc}) for {rel}; running analysis")
     return None
 
 
@@ -144,12 +151,12 @@ def _push_locked() -> None:
         return
     for _ in range(3):
         if _git("push", "origin", f"HEAD:{_branch()}", check=False).returncode == 0:
+            _log(f"pushed {_pending} result(s) to {_branch()}")
             _pending = 0
             _last_push = time.monotonic()
-            _log("pushed results batch")
             return
         _git("pull", "--rebase", "-q", "origin", _branch(), check=False)
-    _log("push failed; results stay committed locally and will be retried")
+    _log(f"push failed; {_pending} result(s) stay committed locally and will be retried")
 
 
 def publish(
@@ -163,6 +170,7 @@ def publish(
     """Commit a result to the local clone and push when the batch is full or due."""
     global _pending
     if not is_enabled():
+        _log("post-run publish disabled (SHARE_RESULTS_ENABLED is not true)")
         return
     rel = result_path(ticker, analysis_date, deep_model, quick_model)
     payload = {
@@ -183,6 +191,7 @@ def publish(
             _git("add", rel)
             _git("commit", "-q", "-m", f"result {ticker} {analysis_date}")
             _pending += 1
+            _log(f"post-run: committed {rel} (pending push: {_pending})")
             batch = int(_env("SHARE_RESULTS_BATCH_SIZE", "20"))
             interval = int(_env("SHARE_RESULTS_PUSH_INTERVAL_SECONDS", "300"))
             if _pending >= batch or time.monotonic() - _last_push >= interval:
