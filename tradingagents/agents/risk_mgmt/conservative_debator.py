@@ -27,11 +27,11 @@ def create_conservative_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
+        prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect this investor's capital and dividend income. Test whether the dividend is safe: is it covered by free cash flow and earnings, is the payout ratio sustainable, has it been cut before, and is a high yield a yield trap left by a falling share price? Examine debt and balance-sheet strength (asset quality and capital for banks), how cyclical the earnings are, governance, and whether the stock would leave the portfolio too concentrated in one stock or sector. Ask whether a fixed deposit, EPF or ASB would give a comparable return for far less risk, and remember that trading fees weigh on a small order. Here is the trader's decision:
 
 {trader_decision}
 
-Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
+Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views overlook a threat to the dividend or to capital. Respond directly to their points, drawing from the following data sources to build a convincing case for a safer adjustment to the trader's decision:
 
 {instrument_context}
 Market Research Report: {market_research_report}
@@ -40,7 +40,7 @@ Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
-Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_investor_profile_instruction() + get_language_instruction()
+Engage by questioning their optimism and emphasizing the downsides they may have overlooked. Address each of their counterpoints to show why dividend safety and capital preservation should come first for this investor. Output conversationally as if you are speaking without any special formatting.""" + get_investor_profile_instruction() + get_language_instruction()
 
         response = llm.invoke(prompt)
 

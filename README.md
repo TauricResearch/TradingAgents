@@ -310,62 +310,138 @@ graceful-degradation behavior handle everything else:
     ```bash
     python -c "from tradingagents.dataflows.y_finance import get_valuation_history as g; print(g('1155.KL', '2026-10-09'))"
     ```
-- **Investor profile** (`investor_profile` in `tradingagents/default_config.py`):
-  a shared instruction appended to every agent's prompt (analysts,
-  researchers, risk debaters, managers and trader), so the whole pipeline
-  rates the stock for the same holder. The default describes a long-term,
-  income-focused retail holder (2–5+ years, longer for high-yield blue chips)
-  of Bursa Malaysia stocks who buys in small tranches every few months: the
-  rating rests mainly on dividend sustainability, earnings stability,
-  balance-sheet strength (asset quality and capital for banks) and valuation
-  versus history; recommendations state how many 100-share board lots a
-  purchase buys, avoid stop-losses and short-term profit-taking, and treat a
-  sell as a broken thesis. Technical indicators only suggest staged entry
-  prices.
 
-  Personal figures (portfolio size, purchase amount, holdings) do not belong
-  in the committed default. Put them in a plain-text file at
-  `~/.tradingagents/investor_profile.txt` (outside the repo; override the path
-  with `TRADINGAGENTS_INVESTOR_PROFILE_FILE`), and its contents are appended
-  to the profile. A missing file adds nothing:
-  ```text
-  Total portfolio is about RM50,000. Each new purchase is RM2,000-3,000,
-  made every 2-3 months.
-  ```
-  To replace the general profile itself:
-  ```bash
-  # .env
-  TRADINGAGENTS_INVESTOR_PROFILE="Long-term growth investor, 5-year horizon."
-  ```
-  ```python
-  config = DEFAULT_CONFIG.copy()
-  config["investor_profile"] = ""   # disable entirely (an empty env var is ignored)
-  ```
-- **Long-horizon decision memory** (`reflection_holding_days` in
-  `tradingagents/default_config.py`, default `250`): upstream scores each
-  logged decision on its 5-trading-day return, which teaches a long-term
-  holder short-term timing. This fork waits ~1 year (250 Bursa trading days)
-  before scoring a decision and writing its lesson, so lessons only start
-  appearing for decisions about a year old. The stock's return is a total
-  return (yfinance's dividend-adjusted close); the `^KLSE` benchmark is a
-  price-only index, so the reflection prompt notes that a dividend stock's
-  alpha is flattered by roughly the index yield. Set
-  `TRADINGAGENTS_REFLECTION_HOLDING_DAYS=5` to restore upstream behavior.
-- **Long-term Trader proposal** (`TraderProposal` in
-  `tradingagents/agents/schemas.py`): the upstream stop-loss is replaced by a
-  staged purchase plan: an entry price, an optional lower add-on price, the
-  number of 100-share board lots one purchase buys (the share count and cost
-  are computed from lots × 100 × entry price, not by the LLM), sizing in the
-  investor's terms, and the conditions that would break the thesis and
-  justify selling.
-- **Long-term rating scale** (`RATING_SCALE_GUIDE` in
-  `tradingagents/agents/utils/rating.py`, shared by the Research Manager and
-  Portfolio Manager): the five rating words are unchanged, but mean
-  accumulate now (Buy), accumulate gradually or on dips (Overweight), keep
-  holding and collect dividends (Hold), stop adding and watch (Underweight),
-  and thesis broken (Sell). The Portfolio Manager also weighs the dividend
-  yield against fixed deposits, EPF and ASB, and its example holding period
-  is 2–5 years.
+### Long-term dividend investor mode
+
+Upstream TradingAgents behaves like a short-term trading desk: it learns from
+5-day returns, sets ATR-based stop-losses, sizes trades as "% of portfolio",
+and has a risk team that champions "high-reward, high-risk" bets. That is the
+wrong lens for a retail investor who buys Bursa blue chips in small amounts
+every few months and holds them for years for the dividends. This fork
+re-frames the whole pipeline for that investor. The pieces below work
+together; each can be changed or switched off independently.
+
+#### 1. Investor profile
+
+`investor_profile` in `tradingagents/default_config.py` is a shared
+instruction appended to every agent's prompt (analysts, researchers, risk
+analysts, managers and trader), so the whole pipeline rates the stock for the
+same holder. The default describes a long-term, income-focused retail holder
+of Bursa Malaysia stocks (2–5 years, longer for stable high-yield blue chips)
+who buys in small tranches every few months. It tells every agent to:
+
+- base the rating mainly on dividend sustainability (payout covered by free
+  cash flow, consistent dividend record), earnings stability, balance-sheet
+  strength (asset quality and capital for banks) and valuation versus the
+  stock's own history;
+- state how many 100-share board lots one purchase buys, and its RM cost;
+- avoid frequent trading, because fees are a meaningful share of a small order;
+- never recommend stop-losses or short-term profit-taking, and recommend
+  selling only when the investment thesis breaks (dividend cut, sustained
+  earnings decline, rising debt, governance problems);
+- use technical indicators only to suggest staged entry prices, never to
+  change the rating.
+
+**Your own figures stay private.** Portfolio size, purchase amount and
+holdings do not belong in the committed default (this repository is public).
+Put them in a plain-text file at `~/.tradingagents/investor_profile.txt`,
+which is outside the repo, and its contents are appended to the profile on
+every run. A missing or empty file adds nothing. Override the path with
+`TRADINGAGENTS_INVESTOR_PROFILE_FILE`. Example:
+```text
+Total portfolio is about RM50,000. Each new purchase is RM2,000-3,000,
+made every 2-3 months.
+```
+To replace the general profile itself, or disable it:
+```bash
+# .env
+TRADINGAGENTS_INVESTOR_PROFILE="Long-term growth investor, 5-year horizon."
+```
+```python
+config = DEFAULT_CONFIG.copy()
+config["investor_profile"] = ""   # disable entirely (an empty env var is ignored)
+```
+
+#### 2. Decision memory judged over a year, not 5 days
+
+The decision log (see [Decision log](#decision-log)) scores each past
+decision once its outcome is known and turns it into a short "lesson" that
+the Portfolio Manager reads on later runs. Upstream scores a decision on its
+**5-trading-day** return. For a 2–5 year dividend holder that is noise, and
+worse, it teaches the system short-term timing.
+
+`reflection_holding_days` (default `250`, about one year of Bursa trading
+days; env `TRADINGAGENTS_REFLECTION_HOLDING_DAYS`) sets the window instead:
+
+- The stock's return is a **total return including dividends** (yfinance's
+  dividend-adjusted close).
+- The `^KLSE` (FBM KLCI) benchmark is a **price-only** index, so a dividend
+  stock's alpha looks better than it really is by roughly the index's
+  dividend yield. The reflection prompt is told this.
+- The reflection judges whether the long-term thesis held (dividend,
+  earnings, balance sheet, valuation), not short-term direction.
+
+What this means in practice: a decision needs about a year before it is
+scored, so the memory stays quiet for the first year. That is intended. Set
+`TRADINGAGENTS_REFLECTION_HOLDING_DAYS=5` to restore upstream behavior.
+
+#### 3. Trader: a staged purchase plan instead of a stop-loss
+
+A stop-loss on a dividend blue chip mostly turns a temporary price dip into a
+realised loss. The Trader (`TraderProposal` in
+`tradingagents/agents/schemas.py`, prompt in
+`tradingagents/agents/trader/trader.py`) now produces a purchase plan,
+grounded in support levels and moving averages rather than ATR:
+
+| Field | Meaning |
+|---|---|
+| Entry Price | Price for the first purchase |
+| Add-on Price | Optional lower price for a second, staged purchase (e.g. near support) |
+| Lots per Purchase | 100-share board lots one purchase buys. The share count and cost are computed in code (lots × 100 × entry price), e.g. "2 (200 shares, about 1,970.00 at the entry price)", so the arithmetic is exact |
+| Position Sizing | In the investor's terms: the amount for this purchase, buy all now or split over 1–2 purchases, and keep any one stock within roughly 10–15% of the portfolio |
+| Sell If | Conditions that would break the thesis (dividend cut, sustained earnings decline, rising debt, governance problems) |
+| ~~Stop Loss~~ | Removed |
+
+#### 4. Rating scale for a long-term holder
+
+The Research Manager and Portfolio Manager share one scale
+(`RATING_SCALE_GUIDE` in `tradingagents/agents/utils/rating.py`). The five
+words are unchanged, because signal parsing, the memory log and the schemas
+rely on them, but their meaning is now:
+
+| Rating | Upstream meaning | Meaning in this fork |
+|---|---|---|
+| **Buy** | Strong conviction to enter or add | Strong long-term case at an attractive price: accumulate now |
+| **Overweight** | Gradually increase exposure | Good case, but the price is only fair: accumulate gradually or on dips |
+| **Hold** | Maintain position, no action | Keep holding and collect the dividends; don't add at this price |
+| **Underweight** | Reduce exposure, take partial profits | Thesis weakening: stop adding and watch, but don't sell yet |
+| **Sell** | Exit or avoid | Thesis broken (dividend cut, sustained earnings decline, balance-sheet or governance problems): exit, or avoid if not held |
+
+The Portfolio Manager also:
+
+- compares the dividend yield and expected total return with the low-risk
+  alternatives the investor could hold instead (fixed deposits, which track
+  Bank Negara's OPR, EPF dividends and ASB distributions), and says whether
+  the stock's extra return justifies its equity risk. It cites rates for
+  those alternatives only when the reports provide them, so it does not
+  invent FD or EPF figures;
+- summarises staged entry, sizing, thesis-break conditions and holding
+  period (instead of "key risk levels"), with a holding-period example of
+  "2-5 years" (instead of "3-6 months").
+
+#### 5. Risk debate from a long-term holder's viewpoint
+
+The three risk analysts (`tradingagents/agents/risk_mgmt/`) keep their names,
+because the graph routing and the CLI use them, but argue different things.
+All three now argue from fundamentals and valuation rather than price
+momentum or chatter.
+
+| Analyst | Upstream | This fork |
+|---|---|---|
+| **Aggressive** | "High-reward, high-risk… outpace market norms" | Long-term total return: dividends that grow, earnings that compound, and the cost of sitting out. Pushes back when the plan is too timid (e.g. waiting for a perfect dip on a quality stock at a fair price). Never argues for leverage, speculation or short-term trading |
+| **Conservative** | Protect "the firm's assets" from volatility | Protect the investor's capital and dividend income: is the dividend covered by free cash flow, has it been cut before, is a high yield a trap left by a falling share price? Also debt, earnings cyclicality, governance, concentration in one stock or sector, and whether an FD, EPF or ASB would pay about the same for far less risk |
+| **Neutral** | A general "balanced approach" | Valuation and entry timing: is the price cheap, fair or expensive against the stock's own history (yield, P/B, P/E), and should the investor buy the full amount now, split it over 1–2 purchases, or wait |
+
 
 ## TradingAgents Package
 
@@ -413,7 +489,7 @@ TradingAgents persists two kinds of state across runs.
 
 ### Decision log
 
-The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't.
+The decision log is always on. Each completed run appends its decision to `~/.tradingagents/memory/trading_memory.md`. On the next run for the same ticker, TradingAgents fetches the realised return (raw and alpha vs SPY), generates a one-paragraph reflection, and injects the most recent same-ticker decisions plus recent cross-ticker lessons into the Portfolio Manager prompt, so each analysis carries forward what worked and what didn't. On this fork the realised return is measured over about a year (dividends included) rather than 5 trading days, so a decision only resolves once it is about a year old; see [Decision memory judged over a year](#2-decision-memory-judged-over-a-year-not-5-days).
 
 Override the path with `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
