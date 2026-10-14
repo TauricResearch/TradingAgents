@@ -341,6 +341,16 @@ graceful-degradation behavior handle everything else:
   config = DEFAULT_CONFIG.copy()
   config["investor_profile"] = ""   # disable entirely (an empty env var is ignored)
   ```
+- **Long-horizon decision memory** (`reflection_holding_days` in
+  `tradingagents/default_config.py`, default `250`): upstream scores each
+  logged decision on its 5-trading-day return, which teaches a long-term
+  holder short-term timing. This fork waits ~1 year (250 Bursa trading days)
+  before scoring a decision and writing its lesson, so lessons only start
+  appearing for decisions about a year old. The stock's return is a total
+  return (yfinance's dividend-adjusted close); the `^KLSE` benchmark is a
+  price-only index, so the reflection prompt notes that a dividend stock's
+  alpha is flattered by roughly the index yield. Set
+  `TRADINGAGENTS_REFLECTION_HOLDING_DAYS=5` to restore upstream behavior.
 
 ## TradingAgents Package
 

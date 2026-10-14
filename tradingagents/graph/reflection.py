@@ -21,8 +21,12 @@ class Reflector:
             "You are a trading analyst reviewing your own past decision now that the outcome is known.\n"
             "Write exactly 2-4 sentences of plain prose (no bullets, no headers, no markdown).\n\n"
             "Cover in order:\n"
-            "1. Was the directional call correct? (cite the alpha figure)\n"
-            "2. Which part of the investment thesis held or failed?\n"
+            "1. Was the call correct over the holding period? Cite the total return "
+            "and the alpha figure; the stock's return includes dividends, but the "
+            "benchmark may be a price-only index, so a dividend stock's alpha is "
+            "flattered by roughly the index's dividend yield.\n"
+            "2. Which part of the investment thesis held or failed (for a long-term "
+            "holding: dividend, earnings, balance sheet, valuation)?\n"
             "3. One concrete lesson to apply to the next similar analysis.\n\n"
             "Be specific and terse. Your output will be stored verbatim in a decision log "
             "and re-read by future analysts, so every word must earn its place."
@@ -34,6 +38,7 @@ class Reflector:
         raw_return: float,
         alpha_return: float,
         benchmark_name: str = "SPY",
+        holding_days: int | None = None,
     ) -> str:
         """Single reflection call on the final trade decision with outcome context.
 
@@ -42,13 +47,16 @@ class Reflector:
         ``benchmark_name`` is the label used for the alpha line (e.g. ``"SPY"``
         for US tickers, ``"^N225"`` for ``.T`` listings); defaults to SPY for
         callers that haven't been updated to thread the benchmark through.
+        ``holding_days`` (trading days the outcome was measured over) is shown
+        so the reflection judges the call on the right horizon.
         """
+        period = f" over {holding_days} trading days" if holding_days else ""
         messages = [
             ("system", self.log_reflection_prompt),
             (
                 "human",
                 (
-                    f"Raw return: {raw_return:+.1%}\n"
+                    f"Total return incl. dividends{period}: {raw_return:+.1%}\n"
                     f"Alpha vs {benchmark_name}: {alpha_return:+.1%}\n\n"
                     f"Final Decision:\n{final_decision}"
                 ),

@@ -489,6 +489,17 @@ class TestDeferredReflection:
         assert "-5.0%" in human_content
         assert "Exit position immediately." in human_content
 
+    def test_reflect_on_final_decision_states_holding_period(self):
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value.content = "ok"
+        Reflector(mock_llm).reflect_on_final_decision(
+            final_decision=DECISION_BUY, raw_return=0.1, alpha_return=0.02,
+            benchmark_name="^KLSE", holding_days=250,
+        )
+        human_content = next(c for r, c in mock_llm.invoke.call_args[0][0] if r == "human")
+        assert "Total return incl. dividends over 250 trading days: +10.0%" in human_content
+        assert "Alpha vs ^KLSE: +2.0%" in human_content
+
     # TradingAgentsGraph._fetch_returns
 
     def test_fetch_returns_valid_ticker(self):
@@ -507,6 +518,23 @@ class TestDeferredReflection:
         assert days == 5
         # resolution date = the bar `days` sessions after the trade date (#1251)
         assert resolved == "2026-01-10"
+
+    def test_fetch_returns_long_window_requests_enough_calendar_days(self):
+        """A ~1-year window in trading days must request well over a calendar
+        year of prices, or a long holding period could never resolve."""
+        prices = [100.0 + i for i in range(251)]
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        with patch("yfinance.Ticker") as mock_ticker_cls:
+            m = MagicMock()
+            m.history.return_value = _price_df(prices)
+            mock_ticker_cls.return_value = m
+            raw, alpha, days, _ = TradingAgentsGraph._fetch_returns(
+                mock_graph, "1155.KL", "2025-01-06", holding_days=250, benchmark="^KLSE",
+            )
+        end = m.history.call_args.kwargs["end"]
+        assert end >= "2026-01-06"
+        assert days == 250
+        assert raw == pytest.approx(2.5)
 
     def test_fetch_returns_too_recent(self):
         """Only 1 data point available → returns all-None, no crash."""
@@ -680,6 +708,7 @@ class TestDeferredReflection:
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
+        mock_graph.config = {"reflection_holding_days": 5}
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5, "2026-01-12"))
         TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
         assert log.get_pending_entries() == []
@@ -699,10 +728,29 @@ class TestDeferredReflection:
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
+        mock_graph.config = {"reflection_holding_days": 5}
         mock_graph._fetch_returns = MagicMock(return_value=(None, None, None, None))
         TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
         assert len(log.get_pending_entries()) == 1  # still pending
         mock_reflector.reflect_on_final_decision.assert_not_called()
+
+    def test_resolve_uses_configured_holding_days(self, tmp_path):
+        """The holding window comes from reflection_holding_days and reaches
+        both the return lookup and the reflection prompt."""
+        log = make_log(tmp_path)
+        log.store_decision("1155.KL", "2025-01-06", DECISION_BUY)
+        mock_reflector = MagicMock()
+        mock_reflector.reflect_on_final_decision.return_value = "Dividend thesis held."
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.memory_log = log
+        mock_graph.reflector = mock_reflector
+        mock_graph.config = {"reflection_holding_days": 250}
+        mock_graph._resolve_benchmark = MagicMock(return_value="^KLSE")
+        mock_graph._fetch_returns = MagicMock(return_value=(0.12, 0.05, 250, "2026-01-08"))
+        TradingAgentsGraph._resolve_pending_entries(mock_graph, "1155.KL")
+        assert mock_graph._fetch_returns.call_args.kwargs["holding_days"] == 250
+        assert mock_reflector.reflect_on_final_decision.call_args.kwargs["holding_days"] == 250
+        assert "| 250d" in (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

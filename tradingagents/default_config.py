@@ -17,6 +17,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
+    "TRADINGAGENTS_REFLECTION_HOLDING_DAYS": "reflection_holding_days",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
@@ -79,6 +80,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
+    # Trading days after a decision before its outcome is scored and turned
+    # into a lesson for later runs. Upstream uses 5 (a short-term trading
+    # lens); this fork defaults to ~1 year (Bursa trades ~245-250 days a
+    # year) to match a 3-5 year dividend holder, so a lesson only appears
+    # once a decision is about a year old.
+    "reflection_holding_days": 250,
     # LLM settings
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.6",
