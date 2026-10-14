@@ -307,6 +307,18 @@ SEC_EDGAR_USER_AGENT="Your Name your@email.com"
 
 It covers companies that file with the SEC, including foreign companies listed in the US. Anything else, such as Hong Kong or A-share listings, falls through to the next vendor in the chain. EDGAR's machine-readable filings begin in 2009, and a fourth quarter is reported as unavailable rather than derived, because filers publish it only inside the annual figure.
 
+### Brazilian company filings
+
+Yahoo tags almost no article with a B3 symbol, so a `.SA` run's News Analyst reads little about the company. The `cvm` news vendor serves what the company filed with the CVM, Brazil's securities regulator: material facts, notices to the market, earnings releases and dividend notices, each with the day it was delivered. The register is complete, so a window with nothing in it means nothing was filed. It needs no account or API key.
+
+```python
+config["tool_vendors"] = {"get_news": "cvm,yfinance"}
+```
+
+Symbols that are not `.SA` fall through to the next vendor, so one setting covers a mixed universe. The CVM records the day a filing was delivered but not the time, and companies often file after the close, so a run dated in the past does not read filings delivered on its own date.
+
+A symbol resolves to its company through the CVM registration form, which lists each company's trading codes as the company entered them. Where a company entered something else (CSN lists its CVM code, `4030`), B3's listing of issuers answers by the symbol's four-letter root, for issuers already listed on the run's date.
+
 ### Current holdings
 
 By default the agents do not know what you hold, so their guidance is written for a reader who applies it to their own position. Pass a portfolio to have the trader, the risk analysts and the portfolio manager work against your actual book.
