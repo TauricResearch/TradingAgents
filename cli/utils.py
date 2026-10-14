@@ -141,11 +141,12 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> list[AnalystType
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
         choices=[
-            questionary.Choice(display, value=value)
+            # Bursa fork: all analysts start ticked, so Enter runs the full team.
+            questionary.Choice(display, value=value, checked=True)
             for display, value in ANALYST_ORDER
             if value in available_analysts
         ],
-        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
+        instruction="\n- All analysts are selected by default\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
         validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
             [
@@ -174,11 +175,13 @@ def select_research_depth() -> int:
         ("Deep - Comprehensive research, in depth debate and strategy discussion", 5),
     ]
 
+    choices = [questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS]
     choice = questionary.select(
         "Select Your [Research Depth]:",
-        choices=[
-            questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS
-        ],
+        choices=choices,
+        # Bursa fork: Medium is highlighted, so Enter picks 3 rounds -- enough
+        # debate for a multi-year decision without the cost of Deep.
+        default=choices[1],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [

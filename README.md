@@ -495,6 +495,28 @@ The yfinance fallback (`global_news_queries`, used only if Google News
 fails) cannot find Malaysian news at all, so it now covers just the external
 backdrop: US rates, China, Asian fund flows, oil and trade policy.
 
+#### 7. CLI defaults
+
+- **All four analysts are ticked** when the analyst menu opens, so pressing
+  Enter runs the full team. Untick one with Space. For a long-term holder the
+  Fundamentals and News analysts carry the rating; the Market analyst only
+  informs staged entry prices, and the Sentiment analyst (including KLSE
+  Screener chatter) is useful context but should not drive a multi-year
+  decision.
+- **Medium research depth** (3 debate and risk rounds) is highlighted, a
+  balance between a thorough debate and API cost.
+- **Temperature is left at each provider's default.** A lower temperature
+  makes answers more repeatable, but it is forwarded to the provider as-is,
+  and reasoning models (the default GPT-5.x family, and Claude with
+  extended thinking) reject any value other than 1. If you use a model that
+  honors it, set `TRADINGAGENTS_TEMPERATURE=0.2` in `.env`. DeepSeek V4
+  (`deepseek-v4-flash`, `deepseek-v4-pro`) is safe either way: it never
+  rejects the parameter, honors it in non-thinking mode, and silently uses
+  1.0 in thinking mode, so the setting helps only on non-thinking calls.
+  Either way, run
+  important decisions two or three times and compare the ratings (see
+  [Reproducibility](#reproducibility)).
+
 ## TradingAgents Package
 
 ### Implementation Details

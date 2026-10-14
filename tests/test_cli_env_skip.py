@@ -147,3 +147,19 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_cli_defaults_tick_all_analysts_and_highlight_medium_depth():
+    """Bursa fork: Enter accepts the full analyst team and Medium depth."""
+    from cli import utils
+
+    with mock.patch.object(utils.questionary, "checkbox") as checkbox:
+        checkbox.return_value.ask.return_value = [utils.AnalystType.NEWS]
+        utils.select_analysts()
+    choices = checkbox.call_args.kwargs["choices"]
+    assert len(choices) == 4 and all(c.checked for c in choices)
+
+    with mock.patch.object(utils.questionary, "select") as select:
+        select.return_value.ask.return_value = 3
+        utils.select_research_depth()
+    assert select.call_args.kwargs["default"].value == 3
