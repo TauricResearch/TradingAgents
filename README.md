@@ -314,7 +314,7 @@ graceful-degradation behavior handle everything else:
   a shared instruction appended to every agent's prompt (analysts,
   researchers, risk debaters, managers and trader), so the whole pipeline
   rates the stock for the same holder. The default describes a long-term,
-  income-focused retail holder (3–5+ years, longer for high-yield blue chips)
+  income-focused retail holder (2–5+ years, longer for high-yield blue chips)
   of Bursa Malaysia stocks who buys in small tranches every few months: the
   rating rests mainly on dividend sustainability, earnings stability,
   balance-sheet strength (asset quality and capital for banks) and valuation
@@ -358,6 +358,14 @@ graceful-degradation behavior handle everything else:
   are computed from lots × 100 × entry price, not by the LLM), sizing in the
   investor's terms, and the conditions that would break the thesis and
   justify selling.
+- **Long-term rating scale** (`RATING_SCALE_GUIDE` in
+  `tradingagents/agents/utils/rating.py`, shared by the Research Manager and
+  Portfolio Manager): the five rating words are unchanged, but mean
+  accumulate now (Buy), accumulate gradually or on dips (Overweight), keep
+  holding and collect dividends (Hold), stop adding and watch (Underweight),
+  and thesis broken (Sell). The Portfolio Manager also weighs the dividend
+  yield against fixed deposits, EPF and ASB, and its example holding period
+  is 2–5 years.
 
 ## TradingAgents Package
 

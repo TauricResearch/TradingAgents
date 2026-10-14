@@ -83,7 +83,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Trading days after a decision before its outcome is scored and turned
     # into a lesson for later runs. Upstream uses 5 (a short-term trading
     # lens); this fork defaults to ~1 year (Bursa trades ~245-250 days a
-    # year) to match a 3-5 year dividend holder, so a lesson only appears
+    # year) to match a 2-5 year dividend holder, so a lesson only appears
     # once a decision is about a year old.
     "reflection_holding_days": 250,
     # LLM settings
@@ -127,7 +127,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Keep it free of personal figures: those go in investor_profile_file.
     "investor_profile": (
         "The investor is a long-term, income-focused retail holder of Bursa "
-        "Malaysia stocks, holding 3–5 years, or longer for stable blue chips "
+        "Malaysia stocks, holding 2–5 years, or longer for stable blue chips "
         "with a high dividend yield, and buys in small tranches every few "
         "months, either starting a new position over 1–2 purchases or topping "
         "up an existing holding. Base the final rating mainly on dividend "

@@ -19,6 +19,7 @@ import tradingagents.agents.analysts.sentiment_analyst as sentiment
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.trader.trader import create_trader
+from tradingagents.agents.utils.rating import RATING_SCALE_GUIDE
 from tradingagents.agents.utils.structured import NO_EXTERNAL_TOOLS
 
 
@@ -75,7 +76,9 @@ def test_research_manager_prompt_states_constraint():
             "current_response": "", "judge_decision": "", "count": 1,
         },
     })
-    assert NO_EXTERNAL_TOOLS in _prompt_text(captured["prompt"])
+    text = _prompt_text(captured["prompt"])
+    assert NO_EXTERNAL_TOOLS in text
+    assert RATING_SCALE_GUIDE in text  # same long-term scale as the PM
 
 
 @pytest.mark.unit
@@ -103,7 +106,25 @@ def test_portfolio_manager_prompt_states_constraint():
         "investment_plan": "plan",
         "trader_investment_plan": "trader plan",
     })
-    assert NO_EXTERNAL_TOOLS in _prompt_text(captured["prompt"])
+    text = _prompt_text(captured["prompt"])
+    assert NO_EXTERNAL_TOOLS in text
+    assert RATING_SCALE_GUIDE in text
+    # Yield is judged against what the investor could hold instead, without
+    # the model inventing those rates.
+    assert "fixed deposits" in text and "EPF dividends" in text
+    assert "without inventing figures" in text
+    assert "take partial profits" not in text
+
+
+@pytest.mark.unit
+def test_long_term_rating_scale_and_horizon():
+    from tradingagents.agents.schemas import PortfolioDecision
+
+    assert "Keep holding and collect the dividends" in RATING_SCALE_GUIDE
+    assert "Thesis broken" in RATING_SCALE_GUIDE
+    fields = PortfolioDecision.model_fields
+    assert "'2-5 years'" in fields["time_horizon"].description
+    assert "key risk levels" not in fields["executive_summary"].description
 
 
 @pytest.mark.unit

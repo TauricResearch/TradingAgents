@@ -293,8 +293,9 @@ class PortfolioDecision(BaseModel):
     )
     executive_summary: str = Field(
         description=(
-            "A concise action plan covering entry strategy, position sizing, "
-            "key risk levels, and time horizon. Two to four sentences."
+            "A concise action plan covering entry strategy (staged purchases), "
+            "position sizing, the conditions that would break the thesis, and "
+            "holding period. Two to four sentences."
         ),
     )
     investment_thesis: str = Field(
@@ -310,7 +311,7 @@ class PortfolioDecision(BaseModel):
     )
     time_horizon: str | None = Field(
         default=None,
-        description="Optional recommended holding period, e.g. '3-6 months'.",
+        description="Optional recommended holding period, e.g. '2-5 years'.",
     )
 
     @field_validator("price_target", mode="before")

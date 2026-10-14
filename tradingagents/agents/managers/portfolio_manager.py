@@ -16,6 +16,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_investor_profile_instruction,
     get_language_instruction,
 )
+from tradingagents.agents.utils.rating import RATING_SCALE_GUIDE
 from tradingagents.agents.utils.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
@@ -47,12 +48,7 @@ def create_portfolio_manager(llm):
 
 ---
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
+{RATING_SCALE_GUIDE}
 
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
@@ -62,6 +58,8 @@ def create_portfolio_manager(llm):
 {history}
 
 ---
+
+Judge the dividend yield and expected total return against the low-risk alternatives this investor could hold instead -- Malaysian fixed deposits (which track Bank Negara's OPR), EPF dividends and ASB distributions -- and say whether the stock's extra return justifies its equity risk. Cite rates for those alternatives only when the reports provide them; otherwise name the comparison without inventing figures.
 
 Ground every conclusion in specific evidence from the analysts. Commit to a directional call only when the evidence clearly supports one; choose Hold when the case is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure, rather than forcing a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
 

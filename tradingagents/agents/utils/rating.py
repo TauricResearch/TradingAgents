@@ -24,6 +24,17 @@ RATINGS_5_TIER: tuple[str, ...] = (
     "Buy", "Overweight", "Hold", "Underweight", "Sell",
 )
 
+# The scale as the Research Manager and Portfolio Manager prompts define it.
+# The five words stay fixed (signal parsing, memory log and schemas rely on
+# them), but their meaning is framed for a long-term dividend holder who buys
+# in staged purchases, rather than a desk that trims and adds exposure.
+RATING_SCALE_GUIDE = """**Rating Scale** (use exactly one):
+- **Buy**: Strong long-term case at an attractive price; accumulate now (start or add to the position with the next purchase)
+- **Overweight**: Good long-term case but the price is only fair; accumulate gradually, in staged purchases or on dips
+- **Hold**: Keep holding and collect the dividends; do not add at this price
+- **Underweight**: Thesis weakening; stop adding and watch the warning signs, but do not sell yet
+- **Sell**: Thesis broken (dividend cut, sustained earnings decline, balance-sheet or governance problems); exit, or avoid if not held"""
+
 # Signal emitted when the model's decision has no recognizable rating. It is not
 # a tradeable position: it flags output that needs a human/re-run rather than
 # silently degrading to Hold. Callers that map the signal onto the 5-tier enum
