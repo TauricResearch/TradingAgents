@@ -47,25 +47,38 @@ class TestRenderTraderProposal:
     def test_optional_fields_included_when_present(self):
         p = TraderProposal(
             action=TraderAction.BUY,
-            reasoning="Strong technicals + fundamentals.",
-            entry_price=189.5,
-            stop_loss=178.0,
-            position_sizing="6% of portfolio",
+            reasoning="Dividend well covered; yield above its 5-year average.",
+            entry_price=9.85,
+            add_on_price=9.40,
+            lots_per_purchase=2,
+            position_sizing="RM2,500 now, top up later",
+            thesis_break_conditions="Dividend cut or sustained earnings decline.",
         )
         md = render_trader_proposal(p)
         assert "**Action**: Buy" in md
-        assert "**Entry Price**: 189.5" in md
-        assert "**Stop Loss**: 178.0" in md
-        assert "**Position Sizing**: 6% of portfolio" in md
+        assert "**Entry Price**: 9.85" in md
+        assert "**Add-on Price**: 9.4" in md
+        # Shares and cost are computed from lots x 100 x entry price, not by the LLM.
+        assert "**Lots per Purchase**: 2 (200 shares, about 1,970.00 at the entry price)" in md
+        assert "**Position Sizing**: RM2,500 now, top up later" in md
+        assert "**Sell If**: Dividend cut or sustained earnings decline." in md
         assert "FINAL TRANSACTION PROPOSAL: **BUY**" in md
+
+    def test_lots_without_entry_price_omits_cost(self):
+        p = TraderProposal(action=TraderAction.BUY, reasoning="x", lots_per_purchase=3)
+        assert "**Lots per Purchase**: 3 (300 shares)" in render_trader_proposal(p)
 
     def test_optional_fields_omitted_when_absent(self):
         p = TraderProposal(action=TraderAction.SELL, reasoning="Guidance cut.")
         md = render_trader_proposal(p)
-        assert "Entry Price" not in md
-        assert "Stop Loss" not in md
-        assert "Position Sizing" not in md
+        for label in ("Entry Price", "Add-on Price", "Lots per Purchase",
+                      "Position Sizing", "Sell If"):
+            assert label not in md
         assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
+
+    def test_no_stop_loss_field(self):
+        # A long-term holder sells on a broken thesis, not a price stop.
+        assert "stop_loss" not in TraderProposal.model_fields
 
 
 @pytest.mark.unit
@@ -79,10 +92,10 @@ class TestNullishFloatCoercion:
                 action=TraderAction.HOLD,
                 reasoning="x",
                 entry_price=sentinel,
-                stop_loss=sentinel,
+                add_on_price=sentinel,
             )
             assert p.entry_price is None
-            assert p.stop_loss is None
+            assert p.add_on_price is None
 
     def test_trader_real_numeric_string_still_parses(self):
         p = TraderProposal(action=TraderAction.BUY, reasoning="x", entry_price="189.5")
@@ -106,20 +119,20 @@ class TestNullishFloatCoercion:
                 action=TraderAction.BUY,
                 reasoning="x",
                 entry_price=pct,
-                stop_loss=pct,
+                add_on_price=pct,
             )
             assert p.entry_price is None
-            assert p.stop_loss is None
+            assert p.add_on_price is None
 
     def test_human_formatted_price_is_reduced_to_its_number(self):
         p = TraderProposal(
             action=TraderAction.BUY,
             reasoning="x",
             entry_price="$1,234.50",
-            stop_loss="1,180",
+            add_on_price="1,180",
         )
         assert p.entry_price == 1234.50
-        assert p.stop_loss == 1180.0
+        assert p.add_on_price == 1180.0
 
     def test_one_bad_field_no_longer_fails_the_whole_proposal(self):
         # Previously a single '15%' raised, forcing a free-text retry that lost
@@ -128,11 +141,16 @@ class TestNullishFloatCoercion:
             action=TraderAction.SELL,
             reasoning="downgrade on margin compression",
             entry_price="612.40",
-            stop_loss="15%",
+            add_on_price="15%",
         )
         assert p.action is TraderAction.SELL
         assert p.entry_price == 612.40
-        assert p.stop_loss is None
+        assert p.add_on_price is None
+
+    def test_lots_written_as_text_or_placeholder(self):
+        for raw, expected in (("2 lots", 2), ("3.0", 3), (4.0, 4), ("N/A", None), ("some", None)):
+            p = TraderProposal(action=TraderAction.BUY, reasoning="x", lots_per_purchase=raw)
+            assert p.lots_per_purchase == expected
 
 
 @pytest.mark.unit
@@ -216,7 +234,7 @@ class TestTraderAgent:
             action=TraderAction.BUY,
             reasoning="AI capex cycle intact; institutional flows constructive.",
             entry_price=189.5,
-            stop_loss=178.0,
+            add_on_price=178.0,
             position_sizing="6% of portfolio",
         )
         llm = _structured_trader_llm(captured, proposal)
@@ -250,6 +268,14 @@ class TestTraderAgent:
         assert "14-day ATR 4.2" in user            # the actual report content reached the Trader
         assert "support $178, resistance $196" in user
         assert "Ground concrete price levels" in system
+
+    def test_prompt_asks_for_lots_and_thesis_break_not_stop_loss(self):
+        captured = {}
+        create_trader(_structured_trader_llm(captured))(_make_trader_state())
+        system = " ".join(m["content"] for m in captured["prompt"] if m["role"] == "system")
+        assert "100-share board lots" in system
+        assert "Do not set a stop-loss" in system
+        assert "stop-loss)" not in system  # old "(entry, stop-loss, position sizing)" wording
 
     def test_empty_market_report_omits_the_section_and_grounding(self):
         # #1167: when the market analyst wasn't selected the report is empty, so

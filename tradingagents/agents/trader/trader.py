@@ -27,17 +27,18 @@ def create_trader(llm):
         instrument_context = get_instrument_context_from_state(state)
         investment_plan = state["investment_plan"]
         # The research plan digests the debate but loses exact price structure;
-        # give the Trader the technical market report so entry/stop levels are
-        # grounded in real ATR / support-resistance / current price (#1167). The
-        # report is empty when the user did not select the market analyst, so
-        # only offer it (and the grounding instruction) when it has content.
+        # give the Trader the technical market report so staged entry prices
+        # are grounded in real support / moving averages / current price
+        # (#1167). The report is empty when the user did not select the market
+        # analyst, so only offer it (and the grounding instruction) when it has
+        # content.
         market_report = (state["market_report"] or "").strip()
 
         if market_report:
             grounding = (
-                "Ground concrete price levels (entry, stop-loss, position sizing) in the technical "
-                "market report's price structure -- current price, support/resistance, ATR, and "
-                "volatility -- and use the research plan for direction and strategy. "
+                "Ground concrete price levels (entry and add-on prices) in the technical "
+                "market report's price structure -- current price, support/resistance and "
+                "moving averages -- and use the research plan for direction and strategy. "
             )
             report_section = f"Technical Market Report:\n{market_report}\n\n"
         else:
@@ -48,16 +49,20 @@ def create_trader(llm):
             {
                 "role": "system",
                 "content": (
-                    "You are a trading agent analyzing market data to make investment decisions. "
-                    "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
+                    "You turn the research team's plan into a concrete purchase plan for a "
+                    "long-term investor. Based on your analysis, provide a specific "
+                    "recommendation to buy, sell, or hold. "
                     + grounding
-                    # Entry/stop are numeric price fields. Asking for concrete
+                    # Entry/add-on are numeric price fields. Asking for concrete
                     # levels invites a percentage ("15%"), which is not a price
                     # and fails the structured parse (#1288).
-                    + "State entry price and stop-loss as absolute price levels in the "
-                    "instrument's quote currency (for example 189.5), never a percentage "
+                    + "State entry and add-on prices as absolute price levels in the "
+                    "instrument's quote currency (for example 9.85), never a percentage "
                     "or a range; convert a percentage distance to the price level it "
                     "implies, or omit the field if you cannot state a number. "
+                    "Give the number of 100-share board lots one purchase buys at the "
+                    "entry price. Do not set a stop-loss: describe the conditions that "
+                    "would break the investment thesis instead. "
                     + NO_EXTERNAL_TOOLS
                     + get_investor_profile_instruction() + get_language_instruction()
                 ),

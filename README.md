@@ -351,6 +351,13 @@ graceful-degradation behavior handle everything else:
   price-only index, so the reflection prompt notes that a dividend stock's
   alpha is flattered by roughly the index yield. Set
   `TRADINGAGENTS_REFLECTION_HOLDING_DAYS=5` to restore upstream behavior.
+- **Long-term Trader proposal** (`TraderProposal` in
+  `tradingagents/agents/schemas.py`): the upstream stop-loss is replaced by a
+  staged purchase plan: an entry price, an optional lower add-on price, the
+  number of 100-share board lots one purchase buys (the share count and cost
+  are computed from lots × 100 × entry price, not by the LLM), sizing in the
+  investor's terms, and the conditions that would break the thesis and
+  justify selling.
 
 ## TradingAgents Package
 

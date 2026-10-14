@@ -18,6 +18,7 @@ so that:
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Literal
 
@@ -48,6 +49,26 @@ def _coerce_optional_float(value):
         return None
     cleaned = text.replace(",", "").lstrip("$€£¥").strip()
     return cleaned or None
+
+
+def _coerce_optional_int(value):
+    """Normalise an LLM-written optional count ("2 lots", "3.0", "N/A") to an int.
+
+    Placeholders become None; a string keeps its leading whole number, so
+    "2 lots" reads as 2. Anything without a number is dropped rather than
+    failing the whole proposal.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, float):
+        return int(value)
+    if not isinstance(value, str):
+        return value
+    text = value.strip().replace(",", "")
+    if text.lower() in _NULLISH_FLOAT:
+        return None
+    match = re.match(r"\d+(?:\.\d+)?", text)
+    return int(float(match.group())) if match else None
 
 
 # ---------------------------------------------------------------------------
@@ -134,13 +155,19 @@ def render_research_plan(plan: ResearchPlan) -> str:
 # ---------------------------------------------------------------------------
 
 
+# Bursa Malaysia trades in board lots of 100 shares.
+BOARD_LOT_SHARES = 100
+
+
 class TraderProposal(BaseModel):
-    """Structured transaction proposal produced by the Trader.
+    """Structured purchase plan produced by the Trader.
 
     The trader reads the Research Manager's investment plan and the analyst
-    reports, then turns them into a concrete transaction: what action to
-    take, the reasoning that justifies it, and the practical levels for
-    entry, stop-loss, and sizing.
+    reports, then turns them into a concrete plan for a long-term holder:
+    what action to take, the reasoning, staged entry prices, how many board
+    lots one purchase buys, and the conditions that would break the thesis.
+    There is deliberately no stop-loss: for a long-term dividend holder a
+    sell is triggered by the thesis breaking, not by a price level.
     """
 
     action: TraderAction = Field(
@@ -155,33 +182,62 @@ class TraderProposal(BaseModel):
     entry_price: float | None = Field(
         default=None,
         description=(
-            "Optional entry price target as an absolute number in the instrument's "
-            "quote currency (e.g. 189.5), never a percentage or a range. Omit it "
-            "if you cannot state a specific level."
+            "Optional price for the first purchase, as an absolute number in the "
+            "instrument's quote currency (e.g. 9.85), never a percentage or a "
+            "range. Omit it if you cannot state a specific level."
         ),
     )
-    stop_loss: float | None = Field(
+    add_on_price: float | None = Field(
         default=None,
         description=(
-            "Optional stop-loss as an absolute price in the instrument's quote "
-            "currency (e.g. 172.0), never a percentage. Convert a percentage "
-            "distance to the price level it implies, or omit it."
+            "Optional lower price for a second, staged purchase (e.g. near "
+            "support), as an absolute number in the quote currency, never a "
+            "percentage. Omit it if a single purchase is enough."
+        ),
+    )
+    lots_per_purchase: int | None = Field(
+        default=None,
+        description=(
+            "Optional number of 100-share board lots one planned purchase buys "
+            "at the entry price, given the investor's purchase amount. A whole "
+            "number, e.g. 2."
         ),
     )
     position_sizing: str | None = Field(
         default=None,
-        description="Optional sizing guidance, e.g. '5% of portfolio'.",
+        description=(
+            "Optional sizing guidance in the investor's terms: the amount for "
+            "this purchase, whether to buy all now or split it over 1-2 "
+            "purchases, and keeping any single stock within roughly 10-15% of "
+            "the portfolio."
+        ),
+    )
+    thesis_break_conditions: str | None = Field(
+        default=None,
+        description=(
+            "Optional conditions that would break the long-term thesis and "
+            "justify selling (e.g. a dividend cut, a sustained earnings "
+            "decline, rising debt, governance problems), instead of a "
+            "stop-loss price."
+        ),
     )
 
-    @field_validator("entry_price", "stop_loss", mode="before")
+    @field_validator("entry_price", "add_on_price", mode="before")
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+    @field_validator("lots_per_purchase", mode="before")
+    @classmethod
+    def _lots_to_int(cls, v):
+        return _coerce_optional_int(v)
 
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
     """Render a TraderProposal to markdown.
 
+    The share count and cost for ``lots_per_purchase`` are computed here from
+    the entry price rather than asked of the LLM, so the arithmetic is exact.
     The trailing ``FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**`` line is
     preserved for backward compatibility with the analyst stop-signal text
     and any external code that greps for it.
@@ -193,10 +249,18 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
     ]
     if proposal.entry_price is not None:
         parts.extend(["", f"**Entry Price**: {proposal.entry_price}"])
-    if proposal.stop_loss is not None:
-        parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
+    if proposal.add_on_price is not None:
+        parts.extend(["", f"**Add-on Price**: {proposal.add_on_price}"])
+    if proposal.lots_per_purchase:
+        shares = proposal.lots_per_purchase * BOARD_LOT_SHARES
+        line = f"**Lots per Purchase**: {proposal.lots_per_purchase} ({shares} shares"
+        if proposal.entry_price is not None:
+            line += f", about {shares * proposal.entry_price:,.2f} at the entry price"
+        parts.extend(["", line + ")"])
     if proposal.position_sizing:
         parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
+    if proposal.thesis_break_conditions:
+        parts.extend(["", f"**Sell If**: {proposal.thesis_break_conditions}"])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
