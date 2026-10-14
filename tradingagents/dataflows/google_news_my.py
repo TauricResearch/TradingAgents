@@ -55,14 +55,55 @@ _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 
 # MY-focused macro/market search terms, parallel in spirit to the default
 # ``global_news_queries`` config but scoped to what actually moves
-# KLSE-listed names: index-level moves, BNM rate policy, and the ringgit.
-# Extend by adding rows, same as that list.
+# KLSE-listed names and a dividend holder's returns: the index and foreign
+# fund flows, BNM rate policy, the ringgit, bond yields (the yield a dividend
+# stock competes with), palm oil and crude oil (planters, Petronas and the
+# fiscal position), the budget, the economy, and the US Fed as the external
+# backdrop that drives foreign flows into Bursa. Each wording was checked
+# against the live feed: short queries return far more relevant articles
+# than long ones (e.g. "Bank Negara Malaysia OPR interest rate" matched 3
+# articles in a week, "OPR Bank Negara" 7). Override with the
+# ``my_news_queries`` config key.
 DEFAULT_MY_QUERIES = (
     "Bursa Malaysia KLCI",
-    "Bank Negara Malaysia OPR interest rate",
-    "Malaysia GDP inflation economy",
-    "ringgit MYR currency",
-    "Malaysia budget fiscal policy",
+    "foreign funds Bursa",
+    "OPR Bank Negara",
+    "ringgit",
+    "Malaysia bond yields",
+    "palm oil prices",
+    "oil prices Petronas",
+    "Malaysia budget",
+    "Malaysia economy",
+    "Federal Reserve interest rates",
+)
+
+# Publishers (as Google News names them in each item's <source>) whose
+# reporting is first-hand and edited: Malaysia's business and general press,
+# the national news agency, regional and international wires, and official
+# bodies. Matching is case-insensitive on the whole name. Google's MY feed
+# also carries machine-written stock blurbs (e.g. AD HOC NEWS), broker and
+# crypto pages (Moomoo, TradingView, CoinGecko), and aggregators that only
+# re-post other outlets (Newswav, KLSE Screener); about a third of a typical
+# week's results came from such sources, so they are filtered out by
+# default. Override with ``trusted_news_sources``, or set
+# ``trusted_news_only`` to False to keep every publisher.
+TRUSTED_MY_NEWS_SOURCES = (
+    # Malaysian business press
+    "The Edge Malaysia", "The Edge Markets", "The Star", "NST Online",
+    "New Straits Times", "Business Times", "The Malaysian Reserve",
+    "BusinessToday Malaysia", "Focus Malaysia", "BFM 89.9",
+    # National news agency
+    "Bernama", "BernamaBiz",
+    # Malaysian general press
+    "Malay Mail", "Free Malaysia Today", "Malaysiakini", "The Sun",
+    "The Vibes", "Astro Awani", "Sinar Daily", "Borneo Post",
+    # Regional and international
+    "Reuters", "Bloomberg", "Nikkei Asia", "CNA", "The Business Times",
+    "The Straits Times", "South China Morning Post", "Financial Times",
+    # Official sources
+    "Bank Negara Malaysia", "Bursa Malaysia", "Securities Commission Malaysia",
+    "Department of Statistics Malaysia", "Ministry of Finance Malaysia",
+    "Malaysian Palm Oil Board",
 )
 
 # Feeds are small (a page of search results); cap the read so a compromised
@@ -167,6 +208,32 @@ def _format_items(items: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _trusted_names() -> set[str] | None:
+    """Lower-cased trusted publisher names, or ``None`` when filtering is off."""
+    from .config import get_config
+
+    config = get_config()
+    if not config.get("trusted_news_only", True):
+        return None
+    names = config.get("trusted_news_sources") or TRUSTED_MY_NEWS_SOURCES
+    return {n.strip().lower() for n in names}
+
+
+def _split_by_trust(items: list[dict], trusted: set[str] | None) -> tuple[list[dict], list[dict]]:
+    """Partition items into (trusted, other); everything is trusted when filtering is off."""
+    if trusted is None:
+        return items, []
+    keep = [it for it in items if it["publisher"].strip().lower() in trusted]
+    rest = [it for it in items if it["publisher"].strip().lower() not in trusted]
+    return keep, rest
+
+
+_UNVERIFIED_NOTE = (
+    "Note: none of these articles come from an established news outlet or "
+    "official source; treat them as unverified and weigh them lightly.\n"
+)
+
+
 def get_news(ticker: str, start_date: str, end_date: str, timeout: float = 10.0) -> str:
     """Ticker-specific news via MY-localized Google News RSS search.
 
@@ -201,8 +268,12 @@ def get_news(ticker: str, start_date: str, end_date: str, timeout: float = 10.0)
             f"between {start_date} and {end_date}"
         )
 
+    # Smaller companies may only be covered by less established sites; show
+    # those (flagged) rather than claim there was no news at all.
+    trusted, other = _split_by_trust(kept, _trusted_names())
+    note = "" if trusted else _UNVERIFIED_NOTE
     header = f"## {ticker} News (searched as {query_name!r}), from {start_date} to {end_date}:\n"
-    return header + "\n" + _format_items(kept)
+    return header + note + "\n" + _format_items(trusted or other)
 
 
 def get_global_news(
@@ -212,9 +283,12 @@ def get_global_news(
 ) -> str:
     """Malaysia-focused macro/market news via Google News RSS.
 
-    Runs each of ``DEFAULT_MY_QUERIES`` bounded to
-    ``[curr_date - look_back_days, curr_date]``, dedupes by title, and caps
-    the result at ``limit`` articles.
+    Runs each of the configured queries (``my_news_queries``, default
+    ``DEFAULT_MY_QUERIES``) bounded to ``[curr_date - look_back_days,
+    curr_date]``, keeps trusted publishers, dedupes by title, and caps the
+    result at ``limit`` articles. Each topic gets an equal share of ``limit``
+    first, so the first broad query cannot fill the whole budget and starve
+    the topics after it; any unused share is then filled in query order.
     """
     from .config import get_config
 
@@ -223,6 +297,8 @@ def get_global_news(
         look_back_days = config.get("global_news_lookback_days", 7)
     if limit is None:
         limit = config.get("global_news_article_limit", 10)
+    queries = list(config.get("my_news_queries") or DEFAULT_MY_QUERIES)
+    trusted_names = _trusted_names()
 
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_dt = end_dt - timedelta(days=look_back_days)
@@ -230,21 +306,25 @@ def get_global_news(
     before = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
 
     seen_titles: set[str] = set()
-    all_items: list[dict] = []
+    per_query: list[list[dict]] = []
+    untrusted: list[dict] = []
     any_fetch_succeeded = False
 
-    for q in DEFAULT_MY_QUERIES:
+    for q in queries:
         query = f"{q} after:{start_date} before:{before}"
         items = _fetch(query, timeout=10.0)
         if items is None:
             continue
         any_fetch_succeeded = True
-        for it in items:
+        in_range = [it for it in items if in_window(it["pub_date"], start_dt, end_dt)]
+        trusted, other = _split_by_trust(in_range, trusted_names)
+        fresh = []
+        for it in trusted:
             if it["title"] and it["title"] not in seen_titles:
                 seen_titles.add(it["title"])
-                all_items.append(it)
-        if len(all_items) >= limit:
-            break
+                fresh.append(it)
+        per_query.append(fresh)
+        untrusted.extend(other)
 
     if not any_fetch_succeeded:
         return (
@@ -252,9 +332,21 @@ def get_global_news(
             "failed to fetch; this is not an absence of news>"
         )
 
-    kept = [it for it in all_items if in_window(it["pub_date"], start_dt, end_dt)][:limit]
+    share = max(1, -(-limit // max(1, len(queries))))  # ceil(limit / queries)
+    kept = [it for items in per_query for it in items[:share]]
+    leftovers = [it for items in per_query for it in items[share:]]
+    kept = (kept + leftovers)[:limit]
+
+    note = ""
+    if not kept and untrusted:
+        note = _UNVERIFIED_NOTE
+        seen: set[str] = set()
+        for it in untrusted:
+            if it["title"] and it["title"] not in seen and len(kept) < limit:
+                seen.add(it["title"])
+                kept.append(it)
     if not kept:
         return f"No Malaysia macro news found between {start_date} and {curr_date}"
 
     header = f"## Malaysia Market News, from {start_date} to {curr_date}:\n"
-    return header + "\n" + _format_items(kept)
+    return header + note + "\n" + _format_items(kept)

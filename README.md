@@ -443,6 +443,58 @@ momentum or chatter.
 | **Neutral** | A general "balanced approach" | Valuation and entry timing: is the price cheap, fair or expensive against the stock's own history (yield, P/B, P/E), and should the investor buy the full amount now, split it over 1–2 purchases, or wait |
 
 
+#### 6. Malaysian news topics from trusted sources
+
+The news analyst's macro headlines come from the `google_news_my` vendor
+(`tradingagents/dataflows/google_news_my.py`). Three changes make them fit a
+Bursa dividend holder:
+
+- **Topics** (`DEFAULT_MY_QUERIES`, override with `my_news_queries`): the
+  things that move Bursa blue chips and a dividend holder's returns. Each
+  wording was checked against the live feed; short queries match far more
+  articles than long ones.
+
+  | Query | Why it matters |
+  |---|---|
+  | Bursa Malaysia KLCI | Overall market direction |
+  | foreign funds Bursa | Weekly foreign net buying or selling, a main driver of blue-chip prices |
+  | OPR Bank Negara | Policy rate: bank margins, and the FD rates a dividend competes with |
+  | ringgit | A stronger ringgit draws foreign funds back |
+  | Malaysia bond yields | The low-risk yield a dividend stock is compared against; rising yields weigh on banks and REITs |
+  | palm oil prices | Plantation earnings and dividends |
+  | oil prices Petronas | Oil and gas stocks and the government's revenue |
+  | Malaysia budget | Tax, dividend and sector measures |
+  | Malaysia economy | GDP, inflation, consumer demand |
+  | Federal Reserve interest rates | US rates drive foreign money into and out of Bursa |
+
+- **Trusted sources only** (`TRUSTED_MY_NEWS_SOURCES`, override with
+  `trusted_news_sources`, or set `trusted_news_only` to `False` to keep
+  everything). In a test week about a third of Google's results came from
+  machine-written stock blurbs (AD HOC NEWS), broker and crypto pages
+  (Moomoo, TradingView, CoinGecko) or sites that only re-post other outlets
+  (Newswav, KLSE Screener). Results are now limited to:
+  - Malaysian business press: The Edge Malaysia, The Star, New Straits Times,
+    Business Times, The Malaysian Reserve, BusinessToday, Focus Malaysia, BFM
+  - the national news agency: Bernama
+  - Malaysian general press: Malay Mail, Free Malaysia Today, Malaysiakini,
+    The Sun, The Vibes, Astro Awani, Sinar Daily, Borneo Post
+  - regional and international: Reuters, Bloomberg, Nikkei Asia, CNA, The
+    Business Times, The Straits Times, SCMP, Financial Times
+  - official bodies: Bank Negara Malaysia, Bursa Malaysia, Securities
+    Commission, DOSM, Ministry of Finance, MPOB
+
+  For a smaller company covered only by minor sites, those articles are still
+  shown, flagged as unverified, rather than reported as "no news".
+- **Every topic gets its share.** Previously the vendor stopped once it had
+  10 articles, and the first query ("Bursa Malaysia KLCI") always returned
+  more than that, so the OPR, ringgit and budget searches never ran. Each
+  topic now gets an equal share of `global_news_article_limit` (raised to
+  20, two per topic), and any unused share is filled from the others.
+
+The yfinance fallback (`global_news_queries`, used only if Google News
+fails) cannot find Malaysian news at all, so it now covers just the external
+backdrop: US rates, China, Asian fund flows, oil and trade policy.
+
 ## TradingAgents Package
 
 ### Implementation Details

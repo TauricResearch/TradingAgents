@@ -159,16 +159,27 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
-    "global_news_article_limit": 10,      # max articles for global/macro news
+    "global_news_article_limit": 20,      # max articles for global/macro news (2 per MY topic)
     "global_news_lookback_days": 7,       # macro news lookback window
-    # Search queries used by get_global_news for macro headlines. Extend or
-    # replace to broaden geographic / sector coverage.
+    # Malaysia-focused macro search terms for the google_news_my vendor (the
+    # default news vendor on this branch). None uses the built-in list in
+    # tradingagents/dataflows/google_news_my.py (DEFAULT_MY_QUERIES).
+    "my_news_queries": None,
+    # Keep only established outlets and official sources in google_news_my
+    # results. None uses the built-in TRUSTED_MY_NEWS_SOURCES list.
+    "trusted_news_only": True,
+    "trusted_news_sources": None,
+    # Search queries used by the yfinance get_global_news vendor (the
+    # fallback when google_news_my fails). Yahoo's search returns nothing for
+    # Malaysian queries, so this list covers only the external backdrop that
+    # moves Bursa: US rates (foreign flows), China (Malaysia's largest trading
+    # partner), oil and trade policy. Extend or replace as needed.
     "global_news_queries": [
         "Federal Reserve interest rates inflation",
-        "S&P 500 earnings GDP economic outlook",
-        "geopolitical risk trade war sanctions",
-        "ECB Bank of England BOJ central bank policy",
-        "oil commodities supply chain energy",
+        "China economy stimulus exports",
+        "Asia emerging markets foreign investors",
+        "oil prices OPEC energy",
+        "geopolitical risk trade war tariffs",
     ],
     # Data vendor configuration
     # Category-level configuration (default for all tools in category).

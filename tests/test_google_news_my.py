@@ -138,3 +138,102 @@ class TestGetGlobalNews:
         with patch.object(gnews, "urlopen", return_value=_rss_resp()):
             out = gnews.get_global_news("2026-09-15", look_back_days=7, limit=5)
         assert out.count("Maybank completes acquisition") == 1
+
+
+def _item(title, publisher, day=10):
+    return {
+        "title": title,
+        "link": "",
+        "publisher": publisher,
+        "pub_date": datetime(2026, 9, day, 8, 0, tzinfo=timezone.utc),
+    }
+
+
+@pytest.fixture
+def news_config():
+    from tradingagents.dataflows.config import get_config, set_config
+
+    keys = ("trusted_news_only", "trusted_news_sources", "my_news_queries")
+    original = {k: get_config().get(k) for k in keys}
+    set_config({"trusted_news_only": True, "trusted_news_sources": None, "my_news_queries": None})
+    yield set_config
+    set_config(original)
+
+
+@pytest.mark.unit
+class TestTrustedSources:
+    def test_ticker_news_drops_untrusted_publishers(self, news_config):
+        items = [_item("Maybank Q2 profit rises", "The Edge Malaysia"),
+                 _item("MAYBANK stock jumps 3%", "AD HOC NEWS")]
+        with patch.object(gnews, "_fetch", return_value=items), \
+             patch.object(gnews, "_resolve_query_name", return_value="Maybank"):
+            out = gnews.get_news("1155.KL", "2026-09-01", "2026-09-15")
+        assert "Maybank Q2 profit rises" in out
+        assert "AD HOC NEWS" not in out
+        assert "unverified" not in out
+
+    def test_ticker_news_with_only_untrusted_sources_is_flagged_not_hidden(self, news_config):
+        # A small company may only be covered by minor sites: show them, flagged.
+        items = [_item("Small cap wins contract", "Some Blog")]
+        with patch.object(gnews, "_fetch", return_value=items), \
+             patch.object(gnews, "_resolve_query_name", return_value="SmallCo"):
+            out = gnews.get_news("0001.KL", "2026-09-01", "2026-09-15")
+        assert "Small cap wins contract" in out
+        assert "unverified" in out
+
+    def test_publisher_match_is_case_insensitive(self, news_config):
+        items = [_item("Ringgit firms", "bernama")]
+        with patch.object(gnews, "_fetch", return_value=items):
+            out = gnews.get_global_news("2026-09-15", look_back_days=7, limit=5)
+        assert "Ringgit firms" in out
+        assert "unverified" not in out
+
+    def test_filter_can_be_disabled(self, news_config):
+        news_config({"trusted_news_only": False})
+        items = [_item("Anything goes", "Some Blog")]
+        with patch.object(gnews, "_fetch", return_value=items), \
+             patch.object(gnews, "_resolve_query_name", return_value="X"):
+            out = gnews.get_news("0001.KL", "2026-09-01", "2026-09-15")
+        assert "Anything goes" in out and "unverified" not in out
+
+
+@pytest.mark.unit
+class TestGlobalNewsTopicShare:
+    def test_first_broad_query_cannot_starve_later_topics(self, news_config):
+        # Previously the loop stopped once `limit` articles were collected, so
+        # a broad first query (100 results) meant later topics never ran.
+        news_config({"my_news_queries": ["KLCI", "OPR", "ringgit"]})
+
+        def fake_fetch(query, timeout):
+            topic = query.split(" after:")[0]
+            return [_item(f"{topic} story {i}", "The Star") for i in range(50)]
+
+        with patch.object(gnews, "_fetch", side_effect=fake_fetch):
+            out = gnews.get_global_news("2026-09-15", look_back_days=7, limit=6)
+        for topic in ("KLCI", "OPR", "ringgit"):
+            assert out.count(f"### {topic} story") == 2
+
+    def test_unused_share_is_filled_from_other_topics(self, news_config):
+        news_config({"my_news_queries": ["busy", "quiet"]})
+
+        def fake_fetch(query, timeout):
+            if query.startswith("quiet"):
+                return []
+            return [_item(f"busy story {i}", "The Star") for i in range(10)]
+
+        with patch.object(gnews, "_fetch", side_effect=fake_fetch):
+            out = gnews.get_global_news("2026-09-15", look_back_days=7, limit=4)
+        assert out.count("### busy story") == 4
+
+    def test_untrusted_macro_results_are_dropped(self, news_config):
+        news_config({"my_news_queries": ["KLCI"]})
+        items = [_item("KLCI up", "The Star"), _item("KLCI crypto tip", "CoinGecko")]
+        with patch.object(gnews, "_fetch", return_value=items):
+            out = gnews.get_global_news("2026-09-15", look_back_days=7, limit=5)
+        assert "KLCI up" in out and "crypto tip" not in out
+
+    def test_default_topics_cover_dividend_holder_drivers(self):
+        topics = " ".join(gnews.DEFAULT_MY_QUERIES).lower()
+        for word in ("klci", "foreign funds", "opr", "ringgit", "bond yields",
+                     "palm oil", "budget", "federal reserve"):
+            assert word in topics
