@@ -201,8 +201,8 @@ def get_global_news(
     """
     Retrieve global news data.
     Uses the configured news_data vendor. Defaults for look_back_days and
-    limit come from DEFAULT_CONFIG (global_news_lookback_days,
-    global_news_article_limit); pass explicit values to override.
+    limit come from DEFAULT_CONFIG (global_news_lookback_days, else
+    news_lookback_days; global_news_article_limit); pass explicit values to override.
 
     Args:
         curr_date (str): Current date in yyyy-mm-dd format

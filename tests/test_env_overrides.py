@@ -137,3 +137,8 @@ def test_unknown_env_var_is_ignored(monkeypatch):
         TRADINGAGENTS_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in config
+
+
+def test_news_lookback_days_override(monkeypatch):
+    config = _config_with_env(monkeypatch, TRADINGAGENTS_NEWS_LOOKBACK_DAYS="30")
+    assert config["news_lookback_days"] == 30

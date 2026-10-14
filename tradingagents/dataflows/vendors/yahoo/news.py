@@ -145,7 +145,8 @@ def get_global_news_yfinance(
     Args:
         as_of_date: Current date in yyyy-mm-dd format
         look_back_days: Number of days to look back. ``None`` falls back to
-            ``global_news_lookback_days`` from the active config.
+            ``global_news_lookback_days`` from the active config, else
+            ``news_lookback_days``.
         limit: Maximum number of articles to return. ``None`` falls back to
             ``global_news_article_limit`` from the active config.
 
@@ -154,7 +155,7 @@ def get_global_news_yfinance(
     """
     config = get_config()
     if look_back_days is None:
-        look_back_days = config["global_news_lookback_days"]
+        look_back_days = config["global_news_lookback_days"] or config["news_lookback_days"]
     if limit is None:
         limit = config["global_news_article_limit"]
     search_queries = config["global_news_queries"]
