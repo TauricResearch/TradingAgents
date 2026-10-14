@@ -289,3 +289,26 @@ def get_prediction_markets(
         str: A formatted markdown report of matching prediction markets
     """
     return route_to_vendor("get_prediction_markets", topic, limit, trade_date or None)
+
+
+@tool
+def get_crypto_derivatives(
+    symbol: Annotated[str, InjectedState("company_of_interest")],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Retrieve perpetual-futures positioning for the crypto asset under analysis:
+    funding (annualized), open interest and its change, last-hour liquidations
+    with their z-score, crowding and squeeze flags, whale tilt, the nearest
+    liquidation clusters above and below price, the largest positions, and a
+    15-minute liquidation-cascade probability. Current state only; call it once.
+    Uses the configured crypto_derivatives vendor.
+
+    Args:
+        curr_date (str): Current date in yyyy-mm-dd format
+
+    Returns:
+        str: A compact markdown report of the coin's derivatives positioning
+    """
+    return route_to_vendor("get_crypto_derivatives", symbol, as_of(curr_date, trade_date))

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+## [Unreleased]
+
+### Added
+
+- **Crypto derivatives for crypto runs.** With `AGENTFEED_API_KEY` set, the Market Analyst of a crypto run also reads the coin's perpetual-futures positioning: funding, open interest, last-hour liquidations, crowding flags, whale tilt, the nearest liquidation clusters and the largest positions, from AgentFeed over Hyperliquid perps (`crypto_derivatives` category, paid per call). It serves the current state only, so a past-dated run is told the data is withheld and nothing is requested. Stock runs are offered the same tools as before, and without the key the category reports itself unavailable and the run goes on.
+
 ## [0.6.0] — 2026-10-03
 
 HTML reports, a provider per model tier, past decisions settled for every ticker while the analysts work, and company news read while Yahoo's news feed is down.

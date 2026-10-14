@@ -179,6 +179,7 @@ export NVIDIA_API_KEY=...          # NVIDIA NIM
 export FRED_API_KEY=...            # FRED macro data (free, optional)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 export TYPESAFE_API_KEY=...        # Jev social-post screening (optional)
+export AGENTFEED_API_KEY=...       # crypto derivatives context for crypto tickers (optional, paid per call)
 ```
 
 For Azure OpenAI, copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
@@ -190,6 +191,8 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 For any other OpenAI-compatible server (vLLM, LM Studio, llama.cpp, or a custom relay), use `llm_provider: "openai_compatible"` and set the endpoint via `backend_url` (or `TRADINGAGENTS_LLM_BACKEND_URL`), e.g. `http://localhost:8000/v1` for vLLM or `http://localhost:1234/v1` for LM Studio. The model is whatever your server serves. No key is needed for local servers; set `OPENAI_COMPATIBLE_API_KEY` when the endpoint requires one.
 
 With `TYPESAFE_API_KEY` set, the Sentiment Analyst screens StockTwits and Reddit posts with TypeSafe's Jev before reading them. Posts that are not about the company are dropped, and each source opens with a count of the remaining posts by stance: bullish, bearish, neutral, or unclear. Without the key, posts pass through unscreened. `jev-latest` moves with new releases; set `TYPESAFE_DEFAULT_MODEL` to a versioned ID such as `jev-1.13.0` to hold it fixed across runs. To reach Jev through OpenRouter, put an OpenRouter key in `TYPESAFE_API_KEY` and set `TYPESAFE_BASE_URL=https://openrouter.ai/api`.
+
+With `AGENTFEED_API_KEY` set, the Market Analyst of a crypto run also reads the coin's perpetual-futures positioning from AgentFeed: funding, open interest and its change, last-hour liquidations, crowding flags, whale tilt, the nearest liquidation clusters above and below price, the largest positions and a 15-minute liquidation-cascade probability, from Hyperliquid perps. AgentFeed is paid per call, drawn from a prepaid key bought at https://x402.ochinimus.app/keys. It serves the current state only, so a run dated before today is told the data is withheld and nothing is requested. Stock runs never see the tool, and without the key nothing changes: the category reports itself unavailable and the analyst goes on without it.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash

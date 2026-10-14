@@ -22,7 +22,7 @@ ANALYST_NODE_SPECS: dict[str, AnalystNodeSpec] = {
         key="market",
         agent_node="Market Analyst",
         report_key="market_report",
-        tools=market_analyst.TOOLS,
+        tools=market_analyst.ALL_TOOLS,
     ),
     "social": AnalystNodeSpec(
         # Saved configs select this analyst as "social". It fetches its

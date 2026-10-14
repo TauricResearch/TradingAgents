@@ -2,14 +2,37 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.analysts.turn import take_turn
 from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
-from tradingagents.agents.tools import get_indicators, get_stock_data, get_verified_market_snapshot
+from tradingagents.agents.tools import (
+    get_crypto_derivatives,
+    get_indicators,
+    get_stock_data,
+    get_verified_market_snapshot,
+)
 
-# The tools this analyst is offered; its tool node is built from the same tuple.
+# The tools this analyst is offered for every instrument.
 TOOLS = (
     get_stock_data,
     get_indicators,
     get_verified_market_snapshot,
 )
+
+# Offered only when the instrument is crypto, so a stock run's prompt and tool
+# schema stay exactly as they were. The tool node is built from ALL_TOOLS.
+CRYPTO_TOOLS = (get_crypto_derivatives,)
+ALL_TOOLS = TOOLS + CRYPTO_TOOLS
+
+CRYPTO_BRIEF = (
+    "\n\nThis is a crypto asset: call get_crypto_derivatives(curr_date) once for its "
+    "perpetual-futures positioning (funding, open interest, liquidations, crowding "
+    "flags, whale tilt, liquidation clusters) and say how it supports or contradicts "
+    "the price trend. If it reports the data unavailable or withheld, say so and go "
+    "on without it."
+)
+
+
+def tools_for(asset_type: str) -> tuple:
+    """The tools offered for an instrument of ``asset_type``."""
+    return ALL_TOOLS if asset_type == "crypto" else TOOLS
 
 
 def create_market_analyst(llm):
@@ -17,6 +40,8 @@ def create_market_analyst(llm):
     def market_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
+        asset_type = state.get("asset_type", "stock")
+        tools = tools_for(asset_type)
 
         system_message = (
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
@@ -49,6 +74,7 @@ Before writing the final report, call get_verified_market_snapshot for this tick
 
 Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + (CRYPTO_BRIEF if asset_type == "crypto" else "")
             + get_language_instruction()
         )
 
@@ -70,11 +96,11 @@ Write a very detailed and nuanced report of the trends you observe. Provide spec
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in TOOLS]))
+        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        result, report = take_turn(prompt, llm, TOOLS, state["messages"])
+        result, report = take_turn(prompt, llm, tools, state["messages"])
 
         return {
             "messages": [result],

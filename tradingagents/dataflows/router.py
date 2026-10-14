@@ -6,6 +6,9 @@ from tradingagents.dataflows.errors import (
     VendorNotConfiguredError,
     VendorUnavailableError,
 )
+from tradingagents.dataflows.vendors.agentfeed import (
+    get_crypto_derivatives as get_agentfeed_crypto_derivatives,
+)
 from tradingagents.dataflows.vendors.alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
@@ -83,15 +86,22 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_prediction_markets",
         ]
+    },
+    "crypto_derivatives": {
+        "description": "Perpetual-futures context for crypto tickers: funding, open interest, liquidation clusters, large positions",
+        "tools": [
+            "get_crypto_derivatives",
+        ]
     }
 }
 
 # Optional enrichment categories. These add macro/event context to the news
-# analyst but are not core to a decision, so a vendor failure here degrades to a
+# analyst, and perpetual-futures positioning to a crypto run's market analyst,
+# but are not core to a decision, so a vendor failure here degrades to a
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "crypto_derivatives"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
@@ -145,6 +155,10 @@ VENDOR_METHODS = {
     # prediction_markets
     "get_prediction_markets": {
         "polymarket": get_polymarket_prediction_markets,
+    },
+    # crypto_derivatives
+    "get_crypto_derivatives": {
+        "agentfeed": get_agentfeed_crypto_derivatives,
     },
 }
 
