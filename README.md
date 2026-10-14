@@ -314,12 +314,25 @@ graceful-degradation behavior handle everything else:
   a shared instruction appended to every agent's prompt (analysts,
   researchers, risk debaters, managers and trader), so the whole pipeline
   rates the stock for the same holder. The default describes a long-term,
-  income-focused holder (3–5+ years) of Malaysian bank stocks: the rating
-  rests mainly on dividend sustainability, earnings trend, asset quality,
-  capital strength and valuation versus history, and technical indicators
-  only suggest entry timing (e.g. staged buying levels). Note the default
-  applies to every ticker, including non-banks, so change it when analysing
-  other kinds of stocks:
+  income-focused retail holder (3–5+ years, longer for high-yield blue chips)
+  of Bursa Malaysia stocks who buys in small tranches every few months: the
+  rating rests mainly on dividend sustainability, earnings stability,
+  balance-sheet strength (asset quality and capital for banks) and valuation
+  versus history; recommendations state how many 100-share board lots a
+  purchase buys, avoid stop-losses and short-term profit-taking, and treat a
+  sell as a broken thesis. Technical indicators only suggest staged entry
+  prices.
+
+  Personal figures (portfolio size, purchase amount, holdings) do not belong
+  in the committed default. Put them in a plain-text file at
+  `~/.tradingagents/investor_profile.txt` (outside the repo; override the path
+  with `TRADINGAGENTS_INVESTOR_PROFILE_FILE`), and its contents are appended
+  to the profile. A missing file adds nothing:
+  ```text
+  Total portfolio is about RM50,000. Each new purchase is RM2,000-3,000,
+  made every 2-3 months.
+  ```
+  To replace the general profile itself:
   ```bash
   # .env
   TRADINGAGENTS_INVESTOR_PROFILE="Long-term growth investor, 5-year horizon."

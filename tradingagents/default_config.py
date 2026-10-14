@@ -117,12 +117,32 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # pipeline rates the instrument for this holder rather than for a generic
     # short-term trader. Replace via TRADINGAGENTS_INVESTOR_PROFILE, or set
     # config["investor_profile"] = "" to disable (an empty env var is ignored).
+    # Keep it free of personal figures: those go in investor_profile_file.
     "investor_profile": (
-        "The investor is a long-term, income-focused holder (3–5+ years) of "
-        "Malaysian bank stocks. Base the final rating mainly on dividend "
-        "sustainability, earnings trend, asset quality, capital strength and "
-        "valuation versus history. Use technical indicators only to suggest "
-        "entry timing (e.g., staged buying levels), not to change the rating."
+        "The investor is a long-term, income-focused retail holder of Bursa "
+        "Malaysia stocks, holding 3–5 years, or longer for stable blue chips "
+        "with a high dividend yield, and buys in small tranches every few "
+        "months, either starting a new position over 1–2 purchases or topping "
+        "up an existing holding. Base the final rating mainly on dividend "
+        "sustainability (payout covered by free cash flow, consistent dividend "
+        "record), earnings stability, balance-sheet strength (for banks: asset "
+        "quality and capital) and valuation versus the stock's own history. "
+        "Bursa trades in board lots of 100 shares, so state how many lots one "
+        "purchase buys at the current price and its RM cost. Trading fees are "
+        "a meaningful share of a small order, so avoid frequent trading. Do "
+        "not recommend stop-losses or short-term profit-taking; recommend "
+        "selling only when the investment thesis breaks (dividend cut, "
+        "sustained earnings decline, rising debt, governance problems). Use "
+        "technical indicators only to suggest staged entry prices, not to "
+        "change the rating."
+    ),
+    # Private, per-user details (portfolio size, purchase amount, holdings)
+    # read from a plain-text file and appended to investor_profile. It lives
+    # outside the repo by default so personal figures are never committed;
+    # a missing or empty file adds nothing.
+    "investor_profile_file": os.getenv(
+        "TRADINGAGENTS_INVESTOR_PROFILE_FILE",
+        os.path.join(_TRADINGAGENTS_HOME, "investor_profile.txt"),
     ),
     # Debate and discussion settings
     "max_debate_rounds": 1,

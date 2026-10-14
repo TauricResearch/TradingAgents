@@ -1,5 +1,6 @@
 import functools
 import logging
+import os
 from collections.abc import Mapping
 from typing import Any
 
@@ -76,14 +77,32 @@ def get_investor_profile_instruction() -> str:
     Read from the ``investor_profile`` config key so the whole pipeline —
     analysts, researchers, debaters, managers and trader — reasons about the
     same holder (horizon, objective, what drives the rating) instead of each
-    agent defaulting to a generic short-term trading lens. Returns an empty
+    agent defaulting to a generic short-term trading lens. The contents of
+    ``investor_profile_file`` (private details such as portfolio size, kept
+    out of the repo) are appended when that file exists. Returns an empty
     string when the profile is unset or blank, adding no tokens.
     """
     from tradingagents.dataflows.config import get_config
-    profile = get_config().get("investor_profile")
+    config = get_config()
+    profile = config.get("investor_profile")
     if not isinstance(profile, str) or not profile.strip():
         return ""
-    return f" Investor profile (applies to all analysis and recommendations): {profile.strip()}"
+    text = profile.strip()
+    details = _read_investor_profile_file(config.get("investor_profile_file"))
+    if details:
+        text = f"{text} Investor's own details: {details}"
+    return f" Investor profile (applies to all analysis and recommendations): {text}"
+
+
+def _read_investor_profile_file(path) -> str:
+    """Read the private investor-details file, collapsed to one line; '' if absent."""
+    if not isinstance(path, str) or not path.strip():
+        return ""
+    try:
+        with open(os.path.expanduser(path), encoding="utf-8") as f:
+            return " ".join(f.read().split())
+    except OSError:
+        return ""
 
 
 def get_macro_guidance(ticker: str) -> str:

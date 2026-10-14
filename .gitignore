@@ -224,3 +224,6 @@ reports/
 
 # Local report/audio output (not meant to be committed)
 output/
+
+# Private investor details (see README: Investor profile)
+investor_profile.txt
