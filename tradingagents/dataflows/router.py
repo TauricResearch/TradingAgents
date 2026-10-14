@@ -8,6 +8,7 @@ from tradingagents.dataflows.errors import (
 )
 from tradingagents.dataflows.vendors.agentfeed import (
     get_crypto_derivatives as get_agentfeed_crypto_derivatives,
+    is_configured as agentfeed_is_configured,
 )
 from tradingagents.dataflows.vendors.alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
@@ -185,6 +186,18 @@ def get_vendor(category: str, method: str = None) -> str:
 
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
+
+
+def crypto_derivatives_available() -> bool:
+    """Whether a crypto run is offered get_crypto_derivatives at all.
+
+    Only when AgentFeed is in the configured chain (an explicit list naming it, or
+    "default") and its key is set. Otherwise the tool and its brief are left out,
+    so a crypto run without the key sees exactly what it saw before.
+    """
+    chain = [v.strip() for v in get_vendor("crypto_derivatives", "get_crypto_derivatives").split(",")]
+    explicit = [v for v in chain if v and v != "default"]
+    return (not explicit or "agentfeed" in explicit) and agentfeed_is_configured()
 
 
 def vendor_unavailable(method: str, error: Exception) -> str:

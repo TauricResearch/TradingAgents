@@ -10,7 +10,7 @@ Changes that need action when upgrading are listed under "Upgrading from" in the
 
 ### Added
 
-- **Crypto derivatives for crypto runs.** With `AGENTFEED_API_KEY` set, the Market Analyst of a crypto run also reads the coin's perpetual-futures positioning: funding, open interest, last-hour liquidations, crowding flags, whale tilt, the nearest liquidation clusters and the largest positions, from AgentFeed over Hyperliquid perps (`crypto_derivatives` category, paid per call). It serves the current state only, so a past-dated run is told the data is withheld and nothing is requested. Stock runs are offered the same tools as before, and without the key the category reports itself unavailable and the run goes on.
+- **Crypto derivatives for crypto runs.** With `AGENTFEED_API_KEY` set, the Market Analyst of a crypto run also reads the coin's perpetual-futures positioning from AgentFeed (`crypto_derivatives` category, paid per call): price, funding, open interest, whale tilt and the largest positions from Hyperliquid perps, last-hour liquidations, the nearest liquidation clusters and a cascade probability from AgentFeed's cross-venue liquidation tape, and crowding flags built from both. It serves the current state only, so a past-dated run is told the data is withheld and nothing is requested. Without the key nothing changes: stock and crypto runs are offered the same tools and prompt as before.
 
 ## [0.6.0] — 2026-10-03
 

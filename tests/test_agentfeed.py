@@ -24,7 +24,7 @@ from tradingagents.graph.analyst_execution import ANALYST_NODE_SPECS
 KEY = "afk_TESTKEY0123456789abcdef"
 TODAY = "2026-10-14"
 
-# Shaped like a live /api/coin-signal/BTC answer.
+# Shaped like the "data" of a live /api/coin-signal/BTC answer (14 Oct 2026).
 SIGNAL = {
     "coin": "BTC",
     "oi_rank": 1,
@@ -43,7 +43,8 @@ SIGNAL = {
     "whale_net_usd": 45_000_000,
     "whale_tilt": 0.34,
     "flags": ["crowded_long", "liq_spike"],
-    "cascade_15m": {"p": 0.0421, "evidence": None, "threshold_usd": 5_000_000, "window_end": None},
+    "cascade_15m": {"p": 0.0421, "evidence": "measured", "threshold_usd": 5_000_000,
+                    "window_end": "2026-10-14T17:30:00.000Z"},
     "liq_cluster_above": {"price_low": 114000, "price_high": 114500, "usd": 8_200_000,
                           "longs_usd": 0, "shorts_usd": 8_200_000, "distance_pct": 1.69},
     "liq_cluster_below": {"price_low": 108000, "price_high": 108500, "usd": 6_100_000,
@@ -56,14 +57,21 @@ SIGNAL = {
         "hl_oi": {"as_of": "2026-10-14T17:30:00.000Z"},
         "liq_tape": {"as_of": "2026-10-14T17:31:02.000Z"},
         "hl_whales": {"as_of": "2026-10-14T17:29:40.000Z"},
+        "cascade_forecast": {"as_of": "2026-10-14T17:30:00.000Z"},
+        "liq_heatmap": {"as_of": "2026-10-14T17:31:02.000Z"},
     },
 }
 
 
-def _response(status=200, body=SIGNAL):
+def _response(status, body):
     response = mock.Mock(status_code=status)
     response.json.return_value = body
     return response
+
+
+def _ok(data=SIGNAL):
+    """A 200 in AgentFeed's envelope: {"tool": ..., "data": {...}, "paid": ...}."""
+    return _response(200, {"tool": "get_coin_signal", "data": data, "paid": True})
 
 
 @pytest.fixture(autouse=True)
@@ -74,7 +82,7 @@ def _today_and_key(monkeypatch):
 
 @pytest.fixture
 def get():
-    with mock.patch.object(agentfeed.requests, "get", return_value=_response()) as patched:
+    with mock.patch.object(agentfeed.requests, "get", return_value=_ok()) as patched:
         yield patched
 
 
@@ -97,6 +105,7 @@ def test_without_a_key_nothing_is_sent_and_the_run_goes_on(get, monkeypatch):
     out = router.route_to_vendor("get_crypto_derivatives", "BTC-USD", TODAY)
     assert out.startswith("DATA_UNAVAILABLE: optional crypto_derivatives")
     assert "AGENTFEED_API_KEY is not set" in out
+    assert "http" not in out and "ochinimus" not in out  # no buy link reaches the model
     get.assert_not_called()
 
 
@@ -146,7 +155,9 @@ def test_the_report_carries_the_key_fields(get):
         "below: 108,000-108,500, $6.10M, -3.65% from mark",
         "long $120.00M entry 108,200 liq 89,000",
         "cascade probability: 4.2%",
-        "Source: AgentFeed (x402.ochinimus.app), Hyperliquid perps",
+        "Source: AgentFeed (x402.ochinimus.app): Hyperliquid perps for price, funding, open "
+        "interest and positions; AgentFeed's cross-venue liquidation tape for liquidations, "
+        "clusters and the cascade model.",
         "liq_tape 2026-10-14T17:31:02.000Z",
     ):
         assert expected in out, expected
@@ -158,7 +169,7 @@ def test_missing_values_render_as_unavailable_not_as_numbers(get):
     sparse = {**SIGNAL, "liq_1h_long_usd": None, "liq_1h_short_usd": None, "liq_z": None,
               "whale_tilt": None, "whale_net_usd": None, "flags": [], "whale_top": [],
               "liq_cluster_above": None, "cascade_15m": {"p": None, "reason": "model not loaded"}}
-    get.return_value = _response(body=sparse)
+    get.return_value = _ok(sparse)
     out = agentfeed.get_crypto_derivatives("ETH-USD", TODAY)
     assert "longs n/a, shorts n/a; z-score n/a" in out
     assert "None" not in out
@@ -180,6 +191,8 @@ FAILURES = {
     "not json": lambda: mock.Mock(status_code=200, json=mock.Mock(
         side_effect=requests.exceptions.JSONDecodeError("x", "doc", 0))),
     "not an object": lambda: _response(200, ["BTC"]),
+    "no data": lambda: _response(200, {"tool": "get_coin_signal", "paid": True}),
+    "bare signal": lambda: _response(200, SIGNAL),   # unwrapped: not AgentFeed's shape
     "timeout": requests.Timeout(f"read timed out, headers {KEY}"),
     "network": requests.ConnectionError(f"connection refused, headers {KEY}"),
 }
@@ -274,11 +287,38 @@ def test_a_stock_run_is_offered_the_market_tools_alone():
 
 
 @pytest.mark.unit
-def test_a_crypto_run_is_offered_the_derivatives_tool_and_told_of_it():
+def test_a_crypto_run_with_the_key_is_offered_the_derivatives_tool_and_told_of_it():
     offered, prompt = _offered("crypto")
     assert offered == market_analyst.TOOLS + (tools.get_crypto_derivatives,)
     assert "get_crypto_derivatives" in prompt
     assert market_analyst.CRYPTO_BRIEF.strip() in prompt
+
+
+@pytest.mark.unit
+def test_a_crypto_run_without_the_key_is_offered_what_it_was_before(monkeypatch):
+    """Opt-in: no key means no tool, no brief and no mention of the vendor, so
+    the model has nothing to call and nothing to report about it."""
+    monkeypatch.delenv("AGENTFEED_API_KEY")
+    offered, prompt = _offered("crypto")
+    assert offered == market_analyst.TOOLS
+    for absent in ("get_crypto_derivatives", "perpetual", "AgentFeed", "ochinimus"):
+        assert absent not in prompt
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("chain, key, expected", [
+    ("agentfeed", True, True),
+    ("default", True, True),
+    ("some_other_vendor", True, False),   # AgentFeed not chosen: never offered
+    ("agentfeed", False, False),          # chosen but no key: never offered
+])
+def test_the_tool_is_offered_only_when_the_chain_can_serve_it(monkeypatch, chain, key, expected):
+    if not key:
+        monkeypatch.delenv("AGENTFEED_API_KEY")
+    set_config({"data_vendors": {"crypto_derivatives": chain}})
+    assert router.crypto_derivatives_available() is expected
+    assert (market_analyst.tools_for("crypto") == market_analyst.ALL_TOOLS) is expected
+    assert market_analyst.tools_for("stock") == market_analyst.TOOLS
 
 
 @pytest.mark.unit

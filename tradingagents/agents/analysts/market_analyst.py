@@ -8,6 +8,7 @@ from tradingagents.agents.tools import (
     get_stock_data,
     get_verified_market_snapshot,
 )
+from tradingagents.dataflows.router import crypto_derivatives_available
 
 # The tools this analyst is offered for every instrument.
 TOOLS = (
@@ -16,8 +17,9 @@ TOOLS = (
     get_verified_market_snapshot,
 )
 
-# Offered only when the instrument is crypto, so a stock run's prompt and tool
-# schema stay exactly as they were. The tool node is built from ALL_TOOLS.
+# Offered only for a crypto instrument whose derivatives vendor can serve it (its
+# key is set), so every other run's prompt and tool schema stay exactly as they
+# were. The tool node is built from ALL_TOOLS.
 CRYPTO_TOOLS = (get_crypto_derivatives,)
 ALL_TOOLS = TOOLS + CRYPTO_TOOLS
 
@@ -31,8 +33,8 @@ CRYPTO_BRIEF = (
 
 
 def tools_for(asset_type: str) -> tuple:
-    """The tools offered for an instrument of ``asset_type``."""
-    return ALL_TOOLS if asset_type == "crypto" else TOOLS
+    """The tools offered for an instrument of ``asset_type`` in the run in progress."""
+    return ALL_TOOLS if asset_type == "crypto" and crypto_derivatives_available() else TOOLS
 
 
 def create_market_analyst(llm):
@@ -40,8 +42,7 @@ def create_market_analyst(llm):
     def market_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = get_instrument_context_from_state(state)
-        asset_type = state.get("asset_type", "stock")
-        tools = tools_for(asset_type)
+        tools = tools_for(state.get("asset_type", "stock"))
 
         system_message = (
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
@@ -74,7 +75,7 @@ Before writing the final report, call get_verified_market_snapshot for this tick
 
 Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-            + (CRYPTO_BRIEF if asset_type == "crypto" else "")
+            + (CRYPTO_BRIEF if tools is ALL_TOOLS else "")
             + get_language_instruction()
         )
 

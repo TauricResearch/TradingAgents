@@ -1,16 +1,22 @@
 """AgentFeed crypto-derivatives vendor.
 
-Adds perpetual-futures context to a crypto run: funding, open interest, last-hour
-liquidations, the nearest liquidation clusters around price, the largest
-positions and a 15-minute liquidation-cascade probability, for the Hyperliquid
-perp of the coin under analysis. Prices, news and social posts say what a coin
-did; this says how the market is positioned in it.
+Adds perpetual-futures context to a crypto run for the coin under analysis. Two
+sources stand behind it:
+
+- Hyperliquid perps: price, funding, open interest, whale tilt and the largest
+  positions.
+- AgentFeed's cross-venue liquidation tape: last-hour liquidation sums and their
+  z-score, the nearest liquidation clusters around price, and the 15-minute
+  liquidation-cascade model.
+
+Prices, news and social posts say what a coin did; this says how the market is
+positioned in it.
 
 AgentFeed (https://x402.ochinimus.app) is a paid API. A prepaid key from
 https://x402.ochinimus.app/keys is read from ``AGENTFEED_API_KEY`` and each call
-draws from its balance; if it is unset the vendor raises
-``AgentFeedNotConfiguredError`` and nothing is sent. Without the key a run is
-unchanged except that this optional category reports itself unavailable.
+draws from its balance. Without the key the tool is not offered at all (see
+``is_configured``), so a run is exactly as it was; called anyway, the vendor
+raises ``AgentFeedNotConfiguredError`` and nothing is sent.
 
 AgentFeed serves the current state only, with no historical vintage, so a run
 dated before today is told so and no request is made.
@@ -40,14 +46,16 @@ class AgentFeedNotConfiguredError(VendorNotConfiguredError):
     """Raised when AgentFeed is selected but no API key is configured."""
 
 
+def is_configured() -> bool:
+    """Whether an AgentFeed key is set, so a call would be sent."""
+    return bool(os.getenv("AGENTFEED_API_KEY"))
+
+
 def get_api_key() -> str:
     """Retrieve the AgentFeed API key from the environment."""
     api_key = os.getenv("AGENTFEED_API_KEY")
     if not api_key:
-        raise AgentFeedNotConfiguredError(
-            "AGENTFEED_API_KEY is not set. Crypto derivatives data needs a prepaid "
-            "key from https://x402.ochinimus.app/keys."
-        )
+        raise AgentFeedNotConfiguredError("AGENTFEED_API_KEY is not set.")
     return api_key
 
 
@@ -66,10 +74,12 @@ def _request(coin: str) -> dict:
             timeout=REQUEST_TIMEOUT,
         )
         if response.status_code == 200:
-            data = response.json()
+            # AgentFeed wraps every answer as {"tool": ..., "data": {...}, "paid": ...}.
+            body = response.json()
+            data = body.get("data") if isinstance(body, dict) else None
             if isinstance(data, dict):
                 return data
-            message = f"AgentFeed answered {coin} with a body that is not an object"
+            message = f"AgentFeed answered {coin} without a data object"
         else:
             message = f"AgentFeed answered HTTP {response.status_code} for {coin}{_reason(response)}"
     except requests.exceptions.JSONDecodeError:
@@ -162,7 +172,10 @@ def _render(data: dict) -> str:
         f"- {_cluster('Liquidation cluster below', data.get('liq_cluster_below'))}\n"
         f"- Largest positions: {whales}\n"
         f"- 15-minute liquidation cascade probability: {cascade_str}\n"
-        f"Source: AgentFeed (x402.ochinimus.app), Hyperliquid perps. Inputs as of: {as_of}\n"
+        f"Source: AgentFeed (x402.ochinimus.app): Hyperliquid perps for price, funding, open "
+        f"interest and positions; AgentFeed's cross-venue liquidation tape for liquidations, "
+        f"clusters and the cascade model.\n"
+        f"Inputs as of: {as_of}\n"
     )
 
 
