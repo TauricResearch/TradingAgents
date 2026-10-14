@@ -376,6 +376,18 @@ tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. Your own memory log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
 
+### Prospective evaluation
+
+A historical data cutoff cannot remove later events from a model's weights
+([#805](https://github.com/TauricResearch/TradingAgents/issues/805)). For a test
+whose outcomes did not exist when the model decided, the optional
+[`ForwardEvaluation`](docs/forward-evaluation.md) ledger records decisions before
+the next session opens and scores them later, against equal-weight long and
+21-session momentum baselines. The universe, costs, model declarations and
+verdict rule are registered before recording. Late decisions are marked
+retrospective and excluded. This adds no dependencies and does not change the
+graph, memory log or backtest.
+
 ## Reproducibility
 
 TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.

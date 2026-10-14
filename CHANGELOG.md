@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+## [Unreleased]
+
+### Added
+
+- Optional prospective signal evaluation: an append-only ledger records decisions before the next open, then scores later opens against equal-weight long and 21-session momentum, with costs and a predeclared verdict rule. Historical and late records do not enter the verdict. See [forward evaluation](docs/forward-evaluation.md) and #805.
+
 ## [0.6.0] — 2026-10-03
 
 HTML reports, a provider per model tier, past decisions settled for every ticker while the analysts work, and company news read while Yahoo's news feed is down.
