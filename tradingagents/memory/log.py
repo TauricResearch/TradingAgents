@@ -18,9 +18,11 @@ class TradingMemoryLog:
     # HORIZONS (multi-horizon outcomes) sits between DECISION and REFLECTION.
     # The DECISION regex must stop before it, otherwise the JSON leaks into the
     # decision text; REFLECTION is the final section (greedy to end).
-    _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\n(?:HORIZONS|REFLECTION):|\Z)", re.DOTALL)
+    _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\n(?:HORIZONS|REALIZED|REFLECTION_COVERS|REFLECTION):|\Z)", re.DOTALL)
     _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*)\Z", re.DOTALL)
     _HORIZONS_RE = re.compile(r"HORIZONS:\n(.*)")
+    _REALIZED_RE = re.compile(r"REALIZED:\n(.*)")
+    _REFLECTION_COVERS_RE = re.compile(r"REFLECTION_COVERS:\n(.*)")
 
     def __init__(self, config: dict = None):
         cfg = config or {}
@@ -117,11 +119,29 @@ class TradingMemoryLog:
         return [e for e in self.load_entries() if e.get("pending")]
 
     def get_entries_needing_settlement(self, horizons: list[int]) -> list[dict]:
-        """Entries that still lack a scored horizon: all pending entries, plus
-        resolved ones that have not yet accumulated every configured horizon
-        (so long-horizon outcomes keep settling in after the anchor flips)."""
-        return [e for e in self.load_entries()
-                if any(h not in (e.get("horizons") or {}) for h in horizons)]
+        """Entries still needing settlement work.
+
+        An entry is included when it is: still pending (the anchor window must
+        trade out and finalize); resolved but a configured horizon is not yet
+        measured; or resolved and its stored lesson lags the windows measured so
+        far (the multi-horizon lesson is refreshed as longer windows close).
+        """
+        anchor = horizons[0]
+        out = []
+        for e in self.load_entries():
+            hz = e.get("horizons") or {}
+            if e.get("pending"):
+                out.append(e)
+                continue
+            scored = {
+                h for h, v in hz.items()
+                if isinstance(v, dict) and v.get("alpha") is not None
+            }
+            missing = any(h not in hz for h in horizons)
+            stale = (anchor in scored) and bool(scored - set(e.get("reflection_covers") or []))
+            if missing or stale:
+                out.append(e)
+        return out
 
     def get_past_context(
         self, ticker: str, n_same: int = 5, n_cross: int = 3, as_of: str | None = None
@@ -237,7 +257,9 @@ class TradingMemoryLog:
                        horizon_results: dict[int, tuple],
                        reflection: str | None = None,
                        anchor_days: int | None = None,
-                       resolution_date: str | None = None) -> bool:
+                       resolution_date: str | None = None,
+                       reflection_covers: list[int] | None = None,
+                       realized: dict | None = None) -> bool:
         """Merge scored horizon outcomes into the (date,ticker) entry.
 
         ``horizon_results`` maps horizon-days -> (raw, alpha, days, resolution).
@@ -245,6 +267,14 @@ class TradingMemoryLog:
         entry is finalised (tag -> resolved, reflection stored). When the entry
         is already resolved, further horizons are simply accumulated. Returns
         True if the log changed.
+
+        ``reflection`` (when given) replaces the stored lesson;
+        ``reflection_covers`` (when given) records the windows that lesson was
+        written over (None preserves the stored list). ``realized`` (when
+        given) records the real-portfolio realized outcome; None preserves the
+        stored one. Finalisation requires ``anchor_days`` to be passed
+        explicitly (not inferred), so a caller that only adds numbers can never
+        accidentally flip an entry's state.
         """
         if not self._log_path or not self._log_path.exists():
             return False
@@ -276,7 +306,8 @@ class TradingMemoryLog:
                     hz[int(h)] = {"raw": raw, "alpha": alpha, "resolution": res}
                 dm = self._DECISION_RE.search(body)
                 decision = dm.group(1).strip() if dm else ""
-                anchor = int(anchor_days) if anchor_days is not None else (min(hz) if hz else None)
+                # Finalise only when the caller names the anchor horizon explicitly.
+                anchor = int(anchor_days) if anchor_days is not None else None
                 if was_pending and anchor is not None and anchor in hz:
                     a = hz[anchor]
                     raw_s = f"{a['raw']:+.1%}" if isinstance(a["raw"], (int, float)) else "n/a"
@@ -289,10 +320,20 @@ class TradingMemoryLog:
                 if not refl:
                     rm = self._REFLECTION_RE.search(body)
                     refl = rm.group(1).strip() if rm else ""
+                covers_m = self._REFLECTION_COVERS_RE.search(body)
+                covers = (reflection_covers if reflection_covers is not None
+                          else self._parse_covers(covers_m.group(1) if covers_m else None))
+                realized_m = self._REALIZED_RE.search(body)
+                realized_val = (realized if realized is not None
+                                else self._parse_realized(realized_m.group(1) if realized_m else None))
                 new_block = f"{new_tag}\n\nDECISION:\n{decision}"
                 if hz:
                     new_block += ("\n\nHORIZONS:\n"
                                   + json.dumps({str(k): v for k, v in sorted(hz.items())}, ensure_ascii=False))
+                if isinstance(realized_val, dict) and realized_val.get("return") is not None:
+                    new_block += "\n\nREALIZED:\n" + json.dumps(realized_val, ensure_ascii=False)
+                if refl and covers:
+                    new_block += "\n\nREFLECTION_COVERS:\n" + ", ".join(str(h) for h in sorted(covers))
                 if refl:
                     new_block += "\n\nREFLECTION:\n" + refl
                 blocks[i] = new_block
@@ -303,6 +344,27 @@ class TradingMemoryLog:
             blocks = self._apply_rotation(blocks)
             self._atomic_write(self._SEPARATOR.join(blocks))
         return True
+
+    def merge_realized(self, ticker: str, trade_date: str, realized_return,
+                       close_date: str | None = None, note: str | None = None) -> bool:
+        """Record the real-portfolio realized outcome for (date, ticker).
+
+        ``realized_return`` is the fraction actually realized when the position
+        was closed — the ground truth, preferred over the horizon windows for
+        calibration. Stored as a REALIZED block; the entry's tag, horizons and
+        reflection are untouched (a still-pending entry is never flipped, since
+        no anchor is passed).
+        """
+        block = {
+            "return": float(realized_return) if isinstance(realized_return, (int, float)) else None,
+            "close_date": close_date,
+            "note": (note or "").strip() or None,
+        }
+        return self.merge_horizons(
+            ticker, trade_date, {}, None,
+            anchor_days=None, resolution_date=None,
+            reflection_covers=None, realized=block,
+        )
 
     def batch_update_with_outcomes(self, updates: list[dict]) -> None:
         """Apply multiple outcome updates in a single read + atomic write.
@@ -425,6 +487,37 @@ class TradingMemoryLog:
         except ValueError:
             return None
 
+    @staticmethod
+    def _parse_covers(body: str | None) -> list[int] | None:
+        """Parse a REFLECTION_COVERS line (comma-separated horizon days)."""
+        if body is None:
+            return None
+        vals = []
+        for part in str(body).split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                vals.append(int(part))
+            except ValueError:
+                pass
+        return vals or None
+
+    @staticmethod
+    def _parse_realized(body: str | None) -> dict | None:
+        """Parse a REALIZED block (JSON) into the realized-outcome dict."""
+        if body is None:
+            return None
+        try:
+            data = json.loads(body.strip())
+        except (ValueError, AttributeError, TypeError):
+            return None
+        if not isinstance(data, dict) or data.get("return") is None:
+            return None
+        return {"return": data.get("return"),
+                "close_date": data.get("close_date"),
+                "note": data.get("note")}
+
     def _parse_horizons(self, body: str, legacy: dict) -> dict[int, dict]:
         """Extract the HORIZONS block; for legacy entries (no block) fall back
         to the single anchor horizon implied by the resolved tag."""
@@ -480,6 +573,12 @@ class TradingMemoryLog:
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""
         entry["reflection"] = reflection_match.group(1).strip() if reflection_match else ""
         entry["horizons"] = self._parse_horizons(body, entry)
+        covers_match = self._REFLECTION_COVERS_RE.search(body)
+        entry["reflection_covers"] = self._parse_covers(
+            covers_match.group(1) if covers_match else None)
+        realized_match = self._REALIZED_RE.search(body)
+        entry["realized"] = self._parse_realized(
+            realized_match.group(1) if realized_match else None)
         return entry
 
     def _format_full(self, e: dict) -> str:
@@ -491,6 +590,14 @@ class TradingMemoryLog:
         line = self._horizons_line(e.get("horizons") or {})
         if line:
             parts.append(line)
+        realized = e.get("realized")
+        if isinstance(realized, dict) and realized.get("return") is not None:
+            rpart = f"REALIZED: {realized['return']:+.1%}"
+            if realized.get("close_date"):
+                rpart += f" (closed {realized['close_date']})"
+            if realized.get("note"):
+                rpart += f" — {realized['note']}"
+            parts.append(rpart)
         parts.append(f"DECISION:\n{e['decision']}")
         if e["reflection"]:
             parts.append(f"REFLECTION:\n{e['reflection']}")
