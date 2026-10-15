@@ -16,6 +16,7 @@ from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
 from tradingagents.memory import TradingMemoryLog, settlement
+from tradingagents.memory import calibration
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
 
@@ -332,6 +333,24 @@ class TradingAgentsGraph:
             logger.warning("Reading the memory log failed: %s", exc)
             past_context = ""
             note = note or f"The memory log could not be read this run ({type(exc).__name__})."
+        # Calibration: how the model's rating direction has actually played out,
+        # per ticker and cross-ticker, from the settled multi-horizon outcomes.
+        # Computed over the same point-in-time entries (as_of) so backtests stay
+        # look-ahead clean (#1251). Empty until decisions have settled in.
+        try:
+            as_of = self._memory_as_of(state["trade_date"])
+            anchor = settlement.get_evaluation_horizons(self.config)[0]
+            entries = self.memory_log.load_entries()
+            line = calibration.render_calibration(
+                calibration.build_calibration(
+                    entries, state["company_of_interest"], anchor, as_of=as_of),
+                state["company_of_interest"])
+            if line and past_context:
+                past_context = past_context + "\n\n" + line
+            elif line:
+                past_context = line
+        except Exception as exc:
+            logger.warning("Calibration aggregation failed: %s", exc)
         return {"past_context": past_context, "memory_note": note}
 
     def settle_pending(self, company_name) -> settlement.Settlement:

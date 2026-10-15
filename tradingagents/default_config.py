@@ -178,6 +178,12 @@ def build_default_config() -> dict:
         # Trading days after the analysis date over which a decision's outcome is
         # measured, for reflection and for the backtest figures.
         "holding_period_days": 5,
+        # Multi-horizon evaluation windows (trading days after the analysis
+        # date), scored per decision. The FIRST entry is the anchor (the fast
+        # signal and the horizon the resolved tag reflects); later windows show
+        # how the call aged over longer horizons. Set to None to fall back to
+        # the single legacy window [holding_period_days].
+        "evaluation_horizons": [5, 21, 63, 126],
         "benchmark_ticker": None,
         "benchmark_map": {
             ".NS":  "^NSEI",       # NSE India (Nifty 50)

@@ -1,6 +1,7 @@
 """The memory log: an append-only markdown record of each decision and, once settled, its outcome."""
 
 import contextlib
+import json
 import re
 from pathlib import Path
 
@@ -14,8 +15,12 @@ class TradingMemoryLog:
     # HTML comment: cannot appear in LLM prose output, safe as a hard delimiter
     _SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
     # Precompiled patterns — avoids re-compilation on every load_entries() call
-    _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
-    _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*?)$", re.DOTALL)
+    # HORIZONS (multi-horizon outcomes) sits between DECISION and REFLECTION.
+    # The DECISION regex must stop before it, otherwise the JSON leaks into the
+    # decision text; REFLECTION is the final section (greedy to end).
+    _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\n(?:HORIZONS|REFLECTION):|\Z)", re.DOTALL)
+    _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*)\Z", re.DOTALL)
+    _HORIZONS_RE = re.compile(r"HORIZONS:\n(.*)")
 
     def __init__(self, config: dict = None):
         cfg = config or {}
@@ -36,28 +41,49 @@ class TradingMemoryLog:
         final_trade_decision: str,
         rating: str | None = None,
     ) -> None:
-        """Append pending entry at end of propagate(). No LLM call.
+        """Store the final decision (one entry per ticker+date, latest wins).
 
-        ``rating`` is the decision's own rating when the caller has it; without
-        one it is read from the decision text.
+        Idempotency: re-running the SAME decision for the same date is a no-op.
+        A *different* rating for the same ticker+date is a distinct same-day
+        run (e.g. a higher-quality model pass finishing later); it SUPERSEDES
+        the earlier still-pending entry so the freshest analysis is the one
+        that gets settled and reused. A finalized (resolved) entry is never
+        superseded — its outcome is final.
         """
         if not self._log_path:
             return
+        rating = rating or parse_rating(final_trade_decision)
         with locked(self._log_path):
-            # Idempotency guard: fast raw-text scan instead of full parse. Any entry
-            # for this ticker and date blocks another, pending or settled: a re-run
-            # after the outcome landed would otherwise count the same decision twice
-            # in past context and in every aggregate over the log.
-            if self._log_path.exists():
-                raw = self._log_path.read_text(encoding="utf-8")
-                for line in raw.splitlines():
-                    if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("]"):
+            existing = self._log_path.read_text(encoding="utf-8") if self._log_path.exists() else ""
+            if existing:
+                prefix = f"[{trade_date} | {ticker} |"
+                new_entry = self._new_entry(trade_date, ticker, rating, final_trade_decision)
+                blocks = existing.split(self._SEPARATOR)
+                for i, block in enumerate(blocks):
+                    tag_line = block.strip().splitlines()[0].strip() if block.strip() else ""
+                    if tag_line.startswith(prefix) and tag_line.endswith("]"):
+                        fields = [f.strip() for f in tag_line[1:-1].split("|")]
+                        if fields[3] != "pending":
+                            return  # finalized outcome — never supersede
+                        if len(fields) >= 3 and fields[2] == rating:
+                            return  # idempotent re-run of the same decision
+                        blocks[i] = new_entry  # different rating, still pending -> supersede
+                        self._atomic_write(self._SEPARATOR.join(blocks))
                         return
-            rating = rating or parse_rating(final_trade_decision)
-            tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-            entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
-            with open(self._log_path, "a", encoding="utf-8") as f:
-                f.write(entry)
+            self._append_entry(self._new_entry(trade_date, ticker, rating, final_trade_decision))
+
+    def _new_entry(self, trade_date: str, ticker: str, rating: str, decision: str) -> str:
+        tag = f"[{trade_date} | {ticker} | {rating} | pending]"
+        return f"{tag}\n\nDECISION:\n{decision}"
+
+    def _append_entry(self, entry: str) -> None:
+        with open(self._log_path, "a", encoding="utf-8") as f:
+            f.write(entry + self._SEPARATOR)
+
+    def _atomic_write(self, text: str) -> None:
+        tmp = self._log_path.with_suffix(".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(self._log_path)
 
     def settling(self, wait: bool = True):
         """Hold the log for one settlement pass at a time, across threads and processes.
@@ -89,6 +115,13 @@ class TradingMemoryLog:
     def get_pending_entries(self) -> list[dict]:
         """Return entries with outcome:pending, for settlement."""
         return [e for e in self.load_entries() if e.get("pending")]
+
+    def get_entries_needing_settlement(self, horizons: list[int]) -> list[dict]:
+        """Entries that still lack a scored horizon: all pending entries, plus
+        resolved ones that have not yet accumulated every configured horizon
+        (so long-horizon outcomes keep settling in after the anchor flips)."""
+        return [e for e in self.load_entries()
+                if any(h not in (e.get("horizons") or {}) for h in horizons)]
 
     def get_past_context(
         self, ticker: str, n_same: int = 5, n_cross: int = 3, as_of: str | None = None
@@ -200,6 +233,77 @@ class TradingMemoryLog:
             tmp_path.replace(self._log_path)
             return True
 
+    def merge_horizons(self, ticker: str, trade_date: str,
+                       horizon_results: dict[int, tuple],
+                       reflection: str | None = None,
+                       anchor_days: int | None = None,
+                       resolution_date: str | None = None) -> bool:
+        """Merge scored horizon outcomes into the (date,ticker) entry.
+
+        ``horizon_results`` maps horizon-days -> (raw, alpha, days, resolution).
+        When the entry is still pending and the anchor horizon is present, the
+        entry is finalised (tag -> resolved, reflection stored). When the entry
+        is already resolved, further horizons are simply accumulated. Returns
+        True if the log changed.
+        """
+        if not self._log_path or not self._log_path.exists():
+            return False
+        with locked(self._log_path):
+            text = self._log_path.read_text(encoding="utf-8")
+            blocks = text.split(self._SEPARATOR)
+            prefix = f"[{trade_date} | {ticker} |"
+            updated = False
+            for i, block in enumerate(blocks):
+                if not block.strip():
+                    continue
+                tag_line = block.strip().splitlines()[0].strip()
+                if not (tag_line.startswith(prefix) and tag_line.endswith("]")):
+                    continue
+                fields = [f.strip() for f in tag_line[1:-1].split("|")]
+                rating = fields[2]
+                was_pending = fields[3] == "pending"
+                body = "\n".join(block.strip().splitlines()[1:])
+                resolved_date_m = re.search(r"resolved:(\S+)\]", tag_line)
+                legacy = {
+                    "holding": (fields[5] if len(fields) > 5 else None),
+                    "raw": (fields[3] if fields[3] != "pending" else None),
+                    "alpha": (fields[4] if len(fields) > 4 else None),
+                    "resolved": resolved_date_m.group(1) if resolved_date_m else None,
+                }
+                hz = self._parse_horizons(body, legacy)
+                for h, r in horizon_results.items():
+                    raw, alpha, _days, res = r
+                    hz[int(h)] = {"raw": raw, "alpha": alpha, "resolution": res}
+                dm = self._DECISION_RE.search(body)
+                decision = dm.group(1).strip() if dm else ""
+                anchor = int(anchor_days) if anchor_days is not None else (min(hz) if hz else None)
+                if was_pending and anchor is not None and anchor in hz:
+                    a = hz[anchor]
+                    raw_s = f"{a['raw']:+.1%}" if isinstance(a["raw"], (int, float)) else "n/a"
+                    alpha_s = f"{a['alpha']:+.1%}" if isinstance(a["alpha"], (int, float)) else "n/a"
+                    new_tag = self._resolved_tag(trade_date, ticker, rating, raw_s, alpha_s,
+                                                 anchor, resolution_date)
+                else:
+                    new_tag = tag_line
+                refl = (reflection or "").strip()
+                if not refl:
+                    rm = self._REFLECTION_RE.search(body)
+                    refl = rm.group(1).strip() if rm else ""
+                new_block = f"{new_tag}\n\nDECISION:\n{decision}"
+                if hz:
+                    new_block += ("\n\nHORIZONS:\n"
+                                  + json.dumps({str(k): v for k, v in sorted(hz.items())}, ensure_ascii=False))
+                if refl:
+                    new_block += "\n\nREFLECTION:\n" + refl
+                blocks[i] = new_block
+                updated = True
+                break
+            if not updated:
+                return False
+            blocks = self._apply_rotation(blocks)
+            self._atomic_write(self._SEPARATOR.join(blocks))
+        return True
+
     def batch_update_with_outcomes(self, updates: list[dict]) -> None:
         """Apply multiple outcome updates in a single read + atomic write.
 
@@ -307,6 +411,43 @@ class TradingMemoryLog:
             kept.append(block)
         return kept
 
+    @staticmethod
+    def _pct_to_frac(s) -> float | None:
+        """Parse a stored percent tag ('+3.1%') into a fraction (0.031)."""
+        if s is None:
+            return None
+        t = str(s).strip()
+        if t in ("", "n/a", "None", "pending"):
+            return None
+        t = t.rstrip("%").strip()
+        try:
+            return float(t) / 100.0
+        except ValueError:
+            return None
+
+    def _parse_horizons(self, body: str, legacy: dict) -> dict[int, dict]:
+        """Extract the HORIZONS block; for legacy entries (no block) fall back
+        to the single anchor horizon implied by the resolved tag."""
+        m = self._HORIZONS_RE.search(body)
+        if m:
+            try:
+                data = json.loads(m.group(1).strip())
+                return {int(k): {"raw": v.get("raw"), "alpha": v.get("alpha"),
+                                 "resolution": v.get("resolution")}
+                        for k, v in data.items()}
+            except (ValueError, AttributeError, TypeError):
+                return {}
+        holding, raw, alpha = legacy.get("holding"), legacy.get("raw"), legacy.get("alpha")
+        if holding is not None and raw is not None:
+            try:
+                hd = int(str(holding).rstrip("d"))
+                return {hd: {"raw": self._pct_to_frac(raw),
+                             "alpha": self._pct_to_frac(alpha),
+                             "resolution": legacy.get("resolved")}}
+            except ValueError:
+                pass
+        return {}
+
     def _parse_entry(self, raw: str) -> dict | None:
         lines = raw.strip().splitlines()
         if not lines:
@@ -338,17 +479,37 @@ class TradingMemoryLog:
         reflection_match = self._REFLECTION_RE.search(body)
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""
         entry["reflection"] = reflection_match.group(1).strip() if reflection_match else ""
+        entry["horizons"] = self._parse_horizons(body, entry)
         return entry
 
     def _format_full(self, e: dict) -> str:
-        raw = e["raw"] or "n/a"
-        alpha = e["alpha"] or "n/a"
-        holding = e["holding"] or "n/a"
+        raw = e["raw"] if e["raw"] is not None else "n/a"
+        alpha = e["alpha"] if e["alpha"] is not None else "n/a"
+        holding = e["holding"] if e["holding"] is not None else "n/a"
         tag = f"[{e['date']} | {e['ticker']} | {e['rating']} | {raw} | {alpha} | {holding}]"
-        parts = [tag, f"DECISION:\n{e['decision']}"]
+        parts = [tag]
+        line = self._horizons_line(e.get("horizons") or {})
+        if line:
+            parts.append(line)
+        parts.append(f"DECISION:\n{e['decision']}")
         if e["reflection"]:
             parts.append(f"REFLECTION:\n{e['reflection']}")
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _horizons_line(horizons: dict) -> str:
+        """Compact multi-horizon outcome line (omitted when only the anchor
+        horizon is present, since the tag already shows it)."""
+        if len(horizons) <= 1:
+            return ""
+        bits = []
+        for h in sorted(horizons):
+            v = horizons[h] or {}
+            raw = v.get("raw"); alpha = v.get("alpha")
+            raw_s = f"{raw:+.1%}" if isinstance(raw, (int, float)) else "n/a"
+            alpha_s = f"{alpha:+.1%}" if isinstance(alpha, (int, float)) else "n/a"
+            bits.append(f"{h}d {raw_s}/α{alpha_s}")
+        return "OUTCOMES: " + " · ".join(bits)
 
     def _format_reflection_only(self, e: dict) -> str:
         tag = f"[{e['date']} | {e['ticker']} | {e['rating']} | {e['raw'] or 'n/a'}]"
