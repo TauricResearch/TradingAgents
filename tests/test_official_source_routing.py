@@ -16,10 +16,22 @@ class OfficialSourceRoutingTests(unittest.TestCase):
         chain = default_config.DEFAULT_CONFIG["data_vendors"]["news_data"]
         self.assertIn("issuer_rss", VENDOR_METHODS["get_news"])
         self.assertEqual(
-            chain, "issuer_rss,marketaux,finnhub,yfinance,alpha_vantage")
+            chain, "ureg_pdmr,issuer_rss,marketaux,finnhub,yfinance,alpha_vantage")
         # the configured first-party feed must precede the Yahoo fallback
         self.assertLess(chain.index("issuer_rss"), chain.index("yfinance"))
         self.assertTrue(default_config.DEFAULT_CONFIG["issuer_registry_path"].endswith("german_equities.json"))
+
+    def test_german_pdmr_source_leads_the_insider_chain(self):
+        # ureg_pdmr is the keyless authoritative Art. 19 MAR source for German
+        # equities; it self-selects via the issuer registry, so it must lead
+        # the insider chain (configured DE issuer) while staying absent from
+        # the news tools (it only implements get_insider_transactions).
+        self.assertIn("ureg_pdmr", VENDOR_METHODS["get_insider_transactions"])
+        chain = default_config.DEFAULT_CONFIG["data_vendors"]["news_data"]
+        self.assertEqual(chain.split(",")[0], "ureg_pdmr")
+        self.assertLess(chain.index("ureg_pdmr"), chain.index("finnhub"))
+        self.assertNotIn("ureg_pdmr", VENDOR_METHODS["get_news"])
+        self.assertNotIn("ureg_pdmr", VENDOR_METHODS["get_global_news"])
 
 
 if __name__ == "__main__":

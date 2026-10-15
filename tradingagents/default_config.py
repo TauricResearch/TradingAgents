@@ -172,19 +172,26 @@ def build_default_config() -> dict:
             # get_insider_transactions (the router filters to the vendors that
             # implement each method). Provenance priority, first-party first:
             #   get_news  -> issuer_rss, marketaux, finnhub, yfinance, alpha_vantage
-            #   get_insider_transactions -> finnhub, yfinance, alpha_vantage
+            #   get_insider_transactions -> ureg_pdmr, finnhub, yfinance, alpha_vantage
             #   get_global_news -> yfinance, alpha_vantage
             # issuer_rss is authoritative for a ticker that has a configured
             # first-party feed (it returns a terminal string even when empty);
             # for tickers without one it raises VendorNotConfiguredError and the
-            # chain continues to the licensed aggregators. Aggregators
+            # chain continues to the licensed aggregators. ureg_pdmr is the
+            # keyless authoritative Art. 19 MAR PDMR source for German equities:
+            # it self-selects via the issuer registry (a ticker without a
+            # configured UReg identity raises VendorNotConfiguredError and the
+            # chain falls through to finnhub/...), and returns a terminal string
+            # for a configured issuer with no PDMR in the window. It only
+            # implements the insider tool, so it is dropped from the news tools.
+            # Aggregators
             # (marketaux, finnhub) raise NoMarketDataError on an empty window so
             # the chain continues; the terminal vendor serves the final
             # "no news" answer. Finnhub is US-coverage-only (its profile2 gate
             # falls through for other markets); its insider feed is SEC-sourced
             # and carries Form 4 filing dates, so it stands ahead of yfinance /
             # alpha_vantage for the insider tool.
-            "news_data": "issuer_rss,marketaux,finnhub,yfinance,alpha_vantage",  # Options: issuer_rss, marketaux, finnhub, yfinance, alpha_vantage
+            "news_data": "ureg_pdmr,issuer_rss,marketaux,finnhub,yfinance,alpha_vantage",  # Options: ureg_pdmr, issuer_rss, marketaux, finnhub, yfinance, alpha_vantage
             "macro_data": "official_europe,fred",  # ECB/Eurostat official series; FRED fallback
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
         },

@@ -27,6 +27,9 @@ from tradingagents.dataflows.vendors.finnhub import (
 )
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
 from tradingagents.dataflows.vendors.issuer_rss import get_news_issuer_rss
+from tradingagents.dataflows.vendors.ureg_pdmr import (
+    get_ureg_pdmr_insider_transactions,
+)
 from tradingagents.dataflows.vendors.marketaux import get_news_marketaux
 from tradingagents.dataflows.vendors.news_supplement import get_news_supplement
 from tradingagents.dataflows.vendors.polymarket import (
@@ -151,6 +154,11 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
+        # ureg_pdmr first: keyless, authoritative Art. 19 MAR PDMR source for
+        # German equities. It self-selects via the issuer registry — a ticker
+        # that isn't a configured German equity raises VendorNotConfiguredError
+        # and the chain falls through to finnhub/yfinance/alpha_vantage as before.
+        "ureg_pdmr": get_ureg_pdmr_insider_transactions,
         "finnhub": get_finnhub_insider_transactions,
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
