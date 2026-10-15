@@ -45,12 +45,15 @@ def build_calibration(entries, ticker, anchor, as_of=None):
     ``TradingMemoryLog.load_entries``); ``anchor`` is the primary horizon.
     Returns::
 
-        {"ticker": {"n": int, "by_horizon": {h: {"n","hits","rate"}}, "anchor_rate": rate|None},
+        {"ticker": {"n": int, "by_horizon": {h: {"n","hits","rate"}},
+                    "anchor_rate": rate|None, "realized": {"n","hits","rate"}},
          "cross":  {... same shape over all tickers ...}}
 
     Only horizons actually present and evaluable count toward a horizon's rate.
-    ``as_of`` (a ``YYYY-MM-DD`` string) drops entries that were not yet known by
-    that date, keeping the figure point-in-time for backtests (#1251).
+    The ``realized`` bucket aggregates recorded real-portfolio P&L (ground
+    truth, see ``memory/realized.py``). ``as_of`` (a ``YYYY-MM-DD`` string)
+    drops entries that were not yet known by that date, keeping the figure
+    point-in-time for backtests (#1251).
     """
     if as_of is not None:
         entries = [e for e in entries
@@ -58,6 +61,8 @@ def build_calibration(entries, ticker, anchor, as_of=None):
 
     def _agg(subset):
         by_h: dict[int, dict] = {}
+        real_n = 0
+        real_hits = 0
         for e in subset:
             for h, v in (e.get("horizons") or {}).items():
                 hit = _hit(e.get("rating"), (v or {}).get("alpha"))
@@ -66,15 +71,23 @@ def build_calibration(entries, ticker, anchor, as_of=None):
                 d = by_h.setdefault(h, {"n": 0, "hits": 0})
                 d["n"] += 1
                 d["hits"] += 1 if hit else 0
+            r = e.get("realized")
+            if isinstance(r, dict) and r.get("return") is not None:
+                hit = _hit(e.get("rating"), r["return"])
+                if hit is not None:
+                    real_n += 1
+                    real_hits += 1 if hit else 0
         for d in by_h.values():
             d["rate"] = (d["hits"] / d["n"]) if d["n"] else None
-        return by_h
+        realized = {"n": real_n, "hits": real_hits,
+                   "rate": (real_hits / real_n) if real_n else None}
+        return by_h, realized
 
     def _pack(subset):
-        by_h = _agg(subset)
-        n = sum(d["n"] for d in by_h.values())
+        by_h, realized = _agg(subset)
+        n = sum(d["n"] for d in by_h.values()) + realized["n"]
         anchor_rate = by_h[anchor]["rate"] if anchor in by_h else None
-        return {"n": n, "by_horizon": by_h, "anchor_rate": anchor_rate}
+        return {"n": n, "by_horizon": by_h, "anchor_rate": anchor_rate, "realized": realized}
 
     same = [e for e in entries if e.get("ticker") == ticker]
     return {"ticker": _pack(same), "cross": _pack(entries)}
@@ -86,10 +99,15 @@ def render_calibration(calib, ticker, max_horizons=4) -> str:
         return ""
 
     def _fmt(pack):
-        if not pack.get("by_horizon"):
+        bits = []
+        rz = pack.get("realized")
+        if rz and rz.get("n"):
+            bits.append(f"realized {rz['hits']}/{rz['n']}")  # ground truth first
+        if pack.get("by_horizon"):
+            bits += [f"{h}d {d['hits']}/{d['n']}"
+                     for h, d in sorted(pack["by_horizon"].items())[:max_horizons]]
+        if not bits:
             return "no outcomes yet"
-        bits = [f"{h}d {d['hits']}/{d['n']}"
-                for h, d in sorted(pack["by_horizon"].items())[:max_horizons]]
         return " ".join(bits)
 
     t, c = calib["ticker"], calib["cross"]

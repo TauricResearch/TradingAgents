@@ -88,15 +88,16 @@ def build_default_config() -> dict:
         # the oldest resolved entries are pruned once this limit is exceeded.
         # Pending entries are never pruned. None disables rotation entirely.
         "memory_log_max_entries": None,
-        # Optional real-portfolio file (realized P&L attribution). Points at the
-        # portfolio/broker file (CSV, JSON, or human text). When a position is
-        # closed, the realized return for that (ticker, entry) is recorded to the
-        # memory log via memory_log.merge_realized(...) — the ground truth,
-        # preferred over the horizon windows for calibration. path=None disables
-        # realized-P&L capture (pure paper-trading / research mode).
+        # Optional real-portfolio file (realized P&L attribution). Manually
+        # maintained CSV, one row per position (open or closed); closed rows
+        # (close_date + close_price filled in) have their realized return
+        # recorded to the memory log on the next run — the ground truth,
+        # preferred over the horizon windows for calibration. path=None
+        # disables realized-P&L capture (pure paper-trading / research mode).
+        # Template: ~/.tradingagents/portfolio.csv (see memory/realized.py).
         "portfolio": {
-            "path": None,             # e.g. "~/.tradingagents/portfolio.csv"
-            "format": "csv",          # csv | json | text
+            "path": "~/.tradingagents/portfolio.csv",
+            "format": "csv",          # csv | json | text (csv implemented)
             "currency": "EUR",
             "benchmark_ticker": None,  # e.g. "^GDAXI" (DAX) for realized alpha
         },

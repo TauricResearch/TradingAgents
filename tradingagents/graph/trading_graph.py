@@ -17,6 +17,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory import calibration
+from tradingagents.memory import realized
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
 
@@ -326,6 +327,17 @@ class TradingAgentsGraph:
         except Exception as exc:
             logger.warning("Settling past decisions failed: %s", exc)
             note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."
+        # Real portfolio: record newly closed positions from the manually
+        # maintained CSV into the log as ground truth, ahead of the calibration
+        # below so the same run already sees them. No-op when the file is
+        # unconfigured, missing, or has no closed trades yet.
+        try:
+            recorded = realized.record_realized_trades(self.memory_log, self.config)
+            if recorded:
+                logger.info("Recorded %d real-portfolio realized P&L outcome(s): %s",
+                            len(recorded), ", ".join(f"{t} on {d}" for t, d, _ in recorded))
+        except Exception as exc:
+            logger.warning("Recording real-portfolio realized P&L failed: %s", exc)
         try:
             past_context = self.memory_log.get_past_context(
                 state["company_of_interest"], as_of=self._memory_as_of(state["trade_date"]))
@@ -349,6 +361,17 @@ class TradingAgentsGraph:
                 past_context = past_context + "\n\n" + line
             elif line:
                 past_context = line
+            # Realized P&L attribution: what the user actually made/lost on the
+            # positions the model called, joined with the decisions' ratings —
+            # ground truth alongside the (predicted) calibration line.
+            attributions = realized.attribute_realized(
+                self.memory_log, self.config, as_of=as_of)
+            rline = realized.render_realized_attribution(
+                attributions, state["company_of_interest"])
+            if rline and past_context:
+                past_context = past_context + "\n\n" + rline
+            elif rline:
+                past_context = rline
         except Exception as exc:
             logger.warning("Calibration aggregation failed: %s", exc)
         return {"past_context": past_context, "memory_note": note}
