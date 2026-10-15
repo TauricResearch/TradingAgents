@@ -13,6 +13,11 @@ from ..core.database import db
 from ..core.security import sanitize_sensitive_data, sanitize_sensitive_text
 from .runner import run_analysis_task
 
+try:
+    from tradingagents.default_config import DEFAULT_CONFIG
+except Exception:
+    DEFAULT_CONFIG = {}
+
 logger = logging.getLogger(__name__)
 
 def _safe_json_dumps(obj: Any) -> str:
@@ -104,18 +109,25 @@ class JobManager:
         job_id = str(uuid.uuid4())
         trade_date = req_dict.get("trade_date") or datetime.now().strftime("%Y-%m-%d")
 
+        def_prov = DEFAULT_CONFIG.get("llm_provider") or "openai_compatible"
+        def_deep = DEFAULT_CONFIG.get("deep_think_llm") or "ag/gemini-3.8-flash-high"
+        def_quick = DEFAULT_CONFIG.get("quick_think_llm") or "ag/gemini-3.8-flash-high"
+        def_debate = DEFAULT_CONFIG.get("max_debate_rounds") or 3
+        def_risk = DEFAULT_CONFIG.get("max_risk_discuss_rounds") or 3
+        def_lang = DEFAULT_CONFIG.get("output_language") or "Vietnamese"
+
         job_record = {
             "id": job_id,
             "ticker": req_dict["ticker"].strip().upper(),
             "trade_date": trade_date,
             "asset_type": req_dict.get("asset_type", "stock"),
             "analysts": json.dumps(req_dict.get("analysts", ["market", "social", "news", "fundamentals"])),
-            "llm_provider": req_dict.get("llm_provider", "openai"),
-            "deep_think_llm": req_dict.get("deep_think_llm", "gpt-5.6"),
-            "quick_think_llm": req_dict.get("quick_think_llm", "gpt-5.6-luna"),
-            "max_debate_rounds": req_dict.get("max_debate_rounds", 1),
-            "max_risk_discuss_rounds": req_dict.get("max_risk_discuss_rounds", 1),
-            "output_language": req_dict.get("output_language", "English"),
+            "llm_provider": req_dict.get("llm_provider") or def_prov,
+            "deep_think_llm": req_dict.get("deep_think_llm") or def_deep,
+            "quick_think_llm": req_dict.get("quick_think_llm") or def_quick,
+            "max_debate_rounds": req_dict.get("max_debate_rounds") or def_debate,
+            "max_risk_discuss_rounds": req_dict.get("max_risk_discuss_rounds") or def_risk,
+            "output_language": req_dict.get("output_language") or def_lang,
             "status": "queued",
             "progress": 0,
             "current_stage": "Queued in worker pool",

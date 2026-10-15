@@ -124,11 +124,11 @@ async def get_config_options():
         "analysts": ANALYSTS_METADATA,
         "languages": LANGUAGES,
         "default_config": {
-            "llm_provider": DEFAULT_CONFIG.get("llm_provider", "openai"),
+            "llm_provider": DEFAULT_CONFIG.get("llm_provider", "openai_compatible"),
             "deep_think_llm": DEFAULT_CONFIG.get("deep_think_llm", custom_deep),
             "quick_think_llm": DEFAULT_CONFIG.get("quick_think_llm", custom_quick),
-            "max_debate_rounds": DEFAULT_CONFIG.get("max_debate_rounds", 1),
-            "max_risk_discuss_rounds": DEFAULT_CONFIG.get("max_risk_discuss_rounds", 1),
+            "max_debate_rounds": DEFAULT_CONFIG.get("max_debate_rounds", 3),
+            "max_risk_discuss_rounds": DEFAULT_CONFIG.get("max_risk_discuss_rounds", 3),
             "output_language": resolved_lang,
         }
     }

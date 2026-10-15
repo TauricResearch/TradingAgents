@@ -11,12 +11,12 @@ class JobCreateRequest(BaseModel):
         default=["market", "social", "news", "fundamentals"],
         description="List of selected analysts: market, social, news, fundamentals"
     )
-    llm_provider: str | None = Field("openai", description="LLM provider name")
-    deep_think_llm: str | None = Field("gpt-5.6", description="Model for deep reasoning")
-    quick_think_llm: str | None = Field("gpt-5.6-luna", description="Model for fast steps")
-    max_debate_rounds: int | None = Field(1, ge=1, le=5, description="Number of bull/bear debate rounds")
-    max_risk_discuss_rounds: int | None = Field(1, ge=1, le=5, description="Number of risk debate rounds")
-    output_language: str | None = Field("English", description="Target language for the reports")
+    llm_provider: str | None = Field(None, description="LLM provider name")
+    deep_think_llm: str | None = Field(None, description="Model for deep reasoning")
+    quick_think_llm: str | None = Field(None, description="Model for fast steps")
+    max_debate_rounds: int | None = Field(None, ge=1, le=5, description="Number of bull/bear debate rounds")
+    max_risk_discuss_rounds: int | None = Field(None, ge=1, le=5, description="Number of risk debate rounds")
+    output_language: str | None = Field(None, description="Target language for the reports")
 
 class JobResponse(BaseModel):
     id: str

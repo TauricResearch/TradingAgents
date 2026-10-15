@@ -18,12 +18,12 @@ export const NewAnalysisModal: React.FC<NewAnalysisModalProps> = ({
 }) => {
   const [ticker, setTicker] = useState('NVDA');
   const [tradeDate, setTradeDate] = useState(new Date().toISOString().split('T')[0]);
-  const [provider, setProvider] = useState('openai');
-  const [deepModel, setDeepModel] = useState('gpt-5.6');
-  const [quickModel, setQuickModel] = useState('gpt-5.6-luna');
-  const [debateRounds, setDebateRounds] = useState(1);
-  const [riskRounds, setRiskRounds] = useState(1);
-  const [language, setLanguage] = useState('English');
+  const [provider, setProvider] = useState('openai_compatible');
+  const [deepModel, setDeepModel] = useState('ag/gemini-3.8-flash-high');
+  const [quickModel, setQuickModel] = useState('ag/gemini-3.8-flash-high');
+  const [debateRounds, setDebateRounds] = useState(3);
+  const [riskRounds, setRiskRounds] = useState(3);
+  const [language, setLanguage] = useState('Vietnamese');
   const [isCustomModel, setIsCustomModel] = useState(false);
   const [selectedPresetTab, setSelectedPresetTab] = useState<'stocks' | 'crypto' | 'commodities'>('stocks');
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([
@@ -53,6 +53,7 @@ export const NewAnalysisModal: React.FC<NewAnalysisModalProps> = ({
 
   // Curated Model Packages
   const modelPresets = [
+    { id: 'custom-gateway', provider: 'openai_compatible', name: 'Custom Gateway (Gemini 3.8)', deep: 'ag/gemini-3.8-flash-high', quick: 'ag/gemini-3.8-flash-high', desc: 'Fast High-Speed AI via Tunnel' },
     { id: 'openai-flagship', provider: 'openai', name: 'OpenAI Flagship', deep: 'gpt-4o', quick: 'gpt-4o-mini', desc: 'Balanced accuracy & speed' },
     { id: 'google-speed', provider: 'google', name: 'Google Gemini', deep: 'gemini-1.5-pro', quick: 'gemini-1.5-flash', desc: 'Fast analysis with wide context' },
     { id: 'anthropic-reasoning', provider: 'anthropic', name: 'Anthropic Claude', deep: 'claude-3-5-sonnet', quick: 'claude-3-5-haiku', desc: 'Exceptional qualitative synthesis' },
@@ -66,6 +67,8 @@ export const NewAnalysisModal: React.FC<NewAnalysisModalProps> = ({
       if (def.llm_provider) setProvider(def.llm_provider);
       if (def.deep_think_llm) setDeepModel(def.deep_think_llm);
       if (def.quick_think_llm) setQuickModel(def.quick_think_llm);
+      if (def.max_debate_rounds) setDebateRounds(def.max_debate_rounds);
+      if (def.max_risk_discuss_rounds) setRiskRounds(def.max_risk_discuss_rounds);
       if (def.output_language) setLanguage(def.output_language);
     }
   }, [configOptions]);
@@ -319,7 +322,7 @@ export const NewAnalysisModal: React.FC<NewAnalysisModalProps> = ({
 
             {/* Quick Model Presets */}
             {!isCustomModel ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                 {modelPresets.map((p) => {
                   const isSelected = provider === p.provider;
                   return (
