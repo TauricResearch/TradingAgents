@@ -44,7 +44,20 @@ class TestLanguageInstruction:
         set_config({"output_language": "中文"})
         out = get_language_instruction()
         assert "中文" in out
-        assert "entire response" in out
+        assert "MANDATORY OUTPUT LANGUAGE" in out
+
+    @pytest.mark.parametrize(
+        "alias",
+        ["Traditional Chinese", "Traditional Chinese (Taiwan)", "繁體中文", "正體中文"],
+    )
+    def test_traditional_chinese_aliases_get_strict_taiwan_localization(self, alias):
+        from tradingagents.dataflows.config import set_config
+        set_config({"output_language": alias})
+        out = get_language_instruction()
+        assert "強制輸出語言" in out
+        assert "繁體中文（台灣用語）" in out
+        assert "所有標題" in out
+        assert "不得直接輸出英文敘述" in out
 
     def test_the_labelled_lines_stay_as_the_format_gives_them(self):
         # The rating is read from its "**Rating**:" line; a translated label

@@ -118,6 +118,7 @@ class ResearchPlan(BaseModel):
         ),
     )
     strategic_actions: str = Field(
+        min_length=1,
         description=(
             "Concrete steps for the trader to implement the recommendation, "
             "including sizing guidance relative to a standard allocation. The "
@@ -129,12 +130,13 @@ class ResearchPlan(BaseModel):
 
 def render_research_plan(plan: ResearchPlan) -> str:
     """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
+    actions = plan.strategic_actions.strip() or "（模型未提供具體步驟）"
     return "\n".join([
         f"**Recommendation**: {plan.recommendation.value}",
         "",
         f"**Rationale**: {plan.rationale}",
         "",
-        f"**Strategic Actions**: {plan.strategic_actions}",
+        f"**Strategic Actions**: {actions}",
     ])
 
 

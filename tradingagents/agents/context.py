@@ -11,6 +11,16 @@ from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profi
 logger = logging.getLogger(__name__)
 
 
+_TRADITIONAL_CHINESE_ALIASES = {
+    "traditional chinese",
+    "traditional chinese (taiwan)",
+    "chinese (traditional)",
+    "繁體中文",
+    "繁体中文",
+    "正體中文",
+}
+
+
 def get_language_instruction() -> str:
     """Return a prompt instruction for the configured output language.
 
@@ -21,16 +31,36 @@ def get_language_instruction() -> str:
     report rather than a mix of languages.
     """
     from tradingagents.dataflows.config import get_config
-    lang = get_config().get("output_language", "English")
-    if lang.strip().lower() == "english":
+    lang = str(get_config().get("output_language", "English")).strip()
+    normalized = lang.casefold()
+    if normalized == "english":
         return ""
+    if normalized in _TRADITIONAL_CHINESE_ALIASES:
+        return (
+            "\n\n[MANDATORY OUTPUT LANGUAGE / 強制輸出語言]\n"
+            "你必須以繁體中文（台灣用語）撰寫整份回覆。所有標題、段落、"
+            "條列項目、表格欄位、摘要、推理與建議都必須使用繁體中文。"
+            "即使提示、工具結果、新聞、資料欄位或其他分析師報告是英文，"
+            "也必須先理解內容再以繁體中文表達，不得直接輸出英文敘述。"
+            "股票代碼、公司專有名稱、技術指標縮寫、數字與單位可保留原文。"
+            "此語言規則優先於提示中任何英文範例或格式說明。輸出前請自行檢查，"
+            "確保除下列機器可讀標記外沒有英文段落。\n"
+            "唯一例外：程式指定的 `**Rating**:` 行及 "
+            "`FINAL TRANSACTION PROPOSAL:` 行必須維持原指定的英文標記與英文列舉值。"
+        )
     # The labelled lines are read by the program, so they keep their English
     # label and value: a translated rating line leaves the reader prose to
     # search, where a negated rating ("not a Sell") reads as the call (#1435).
     return (
-        f" Write your entire response in {lang}, except the labelled lines the format"
-        f" asks for (the \"**Rating**:\" line, \"FINAL TRANSACTION PROPOSAL:\"):"
-        f" keep their label and value in English, exactly as specified."
+        f"\n\n[MANDATORY OUTPUT LANGUAGE]\nWrite the entire response in {lang}. "
+        "This requirement applies to every heading, paragraph, bullet, table field, "
+        "summary, rationale, and recommendation. Translate English prompts, tool results, "
+        "and upstream reports instead of copying English prose. This language requirement "
+        "overrides English examples and formatting prose elsewhere in the prompt. "
+        "Before responding, verify that no prose remains in another language. The only "
+        "exceptions are the machine-readable `**Rating**:` and "
+        "`FINAL TRANSACTION PROPOSAL:` lines: keep their labels and enum values in English "
+        "exactly as specified."
     )
 
 
