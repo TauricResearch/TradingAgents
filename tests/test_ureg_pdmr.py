@@ -51,6 +51,92 @@ class SearchRowExtractionTests(unittest.TestCase):
         self.assertTrue(all("Ã" not in r["title"] for r in self.rows), "mojibake detected")
 
 
+class SearchPaginationTests(unittest.TestCase):
+    """Drive the *real* _search pagination loop, offline.
+
+    ``_open_search`` / ``_fetch_page`` are patched to serve a synthetic
+    page sequence, so these tests exercise the loop that was actually
+    buggy — the PDMR early-stop — without any network. The Infineon
+    regression: UReg mixes categories per page, and a page can hold
+    *zero* PDMR rows (Infineon's page 1 was 24 cat-81 + 6 cat-83) while
+    the PDMR rows sit on later pages. A PDMR-only early-stop would break
+    out on page 1 and report false absence; these tests keep it from
+    regressing.
+    """
+
+    @staticmethod
+    def _row(payload, category, company="Infineon Technologies AG",
+             date="2026-09-14"):
+        return {
+            "disclosure_date": date,
+            "company": company,
+            "language": "de",
+            "payload": payload,
+            "category": category,
+            "title": "t",
+        }
+
+    def _run(self, pages):
+        """Serve a 1-based ``pages`` dict through the real _search loop."""
+        calls = []
+
+        def fetch(_session, _name, page):
+            calls.append(page)
+            return pages.get(page, [])
+
+        with patch.object(u, "_open_search", return_value=object()), \
+             patch.object(u, "_fetch_page", side_effect=fetch):
+            rows = u._search("Infineon Technologies AG")
+        return rows, calls
+
+    def test_zero_pdmr_page_does_not_stop_pagination(self):
+        # Infineon shape: page 1 holds only non-PDMR rows, the PDMR rows
+        # are on page 2, page 3 exhausts the list. A PDMR-only early-stop
+        # would return [] after page 1 (the false-absence bug).
+        pages = {
+            1: [self._row("p1a", 81), self._row("p1b", 83)],
+            2: [self._row("p2a", 80), self._row("p2b", 80)],
+            3: [],
+        }
+        rows, calls = self._run(pages)
+        self.assertEqual(sorted(r["payload"] for r in rows), ["p2a", "p2b"])
+        # must have walked past the PDMR-less page 1 to reach pages 2 and 3
+        self.assertEqual(calls, [1, 2, 3])
+
+    def test_non_pdmr_rows_are_excluded_from_the_result(self):
+        pages = {
+            1: [self._row("p1a", 81), self._row("p1b", 83),
+                self._row("p1c", 80)],
+            2: [],
+        }
+        rows, _ = self._run(pages)
+        self.assertEqual([r["payload"] for r in rows], ["p1c"])
+        self.assertTrue(all(r["category"] == u.PDMR_CATEGORY_ID for r in rows))
+
+    def test_pagination_stops_at_list_exhaustion(self):
+        # once a page yields no new rows of *any* category, stop — no wasted
+        # page-3 request.
+        pages = {1: [self._row("p1a", 80)], 2: []}
+        _, calls = self._run(pages)
+        self.assertEqual(calls, [1, 2])
+
+    def test_fully_duplicate_page_stops_pagination(self):
+        # a page that only repeats already-seen payloads counts as "no new
+        # rows" too (UReg can repeat a row across adjacent pages).
+        pages = {1: [self._row("p1a", 80)], 2: [self._row("p1a", 80)]}
+        rows, calls = self._run(pages)
+        self.assertEqual([r["payload"] for r in rows], ["p1a"])
+        self.assertEqual(calls, [1, 2])
+
+    def test_max_records_cap_stops_early(self):
+        # a busy issuer: once MAX_RECORDS PDMR rows are collected, stop — no
+        # further page is fetched.
+        pages = {1: [self._row(f"a{i}", 80) for i in range(u.MAX_RECORDS)]}
+        rows, calls = self._run(pages)
+        self.assertEqual(len(rows), u.MAX_RECORDS)
+        self.assertEqual(calls, [1])
+
+
 class PubHtmlParseTests(unittest.TestCase):
     def test_german_detail_parses_all_fields(self):
         f = u.parse_pub_html(_fixture("ureg_pubhtml_de_alam.html"))
