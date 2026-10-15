@@ -17,7 +17,7 @@ import pytest
 from tradingagents.dataflows import router
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.date_window import get_current_date
-from tradingagents.dataflows.errors import NoMarketDataError
+from tradingagents.dataflows.errors import NoMarketDataError, VendorNotConfiguredError
 from tradingagents.dataflows.vendors.yahoo import common, ohlcv
 
 
@@ -78,7 +78,7 @@ class TestRouteToVendorSentinel(unittest.TestCase):
             raise NoMarketDataError(symbol, symbol, "no rows")
 
         def raises_unavailable(symbol, *a, **k):
-            raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
+            raise VendorNotConfiguredError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
 
         patched = {"yfinance": raises_no_data, "alpha_vantage": raises_unavailable}
         with mock.patch.dict(

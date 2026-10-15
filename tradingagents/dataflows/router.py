@@ -17,7 +17,18 @@ from tradingagents.dataflows.vendors.alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from tradingagents.dataflows.vendors.european_official import (
+    get_macro_data as get_european_official_macro_data,
+)
+from tradingagents.dataflows.vendors.finnhub import (
+    get_finnhub_fundamentals,
+    get_finnhub_insider_transactions,
+    get_news_finnhub,
+)
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
+from tradingagents.dataflows.vendors.issuer_rss import get_news_issuer_rss
+from tradingagents.dataflows.vendors.marketaux import get_news_marketaux
+from tradingagents.dataflows.vendors.news_supplement import get_news_supplement
 from tradingagents.dataflows.vendors.polymarket import (
     get_prediction_markets as get_polymarket_prediction_markets,
 )
@@ -108,6 +119,7 @@ VENDOR_METHODS = {
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
+        "finnhub": get_finnhub_fundamentals,
         "yfinance": get_yfinance_fundamentals,
     },
     "get_balance_sheet": {
@@ -127,19 +139,25 @@ VENDOR_METHODS = {
     },
     # news_data
     "get_news": {
+        "marketaux": get_news_marketaux,
+        "finnhub": get_news_finnhub,
         "alpha_vantage": get_alpha_vantage_news,
+        "issuer_rss": get_news_issuer_rss,
         "yfinance": get_news_yfinance,
+        "news_supplement": get_news_supplement,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
+        "finnhub": get_finnhub_insider_transactions,
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
     # macro_data
     "get_macro_indicators": {
+        "official_europe": get_european_official_macro_data,
         "fred": get_fred_macro_data,
     },
     # prediction_markets

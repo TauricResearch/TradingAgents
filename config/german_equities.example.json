@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "instruments": {
+    "RHM.DE": {
+      "issuer": "Rheinmetall AG",
+      "isin": "DE0007030009",
+      "wkn": "703000",
+      "ticker": "RHM.DE",
+      "mic": "XETR",
+      "currency": "EUR",
+      "yahoo_symbol": "RHM.DE",
+      "alpha_vantage_symbol": "RHM.DEX",
+      "official_ir_url": "https://www.rheinmetall.com/en/investor-relations/share/basic-information",
+      "news_feed_url": null,
+      "aliases": ["DE0007030009", "703000"]
+    }
+  }
+}

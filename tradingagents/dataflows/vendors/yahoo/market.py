@@ -43,6 +43,17 @@ def get_YFin_data_online(
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
 
+    # Yahoo has returned the requested final trading-day row with a missing
+    # Close for some symbols (including RHM.DE). Do not silently make an earlier
+    # session look current: a routed secondary provider may have a usable close.
+    if "Close" in data.columns and pd.isna(data["Close"].iloc[-1]):
+        latest_date = data.index[-1].date()
+        raise NoMarketDataError(
+            symbol,
+            canonical,
+            f"latest bar on {latest_date} is missing Close — try the next provider",
+        )
+
     # Reject a stale frame (e.g. a year-old partial response) before it is
     # formatted into the report. Raises NoMarketDataError, which the router
     # turns into one clear unavailable signal (#1021).

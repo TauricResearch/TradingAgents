@@ -90,6 +90,18 @@ def _own_cli_prefs(tmp_path, monkeypatch):
     monkeypatch.setattr("cli.prefs._PREFS_PATH", tmp_path / "cli_prefs.json")
 
 
+@pytest.fixture(autouse=True)
+def _own_cli_env(monkeypatch):
+    """Never let a credential test walk from TMPDIR into a real parent .env."""
+    from pathlib import Path
+
+    def local_dotenv(*args, **kwargs):
+        path = Path.cwd() / ".env"
+        return str(path) if path.is_file() else ""
+
+    monkeypatch.setattr("cli.prompts.find_dotenv", local_dotenv)
+
+
 _API_KEY_ENV_VARS = (
     "OPENAI_API_KEY",
     "GOOGLE_API_KEY",

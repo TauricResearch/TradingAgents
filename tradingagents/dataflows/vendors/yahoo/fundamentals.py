@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 import yfinance as yf
@@ -55,6 +56,17 @@ def get_fundamentals(
     quote = info.get("currency")
     main = _MAIN_UNIT.get(quote, quote)
     reported = info.get("financialCurrency")
+    quote_timestamp = info.get("regularMarketTime")
+    if quote_timestamp is not None:
+        try:
+            quote_timestamp = datetime.fromtimestamp(
+                float(quote_timestamp), tz=timezone.utc
+            ).isoformat()
+        except (TypeError, ValueError, OSError, OverflowError):
+            quote_timestamp = None
+
+    revenue_growth = info.get("revenueGrowth")
+    analyst_target = info.get("targetMeanPrice")
 
     def money(key, currency):
         value = info.get(key)
@@ -64,6 +76,19 @@ def get_fundamentals(
         ("Name", info.get("longName")),
         ("Sector", info.get("sector")),
         ("Industry", info.get("industry")),
+        ("Quote Currency", quote),
+        ("Financial Reporting Currency", reported),
+        ("Regular-Market Quote", money("regularMarketPrice", quote)),
+        ("Quote timestamp (UTC)", quote_timestamp),
+        ("Shares Outstanding", info.get("sharesOutstanding")),
+        ("Revenue Growth (YoY)", None if revenue_growth is None else f"{revenue_growth * 100:.1f}%"),
+        ("Operating Cash Flow", money("operatingCashflow", reported)),
+        ("Total Cash", money("totalCash", reported)),
+        ("Total Debt", money("totalDebt", reported)),
+        ("Analyst Target (Mean)", money("targetMeanPrice", quote)),
+        ("Analyst Recommendation", info.get("recommendationKey")),
+        ("Analyst Opinions", info.get("numberOfAnalystOpinions")),
+        ("Full-Time Employees", info.get("fullTimeEmployees")),
         ("Market Cap", money("marketCap", main)),
         ("PE Ratio (TTM)", info.get("trailingPE")),
         ("Forward PE", info.get("forwardPE")),
@@ -161,7 +186,12 @@ def get_insider_transactions(
     if data is None or data.empty:
         if not vendor_reachable(YAHOO_HOST):
             raise VendorUnavailableError("Yahoo Finance is unreachable; insider filings were not retrieved")
-        return f"No insider transactions reported for symbol '{canonical}'"
+        return (
+            f"No insider transactions returned by Yahoo Finance for symbol '{canonical}'. "
+            "Source coverage is unverified; this does not establish that no transactions occurred. "
+            "Do not infer an insider-trade count or neutral sentiment from this empty feed. "
+            "Check issuer/regulatory PDMR disclosures separately."
+        )
 
     return f"# Insider Transactions data for {canonical}\n" + data.to_csv()
 

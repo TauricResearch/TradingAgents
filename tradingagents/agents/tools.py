@@ -9,10 +9,82 @@ from typing import Annotated
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
+from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
-from tradingagents.dataflows.router import no_data_available, route_to_vendor, vendor_unavailable
+from tradingagents.dataflows.reconciliation import build_reconciliation_note
+from tradingagents.dataflows.router import (
+    VENDOR_METHODS,
+    get_vendor,
+    no_data_available,
+    route_to_vendor,
+    vendor_unavailable,
+)
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
+
+# Sentinels the routing layer returns when no vendor served data; there is
+# nothing to reconcile against, so skip the cross-vendor note.
+_NO_DATA_SENTINELS = ("NO_DATA_AVAILABLE", "DATA_UNAVAILABLE")
+
+
+def _vendor_chain(method: str, vendor_config: str) -> list[str]:
+    """The configured vendor chain for a method, resolved like the router.
+
+    ``default`` expands to every available vendor; an explicit list keeps only
+    the configured vendors that actually implement the method.
+    """
+    available = VENDOR_METHODS.get(method, {})
+    chain = [v.strip() for v in vendor_config.split(",")]
+    explicit = [v for v in chain if v and v != "default"]
+    if explicit:
+        return [v for v in explicit if v in available]
+    return list(available.keys())
+
+
+def _cross_vendor_note(symbol: str, start_date: str, end_date: str, primary_csv: str) -> str | None:
+    """A best-effort cross-vendor divergence note for the primary OHLCV result.
+
+    Only runs when a *less-trusted* source served the primary data (Alpha
+    Vantage, detected by its ``# Alpha Vantage`` header). In that case it
+    compares the primary's closes against the other configured OHLCV vendor
+    (normally yfinance — free and high-coverage) and appends a human-readable
+    note when they diverge meaningfully. When yfinance is the primary, the data
+    is not in question and no second vendor call is made, so the healthy path
+    adds zero latency and no extra rate-limit cost.
+
+    Deliberately non-invasive: it never raises, never mutates or replaces the
+    primary result, and yields ``None`` (nothing appended) when the feature is
+    disabled, the primary has no data, the primary is the trusted source,
+    there is no second source, or no second source diverges. Ticker-agnostic —
+    it only reads the date and close columns every OHLCV vendor emits.
+    """
+    if not get_config().get("cross_vendor_reconciliation", True):
+        return None
+    if not primary_csv or primary_csv.startswith(_NO_DATA_SENTINELS):
+        return None
+    if not primary_csv.startswith("# Alpha Vantage"):
+        return None  # yfinance (or the trusted primary) served — nothing to verify
+
+    method = "get_stock_data"
+    chain = _vendor_chain(method, get_vendor("core_stock_apis", method))
+    # The primary came from alpha_vantage; verify it against the other source.
+    for vendor in chain:
+        if vendor == "alpha_vantage":
+            continue  # the primary itself
+        impl = VENDOR_METHODS.get(method, {}).get(vendor)
+        if impl is None:
+            continue
+        try:
+            comparison = impl(symbol, start_date, end_date)
+        except Exception:
+            continue  # a comparison source that errors is not the primary's job to fix
+        if not comparison or comparison.startswith(_NO_DATA_SENTINELS):
+            continue
+        try:
+            return build_reconciliation_note(symbol, primary_csv, comparison)
+        except Exception:
+            return None
+    return None
 
 
 @tool
@@ -35,7 +107,11 @@ def get_stock_data(
         start_date, end_date = as_of_window(start_date, end_date, trade_date)
     except ValueError as e:
         return str(e)
-    return route_to_vendor("get_stock_data", symbol, start_date, end_date)
+    primary = route_to_vendor("get_stock_data", symbol, start_date, end_date)
+    note = _cross_vendor_note(symbol, start_date, end_date, primary)
+    if note:
+        primary += f"\n{note}"
+    return primary
 
 
 @tool
@@ -246,12 +322,12 @@ def get_macro_indicators(
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
 ) -> str:
     """
-    Retrieve a macroeconomic indicator time series from FRED (Federal Reserve
-    Economic Data): policy rates, Treasury yields, inflation, labor, and growth,
-    for the US and, through FRED's mirrored series, the euro area.
-    Returns the series title, units, frequency, the latest value, the change
-    over the window, and a recent observation table. Uses the configured
-    macro_data vendor.
+    Retrieve a macroeconomic indicator time series. ECB and Eurostat official
+    APIs cover selected German/euro-area series (e.g. ``germany_hicp``,
+    ``germany_real_gdp``, ``euro_hicp``, ``ecb_deposit_rate``); unsupported names
+    continue to FRED when configured. Returns source, unit, observation window,
+    and recent values. Historical Eurostat values use the current source vintage.
+    Uses the configured macro_data vendor chain.
 
     Args:
         indicator (str): Friendly alias or raw FRED series ID

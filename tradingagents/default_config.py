@@ -31,6 +31,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_ISSUER_REGISTRY":          "issuer_registry_path",
+    "TRADINGAGENTS_NEWS_SUPPLEMENT":          "news_supplement_path",
 }
 
 
@@ -84,6 +86,11 @@ def build_default_config() -> dict:
         "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR") or os.path.join(_TRADINGAGENTS_HOME, "logs"),
         "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR") or os.path.join(_TRADINGAGENTS_HOME, "cache"),
         "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md"),
+        "issuer_registry_path": (
+            os.getenv("TRADINGAGENTS_ISSUER_REGISTRY")
+            or os.path.join(_TRADINGAGENTS_HOME, "german_equities.json")
+        ),
+        "news_supplement_path": None,
         # Optional cap on the number of resolved memory log entries. When set,
         # the oldest resolved entries are pruned once this limit is exceeded.
         # Pending entries are never pruned. None disables rotation entirely.
@@ -156,18 +163,44 @@ def build_default_config() -> dict:
         # routed to vendors you didn't choose. For ordered fallback, list several,
         # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
         "data_vendors": {
-            "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
+            "core_stock_apis": "yfinance,alpha_vantage",  # Alpha Vantage fallback; raw daily series may be unadjusted/limited
             "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
             # Statements come from SEC EDGAR as filed (US filers), then Yahoo; the
-        # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
-        "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
-            "news_data": "yfinance",             # Options: alpha_vantage, yfinance
-            "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
+            # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
+            "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
+            # News/insider chain, shared by get_news, get_global_news and
+            # get_insider_transactions (the router filters to the vendors that
+            # implement each method). Provenance priority, first-party first:
+            #   get_news  -> issuer_rss, marketaux, finnhub, yfinance, alpha_vantage
+            #   get_insider_transactions -> finnhub, yfinance, alpha_vantage
+            #   get_global_news -> yfinance, alpha_vantage
+            # issuer_rss is authoritative for a ticker that has a configured
+            # first-party feed (it returns a terminal string even when empty);
+            # for tickers without one it raises VendorNotConfiguredError and the
+            # chain continues to the licensed aggregators. Aggregators
+            # (marketaux, finnhub) raise NoMarketDataError on an empty window so
+            # the chain continues; the terminal vendor serves the final
+            # "no news" answer. Finnhub is US-coverage-only (its profile2 gate
+            # falls through for other markets); its insider feed is SEC-sourced
+            # and carries Form 4 filing dates, so it stands ahead of yfinance /
+            # alpha_vantage for the insider tool.
+            "news_data": "issuer_rss,marketaux,finnhub,yfinance,alpha_vantage",  # Options: issuer_rss, marketaux, finnhub, yfinance, alpha_vantage
+            "macro_data": "official_europe,fred",  # ECB/Eurostat official series; FRED fallback
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
         },
+        # Cross-vendor OHLCV reconciliation: when the primary price data came
+        # from a less-trusted source (Alpha Vantage — detected by its header),
+        # compare its closes against the other configured OHLCV vendor
+        # (normally yfinance) and append an informational note if they diverge
+        # meaningfully. The trusted-yfinance primary path adds no extra vendor
+        # call. Best-effort and non-invasive — it never changes the primary
+        # result, only annotates it. Disable to skip the cross-check entirely.
+        "cross_vendor_reconciliation": True,
         # Tool-level configuration (takes precedence over category-level)
         "tool_vendors": {
             # Example: "get_stock_data": "alpha_vantage",  # Override category default
+            **({"get_news": "issuer_rss,yfinance,news_supplement"}
+               if os.getenv("TRADINGAGENTS_NEWS_SUPPLEMENT") else {}),
         },
         # Benchmark for alpha calculation in the reflection layer.
         # ``benchmark_ticker`` (when set) overrides the suffix map for all

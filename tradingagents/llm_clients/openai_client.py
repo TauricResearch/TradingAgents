@@ -319,6 +319,22 @@ class OpenAIClient(BaseLLMClient):
             # only speaks Chat Completions, so keep Responses off there (#1024).
             if spec.use_responses_api and _is_native_openai_base_url(base_url):
                 llm_kwargs["use_responses_api"] = True
+
+            # GitHub Copilot exposes GPT-5+/GPT-6 through its Responses endpoint,
+            # not the Chat Completions route used by generic OpenAI-compatible
+            # providers. It also requires editor attribution headers. Keep this
+            # opt-in by endpoint hostname so ordinary OpenAI and local-compatible
+            # configurations retain their existing behavior.
+            host = (urlparse(base_url).hostname or "").lower() if base_url else ""
+            if host == "githubcopilot.com" or host.endswith(".githubcopilot.com"):
+                llm_kwargs["use_responses_api"] = True
+                llm_kwargs["default_headers"] = {
+                    "Editor-Version": "vscode/1.104.1",
+                    "User-Agent": "HermesAgent/1.0",
+                    "Copilot-Integration-Id": "vscode-chat",
+                    "Openai-Intent": "conversation-edits",
+                    "x-initiator": "agent",
+                }
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 

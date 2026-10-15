@@ -67,6 +67,11 @@ class AlphaVantageRateLimitError(VendorUnavailableError):
     pass
 
 
+class AlphaVantagePremiumEndpointError(VendorUnavailableError):
+    """Raised when an endpoint requires a premium entitlement."""
+    pass
+
+
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
 
@@ -117,7 +122,13 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
     if notice:
         notice = scrubbed(notice)
         low = notice.lower()
-        if any(m in low for m in ("rate limit", "requests per day", "call frequency", "premium")):
+        if "premium endpoint" in low or "premium api function" in low:
+            raise AlphaVantagePremiumEndpointError(
+                f"Alpha Vantage endpoint requires a premium entitlement: {notice}"
+            )
+        if any(m in low for m in (
+            "rate limit", "requests per day", "call frequency", "requests per minute",
+        )):
             raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {notice}")
         if "api key" in low or "apikey" in low:
             # Reuse the existing "not configured" error so a bad key surfaces as
