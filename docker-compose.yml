@@ -40,6 +40,7 @@ services:
       - .env
     ports:
       - "8000:8000"
+    restart: unless-stopped
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
       - ./backend/data:/app/backend/data
@@ -59,6 +60,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5173:80"
+    restart: unless-stopped
     depends_on:
       tradingagents-backend:
         condition: service_healthy
