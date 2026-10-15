@@ -7,6 +7,7 @@ from cli.models import AnalystType, AssetType
 from cli.prompts import filter_analysts_for_asset_type, parse_analysts
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.dashboard import serve_dashboard
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.portfolio import load_portfolio
 
@@ -154,6 +155,18 @@ def backtest(
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
     for ticker, reason in result.settlement_failures:
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
+
+
+@app.command("dashboard")
+def dashboard(
+    host: str = typer.Option("127.0.0.1", "--host", help="Local bind address"),
+    port: int = typer.Option(8765, "--port", min=1, max=65535, help="Local HTTP port"),
+    portfolio_path: str = typer.Option(
+        None, "--portfolio-path", help="Portfolio JSON path (defaults under results_dir)"
+    ),
+):
+    """Run the local portfolio and daily decision-support dashboard."""
+    serve_dashboard(host=host, port=port, path=portfolio_path)
 
 
 if __name__ == "__main__":

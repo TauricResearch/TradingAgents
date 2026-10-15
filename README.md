@@ -215,6 +215,30 @@ Each flag skips only its own question. Run without a terminal, a missing answer 
 
 A saved report also includes `complete_report.html`, the report as one page with its sections listed beside the text, for reading in a browser, on a phone or in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` skips it, and so does `ta.save_reports(state, "NVDA", html=False)` from Python.
 
+### Local portfolio dashboard
+
+Run the broker-neutral local dashboard with:
+
+```bash
+tradingagents dashboard
+```
+
+It stores a validated portfolio document at `~/.tradingagents/logs/portfolio.json`
+(or under the configured `TRADINGAGENTS_RESULTS_DIR`). Holdings can be added,
+edited, removed, and listed through the JSON API:
+`GET /api/portfolio`, `POST /api/portfolio`, `PUT /api/portfolio/{ticker}`,
+`DELETE /api/portfolio/{ticker}`, and `POST /api/portfolio/thresholds`.
+Each holding records its ticker, UK/USA market, shares, average purchase price,
+currency, purchase date, and optional notes/status.
+
+`GET /api/decisions` shows P/L only when a reliable current price is explicitly
+provided by an integrating caller; missing prices remain unavailable. It exposes
+one UK and one USA candidate slot from available saved TradingAgents reports,
+otherwise the slot is marked unavailable. Holding actions are `WATCH`, `HOLD`,
+`REVIEW SELL`, or `TAKE PROFIT` using configurable defaults of 10% profit and
+2% loss. These are decision-support thresholds, not guarantees or financial
+advice, and the dashboard never connects to a broker or places orders.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
