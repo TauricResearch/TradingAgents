@@ -25,6 +25,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_LLM_REQUEST_TIMEOUT":  "llm_request_timeout",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -123,6 +124,11 @@ def build_default_config() -> dict:
         # unbounded reasoning/output and hangs or trips a gateway idle timeout
         # (e.g. some deepseek-v4-flash deployments, #1204).
         "max_tokens": None,
+        # Per-request timeout (seconds) forwarded to the provider chat client.
+        # None leaves each provider/SDK at its own default (OpenAI SDK = 600s),
+        # which a local OpenAI-compatible thinking model can exceed on a single
+        # long high-reasoning turn. Set e.g. 1800 via TRADINGAGENTS_LLM_REQUEST_TIMEOUT.
+        "llm_request_timeout": None,
         # Checkpoint/resume: when True, LangGraph saves state after each node
         # so a crashed run can resume from the last successful step.
         "checkpoint_enabled": False,

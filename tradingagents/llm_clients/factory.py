@@ -87,6 +87,24 @@ def _coerce_max_tokens(value):
     return n
 
 
+def _coerce_request_timeout(value):
+    """Validate an ``llm_request_timeout`` value to a positive int.
+
+    Mirrors ``_coerce_max_retries``: env vars arrive as strings, and booleans or
+    non-positive values are rejected loudly at startup rather than silently
+    misconfiguring an unattended run.
+    """
+    if isinstance(value, bool):
+        raise ValueError(f"llm_request_timeout must be an integer, not a boolean: {value!r}")
+    try:
+        n = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"llm_request_timeout must be an integer, got {value!r}") from exc
+    if n <= 0:
+        raise ValueError(f"llm_request_timeout must be > 0, got {n}")
+    return n
+
+
 def build_llm_kwargs(config: dict) -> dict[str, Any]:
     """Keyword arguments for ``create_llm_client`` from a TradingAgents config."""
     kwargs = {}
@@ -97,7 +115,10 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         if thinking_level:
             kwargs["thinking_level"] = thinking_level
 
-    elif provider == "openai":
+    elif provider in ("openai", "openai_compatible"):
+        # Native OpenAI and generic local endpoints (LM Studio, vLLM) both
+        # accept ``reasoning_effort`` for thinking-capable models; the client
+        # drops it where the model cannot take it.
         reasoning_effort = config.get("openai_reasoning_effort")
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
@@ -126,6 +147,17 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
     if max_tokens is not None and max_tokens != "":
         key = "max_output_tokens" if provider == "google" else "max_tokens"
         kwargs[key] = _coerce_max_tokens(max_tokens)
+
+    # Per-request timeout (seconds) forwarded to the chat client. A local
+    # OpenAI-compatible thinking model can take >10 min on a single high-
+    # reasoning turn, which trips the openai SDK default of 600s and aborts the
+    # run. Default a generous ceiling for compatible servers; override via
+    # llm_request_timeout / TRADINGAGENTS_LLM_REQUEST_TIMEOUT.
+    timeout = config.get("llm_request_timeout")
+    if timeout is not None and timeout != "":
+        kwargs["timeout"] = _coerce_request_timeout(timeout)
+    elif provider == "openai_compatible":
+        kwargs["timeout"] = 1800
 
     return kwargs
 

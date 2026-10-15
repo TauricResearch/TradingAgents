@@ -41,3 +41,36 @@ def test_reasoning_model_receives_effort(monkeypatch):
 def test_non_reasoning_model_drops_effort(monkeypatch):
     # gpt-4.1 would 400 with reasoning_effort — it must be dropped.
     assert _effort_on("gpt-4.1", monkeypatch) is None
+
+
+def test_compatible_server_keeps_effort_for_non_openai_model_names():
+    # LM Studio accepts reasoning_effort for thinking models even though the
+    # model id is not a GPT-5/o-series name — it must reach the client, not be
+    # dropped by the native-OpenAI model gate.
+    llm = OpenAIClient(
+        "unsloth/qwen3.8-27b", base_url="http://localhost:1234/v1",
+        provider="openai_compatible", reasoning_effort="high",
+    ).get_llm()
+    assert getattr(llm, "reasoning_effort", None) == "high"
+
+
+def test_factory_forwards_reasoning_effort_to_openai_compatible():
+    from tradingagents import default_config
+    from tradingagents.llm_clients import factory
+
+    config = {**default_config.DEFAULT_CONFIG, "llm_provider": "openai_compatible",
+              "backend_url": "http://localhost:1234/v1",
+              "quick_think_llm": "unsloth/qwen3.8-27b"}
+    assert "reasoning_effort" not in factory.build_llm_kwargs(config)  # unset -> absent
+
+    config["openai_reasoning_effort"] = "high"
+    assert factory.build_llm_kwargs(config)["reasoning_effort"] == "high"
+
+
+def test_factory_does_not_forward_reasoning_effort_to_other_providers():
+    from tradingagents import default_config
+    from tradingagents.llm_clients import factory
+
+    config = {**default_config.DEFAULT_CONFIG, "llm_provider": "ollama",
+              "quick_think_llm": "local-model", "openai_reasoning_effort": "high"}
+    assert "reasoning_effort" not in factory.build_llm_kwargs(config)
