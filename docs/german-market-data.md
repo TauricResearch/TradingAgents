@@ -58,7 +58,7 @@ Because the provider does not label whether the latest daily bar is final, an un
 
 ## Yahoo Finance / yfinance for RHM.DE
 
-The existing Yahoo adapter supplies OHLCV history, profile fundamentals, annual/quarterly statements, technical indicators, dividends/splits, and best-effort news/insider data. The profile report additionally surfaces Yahoo's quote currency and market timestamp (UTC), shares outstanding, revenue growth, operating cash flow, cash/debt, and the available analyst consensus summary/mean target. These are live `Ticker.info` fields, not historical snapshots; the adapter withholds them for past-as-of runs. Treat analyst fields as vendor estimates, not verified forecasts, and preserve currency and timestamp.
+The existing Yahoo adapter supplies OHLCV history, profile fundamentals, annual/quarterly statements, technical indicators, dividends/splits, and best-effort news/insider data. The profile report additionally surfaces Yahoo's quote currency and market timestamp (UTC), shares outstanding, revenue growth, operating cash flow, cash/debt, and the available analyst consensus: mean target, the **low/high target spread with the band around the mean in percent**, median target, Yahoo's text rating, recommendation key, and covering-analyst headcount. These are live `Ticker.info` fields, not historical snapshots; the adapter withholds them for past-as-of runs. Treat analyst fields as vendor estimates, not verified forecasts, and preserve currency and timestamp. The spread block is emitted only when Yahoo supplies a mean plus at least one bound or a headcount, and it is labelled as dispersion among covering analysts — not a range of price scenarios and not per-house targets. The block stays absent (never "None") for instruments Yahoo has no consensus for.
 
 A live RHM.DE probe showed the latest daily history bar can have OHLC/volume but a missing Close. We compared it to Yahoo's raw chart response: its daily timestamp represents the exchange-local session date, but the raw response itself had `close: null` and `adjclose: null` for that bar. Therefore the observed missing close is not caused by converting the timestamp to UTC. Indicator/history loading still excludes an unsettled bar; the routed stock-price fetch now rejects a missing requested final Close and tries Alpha Vantage, if configured. Do not replace a missing close with the current quote. yfinance's optional `repair=True` path was not verified in the project environment because its `scikit-learn` dependency is absent.
 
@@ -75,6 +75,19 @@ Für dpa oder comdirect ist keine News-Integration bzw. kein MCP konfiguriert. F
 ## InvestingPro / WarrenAI
 
 No Investing.com account data or credentials are read by this integration. A paid web subscription and an authenticated browser session do not by themselves establish API access or permission for automated collection. Use it as a manual comparison/research source until an official export/API and applicable use rights are verified. Do not store its login, session cookies, or private watchlist/portfolio data in the project or send holdings to external data providers.
+
+## Known coverage gaps (honest limits)
+
+Ticker-agnostic limits that remain after the adapters above; each is reported as a coverage gap in the run, never as "no news/no data":
+
+| Input | Current state | Consequence |
+|---|---|---|
+| Per-house analyst targets + as-of date | Yahoo exposes only the aggregate (mean/median/low/high/headcount); Finnhub's recommendation/price-target endpoints are plan-gated (403 on free tier) | The agent sees dispersion but not *which* house moved; per-house calls (e.g. a downgrade) surface via news articles, not structured data |
+| DE insider transactions (PDMR) | No structured DE source is wired; Finnhub insider data is US (Form 4) | Insider events for EU issuers arrive as news articles (EQS/DGAP via Marketaux) at best; `get_insider_transactions` degrades for EU tickers |
+| Issuer first-party feed | `issuer_rss` is wired and authoritative when configured, but `news_feed_url` is `null` in the seed registry | Until an HTTPS feed is verified per instrument, `get_news` relies on Marketaux (EU disclosure coverage) and the optional news supplement |
+| Fundamentals for EU issuants | SEC EDGAR does not serve EU filers; the statements chain falls to Yahoo's restated figures | DE fundamentals are single-vendor; reconciliation covers price data, not EU statements |
+| ETF-specific inputs | No holdings/top-positions, TER or AUM tool | ETFs run on the equity path; fundamentals statements are empty for an ETF |
+| dpa / comdirect / InvestingPro | Reviewed: licensed or customer-account APIs, no self-serve endpoint | Not integrated; manual cross-check only (see above) |
 
 ## Tests
 

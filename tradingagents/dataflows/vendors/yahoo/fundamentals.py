@@ -126,7 +126,33 @@ def get_fundamentals(
     if not lines:
         raise_for_empty(ticker, canonical, "fundamental fields")
 
-    return f"# Company Fundamentals for {canonical}\n\n" + "\n".join(lines)
+    # Analyst consensus spread. The mean target hides how far apart the
+    # covering analysts are; the low/high fields from the same live snapshot
+    # make the dispersion visible (a wide band weakens a consensus-anchored
+    # call regardless of the mean). Present when Yahoo supplies at least the
+    # mean plus a bound or a headcount; omitted, never "None", otherwise.
+    target_spread: list[str] = []
+    t_mean, t_low, t_high = info.get("targetMeanPrice"), info.get("targetLowPrice"), info.get("targetHighPrice")
+    if t_mean is not None and (t_low is not None or t_high is not None or info.get("numberOfAnalystOpinions") is not None):
+        if t_low is not None and t_high is not None:
+            if t_mean:
+                target_spread.append(
+                    f"Analyst Target Spread: {money('targetLowPrice', quote)} to {money('targetHighPrice', quote)} "
+                    f"({(t_high - t_low) / t_mean * 100:.0f}% band around the mean)"
+                )
+            else:
+                target_spread.append(
+                    f"Analyst Target Spread: {money('targetLowPrice', quote)} to {money('targetHighPrice', quote)}"
+                )
+        if info.get("targetMedianPrice") is not None:
+            target_spread.append(f"Analyst Target (Median): {money('targetMedianPrice', quote)}")
+        if info.get("averageAnalystRating") is not None:
+            target_spread.append(f"Analyst Rating (Yahoo text): {info['averageAnalystRating']}")
+
+    body = "\n".join(lines + target_spread)
+    if target_spread:
+        body += "\n\nAnalyst consensus note: values are Yahoo's live aggregate of covering analysts as of the quote time — no per-house targets or as-of date. The spread is dispersion among analysts, not a range of scenarios."
+    return f"# Company Fundamentals for {canonical}\n\n" + body
 
 
 def _statement(ticker, freq, as_of_date, title, quarterly_attr, annual_attr) -> str:
