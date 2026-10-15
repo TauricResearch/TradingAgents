@@ -89,6 +89,49 @@ class YahooProfileEnrichmentTests(TestCase):
         self.assertIn("Analyst Target Spread: 9.0 USD to 11.0 USD", output)
         self.assertNotIn("% band", output)
 
+    def test_etf_profile_present_for_fund_and_absent_for_equity(self):
+        # Generic ETF detection: a fund with NAV/TER/YTD gets a labelled ETF
+        # block; a plain equity (those fields null) must not emit it or "None".
+        etf_info = {
+            "longName": "iShares Core MSCI World UCITS ETF USD (Acc)",
+            "currency": "USD",
+            "regularMarketPrice": 146.58,
+            "navPrice": 146.582,
+            "netExpenseRatio": 0.2,
+            "ytdReturn": 11.7511,
+            "totalAssets": 123456789012,
+            "fundInceptionDate": 1690502400,
+            "yield": 0.0,
+            "legalType": "Exchange Traded Fund",
+        }
+        with mock.patch.object(date_window, "get_current_date", return_value="2026-10-10"), \
+             mock.patch.object(fundamentals, "yf_retry", return_value=etf_info):
+            output = fundamentals.get_fundamentals("IWDA.L", "2026-10-10")
+
+        self.assertIn("ETF NAV: 146.582 USD", output)
+        self.assertIn("Expense ratio (TER): 0.20%", output)
+        self.assertIn("YTD return: +11.8%", output)
+        self.assertIn("Total assets (approx): 123456789012", output)
+        self.assertIn("Inception: 2023-07-28", output)
+        self.assertIn("Legal type: Exchange Traded Fund", output)
+        self.assertIn("ETF profile note", output)
+        # A fund has no analyst consensus; that block stays absent.
+        self.assertNotIn("Analyst Target (Mean)", output)
+
+        equity_info = {
+            "longName": "Acme Corp",
+            "currency": "USD",
+            "regularMarketPrice": 10.0,
+            "fullTimeEmployees": 1000,
+        }
+        with mock.patch.object(date_window, "get_current_date", return_value="2026-10-10"), \
+             mock.patch.object(fundamentals, "yf_retry", return_value=equity_info):
+            output = fundamentals.get_fundamentals("ACME", "2026-10-10")
+
+        self.assertNotIn("ETF NAV", output)
+        self.assertNotIn("ETF profile note", output)
+        self.assertNotIn("None", output)
+
     def test_missing_optional_yahoo_fields_are_omitted(self):
         with mock.patch.object(date_window, "get_current_date", return_value="2026-10-10"), \
              mock.patch.object(fundamentals, "yf_retry", return_value={"longName": "Rheinmetall AG"}):

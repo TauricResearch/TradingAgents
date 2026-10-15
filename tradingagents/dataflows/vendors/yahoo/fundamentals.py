@@ -119,11 +119,40 @@ def get_fundamentals(
 
     lines = [f"{label}: {v}" for label, v in fields if v is not None]
 
+    # ETF profile. Yahoo serves fund-specific fields (NAV, TER, YTD, AUM,
+    # inception) for ETFs and leaves them null for plain equities, so the
+    # block is present-or-absent, never "None". Detection is generic — an
+    # instrument is treated as an ETF when Yahoo supplies a NAV or labels it
+    # an exchange-traded fund — so it works for any listing, not one name.
+    etf_lines: list[str] = []
+    if info.get("navPrice") is not None or (info.get("legalType") or "").lower().find("exchange traded fund") >= 0:
+        if info.get("navPrice") is not None:
+            etf_lines.append(f"ETF NAV: {money('navPrice', quote)}")
+        ner = info.get("netExpenseRatio")
+        if ner is not None:
+            etf_lines.append(f"Expense ratio (TER): {float(ner):.2f}%")
+        ytd = info.get("ytdReturn")
+        if ytd is not None:
+            etf_lines.append(f"YTD return: {float(ytd):+.1f}%")
+        if info.get("totalAssets") is not None:
+            etf_lines.append(f"Total assets (approx): {info['totalAssets']}")
+        inc = info.get("fundInceptionDate")
+        if inc:
+            try:
+                etf_lines.append(f"Inception: {datetime.fromtimestamp(float(inc), tz=timezone.utc).date().isoformat()}")
+            except (TypeError, ValueError, OverflowError, OSError):
+                pass
+        if info.get("yield") is not None:
+            etf_lines.append(f"Distribution yield: {float(info['yield']) * 100:.2f}%")
+        for label, key in (("Legal type", "legalType"), ("Category", "category")):
+            if info.get(key):
+                etf_lines.append(f"{label}: {info[key]}")
+
     # yfinance returns a stub dict (e.g. {"trailingPegRatio": None}) for
     # unknown symbols, so `info` is truthy but every field is empty. Treat
     # "no usable fields" as no data rather than emitting a bare header the
     # agent might fabricate around.
-    if not lines:
+    if not lines and not etf_lines:
         raise_for_empty(ticker, canonical, "fundamental fields")
 
     # Analyst consensus spread. The mean target hides how far apart the
@@ -149,7 +178,9 @@ def get_fundamentals(
         if info.get("averageAnalystRating") is not None:
             target_spread.append(f"Analyst Rating (Yahoo text): {info['averageAnalystRating']}")
 
-    body = "\n".join(lines + target_spread)
+    body = "\n".join(lines + etf_lines + target_spread)
+    if etf_lines:
+        body += "\n\nETF profile note: values are Yahoo's live fund snapshot (NAV, TER, YTD return, AUM, inception) as of the quote time. Top holdings/positions are not provided by this vendor."
     if target_spread:
         body += "\n\nAnalyst consensus note: values are Yahoo's live aggregate of covering analysts as of the quote time — no per-house targets or as-of date. The spread is dispersion among analysts, not a range of scenarios."
     return f"# Company Fundamentals for {canonical}\n\n" + body
