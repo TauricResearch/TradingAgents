@@ -326,7 +326,12 @@ class OpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key not in self.kwargs:
                 continue
-            if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+            # The model-name gate only protects native OpenAI, where non-
+            # reasoning models 400 on the parameter. Compatible servers decide
+            # for themselves (LM Studio accepts it for thinking models), so
+            # forward it there unconditionally.
+            if key == "reasoning_effort" and self.provider == "openai" \
+                    and not _supports_reasoning_effort(self.model):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 

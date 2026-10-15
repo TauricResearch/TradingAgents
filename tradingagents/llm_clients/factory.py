@@ -97,7 +97,10 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         if thinking_level:
             kwargs["thinking_level"] = thinking_level
 
-    elif provider == "openai":
+    elif provider in ("openai", "openai_compatible"):
+        # Native OpenAI and generic local endpoints (LM Studio, vLLM) both
+        # accept ``reasoning_effort`` for thinking-capable models; the client
+        # drops it where the model cannot take it.
         reasoning_effort = config.get("openai_reasoning_effort")
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
