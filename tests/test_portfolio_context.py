@@ -207,13 +207,19 @@ def test_partial_portfolio_states_only_what_it_was_given():
 
 
 @pytest.mark.unit
-def test_cli_rejects_an_unusable_portfolio_file_before_running(tmp_path, monkeypatch):
+@pytest.mark.parametrize("content", [
+    '{"positions": [{"quantity": 5}]}',
+    '{"cash": NaN}',
+    '{"positions": [{"ticker": "AAPL", "quantity": Infinity}]}',
+    '{"positions": [{"ticker": "AAPL", "quantity": 5, "average_price": 1e400}]}',
+])
+def test_cli_rejects_an_unusable_portfolio_file_before_running(tmp_path, monkeypatch, content):
     from typer.testing import CliRunner
 
     import cli.main as m
 
     bad = tmp_path / "bad.json"
-    bad.write_text('{"positions": [{"quantity": 5}]}')
+    bad.write_text(content)
     ran = []
     monkeypatch.setattr(m, "run_analysis", lambda **k: ran.append(k))
 
