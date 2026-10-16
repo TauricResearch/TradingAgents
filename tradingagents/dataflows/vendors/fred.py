@@ -190,6 +190,8 @@ def get_macro_data(
         look_back_days = DEFAULT_LOOKBACK_DAYS
 
     end_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
+    # strptime reads "2026-9-5"; FRED only accepts YYYY-MM-DD, so send it padded.
+    as_of_date = end_dt.date().isoformat()
     start_date = (end_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
 
     # Pin the data vintage. FRED defaults both realtime bounds to today, serving
