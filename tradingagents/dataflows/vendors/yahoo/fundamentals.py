@@ -46,6 +46,10 @@ def get_fundamentals(
     # 78.4 is 78.4%, a ratio of 0.78) but the margins and returns as fractions,
     # so each carries its unit.
     dividend_yield, debt_to_equity = info.get("dividendYield"), info.get("debtToEquity")
+    # Short interest comes as a fraction (shortPercentOfFloat 0.0073 is
+    # 0.73%), while the short ratio is already in days to cover (#560).
+    short_pct_float = info.get("shortPercentOfFloat")
+    short_ratio = info.get("shortRatio")
     # Money figures come in three currencies (#1456): price levels in the quote
     # currency, which can be a minor unit (London in pence, GBp); market cap and
     # per-share figures in that currency's main unit (GBP), as Yahoo's own P/E
@@ -90,6 +94,10 @@ def get_fundamentals(
         ("Current Ratio", info.get("currentRatio")),
         ("Book Value", money("bookValue", main)),
         ("Free Cash Flow", money("freeCashflow", reported)),
+        ("Short Interest % Float", None if short_pct_float is None else f"{short_pct_float * 100:.2f}%"),
+        ("Days to Cover (Short Ratio)", short_ratio),
+        ("Shares Short", info.get("sharesShort")),
+        ("Shares Short Prior Month", info.get("sharesShortPriorMonth")),
     ]
 
     lines = [f"{label}: {v}" for label, v in fields if v is not None]
