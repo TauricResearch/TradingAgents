@@ -218,22 +218,27 @@ def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -
         raise NoMarketDataError(ticker, ticker, f"no {freq} {title.lower()} filed by {as_of_date}")
 
     header = (
-        f"# {title} for {ticker.upper()} ({freq}), USD in millions unless the row says otherwise\n"
+        f"# {title} for {ticker.upper()} ({freq}), one row per period,"
+        " USD in millions unless the column says otherwise\n"
         f"# SEC EDGAR facts filed on or before {as_of_date}, at the values filed then\n\n"
     )
-    rows = [",".join([""] + [end + names[index] for end, index in periods])]
-    for label, (values, unit) in lines.items():
-        # Every row spans the same columns, or a reader lines the table up wrong.
-        if not values:
-            rows.append(",".join([label] + ["unavailable (not tagged by this filer)"] * len(periods)))
-            continue
-        name = label if unit == "USD" else f"{label} ({unit})"
-        # Plain numbers: a thousands separator would split the CSV field.
-        cells = []
-        for end, index in periods:
+    # One row per period, opening with its end date, so every figure is read
+    # against the period on its own row. With a column per period, a long history
+    # ran to dozens of columns and a reader could take a value from the column
+    # beside the date it cited.
+    names_of = [label if unit == "USD" else f"{label} ({unit})" for label, (_, unit) in lines.items()]
+    rows = [",".join(["Period end"] + names_of)]
+    for end, index in periods:
+        cells = [end + names[index]]
+        for label, (values, unit) in lines.items():
+            # Every row spans the same columns, or a reader lines the table up wrong.
+            if not values:
+                cells.append("unavailable (not tagged by this filer)")
+                continue
             value = values.get((end, index)) if chosen[label].get(end) == index else None
+            # Plain numbers: a thousands separator would split the CSV field.
             cells.append("" if value is None else f"{value / 1e6:.0f}" if unit == "USD" else f"{value:.2f}")
-        rows.append(",".join([name] + cells))
+        rows.append(",".join(cells))
     return header + "\n".join(rows) + "\n"
 
 
