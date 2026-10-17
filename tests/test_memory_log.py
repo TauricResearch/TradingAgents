@@ -1102,6 +1102,21 @@ class TestSettlementWindow:
         assert raw == pytest.approx(106.0 / 101.0 - 1)
         assert alpha == pytest.approx(raw - (spy["2026-01-09"] / spy["2026-01-02"] - 1))
 
+    def test_a_decision_before_a_closure_longer_than_a_week_settles(self, monkeypatch):
+        # Mainland China closes Oct 1-8 for National Day: a decision on Sep 30
+        # enters at the Oct 9 close and exits five sessions later, on Oct 16.
+        sessions = pd.bdate_range("2026-09-21", "2026-10-30")
+        sessions = sessions[(sessions < "2026-10-01") | (sessions > "2026-10-08")]
+        stock = pd.Series([100.0 + i for i in range(len(sessions))], index=sessions)
+        index = pd.Series([3000.0] * len(sessions), index=sessions)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"600519.SS": stock, "000001.SS": index}))
+
+        raw, alpha, days, resolved = settlement.fetch_returns("600519.SS", "2026-09-30", 5, "000001.SS")
+
+        assert (days, resolved) == (5, "2026-10-16")
+        assert raw == pytest.approx(stock["2026-10-16"] / stock["2026-10-09"] - 1)
+        assert alpha == pytest.approx(raw)
+
     def test_bars_stamped_in_different_time_zones_meet_on_their_dates(self, monkeypatch):
         # Yahoo stamps a coin's daily bar at midnight UTC and SPY's at midnight
         # New York, five hours later: the same day, not the day after.

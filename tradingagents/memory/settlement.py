@@ -68,8 +68,13 @@ def fetch_returns(
     """
     start = datetime.strptime(trade_date, "%Y-%m-%d")
     # holding_days counts trading days after the entry session, so ask for the
-    # calendar span they occupy (about 7 for every 5) plus a week for holidays.
-    end = start + timedelta(days=round((holding_days + 1) * 7 / 5) + 7)
+    # calendar span they occupy (about 7 for every 5) plus three weeks for
+    # closures. Some markets close for over a week (mainland China for National
+    # Day and Spring Festival), and a window that cannot span one leaves the
+    # decision pending for good, since every retry asks for the same window.
+    # Only the first holding_days + 1 sessions are used, so a longer fetch
+    # changes nothing else.
+    end = start + timedelta(days=round((holding_days + 1) * 7 / 5) + 21)
     end_str = end.strftime("%Y-%m-%d")
 
     # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984),
