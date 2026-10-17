@@ -359,6 +359,8 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
             tokens_str = f"Tokens: {format_tokens(stats['tokens_in'])}\u2191 {format_tokens(stats['tokens_out'])}\u2193"
         else:
             tokens_str = "Tokens: --"
+        if stats.get("token_budget"):
+            tokens_str += f" / {format_tokens(stats['token_budget'])}"
         stats_parts.append(tokens_str)
 
     stats_parts.append(f"Reports: {reports_completed}/{reports_total}")

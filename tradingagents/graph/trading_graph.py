@@ -15,6 +15,11 @@ from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
+from tradingagents.llm_clients.token_budget import (
+    TokenBudgetExceeded,
+    TokenBudgetHandler,
+    _coerce_run_token_budget,
+)
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
@@ -42,14 +47,19 @@ def _validate_trade_date(trade_date) -> str:
 
 
 # Config keys that do not change what a run writes: where it keeps its files,
-# whether it checkpoints, and how often it retries a provider.
+# whether it checkpoints, how often it retries a provider, and how many tokens
+# it may spend (raising the budget after it stops a run resumes that run).
 _NOT_IN_SIGNATURE = frozenset({
     "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
+    "run_token_budget",
 })
 
 
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
+
+    # The run's token budget (#515); None when run_token_budget is unset.
+    token_budget: TokenBudgetHandler | None = None
 
     def __init__(
         self,
@@ -75,7 +85,14 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
-        extra = {"callbacks": self.callbacks} if self.callbacks else {}
+        # One budget for every model call of a run, on both tiers (#515).
+        budget = self.config.get("run_token_budget")
+        self.token_budget = (
+            TokenBudgetHandler(_coerce_run_token_budget(budget)) if budget is not None else None
+        )
+        llm_callbacks = [*self.callbacks, self.token_budget] if self.token_budget else self.callbacks
+
+        extra = {"callbacks": llm_callbacks} if llm_callbacks else {}
         self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
         self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
 
@@ -181,6 +198,8 @@ class TradingAgentsGraph:
         PortfolioRating enum.
         """
         trade_date = _validate_trade_date(trade_date)
+        if self.token_budget:
+            self.token_budget.reset()
 
         with run_config(self.config), \
                 self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
@@ -270,6 +289,7 @@ class TradingAgentsGraph:
             "max_debate_rounds": cfg.get("max_debate_rounds"),
             "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
             "output_language": cfg.get("output_language"),
+            "run_token_budget": cfg.get("run_token_budget"),
             "data_vendors": dict(cfg.get("data_vendors") or {}),
             "tool_vendors": dict(cfg.get("tool_vendors") or {}),
         }
@@ -322,6 +342,8 @@ class TradingAgentsGraph:
             if done.failed:
                 note = (f"{len(done.failed)} past decision(s) could not be settled this run "
                         "and stay pending.")
+        except TokenBudgetExceeded:
+            raise
         except Exception as exc:
             logger.warning("Settling past decisions failed: %s", exc)
             note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."

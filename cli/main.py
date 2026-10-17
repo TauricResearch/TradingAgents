@@ -12,6 +12,7 @@ from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
+from tradingagents.llm_clients.token_budget import TokenBudgetExceeded
 from tradingagents.portfolio import load_portfolio
 
 # prompt_toolkit's win32 output module is importable only on Windows (it asserts
@@ -91,6 +92,12 @@ def analyze(
     try:
         flags = {"ticker": ticker, "date": date, "analysts": analysts, "save": save, "show": show, "html": html}
         run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags)
+    except TokenBudgetExceeded as exc:
+        console.print(
+            f"[red]{escape(str(exc))}.[/red] Raise TRADINGAGENTS_RUN_TOKEN_BUDGET to allow more; "
+            "with --checkpoint the next run resumes where this one stopped."
+        )
+        raise typer.Exit(code=1) from None
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit

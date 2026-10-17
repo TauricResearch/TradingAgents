@@ -126,6 +126,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         debug=True,
         callbacks=[stats_handler],
     )
+    if budget := getattr(graph, "token_budget", None):
+        stats_handler.token_budget = budget.budget
 
     message_buffer.init_for_analysis(selected_analyst_keys)
 

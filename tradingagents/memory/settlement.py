@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes
+from tradingagents.llm_clients.token_budget import TokenBudgetExceeded
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,8 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
                     benchmark_name=benchmark,
                     holding_days=days,
                 )
+            except TokenBudgetExceeded:
+                raise  # the run's budget is spent: stop, not a transient failure
             except Exception as exc:
                 # Reflection calls a provider: a transient failure leaves the entry
                 # pending for the next pass rather than stopping the analysis.

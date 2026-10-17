@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+## [Unreleased]
+
+### Added
+
+- **Token budget per run.** `run_token_budget` / `TRADINGAGENTS_RUN_TOKEN_BUDGET` caps the tokens one run spends: input plus output, across every analyst, debater, manager and memory reflection. Once the total is reached the run stops with `TokenBudgetExceeded` before its next model call, instead of spending until someone reads the bill. Unset means no limit. With checkpoints on, raising the budget resumes the stopped run. Unlike `max_tokens`, which caps one reply, this caps the whole run. It is a soft cap: a call is refused only once the budget is already spent, so one large call, or several parallel analysts starting together, can take a run past it (a 20,000-token budget stopped one run at about 34,000); a provider that reports no token usage is not counted; and every token counts the same, so it limits volume, not cost. (#515)
+
 ## [0.7.0] — 2026-10-16
 
 Runs on your ChatGPT plan, backtests scored from the first close after each decision, a note at start-up when a newer release is out, and a wheel attached to each GitHub release.
