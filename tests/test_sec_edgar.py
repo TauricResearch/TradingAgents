@@ -158,8 +158,7 @@ def test_a_throttle_lets_the_next_vendor_try(monkeypatch):
 def test_values_do_not_break_the_columns():
     """Figures run to the billions; a thousands separator would split the field."""
     out = sec_edgar.get_balance_sheet("AAPL", "annual", "2024-11-15")
-    body = [row for row in out.splitlines() if row.startswith("Total Assets")][0]
-    assert body.count(",") == out.splitlines()[3].count(",")
+    assert _table(out)["2024-09-28"]["Total Assets"] == "364980"
 
 
 @pytest.mark.unit
@@ -167,9 +166,7 @@ def test_a_per_share_figure_keeps_its_own_unit():
     """Statements are reported in millions, but EPS is dollars per share: scaling
     it the same way prints a real figure as zero."""
     out = sec_edgar.get_income_statement("AAPL", "annual", "2024-11-15")
-    row = [r for r in out.splitlines() if r.startswith("Diluted EPS")][0]
-    assert "6.08" in row
-    assert "USD/shares" in row or "per share" in row
+    assert _table(out)["2024-09-28"]["Diluted EPS (USD/shares)"] == "6.08"
 
 
 @pytest.mark.unit
@@ -237,18 +234,24 @@ def test_capital_expenditure_is_found_under_either_tag_filers_use(monkeypatch):
     monkeypatch.setattr(sec_edgar, "_fetch_json",
                         lambda url: TICKER_MAP if "company_tickers" in url else facts)
     out = sec_edgar.get_cashflow("AAPL", "annual", "2025-03-01")
-    assert [r for r in out.splitlines() if r.startswith("Capital Expenditure")] == ["Capital Expenditure,70"]
+    assert [row["Capital Expenditure"] for row in _table(out).values()] == ["70"]
 
 
-def _columns(out):
-    return [line for line in out.splitlines() if line.startswith(",")][0].split(",")[1:]
+def _table(out):
+    """{period: {line item: cell}}, read from the statement's one row per period."""
+    header, *rows = [line.split(",") for line in out.splitlines() if line and not line.startswith("#")]
+    return {row[0]: dict(zip(header[1:], row[1:], strict=True)) for row in rows}
+
+
+def _periods(out):
+    return list(_table(out))
 
 
 @pytest.mark.unit
 def test_an_annual_balance_sheet_has_no_quarter_end_columns():
     """A balance has no span, so a 10-Q's quarter-end balance passed as annual."""
-    annual = _columns(sec_edgar.get_balance_sheet("AAPL", "annual", "2024-11-15"))
-    quarterly = _columns(sec_edgar.get_balance_sheet("AAPL", "quarterly", "2024-11-15"))
+    annual = _periods(sec_edgar.get_balance_sheet("AAPL", "annual", "2024-11-15"))
+    quarterly = _periods(sec_edgar.get_balance_sheet("AAPL", "quarterly", "2024-11-15"))
     assert "2022-03-26" not in annual and "2024-09-28" in annual
     assert "2022-03-26" in quarterly
 
@@ -263,7 +266,7 @@ def test_a_twelve_month_total_from_a_quarterly_report_is_not_a_fiscal_year(monke
     ]}}}}}
     monkeypatch.setattr(sec_edgar, "_fetch_json",
                         lambda url: TICKER_MAP if "company_tickers" in url else facts)
-    assert _columns(sec_edgar.get_cashflow("AAPL", "annual", "2025-06-01")) == ["2024-12-31"]
+    assert _periods(sec_edgar.get_cashflow("AAPL", "annual", "2025-06-01")) == ["2024-12-31"]
 
 
 @pytest.mark.unit
@@ -279,7 +282,7 @@ def test_a_recast_outside_the_annual_report_still_counts_from_its_filing(monkeyp
 
     def eps(date):
         out = sec_edgar.get_income_statement("AAPL", "annual", date)
-        return [line for line in out.splitlines() if line.startswith("Diluted EPS")][0].split(",")[1]
+        return _table(out)["2017-03-31"]["Diluted EPS (USD/shares)"]
 
     assert eps("2019-01-01") == "16.97"
     assert eps("2020-01-01") == "2.12"
@@ -300,8 +303,8 @@ def test_a_cash_flow_filed_year_to_date_is_served_with_its_span(monkeypatch):
 
     out = sec_edgar.get_cashflow("AAPL", "quarterly", "2026-09-28")
 
-    assert _columns(out) == ["2025-12-27", "2026-03-28 (6 months)", "2026-06-27 (9 months)"]
-    assert [r for r in out.splitlines() if r.startswith("Operating Cash Flow")] == ["Operating Cash Flow,30000,53000,81000"]
+    assert _periods(out) == ["2025-12-27", "2026-03-28 (6 months)", "2026-06-27 (9 months)"]
+    assert [row["Operating Cash Flow"] for row in _table(out).values()] == ["30000", "53000", "81000"]
 
 
 @pytest.mark.unit
@@ -317,7 +320,42 @@ def test_a_row_filed_only_year_to_date_keeps_its_figure_beside_a_row_filed_by_qu
 
     out = sec_edgar.get_cashflow("AAPL", "quarterly", "2026-09-28")
 
-    assert _columns(out) == ["2026-06-30", "2026-06-30 (6 months)"]
-    rows = {r.split(",")[0]: r.split(",")[1:] for r in out.splitlines()[3:]}
-    assert rows["Operating Cash Flow"] == ["", "120"]
-    assert rows["Capital Expenditure"] == ["10", ""]
+    assert _periods(out) == ["2026-06-30", "2026-06-30 (6 months)"]
+    table = _table(out)
+    assert [row["Operating Cash Flow"] for row in table.values()] == ["", "120"]
+    assert [row["Capital Expenditure"] for row in table.values()] == ["10", ""]
+
+
+@pytest.mark.unit
+def test_each_figure_sits_on_the_row_of_its_own_period(monkeypatch):
+    """A quarterly history runs to dozens of periods. Laid out a column per period,
+    the table was read one column off: the 2025-12-27 quarter's revenue was cited
+    as the 2025-06-28 quarter's (#1517). One row per period puts each figure beside
+    its own date."""
+    def quarter(start, end, val, filed):
+        return _fact(end, val, filed, form="10-Q", fp="Q", start=start)
+
+    facts = {"facts": {"us-gaap": {
+        "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
+            quarter("2024-12-29", "2025-03-29", 95_359_000_000, "2025-05-02"),
+            quarter("2025-03-30", "2025-06-28", 94_036_000_000, "2025-08-01"),
+            quarter("2025-09-28", "2025-12-27", 143_756_000_000, "2026-01-30"),
+        ]}},
+        "NetIncomeLoss": {"units": {"USD": [
+            quarter("2024-12-29", "2025-03-29", 24_780_000_000, "2025-05-02"),
+            quarter("2025-03-30", "2025-06-28", 23_434_000_000, "2025-08-01"),
+            quarter("2025-09-28", "2025-12-27", 42_097_000_000, "2026-01-30"),
+        ]}},
+    }}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+    out = sec_edgar.get_income_statement("AAPL", "quarterly", "2026-03-01")
+
+    rows = [line for line in out.splitlines() if line and not line.startswith("#")]
+    assert rows[0].split(",")[0] == "Period end"
+    assert [row.split(",")[0] for row in rows[1:]] == ["2025-03-29", "2025-06-28", "2025-12-27"]
+    table = _table(out)
+    assert {period: row["Revenue"] for period, row in table.items()} == {
+        "2025-03-29": "95359", "2025-06-28": "94036", "2025-12-27": "143756"}
+    assert {period: row["Net Income"] for period, row in table.items()} == {
+        "2025-03-29": "24780", "2025-06-28": "23434", "2025-12-27": "42097"}
