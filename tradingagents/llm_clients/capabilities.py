@@ -114,8 +114,8 @@ _BY_ID: dict[str, ModelCapabilities] = {
 # picker offers for V4.1 Flash; it serves thinking mode and so rejects
 # ``tool_choice`` exactly like the versioned ``deepseek-v4-flash`` ID does.
 _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
-    (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
-    (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
+    (re.compile(r"^deepseek-v\d", re.IGNORECASE), _DEEPSEEK_THINKING),
+    (re.compile(r"^deepseek-reasoner", re.IGNORECASE), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-flash"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
 ]
