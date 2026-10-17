@@ -171,7 +171,10 @@ def run_backtest(
             result.failures.append((ticker, date, str(exc)))
 
     # Settlement runs at the start of the next run for a ticker, so each ticker's
-    # last cell would stay pending without this pass.
+    # last cell would stay pending without this pass. It is not one of the cells,
+    # so it starts its own run_token_budget rather than the last cell's.
+    if budget := getattr(graph, "token_budget", None):
+        budget.reset()
     for ticker in tickers:
         try:
             graph.settle_pending(ticker)

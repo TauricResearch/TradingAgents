@@ -16,6 +16,8 @@ class StatsCallbackHandler(BaseCallbackHandler):
         self.tool_calls = 0
         self.tokens_in = 0
         self.tokens_out = 0
+        # The run's run_token_budget, shown beside the token count when set.
+        self.token_budget: int | None = None
 
     def on_llm_start(
         self,
@@ -73,4 +75,5 @@ class StatsCallbackHandler(BaseCallbackHandler):
                 "tool_calls": self.tool_calls,
                 "tokens_in": self.tokens_in,
                 "tokens_out": self.tokens_out,
+                "token_budget": self.token_budget,
             }
