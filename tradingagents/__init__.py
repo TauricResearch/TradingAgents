@@ -1,6 +1,6 @@
 """TradingAgents: multi-agent LLM financial trading framework."""
 
-__version__ = "0.5.2"
+__version__ = "0.7.0"
 
 from dotenv import find_dotenv, load_dotenv
 
@@ -10,4 +10,3 @@ from dotenv import find_dotenv, load_dotenv
 # finds the project's .env rather than looking beside site-packages. Values the
 # caller has already exported are never overridden.
 load_dotenv(find_dotenv(usecwd=True))
-load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)
