@@ -11,7 +11,8 @@ from tradingagents.dataflows.files import locked
 class TradingMemoryLog:
     """Append-only markdown log of trading decisions and reflections."""
 
-    # HTML comment: cannot appear in LLM prose output, safe as a hard delimiter
+    # Hard delimiter — _sanitize() strips this marker from untrusted text
+    # before writing so it cannot be forged from LLM or fetched content.
     _SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
     # Precompiled patterns — avoids re-compilation on every load_entries() call
     _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
@@ -55,7 +56,7 @@ class TradingMemoryLog:
                         return
             rating = rating or parse_rating(final_trade_decision)
             tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-            entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+            entry = f"{tag}\n\nDECISION:\n{self._sanitize(final_trade_decision)}{self._SEPARATOR}"
             with open(self._log_path, "a", encoding="utf-8") as f:
                 f.write(entry)
 
@@ -184,7 +185,7 @@ class TradingMemoryLog:
                     )
                     rest = "\n".join(lines[1:])
                     new_blocks.append(
-                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}"
+                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{self._sanitize(reflection)}"
                     )
                     updated = True
                 else:
@@ -238,7 +239,7 @@ class TradingMemoryLog:
                         )
                         rest = "\n".join(lines[1:])
                         new_blocks.append(
-                            f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
+                            f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{self._sanitize(upd['reflection'])}"
                         )
                         del update_map[(trade_date, ticker)]
                         matched = True
@@ -254,6 +255,25 @@ class TradingMemoryLog:
             tmp_path.replace(self._log_path)
 
     # --- Helpers ---
+
+    @staticmethod
+    def _sanitize(text: str) -> str:
+        """Remove forgeable record delimiters and defuse tag-shaped lines.
+
+        Untrusted text (LLM decisions/reflections, which may reproduce fetched
+        third-party content) is sanitized before it is written to the log so it
+        cannot forge a new record boundary or a tag line that load_entries()
+        would parse as a real entry or that the idempotency guard would match.
+        """
+        # Strip the separator marker so the hard delimiter cannot be embedded.
+        text = text.replace("<!-- ENTRY_END -->", "")
+        # Defuse any line that mimics an entry tag: [ ... | ... ].
+        lines = text.split("\n")
+        for i, line in enumerate(lines):
+            s = line.strip()
+            if s.startswith("[") and s.endswith("]") and "|" in s:
+                lines[i] = "\\" + line
+        return "\n".join(lines)
 
     @staticmethod
     def _resolved_tag(
