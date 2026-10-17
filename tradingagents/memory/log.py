@@ -1,5 +1,6 @@
 """The memory log: an append-only markdown record of each decision and, once settled, its outcome."""
 
+import contextlib
 import re
 from pathlib import Path
 
@@ -10,7 +11,8 @@ from tradingagents.dataflows.files import locked
 class TradingMemoryLog:
     """Append-only markdown log of trading decisions and reflections."""
 
-    # HTML comment: cannot appear in LLM prose output, safe as a hard delimiter
+    # Hard delimiter — _sanitize() strips this marker from untrusted text
+    # before writing so it cannot be forged from LLM or fetched content.
     _SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
     # Precompiled patterns — avoids re-compilation on every load_entries() call
     _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
@@ -54,9 +56,21 @@ class TradingMemoryLog:
                         return
             rating = rating or parse_rating(final_trade_decision)
             tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-            entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+            entry = f"{tag}\n\nDECISION:\n{self._sanitize(final_trade_decision)}{self._SEPARATOR}"
             with open(self._log_path, "a", encoding="utf-8") as f:
                 f.write(entry)
+
+    def settling(self, wait: bool = True):
+        """Hold the log for one settlement pass at a time, across threads and processes.
+
+        A pass reads the pending entries, asks the model for a reflection on
+        each and writes it; two passes at once would pay for the same
+        reflections. A separate lock from the one each write takes. Yields
+        whether it is held; with ``wait=False`` another pass is not waited for.
+        """
+        if not self._log_path:
+            return contextlib.nullcontext(True)
+        return locked(f"{self._log_path}.settle", wait=wait)
 
     # --- Read ---
 
@@ -127,8 +141,11 @@ class TradingMemoryLog:
         holding_days: int,
         reflection: str,
         resolution_date: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Replace pending tag and append REFLECTION section using atomic write.
+
+        Returns whether an entry was updated: False when the decision was no
+        longer pending (another pass settled it first).
 
         Finds the first pending entry matching (trade_date, ticker), updates
         its tag with return figures (and the ``resolution_date`` the outcome
@@ -136,7 +153,7 @@ class TradingMemoryLog:
         os.replace() so a crash mid-write never corrupts the log.
         """
         if not self._log_path or not self._log_path.exists():
-            return
+            return False
         with locked(self._log_path):
             text = self._log_path.read_text(encoding="utf-8")
             blocks = text.split(self._SEPARATOR)
@@ -168,20 +185,21 @@ class TradingMemoryLog:
                     )
                     rest = "\n".join(lines[1:])
                     new_blocks.append(
-                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}"
+                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{self._sanitize(reflection)}"
                     )
                     updated = True
                 else:
                     new_blocks.append(block)
 
             if not updated:
-                return
+                return False
 
             new_blocks = self._apply_rotation(new_blocks)
             new_text = self._SEPARATOR.join(new_blocks)
             tmp_path = self._log_path.with_suffix(".tmp")
             tmp_path.write_text(new_text, encoding="utf-8")
             tmp_path.replace(self._log_path)
+            return True
 
     def batch_update_with_outcomes(self, updates: list[dict]) -> None:
         """Apply multiple outcome updates in a single read + atomic write.
@@ -221,7 +239,7 @@ class TradingMemoryLog:
                         )
                         rest = "\n".join(lines[1:])
                         new_blocks.append(
-                            f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
+                            f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{self._sanitize(upd['reflection'])}"
                         )
                         del update_map[(trade_date, ticker)]
                         matched = True
@@ -237,6 +255,25 @@ class TradingMemoryLog:
             tmp_path.replace(self._log_path)
 
     # --- Helpers ---
+
+    @staticmethod
+    def _sanitize(text: str) -> str:
+        """Remove forgeable record delimiters and defuse tag-shaped lines.
+
+        Untrusted text (LLM decisions/reflections, which may reproduce fetched
+        third-party content) is sanitized before it is written to the log so it
+        cannot forge a new record boundary or a tag line that load_entries()
+        would parse as a real entry or that the idempotency guard would match.
+        """
+        # Strip the separator marker so the hard delimiter cannot be embedded.
+        text = text.replace("<!-- ENTRY_END -->", "")
+        # Defuse any line that mimics an entry tag: [ ... | ... ].
+        lines = text.split("\n")
+        for i, line in enumerate(lines):
+            s = line.strip()
+            if s.startswith("[") and s.endswith("]") and "|" in s:
+                lines[i] = "\\" + line
+        return "\n".join(lines)
 
     @staticmethod
     def _resolved_tag(
