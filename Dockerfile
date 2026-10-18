@@ -12,8 +12,10 @@ RUN pip install --no-cache-dir .
 
 FROM python:3.13-slim
 
+# TRADINGAGENTS_IN_DOCKER lets an update notice name the rebuild command.
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TRADINGAGENTS_IN_DOCKER=1
 
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

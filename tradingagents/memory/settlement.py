@@ -53,7 +53,10 @@ def fetch_returns(
     ticker: str, trade_date: str, holding_days: int = 5,
     benchmark: str = "SPY",
 ) -> tuple[float | None, float | None, int | None, str | None]:
-    """Fetch raw and alpha return for ticker over holding_days from trade_date.
+    """Fetch raw and alpha return for ticker over holding_days after trade_date.
+
+    The position is entered at the first close after ``trade_date``: a run dated
+    ``trade_date`` reads news published after that day's close (#1518).
 
     ``benchmark`` is the index used as the alpha baseline (resolved by the
     caller via ``resolve_benchmark``). Returns ``(raw_return, alpha_return,
@@ -64,13 +67,15 @@ def fetch_returns(
     to report.
     """
     start = datetime.strptime(trade_date, "%Y-%m-%d")
-    # holding_days counts trading days, so ask for the calendar span they
-    # occupy (about 7 for every 5) plus a week for holidays.
-    end = start + timedelta(days=round(holding_days * 7 / 5) + 7)
+    # holding_days counts trading days after the entry session, so ask for the
+    # calendar span they occupy (about 7 for every 5) plus a week for holidays.
+    end = start + timedelta(days=round((holding_days + 1) * 7 / 5) + 7)
     end_str = end.strftime("%Y-%m-%d")
 
-    # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984).
+    # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984),
+    # from the first session after the decision date.
     stock = _by_day(get_closes(ticker, trade_date, end_str))
+    stock = stock[stock.index > start]
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
     bench = _by_day(get_closes(benchmark, bench_start, end_str))

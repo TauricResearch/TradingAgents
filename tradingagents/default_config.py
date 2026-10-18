@@ -175,8 +175,8 @@ def build_default_config() -> dict:
         # based on the ticker's exchange suffix. SPY remains the US default
         # so the reflection label keeps reading "Alpha vs SPY" for US tickers
         # while non-US tickers get their regional index automatically.
-        # Trading days after the analysis date over which a decision's outcome is
-        # measured, for reflection and for the backtest figures.
+        # Trading days from the first close after the analysis date over which a
+        # decision's outcome is measured, for reflection and for the backtest figures.
         "holding_period_days": 5,
         "benchmark_ticker": None,
         "benchmark_map": {

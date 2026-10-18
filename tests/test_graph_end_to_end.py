@@ -312,7 +312,7 @@ def test_past_decisions_settle_alongside_the_analysts(tmp_path, monkeypatch, off
 
     model = TimedModel()
     graph = _graph(tmp_path, monkeypatch, model)
-    graph.memory_log.store_decision("NVDA", "2026-01-02", "Rating: Buy\n\nBuy NVDA.")
+    graph.memory_log.store_decision("NVDA", "2025-12-31", "Rating: Buy\n\nBuy NVDA.")
     closes = pd.Series([100.0 + i for i in range(10)], index=pd.bdate_range("2026-01-02", periods=10))
     monkeypatch.setattr(settlement, "get_closes", lambda *a, **k: closes)
 
@@ -322,7 +322,7 @@ def test_past_decisions_settle_alongside_the_analysts(tmp_path, monkeypatch, off
     assert len(reflections) == 1                # settled once, inside the run
     analyst_turns = [c for c in model.seen if c[0] == "agent"]
     assert reflections[0][2] < max(c[3] for c in analyst_turns), "settled before the analysts, not alongside"
-    settled = next(e for e in graph.memory_log.load_entries() if e["date"] == "2026-01-02")
+    settled = next(e for e in graph.memory_log.load_entries() if e["date"] == "2025-12-31")
     assert not settled["pending"]
     lessons = graph.memory_log.get_past_context("NVDA", as_of=TRADE_DATE)
     assert lessons
@@ -372,7 +372,7 @@ def test_the_memory_step_reads_lessons_as_of_the_trade_date_and_settles_once(tmp
     from tradingagents.memory import settlement
 
     graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=True))
-    graph.memory_log.store_decision("NVDA", "2026-01-02", "Rating: Buy\n\nBuy NVDA.")
+    graph.memory_log.store_decision("NVDA", "2025-12-31", "Rating: Buy\n\nBuy NVDA.")
     closes = pd.Series([100.0 + i for i in range(10)], index=pd.bdate_range("2026-01-02", periods=10))
     monkeypatch.setattr(settlement, "get_closes", lambda *a, **k: closes)
     asked = []

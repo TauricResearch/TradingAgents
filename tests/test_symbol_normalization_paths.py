@@ -54,7 +54,7 @@ def test_fetch_returns_normalizes_symbol(monkeypatch):
     assert queried[0] == "GC=F"  # stock symbol normalized (#984)
     assert queried[1] == "SPY"   # benchmark left as the canonical symbol
     assert raw is not None and days is not None
-    assert resolved == "2025-01-07"  # resolution date recorded (#1251)
+    assert resolved == "2025-01-08"  # resolution date recorded (#1251)
 
 
 def test_news_lookup_normalizes_symbol(monkeypatch):

@@ -105,3 +105,15 @@ def test_a_half_set_round_count_says_which_value_won(capsys, monkeypatch):
 
     assert config["max_risk_discuss_rounds"] == 5
     assert any("TRADINGAGENTS_MAX_DEBATE_ROUNDS" in line for line in printed), printed
+
+
+@pytest.mark.unit
+def test_a_tier_s_thinking_setting_survives_a_main_provider_that_has_none(monkeypatch):
+    """A run on Google with an OpenAI tier (#1440): the run's selections carry no
+    OpenAI reasoning effort, so the configured one must reach that tier."""
+    monkeypatch.setitem(cli_run.DEFAULT_CONFIG, "openai_reasoning_effort", "high")
+    monkeypatch.setitem(cli_run.DEFAULT_CONFIG, "anthropic_effort", "low")
+    cfg = cli_run._build_run_config({**SELECTIONS, "llm_provider": "google", "google_thinking_level": "high"},
+                                    checkpoint=None)
+    assert (cfg["openai_reasoning_effort"], cfg["anthropic_effort"], cfg["google_thinking_level"]) == \
+        ("high", "low", "high")

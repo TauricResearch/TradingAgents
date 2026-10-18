@@ -56,8 +56,7 @@ def test_flags_skip_exactly_their_own_steps(monkeypatch):
 
     for step in ("get_ticker", "get_analysis_date", "select_analysts"):
         monkeypatch.setattr(selections, step, no_prompt)
-    monkeypatch.setattr(selections, "fetch_announcements", lambda: None)
-    monkeypatch.setattr(selections, "display_announcements", lambda *a: None)
+    monkeypatch.setattr(selections.updates, "enabled", lambda: False)
 
     chosen = selections._prompt_selections({}, FLAGS)
 
@@ -117,19 +116,6 @@ def test_save_and_show_answer_the_questions_after_the_run(monkeypatch, tmp_path)
     assert list(tmp_path.glob("reports/NVDA_*/complete_report.md"))
     assert shown == []
 
-
-
-@pytest.mark.unit
-def test_an_announcement_does_not_wait_for_enter_without_a_terminal(monkeypatch):
-    from cli import announcements
-    from cli.display import console
-
-    def no_wait(*a):
-        raise AssertionError("waited for Enter with no terminal")
-
-    monkeypatch.setattr(announcements.getpass, "getpass", no_wait)
-    monkeypatch.setattr(announcements.sys.stdin, "isatty", lambda: False)
-    announcements.display_announcements(console, {"content": "Maintenance tonight", "require_attention": True})
 
 
 @pytest.mark.unit
@@ -200,8 +186,7 @@ def test_an_unknown_analyst_error_names_the_analysts_as_users_know_them():
 def _selections_with_env(monkeypatch, keys=None):
     for name, value in UNATTENDED_ENV.items():
         monkeypatch.setenv(name, value)
-    monkeypatch.setattr(selections, "fetch_announcements", lambda: None)
-    monkeypatch.setattr(selections, "display_announcements", lambda *a: None)
+    monkeypatch.setattr(selections.updates, "enabled", lambda: False)
     checked = keys if keys is not None else []
     monkeypatch.setattr(selections, "ensure_api_key", lambda provider: checked.append(provider))
     return checked

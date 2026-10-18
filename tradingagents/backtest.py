@@ -119,7 +119,7 @@ class BacktestSummary:
         if self.pending:
             lines.append("Pending cells are not scored above; re-run to settle them.")
         lines.append(
-            f"Alpha is measured over {self.holding} after each analysis date. "
+            f"Alpha is measured over {self.holding} from the first close after each analysis date. "
             "One model sampling per cell, and text feeds are not archived, so "
             "these figures are indicative rather than repeatable."
         )
