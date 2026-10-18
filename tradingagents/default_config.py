@@ -130,6 +130,18 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
     ],
+    # Home-market macro queries, keyed by the ticker's exchange suffix. They run
+    # before global_news_queries, so a ticker outside the US gets its own
+    # market's policy, currency and flow news ahead of US-centred headlines.
+    # Yahoo's search is English-language, hence English queries.
+    "global_news_queries_by_suffix": {
+        ".VN": [
+            "Vietnam stock market VN-Index foreign investors",
+            "State Bank of Vietnam interest rates dong exchange rate",
+            "Vietnam economy GDP exports FDI inflation",
+            "Vietnam FTSE MSCI market upgrade ETF",
+        ],
+    },
     # Data vendor configuration
     # Category-level configuration (default for all tools in category).
     # The configured value is the exact vendor chain — requests are NOT silently
@@ -168,6 +180,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".SS":  "000001.SS",   # Shanghai (SSE Composite)
         ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
         ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
+        ".VN":  "^VNINDEX.VN",  # Ho Chi Minh City HOSE (VN-Index)
         "":     "SPY",         # default for US-listed tickers (no suffix)
     },
 })

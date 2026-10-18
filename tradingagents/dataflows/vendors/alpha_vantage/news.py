@@ -33,7 +33,12 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
     return _make_api_request("NEWS_SENTIMENT", params)
 
 
-def get_global_news(curr_date, look_back_days: int | None = None, limit: int | None = None) -> dict[str, str] | str:
+def get_global_news(
+    curr_date,
+    look_back_days: int | None = None,
+    limit: int | None = None,
+    ticker: str | None = None,
+) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
@@ -44,6 +49,9 @@ def get_global_news(curr_date, look_back_days: int | None = None, limit: int | N
             ``global_news_lookback_days`` from the active config.
         limit: Maximum number of articles; ``None`` uses
             ``global_news_article_limit`` from the active config.
+        ticker: Accepted so the vendor chain shares one call signature. Alpha
+            Vantage filters by topic, not by market, so it does not narrow
+            the feed to the ticker's home market.
 
     Returns:
         Dictionary containing global news sentiment data or JSON string.

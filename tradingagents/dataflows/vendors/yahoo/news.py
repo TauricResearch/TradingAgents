@@ -118,10 +118,28 @@ def get_news_yfinance(
         raise NoMarketDataError(ticker, ticker, f"news unavailable: {e}") from e
 
 
+def _global_news_queries(config: dict, ticker: str | None) -> list[str]:
+    """The run's macro queries: the ticker's home market first, then the global set.
+
+    Searches stop once the article limit is reached, so the order decides what
+    fills it: a Vietnamese stock now reads Vietnam's policy and currency news
+    first, where it used to get US-centred headlines only.
+    """
+    home: list[str] = []
+    if ticker:
+        symbol = normalize_symbol(ticker)
+        for suffix, queries in (config.get("global_news_queries_by_suffix") or {}).items():
+            if suffix and symbol.endswith(suffix.upper()):
+                home = list(queries)
+                break
+    return home + list(config["global_news_queries"])
+
+
 def get_global_news_yfinance(
     curr_date: str,
     look_back_days: int | None = None,
     limit: int | None = None,
+    ticker: str | None = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
@@ -132,6 +150,9 @@ def get_global_news_yfinance(
             ``global_news_lookback_days`` from the active config.
         limit: Maximum number of articles to return. ``None`` falls back to
             ``global_news_article_limit`` from the active config.
+        ticker: The instrument under analysis, if any. When its exchange
+            suffix has an entry in ``global_news_queries_by_suffix``, those
+            home-market queries run before ``global_news_queries``.
 
     Returns:
         Formatted string containing global news articles
@@ -141,7 +162,7 @@ def get_global_news_yfinance(
         look_back_days = config["global_news_lookback_days"]
     if limit is None:
         limit = config["global_news_article_limit"]
-    search_queries = config["global_news_queries"]
+    search_queries = _global_news_queries(config, ticker)
 
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_dt = curr_dt - relativedelta(days=look_back_days)
