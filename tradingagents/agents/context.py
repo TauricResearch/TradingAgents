@@ -8,6 +8,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, RemoveMessage
 
+from tradingagents.agents.market_rules import market_rules
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
 
@@ -113,6 +114,10 @@ def build_instrument_context(
     For a run dated earlier, the context says so, since a company that has since
     renamed or been reclassified would otherwise anchor the whole graph to an
     identity it did not have on the analysis date.
+
+    A stock whose home exchange has its own trading rules (see
+    :mod:`tradingagents.agents.market_rules`) carries them too, since every
+    agent that shapes the plan reads this context.
     """
     is_crypto = asset_type == "crypto"
     instrument_label = "asset" if is_crypto else "instrument"
@@ -156,6 +161,10 @@ def build_instrument_context(
             " Treat it as a crypto asset rather than a company, and do not "
             "assume company fundamentals are available."
         )
+    else:
+        rules = market_rules(ticker)
+        if rules:
+            context += f" {rules}"
     return context
 
 

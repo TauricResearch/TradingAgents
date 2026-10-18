@@ -628,6 +628,14 @@ class TestDeferredReflection:
                              "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
         assert settlement.resolve_benchmark("PETR4.SA", config) == "^BVSP"
 
+    def test_resolve_benchmark_vietnam(self):
+        """HOSE tickers were measured against SPY."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        config = {"benchmark_ticker": None,
+                             "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
+        assert settlement.resolve_benchmark("VCB.VN", config) == "^VNINDEX.VN"
+        assert settlement.resolve_benchmark("fpt.vn", config) == "^VNINDEX.VN"
+
     def test_resolve_benchmark_us_ticker_defaults_to_spy(self):
         """US tickers (no dotted suffix) take the empty-suffix entry."""
         config = {
