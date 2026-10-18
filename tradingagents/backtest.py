@@ -204,11 +204,14 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
             hit_rate=(sum(a * direction > 0 for a in alphas) / len(alphas)) if direction else None,
             mean_alpha=sum(alphas) / len(alphas),
         )
-    unscored = sum(1 for e in entries if e["rating"] == RATING_REVIEW)
+    # Only entries that are really open count as pending; a settled entry whose
+    # alpha cannot be read is neither (it would never be settled again): unscored.
+    pending = sum(1 for e in entries if e["pending"] and e["rating"] != RATING_REVIEW)
+    unscored = len(entries) - len(resolved) - pending
     # Report the window the outcomes were actually measured over, from the log.
     windows = {f"{e['holding'][:-1]} trading days" for e, _ in resolved
                if (e.get("holding") or "").endswith("d")}
     return BacktestSummary(resolved=len(resolved),
-                           pending=len(entries) - len(resolved) - unscored,
+                           pending=pending,
                            by_rating=by_rating, unscored=unscored,
                            holding=", ".join(sorted(windows)) or "the configured window")

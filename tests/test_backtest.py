@@ -304,3 +304,20 @@ def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
     graph = _FakeGraph.instances[-1]
     assert graph.calls == [("NVDA", "2026-01-05")]
     assert graph.settled == ["NVDA"]
+
+
+@pytest.mark.unit
+def test_a_settled_entry_with_unreadable_alpha_is_not_counted_as_pending(tmp_path):
+    log = _log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.10, 0.04)),
+        ("NVDA", "2026-01-12", "Rating: Buy\n\nx", (0.01, 0.01)),
+        ("AAPL", "2026-01-05", "Rating: Sell\n\nx", None),
+    ])
+    text = log.read_text(encoding="utf-8")
+    log.write_text(text.replace("| +1.0% | +1.0% |", "| +1.0% | n/a |"), encoding="utf-8")
+
+    summary = summarize(log)
+
+    assert summary.resolved == 1
+    assert summary.pending == 1  # only the genuinely open Sell
+    assert summary.unscored == 1  # the settled entry nobody can read
