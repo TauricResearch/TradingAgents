@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.backtest import RatingScore, iter_grid, run_backtest, summarize
 from tradingagents.memory import TradingMemoryLog
 
 DECISION = "Rating: Buy\n\nbuy it"
@@ -321,3 +321,84 @@ def test_a_settled_entry_with_unreadable_alpha_is_not_counted_as_pending(tmp_pat
     assert summary.resolved == 1
     assert summary.pending == 1  # only the genuinely open Sell
     assert summary.unscored == 1  # the settled entry nobody can read
+
+
+# --- ties and the two hit rates ---------------------------------------------
+
+def _outcomes(tmp_path, rating, outcomes):
+    """A log of settled ``rating`` decisions, one per (raw, alpha) outcome."""
+    log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
+    for i, (raw, alpha) in enumerate(outcomes):
+        date = f"2026-01-{5 + i:02d}"
+        log.store_decision("NVDA", date, f"Rating: {rating}\n\nx")
+        log.update_with_outcome("NVDA", date, raw, alpha, 5, "note", "2026-02-01")
+    return tmp_path / "m.md"
+
+
+@pytest.mark.unit
+def test_a_tie_is_in_neither_the_hits_nor_the_denominator(tmp_path):
+    path = _outcomes(tmp_path, "Buy", [(0.02, 0.01), (-0.01, -0.01), (0.0, 0.0)])
+
+    buys = summarize(path).by_rating["Buy"]
+
+    assert buys.hit_rate == 0.5 and buys.ties == 1 and buys.count == 3
+    assert buys.mean_alpha == pytest.approx(0.0)
+
+
+@pytest.mark.unit
+def test_a_negative_zero_alpha_is_a_tie_not_a_miss(tmp_path):
+    path = _outcomes(tmp_path, "Buy", [(0.02, 0.01), (0.0, -0.0004)])
+
+    buys = summarize(path).by_rating["Buy"]
+
+    assert buys.hit_rate == 1.0 and buys.ties == 1
+
+
+@pytest.mark.unit
+def test_only_ties_differs_from_hold_in_the_render(tmp_path):
+    sell = summarize(_outcomes(tmp_path, "Sell", [(0.0, 0.0)]))
+    assert sell.by_rating["Sell"].hit_rate is None and sell.by_rating["Sell"].ties == 1
+    assert "no decisive outcome" in sell.render() and "no direction claimed" not in sell.render()
+
+    other = tmp_path / "h"
+    other.mkdir()
+    hold = summarize(_outcomes(other, "Hold", [(0.0, 0.0)]))
+    assert hold.by_rating["Hold"].hit_rate is None and hold.by_rating["Hold"].ties == 0
+    assert "no direction claimed" in hold.render()
+
+
+@pytest.mark.unit
+def test_the_raw_hit_rate_is_counted_apart_from_the_alpha_one(tmp_path):
+    path = _outcomes(tmp_path, "Buy", [(0.02, -0.01), (0.0, 0.02), (-0.01, 0.03)])
+
+    buys = summarize(path).by_rating["Buy"]
+
+    assert buys.raw_hit_rate == 0.5 and buys.raw_ties == 1
+    assert buys.hit_rate == pytest.approx(2 / 3) and buys.ties == 0
+
+
+@pytest.mark.unit
+def test_an_unreadable_raw_leaves_only_the_raw_denominator(tmp_path):
+    path = _outcomes(tmp_path, "Buy", [(0.02, 0.01), (0.03, 0.02)])
+    path.write_text(path.read_text(encoding="utf-8").replace("+3.0%", "n/a", 1), encoding="utf-8")
+
+    buys = summarize(path).by_rating["Buy"]
+
+    assert buys.count == 2 and buys.hit_rate == 1.0 and buys.raw_hit_rate == 1.0
+
+
+@pytest.mark.unit
+def test_the_render_shows_both_hit_rates_with_their_ties(tmp_path):
+    path = _outcomes(tmp_path, "Buy", [(0.02, 0.01), (0.0, 0.0), (-0.01, -0.02)])
+
+    text = summarize(path).render()
+
+    assert "beat the benchmark 50% (1 tie)" in text
+    assert "price direction 50% (1 tie)" in text
+
+
+@pytest.mark.unit
+def test_a_rating_score_is_still_built_positionally():
+    score = RatingScore(3, 0.5, 0.01)
+
+    assert score.ties == 0 and score.raw_hit_rate is None and score.raw_ties == 0

@@ -62,17 +62,40 @@ def _canonical(date: str) -> datetime:
     return parsed
 
 
+def _pct(text) -> float | None:
+    """A stored percentage like ``+4.0%`` as a fraction, or None when unreadable."""
+    try:
+        return float((text or "").strip().rstrip("%")) / 100
+    except ValueError:
+        return None
+
+
 def _alpha(entry: dict) -> float | None:
     """Alpha return of a settled entry, or None when it has not settled.
 
     The log stores it as a percentage rounded to one decimal, so aggregates here
     are accurate to 0.1 of a percentage point, not to the raw quote.
     """
-    text = (entry.get("alpha") or "").strip().rstrip("%")
-    try:
-        return float(text) / 100
-    except ValueError:
-        return None
+    return _pct(entry.get("alpha"))
+
+
+def _raw(entry: dict) -> float | None:
+    """Raw (price) return of a settled entry, or None when it is unreadable."""
+    return _pct(entry.get("raw"))
+
+
+def _tally(values: list[float], direction: int) -> tuple[float | None, int]:
+    """Hit rate of ``values`` for a rating's direction, and the number of ties.
+
+    A value of exactly 0 (``-0.0`` included) is a tie: neither a hit nor a miss,
+    and in no denominator. None when there is no direction or only ties.
+    """
+    if not direction:
+        return None, 0
+    hits = sum(v * direction > 0 for v in values)
+    ties = sum(v == 0 for v in values)
+    decided = len(values) - ties
+    return (hits / decided if decided else None), ties
 
 
 @dataclass
@@ -93,8 +116,17 @@ _DIRECTION = {"Buy": 1, "Overweight": 1, "Hold": 0, "Underweight": -1, "Sell": -
 @dataclass
 class RatingScore:
     count: int
+    # Alpha hit rate ("beat the benchmark"); ties (value == 0, -0.0 included) are
+    # in no denominator. None: Hold (no direction) or only ties.
     hit_rate: float | None
     mean_alpha: float
+    ties: int = 0
+    raw_hit_rate: float | None = None   # price direction, same tie rule
+    raw_ties: int = 0
+
+
+def _ties_note(ties: int) -> str:
+    return f" ({ties} tie{'s' if ties != 1 else ''})" if ties else ""
 
 
 @dataclass
@@ -109,8 +141,15 @@ class BacktestSummary:
         lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"
                  + (f" · unscored: {self.unscored}" if self.unscored else "")]
         for rating, score in self.by_rating.items():
-            called = (f"called the direction {score.hit_rate:.0%}"
-                      if score.hit_rate is not None else "no direction claimed")
+            if _DIRECTION.get(rating, 0) == 0:
+                called = "no direction claimed"
+            else:
+                alpha_part = (f"beat the benchmark {score.hit_rate:.0%}" if score.hit_rate is not None
+                              else "no decisive outcome")
+                raw_part = (f"price direction {score.raw_hit_rate:.0%}" if score.raw_hit_rate is not None
+                            else "price direction n/a")
+                called = (f"{alpha_part}{_ties_note(score.ties)}, "
+                          f"{raw_part}{_ties_note(score.raw_ties)}")
             lines.append(
                 f"- {rating}: n={score.count}, {called}, "
                 f"mean alpha {score.mean_alpha:+.2%} vs the benchmark"
@@ -197,12 +236,19 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
     resolved = [(e, a) for e, a in resolved if a is not None]
     by_rating: dict[str, RatingScore] = {}
     for rating in dict.fromkeys(e["rating"] for e, _ in resolved):
-        alphas = [a for e, a in resolved if e["rating"] == rating]
+        rows = [(e, a) for e, a in resolved if e["rating"] == rating]
+        alphas = [a for _, a in rows]
+        raws = [r for r in (_raw(e) for e, _ in rows) if r is not None]
         direction = _DIRECTION.get(rating, 0)
+        hit_rate, ties = _tally(alphas, direction)
+        raw_hit_rate, raw_ties = _tally(raws, direction)
         by_rating[rating] = RatingScore(
             count=len(alphas),
-            hit_rate=(sum(a * direction > 0 for a in alphas) / len(alphas)) if direction else None,
+            hit_rate=hit_rate,
             mean_alpha=sum(alphas) / len(alphas),
+            ties=ties,
+            raw_hit_rate=raw_hit_rate,
+            raw_ties=raw_ties,
         )
     # Only entries that are really open count as pending; a settled entry whose
     # alpha cannot be read is neither (it would never be settled again): unscored.
