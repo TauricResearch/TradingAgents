@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+## [Unreleased]
+
+### Added
+
+- **News for past dates from DeepSeek Search.** With `news_data` set to `deepseek,yfinance`, company and global news come from DeepSeek's search API, bounded to the run's window, so a past-dated run reads the news of its own week where Yahoo returns its "unavailable" placeholder. Results dated after the window, rolling news and forecast pages, and summaries that name a later date are dropped; on a past date the window ends the day before the run, since a result's date can read a day early. Insider transactions, which share the category, stay with Yahoo, and Yahoo answers the news tools if a search fails. Needs `DEEPSEEK_API_KEY`; DeepSeek bills $0.75 per 1,000 searches.
+
 ## [0.7.0] — 2026-10-16
 
 Runs on your ChatGPT plan, backtests scored from the first close after each decision, a note at start-up when a newer release is out, and a wheel attached to each GitHub release.
