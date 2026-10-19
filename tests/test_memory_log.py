@@ -1,5 +1,6 @@
 """Tests for TradingMemoryLog — storage, deferred reflection, PM injection, legacy removal."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -1137,6 +1138,86 @@ class TestSettlementWindow:
         assert resolved == "2026-01-14"
         assert alpha == pytest.approx(raw - (spy["2026-01-14"] / spy["2026-01-07"] - 1))
 
+    # -- exit-bar finality (#17): the running session's bar may still be live --
+
+    @staticmethod
+    def _tz_closes(by_symbol):
+        def get_closes(symbol, start_date, end_date):
+            series = by_symbol[symbol]
+            tz = series.index.tz
+            lo, hi = pd.Timestamp(start_date, tz=tz), pd.Timestamp(end_date, tz=tz)
+            return series[(series.index >= lo) & (series.index < hi)]
+        return get_closes
+
+    def _ny(self):
+        idx = pd.bdate_range("2026-01-05", periods=8, tz="America/New_York")  # Mon 5 .. Wed 14
+        stock = pd.Series([100.0 + i for i in range(8)], index=idx)
+        spy = pd.Series([400.0 + i for i in range(8)], index=idx)
+        return stock, spy
+
+    def test_an_exit_bar_dated_today_stays_pending(self, monkeypatch):
+        stock, spy = self._ny()
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 14, 20, 0, tzinfo=UTC)  # exit bar Wed 14 is today in New York
+
+        assert settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now) == (None, None, None, None)
+
+    def test_the_same_bar_settles_the_next_day(self, monkeypatch):
+        stock, spy = self._ny()
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
+
+        raw, _, days, resolved = settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now)
+
+        assert resolved == "2026-01-14"
+        assert days == 5
+        assert raw == pytest.approx(107.0 / 102.0 - 1)
+
+    def test_a_benchmark_bar_dated_today_keeps_the_entry_pending(self, monkeypatch):
+        stock, spy = self._ny()
+        spy = spy.iloc[:-1]  # the benchmark has nothing past Tue 13
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)  # the stock's exit bar (Wed 14) is final
+
+        assert settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now) == (None, None, None, None)
+
+    def test_the_benchmark_exit_bar_of_today_is_not_used(self, monkeypatch):
+        stock, spy = self._ny()
+        stock.index = stock.index.tz_localize(None).tz_localize("UTC")  # stock already final (UTC midnight)
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 15, 3, 0, tzinfo=UTC)  # Wed 14, 22:00 in New York, already Thu 15 in UTC
+
+        # The stock's UTC bar of the 14th is final, but SPY's New York bar of the 14th is still today.
+        assert settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now) == (None, None, None, None)
+
+    def test_a_coins_bar_of_today_is_left_out(self, monkeypatch):
+        coin = pd.Series([100.0 + i for i in range(10)],
+                         index=pd.date_range("2026-01-03", periods=10, freq="D", tz="UTC"))
+        weekdays = pd.bdate_range("2025-12-29", "2026-01-16", tz="America/New_York")
+        spy = pd.Series([400.0 + 2 * i for i in range(len(weekdays))], index=weekdays)
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"BTC-USD": coin, "SPY": spy}))
+
+        # Sat 10: the window's last bar (Fri 9) is final, and Saturday's bar is dropped.
+        raw, _, _, resolved = settlement.fetch_returns(
+            "BTC-USD", "2026-01-03", 5, "SPY", now=datetime(2026, 1, 10, 9, 0, tzinfo=UTC))
+        assert resolved == "2026-01-09"
+        # Fri 9: Friday's own bar is still live, so the window cannot close yet.
+        assert settlement.fetch_returns(
+            "BTC-USD", "2026-01-03", 5, "SPY", now=datetime(2026, 1, 9, 9, 0, tzinfo=UTC),
+        ) == (None, None, None, None)
+
+    def test_by_day_filters_a_naive_index_against_the_utc_date_of_now(self):
+        s = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-01-09", "2026-01-10"]))
+
+        out = settlement._by_day(s, datetime(2026, 1, 10, 23, 30, tzinfo=UTC))
+
+        assert list(out.index) == [pd.Timestamp("2026-01-09")]
+
+    def test_by_day_passes_an_empty_series_through(self):
+        s = pd.Series([], index=pd.DatetimeIndex([]), dtype=float)
+
+        assert settlement._by_day(s, datetime(2026, 1, 10, tzinfo=UTC)).empty
+
 
 @pytest.mark.unit
 def test_a_close_that_is_not_a_price_is_skipped_not_scored(monkeypatch):
@@ -1314,3 +1395,189 @@ def test_a_run_does_not_wait_on_another_settlement_pass(tmp_path):
     worker.join()
 
     assert elapsed < 1 and result.settled == [] and result.failed == []
+
+
+# ---------------------------------------------------------------------------
+# Settlement terms pinned at decision time (#4)
+# ---------------------------------------------------------------------------
+
+_TERMS = {"holding": "5d", "benchmark": "SPY", "entry": "next_close"}
+_TERMS_LINE = "SETTLEMENT: holding=5d | benchmark=SPY | entry=next_close"
+
+# Real blocks from fork/paper-log (decision-log.md @ 5541cd9), body text shortened:
+# a resolved and a pending entry in the format written before the terms were pinned.
+_LEGACY_RESOLVED = (
+    "[2026-10-09 | AAPL | Hold | +2.0% | +4.0% | 5d | resolved:2026-10-16]\n\n"
+    "DECISION:\n**Rating**: Hold\n\n"
+    "**Executive Summary**: Hold AAPL at your existing standard allocation. Do not add at 336–337 "
+    "and do not trim now.\n\n"
+    "**Price Target**: 342.0\n\n"
+    "REFLECTION:\nThe 5-day alpha of +4.0% (raw +2.0%) is favorable for a Hold that recommended "
+    "no directional add."
+)
+_LEGACY_PENDING = (
+    "[2026-10-12 | AAPL | Hold | pending]\n\n"
+    "DECISION:\n**Rating**: Hold\n\n"
+    "**Executive Summary**: Hold the existing position at standard allocation. Do not add at about $341."
+)
+_NEW_BLOCK = (
+    "[2026-10-13 | MSFT | Buy | pending]\n\n" + _TERMS_LINE + "\n\n"
+    "DECISION:\n**Rating**: Buy\n\nAdd on weakness."
+)
+_MIXED_LOG = _SEP.join([_LEGACY_RESOLVED, _LEGACY_PENDING, _NEW_BLOCK]) + _SEP
+
+
+class TestPinnedSettlementTerms:
+    def _text(self, tmp_path, **kwargs):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, **kwargs)
+        return (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+
+    @pytest.mark.unit
+    def test_the_terms_go_on_a_body_line_and_the_tag_stays_byte_equal(self, tmp_path):
+        plain = self._text(tmp_path)
+        (tmp_path / "trading_memory.md").unlink()
+
+        pinned = self._text(tmp_path, settlement=_TERMS)
+
+        tag = "[2026-01-05 | NVDA | Buy | pending]"
+        assert pinned.startswith(f"{tag}\n\n{_TERMS_LINE}\n\nDECISION:\n")
+        assert pinned.splitlines()[0] == plain.splitlines()[0] == tag
+        assert plain == pinned.replace(f"{_TERMS_LINE}\n\n", "")
+
+    @pytest.mark.unit
+    def test_without_terms_the_format_is_unchanged(self, tmp_path):
+        text = self._text(tmp_path)
+
+        assert text == f"[2026-01-05 | NVDA | Buy | pending]\n\nDECISION:\n{DECISION_BUY}{_SEP}"
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("bad", [
+        {"benchmark": "A|B"}, {"benchmark": "A\nB"}, {"be=nchmark": "SPY"},
+        {"bench|mark": "SPY"}, {"bench\nmark": "SPY"},
+    ])
+    def test_a_field_that_could_forge_the_line_is_refused(self, tmp_path, bad):
+        log = make_log(tmp_path)
+
+        with pytest.raises(ValueError):
+            log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement=bad)
+
+        assert log.load_entries() == []
+
+    @pytest.mark.unit
+    def test_the_terms_are_parsed_and_old_entries_have_none(self, tmp_path):
+        path = tmp_path / "trading_memory.md"
+        path.write_text(_MIXED_LOG, encoding="utf-8")
+
+        entries = make_log(tmp_path).load_entries()
+
+        assert [e["settlement"] for e in entries] == [{}, {}, _TERMS]
+        assert [e["pending"] for e in entries] == [False, True, True]
+        assert entries[2]["decision"].startswith("**Rating**: Buy")
+
+    @pytest.mark.unit
+    def test_a_settlement_line_inside_the_decision_text_is_ignored(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", "Rating: Buy\nSETTLEMENT: holding=1d | benchmark=QQQ")
+
+        assert log.load_entries()[0]["settlement"] == {}
+
+    @pytest.mark.unit
+    def test_unknown_keys_are_tolerated(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement={**_TERMS, "venue": "NYSE"})
+
+        assert log.load_entries()[0]["settlement"] == {**_TERMS, "venue": "NYSE"}
+
+    @pytest.mark.unit
+    def test_the_line_survives_settling_and_is_still_parsed(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement=_TERMS)
+
+        log.update_with_outcome("NVDA", "2026-01-05", 0.05, 0.02, 5, "held up", "2026-01-13")
+
+        entry = log.load_entries()[0]
+        assert not entry["pending"]
+        assert entry["settlement"] == _TERMS
+        assert entry["decision"] == DECISION_BUY and entry["reflection"] == "held up"
+
+    @pytest.mark.unit
+    def test_a_benchmark_with_an_equals_sign_round_trips(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        terms = {"holding": "5d", "benchmark": "GC=F", "entry": "next_close"}
+        log.store_decision("XAUUSD", "2026-01-05", DECISION_BUY, settlement=terms)
+        seen = {}
+
+        def fetch(ticker, date, holding_days=5, benchmark=None):
+            seen["benchmark"] = benchmark
+            return None, None, None, None
+
+        monkeypatch.setattr(settlement, "fetch_returns", fetch)
+
+        assert log.load_entries()[0]["settlement"]["benchmark"] == "GC=F"
+        settlement.settle_pending("XAUUSD", log, MagicMock(), {})
+        assert seen["benchmark"] == "GC=F"
+
+    @pytest.mark.unit
+    def test_the_mixed_log_reads_old_and_new_entries(self, tmp_path):
+        path = tmp_path / "decision-log.md"
+        path.write_text(_MIXED_LOG, encoding="utf-8")
+        log = TradingMemoryLog({"memory_log_path": str(path)})
+
+        entries = log.load_entries()
+        assert [(e["ticker"], e["rating"], e["pending"]) for e in entries] == [
+            ("AAPL", "Hold", False), ("AAPL", "Hold", True), ("MSFT", "Buy", True)]
+        assert [bool(e["settlement"]) for e in entries] == [False, False, True]
+
+
+class TestSettlingUnderPinnedTerms:
+    def _spy(self, monkeypatch):
+        calls = []
+
+        def fetch(ticker, date, holding_days=5, benchmark=None):
+            calls.append((holding_days, benchmark))
+            return 0.05, 0.02, holding_days, "2026-02-01"
+
+        monkeypatch.setattr(settlement, "fetch_returns", fetch)
+        reflector = MagicMock()
+        reflector.reflect_on_final_decision.return_value = "ok"
+        return calls, reflector
+
+    @pytest.mark.unit
+    def test_the_terms_of_the_entry_win_over_the_config(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY,
+                           settlement={"holding": "21d", "benchmark": "QQQ", "entry": "next_close"})
+        calls, reflector = self._spy(monkeypatch)
+
+        result = settlement.settle_pending("NVDA", log, reflector, {"holding_period_days": 5, "benchmark_ticker": "SPY"})
+
+        assert calls == [(21, "QQQ")] and result.settled == [("NVDA", "2026-01-05")]
+        kwargs = reflector.reflect_on_final_decision.call_args.kwargs
+        assert kwargs["benchmark_name"] == "QQQ" and kwargs["holding_days"] == 21
+
+    @pytest.mark.unit
+    def test_an_old_entry_uses_the_config(self, tmp_path, monkeypatch):
+        (tmp_path / "trading_memory.md").write_text(_LEGACY_PENDING + _SEP, encoding="utf-8")
+        calls, reflector = self._spy(monkeypatch)
+
+        settlement.settle_pending("AAPL", make_log(tmp_path), reflector,
+                                  {"holding_period_days": 7, "benchmark_ticker": "QQQ"})
+
+        assert calls == [(7, "QQQ")]
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("terms, reason", [
+        ({"holding": "5d", "benchmark": "SPY", "entry": "decision_close"}, "unknown entry convention"),
+        ({"holding": "soon", "benchmark": "SPY", "entry": "next_close"}, "unreadable holding"),
+    ])
+    def test_unusable_terms_leave_the_entry_pending_and_reported(self, tmp_path, monkeypatch, terms, reason):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement=terms)
+        calls, reflector = self._spy(monkeypatch)
+
+        result = settlement.settle_pending("NVDA", log, reflector, {})
+
+        assert calls == [] and result.settled == []
+        assert len(result.failed) == 1 and reason in result.failed[0][2]
+        assert log.get_pending_entries()

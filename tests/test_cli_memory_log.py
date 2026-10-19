@@ -190,3 +190,41 @@ def test_recording_a_run_writes_its_state_log(tmp_path):
     graph.record_decision("NVDA", "2026-09-23", state)
 
     assert list(tmp_path.glob("NVDA/TradingAgentsStrategy_logs/full_states_log_2026-09-23.json"))
+
+
+# --- settlement terms pinned at decision time ------------------------------------
+
+@pytest.mark.unit
+def test_record_decision_pins_holding_benchmark_and_entry_from_the_config(tmp_path):
+    graph = _bare_graph(tmp_path)
+    graph.config.update({"holding_period_days": 21, "benchmark_ticker": "QQQ"})
+
+    graph.record_decision("NVDA", "2026-01-10", {"final_trade_decision": "Rating: Buy\n\nBuy NVDA."})
+
+    assert graph.memory_log.load_entries()[0]["settlement"] == {
+        "holding": "21d", "benchmark": "QQQ", "entry": "next_close"}
+
+
+@pytest.mark.unit
+def test_record_decision_pins_the_defaults_for_a_bare_config(tmp_path):
+    graph = _bare_graph(tmp_path)
+
+    graph.record_decision("NVDA", "2026-01-10", {"final_trade_decision": "Rating: Buy\n\nBuy NVDA."})
+
+    assert graph.memory_log.load_entries()[0]["settlement"] == {
+        "holding": "5d", "benchmark": "SPY", "entry": "next_close"}
+
+
+@pytest.mark.unit
+def test_record_decision_never_fails_on_invalid_terms(tmp_path, monkeypatch, caplog):
+    from tradingagents.memory import settlement
+
+    graph = _bare_graph(tmp_path)
+    monkeypatch.setattr(settlement, "resolve_benchmark", lambda t, c: "A|B")
+
+    with caplog.at_level("WARNING"):
+        graph.record_decision("NVDA", "2026-01-10", {"final_trade_decision": "Rating: Buy\n\nBuy NVDA."})
+
+    entry = graph.memory_log.load_entries()[0]
+    assert entry["pending"] and entry["settlement"] == {}
+    assert "not recorded" in caplog.text

@@ -2,13 +2,18 @@
 it against its benchmark and record a reflection on it in the memory log."""
 
 import logging
+import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes
 
 logger = logging.getLogger(__name__)
+
+# Entry convention fetch_returns implements: enter at the first close after the
+# decision date (stock.index > start). Pinned in each new log entry.
+ENTRY_CONVENTION = "next_close"
 
 
 def resolve_benchmark(ticker: str, config: dict) -> str:
@@ -35,23 +40,34 @@ def resolve_benchmark(ticker: str, config: dict) -> str:
     return benchmark_map.get("", "SPY")
 
 
-def _by_day(closes):
+def _by_day(closes, now):
     """Closes keyed by the calendar day of their bar, missing closes dropped.
 
     Yahoo stamps a daily bar at midnight in its market's time zone (UTC for a
     coin, New York for SPY), so two series meet on their dates, not their
     instants. A missing or non-positive close is no price at all, not a bar to
     score on.
+
+    A bar counts as final only once its exchange-local date lies before today's
+    date there: the bar of the running session may still be live (#1150) and
+    would settle on a provisional price. The time zone comes from the index
+    (yfinance localizes to the exchange's zone); a naive index falls back to UTC.
+    ``now`` is a tz-aware datetime.
     """
     closes = closes[closes > 0]
-    if getattr(closes.index, "tz", None) is not None:
+    tz = getattr(closes.index, "tz", None)
+    today = now.astimezone(tz or UTC).date()
+    if len(closes):
+        final = [ts.date() < today for ts in closes.index]
+        closes = closes[final]
+    if tz is not None:
         closes = closes.tz_localize(None)
     return closes
 
 
 def fetch_returns(
     ticker: str, trade_date: str, holding_days: int = 5,
-    benchmark: str = "SPY",
+    benchmark: str = "SPY", now: datetime | None = None,
 ) -> tuple[float | None, float | None, int | None, str | None]:
     """Fetch raw and alpha return for ticker over holding_days after trade_date.
 
@@ -65,7 +81,13 @@ def fetch_returns(
     or ``(None, None, None, None)`` when the full holding window has not traded
     yet (#1169). A failure to get or read the prices is raised, for the caller
     to report.
+
+    Only bars from a closed trading day count (see ``_by_day``); ``now`` (default
+    the current UTC time, a naive value is read as UTC) makes that cut testable.
     """
+    now = now or datetime.now(UTC)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
     start = datetime.strptime(trade_date, "%Y-%m-%d")
     # holding_days counts trading days after the entry session, so ask for the
     # calendar span they occupy (about 7 for every 5) plus a week for holidays.
@@ -74,11 +96,11 @@ def fetch_returns(
 
     # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984),
     # from the first session after the decision date.
-    stock = _by_day(get_closes(ticker, trade_date, end_str))
+    stock = _by_day(get_closes(ticker, trade_date, end_str), now)
     stock = stock[stock.index > start]
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
-    bench = _by_day(get_closes(benchmark, bench_start, end_str))
+    bench = _by_day(get_closes(benchmark, bench_start, end_str), now)
 
     # Require the full holding window to have traded. A rerun before it has
     # leaves the entry pending to retry next run, rather than settling on a
@@ -120,6 +142,11 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
     Entries whose window has not traded yet are skipped; an entry whose prices
     or reflection could not be had stays pending and is reported as failed.
     With ``wait=False`` a pass already running elsewhere is left to do the work.
+
+    The holding window, benchmark and entry convention pinned in an entry when
+    it was decided win; an older entry without them is settled under the current
+    config. An entry with an unknown entry convention or an unreadable holding
+    stays pending and is reported as failed, not settled on a wrong assumption.
     """
     result = Settlement()
     with memory_log.settling(wait=wait) as held:
@@ -128,11 +155,25 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
         pending = [e for e in memory_log.get_pending_entries() if e["ticker"] == ticker]
         if not pending:
             return result
-        benchmark = resolve_benchmark(ticker, config)
+        config_benchmark = resolve_benchmark(ticker, config)
         for entry in pending:
+            terms = entry.get("settlement") or {}
+            convention = terms.get("entry", ENTRY_CONVENTION)
+            if convention != ENTRY_CONVENTION:
+                result.failed.append((ticker, entry["date"], f"unknown entry convention: {convention}"))
+                continue
+            if "holding" in terms:
+                match = re.fullmatch(r"(\d+)d", terms["holding"])
+                if not match:
+                    result.failed.append((ticker, entry["date"], f"unreadable holding: {terms['holding']}"))
+                    continue
+                holding = int(match.group(1))
+            else:
+                holding = config.get("holding_period_days", 5)
+            benchmark = terms.get("benchmark") or config_benchmark
             try:
                 raw, alpha, days, resolution_date = fetch_returns(
-                    ticker, entry["date"], config.get("holding_period_days", 5), benchmark=benchmark,
+                    ticker, entry["date"], holding, benchmark=benchmark,
                 )
             except Exception as exc:
                 logger.warning("Prices for settling %s on %s were unavailable: %s", ticker, entry["date"], exc)

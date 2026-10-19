@@ -364,10 +364,28 @@ class TradingAgentsGraph:
             logger.warning("No final decision for %s on %s; nothing added to the memory log",
                            company_name, trade_date)
             return
-        self.memory_log.store_decision(
-            ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
-            rating=run_rating(final_state),
-        )
+        rating = run_rating(final_state)
+        # Pin the terms the decision will be settled under (holding window,
+        # benchmark, entry convention), so a later config change cannot move them.
+        terms = {
+            "holding": f"{self.config.get('holding_period_days', 5)}d",
+            "benchmark": settlement.resolve_benchmark(company_name, self.config),
+            "entry": settlement.ENTRY_CONVENTION,
+        }
+        try:
+            self.memory_log.store_decision(
+                ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+                rating=rating, settlement=terms,
+            )
+        except ValueError as exc:
+            # Never lose the decision over its settlement line: store it in the
+            # older format, settled later under the current config.
+            logger.warning("Settlement terms for %s on %s not recorded (%s); using the config at settling",
+                           company_name, trade_date, exc)
+            self.memory_log.store_decision(
+                ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+                rating=rating,
+            )
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
                    checkpoint_thread_id: str | None = None, portfolio=None):
