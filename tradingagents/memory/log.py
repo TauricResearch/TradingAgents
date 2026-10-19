@@ -35,12 +35,25 @@ class TradingMemoryLog:
         trade_date: str,
         final_trade_decision: str,
         rating: str | None = None,
+        settlement: dict | None = None,
     ) -> None:
         """Append pending entry at end of propagate(). No LLM call.
 
         ``rating`` is the decision's own rating when the caller has it; without
-        one it is read from the decision text.
+        one it is read from the decision text. ``settlement`` (holding, benchmark,
+        entry convention, ...) is pinned in a ``SETTLEMENT:`` line between the tag
+        and the decision, so the entry is settled under the terms it was decided
+        with. The tag itself is unchanged. A key containing ``=``, ``|`` or a
+        line break, or a value containing ``|`` or a line break, raises ValueError
+        (``=`` inside a value is fine: ``GC=F``).
         """
+        settlement_line = ""
+        if settlement:
+            for key, value in settlement.items():
+                key, value = str(key), str(value)
+                if not key or any(c in key for c in "=|\r\n") or any(c in value for c in "|\r\n"):
+                    raise ValueError(f"invalid settlement field {key!r}={value!r}")
+            settlement_line = "SETTLEMENT: " + " | ".join(f"{k}={v}" for k, v in settlement.items()) + "\n\n"
         if not self._log_path:
             return
         with locked(self._log_path):
@@ -55,7 +68,7 @@ class TradingMemoryLog:
                         return
             rating = rating or parse_rating(final_trade_decision)
             tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-            entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+            entry = f"{tag}\n\n{settlement_line}DECISION:\n{final_trade_decision}{self._SEPARATOR}"
             with open(self._log_path, "a", encoding="utf-8") as f:
                 f.write(entry)
 
@@ -337,8 +350,20 @@ class TradingMemoryLog:
         decision_match = self._DECISION_RE.search(body)
         reflection_match = self._REFLECTION_RE.search(body)
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""
+        # Only the text before DECISION: is read, so model prose cannot forge it.
+        header = body[:decision_match.start()] if decision_match else body
+        entry["settlement"] = self._parse_settlement(header)
         entry["reflection"] = reflection_match.group(1).strip() if reflection_match else ""
         return entry
+
+    @staticmethod
+    def _parse_settlement(header: str) -> dict:
+        """The ``SETTLEMENT: k=v | k=v`` line of an entry header, {} for older entries."""
+        for line in header.splitlines():
+            if line.startswith("SETTLEMENT: "):
+                pairs = (part.partition("=") for part in line[len("SETTLEMENT: "):].split(" | "))
+                return {k.strip(): v.strip() for k, sep, v in pairs if sep and k.strip()}
+        return {}
 
     def _format_full(self, e: dict) -> str:
         raw = e["raw"] or "n/a"

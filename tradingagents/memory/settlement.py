@@ -2,6 +2,7 @@
 it against its benchmark and record a reflection on it in the memory log."""
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -9,6 +10,10 @@ from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes
 
 logger = logging.getLogger(__name__)
+
+# Entry convention fetch_returns implements: enter at the first close after the
+# decision date (stock.index > start). Pinned in each new log entry.
+ENTRY_CONVENTION = "next_close"
 
 
 def resolve_benchmark(ticker: str, config: dict) -> str:
@@ -137,6 +142,11 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
     Entries whose window has not traded yet are skipped; an entry whose prices
     or reflection could not be had stays pending and is reported as failed.
     With ``wait=False`` a pass already running elsewhere is left to do the work.
+
+    The holding window, benchmark and entry convention pinned in an entry when
+    it was decided win; an older entry without them is settled under the current
+    config. An entry with an unknown entry convention or an unreadable holding
+    stays pending and is reported as failed, not settled on a wrong assumption.
     """
     result = Settlement()
     with memory_log.settling(wait=wait) as held:
@@ -145,11 +155,25 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
         pending = [e for e in memory_log.get_pending_entries() if e["ticker"] == ticker]
         if not pending:
             return result
-        benchmark = resolve_benchmark(ticker, config)
+        config_benchmark = resolve_benchmark(ticker, config)
         for entry in pending:
+            terms = entry.get("settlement") or {}
+            convention = terms.get("entry", ENTRY_CONVENTION)
+            if convention != ENTRY_CONVENTION:
+                result.failed.append((ticker, entry["date"], f"unknown entry convention: {convention}"))
+                continue
+            if "holding" in terms:
+                match = re.fullmatch(r"(\d+)d", terms["holding"])
+                if not match:
+                    result.failed.append((ticker, entry["date"], f"unreadable holding: {terms['holding']}"))
+                    continue
+                holding = int(match.group(1))
+            else:
+                holding = config.get("holding_period_days", 5)
+            benchmark = terms.get("benchmark") or config_benchmark
             try:
                 raw, alpha, days, resolution_date = fetch_returns(
-                    ticker, entry["date"], config.get("holding_period_days", 5), benchmark=benchmark,
+                    ticker, entry["date"], holding, benchmark=benchmark,
                 )
             except Exception as exc:
                 logger.warning("Prices for settling %s on %s were unavailable: %s", ticker, entry["date"], exc)

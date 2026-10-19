@@ -1395,3 +1395,189 @@ def test_a_run_does_not_wait_on_another_settlement_pass(tmp_path):
     worker.join()
 
     assert elapsed < 1 and result.settled == [] and result.failed == []
+
+
+# ---------------------------------------------------------------------------
+# Settlement terms pinned at decision time (#4)
+# ---------------------------------------------------------------------------
+
+_TERMS = {"holding": "5d", "benchmark": "SPY", "entry": "next_close"}
+_TERMS_LINE = "SETTLEMENT: holding=5d | benchmark=SPY | entry=next_close"
+
+# Real blocks from fork/paper-log (decision-log.md @ 5541cd9), body text shortened:
+# a resolved and a pending entry in the format written before the terms were pinned.
+_LEGACY_RESOLVED = (
+    "[2026-10-09 | AAPL | Hold | +2.0% | +4.0% | 5d | resolved:2026-10-16]\n\n"
+    "DECISION:\n**Rating**: Hold\n\n"
+    "**Executive Summary**: Hold AAPL at your existing standard allocation. Do not add at 336–337 "
+    "and do not trim now.\n\n"
+    "**Price Target**: 342.0\n\n"
+    "REFLECTION:\nThe 5-day alpha of +4.0% (raw +2.0%) is favorable for a Hold that recommended "
+    "no directional add."
+)
+_LEGACY_PENDING = (
+    "[2026-10-12 | AAPL | Hold | pending]\n\n"
+    "DECISION:\n**Rating**: Hold\n\n"
+    "**Executive Summary**: Hold the existing position at standard allocation. Do not add at about $341."
+)
+_NEW_BLOCK = (
+    "[2026-10-13 | MSFT | Buy | pending]\n\n" + _TERMS_LINE + "\n\n"
+    "DECISION:\n**Rating**: Buy\n\nAdd on weakness."
+)
+_MIXED_LOG = _SEP.join([_LEGACY_RESOLVED, _LEGACY_PENDING, _NEW_BLOCK]) + _SEP
+
+
+class TestPinnedSettlementTerms:
+    def _text(self, tmp_path, **kwargs):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, **kwargs)
+        return (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+
+    @pytest.mark.unit
+    def test_the_terms_go_on_a_body_line_and_the_tag_stays_byte_equal(self, tmp_path):
+        plain = self._text(tmp_path)
+        (tmp_path / "trading_memory.md").unlink()
+
+        pinned = self._text(tmp_path, settlement=_TERMS)
+
+        tag = "[2026-01-05 | NVDA | Buy | pending]"
+        assert pinned.startswith(f"{tag}\n\n{_TERMS_LINE}\n\nDECISION:\n")
+        assert pinned.splitlines()[0] == plain.splitlines()[0] == tag
+        assert plain == pinned.replace(f"{_TERMS_LINE}\n\n", "")
+
+    @pytest.mark.unit
+    def test_without_terms_the_format_is_unchanged(self, tmp_path):
+        text = self._text(tmp_path)
+
+        assert text == f"[2026-01-05 | NVDA | Buy | pending]\n\nDECISION:\n{DECISION_BUY}{_SEP}"
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("bad", [
+        {"benchmark": "A|B"}, {"benchmark": "A\nB"}, {"be=nchmark": "SPY"},
+        {"bench|mark": "SPY"}, {"bench\nmark": "SPY"},
+    ])
+    def test_a_field_that_could_forge_the_line_is_refused(self, tmp_path, bad):
+        log = make_log(tmp_path)
+
+        with pytest.raises(ValueError):
+            log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement=bad)
+
+        assert log.load_entries() == []
+
+    @pytest.mark.unit
+    def test_the_terms_are_parsed_and_old_entries_have_none(self, tmp_path):
+        path = tmp_path / "trading_memory.md"
+        path.write_text(_MIXED_LOG, encoding="utf-8")
+
+        entries = make_log(tmp_path).load_entries()
+
+        assert [e["settlement"] for e in entries] == [{}, {}, _TERMS]
+        assert [e["pending"] for e in entries] == [False, True, True]
+        assert entries[2]["decision"].startswith("**Rating**: Buy")
+
+    @pytest.mark.unit
+    def test_a_settlement_line_inside_the_decision_text_is_ignored(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", "Rating: Buy\nSETTLEMENT: holding=1d | benchmark=QQQ")
+
+        assert log.load_entries()[0]["settlement"] == {}
+
+    @pytest.mark.unit
+    def test_unknown_keys_are_tolerated(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement={**_TERMS, "venue": "NYSE"})
+
+        assert log.load_entries()[0]["settlement"] == {**_TERMS, "venue": "NYSE"}
+
+    @pytest.mark.unit
+    def test_the_line_survives_settling_and_is_still_parsed(self, tmp_path):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement=_TERMS)
+
+        log.update_with_outcome("NVDA", "2026-01-05", 0.05, 0.02, 5, "held up", "2026-01-13")
+
+        entry = log.load_entries()[0]
+        assert not entry["pending"]
+        assert entry["settlement"] == _TERMS
+        assert entry["decision"] == DECISION_BUY and entry["reflection"] == "held up"
+
+    @pytest.mark.unit
+    def test_a_benchmark_with_an_equals_sign_round_trips(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        terms = {"holding": "5d", "benchmark": "GC=F", "entry": "next_close"}
+        log.store_decision("XAUUSD", "2026-01-05", DECISION_BUY, settlement=terms)
+        seen = {}
+
+        def fetch(ticker, date, holding_days=5, benchmark=None):
+            seen["benchmark"] = benchmark
+            return None, None, None, None
+
+        monkeypatch.setattr(settlement, "fetch_returns", fetch)
+
+        assert log.load_entries()[0]["settlement"]["benchmark"] == "GC=F"
+        settlement.settle_pending("XAUUSD", log, MagicMock(), {})
+        assert seen["benchmark"] == "GC=F"
+
+    @pytest.mark.unit
+    def test_the_mixed_log_reads_old_and_new_entries(self, tmp_path):
+        path = tmp_path / "decision-log.md"
+        path.write_text(_MIXED_LOG, encoding="utf-8")
+        log = TradingMemoryLog({"memory_log_path": str(path)})
+
+        entries = log.load_entries()
+        assert [(e["ticker"], e["rating"], e["pending"]) for e in entries] == [
+            ("AAPL", "Hold", False), ("AAPL", "Hold", True), ("MSFT", "Buy", True)]
+        assert [bool(e["settlement"]) for e in entries] == [False, False, True]
+
+
+class TestSettlingUnderPinnedTerms:
+    def _spy(self, monkeypatch):
+        calls = []
+
+        def fetch(ticker, date, holding_days=5, benchmark=None):
+            calls.append((holding_days, benchmark))
+            return 0.05, 0.02, holding_days, "2026-02-01"
+
+        monkeypatch.setattr(settlement, "fetch_returns", fetch)
+        reflector = MagicMock()
+        reflector.reflect_on_final_decision.return_value = "ok"
+        return calls, reflector
+
+    @pytest.mark.unit
+    def test_the_terms_of_the_entry_win_over_the_config(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY,
+                           settlement={"holding": "21d", "benchmark": "QQQ", "entry": "next_close"})
+        calls, reflector = self._spy(monkeypatch)
+
+        result = settlement.settle_pending("NVDA", log, reflector, {"holding_period_days": 5, "benchmark_ticker": "SPY"})
+
+        assert calls == [(21, "QQQ")] and result.settled == [("NVDA", "2026-01-05")]
+        kwargs = reflector.reflect_on_final_decision.call_args.kwargs
+        assert kwargs["benchmark_name"] == "QQQ" and kwargs["holding_days"] == 21
+
+    @pytest.mark.unit
+    def test_an_old_entry_uses_the_config(self, tmp_path, monkeypatch):
+        (tmp_path / "trading_memory.md").write_text(_LEGACY_PENDING + _SEP, encoding="utf-8")
+        calls, reflector = self._spy(monkeypatch)
+
+        settlement.settle_pending("AAPL", make_log(tmp_path), reflector,
+                                  {"holding_period_days": 7, "benchmark_ticker": "QQQ"})
+
+        assert calls == [(7, "QQQ")]
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("terms, reason", [
+        ({"holding": "5d", "benchmark": "SPY", "entry": "decision_close"}, "unknown entry convention"),
+        ({"holding": "soon", "benchmark": "SPY", "entry": "next_close"}, "unreadable holding"),
+    ])
+    def test_unusable_terms_leave_the_entry_pending_and_reported(self, tmp_path, monkeypatch, terms, reason):
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY, settlement=terms)
+        calls, reflector = self._spy(monkeypatch)
+
+        result = settlement.settle_pending("NVDA", log, reflector, {})
+
+        assert calls == [] and result.settled == []
+        assert len(result.failed) == 1 and reason in result.failed[0][2]
+        assert log.get_pending_entries()
