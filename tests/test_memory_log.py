@@ -1,5 +1,6 @@
 """Tests for TradingMemoryLog — storage, deferred reflection, PM injection, legacy removal."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -1136,6 +1137,86 @@ class TestSettlementWindow:
         assert raw == pytest.approx(106.0 / 101.0 - 1)
         assert resolved == "2026-01-14"
         assert alpha == pytest.approx(raw - (spy["2026-01-14"] / spy["2026-01-07"] - 1))
+
+    # -- exit-bar finality (#17): the running session's bar may still be live --
+
+    @staticmethod
+    def _tz_closes(by_symbol):
+        def get_closes(symbol, start_date, end_date):
+            series = by_symbol[symbol]
+            tz = series.index.tz
+            lo, hi = pd.Timestamp(start_date, tz=tz), pd.Timestamp(end_date, tz=tz)
+            return series[(series.index >= lo) & (series.index < hi)]
+        return get_closes
+
+    def _ny(self):
+        idx = pd.bdate_range("2026-01-05", periods=8, tz="America/New_York")  # Mon 5 .. Wed 14
+        stock = pd.Series([100.0 + i for i in range(8)], index=idx)
+        spy = pd.Series([400.0 + i for i in range(8)], index=idx)
+        return stock, spy
+
+    def test_an_exit_bar_dated_today_stays_pending(self, monkeypatch):
+        stock, spy = self._ny()
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 14, 20, 0, tzinfo=UTC)  # exit bar Wed 14 is today in New York
+
+        assert settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now) == (None, None, None, None)
+
+    def test_the_same_bar_settles_the_next_day(self, monkeypatch):
+        stock, spy = self._ny()
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
+
+        raw, _, days, resolved = settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now)
+
+        assert resolved == "2026-01-14"
+        assert days == 5
+        assert raw == pytest.approx(107.0 / 102.0 - 1)
+
+    def test_a_benchmark_bar_dated_today_keeps_the_entry_pending(self, monkeypatch):
+        stock, spy = self._ny()
+        spy = spy.iloc[:-1]  # the benchmark has nothing past Tue 13
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)  # the stock's exit bar (Wed 14) is final
+
+        assert settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now) == (None, None, None, None)
+
+    def test_the_benchmark_exit_bar_of_today_is_not_used(self, monkeypatch):
+        stock, spy = self._ny()
+        stock.index = stock.index.tz_localize(None).tz_localize("UTC")  # stock already final (UTC midnight)
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"NVDA": stock, "SPY": spy}))
+        now = datetime(2026, 1, 15, 3, 0, tzinfo=UTC)  # Wed 14, 22:00 in New York, already Thu 15 in UTC
+
+        # The stock's UTC bar of the 14th is final, but SPY's New York bar of the 14th is still today.
+        assert settlement.fetch_returns("NVDA", "2026-01-06", 5, "SPY", now=now) == (None, None, None, None)
+
+    def test_a_coins_bar_of_today_is_left_out(self, monkeypatch):
+        coin = pd.Series([100.0 + i for i in range(10)],
+                         index=pd.date_range("2026-01-03", periods=10, freq="D", tz="UTC"))
+        weekdays = pd.bdate_range("2025-12-29", "2026-01-16", tz="America/New_York")
+        spy = pd.Series([400.0 + 2 * i for i in range(len(weekdays))], index=weekdays)
+        monkeypatch.setattr(settlement, "get_closes", self._tz_closes({"BTC-USD": coin, "SPY": spy}))
+
+        # Sat 10: the window's last bar (Fri 9) is final, and Saturday's bar is dropped.
+        raw, _, _, resolved = settlement.fetch_returns(
+            "BTC-USD", "2026-01-03", 5, "SPY", now=datetime(2026, 1, 10, 9, 0, tzinfo=UTC))
+        assert resolved == "2026-01-09"
+        # Fri 9: Friday's own bar is still live, so the window cannot close yet.
+        assert settlement.fetch_returns(
+            "BTC-USD", "2026-01-03", 5, "SPY", now=datetime(2026, 1, 9, 9, 0, tzinfo=UTC),
+        ) == (None, None, None, None)
+
+    def test_by_day_filters_a_naive_index_against_the_utc_date_of_now(self):
+        s = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-01-09", "2026-01-10"]))
+
+        out = settlement._by_day(s, datetime(2026, 1, 10, 23, 30, tzinfo=UTC))
+
+        assert list(out.index) == [pd.Timestamp("2026-01-09")]
+
+    def test_by_day_passes_an_empty_series_through(self):
+        s = pd.Series([], index=pd.DatetimeIndex([]), dtype=float)
+
+        assert settlement._by_day(s, datetime(2026, 1, 10, tzinfo=UTC)).empty
 
 
 @pytest.mark.unit
