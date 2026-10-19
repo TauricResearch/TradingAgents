@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import pytest
 
+from datetime import datetime
+
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.memory import TradingMemoryLog
 
@@ -160,6 +162,48 @@ def test_a_run_id_cannot_escape_the_results_directory(tmp_path):
         run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path), run_id="../../escaped")
     with pytest.raises(ValueError):
         run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path), run_id="/etc/cron.d/x")
+
+
+@pytest.mark.unit
+def test_two_sweeps_started_in_the_same_second_get_their_own_logs(tmp_path, monkeypatch):
+    """Auto-generated IDs collided at second granularity (#1549): with
+    ``exist_ok=True`` both sweeps shared one memory log, so the second resume-
+    skipped the first's cells and returned decisions made with different
+    analysts. The generated ID must be unique even with a pinned clock."""
+    import tradingagents.backtest as bt
+
+    class SameSecond(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 10, 19, 12, 0, 0)
+
+    config = _config(tmp_path)
+    monkeypatch.setattr(bt, "datetime", SameSecond)
+    first = run_backtest(["NVDA"], ["2026-01-05"], config, selected_analysts=["market"])
+    second = run_backtest(["NVDA"], ["2026-01-05"], config, selected_analysts=["news"])
+
+    assert first.run_id != second.run_id
+    assert first.log_path != second.log_path
+    assert second.cells_run == 1 and second.skipped == 0
+    # The second sweep has its own log: it does not resume-skip the first's
+    # cell, and the graph it drives ran (a real one with other analysts
+    # would have produced its own decision, #1549).
+    assert _FakeGraph.instances[-1].calls == [("NVDA", "2026-01-05")]
+    assert [e["rating"] for e in TradingMemoryLog(
+        {"memory_log_path": str(second.log_path)}).load_entries()] == ["Buy"]
+
+
+@pytest.mark.unit
+def test_an_explicit_run_id_must_name_an_existing_sweep(tmp_path):
+    """The CLI contract is ``--run-id continues an earlier sweep``. Pointing
+    it at a directory that does not exist is a typo, not a request to create
+    a fresh sweep under that name — silently creating it hides the mistake."""
+    with pytest.raises(ValueError, match="resumes an existing sweep"):
+        run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path), run_id="not_there")
+    # The same explicit ID after the sweep exists is the documented resume path.
+    first = run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path))
+    again = run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path), run_id=first.run_id)
+    assert again.skipped == 1 and again.cells_run == 0
 
 
 @pytest.mark.unit
