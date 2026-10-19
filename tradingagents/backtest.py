@@ -17,6 +17,7 @@ cell rather than a position carried forward.
 from __future__ import annotations
 
 import logging
+import secrets
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -126,6 +127,19 @@ class BacktestSummary:
         return "\n".join(lines)
 
 
+def _new_run_id() -> str:
+    """Generate a run ID for a sweep the caller did not name.
+
+    Timestamps alone collide for sweeps started in the same second, and the
+    run directory is created with ``exist_ok=True``, so colliding IDs silently
+    share one memory log — resume then skips cells by ticker/date that belong
+    to the *other* sweep and returns decisions made with different analysts
+    or settings (#1549). A short random suffix keeps the ID sortable by
+    start time while making auto-generated IDs unique.
+    """
+    return datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + secrets.token_hex(3)
+
+
 def run_backtest(
     tickers: list[str],
     dates: list[str],
@@ -145,8 +159,22 @@ def run_backtest(
     """
     # run_id becomes a path segment, so it is validated like a ticker: an
     # absolute or dotted value would otherwise place the run outside results_dir.
-    run_id = safe_ticker_component(run_id or datetime.now().strftime("%Y%m%d_%H%M%S"))
+    if run_id is None:
+        run_id = _new_run_id()
+        reuse = False
+    else:
+        run_id = safe_ticker_component(run_id)
+        # An explicit run_id names *this* sweep: reuse is how an interrupted
+        # sweep resumes. Silently creating a second sweep under it (or sharing
+        # a colliding auto-generated one, #1549) mixes decisions made with
+        # different analysts or settings into one log.
+        reuse = True
     run_dir = Path(config["results_dir"]) / "backtest" / run_id
+    if reuse and not run_dir.exists():
+        raise ValueError(
+            f"no sweep named {run_id!r} under {Path(config['results_dir']) / 'backtest'}; "
+            "an explicit run_id resumes an existing sweep — pass no run_id to start a new one"
+        )
     run_dir.mkdir(parents=True, exist_ok=True)
     run_config = {**config, "results_dir": str(run_dir),
                   "memory_log_path": str(run_dir / "trading_memory.md")}
