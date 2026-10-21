@@ -9,6 +9,7 @@ import sys
 import tempfile
 from contextlib import contextmanager
 from dataclasses import asdict
+from math import isfinite
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 import pytz
@@ -17,6 +18,26 @@ from .engine import Bar, Book
 
 DEFAULT_PATH = Path.home() / ".tradingagents" / "paper" / "portfolio.json"
 DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "COST"]
+
+
+def valid_gbpusd_quote(bar: Bar) -> bool:
+    """Sanity-check daily FX rates used ONLY for GBP conversion.
+
+    Yahoo's daily FX open/high/low/close fields can reflect mismatched vendor
+    session windows; a close a few pips outside the reported range is not proof
+    that the positive open and close prices are invalid. Unlike equities, the
+    simulator NEVER executes against the FX candle's high/low or uses it for a
+    stop. Require finite, positive, plausibly bounded GBP/USD prices and reject
+    gross jumps rather than manipulating or manufacturing an exchange rate.
+    """
+    values = (bar.open, bar.high, bar.low, bar.close)
+    if not all(isfinite(v) and 0.5 <= v <= 2.5 for v in values):
+        return False
+    if bar.high < bar.low:
+        return False
+    # An improbable >5% move between quote components merits a halt/review.
+    return all(abs(value / bar.open - 1.0) <= 0.05
+               for value in (bar.high, bar.low, bar.close))
 
 
 def last_safe_session() -> str:
@@ -65,7 +86,8 @@ def write_book(path: Path, book: Book):
 
 def fetch_daily(tickers: list[str], start: str, end: str, *,
                 required: set[str] | None = None,
-                errors: dict[str, str] | None = None) -> dict[str, dict[str, Bar]]:
+                errors: dict[str, str] | None = None,
+                warnings: list[dict[str, str]] | None = None) -> dict[str, dict[str, Bar]]:
     """Load actual vendor OHLC, isolating bad *unheld* candidates.
 
     Never invent, clamp, or use yesterday's bar for a missing close. Missing or
@@ -96,10 +118,21 @@ def fetch_daily(tickers: list[str], start: str, end: str, *,
                 except (KeyError, ValueError, TypeError) as exc:
                     bad_days.append(f"{day} (unreadable OHLC: {type(exc).__name__})")
                     continue
-                if not bar.valid():
+                is_fx = ticker == "GBPUSD=X"
+                quote_valid = valid_gbpusd_quote(bar) if is_fx else bar.valid()
+                if not quote_valid:
                     bad_days.append(f"{day} (O={bar.open:.6g}, H={bar.high:.6g}, "
                                     f"L={bar.low:.6g}, C={bar.close:.6g})")
                     continue
+                if is_fx and not bar.valid():
+                    # The FX daily bar has a non-overlapping high/low window.
+                    # Preserve vendor O/C unchanged, and flag the provenance.
+                    note = {"ticker": ticker, "quote_date": day,
+                            "reason": "FX_DAILY_RANGE_MISMATCH"}
+                    if warnings is not None:
+                        warnings.append(note)
+                    print(f"FX DATA WARNING {day}: GBPUSD O/C accepted with "
+                          "inconsistent vendor high/low; rates unchanged", file=sys.stderr)
                 daily[day] = bar
             if not daily:
                 raise ValueError("no valid daily OHLC candles returned; "
@@ -132,7 +165,10 @@ def forex_for_day(fx_daily: dict[str, Bar], session: str) -> tuple[float, float]
                 (date.fromisoformat(session) - date.fromisoformat(d)).days <= 4]
     if not eligible:
         raise ValueError(f"No recent GBPUSD FX quote on {session}")
-    fx = fx_daily[max(eligible)]
+    quote_day = max(eligible)
+    fx = fx_daily[quote_day]
+    if not valid_gbpusd_quote(fx):
+        raise ValueError(f"Invalid GBPUSD FX conversion prices on {quote_day}")
     return 1 / fx.open, 1 / fx.close
 
 
@@ -255,12 +291,16 @@ def main(argv: list[str] | None = None):
             symbols = list(dict.fromkeys(["SPY", "GBPUSD=X", *tickers,
                                           *book.positions, *(o["ticker"] for o in book.orders)]))
             data_errors: dict[str, str] = {}
+            data_warnings: list[dict[str, str]] = []
             required = {"SPY", "GBPUSD=X", *book.positions,
                         *(o["ticker"] for o in book.orders)}
             quotes = fetch_daily(symbols, start, last,
-                                 required=required, errors=data_errors)
+                                 required=required, errors=data_errors,
+                                 warnings=data_warnings)
             book = forward_sync(book, quotes, last)
             if book.last_session:
+                for note in data_warnings:
+                    book._event(book.last_session, "DATA_QUALITY_WARNING", **note)
                 for ticker, reason in data_errors.items():
                     book._event(book.last_session, "MARKET_DATA_ERROR", ticker=ticker,
                                 reason=reason)

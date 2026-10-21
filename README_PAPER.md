@@ -69,3 +69,20 @@ the missing symbol. **If the data is required for a current holding, a pending
 order, SPY, or GBP/USD conversion, the entire run still aborts without
 writing the portfolio**, because processing with missing risk data would be
 unsafe. Any market-data incident is logged for follow-up.
+
+
+## GBP/USD daily high/low mismatches
+
+Yahoo's daily FX candle may show a positive close a few pips outside its own
+high/low interval due to inconsistent FX session windows. FX is only used for
+GBP conversion, not price stops or fills. The FX validator therefore requires
+finite, positive, broadly plausible GBPUSD open/close/high/low values and halts
+on gross discrepancies (>5% from the day's opening quote) or inverted high/low.
+It **does not demand that FX O/C be inside the vendor's high/low**, unlike
+stocks and SPY. The original FX opening/closing rates are used unchanged,
+and any out-of-range OHLC window is logged as `DATA_QUALITY_WARNING` with the
+quote date. Negative, zero, nonfinite, wildly outlying, or unavailable FX quotes
+still halt the entire simulation without modifying the saved ledger. The
+candle shown on 20 Oct 2026 (O=1.33103, H=1.34084, L=1.33103, C=1.33085)
+is the reproducing regression case; it is not a licence to repair bad
+stock candles or use stale forex rates.

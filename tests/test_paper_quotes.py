@@ -123,3 +123,70 @@ def test_invalid_held_stock_aborts_with_ledger_unchanged(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, "last_safe_session", lambda: DAY)
     assert cli.main(["--state", str(path), "run", "--tickers", "AAPL", "JPM"]) == 1
     assert path.read_text() == before
+
+
+def test_gbpusd_vendor_window_mismatch_does_not_block_real_fx_rate(monkeypatch, capsys):
+    # Reproduces the user's 2026-10-20 yfinance values: close a few pips below low.
+    fx = row(1.33103, 1.34084, 1.33103, 1.33085, "2026-10-20")
+    data = valid()
+    data["GBPUSD=X"] = [fx, row(1.3379, 1.3403, 1.3366, 1.3385)]
+    fake_yahoo(monkeypatch, data)
+    notes = []
+    quotes = cli.fetch_daily(list(data), "2026-10-20", DAY, warnings=notes)
+    assert "GBPUSD=X" in quotes
+    assert quotes["GBPUSD=X"]["2026-10-20"].close == pytest.approx(1.33085)
+    assert notes == [{"ticker": "GBPUSD=X", "quote_date": "2026-10-20",
+                      "reason": "FX_DAILY_RANGE_MISMATCH"}]
+    open_fx, close_fx = cli.forex_for_day(quotes["GBPUSD=X"], "2026-10-20")
+    assert open_fx == pytest.approx(1 / 1.33103)
+    assert close_fx == pytest.approx(1 / 1.33085)
+    assert "FX DATA WARNING" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("bad_fx", [
+    row(-1.331, -1.330, -1.340, -1.335),
+    row(0, 1.34, 1.33, 1.33),
+    row(1.331, 1.34, 1.33, float("nan")),
+    row(1.331, 1.34, 1.33, float("inf")),
+    row(1.331, 1.34, 1.33, 1.7),
+    row(1.331, 1.2, 1.4, 1.33),
+])
+def test_broken_fx_rate_still_aborts(monkeypatch, bad_fx):
+    data = valid()
+    data["GBPUSD=X"] = [bad_fx]
+    fake_yahoo(monkeypatch, data)
+    with pytest.raises(ValueError, match="Required price feed for GBPUSD=X"):
+        cli.fetch_daily(list(data), DAY, DAY, required={"GBPUSD=X"}, errors={})
+
+
+def test_equity_range_validation_does_not_get_relaxed(monkeypatch):
+    data = valid()
+    data["AAPL"] = [row(200, 201, 199, 198.9)]
+    fake_yahoo(monkeypatch, data)
+    with pytest.raises(ValueError, match="Required price feed for AAPL"):
+        cli.fetch_daily(list(data), DAY, DAY, required={"AAPL"})
+
+
+def test_fx_warning_written_to_auditable_portfolio(monkeypatch, tmp_path):
+    previous = "2026-10-20"
+    data = valid()
+    data["GBPUSD=X"] = [row(1.33103, 1.34084, 1.33103, 1.33085, previous),
+                        row(1.3379, 1.3403, 1.3366, 1.3385)]
+    fake_yahoo(monkeypatch, data)
+    path = tmp_path / "portfolio.json"
+    cli.write_book(path, Book.new(DAY))
+    monkeypatch.setattr(cli, "last_safe_session", lambda: DAY)
+    monkeypatch.setattr(cli, "run_agents", lambda book, quotes, tickers, path, stop_pct:
+                        (book, 0))
+    assert cli.main(["--state", str(path), "run", "--tickers", "AAPL"]) == 0
+    loaded = cli.read_book(path)
+    assert loaded.equity() == pytest.approx(10000)
+    notes = [e for e in loaded.events if e["type"] == "DATA_QUALITY_WARNING"]
+    assert len(notes) == 1
+    assert notes[0]["quote_date"] == previous
+    assert notes[0]["reason"] == "FX_DAILY_RANGE_MISMATCH"
+
+
+def test_forex_for_day_checks_input_even_without_fetch_daily():
+    with pytest.raises(ValueError, match="Invalid GBPUSD"):
+        cli.forex_for_day({DAY: Bar(-1.3, -1.2, -1.4, -1.31)}, DAY)

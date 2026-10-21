@@ -119,7 +119,7 @@ def test_forward_sync_processes_all_sessions_including_stop_day():
     b.submit_signal("AAPL", "Buy", 100, DAY0)
     quotes = {
         "SPY": {DAY1: candle(600, low=590), DAY2: candle(610, low=600)},
-        "GBPUSD=X": {DAY1: candle(1.33, low=1.3), DAY2: candle(1.33, low=1.3)},
+        "GBPUSD=X": {DAY1: candle(1.33, low=1.3, high=1.35), DAY2: candle(1.33, low=1.3, high=1.35)},
         "AAPL": {DAY1: candle(100, low=99), DAY2: candle(90, low=85, close=90)},
     }
     b = forward_sync(b, quotes, DAY2)
