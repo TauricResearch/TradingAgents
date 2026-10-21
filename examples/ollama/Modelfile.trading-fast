@@ -1,0 +1,26 @@
+# Trading-tuned local model — FAST profile.
+#
+# A larger 8k context at a lighter Q4 quant, sized so a full analyst turn
+# (system prompt + tool output + debate history) fits on a ~16GB-VRAM GPU
+# without spilling to CPU. Trades a little numerical precision for speed.
+#
+# Build:   ollama create trading-fast -f Modelfile.trading-fast
+# Use:     pick provider "ollama" in the CLI, then "Custom model ID" -> trading-fast
+#
+# Swap FROM for any base model + quant your Ollama library has and your VRAM fits.
+FROM qwen3.5:9b-q4_K_M
+
+# Context window must hold TradingAgents' longer analyst turns. 8192 is a
+# practical floor; raise it if your prompts get truncated, lower it if you
+# run out of VRAM.
+PARAMETER num_ctx 8192
+
+# Low temperature for run-to-run stability (see the README "Reproducibility" note).
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+
+# Discourage the repetition loops small local models fall into on long reports.
+PARAMETER repeat_penalty 1.05
+
+# Cap tokens per turn so a single agent can't stall the graph.
+PARAMETER num_predict 2048

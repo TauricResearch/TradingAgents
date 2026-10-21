@@ -1,0 +1,25 @@
+# Trading-tuned local model — ACCURATE profile.
+#
+# A heavier Q8 quant for better numerical / reasoning fidelity, paired with a
+# smaller 4k context to stay inside the same ~16GB-VRAM budget as the fast
+# profile. Prefer this when your prompts fit in 4k and you want the model's
+# best answers over raw speed.
+#
+# Build:   ollama create trading-accurate -f Modelfile.trading-accurate
+# Use:     pick provider "ollama" in the CLI, then "Custom model ID" -> trading-accurate
+#
+# Swap FROM for any base model + quant your Ollama library has and your VRAM fits.
+FROM qwen3.5:9b-q8_0
+
+# Smaller context to offset the heavier quant and stay within VRAM.
+PARAMETER num_ctx 4096
+
+# Low temperature for run-to-run stability (see the README "Reproducibility" note).
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+
+# Discourage the repetition loops small local models fall into on long reports.
+PARAMETER repeat_penalty 1.05
+
+# Cap tokens per turn so a single agent can't stall the graph.
+PARAMETER num_predict 2048
