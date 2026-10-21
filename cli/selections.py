@@ -8,6 +8,7 @@ import typer
 from rich.align import Align
 from rich.panel import Panel
 
+from cli import updates  # Legacy API kept for test compatibility; not shown or refreshed.
 from cli.display import (
     console,
 )
