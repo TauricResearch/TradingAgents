@@ -44,6 +44,7 @@ bedrock = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-paper = "tradingagents.paper.cli:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}
