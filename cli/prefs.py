@@ -88,6 +88,7 @@ def sanitize(prefs: dict, asset_type) -> dict:
                 continue
             # Models listed live are not in the catalog, so any model ID is kept.
             listed_live = base in LISTED_LIVE and isinstance(prefs.get(field), str)
-            if prefs.get(field) in offered or listed_live:
+            minimax_saved = base == "minimax" and isinstance(prefs.get(field), str) and bool(prefs[field])
+            if prefs.get(field) in offered or listed_live or minimax_saved:
                 kept[field] = prefs[field]
     return kept

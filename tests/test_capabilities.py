@@ -63,13 +63,10 @@ class TestPatternMatches:
         caps = get_capabilities("deepseek-flash-lite")
         assert caps.supports_tool_choice is False
 
-    def test_minimax_m3_inherits_thinking_quirks(self):
-        caps = get_capabilities("MiniMax-M3")
+    def test_future_minimax_m2_variant_inherits_thinking_quirks(self):
+        caps = get_capabilities("MiniMax-M2.9-highspeed")
         assert caps.supports_tool_choice is False
-
-    def test_future_minimax_m4_highspeed_inherits_thinking_quirks(self):
-        caps = get_capabilities("MiniMax-M4-highspeed")
-        assert caps.supports_tool_choice is False
+        assert caps.thinking_modes == ("always_on",)
 
 
 @pytest.mark.unit
@@ -97,8 +94,16 @@ class TestMinimaxExactMatches:
         for model in ("MiniMax-M2.7", "MiniMax-M2.5-highspeed", "MiniMax-M2"):
             assert get_capabilities(model).requires_reasoning_split is True
 
-    def test_future_m3_inherits_reasoning_split(self):
-        assert get_capabilities("MiniMax-M3-highspeed").requires_reasoning_split is True
+    def test_m3_and_flash_have_distinct_thinking_controls(self):
+        m3 = get_capabilities("MiniMax-M3")
+        flash = get_capabilities("MiniMax-M3.1-Flash")
+        assert m3.thinking_modes == ("adaptive", "disabled")
+        assert m3.requires_reasoning_split is True
+        assert not m3.supports_reasoning_effort
+        assert flash.thinking_modes == ("adaptive",)
+        assert flash.supports_reasoning_effort
+        assert not flash.requires_reasoning_split
+        assert not flash.supports_tool_choice
 
     def test_non_reasoning_minimax_does_not_get_reasoning_split(self):
         # Coding Plan, MiniMax-Text-01, and any non-M2-prefixed MiniMax model
