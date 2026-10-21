@@ -13,3 +13,22 @@ main{max-width:1510px;margin:auto;padding:0 40px}.welcome{display:flex;justify-c
 @media (max-width:850px){.topbar{height:76px;padding:0 17px}.nav-links{display:none}.brand-name{font-size:13px}.brand-symbol{width:36px;height:36px}.top-scan{padding:11px 12px}.top-scan svg{display:none}main{padding:0 16px}.welcome{padding:32px 0;align-items:start}.welcome h1{font-size:35px}.mode-panel{min-width:0;max-width:210px;padding:10px}.mode-icon{display:none}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat-card{min-height:146px}.stat-value{font-size:27px}.risk-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.risk-strip .strip-separator{display:none}.main-panels,.lower-grid{grid-template-columns:1fr}.agents-section{margin-top:38px}.chart-main{height:300px}.footer{flex-wrap:wrap}.portfolio-head{align-items:start;flex-direction:column}.portfolio-controls{justify-content:space-between;width:100%}}
 @media (max-width:550px){.brand-name small{display:none}.brand{gap:9px}.brand-name{font-size:11px}.nav-tools{gap:5px}.icon-button{width:33px;height:33px}.top-scan{font-size:10px;padding:10px 9px}.welcome{flex-direction:column;gap:20px}.welcome h1{font-size:32px;letter-spacing:-1.6px}.mode-panel{width:100%;max-width:none}.mode-icon{display:grid}.section-intro{align-items:flex-start}.section-intro h2{font-size:20px}.asof{display:none}.stat-card{min-height:139px;padding:19px 14px}.stat-value{font-size:23px}.stat-top>span{font-size:8px;letter-spacing:.4px}.stat-bottom .stat-sub{font-size:9px}.risk-strip{grid-template-columns:1fr 1fr;margin-bottom:29px}.risk-item strong{font-size:13px}.panel-head{padding:19px 17px}.chart-actions{gap:5px}.period-switch button{font-size:8px;padding:6px}.chart-main{height:270px;padding:0 8px 9px}.activity-list{margin:0 17px 10px}.agents-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.agents-meta{display:none}.panel-foot,.chart-foot{padding:13px 17px;font-size:8px}.ratings-list,.mandate-list{padding-left:17px;padding-right:17px;margin-left:0;margin-right:0}.guard-description{padding:0 17px}.guard-note{margin:19px 17px 21px}.portfolio-head{padding:20px 15px}.portfolio-controls{align-items:flex-start;flex-wrap:wrap}.tabs button{padding:9px;font-size:10px}.table-scroll{padding:0 12px 17px}.bottom-bar{align-items:flex-start;flex-direction:column}.report-links{justify-content:flex-start}.footer{font-size:8px}.stat-featured .stat-value{font-size:24px}}
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;scroll-behavior:auto!important}}
+
+/* Persistent scan review and explicit acknowledgement controls. */
+.scan-progress-head{flex-wrap:wrap;align-items:center}
+.scan-progress-head>strong{flex:1 1 250px;font-size:12px;line-height:1.5}
+.scan-progress-actions{display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.scan-control{border-radius:8px;border:1px solid #bdd3c5;color:#2c694b;background:#fff;padding:8px 12px;font:730 10px var(--mono);transition:background .18s}
+.scan-control:hover{background:#f3f9f5}
+.scan-control-primary{background:#256f51;color:#fff;border-color:#256f51}
+.scan-control-primary:hover{background:#1a6044;color:#fff}
+.scan-progress .scan-progress-actions button[hidden],.toast button[hidden],.scan-progress-guide[hidden]{display:none!important}
+.scan-progress pre{max-height:270px;min-height:48px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;scrollbar-width:thin;font:11px/1.6 var(--mono);padding:14px}
+.scan-progress.scan-failed{background:#fff5f2;border-color:#e5bfb6}
+.scan-progress.scan-failed .scan-progress-head span,.scan-progress.scan-failed .scan-progress-head strong{color:#974e45}
+.scan-progress-guide{margin:12px 0 4px;padding:12px 14px;border-left:3px solid #cc886a;background:#fff;border-radius:5px;color:#6a4b3d;font-size:12px;line-height:1.65}
+.toast{display:flex;align-items:center;gap:12px;max-width:520px;line-height:1.5}
+.toast #toast-message{min-width:0;flex:1}
+.toast button{padding:7px 11px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.16);color:white;font-weight:800;border-radius:6px;flex:none}
+.toast button:hover{background:rgba(255,255,255,.29)}
+@media (max-width:600px){.scan-progress{padding:14px}.scan-progress-actions{width:100%;justify-content:flex-end}.scan-progress pre{max-height:340px}.toast{left:16px;right:16px;max-width:none;bottom:18px}}

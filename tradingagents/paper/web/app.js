@@ -14,15 +14,40 @@
   let activeTab = 'positions';
   let wasRunning = false;
   let toastTimer = null;
+  let currentScanId = null;
+  let acknowledgedScanId = null;
+  try { acknowledgedScanId = sessionStorage.getItem('koral-equities-acknowledged-scan'); } catch (_) { /* Private browsing may restrict storage. */ }
 
   const icon = (name) => `<svg aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+  function dismissToast() {
+    clearTimeout(toastTimer);
+    $('toast').classList.remove('visible');
+  }
   function notify(message, error = false) {
     const node = $('toast');
-    node.textContent = message;
+    // An error requiring acknowledgement must not be overwritten by a routine refresh.
+    if (!error && node.classList.contains('error') && node.classList.contains('visible')) return;
+    byId('toast-message', message);
     node.classList.toggle('error', error);
     node.classList.add('visible');
+    $('toast-ok').hidden = !error;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => node.classList.remove('visible'), 5400);
+    // Errors remain until OK is pressed; routine success notices may disappear.
+    if (!error) toastTimer = setTimeout(() => node.classList.remove('visible'), 5400);
+  }
+  function acknowledgeScan() {
+    if (currentScanId) {
+      acknowledgedScanId = currentScanId;
+      try { sessionStorage.setItem('koral-equities-acknowledged-scan', currentScanId); } catch (_) { /* Memory still tracks acknowledgement for this page. */ }
+    }
+    $('scan-progress').classList.remove('active', 'scan-failed');
+    $('ack-scan').hidden = true;
+  }
+  function scanFailureHint(log) {
+    if (log.includes('OPENAI_API_KEY') && log.includes('openai')) {
+      return 'AI access is configured for the OpenAI API. If you signed in with ChatGPT, save TRADINGAGENTS_LLM_PROVIDER=chatgpt in your project .env file and restart the dashboard. Never paste API keys here.';
+    }
+    return '';
   }
   function clock() {
     const d = new Date();
@@ -203,30 +228,45 @@
   async function updateScan() {
     try {
       const response=await fetch('/api/scan-status',{cache:'no-store'});
+      if (!response.ok) throw new Error('Scan status HTTP ' + response.status);
       const data=await response.json();
       const progress=$('scan-progress');
-      progress.classList.toggle('active',Boolean(data.running));
-      if(data.running){
+      currentScanId = data.started_at || null;
+      const dismissed = Boolean(currentScanId && currentScanId === acknowledgedScanId);
+      const finished = Boolean(data.finished);
+      const failed = finished && data.returncode !== 0;
+      const showReport = finished && !dismissed;
+      const text = data.log || (data.running ? 'Loading agents…' : 'No scan log was recorded.');
+      progress.classList.toggle('active', Boolean(data.running || showReport));
+      progress.classList.toggle('scan-failed', Boolean(failed && showReport));
+      $('ack-scan').hidden = !showReport;
+      byId('scan-progress-log', text);
+      const hint=failed ? scanFailureHint(text) : '';
+      byId('scan-progress-guide',hint);
+      $('scan-progress-guide').hidden=!Boolean(hint) || dismissed;
+      if (data.running) {
         byId('scan-progress-status','AGENTS ANALYSING');
         byId('scan-progress-description','TradingAgents is reviewing your stocks. The dashboard will update when finished.');
-        byId('scan-progress-log',data.log||'Loading agents…');
         $('scan-btn').disabled=true;
         wasRunning=true;
-      }else{
+      } else {
         if(state) $('scan-btn').disabled=!state.account.analysis_available;
-        if(wasRunning&&data.finished) {
+        if (showReport) {
+          byId('scan-progress-status',failed ? 'SCAN ERROR' : 'SCAN COMPLETE');
+          byId('scan-progress-description',failed ?
+            'The scan stopped. The complete log stays here until you press OK.' :
+            'The research cycle finished. Review the log, then press OK.');
+        }
+        if (wasRunning && finished) {
           wasRunning=false;
-          notify(data.returncode===0?'AI research cycle complete. Paper ledger updated.':'AI scan failed — review the log.',data.returncode!==0);
           await refresh(true);
-          if(data.returncode!==0){
-            progress.classList.add('active');
-            byId('scan-progress-status','SCAN ERROR');
-            byId('scan-progress-description','Review the terminal output below before running again.');
-            byId('scan-progress-log',data.log||'No log available');
-          }else progress.classList.remove('active');
+          if (!failed) notify('AI research cycle complete. Paper ledger updated.');
         }
       }
-    } catch(e){console.warn('Scan status unavailable',e)}
+    } catch(e){
+      console.warn('Scan status unavailable',e);
+      notify('Unable to read the scan status. Check that Koral Equities is still running.',true);
+    }
   }
   async function beginScan(event) {
     event.preventDefault();
@@ -251,6 +291,16 @@
     $('close-dialog').addEventListener('click',()=>$('scan-dialog').close());
     $('cancel-scan').addEventListener('click',()=>$('scan-dialog').close());
     $('scan-form').addEventListener('submit',beginScan);
+    $('ack-scan').addEventListener('click',acknowledgeScan);
+    $('toast-ok').addEventListener('click',dismissToast);
+    $('copy-scan-log').addEventListener('click',async()=>{
+      try {
+        await navigator.clipboard.writeText($('scan-progress-log').textContent);
+        notify('Scan log copied.');
+      } catch (_) {
+        notify('Could not copy automatically. Select the log text and press Ctrl+C.',true);
+      }
+    });
     document.querySelectorAll('[data-period]').forEach(button=>button.addEventListener('click',()=>{
       period=button.dataset.period;
       document.querySelectorAll('[data-period]').forEach(b=>b.classList.toggle('selected',b===button));

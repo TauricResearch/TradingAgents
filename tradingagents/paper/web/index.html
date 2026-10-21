@@ -58,7 +58,18 @@
         <div class="mode-panel"><div class="mode-icon"><svg><use href="#i-shield"/></svg></div><div><div class="mode-name"><span class="live-dot"></span> PAPER ENVIRONMENT</div><div class="mode-sub">100% simulated · No broker connected</div></div></div>
       </section>
 
-      <section class="scan-progress" id="scan-progress" aria-live="polite"><div class="scan-progress-head"><span id="scan-progress-status">AGENTS ANALYSING</span><strong id="scan-progress-description">Reviewing your watchlist · simulated research only</strong></div><pre id="scan-progress-log">Loading agents…</pre></section>
+      <section class="scan-progress" id="scan-progress" aria-labelledby="scan-progress-status">
+        <div class="scan-progress-head">
+          <span id="scan-progress-status">AGENTS ANALYSING</span>
+          <strong id="scan-progress-description">Reviewing your watchlist · simulated research only</strong>
+          <div class="scan-progress-actions">
+            <button type="button" class="scan-control" id="copy-scan-log">Copy log</button>
+            <button type="button" class="scan-control scan-control-primary" id="ack-scan" hidden>OK · Dismiss</button>
+          </div>
+        </div>
+        <p class="scan-progress-guide" id="scan-progress-guide" hidden></p>
+        <pre id="scan-progress-log" tabindex="0">Loading agents…</pre>
+      </section>
 
       <div class="section-intro first-intro"><div><div class="section-kicker">01 / ACCOUNT OVERVIEW</div><h2>Portfolio at a glance</h2></div><div class="asof"><svg><use href="#i-calendar"/></svg><span id="asof-label">Awaiting first session</span></div></div>
       <section class="stat-grid" aria-label="Portfolio statistics">
@@ -118,6 +129,6 @@
   </div>
 
   <dialog id="scan-dialog" class="scan-dialog"><form method="dialog" id="scan-form"><div class="dialog-header"><div class="section-kicker">START RESEARCH CYCLE</div><button class="icon-button" type="button" id="close-dialog" aria-label="Close"><svg><use href="#i-close"/></svg></button></div><h2>Launch AI analysis</h2><p>The agents will review your watchlist, record ratings, and queue eligible paper orders for the next session. No real broker trades.</p><label for="scan-tickers">WATCHLIST · SPACE SEPARATED</label><input id="scan-tickers" value="AAPL MSFT NVDA AMZN GOOGL META JPM COST" autocomplete="off" spellcheck="false"><div class="scan-warning"><svg><use href="#i-clock"/></svg><span>Historical data is processed only after 5:30pm New York. AI model usage may be metered or subject to plan limits.</span></div><div class="dialog-actions"><button class="button button-outline" type="button" id="cancel-scan">Cancel</button><button class="button button-primary" type="submit" id="confirm-scan"><svg><use href="#i-play"/></svg> Start paper scan</button></div></form></dialog>
-  <div role="status" aria-live="polite" class="toast" id="toast"></div>
+  <div role="status" aria-live="polite" class="toast" id="toast"><span id="toast-message"></span><button type="button" id="toast-ok" hidden>OK</button></div>
 </body>
 </html>
