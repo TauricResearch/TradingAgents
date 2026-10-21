@@ -156,7 +156,29 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
-        if get_capabilities(self.model_name).requires_reasoning_split:
+        caps = get_capabilities(payload.get("model", self.model_name))
+        extra_body = dict(payload.get("extra_body") or {})
+        if caps.thinking_modes and "adaptive" in caps.thinking_modes:
+            extra_body.setdefault("thinking", {"type": "adaptive"})
+        if "thinking" in extra_body:
+            thinking = extra_body["thinking"]
+            supported_modes = tuple(mode for mode in caps.thinking_modes if mode != "always_on")
+            if not isinstance(thinking, dict) or thinking.get("type") not in supported_modes:
+                raise ValueError(
+                    f"Model {self.model_name} does not support thinking type "
+                    f"{thinking.get('type') if isinstance(thinking, dict) else thinking!r}"
+                )
+        if caps.supports_reasoning_effort:
+            effort = extra_body.get("reasoning_effort", payload.get("reasoning_effort"))
+            if effort is not None and effort not in ("low", "medium", "high", "xhigh", "max"):
+                raise ValueError(f"Unsupported reasoning effort for {self.model_name}: {effort!r}")
+            if "service_tier" in payload or "service_tier" in extra_body:
+                raise ValueError(f"{self.model_name} does not support service_tier")
+            if extra_body.get("reasoning_split") is False:
+                raise ValueError(f"{self.model_name} does not support reasoning_split=False")
+        if extra_body:
+            payload["extra_body"] = extra_body
+        if caps.requires_reasoning_split:
             # Pass via extra_body, not as a top-level kwarg: the openai SDK
             # (>=1.56) validates top-level params against Completions.create
             # and rejects unknown ones like reasoning_split (#826). extra_body
@@ -211,7 +233,7 @@ def _chatgpt_credential() -> Callable[[], str]:
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort", "temperature", "max_tokens",
-    "api_key", "callbacks", "http_client", "http_async_client",
+    "api_key", "callbacks", "http_client", "http_async_client", "extra_body",
 )
 
 # OpenAI's ``reasoning_effort`` is only accepted by reasoning models — GPT-5 and
@@ -399,7 +421,11 @@ class OpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key not in self.kwargs:
                 continue
-            if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+            if key == "reasoning_effort" and not (
+                _supports_reasoning_effort(self.model)
+                or (self.provider in ("minimax", "minimax-cn")
+                    and get_capabilities(self.model).supports_reasoning_effort)
+            ):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 

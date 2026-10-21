@@ -14,12 +14,13 @@ from pydantic import BaseModel
 from tradingagents.llm_clients.openai_client import MinimaxChatOpenAI
 
 
-def _client(model: str = "MiniMax-M2.7"):
+def _client(model: str = "MiniMax-M2.7", **kwargs):
     os.environ.setdefault("MINIMAX_API_KEY", "placeholder")
     return MinimaxChatOpenAI(
         model=model,
         api_key="placeholder",
         base_url="https://api.minimax.io/v1",
+        **kwargs,
     )
 
 
@@ -31,6 +32,39 @@ class TestMinimaxReasoningSplit:
         payload = _client()._get_request_payload([HumanMessage(content="hi")])
         assert payload.get("extra_body", {}).get("reasoning_split") is True
         assert "reasoning_split" not in payload  # never top-level
+
+    def test_m3_defaults_to_adaptive_and_preserves_disabled(self):
+        payload = _client("MiniMax-M3")._get_request_payload([HumanMessage(content="hi")])
+        assert payload["extra_body"]["thinking"] == {"type": "adaptive"}
+        assert payload["extra_body"]["reasoning_split"] is True
+        payload = _client("MiniMax-M3", extra_body={"thinking": {"type": "disabled"}})._get_request_payload(
+            [HumanMessage(content="hi")]
+        )
+        assert payload["extra_body"]["thinking"] == {"type": "disabled"}
+
+    def test_flash_defaults_to_adaptive_without_m3_or_m2_flags(self):
+        payload = _client("MiniMax-M3.1-Flash", reasoning_effort="high")._get_request_payload(
+            [HumanMessage(content="hi")]
+        )
+        assert payload["extra_body"]["thinking"] == {"type": "adaptive"}
+        assert "reasoning_split" not in payload["extra_body"]
+        assert payload["reasoning_effort"] == "high"
+
+    def test_m2_rejects_configurable_thinking(self):
+        with pytest.raises(ValueError, match="does not support thinking type"):
+            _client("MiniMax-M2.7", extra_body={"thinking": {"type": "disabled"}})._get_request_payload(
+                [HumanMessage(content="hi")]
+            )
+
+    def test_flash_rejects_disabled_thinking_and_none_effort(self):
+        with pytest.raises(ValueError, match="does not support thinking type"):
+            _client("MiniMax-M3.1-Flash", extra_body={"thinking": {"type": "disabled"}})._get_request_payload(
+                [HumanMessage(content="hi")]
+            )
+        with pytest.raises(ValueError, match="Unsupported reasoning effort"):
+            _client("MiniMax-M3.1-Flash", reasoning_effort="none")._get_request_payload(
+                [HumanMessage(content="hi")]
+            )
 
     def test_non_reasoning_minimax_does_not_inject_reasoning_split(self):
         """Coding Plan / MiniMax-Text-01 / any non-M2-prefixed model must NOT

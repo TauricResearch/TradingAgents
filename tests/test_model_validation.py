@@ -55,6 +55,24 @@ class ModelValidationTests(unittest.TestCase):
                 self.assertEqual(caught, [])
 
 
+def test_minimax_flash_is_first_and_legacy_ids_stay_valid_without_being_offered():
+    from tradingagents.llm_clients.model_catalog import (
+        LEGACY_MODELS,
+        MODEL_OPTIONS,
+        get_model_options,
+    )
+    from tradingagents.llm_clients.validators import validate_model
+
+    for provider in ("minimax", "minimax-cn"):
+        for mode in ("quick", "deep"):
+            offered = [model for _, model in get_model_options(provider, mode)]
+            assert offered[:2] == ["MiniMax-M3.1-Flash", "MiniMax-M3"]
+            assert offered[-1] == "custom"
+        for model in LEGACY_MODELS[provider]:
+            assert validate_model(provider, model)
+            assert model not in {v for opts in MODEL_OPTIONS[provider].values() for _, v in opts}
+
+
 def test_legacy_ids_stay_valid_without_being_offered():
     from tradingagents.llm_clients.model_catalog import LEGACY_MODELS, MODEL_OPTIONS
     from tradingagents.llm_clients.validators import validate_model

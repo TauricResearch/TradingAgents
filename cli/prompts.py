@@ -302,6 +302,13 @@ def select_openrouter_model(mode: str, default=None) -> str:
     OpenRouter selections are distinguishable, like the other providers (#1000).
     """
     models = _fetch_openrouter_models()  # newest first
+    # Curate ordinary MiniMax choices without changing explicit saved/custom IDs.
+    current_minimax = ("minimax/minimax-m3.1-flash:free", "minimax/minimax-m3")
+    minimax = [(name, mid) for name, mid in models if mid in current_minimax]
+    minimax.sort(key=lambda item: current_minimax.index(item[1]))
+    models = minimax + [
+        (name, mid) for name, mid in models if not mid.startswith("minimax/")
+    ]
     # Prefer the newest from mainstream providers so the shortlist isn't crowded
     # out by niche/experimental releases; fall back to all if none match.
     mainstream = [
@@ -310,6 +317,8 @@ def select_openrouter_model(mode: str, default=None) -> str:
         and mid.split("/", 1)[0] in _OPENROUTER_MAINSTREAM
     ]
     top = (mainstream or models)[:5]
+    if default and default.startswith("minimax/") and default not in {mid for _, mid in top}:
+        top.insert(0, (f"{default} - Saved model", default))
     return _select_listed_model(
         f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):", top, default,
         lambda: _require_text("Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
@@ -337,13 +346,16 @@ def _select_model(provider: str, mode: str, default=None) -> str:
             "Please enter a deployment name.",
         )
 
+    options = list(get_model_options(provider, mode))
+    if provider.lower() in ("minimax", "minimax-cn") and default and default not in {v for _, v in options}:
+        options.insert(0, (f"{default} - Saved model", default))
     choice = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, mode)
+            for display, value in options
         ],
-        default=_matching_choice(get_model_options(provider, mode), default),
+        default=_matching_choice(options, default),
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=_MENU_STYLE,
     ).ask()

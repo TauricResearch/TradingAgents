@@ -58,7 +58,7 @@ _QWEN_MODELS: dict[str, list[ModelOption]] = {
 
 # Shared model list for MiniMax's global and CN endpoints (same IDs).
 # Full official lineup per platform.minimax.io/docs/api-reference/text-openai-api.
-# M3 carries a 1M-token context window; the M2.x line is 204,800 tokens.
+# M3.1-Flash and M3 carry 1M-token context windows; the M2.x line is 204,800 tokens.
 # Kimi (Moonshot). Source: platform.kimi.ai/docs/models. "Custom model ID" stays
 # available for models newer than this list. The k2.7-code variants are omitted:
 # they are coding specialists, not analysis models.
@@ -78,16 +78,13 @@ _KIMI_MODELS: dict[str, list[ModelOption]] = {
 
 _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
     "quick": [
+        ("MiniMax-M3.1-Flash - Latest fast model, 1M ctx, 512K output", "MiniMax-M3.1-Flash"),
         ("MiniMax-M3 - Latest, 1M ctx, native multimodal", "MiniMax-M3"),
-        ("MiniMax-M2.7-highspeed - Fast M2.7, 204K ctx, ~100 TPS", "MiniMax-M2.7-highspeed"),
-        ("MiniMax-M2.5-highspeed - Previous-gen highspeed, 204K ctx", "MiniMax-M2.5-highspeed"),
         ("Custom model ID", "custom"),
     ],
     "deep": [
+        ("MiniMax-M3.1-Flash - Latest fast model, 1M ctx, 512K output", "MiniMax-M3.1-Flash"),
         ("MiniMax-M3 - Latest flagship, 1M ctx, multimodal coding/agent", "MiniMax-M3"),
-        ("MiniMax-M2.7 - Previous flagship, 204K ctx", "MiniMax-M2.7"),
-        ("MiniMax-M2.7-highspeed - Same quality as M2.7, ~100 TPS", "MiniMax-M2.7-highspeed"),
-        ("MiniMax-M2.5 - Earlier flagship, 204K ctx", "MiniMax-M2.5"),
         ("Custom model ID", "custom"),
     ],
 }
@@ -234,7 +231,12 @@ def get_model_options(provider: str, mode: str) -> list[ModelOption]:
 # Served by the provider but not offered in the picker: models retired from the
 # menu, and the explicit ID of a model listed under a shorter name. Known to
 # validation so a config naming one runs without an unknown-model warning.
+_MINIMAX_LEGACY = ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5",
+                   "MiniMax-M2.5-highspeed", "MiniMax-M2.1", "MiniMax-M2.1-highspeed", "MiniMax-M2"]
+
 LEGACY_MODELS: dict[str, list[str]] = {
+    "minimax": _MINIMAX_LEGACY,
+    "minimax-cn": _MINIMAX_LEGACY,
     "openai": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol"],
     "xai": ["grok-4.20-0309-reasoning", "grok-4.20-0309-non-reasoning",
             "grok-4.20-multi-agent-0309"],

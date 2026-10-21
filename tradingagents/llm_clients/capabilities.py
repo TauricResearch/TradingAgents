@@ -24,6 +24,7 @@ StructuredMethod = Literal[
     "json_schema",       # uses response_format={"type":"json_schema",...}
     "none",              # no structured output available; caller falls back to free-text
 ]
+ThinkingMode = Literal["always_on", "adaptive", "disabled"]
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,12 @@ class ModelCapabilities:
     # (Coding Plan, MiniMax-Text-01, etc.), so we only set it where the
     # model actually consumes it. (#826)
     requires_reasoning_split: bool = False
+    # Supported MiniMax thinking controls. An empty tuple means the provider
+    # does not publish a model-specific thinking mode through this layer.
+    thinking_modes: tuple[ThinkingMode, ...] = ()
+    # MiniMax-M3.1-Flash accepts OpenAI's reasoning_effort parameter; M3 ignores
+    # it and M2.x exposes only its always-on mode.
+    supports_reasoning_effort: bool = False
 
 
 # DeepSeek's thinking models accept the ``tools`` array but reject the
@@ -74,12 +81,35 @@ _DEEPSEEK_CHAT = ModelCapabilities(
 # makes the dispatch in NormalizedChatOpenAI suppress the kwarg; the schema
 # still ships as a tool. json_mode response_format is only for
 # MiniMax-Text-01, not M2.x.
-_MINIMAX_THINKING = ModelCapabilities(
+_MINIMAX_M2 = ModelCapabilities(
     supports_tool_choice=False,
     supports_json_mode=False,
     supports_json_schema=False,
     preferred_structured_method="function_calling",
     requires_reasoning_split=True,
+    thinking_modes=("always_on",),
+)
+
+# M3 supports per-request adaptive or disabled thinking while retaining the
+# existing MiniMax tool-calling and reasoning-split behavior.
+_MINIMAX_M3 = ModelCapabilities(
+    supports_tool_choice=False,
+    supports_json_mode=False,
+    supports_json_schema=False,
+    preferred_structured_method="function_calling",
+    requires_reasoning_split=True,
+    thinking_modes=("adaptive", "disabled"),
+)
+
+# Flash is adaptive-only. It has its own exact row so it never inherits M2's
+# reasoning_split requirement or M3's disabled-thinking allowance.
+_MINIMAX_FLASH = ModelCapabilities(
+    supports_tool_choice=False,
+    supports_json_mode=False,
+    supports_json_schema=False,
+    preferred_structured_method="function_calling",
+    thinking_modes=("adaptive",),
+    supports_reasoning_effort=True,
 )
 
 _DEFAULT = ModelCapabilities(
@@ -99,25 +129,25 @@ _BY_ID: dict[str, ModelCapabilities] = {
     "deepseek-v4-pro": _DEEPSEEK_THINKING,
     # MiniMax — full official model lineup per
     # platform.minimax.io/docs/api-reference/text-openai-api
-    "MiniMax-M2.7": _MINIMAX_THINKING,
-    "MiniMax-M2.7-highspeed": _MINIMAX_THINKING,
-    "MiniMax-M2.5": _MINIMAX_THINKING,
-    "MiniMax-M2.5-highspeed": _MINIMAX_THINKING,
-    "MiniMax-M2.1": _MINIMAX_THINKING,
-    "MiniMax-M2.1-highspeed": _MINIMAX_THINKING,
-    "MiniMax-M2": _MINIMAX_THINKING,
+    "MiniMax-M3.1-Flash": _MINIMAX_FLASH,
+    "MiniMax-M3": _MINIMAX_M3,
+    "MiniMax-M2.7": _MINIMAX_M2,
+    "MiniMax-M2.7-highspeed": _MINIMAX_M2,
+    "MiniMax-M2.5": _MINIMAX_M2,
+    "MiniMax-M2.5-highspeed": _MINIMAX_M2,
+    "MiniMax-M2.1": _MINIMAX_M2,
+    "MiniMax-M2.1-highspeed": _MINIMAX_M2,
+    "MiniMax-M2": _MINIMAX_M2,
 }
 
 # Forward-compat patterns. New ``deepseek-v5-*`` / ``deepseek-reasoner-*``
-# / ``deepseek-flash-*`` or ``MiniMax-M3*`` variants inherit the thinking-mode
-# quirks automatically. ``deepseek-flash`` is the unversioned alias the model
-# picker offers for V4.1 Flash; it serves thinking mode and so rejects
-# ``tool_choice`` exactly like the versioned ``deepseek-v4-flash`` ID does.
+# / ``deepseek-flash-*`` or MiniMax M2.x variants inherit the established
+# thinking-mode quirks. Exact M3/Flash IDs above keep their newer controls.
 _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-flash"), _DEEPSEEK_THINKING),
-    (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
+    (re.compile(r"^MiniMax-M2(?:\D|$)"), _MINIMAX_M2),
 ]
 
 
