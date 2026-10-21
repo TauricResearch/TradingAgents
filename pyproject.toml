@@ -46,6 +46,8 @@ bedrock = [
 tradingagents = "cli.main:app"
 tradingagents-paper = "tradingagents.paper.cli:main"
 koral-equities = "tradingagents.paper.dashboard:main"
+koral-equities-paper = "tradingagents.paper.cli:main"
+koral-equities-research = "cli.main:app"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}

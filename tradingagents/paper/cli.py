@@ -252,7 +252,7 @@ def report(book: Book):
 
 
 def main(argv: list[str] | None = None):
-    parser = argparse.ArgumentParser(prog="tradingagents-paper",
+    parser = argparse.ArgumentParser(prog="koral-equities-paper",
                                      description="US stock paper trading; NO real brokerage connectivity")
     parser.add_argument("--state", type=Path, default=DEFAULT_PATH)
     cmds = parser.add_subparsers(dest="command", required=True)

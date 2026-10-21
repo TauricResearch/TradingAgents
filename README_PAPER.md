@@ -8,15 +8,15 @@ From this repository's root (Python 3.11+):
 
 ```sh
 pip install -e .
-tradingagents-paper init
-tradingagents-paper status
+koral-equities-paper init
+koral-equities-paper status
 ```
 
 To perform an after-close batch (requires the configured AI provider and its credentials, and Yahoo Finance connectivity):
 
 ```sh
-tradingagents-paper run --tickers AAPL MSFT NVDA AMZN GOOGL META JPM COST
-tradingagents-paper status
+koral-equities-paper run --tickers AAPL MSFT NVDA AMZN GOOGL META JPM COST
+koral-equities-paper status
 ```
 
 If you want a different state directory, pass `--state /path/to/portfolio.json` **before** `init`, `run`, or `status`. Default: `~/.tradingagents/paper/portfolio.json`. Each invocation checks against the New York clock and does **not** process a US session until 5:30pm New York time (market close + forex candle buffer). Running again that night does not duplicate a completed agent decision or an executed order. If the data provider or model fails, the affected symbol is not given a synthetic recommendation.
@@ -48,7 +48,7 @@ Risk is a **budget, not a loss guarantee**: opening gaps, slippage and FX moveme
 - Yahoo daily OHLCV and FX are proxies. A daily-bar engine cannot establish the true intraday bid/ask, price path, auction fill, trading halt or available liquidity. Corporate actions such as stock splits/dividends need to be handled before this is used to draw firm performance conclusions.
 - Stop placement is a baseline 8% rule, **not a strategy-derived stop**, and costs are approximate. The stock watchlist is a starting sample, not an unbiased historical S&P 500 membership snapshot.
 - Because model calls depend on changing LLMs and text feeds, store and review reports; they are not automatically reproducible, and no strategy alpha is established merely by a rating or successful unit test.
-- `tradingagents-paper init` refuses to overwrite an existing ledger. JSON is written atomically. A `.lock` file prevents parallel CLI runs. After a confirmed crashed run (and only then), remove its stale `.lock` manually.
+- `koral-equities-paper init` refuses to overwrite an existing ledger. JSON is written atomically. A `.lock` file prevents parallel CLI runs. After a confirmed crashed run (and only then), remove its stale `.lock` manually.
 
 ## Validation
 
@@ -92,11 +92,13 @@ stock candles or use stale forex rates.
 If a research report has **conditional** instructions that are not supported by the label-based paper execution bridge, use the explicit operator command below **before the next daily run**:
 
 ```powershell
-.\\.venv\\Scripts\\tradingagents-paper.exe status
-.\\.venv\\Scripts\\tradingagents-paper.exe cancel-pending
-.\\.venv\\Scripts\\tradingagents-paper.exe status
+.\\.venv\\Scripts\\koral-equities-paper.exe status
+.\\.venv\\Scripts\\koral-equities-paper.exe cancel-pending
+.\\.venv\\Scripts\\koral-equities-paper.exe status
 ```
 
 `cancel-pending` cancels every **pending simulated order**, records an `ORDER_CANCELLED` audit event for each, and does not erase prior AI decisions, positions, returns or reports. If no order is queued, it is a no-op. It does not change real brokerage assets or orders. It must be invoked explicitly; installing updated code alone does not cancel any orders.
 
 **Caution:** The original `run` command still translates simple `Buy`/`Overweight` ratings into market-at-next-open orders without enforcing the report's conditions. Do not reactivate the strategy without an approved structured execution bridge. This cancellation command is a manual safety tool, not that bridge.
+
+**Backwards compatibility:** The original `tradingagents` and `tradingagents-paper` console commands remain installed as internal compatibility aliases, but new user-facing commands use Koral Equities names.

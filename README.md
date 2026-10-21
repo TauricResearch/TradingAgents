@@ -13,7 +13,7 @@ Requires Python 3.11 or later. In the project folder:
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\tradingagents-paper.exe init  # Only once! Existing users must skip.
+.\.venv\Scripts\koral-equities-paper.exe init  # Only once! Existing users must skip.
 .\.venv\Scripts\koral-equities.exe
 ```
 
@@ -39,7 +39,7 @@ The `Overweight` and `Underweight` labels express **relative allocation intent**
 The framework supports several model providers. To use the eligible ChatGPT subscription integration, set `TRADINGAGENTS_LLM_PROVIDER=chatgpt` in your private `.env`, then sign in:
 
 ```powershell
-.\.venv\Scripts\tradingagents.exe login chatgpt
+.\.venv\Scripts\koral-equities-research.exe login chatgpt
 ```
 
 Availability depends on the account's supported plan and permissions. Never commit credentials to GitHub.
