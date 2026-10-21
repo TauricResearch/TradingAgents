@@ -48,6 +48,7 @@ tradingagents-paper = "tradingagents.paper.cli:main"
 koral-equities = "tradingagents.paper.dashboard:main"
 koral-equities-paper = "tradingagents.paper.cli:main"
 koral-equities-research = "cli.main:app"
+koral-equities-rebrand-reports = "tradingagents.paper.rebrand_archives:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}
