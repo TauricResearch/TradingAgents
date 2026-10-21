@@ -46,6 +46,25 @@ def test_a_ticker_held_under_another_spelling_is_matched():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(("analyzed_symbol", "held_symbol"), [
+    ("BTC-USD", "BTCUSDT"),
+    ("GC=F", "XAUUSD"),
+    ("0700.HK", "700.HK"),
+])
+def test_position_under_supported_alias_matches_analyzed_symbol(analyzed_symbol, held_symbol):
+    portfolio = PortfolioContext.model_validate({
+        "positions": [{"ticker": held_symbol, "quantity": 2}],
+    })
+
+    text = portfolio.render(analyzed_symbol)
+
+    assert portfolio.position_in(analyzed_symbol).quantity == 2
+    assert f"Current position in {analyzed_symbol}" in text
+    assert "No current position" not in text
+    assert "Other positions" not in text
+
+
+@pytest.mark.unit
 def test_absent_context_is_reported_as_not_provided():
     notice = get_portfolio_context_from_state({"company_of_interest": "AAPL"})
     assert "not provided" in notice.lower()

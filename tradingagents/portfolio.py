@@ -19,6 +19,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
 
+from tradingagents.dataflows.symbols import normalize_symbol
+
 
 class Position(BaseModel):
     ticker: str = Field(description="Instrument symbol, e.g. AAPL")
@@ -32,7 +34,8 @@ class PortfolioContext(BaseModel):
     positions: list[Position] = Field(default_factory=list)
 
     def position_in(self, ticker: str) -> Position | None:
-        return next((p for p in self.positions if p.ticker.upper() == ticker.strip().upper()), None)
+        symbol = normalize_symbol(ticker)
+        return next((p for p in self.positions if normalize_symbol(p.ticker) == symbol), None)
 
     def render(self, ticker: str) -> str:
         """The portfolio block for the decision agents, led by the analyzed instrument."""
