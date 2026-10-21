@@ -333,7 +333,7 @@ def get_valuation(ticker: str, curr_date: str | None = None) -> str:
                 "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
             ),
             curr_date,
-            _SPANS["annual"],  # instant fact: only the period key matters, not the span
+            (_SPANS["annual"],),  # instant fact: only the period key matters, not the span
         )
     )
     eps = _newest_period(
@@ -341,7 +341,7 @@ def get_valuation(ticker: str, curr_date: str | None = None) -> str:
             us_gaap,
             ("EarningsPerShareDiluted",),
             curr_date,
-            _SPANS["annual"],
+            (_SPANS["annual"],),
             _ANNUAL_FORMS,  # a 10-Q can report a twelve-month diluted EPS; only
             # an annual report's figure is a fiscal year
         )
@@ -353,7 +353,7 @@ def get_valuation(ticker: str, curr_date: str | None = None) -> str:
                 us_gaap,
                 ("EarningsPerShareDiluted",),
                 curr_date,
-                _SPANS["quarterly"],
+                (_SPANS["quarterly"],),
                 ("10-Q",),
             )
         )
