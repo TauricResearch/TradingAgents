@@ -7,6 +7,8 @@ The original TradingAgents framework history has been preserved in [UPSTREAM_CHA
 - Introduced a consistent Koral Equities identity across generated HTML/Markdown reports, CLI greetings, documentation and the dashboard.
 - Removed vendor-specific logos and announcements from the application-facing experience, while retaining licence and contributor provenance in [UPSTREAM_ATTRIBUTION.md](UPSTREAM_ATTRIBUTION.md).
 - Preserved the existing software module imports and paper-account storage; rebranding does not reset or re-create accounts.
+- Added Koral Equities command aliases and an opt-in archive-report migration tool with original-report backups.
+- Added operator-only `cancel-pending` for queued simulated orders; installing the update does not cancel any positions.
 - Audited the initial NVDA/META reports: conditional portfolio-manager entry plans are **not** implemented by the current label-to-order bridge. This limitation is flagged for a future structural risk fix, not silently masked by branding.
 
 ## Initial paper release — 21 October 2026

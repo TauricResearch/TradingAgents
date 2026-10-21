@@ -48,3 +48,19 @@ Click **Run AI scan** after 5:30 p.m. in New York on a trading day. It launches 
 - If you see `OpenAI API mode is selected but OPENAI_API_KEY is missing`, the provider setting has not been persisted. If you previously signed in with the ChatGPT subscription integration, add `TRADINGAGENTS_LLM_PROVIDER=chatgpt` to the project's `.env`, and **restart the dashboard**. An environment variable set via `$env:TRADINGAGENTS_LLM_PROVIDER = "chatgpt"` applies only to that PowerShell session. The subscription integration must be available to your account and authorised first.
 - Alternatively use a separate `OPENAI_API_KEY` if choosing OpenAI's API mode; never paste private tokens into the dashboard, GitHub, or screenshots.
 - This preflight only diagnoses missing OpenAI API-key configuration. It does not prove ChatGPT authentication or model/data-provider access works. No real account or trading settings are modified by these UI changes.
+
+## Rebrand older saved AI reports (one-time)
+
+The Koral identity automatically appears on all **newly generated** research reports. Older `complete_report.html` files keep the original display until explicitly migrated. After installing the latest code, preview what would change:
+
+```powershell
+.\\.venv\\Scripts\\koral-equities-rebrand-reports.exe
+```
+
+Apply it explicitly:
+
+```powershell
+.\\.venv\\Scripts\\koral-equities-rebrand-reports.exe --apply
+```
+
+Each original report is saved beside the new one as `complete_report.html.upstream-backup`. The command replaces only the archived page's branding, stylesheet, header/footer and version label. It does **not** edit AI arguments, rating decisions, paper ledgers or positions. It is idempotent and refuses to overwrite an existing original backup. This does not rewrite previously exported PDFs: use new PDF exports from the updated report HTML.

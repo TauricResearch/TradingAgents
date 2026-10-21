@@ -49,6 +49,7 @@ Availability depends on the account's supported plan and permissions. Never comm
 - [Paper trading setup and risk assumptions](README_PAPER.md)
 - [Dashboard and controls](README_DASHBOARD.md)
 - [Research mandate](RESEARCH_CHARTER.md)
+- [First-cycle execution audit](AUDIT_FIRST_RESEARCH_CYCLE.md)
 - [Project change history](CHANGELOG.md)
 - [Open-source credits and provenance](UPSTREAM_ATTRIBUTION.md)
 - [Original framework change history](UPSTREAM_CHANGELOG.md)
@@ -57,3 +58,7 @@ Availability depends on the account's supported plan and permissions. Never comm
 ## Licence and provenance
 
 Koral Equities includes modified, Apache-2.0-licensed software based on the open-source **TradingAgents** framework from **Tauric Research**, © original respective contributors. The paper engine, dashboard, brand and research-specific additions are modifications to that framework. See [UPSTREAM_ATTRIBUTION.md](UPSTREAM_ATTRIBUTION.md) and [LICENSE](LICENSE) for the original project attribution and licence requirements. This project is not affiliated with or endorsed by the original authors.
+
+### Archive existing research under the Koral identity
+
+After installing the update, run `koral-equities-rebrand-reports` to preview older saved HTML reports, then `koral-equities-rebrand-reports --apply` to make **backed-up presentation-only** updates. The initial 21 October research and portfolio ledger are unchanged. See [the dashboard guide](README_DASHBOARD.md).
