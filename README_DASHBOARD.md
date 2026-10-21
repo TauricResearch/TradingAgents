@@ -39,3 +39,12 @@ Click **Run AI scan** after 5:30 p.m. in New York on a trading day. It launches 
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe -m pytest -q tests/test_paper_dashboard.py
 ```
+
+
+## Persistent scan notifications and AI provider setup
+
+- **Scan results no longer disappear on polling.** After a completed scan (success or failure), the full log remains in the dashboard until **OK · Dismiss** is clicked. Use **Copy log** to share diagnostic output. Dismissal is remembered within that browser tab; a new scan gets its own report.
+- API/preflight errors displayed as a small notification also have an **OK** button and remain visible until acknowledged. Routine success messages may still fade.
+- If you see `OpenAI API mode is selected but OPENAI_API_KEY is missing`, the provider setting has not been persisted. If you previously signed in with the ChatGPT subscription integration, add `TRADINGAGENTS_LLM_PROVIDER=chatgpt` to the project's `.env`, and **restart the dashboard**. An environment variable set via `$env:TRADINGAGENTS_LLM_PROVIDER = "chatgpt"` applies only to that PowerShell session. The subscription integration must be available to your account and authorised first.
+- Alternatively use a separate `OPENAI_API_KEY` if choosing OpenAI's API mode; never paste private tokens into the dashboard, GitHub, or screenshots.
+- This preflight only diagnoses missing OpenAI API-key configuration. It does not prove ChatGPT authentication or model/data-provider access works. No real account or trading settings are modified by these UI changes.
