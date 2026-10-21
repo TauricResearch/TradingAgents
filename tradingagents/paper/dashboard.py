@@ -11,6 +11,7 @@ import csv
 import io
 import json
 import mimetypes
+import os
 import re
 import subprocess
 import sys
@@ -129,6 +130,21 @@ def _csv_bytes(records: list[dict], fields: list[str]) -> bytes:
     return output.getvalue().encode("utf-8-sig")
 
 
+def _check_ai_provider() -> None:
+    """Fail early when default API mode has no key; never read/print credentials."""
+    from tradingagents.default_config import DEFAULT_CONFIG
+
+    provider = str(DEFAULT_CONFIG.get("llm_provider", "openai")).strip().lower()
+    if provider == "openai" and not os.environ.get("OPENAI_API_KEY", "").strip():
+        raise ValueError(
+            "OpenAI API mode is selected but OPENAI_API_KEY is missing. "
+            "If you already signed in with ChatGPT, save "
+            "TRADINGAGENTS_LLM_PROVIDER=chatgpt in your project .env file, "
+            "restart the Koral Equities dashboard, and retry. "
+            "Otherwise configure a separate OpenAI API key."
+        )
+
+
 class ScanRuntime:
     """Own the paper CLI child process without exposing any brokerage endpoint."""
 
@@ -151,6 +167,7 @@ class ScanRuntime:
         book = read_book(self.state_path)
         if last_safe_session() < book.started:
             raise ValueError("No completed trading session yet; wait until after 17:30 New York")
+        _check_ai_provider()
         with self.lock:
             if self.process and self.process.poll() is None:
                 raise RuntimeError("An analysis is already running")

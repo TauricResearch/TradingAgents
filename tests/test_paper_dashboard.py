@@ -89,3 +89,43 @@ def test_scan_status_starts_idle(tmp_path):
     runtime = ScanRuntime(tmp_path / "portfolio.json")
     assert runtime.status()["running"] is False
     assert runtime.status()["finished"] is False
+
+
+def test_openai_mode_without_api_key_explains_chatgpt_fix(monkeypatch):
+    from tradingagents.default_config import DEFAULT_CONFIG
+    from tradingagents.paper.dashboard import _check_ai_provider
+
+    monkeypatch.setitem(DEFAULT_CONFIG, "llm_provider", "openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="TRADINGAGENTS_LLM_PROVIDER=chatgpt"):
+        _check_ai_provider()
+
+
+def test_signed_in_provider_does_not_need_openai_api_key(monkeypatch):
+    from tradingagents.default_config import DEFAULT_CONFIG
+    from tradingagents.paper.dashboard import _check_ai_provider
+
+    monkeypatch.setitem(DEFAULT_CONFIG, "llm_provider", "chatgpt")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _check_ai_provider()  # Auth can still fail later if sign-in is expired.
+
+
+def test_openai_api_mode_with_key_passes_preflight(monkeypatch):
+    from tradingagents.default_config import DEFAULT_CONFIG
+    from tradingagents.paper.dashboard import _check_ai_provider
+
+    monkeypatch.setitem(DEFAULT_CONFIG, "llm_provider", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "unit-test-only-placeholder")
+    _check_ai_provider()
+
+
+def test_dashboard_scan_log_has_accessible_persistent_buttons():
+    from tradingagents.paper.dashboard import STATIC
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    js = (STATIC / "app.js").read_text(encoding="utf-8")
+    assert 'id="ack-scan"' in html and 'id="copy-scan-log"' in html
+    assert 'id="toast-ok"' in html
+    assert 'function acknowledgeScan()' in js
+    assert 'sessionStorage.setItem' in js
+    assert "progress.classList.toggle('active', Boolean(data.running || showReport));" in js
+    assert 'if (!error) toastTimer = setTimeout' in js
