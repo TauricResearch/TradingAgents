@@ -8,7 +8,6 @@ off, so nothing a model wrote can inject markup or load a remote asset.
 
 from datetime import datetime
 from html import escape
-from importlib.resources import files
 
 from markdown_it import MarkdownIt
 
@@ -18,17 +17,15 @@ from tradingagents.reporting import analyst_names
 # Ratings by direction, so the page can show which way the call leans.
 _TONE = {"Buy": "up", "Overweight": "up", "Hold": "level", "Underweight": "down", "Sell": "down"}
 
-# The Tauric Research logo as published (tauric.ai/brand/tauric-logo.svg), drawn
-# in the page so it loads nothing.
-_LOGO = files("tradingagents").joinpath("assets/tauric-logo.svg").read_text(encoding="utf-8").strip()
-_COMPANY = "https://tauric.ai"
-_ORG = "https://github.com/TauricResearch"
-_PROJECT = f"{_ORG}/TradingAgents"
+# Koral Equities' self-contained wordmark. Never load remote brand assets.
+_WORDMARK = ('<span class="brand-emblem" aria-hidden="true">K</span>'
+             '<span class="brand-words"><strong>KORAL <span>EQUITIES</span></strong>'
+             '<small>INTELLIGENT CAPITAL RESEARCH</small></span>')
 
 _CSS = """
 :root {
-  --paper: #fbfbfa; --ink: #1c2126; --muted: #5d6670; --rule: #e2e5e8; --wash: #f2f4f5;
-  --accent: #087a59; --up: #087a59; --down: #b4372f; --level: #5d6670; --edge: #d3d8dc; --mark: #878f97;
+  --paper: #f7f9f5; --ink: #1b3026; --muted: #78877e; --rule: #dce7de; --wash: #eff5f0;
+  --accent: #147953; --up: #147953; --down: #ac5048; --level: #63786a; --edge: #d5e3d9; --mark: #a4b3aa;
   --serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color-scheme: light dark;
@@ -38,9 +35,6 @@ _CSS = """
     --paper: #131a1f; --ink: #e4e8eb; --muted: #9aa6af; --rule: #263239; --wash: #1a242a;
     --accent: #14c290; --up: #14c290; --down: #ef6f63; --level: #9aa6af; --edge: #3d4c55; --mark: #66737c;
   }
-}
-@media (prefers-color-scheme: dark) {
-  .masthead .logo [stroke="#363636"] { stroke: var(--muted); }
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -57,8 +51,16 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .masthead { padding-bottom: 1.75rem; border-bottom: 1px solid var(--rule); }
 /* The logo leads at the top left, where readers look for it, 24px tall (the usual
    on-screen floor for a wordmark) with at least its height clear below. */
-.masthead .logo { display: block; width: fit-content; margin: 0 0 2.25rem; }
-.masthead .logo svg { display: block; height: 1.5rem; width: auto; }
+.masthead .logo { display: inline-flex; align-items: center; gap: 0.8rem; width: fit-content;
+  margin: 0 0 2.25rem; text-decoration: none; color: var(--ink); }
+.logo .brand-emblem { display: inline-grid; place-items: center; width: 2.8rem; height: 2.8rem;
+  border-radius: 0.65rem; background: #183b2d; color: #f5f8f4; font: 740 1.55rem/1 var(--sans);
+  letter-spacing: -0.15rem; padding-right: 0.15rem; }
+.logo .brand-words { display: flex; flex-direction: column; gap: 0.2rem; }
+.logo .brand-words strong { font: 750 0.92rem/1.2 var(--sans); letter-spacing: 0.07em; }
+.logo .brand-words strong span { color: var(--accent); }
+.logo .brand-words small { font: 680 0.52rem/1.4 ui-monospace, monospace; letter-spacing: 0.14em;
+ color: var(--muted); }
 .masthead h1 {
   margin: 0; font: 600 2.6rem/1.1 var(--sans); letter-spacing: -0.02em;
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2em 0.5em;
@@ -122,7 +124,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .contents, .contents .label { transition: none; }
 }
 
-/* The maker's credit: one quiet line at the foot. */
+/* Koral Equities report identifier and simulation notice. */
 .credit { margin-top: 4.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule);
   color: var(--muted); font: 0.8rem/1.4 var(--sans); }
 .credit a { color: inherit; text-decoration: none; }
@@ -163,7 +165,7 @@ tbody tr:last-child td { border-bottom: 0; }
   body { font-size: 16px; }
   .page { padding: 2rem 1rem 3rem; }
   .masthead h1 { font-size: 2rem; }
-  .masthead .logo svg { height: 1.25rem; }
+  .logo .brand-emblem { width: 2.4rem; height: 2.4rem; font-size: 1.32rem; }
   .run { grid-template-columns: 1fr; gap: 0 0; }
   .run dd { margin-bottom: 0.45rem; }
   .run .group { white-space: normal; }
@@ -239,7 +241,7 @@ def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, st
             details.append(("Data vendors", " ".join(
                 _group(_CATEGORY.get(k, k), _chain(v)) for k, v in vendors.items()
             )))
-        details.append(("Version", escape(f"TradingAgents {s('version', '?')}")))
+        details.append(("Research engine", escape(f"v{s('version', '?')}")))
     if final_state.get("memory_note"):
         details.append(("Memory log", escape(final_state["memory_note"])))
     return details
@@ -282,13 +284,13 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
-<title>{escape(page_title)}: TradingAgents report</title>
+<title>Koral Equities | {escape(page_title)} | Equity Research</title>
 <style>{_CSS}</style>
 </head>
 <body>
 <div class="page" id="top">
 <header class="masthead">
-<a class="logo" href="{_COMPANY}" rel="noopener" aria-label="Tauric Research">{_LOGO}</a>
+<div class="logo" aria-label="Koral Equities">{_WORDMARK}</div>
 <h1>{title}</h1>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
 <dl class="run">{details}</dl>
@@ -297,7 +299,7 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
 <main>
 {"".join(body)}
 </main>
-<footer class="credit"><a href="{_PROJECT}" rel="noopener">TradingAgents</a> powered by <a class="brand" href="{_ORG}" rel="noopener">Tauric Research</a></footer>
+<footer class="credit">KORAL EQUITIES <span aria-hidden="true">·</span> Independent equity research <span aria-hidden="true">·</span> Simulation only</footer>
 </div>
 <a class="to-top" href="#top">Top</a>
 </body>

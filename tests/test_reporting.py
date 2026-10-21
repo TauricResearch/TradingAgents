@@ -37,7 +37,7 @@ def test_write_report_tree_creates_files(tmp_path):
     assert (tmp_path / "3_trading" / "trader.md").read_text() == "TRADE"
     assert (tmp_path / "5_portfolio" / "decision.md").read_text() == "PM DECISION"
     complete = out.read_text()
-    assert "Trading Analysis Report: AAPL" in complete
+    assert "Koral Equities | Equity Research: AAPL" in complete
     assert "MKT" in complete and "PM DECISION" in complete
 
 
@@ -68,7 +68,7 @@ def test_the_report_names_the_analysis_date_and_what_produced_it(tmp_path):
     header = write_report_tree(state, "NVDA", tmp_path, settings=SETTINGS).read_text().split("## ")[0]
 
     assert "Analysis date: 2026-09-23" in header
-    assert "TradingAgents 0.5.2" in header
+    assert "Research engine v0.5.2" in header
     assert "openai, deep gpt-6-sol, quick gpt-6-luna" in header
     assert "Analysts: market, news" in header
     assert "research debate rounds 1, risk debate rounds 2" in header

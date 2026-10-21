@@ -27,8 +27,8 @@ else:
     _NO_CONSOLE_ERRORS = ()
 
 app = typer.Typer(
-    name="TradingAgents",
-    help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
+    name="Koral Equities",
+    help="Koral Equities: Independent AI equity research and paper strategies",
     add_completion=True,  # Enable shell completion
 )
 

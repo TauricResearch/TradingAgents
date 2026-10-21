@@ -1,4 +1,4 @@
-# Koral Equities — premium local trading desk
+# Koral Equities — premium local AI equity trading desk
 
 This is a **local, browser-based dashboard** for the GBP £10,000 TradingAgents paper account. It is not connected to Trading 212 or any other broker. It never sends a real order. The interface shows **actual** values from `~/.tradingagents/paper/portfolio.json` and empty states before the first trading session; there is no fabricated performance chart.
 

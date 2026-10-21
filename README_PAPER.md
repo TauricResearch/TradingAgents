@@ -1,4 +1,4 @@
-# TradingAgents: £10,000 GBP forward paper portfolio (v1)
+# Koral Equities: £10,000 GBP forward paper portfolio (v1)
 
 This addition is **paper-only**, and is fully isolated from Trading 212, your ISA, and any brokerage API. No real money can be traded by this code. It uses TradingAgents' existing multi-agent ratings and a separate, deterministic trading ledger. It is a forward trading experiment, not proof of an edge.
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tradingagents"
 dynamic = ["version"]
-description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+description = "Koral Equities: AI equity research and simulated portfolio framework"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

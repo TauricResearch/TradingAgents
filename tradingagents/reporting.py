@@ -19,7 +19,7 @@ def analyst_names(keys) -> list[str]:
 
 def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
     """The report's title and what produced it: analysis date, version, models, analysts, vendors."""
-    lines = [f"# Trading Analysis Report: {ticker}", ""]
+    lines = [f"# Koral Equities | Equity Research: {ticker}", ""]
     if final_state.get("trade_date"):
         lines.append(f"- Analysis date: {final_state['trade_date']}")
     if final_state.get("final_trade_decision"):
@@ -34,7 +34,7 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
         else:   # each tier on its own provider (#1440)
             models = (f"deep {deep_provider} {s('deep_think_llm', '?')}, "
                       f"quick {quick_provider} {s('quick_think_llm', '?')}")
-        lines.append(f"- TradingAgents {s('version', '?')}: {models}")
+        lines.append(f"- Research engine v{s('version', '?')}: {models}")
         lines.append(f"- Analysts: {', '.join(analyst_names(s('analysts')))}; "
                      f"research debate rounds {s('max_debate_rounds', '?')}, "
                      f"risk debate rounds {s('max_risk_discuss_rounds', '?')}")
