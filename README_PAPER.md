@@ -58,3 +58,14 @@ pytest -q tests/test_paper_engine.py
 ```
 
 Before even considering real money: longer out-of-sample testing; total-return benchmarks (SPY dividends included); robust price/FX feeds and corporate-action handling; review of spreads, gaps, fills, market calendars, taxes, ISA/API restrictions; independent reconciliation; and a real kill switch. Keep existing personal ISA holdings entirely outside this ledger.
+
+## When one stock has malformed price data
+
+The feed validates daily OHLC. If an unheld candidate such as JPM has an invalid
+bar or vendor outage, the scan now logs `SKIPPED TICKER`, saves a
+`MARKET_DATA_ERROR` event and continues analysing the other candidates. It
+does not invent prices, backfill with yesterday's bar or queue an order for
+the missing symbol. **If the data is required for a current holding, a pending
+order, SPY, or GBP/USD conversion, the entire run still aborts without
+writing the portfolio**, because processing with missing risk data would be
+unsafe. Any market-data incident is logged for follow-up.

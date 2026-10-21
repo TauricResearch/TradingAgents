@@ -63,29 +63,67 @@ def write_book(path: Path, book: Book):
             os.unlink(tmp)
 
 
-def fetch_daily(tickers: list[str], start: str, end: str) -> dict[str, dict[str, Bar]]:
-    """Fetch unadjusted completed OHLC bars. Missing data stops the run."""
+def fetch_daily(tickers: list[str], start: str, end: str, *,
+                required: set[str] | None = None,
+                errors: dict[str, str] | None = None) -> dict[str, dict[str, Bar]]:
+    """Load actual vendor OHLC, isolating bad *unheld* candidates.
+
+    Never invent, clamp, or use yesterday's bar for a missing close. Missing or
+    malformed data for held/pending positions, SPY, or FX aborts the WHOLE run:
+    otherwise stops, exposure and P&L could be wrong. Optional research names
+    are skipped individually, leaving other candidates available for analysis.
+    """
     import yfinance as yf
 
-    out = {}
+    must_have = {"SPY", "GBPUSD=X"} | (required or set())
+    out: dict[str, dict[str, Bar]] = {}
     start_with_fx_buffer = (date.fromisoformat(start) - timedelta(days=7)).isoformat()
     end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
     for ticker in tickers:
         beginning = start_with_fx_buffer if ticker == "GBPUSD=X" else start
-        hist = yf.Ticker(ticker).history(start=beginning, end=end_exclusive,
-                                         interval="1d", auto_adjust=False)
-        if hist is None or hist.empty:
-            raise ValueError(f"No daily price history for {ticker}")
-        daily = {}
-        for stamp, row in hist.iterrows():
-            day = stamp.date().isoformat()
-            bar = Bar(float(row["Open"]), float(row["High"]),
-                      float(row["Low"]), float(row["Close"]))
-            if bar.valid():
+        try:
+            hist = yf.Ticker(ticker).history(start=beginning, end=end_exclusive,
+                                              interval="1d", auto_adjust=False)
+            if hist is None or hist.empty:
+                raise ValueError("vendor returned no daily candles")
+            daily: dict[str, Bar] = {}
+            bad_days: list[str] = []
+            for stamp, row in hist.iterrows():
+                day = stamp.date().isoformat()
+                try:
+                    bar = Bar(float(row["Open"]), float(row["High"]),
+                              float(row["Low"]), float(row["Close"]))
+                except (KeyError, ValueError, TypeError) as exc:
+                    bad_days.append(f"{day} (unreadable OHLC: {type(exc).__name__})")
+                    continue
+                if not bar.valid():
+                    bad_days.append(f"{day} (O={bar.open:.6g}, H={bar.high:.6g}, "
+                                    f"L={bar.low:.6g}, C={bar.close:.6g})")
+                    continue
                 daily[day] = bar
-        if not daily:
-            raise ValueError(f"Invalid daily bars for {ticker}")
-        out[ticker] = daily
+            if not daily:
+                raise ValueError("no valid daily OHLC candles returned; "
+                                 f"examples: {', '.join(bad_days[:2])}")
+            # If today is malformed, fail closed for this symbol even when
+            # the vendor returned an older valid candle in the same response.
+            if end in {d[:10] for d in bad_days}:
+                raise ValueError(f"bad latest session candle on {end}")
+            # Any missing day in a required instrument may matter for stops or
+            # benchmark/FX history. Fail rather than silently dropping it.
+            if ticker in must_have and bad_days:
+                raise ValueError(f"malformed required candles: {', '.join(bad_days[:3])}")
+            if bad_days:
+                print(f"Note {ticker}: ignored {len(bad_days)} malformed older daily candle(s)",
+                      file=sys.stderr)
+            out[ticker] = daily
+        except Exception as exc:
+            detail = f"{type(exc).__name__}: {exc}"
+            if ticker in must_have:
+                raise ValueError(f"Required price feed for {ticker} failed: {detail}") from exc
+            if errors is not None:
+                errors[ticker] = detail
+            print(f"SKIPPED {ticker}: market-data validation failed ({detail}); "
+                  "no AI signal or paper order", file=sys.stderr)
     return out
 
 
@@ -136,6 +174,8 @@ def run_agents(book: Book, quotes: dict[str, dict[str, Bar]], tickers: list[str]
         bar = quotes.get(ticker, {}).get(day)
         if bar is None:
             book._event(day, "AGENT_ERROR", ticker=ticker, reason="missing_completed_stock_bar")
+            print(f"SKIPPED {ticker}: no valid completed daily candle; no paper order",
+                  file=sys.stderr)
             continue
         try:
             positions = [Position(ticker=p["ticker"], quantity=p["shares"],
@@ -214,9 +254,16 @@ def main(argv: list[str] | None = None):
             start = book.started if book.last_session is None else book.last_session
             symbols = list(dict.fromkeys(["SPY", "GBPUSD=X", *tickers,
                                           *book.positions, *(o["ticker"] for o in book.orders)]))
-            quotes = fetch_daily(symbols, start, last)
+            data_errors: dict[str, str] = {}
+            required = {"SPY", "GBPUSD=X", *book.positions,
+                        *(o["ticker"] for o in book.orders)}
+            quotes = fetch_daily(symbols, start, last,
+                                 required=required, errors=data_errors)
             book = forward_sync(book, quotes, last)
             if book.last_session:
+                for ticker, reason in data_errors.items():
+                    book._event(book.last_session, "MARKET_DATA_ERROR", ticker=ticker,
+                                reason=reason)
                 book, done = run_agents(book, quotes, tickers, path, args.stop_pct)
             else:
                 done = 0
