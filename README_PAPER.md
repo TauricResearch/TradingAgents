@@ -86,3 +86,17 @@ still halt the entire simulation without modifying the saved ledger. The
 candle shown on 20 Oct 2026 (O=1.33103, H=1.34084, L=1.33103, C=1.33085)
 is the reproducing regression case; it is not a licence to repair bad
 stock candles or use stale forex rates.
+
+## Manual cancellation of pending paper orders
+
+If a research report has **conditional** instructions that are not supported by the label-based paper execution bridge, use the explicit operator command below **before the next daily run**:
+
+```powershell
+.\\.venv\\Scripts\\tradingagents-paper.exe status
+.\\.venv\\Scripts\\tradingagents-paper.exe cancel-pending
+.\\.venv\\Scripts\\tradingagents-paper.exe status
+```
+
+`cancel-pending` cancels every **pending simulated order**, records an `ORDER_CANCELLED` audit event for each, and does not erase prior AI decisions, positions, returns or reports. If no order is queued, it is a no-op. It does not change real brokerage assets or orders. It must be invoked explicitly; installing updated code alone does not cancel any orders.
+
+**Caution:** The original `run` command still translates simple `Buy`/`Overweight` ratings into market-at-next-open orders without enforcing the report's conditions. Do not reactivate the strategy without an approved structured execution bridge. This cancellation command is a manual safety tool, not that bridge.

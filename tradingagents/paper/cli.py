@@ -258,6 +258,7 @@ def main(argv: list[str] | None = None):
     cmds = parser.add_subparsers(dest="command", required=True)
     cmds.add_parser("init", help="Create a NEW £10k simulated GBP portfolio")
     cmds.add_parser("status", help="Show paper equity and positions")
+    cmds.add_parser("cancel-pending", help="Manually cancel pending paper orders and journal the decision")
     run = cmds.add_parser("run", help="Sync completed daily bars and query TradingAgents")
     run.add_argument("--tickers", nargs="+", default=DEFAULT_TICKERS)
     run.add_argument("--stop-pct", type=float, default=8.0,
@@ -278,6 +279,19 @@ def main(argv: list[str] | None = None):
                 report(book)
                 return 0
             book = read_book(path)
+            if args.command == "cancel-pending":
+                pending = list(book.orders)
+                for order in pending:
+                    book._event(book.last_session or book.started, "ORDER_CANCELLED",
+                                id=order["id"], ticker=order["ticker"],
+                                side=order["side"], reason="operator_review")
+                book.orders.clear()
+                if pending:
+                    write_book(path, book)
+                print(f"Cancelled {len(pending)} pending paper order(s). "
+                      "All existing positions, account equity and prior reports are unchanged.")
+                report(book)
+                return 0
             if not 1 <= args.stop_pct <= 30:
                 raise ValueError("--stop-pct must be between 1 and 30")
             tickers = list(dict.fromkeys(s.strip().upper() for s in args.tickers))
