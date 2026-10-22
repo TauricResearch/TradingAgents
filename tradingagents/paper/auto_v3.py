@@ -102,6 +102,14 @@ def feed(source: Path):
         raise ValueError("Capture timestamp must be UTC")
     if stamp.date() < day or not isinstance(obj["source"], str) or len(obj["source"]) < 5:
         raise ValueError("Invalid feed provenance")
+    # A daily OHLC file is not admissible before the completed NY session.
+    # The 17:30 NY cutoff is intentionally conservative; an actual exchange
+    # holiday/calendar adapter is mandatory before real automated scheduling.
+    from zoneinfo import ZoneInfo
+    from datetime import time
+    ny_stamp = stamp.astimezone(ZoneInfo("America/New_York"))
+    if day.weekday() >= 5 or ny_stamp.date() != day or ny_stamp.time() < time(17, 30):
+        raise ValueError("Daily feed published before safe NY close, or not an eligible weekday")
     def typed(group, typ):
         if not isinstance(group, dict):
             raise ValueError("Feed group is not a record")
