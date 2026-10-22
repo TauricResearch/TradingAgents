@@ -34,5 +34,9 @@ jobs:
         run: python -m pytest -q tests/test_discovery.py tests/test_underwriting.py tests/test_filings.py
       - name: Dashboard loopback integration (no external networks)
         run: python -m pytest -q -m integration tests/test_paper_dashboard.py
+      - name: V3.1 isolated Autopilot paper safety tests
+        run: python -m pytest -q tests/test_autopilot_state.py tests/test_autopilot_decision.py tests/test_autopilot_feeds.py tests/test_autopilot_runner.py tests/test_autopilot_performance.py
+      - name: V3.1 local scheduler CLI import smoke test
+        run: python -m tradingagents.paper.autopilot.cli --help
       - name: CLI launch smoke test
         run: python -m tradingagents.paper.auto_v3 --help
