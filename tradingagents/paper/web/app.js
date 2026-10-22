@@ -487,6 +487,59 @@
     }
   }
 
+  async function refreshAutopilot31() {
+    try {
+      const response = await fetch('/api/v3/autopilot-state', {cache:'no-store'});
+      if (!response.ok) throw new Error('Autopilot status endpoint unavailable');
+      const v = await response.json();
+      if (v.status !== 'paper_ready') {
+        byId('v31-mode', v.status === 'not_initialized' ? 'NOT INITIALISED' : 'SAFE HALT');
+        byId('v31-scheduler', 'OFFLINE');
+        byId('v31-description', v.status === 'not_initialized'
+          ? 'Separate V3.1 account not initialised. Your original V3 Paper Lab remains unchanged.'
+          : 'The V3.1 ledger or market evidence needs operator reconciliation. No automated entries.');
+        return;
+      }
+      byId('v31-mode', v.halted ? 'RISK HALT' : v.paused ? 'PAUSED'
+        : v.enabled ? 'PAPER MODE ENABLED' : 'PAPER MODE DISABLED');
+      byId('v31-equity', money(v.equity_gbp));
+      byId('v31-exposure', (v.positions ?? 0) + ' / ' + (v.queued ?? 0));
+      byId('v31-receipts', String(v.ai_receipts ?? 0));
+      byId('v31-scheduler', v.heartbeat_recent ? 'LOCAL PULSE RECENT' : 'NOT RUNNING / STALE');
+      byId('v31-description', 'Last simulated completed session: ' + (v.last_session || 'none')
+        + ' · Research watchlist: ' + (v.watchlist || []).join(', ')
+        + ' · Closed trades: ' + (v.closed_trades || 0)
+        + '. Secondary-source prices; simulated fills only.');
+      const intents = $('v31-intents');
+      if (intents) {
+        intents.replaceChildren();
+        for (const item of (v.intents || []).slice(-8)) {
+          const line = document.createElement('div');
+          line.textContent = item.ticker + ' · ' + item.status + ' · '
+            + item.confirmations + ' completed close confirmation(s)';
+          intents.appendChild(line);
+        }
+        if (!intents.childNodes.length) intents.textContent = 'No approved conditional plans.';
+      }
+      const audit = $('v31-audit');
+      if (audit) {
+        audit.replaceChildren();
+        for (const item of (v.recent_audit || []).slice().reverse()) {
+          const line = document.createElement('div');
+          line.textContent = String(item.utc || '').slice(0,16).replace('T',' ')
+            + ' UTC · ' + String(item.kind || '');
+          audit.appendChild(line);
+        }
+        if (!audit.childNodes.length) audit.textContent = 'No audit events yet.';
+      }
+    } catch(error) {
+      byId('v31-mode','UNAVAILABLE');
+      byId('v31-scheduler','OFFLINE');
+      byId('v31-description','Autopilot data unavailable; this does not affect the existing portfolios.');
+      console.warn('V3.1 read-only monitor:',error);
+    }
+  }
+
   function init() {
     clock();setInterval(clock,30000);
     $('refresh-btn').addEventListener('click',()=>refresh());
@@ -533,12 +586,13 @@
     document.querySelectorAll('.nav-links a').forEach(link=>link.addEventListener('click',()=>{
       document.querySelectorAll('.nav-links a').forEach(x=>x.classList.remove('active'));link.classList.add('active');
     }));
-    refresh(true);updateScan();refreshDiscovery();updateDiscoveryStatus();refreshAutopilot();
+    refresh(true);updateScan();refreshDiscovery();updateDiscoveryStatus();refreshAutopilot();refreshAutopilot31();
     setInterval(()=>refresh(true),20000);
     setInterval(updateScan,2500);
     setInterval(refreshDiscovery,25000);
     setInterval(updateDiscoveryStatus,3000);
     setInterval(refreshAutopilot,15000);
+    setInterval(refreshAutopilot31,15000);
   }
   document.addEventListener('DOMContentLoaded',init);
 })();
