@@ -19,6 +19,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
 
+from tradingagents.dataflows.symbols import normalize_symbol
+
 
 class Position(BaseModel):
     ticker: str = Field(description="Instrument symbol, e.g. AAPL")
@@ -32,7 +34,19 @@ class PortfolioContext(BaseModel):
     positions: list[Position] = Field(default_factory=list)
 
     def position_in(self, ticker: str) -> Position | None:
-        return next((p for p in self.positions if p.ticker.upper() == ticker.strip().upper()), None)
+        wanted = ticker.strip().upper()
+        exact = next((p for p in self.positions if p.ticker.upper() == wanted), None)
+        if exact is not None:
+            return exact
+        # GH #1556: brokers spell instruments their own way (BTCUSDT vs the
+        # canonical BTC-USD). Fall back to canonical-symbol matching so a held
+        # position is never reported as absent. normalize_symbol is purely
+        # syntactic (no network), so it is safe to apply on every lookup.
+        wanted_canonical = normalize_symbol(wanted)
+        return next(
+            (p for p in self.positions if normalize_symbol(p.ticker.upper()) == wanted_canonical),
+            None,
+        )
 
     def render(self, ticker: str) -> str:
         """The portfolio block for the decision agents, led by the analyzed instrument."""

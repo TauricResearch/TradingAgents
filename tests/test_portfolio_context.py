@@ -46,6 +46,17 @@ def test_a_ticker_held_under_another_spelling_is_matched():
 
 
 @pytest.mark.unit
+def test_a_ticker_held_under_a_broker_alias_is_matched():
+    # GH #1556: brokers write BTCUSDT while the analyzer sees the canonical BTC-USD;
+    # the book must still lead with the position instead of filing it under "other".
+    book = PortfolioContext.model_validate({"positions": [{"ticker": "BTCUSDT", "quantity": 0.5}]})
+    text = book.render("BTC-USD")
+    assert "No current position" not in text
+    assert "Current position in BTC-USD: 0.5" in text
+    assert "Other positions" not in text
+
+
+@pytest.mark.unit
 def test_absent_context_is_reported_as_not_provided():
     notice = get_portfolio_context_from_state({"company_of_interest": "AAPL"})
     assert "not provided" in notice.lower()
