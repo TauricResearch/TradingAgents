@@ -14,6 +14,8 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 import pytz
 
+from tradingagents.dataflows.vendor_gateway import get_yahoo_ticker
+
 from .engine import Bar, Book
 
 DEFAULT_PATH = Path.home() / ".tradingagents" / "paper" / "portfolio.json"
@@ -95,7 +97,6 @@ def fetch_daily(tickers: list[str], start: str, end: str, *,
     otherwise stops, exposure and P&L could be wrong. Optional research names
     are skipped individually, leaving other candidates available for analysis.
     """
-    import yfinance as yf
 
     must_have = {"SPY", "GBPUSD=X"} | (required or set())
     out: dict[str, dict[str, Bar]] = {}
@@ -104,7 +105,7 @@ def fetch_daily(tickers: list[str], start: str, end: str, *,
     for ticker in tickers:
         beginning = start_with_fx_buffer if ticker == "GBPUSD=X" else start
         try:
-            hist = yf.Ticker(ticker).history(start=beginning, end=end_exclusive,
+            hist = get_yahoo_ticker(ticker).history(start=beginning, end=end_exclusive,
                                               interval="1d", auto_adjust=False)
             if hist is None or hist.empty:
                 raise ValueError("vendor returned no daily candles")

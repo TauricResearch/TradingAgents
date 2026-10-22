@@ -21,6 +21,8 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
+from tradingagents.dataflows.vendor_gateway import download_yahoo_bars, get_yahoo_ticker
+
 from .filings import SecEvidence
 from .underwriting import underwriting
 
@@ -167,13 +169,12 @@ def screen_prices(close: list[float], volume: list[float], days: list[str],
 def batch_prices(symbols: list[str], end: str, *, chunk_size: int=40):
     """Batch Yahoo requests. Return no symbol where candles are missing."""
     import pandas as pd
-    import yfinance as yf
     start = (date.fromisoformat(end)-timedelta(days=440)).isoformat()
     for i in range(0,len(symbols),chunk_size):
         names = symbols[i:i+chunk_size]
         yahoo_names = [n.replace(".","-") for n in names]
         try:
-            df = yf.download(yahoo_names, start=start, end=end, interval="1d",
+            df = download_yahoo_bars(yahoo_names, start=start, end=end, interval="1d",
                              group_by="ticker", auto_adjust=True, actions=False,
                              progress=False, threads=False, timeout=16)
             if df is None or df.empty:
@@ -423,11 +424,10 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
         raise RuntimeError("No usable completed price histories. No candidates invented.")
     leaders=research_profile_pool(price,profile_limit,seed)
     print(f"RESEARCH POOL: {len(leaders)} profiles; momentum + independent sampled liquid names",flush=True)
-    import yfinance as yf
     candidates,excluded=[],[]
     for n,ticker in enumerate(leaders,1):
         try:
-            profile=yf.Ticker(ticker.replace(".","-")).info
+            profile=get_yahoo_ticker(ticker.replace(".","-")).info
             fields,reason=qualify_profile(profile,price[ticker],rules)
         except Exception as exc:
             fields,reason=None,"profile_unavailable_"+type(exc).__name__
