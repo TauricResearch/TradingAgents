@@ -9,7 +9,7 @@ from tradingagents.paper.conditional import EarningsSnapshot, evidence_hash
 from tradingagents.paper.engine import Bar
 from tradingagents.paper.autopilot import runner, feeds
 from tradingagents.paper.autopilot.state import create_new, read, atomic_write
-from test_autopilot_state import draft
+from tests.test_autopilot_state import draft
 
 NY=ZoneInfo("America/New_York")
 D1="2026-10-21"
@@ -240,7 +240,7 @@ def test_end_to_end_llm_handoff_requires_verbatim_pm_and_trader_proof(monkeypatc
     import sys
     from types import ModuleType,SimpleNamespace
     from tradingagents.paper.autopilot.decision import AIExecutionProposal
-    from test_autopilot_decision import proposal,PM,TRADER
+    from tests.test_autopilot_decision import proposal,PM,TRADER
     fake_portfolio=ModuleType("tradingagents.portfolio")
     class FakePosition:
         def __init__(self,**kwargs): self.data=kwargs
@@ -290,7 +290,7 @@ def test_end_to_end_llm_handoff_requires_verbatim_pm_and_trader_proof(monkeypatc
 def test_bad_ai_report_cannot_claim_an_executable_stop(monkeypatch,tmp_path):
     import sys
     from types import ModuleType,SimpleNamespace
-    from test_autopilot_decision import proposal,PM,TRADER
+    from tests.test_autopilot_decision import proposal,PM,TRADER
     mod=ModuleType("tradingagents.portfolio")
     mod.Position=lambda **kw:kw
     mod.PortfolioContext=lambda **kw:kw
