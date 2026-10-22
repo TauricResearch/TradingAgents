@@ -92,7 +92,8 @@ def test_every_command_is_registered_when_run_as_a_module():
     # the child write UTF-8, rather than the locale's codec: cp1252 on Windows
     # cannot decode them, and the test then fails before checking anything.
     out = subprocess.run([sys.executable, "-m", "cli.main", "backtest", "--help"],
-                         capture_output=True, text=True, encoding="utf-8", timeout=120,
+                         capture_output=True, text=True, encoding="utf-8", errors="replace",
+                         timeout=120,
                          env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     assert out.returncode == 0, out.stderr[-400:]
     # Where the terminal takes colour, help styles each option and splits
