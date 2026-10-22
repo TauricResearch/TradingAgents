@@ -27,6 +27,7 @@ import pytz
 
 from .cli import DEFAULT_PATH, DEFAULT_TICKERS, last_safe_session, read_book
 from .engine import Book
+from .discovery_web import DiscoveryRuntime, latest as discovery_latest, safe_report as safe_discovery_report
 
 STATIC = Path(__file__).with_name("web")
 _REPORT_RE = re.compile(r"^[a-zA-Z0-9_./-]+$")
@@ -199,7 +200,9 @@ class ScanRuntime:
                     "log": log, "error": self.last_error}
 
 
-def make_handler(state_path: Path, runtime: ScanRuntime):
+def make_handler(state_path: Path, runtime: ScanRuntime, discovery: DiscoveryRuntime | None = None):
+    # A separate research sandbox: never references the paper-account book.
+    discovery = discovery or DiscoveryRuntime()
     class DashboardHandler(BaseHTTPRequestHandler):
         server_version = "KoralEquities/1.0"
 
@@ -245,6 +248,20 @@ def make_handler(state_path: Path, runtime: ScanRuntime):
             if path == "/api/scan-status":
                 self.respond_json(runtime.status())
                 return
+            if path == "/api/discovery/state":
+                self.respond_json(discovery_latest(discovery.home))
+                return
+            if path == "/api/discovery/status":
+                self.respond_json(discovery.status())
+                return
+            if path.startswith("/discovery/reports/"):
+                parts=path.split("/")
+                file=safe_discovery_report(discovery.home,parts[3],parts[4]) if len(parts)==6 and parts[5]=="complete_report.html" else None
+                if file is None:
+                    self.respond_json({"error":"Research report not found"},HTTPStatus.NOT_FOUND)
+                else:
+                    self.respond(file.read_bytes(),content_type="text/html; charset=utf-8",report=True)
+                return
             if path in ("/api/export/closed", "/api/export/positions"):
                 try:
                     view = snapshot(read_book(state_path), state_path)
@@ -270,6 +287,28 @@ def make_handler(state_path: Path, runtime: ScanRuntime):
             self.respond_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
         def do_POST(self):
+            if self.path == "/api/discovery/start":
+                host = self.headers.get("Host","")
+                origin = self.headers.get("Origin","")
+                hosts={f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
+                if host not in hosts or origin not in {"http://"+h for h in hosts} or self.headers.get("X-Koral-Action")!="discovery":
+                    self.respond_json({"error":"Forbidden"},HTTPStatus.FORBIDDEN)
+                    return
+                if self.headers.get("Content-Type","").split(";")[0].strip()!="application/json":
+                    self.respond_json({"error":"JSON required"},HTTPStatus.BAD_REQUEST)
+                    return
+                try:
+                    size=int(self.headers.get("Content-Length","0"))
+                    if not 1<=size<=200:
+                        raise ValueError("Invalid discovery request")
+                    config=json.loads(self.rfile.read(size))
+                    if type(config) is not dict or set(config)!={"max_symbols","ai"}:
+                        raise ValueError("Expected scan size and AI report count")
+                    discovery.start(config["max_symbols"],config["ai"])
+                    self.respond_json({"ok":True,"mode":"RESEARCH_ONLY","message":"Independent stock discovery started"},HTTPStatus.ACCEPTED)
+                except (ValueError,RuntimeError,TypeError,KeyError,json.JSONDecodeError,OSError) as exc:
+                    self.respond_json({"error":str(exc)},HTTPStatus.CONFLICT)
+                return
             if self.path != "/api/scan":
                 self.respond_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
                 return
@@ -308,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     if not 1024 <= args.port <= 65535:
         parser.error("--port must be between 1024 and 65535")
     state_path = args.state.expanduser().resolve()
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state_path, ScanRuntime(state_path)))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state_path, ScanRuntime(state_path), DiscoveryRuntime()))
     server.daemon_threads = True
     url = f"http://127.0.0.1:{server.server_port}"
     print(f"Koral Equities paper dashboard: {url}")
