@@ -137,6 +137,11 @@ def test_invalid_background_scan_request_does_not_spawn(tmp_path):
 
 
 def test_research_snapshot_cannot_mutate_paper_book(tmp_path,monkeypatch):
+    # Never use the real SEC network in a mocked scanner test, even when an
+    # operator has set KORAL_SEC_USER_AGENT in their private environment.
+    monkeypatch.setattr(discovery,"SecEvidence",lambda:SimpleNamespace(
+        collect=lambda ticker,now=None:{"status":"NOT_CONFIGURED","filings":[]}))
+
     state=tmp_path/"paper"/"portfolio.json"
     write_book(state,Book.new("2026-10-21"))
     before=state.read_bytes()
@@ -158,6 +163,9 @@ def test_research_snapshot_cannot_mutate_paper_book(tmp_path,monkeypatch):
     assert result["ai_reports"]==[] and result["notice"].endswith("ZERO ORDERS.")
     assert state.read_bytes()==before
     assert len(result["candidates"])==1
+    assert "scenarios_5y" not in result["candidates"][0]
+    assert result["candidates"][0]["valuation_v2"]["rating"]=="INSUFFICIENT_EVIDENCE"
+
 
 
 def test_dashboard_declares_discovery_independent():
@@ -211,6 +219,11 @@ def test_ai_price_date_rejects_intraday_future_and_missing(company,end_exclusive
 
 
 def test_preclose_ai_uses_prior_session_even_when_research_is_today(monkeypatch,tmp_path):
+    # Never use the real SEC network in a mocked scanner test, even when an
+    # operator has set KORAL_SEC_USER_AGENT in their private environment.
+    monkeypatch.setattr(discovery,"SecEvidence",lambda:SimpleNamespace(
+        collect=lambda ticker,now=None:{"status":"NOT_CONFIGURED","filings":[]}))
+
     """Integration guard: stop the real graph receiving an unfinished daily bar."""
     monkeypatch.setattr(discovery,"source_universe",lambda:(["ABCD"],["offline fake"]))
     def bars(_symbols,_end):
