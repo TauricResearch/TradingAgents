@@ -94,3 +94,24 @@ main{max-width:1510px;margin:auto;padding:0 40px}.welcome{display:flex;justify-c
 .discovery-underwriting b{font:740 9px var(--mono);letter-spacing:.6px;color:#8a9b90}
 .discovery-underwriting span{font:500 11px/1.5 var(--sans);color:#375f46;overflow-wrap:anywhere}
 .discovery-underwriting a{color:#217b55;text-decoration:underline;text-underline-offset:2px}
+
+/* Isolated V3 paper autopilot: read-only operational status, no trade buttons. */
+.v3-panel{margin:32px 0 24px;border:1px solid #cfded2;background:#f9fbf7;border-radius:16px;padding:32px 34px}
+.v3-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.v3-head h2{font-size:clamp(26px,2.4vw,38px);color:#193e2d;margin:10px 0;letter-spacing:-1.2px}
+.v3-head h2 em{font:italic 500 1em Georgia,serif;color:#2c8b5e}
+.v3-head p{font-size:12px;line-height:1.75;color:#778a7c;margin:0;max-width:690px}
+.v3-mode{border:1px solid #bed9c9;background:#eaf4ed;border-radius:30px;color:#397d57;padding:10px 14px;font:700 10px var(--mono);white-space:nowrap}
+.v3-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:25px 0}
+.v3-stats>div{display:flex;flex-direction:column;gap:8px;border:1px solid #e2ebe2;background:#fff;padding:16px 18px;border-radius:10px}
+.v3-stats span{font:700 9px var(--mono);color:#8da092;letter-spacing:.5px}
+.v3-stats strong{font:750 clamp(13px,1.5vw,22px) var(--sans);color:#24543b}
+.v3-details{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.v3-details>div{border:1px solid #e0e9e1;border-radius:12px;background:#fff;padding:17px}
+.v3-details h3{font-size:14px;color:#294938;margin:0 0 10px}
+.v3-details p{font-size:11px;color:#607a68;line-height:1.7;margin:0 0 14px}
+.v3-intents,.v3-audit{font:11px/1.9 var(--mono);color:#567565;overflow-wrap:anywhere}
+.v3-intents>div,.v3-audit>div{border-bottom:1px solid #edf2ec;padding:5px 0}
+.v3-disclaimer{color:#7d9385;font-size:11px;line-height:1.65;margin-top:17px;border-top:1px solid #e0ebe2;padding-top:17px}
+@media(max-width:850px){.v3-stats{grid-template-columns:repeat(2,1fr)}.v3-details{grid-template-columns:1fr}}
+@media(max-width:610px){.v3-panel{padding:22px 16px}.v3-head{flex-direction:column}.v3-stats{grid-template-columns:1fr 1fr}}

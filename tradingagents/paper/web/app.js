@@ -436,6 +436,57 @@
     }
   }
 
+  async function refreshAutopilot() {
+    try {
+      const response = await fetch('/api/v3/state', {cache:'no-store'});
+      if (!response.ok) throw new Error('V3 ledger unavailable');
+      const v = await response.json();
+      if (v.status !== 'paper_ready') {
+        byId('v3-mode', v.status === 'not_initialized' ? 'NOT INITIALISED' : 'NEEDS REVIEW');
+        byId('v3-state-description', v.status === 'not_initialized' ?
+          'V3 uses a separate £10,000 GBP simulated account. Initialise it once using the dedicated command-line tool; the old portfolio is unchanged.' :
+          'V3 state could not be verified; do not activate automatic entries.');
+        return;
+      }
+      byId('v3-mode',v.halted ? 'RISK HALT' : v.paused ? 'PAUSED' :
+        v.enabled ? 'PAPER AUTONOMY ENABLED' : 'PAPER AUTONOMY DISABLED');
+      byId('v3-equity',money(v.equity_gbp));
+      byId('v3-benchmark',v.performance?.spy_benchmark_gbp != null ? money(v.performance.spy_benchmark_gbp) : '—');
+      byId('v3-exposure',(v.positions?.length ?? 0) + ' / ' + (v.queued ?? 0));
+      byId('v3-scheduler',v.scheduler_heartbeat_recent ? 'PULSE RECENT' : 'NOT RUNNING / STALE');
+      byId('v3-state-description','Last verified session: '+escapeHtml(v.last_session || 'none')+
+           ' · Watchlist: '+(v.watchlist || []).map(escapeHtml).join(', ') +
+           ' · AI receipts: '+(v.receipts_count || 0)+
+           ' · Closed trades: '+(v.performance?.closed_trades || 0)+
+           '. All prices and fills are simulated.');
+      const intents = $('v3-intents');
+      if (intents) {
+        intents.replaceChildren();
+        const rows = (v.intents || []).slice(-8);
+        if (!rows.length) {intents.textContent = 'No active or historical V3 intents.';}
+        else for (const item of rows) {
+          const div = document.createElement('div');
+          div.textContent = item.ticker+' · '+item.status+' · '+item.confirmations+' confirmation(s)';
+          intents.appendChild(div);
+        }
+      }
+      const log = $('v3-audit');
+      if (log) {
+        log.replaceChildren();
+        for (const event of (v.recent_audit || []).slice().reverse()) {
+          const div = document.createElement('div');
+          div.textContent = String(event.utc || '').slice(0,16).replace('T',' ')+' UTC · '+event.kind;
+          log.appendChild(div);
+        }
+        if (!log.childNodes.length) log.textContent = 'No V3 events.';
+      }
+    } catch (error) {
+      byId('v3-mode','UNAVAILABLE');
+      byId('v3-scheduler','OFFLINE');
+      console.warn('V3 read-only status:',error);
+    }
+  }
+
   function init() {
     clock();setInterval(clock,30000);
     $('refresh-btn').addEventListener('click',()=>refresh());
@@ -482,11 +533,12 @@
     document.querySelectorAll('.nav-links a').forEach(link=>link.addEventListener('click',()=>{
       document.querySelectorAll('.nav-links a').forEach(x=>x.classList.remove('active'));link.classList.add('active');
     }));
-    refresh(true);updateScan();refreshDiscovery();updateDiscoveryStatus();
+    refresh(true);updateScan();refreshDiscovery();updateDiscoveryStatus();refreshAutopilot();
     setInterval(()=>refresh(true),20000);
     setInterval(updateScan,2500);
     setInterval(refreshDiscovery,25000);
     setInterval(updateDiscoveryStatus,3000);
+    setInterval(refreshAutopilot,15000);
   }
   document.addEventListener('DOMContentLoaded',init);
 })();
