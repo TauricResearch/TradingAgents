@@ -183,6 +183,41 @@ def approve_plan(home: Path, plan_path: Path, report_path: Path, *, operator_app
         return {"intent_id":plan.intent_id,"status":"WATCHING","mode":"PAPER_ONLY"}
 
 
+def process_inbox(home: Path, inbox: Path, *, preview: bool=False) -> dict:
+    """Idempotently ingest date-named completed-session fixtures in order.
+
+    A daily polling service can invoke this repeatedly; no quote data or
+    earnings events are fabricated. An invalid day stops subsequent days.
+    Source files are retained for audit, not silently deleted.
+    IMPORTANT: this does not substitute for an exchange holiday calendar or
+    establish that an absent trading session was a market holiday.
+    """
+    from re import fullmatch
+    inbox=inbox.expanduser().resolve()
+    if not inbox.is_dir():
+        raise ValueError("Feed inbox directory does not exist")
+    verify(home)
+    eligible=[]
+    for file in inbox.iterdir():
+        if file.is_file() and fullmatch(r"\d{4}-\d{2}-\d{2}\.json",file.name):
+            eligible.append(file)
+    eligible.sort(key=lambda p:p.name)
+    current=read(home).book.last_session
+    future=[p for p in eligible if current is None or p.stem>current]
+    if preview and len(future)>1:
+        raise ValueError("Multi-day inbox preview would ignore intermediate state; preview one day at a time")
+    done=[]
+    for file in future:
+        original, row, _bars, _pre, _after = feed(file)
+        if row["day"] != file.stem:
+            raise ValueError("Feed filename and payload date disagree")
+        result=run_day(home,file,preview=preview)
+        done.append(result)
+    return {"mode":"PAPER_INBOX_PREVIEW" if preview else "PAPER_INBOX_SYNC",
+            "sessions_processed":len(done),"last_session":done[-1]["day"] if done else current,
+            "results":done}
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="koral-equities-v3",
                                 description="Isolated V3 paper replay, never brokerage execution")
@@ -198,6 +233,9 @@ def main(argv=None):
     approval.add_argument("--plan", type=Path, required=True)
     approval.add_argument("--report", type=Path, required=True)
     approval.add_argument("--approve", action="store_true")
+    inbox_cmd = commands.add_parser("sync-inbox", help="Process dated paper fixtures without duplicating sessions")
+    inbox_cmd.add_argument("--dir",type=Path,required=True)
+    inbox_cmd.add_argument("--preview",action="store_true")
     args = p.parse_args(argv)
     try:
         if args.cmd == "init":
@@ -213,6 +251,8 @@ def main(argv=None):
             print(json.dumps(run_day(args.home, args.feed, preview=args.preview)))
         elif args.cmd == "approve-plan":
             print(json.dumps(approve_plan(args.home,args.plan,args.report,operator_approved=args.approve)))
+        elif args.cmd == "sync-inbox":
+            print(json.dumps(process_inbox(args.home,args.dir,preview=args.preview)))
         return 0
     except (ValueError, OSError, TypeError, KeyError, json.JSONDecodeError) as exc:
         p.exit(2, f"V3 BLOCKED: {exc}\n")
