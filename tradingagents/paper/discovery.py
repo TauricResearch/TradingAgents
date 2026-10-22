@@ -21,6 +21,9 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
+from .filings import SecEvidence
+from .underwriting import underwriting
+
 DEFAULT_HOME = Path.home() / ".tradingagents" / "discovery"
 LISTINGS = (
     ("https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt", "nasdaq"),
@@ -232,20 +235,48 @@ def qualify_profile(profile: dict, price: dict, rules: ScreeningRules) -> tuple[
         "revenue_growth_vendor":round(growth,4),"operating_margin":margin,
         "gross_margin":gross,"free_cash_flow_usd":fcf,"cash_usd":cash,"debt_usd":debt,
         "nominal_marketcap_to_sales":round(ps,3),"research_score":round(score,2),
+        "ebitda_ttm_usd":number(profile.get("ebitda")),
+        "net_income_ttm_usd":number(profile.get("netIncomeToCommon")),
+        "shares_outstanding":number(profile.get("sharesOutstanding")),
         "missing_metrics":missing,
     },"accepted"
 
 
 def scenario_multiples(company: dict, years: int=5) -> dict:
-    cap = number(company.get("market_cap_usd"))
-    sales = number(company.get("revenue_ttm_usd"))
-    if cap is None or sales is None or cap<=0:return {}
-    assumptions={"bear":(.08,1.3,.05),"base":(.22,3.0,.03),"bull":(.40,6.0,.03)}
-    return {name:{"revenue_cagr_assumed":g,"terminal_sales_multiple_assumed":m,
-                  "annual_dilution_assumed":d,
-                  "illustrative_equity_multiple":round(sales*(1+g)**years*m/(cap*(1+d)**years),2)}
-            for name,(g,m,d) in assumptions.items()}
+    """Retired: universal price-to-sales price targets are not credible."""
+    return {}
 
+
+def research_profile_pool(price: dict, limit: int, seed: int) -> list[str]:
+    """Send both momentum leaders and a seeded sample of other liquid names."""
+    names=sorted(price,key=lambda t:(-price[t]["price_score"],t))
+    if len(names)<=limit:
+        return names
+    leaders=max(1,(limit+1)//2)
+    return names[:leaders]+sorted(random.Random(seed).sample(names[leaders:], min(limit-leaders,len(names)-leaders)))
+
+
+def diversified_shortlist(candidates: list[dict], limit: int, max_per_sector: int=4) -> list[dict]:
+    """Limit sector dominance when enough qualified alternatives exist."""
+    rows=sorted(candidates,key=lambda r:(-r["research_score"],r["ticker"]))
+    result=[]
+    count={}
+    for row in rows:
+        sector=row.get("sector") or "Unknown"
+        if count.get(sector,0)>=max_per_sector:
+            continue
+        result.append(row)
+        count[sector]=count.get(sector,0)+1
+        if len(result)>=limit:
+            break
+    if len(result)<limit:
+        chosen={r["ticker"] for r in result}
+        for row in rows:
+            if row["ticker"] not in chosen:
+                result.append(row)
+                if len(result)>=limit:
+                    break
+    return result
 
 
 def write_compounder_memo(graph, ticker: str, company: dict, state: dict, path: Path) -> bool:
@@ -268,7 +299,7 @@ def write_compounder_memo(graph, ticker: str, company: dict, state: dict, path: 
             "revenue_ttm_usd","revenue_growth_vendor",
             "operating_margin","free_cash_flow_usd","cash_usd","debt_usd",
             "nominal_marketcap_to_sales","missing_metrics","price_asof",
-            "scenarios_5y"
+            "valuation_v2"
         )
     }
     prompt = (
@@ -282,10 +313,14 @@ def write_compounder_memo(graph, ticker: str, company: dict, state: dict, path: 
         "Distinguish verified reporting from inferred claims and missing information. "
         "Do not cite material you haven't actually received, make up TAM figures, "
         "or convert vendor revenue-growth snapshots into five-year forecasts.\n"
-        "Use the supplied bear, base and bull scenarios only as *hypothetical math*, "
-        "not your own supported price targets. Discuss required growth, dilution, "
-        "valuation and capital efficiency; specifically challenge whether a 10x "
-        "is economically realistic from this market capitalization.\n\n"
+        "Retire all generic 3x/6x price-to-sales and 22%/40% revenue forecasts. "
+        "They are not supported company valuations and must NOT be repeated. "
+        "Use the supplied sector-specific valuation method and evidence checklist. "
+        "Distinguish verified SEC metadata / tagged facts from reconciled filed financials. "
+        "Missing reserves, cash runway, capital expenditure and share-count information "
+        "must produce INSUFFICIENT EVIDENCE, not an invented terminal value. "
+        "Discuss 10x as a shareholder CAGR hurdle, not a probability or a target. "
+        "Make financing, dilution, valuation and failure modes explicit.\n\n"
         "OUTPUT THESE SECTIONS with clear, substantive reasoning:\n"
         "1. INVESTIGATE / WATCH / REJECT and why (not Buy/Sell)\n"
         "2. Business economics and defensibility\n"
@@ -361,7 +396,8 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
             price[ticker]=signal
     if not price:
         raise RuntimeError("No usable completed price histories. No candidates invented.")
-    leaders=sorted(price,key=lambda t:(-price[t]["price_score"],t))[:profile_limit]
+    leaders=research_profile_pool(price,profile_limit,seed)
+    print(f"RESEARCH POOL: {len(leaders)} profiles; momentum + independent sampled liquid names",flush=True)
     import yfinance as yf
     candidates,excluded=[],[]
     for n,ticker in enumerate(leaders,1):
@@ -372,24 +408,34 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
             fields,reason=None,"profile_unavailable_"+type(exc).__name__
         if fields:
             row={"ticker":ticker,**price[ticker],**fields}
-            row["scenarios_5y"]=scenario_multiples(row)
             candidates.append(row)
         else:
             excluded.append({"ticker":ticker,"reason":reason})
         if n%10==0:
             print(f"PROFILES: {n}/{len(leaders)} checked, {len(candidates)} candidates",flush=True)
-    candidates=sorted(candidates,key=lambda r:(-r["research_score"],r["ticker"]))[:top]
+    candidates=diversified_shortlist(candidates,top)
+    # SEC primary-source retrieval is opt-in: no identifying User-Agent means no
+    # SEC requests and no false appearance of financial verification.
+    from dotenv import load_dotenv
+    load_dotenv()
+    sec=SecEvidence()
+    for company in candidates:
+        primary=sec.collect(company["ticker"],now=now)
+        company["valuation_v2"]=underwriting(company,filing_evidence=primary)
+        print(f"UNDERWRITING {company['ticker']}: "
+              f"{company['valuation_v2']['business_model']} | "
+              f"{company['valuation_v2']['rating']} | SEC {primary['status']}",flush=True)
     result={
         "schema":"koral_equities_discovery_v1","run_id":run_id,
         "generated_at_utc":now.isoformat(timespec="seconds"),
         "requested_end_exclusive":end,
-        "asof_note":"Price and technical AI analysis must use the most recent completed daily price candle (separate from the UTC research timestamp). Live fundamental profiles and news may have later publication times. This is NOT point-in-time backtest data.",
+        "asof_note":"Completed daily market bars only. Yahoo fundamental snapshots and SEC metadata have independent publication times. V2 industry checklists do NOT produce forecasts or historical PIT evidence.",
         "source_notes":notes,"universe_total":len(universe),"universe_scanned":len(sample),
         "sampled_not_exhaustive":sampled,"sample_seed":seed,
         "price_screen_passed":len(price),"profiles_requested":len(leaders),
         "profile_exclusions":excluded,
         "candidates":candidates,"ai_reports":[],"ai_requested":min(ai,len(candidates)),
-        "notice":"Five-year scenarios are illustrative assumptions, not price targets, probabilities, advice or executable orders. ZERO ORDERS.",
+        "notice":"Universal 10x forecasts RETIRED. Sector-specific evidence gaps shown, with no validated price targets. RESEARCH ONLY. ZERO ORDERS.",
     }
     save_scan(home,result)
     print(f"SHORTLIST: {len(candidates)} qualified firms; 0 orders; saved to {home/'latest.json'}",flush=True)

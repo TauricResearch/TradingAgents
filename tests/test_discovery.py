@@ -79,12 +79,26 @@ def test_profile_eligibility_is_strict_and_source_limitation_visible():
     assert discovery.qualify_profile({**profile,"marketCap":70e9},price,discovery.ScreeningRules())[0] is None
 
 
-def test_bull_case_is_assumption_not_probability():
-    company={"market_cap_usd":1e9,"revenue_ttm_usd":300e6}
-    outcomes=discovery.scenario_multiples(company)
-    assert set(outcomes)=={"bear","base","bull"}
-    assert outcomes["bull"]["illustrative_equity_multiple"] > outcomes["base"]["illustrative_equity_multiple"]
-    assert outcomes["bull"]["revenue_cagr_assumed"]==.40
+def test_uniform_five_year_bull_projections_are_retired():
+    assert discovery.scenario_multiples({"market_cap_usd":1e9,"revenue_ttm_usd":300e6})=={}
+
+
+def test_price_profile_pool_includes_a_random_non_momentum_sample():
+    price={f"S{i:03}":{"price_score":float(i)} for i in range(50)}
+    sample=discovery.research_profile_pool(price,12,42)
+    assert len(sample)==len(set(sample))==12
+    assert sample[:6]==[f"S{i:03}" for i in range(49,43,-1)]
+    assert any(t not in sample[:6] for t in sample[6:])
+    assert sample==discovery.research_profile_pool(dict(reversed(list(price.items()))),12,42)
+
+
+def test_diversified_shortlist_respects_sector_cap_with_alternatives():
+    rows=[{"ticker":f"E{i}","research_score":100-i,"sector":"Energy"} for i in range(6)]
+    rows.extend({"ticker":f"T{i}","research_score":90-i,"sector":"Technology"} for i in range(6))
+    selection=discovery.diversified_shortlist(rows,8,4)
+    assert len(selection)==8
+    assert sum(r["sector"]=="Energy" for r in selection)==4
+    assert sum(r["sector"]=="Technology" for r in selection)==4
 
 
 def test_safe_report_cannot_traverse_directories(tmp_path):
