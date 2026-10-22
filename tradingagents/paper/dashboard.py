@@ -256,11 +256,14 @@ def make_handler(state_path: Path, runtime: ScanRuntime, discovery: DiscoveryRun
                 return
             if path.startswith("/discovery/reports/"):
                 parts=path.split("/")
-                file=safe_discovery_report(discovery.home,parts[3],parts[4]) if len(parts)==6 and parts[5]=="complete_report.html" else None
+                allowed=("complete_report.html","compounder_memo.md")
+                leaf=parts[5] if len(parts)==6 and parts[5] in allowed else ""
+                file=safe_discovery_report(discovery.home,parts[3],parts[4],leaf) if leaf else None
                 if file is None:
-                    self.respond_json({"error":"Research report not found"},HTTPStatus.NOT_FOUND)
+                    self.respond_json({"error":"Research document not found"},HTTPStatus.NOT_FOUND)
                 else:
-                    self.respond(file.read_bytes(),content_type="text/html; charset=utf-8",report=True)
+                    mimetype="text/plain; charset=utf-8" if leaf.endswith(".md") else "text/html; charset=utf-8"
+                    self.respond(file.read_bytes(),content_type=mimetype,report=True)
                 return
             if path in ("/api/export/closed", "/api/export/positions"):
                 try:
