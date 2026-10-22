@@ -45,3 +45,15 @@ The discovery pipeline now selects a combination of momentum leaders and a seede
 The SEC collector uses official `company_tickers.json`, `submissions` and `companyfacts` endpoints. To responsibly identify a research tool in SEC requests, set `KORAL_SEC_USER_AGENT=KoralEquities Research contact@example.com` **with your actual email replacing the example** in your private `.env` and restart the dashboard. This is an optional operator choice; no configuration means the scan still runs and explicitly records `SEC NOT_CONFIGURED`. Keep all contact details and provider keys out of GitHub.
 
 Filing links and tagged XBRL facts include accession, form, filing date, concept, unit and reporting period where available. They do **not** prove that the Yahoo financial snapshot reconciles to a filed statement, establish a defensible industry forecast, or make a historical backtest point-in-time safe. Foreign filers can have incomplete US-GAAP tagging. Nothing in this module writes to either V1 or V2 portfolio accounts.
+
+## FX currency safety — 22 October 2026
+
+**Critical finding:** The first HMY (Harmony Gold) ADR discovery scan displayed Yahoo's `freeCashflow=9.85e9` as **$9.85bn**, but Harmony's filed accounts are denominated in South African rand. Yahoo's public HMY statistics list 9.85bn of levered free cash flow on the same scale as its ZAR company financials, while the stock's NYSE ADR market capitalization is in USD. Ratios of USD market capitalisation to ZAR revenue, and any debt/FCF yields, are invalid.
+
+**Fail-closed patch:** company profiles now require Yahoo `currency=USD` AND `financialCurrency=USD` before any financial amount is interpreted as USD or scored. Any mismatch (`USD/ZAR`, `USD/CAD`, etc.), absent currency metadata or non-USD quote is explicitly excluded from the shortlist and logged as `CURRENCY SAFETY`; exclusion counts appear in scan metadata. Missing fields are never assumed to mean USD. The scanner does **not** invent or extrapolate exchange rates. The quoted market-cap and financial amounts must share an explicitly known currency to be compared.
+
+This currently removes some otherwise interesting foreign ADRs rather than pricing them improperly. A future release can reintroduce them with independently sourced FX rates, timestamped currency conversions, proper ADR share ratios and reconciled filings. **Current cached discovery runs and their saved AI reports remain unaltered and should be treated as research evidence with known defects.** This fix has no permission to place simulated or real orders.
+
+Sources:
+- Harmony Gold's 27 Aug 2026 FY2026 official results: https://www.harmony.co.za/media/announcements/2026/fy26-results-final-dividend-declaration-20260827/
+- Source-labelled ZAR cash-flow history: https://stockanalysis.com/stocks/hmy/financials/cash-flow-statement/

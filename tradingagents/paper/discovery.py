@@ -201,9 +201,32 @@ def batch_prices(symbols: list[str], end: str, *, chunk_size: int=40):
                 continue
 
 
+def financial_currency_guard(profile: dict) -> str | None:
+    """Fail closed when quotes and issuer financials use different currencies.
+
+    A USD-listed ADR can report sales, free cash flow and balance sheets in
+    ZAR, CAD or other currencies. A market-cap/financial ratio must never mix
+    raw monetary units. No exchange-rate conversion is inferred here.
+    """
+    quote=str(profile.get("currency") or "").strip().upper()
+    financial=str(profile.get("financialCurrency") or "").strip().upper()
+    if not re.fullmatch(r"[A-Z]{3}",quote):
+        return "quote_currency_missing_or_invalid"
+    if quote!="USD":
+        return "quote_currency_not_usd"
+    if not re.fullmatch(r"[A-Z]{3}",financial):
+        return "financial_currency_missing_or_invalid"
+    if financial!=quote:
+        return f"unconverted_currency_mismatch_{financial}_vs_{quote}"
+    return None
+
+
 def qualify_profile(profile: dict, price: dict, rules: ScreeningRules) -> tuple[dict | None, str]:
     if not isinstance(profile,dict) or profile.get("quoteType")!="EQUITY":
         return None,"not_verified_common_equity"
+    currency_issue=financial_currency_guard(profile)
+    if currency_issue:
+        return None,currency_issue
     cap, sales, growth = number(profile.get("marketCap")),number(profile.get("totalRevenue")),number(profile.get("revenueGrowth"))
     if cap is None or not rules.min_market_cap <= cap <= rules.max_market_cap:
         return None,"market_cap_not_eligible"
@@ -231,6 +254,8 @@ def qualify_profile(profile: dict, price: dict, rules: ScreeningRules) -> tuple[
         "company":str(profile.get("longName") or "")[:110],
         "sector":str(profile.get("sector") or "Unknown")[:70],
         "industry":str(profile.get("industry") or "Unknown")[:70],
+        "quote_currency":"USD","financial_currency":"USD",
+        "currency_basis":"Yahoo quote currency and financial currency both reported USD; no FX conversion attempted",
         "market_cap_usd":int(cap),"revenue_ttm_usd":int(sales),
         "revenue_growth_vendor":round(growth,4),"operating_margin":margin,
         "gross_margin":gross,"free_cash_flow_usd":fcf,"cash_usd":cash,"debt_usd":debt,
@@ -411,6 +436,8 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
             candidates.append(row)
         else:
             excluded.append({"ticker":ticker,"reason":reason})
+            if "currency" in reason:
+                print(f"CURRENCY SAFETY: excluded {ticker} ({reason}); raw financials not converted or scored",flush=True)
         if n%10==0:
             print(f"PROFILES: {n}/{len(leaders)} checked, {len(candidates)} candidates",flush=True)
     candidates=diversified_shortlist(candidates,top)
@@ -434,8 +461,9 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
         "sampled_not_exhaustive":sampled,"sample_seed":seed,
         "price_screen_passed":len(price),"profiles_requested":len(leaders),
         "profile_exclusions":excluded,
+        "currency_rejections":sum(1 for item in excluded if "currency" in item["reason"]),
         "candidates":candidates,"ai_reports":[],"ai_requested":min(ai,len(candidates)),
-        "notice":"Universal 10x forecasts RETIRED. Sector-specific evidence gaps shown, with no validated price targets. RESEARCH ONLY. ZERO ORDERS.",
+        "notice":"Universal 10x forecasts RETIRED. Currency-mismatched or unverified issuer financials excluded until source-backed FX normalisation. RESEARCH ONLY. ZERO ORDERS.",
     }
     save_scan(home,result)
     print(f"SHORTLIST: {len(candidates)} qualified firms; 0 orders; saved to {home/'latest.json'}",flush=True)

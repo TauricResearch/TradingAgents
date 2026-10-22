@@ -67,7 +67,7 @@ def test_price_screen_only_complete_momentum_and_liquidity():
 
 def test_profile_eligibility_is_strict_and_source_limitation_visible():
     price={"return_3m":.18}
-    profile={"quoteType":"EQUITY","marketCap":900000000,"totalRevenue":200000000,
+    profile={"quoteType":"EQUITY","currency":"USD","financialCurrency":"USD","marketCap":900000000,"totalRevenue":200000000,
              "revenueGrowth":.22,"operatingMargins":.12,"grossMargins":.51,
              "freeCashflow":15000000,"totalCash":100000000,"totalDebt":15000000,
              "longName":"Test Compounder","sector":"Software","industry":"Applications"}
@@ -153,7 +153,7 @@ def test_research_snapshot_cannot_mutate_paper_book(tmp_path,monkeypatch):
               10+i*.12,2_000_000) for i in range(250)
         ]),
     ])
-    info={"quoteType":"EQUITY","marketCap":900e6,"totalRevenue":300e6,
+    info={"quoteType":"EQUITY","currency":"USD","financialCurrency":"USD","marketCap":900e6,"totalRevenue":300e6,
           "revenueGrowth":.34,"longName":"Example Public Co","sector":"Software"}
     import sys
     monkeypatch.setitem(sys.modules,"yfinance",SimpleNamespace(Ticker=lambda name:
@@ -234,7 +234,7 @@ def test_preclose_ai_uses_prior_session_even_when_research_is_today(monkeypatch,
         ])]
     # 250 days through 2026-10-21 (not Oct 22).
     monkeypatch.setattr(discovery,"batch_prices",bars)
-    info={"quoteType":"EQUITY","marketCap":900e6,"totalRevenue":300e6,
+    info={"quoteType":"EQUITY","currency":"USD","financialCurrency":"USD","marketCap":900e6,"totalRevenue":300e6,
           "revenueGrowth":.34,"longName":"Example Public Co","sector":"Software"}
     import sys
     monkeypatch.setitem(sys.modules,"yfinance",SimpleNamespace(
@@ -255,3 +255,40 @@ def test_preclose_ai_uses_prior_session_even_when_research_is_today(monkeypatch,
     assert seen==[("ABCD","2026-10-21")]
     assert result["ai_reports"][0]["price_analysis_date"]=="2026-10-21"
     assert result["ai_reports"][0]["execution_status"]=="RESEARCH_ONLY"
+
+
+@pytest.mark.parametrize("profile,reason",[
+    ({"currency":"USD","financialCurrency":"ZAR"},"unconverted_currency_mismatch_ZAR_vs_USD"),
+    ({"currency":"USD","financialCurrency":"CAD"},"unconverted_currency_mismatch_CAD_vs_USD"),
+    ({"currency":"usd","financialCurrency":"zar"},"unconverted_currency_mismatch_ZAR_vs_USD"),
+    ({"currency":"USD","financialCurrency":None},"financial_currency_missing_or_invalid"),
+    ({"currency":"USD"},"financial_currency_missing_or_invalid"),
+    ({"financialCurrency":"USD"},"quote_currency_missing_or_invalid"),
+    ({"currency":"EUR","financialCurrency":"EUR"},"quote_currency_not_usd"),
+    ({"currency":"USD","financialCurrency":"US$"},"financial_currency_missing_or_invalid"),
+])
+def test_profile_currency_guard_refuses_unreconciled_foreign_cash_flows(profile,reason):
+    assert discovery.financial_currency_guard(profile)==reason
+
+
+def test_harmony_adrs_financials_cannot_be_mislabeled_usd():
+    info={"quoteType":"EQUITY","currency":"USD","financialCurrency":"ZAR",
+          "marketCap":10.14e9,"totalRevenue":99.24e9,
+          "revenueGrowth":.492,"freeCashflow":9.85e9,
+          "totalCash":8.624e9,"totalDebt":9.476e9}
+    price={"return_3m":.20}
+    row,why=discovery.qualify_profile(info,price,discovery.ScreeningRules())
+    assert row is None
+    assert why=="unconverted_currency_mismatch_ZAR_vs_USD"
+
+
+def test_matching_usd_financial_currency_enables_screen():
+    info={"quoteType":"EQUITY","currency":"USD","financialCurrency":"USD",
+          "marketCap":1e9,"totalRevenue":150e6,"revenueGrowth":.25,
+          "freeCashflow":10e6,"totalCash":8e6,"totalDebt":4e6}
+    profile,reason=discovery.qualify_profile(info,{"return_3m":.22},discovery.ScreeningRules())
+    assert reason=="accepted"
+    assert profile["quote_currency"]=="USD"
+    assert profile["financial_currency"]=="USD"
+    assert "no FX conversion" in profile["currency_basis"]
+    assert profile["nominal_marketcap_to_sales"]==round(1e9/150e6,3)
