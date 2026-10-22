@@ -13,7 +13,7 @@ import tempfile
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
-from .conditional import ConditionalBook, EarningsSnapshot, dump_v2
+from .conditional import ConditionalBook, EarningsSnapshot, TradeIntent, evidence_hash, dump_v2
 from .engine import Bar
 
 DEFAULT_HOME = Path.home() / ".tradingagents" / "paper" / "v3"
@@ -154,6 +154,35 @@ def run_day(home: Path, source: Path, *, preview: bool = False):
         return result
 
 
+def approve_plan(home: Path, plan_path: Path, report_path: Path, *, operator_approved: bool=False):
+    """Operator-reviewed structured paper plan; never infer one from a rating."""
+    if operator_approved is not True:
+        raise ValueError("Explicit operator approval required")
+    book_path, journal, mutex = locations(home)
+    if plan_path.resolve() in {book_path.resolve(),journal.resolve()} or report_path.resolve() in {book_path.resolve(),journal.resolve()}:
+        raise ValueError("A portfolio file is not an investment report")
+    with exclusive(mutex):
+        verify(home)
+        book = read(home)
+        fields = json.loads(plan_path.read_text(encoding="utf-8"))
+        if not isinstance(fields, dict):
+            raise ValueError("Structured plan must be a JSON object")
+        plan = TradeIntent(**fields)
+        source = report_path.read_text(encoding="utf-8")
+        if evidence_hash(source) != plan.report_sha256:
+            raise ValueError("Plan does not match original report SHA-256")
+        book.submit(plan, operator_approved=True)
+        payload = dump_v2(book).encode("utf-8")
+        record = {"kind":"V3_OPERATOR_APPROVED_PLAN", "intent_id":plan.intent_id,
+                  "ticker":plan.ticker, "report_sha256":plan.report_sha256,
+                  "before_sha256":digest(book_path.read_bytes()),
+                  "after_sha256":digest(payload), "day":plan.decision_date}
+        original = journal.read_bytes()
+        atomic(journal, original + json.dumps(record,sort_keys=True).encode() + b"\n")
+        atomic(book_path, payload)
+        return {"intent_id":plan.intent_id,"status":"WATCHING","mode":"PAPER_ONLY"}
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="koral-equities-v3",
                                 description="Isolated V3 paper replay, never brokerage execution")
@@ -165,6 +194,10 @@ def main(argv=None):
     advance = commands.add_parser("advance-day")
     advance.add_argument("--feed", type=Path, required=True)
     advance.add_argument("--preview", action="store_true")
+    approval = commands.add_parser("approve-plan", help="Manually approve an exact structured paper plan")
+    approval.add_argument("--plan", type=Path, required=True)
+    approval.add_argument("--report", type=Path, required=True)
+    approval.add_argument("--approve", action="store_true")
     args = p.parse_args(argv)
     try:
         if args.cmd == "init":
@@ -178,6 +211,8 @@ def main(argv=None):
                               "intents": len(account.intents)}))
         elif args.cmd == "advance-day":
             print(json.dumps(run_day(args.home, args.feed, preview=args.preview)))
+        elif args.cmd == "approve-plan":
+            print(json.dumps(approve_plan(args.home,args.plan,args.report,operator_approved=args.approve)))
         return 0
     except (ValueError, OSError, TypeError, KeyError, json.JSONDecodeError) as exc:
         p.exit(2, f"V3 BLOCKED: {exc}\n")
