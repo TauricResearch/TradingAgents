@@ -39,6 +39,7 @@
         <a class="active" href="#overview">Overview</a>
         <a href="#intelligence">Intelligence</a>
         <a href="#portfolio">Portfolio</a>
+        <a href="#discovery">Discovery</a>
         <a href="#journal">Journal</a>
       </nav>
       <div class="nav-tools">
@@ -122,6 +123,69 @@
       </div>
 
       <section class="panel portfolio-panel" id="portfolio" aria-labelledby="portfolio-heading"><div class="portfolio-head"><div><div class="section-kicker">05 / POSITION MANAGEMENT</div><h2 id="portfolio-heading">Your paper portfolio</h2></div><div class="portfolio-controls"><div class="tabs" role="tablist" aria-label="Portfolio view"><button class="selected" id="tab-positions" data-tab="positions" role="tab" aria-selected="true">Open positions</button><button id="tab-orders" data-tab="orders" role="tab" aria-selected="false">Pending orders</button><button id="tab-closed" data-tab="closed" role="tab" aria-selected="false">Trade history</button></div><a class="button button-outline button-small" id="export-link" href="/api/export/positions"><svg><use href="#i-download"/></svg> Export CSV</a></div></div><div class="table-scroll" id="portfolio-table"></div></section>
+
+
+      <section class="panel discovery-panel" id="discovery" aria-labelledby="discovery-heading">
+        <div class="discovery-header">
+          <div>
+            <div class="section-kicker">06 / INVESTMENT OPPORTUNITY LAB</div>
+            <h2 id="discovery-heading">Find tomorrow's <em>exceptional companies.</em></h2>
+            <p>Search US-listed equities for growth, cash generation and overlooked potential.
+              The investment committee researches the strongest candidates. No orders. No guesswork disguised as certainty.</p>
+          </div>
+          <div class="discovery-header-right">
+            <span class="discovery-safe"><span class="tiny-dot"></span> 100% INDEPENDENT RESEARCH</span>
+            <button id="discover-btn" type="button" class="button button-primary discovery-start">
+              <svg><use href="#i-search"/></svg> Discover stocks
+            </button>
+          </div>
+        </div>
+        <div class="discovery-settings">
+          <label for="discovery-size">MARKET COVERAGE
+            <select id="discovery-size">
+              <option value="200">Quick · 200 sampled symbols</option>
+              <option value="350" selected>Standard · 350 sampled symbols</option>
+              <option value="800">Extended · 800 sampled symbols</option>
+              <option value="1500">Deep screen · 1,500 sampled symbols</option>
+            </select>
+          </label>
+          <label for="discovery-ai">AI DUE DILIGENCE
+            <select id="discovery-ai">
+              <option value="0">Screen only · no AI calls</option>
+              <option value="1">Research top 1 candidate</option>
+              <option value="2" selected>Research top 2 candidates</option>
+              <option value="3">Research top 3 candidates</option>
+            </select>
+          </label>
+          <p>Scans use the latest <strong>completed</strong> daily price data, but current company profiles and news.
+            Sampled results are <strong>not an exhaustive US market ranking</strong>. AI usage may be metered.</p>
+        </div>
+        <div class="discovery-stats">
+          <div><span>UNIVERSE COVERED</span><strong id="discovery-coverage">—</strong></div>
+          <div><span>QUALIFIED CANDIDATES</span><strong id="discovery-count">—</strong></div>
+          <div><span>AI RESEARCH REPORTS</span><strong id="discovery-analysed">—</strong></div>
+          <div><span>DATA AS OF</span><strong id="discovery-date">—</strong></div>
+        </div>
+        <div id="discovery-progress" class="discovery-progress" hidden>
+          <div class="discovery-progress-head"><strong id="discovery-stage">RESEARCH IN PROGRESS</strong>
+            <div class="scan-progress-actions">
+              <button type="button" class="scan-control" id="discovery-copy">Copy log</button>
+              <button type="button" class="scan-control scan-control-primary" id="discovery-dismiss" hidden>OK · Dismiss</button>
+            </div>
+          </div>
+          <pre tabindex="0" id="discovery-log">Starting discovery...</pre>
+        </div>
+        <div class="discovery-section-label"><strong>Ranked research shortlist</strong>
+          <span id="discovery-asof">No snapshot recorded</span></div>
+        <div id="discovery-results" class="discovery-results">
+          <div class="discovery-empty">No companies shortlisted yet. Select a scan depth and choose <strong>Discover stocks</strong>.</div>
+        </div>
+        <div class="discovery-disclaimer">
+          <span>FIVE-YEAR GROWTH SCENARIOS, NOT PREDICTIONS.</span>
+          A hypothetical 10× scenario depends on assumed growth, valuation and dilution and can be unrealistic.
+          Research only; no trades are placed or approved here.
+        </div>
+      </section>
 
       <section class="bottom-bar" id="journal"><div><span class="bottom-dot"></span><strong>Research journal</strong><p id="journal-description">Saved analyst reports appear here after a completed AI scan.</p></div><div class="report-links" id="report-links"><span class="muted">No reports yet</span></div></section>
       <footer class="footer"><span>© KORAL EQUITIES <span class="footer-divider">/</span> RESEARCH SYSTEM V1.0</span><span>SIMULATED TRADES ONLY. CAPITAL PRESERVATION FIRST.</span><span id="footer-sync">LEDGER NOT YET SYNCED</span></footer>
