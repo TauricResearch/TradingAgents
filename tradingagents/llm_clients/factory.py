@@ -49,6 +49,10 @@ def create_llm_client(
         from .bedrock_client import BedrockClient
         return BedrockClient(model, base_url, **kwargs)
 
+    if provider_lower == "claude_code":
+        from .claude_code_client import ClaudeCodeClient
+        return ClaudeCodeClient(model, base_url, **kwargs)
+
     from .openai_client import OpenAIClient, is_openai_compatible
     if is_openai_compatible(provider_lower):
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
@@ -90,6 +94,9 @@ def _coerce_max_tokens(value):
 # Providers that take OpenAI's ``openai_reasoning_effort``.
 REASONING_EFFORT_PROVIDERS = ("openai", "chatgpt")
 
+# Providers that take Anthropic's ``anthropic_effort``.
+EFFORT_PROVIDERS = ("anthropic", "claude_code")
+
 
 def build_llm_kwargs(config: dict) -> dict[str, Any]:
     """Keyword arguments for ``create_llm_client`` from a TradingAgents config."""
@@ -106,10 +113,13 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
 
-    elif provider == "anthropic":
+    elif provider in EFFORT_PROVIDERS:
         effort = config.get("anthropic_effort")
         if effort:
             kwargs["effort"] = effort
+
+    if provider == "claude_code" and config.get("claude_code_path"):
+        kwargs["claude_code_path"] = config["claude_code_path"]
 
     # Sampling temperature is cross-provider: forward it whenever set.
     # float() here so a value coming from a TRADINGAGENTS_TEMPERATURE env

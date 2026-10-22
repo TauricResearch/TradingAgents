@@ -38,7 +38,7 @@ from cli.prompts import (
     select_shallow_thinking_agent,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.llm_clients.factory import REASONING_EFFORT_PROVIDERS
+from tradingagents.llm_clients.factory import EFFORT_PROVIDERS, REASONING_EFFORT_PROVIDERS
 from tradingagents.llm_clients.openai_client import check_endpoint
 
 
@@ -347,7 +347,7 @@ def _prompt_selections(prefs, flags):
             "Reasoning effort", "Step 8: Reasoning Effort",
             "Configure OpenAI reasoning effort level", ask_openai_reasoning_effort,
         )
-    elif provider_lower == "anthropic":
+    elif provider_lower in EFFORT_PROVIDERS:
         anthropic_effort = thinking_value_or_prompt(
             "TRADINGAGENTS_ANTHROPIC_EFFORT", "anthropic_effort",
             "Claude effort", "Step 8: Effort Level",
