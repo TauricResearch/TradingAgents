@@ -129,8 +129,8 @@ class EarningsSnapshot:
         day = _day(session)
         try:
             observed = datetime.fromisoformat(self.observed_at_utc)
-            if observed.utcoffset() is None:
-                return False
+            if observed.utcoffset() != timedelta(0):
+                return False  # The field promises a real UTC publication timestamp.
             ny = ZoneInfo("America/New_York")
             cutoff = datetime.combine(day,
                                       time(9, 30) if phase == "preopen" else time(17, 30),

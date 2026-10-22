@@ -22,14 +22,14 @@ def mkbar(price=229, close=None, low=None, high=None):
 
 
 def safe(d, next_date="2026-12-01", phase="afterclose", last_date="2026-08-01"):
-    from datetime import datetime, time
+    from datetime import datetime, time, timezone
     from zoneinfo import ZoneInfo
 
     hour = time(8, 30) if phase == "preopen" else time(17, 5)
     local = datetime.combine(datetime.fromisoformat(d).date(), hour,
                              tzinfo=ZoneInfo("America/New_York"))
     return {"NVDA": EarningsSnapshot(d, next_date, last_date, "provider:audit", True,
-                                      local.isoformat())}
+                                      local.astimezone(timezone.utc).isoformat())}
 
 
 def open_calendar(d, next_date="2026-12-01"):
@@ -324,3 +324,13 @@ def test_sector_cap_tightens_position_size_below_five_positions():
     assert sum(p["cost_gbp"] for p in sector) <= 4000.01
     assert exposure <= 4100
     assert len(sector) == 2
+
+
+def test_calendar_timestamp_must_be_actual_utc_not_future_local_time():
+    from dataclasses import replace
+    quote = safe(DAY1)["NVDA"]
+    assert quote.safe(DAY1, "afterclose")
+    false_utc = replace(quote, observed_at_utc="2026-10-22T17:05:00-04:00")
+    assert not false_utc.safe(DAY1, "afterclose")
+    after_cutoff = replace(quote, observed_at_utc="2026-10-22T23:00:00+00:00")
+    assert not after_cutoff.safe(DAY1, "afterclose")
