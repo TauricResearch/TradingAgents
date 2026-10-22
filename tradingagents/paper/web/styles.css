@@ -32,3 +32,57 @@ main{max-width:1510px;margin:auto;padding:0 40px}.welcome{display:flex;justify-c
 .toast button{padding:7px 11px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.16);color:white;font-weight:800;border-radius:6px;flex:none}
 .toast button:hover{background:rgba(255,255,255,.29)}
 @media (max-width:600px){.scan-progress{padding:14px}.scan-progress-actions{width:100%;justify-content:flex-end}.scan-progress pre{max-height:340px}.toast{left:16px;right:16px;max-width:none;bottom:18px}}
+
+/* Koral Equities opportunity discovery desk — independent research only */
+.discovery-panel{margin:36px 0 28px;padding:32px 34px 26px;overflow:hidden;position:relative}
+.discovery-panel::before{content:"";position:absolute;top:0;right:0;width:290px;height:290px;border-radius:50%;background:radial-gradient(circle,rgba(41,128,88,.08),transparent 68%);pointer-events:none}
+.discovery-header{display:flex;align-items:center;justify-content:space-between;gap:20px;position:relative}
+.discovery-header h2{font-size:clamp(27px,2.4vw,39px);letter-spacing:-1.45px;line-height:1.18;margin:12px 0 10px;color:#1a3528}
+.discovery-header h2 em{font-family:Georgia,serif;font-weight:500;color:#2f8b60}
+.discovery-header p{font-size:12px;color:#78867e;line-height:1.75;max-width:700px;margin:0}
+.discovery-header-right{display:flex;align-items:flex-end;flex-direction:column;gap:15px;flex-shrink:0}
+.discovery-safe{font:680 10px var(--mono);letter-spacing:.6px;color:#417e5a;white-space:nowrap}
+.discovery-safe .tiny-dot{display:inline-block;margin-right:5px}
+.discovery-start{border-radius:9px;padding:14px 23px;box-shadow:0 9px 22px rgba(28,115,73,.14)}
+.discovery-settings{display:flex;gap:18px;align-items:end;flex-wrap:wrap;margin:28px 0 21px;padding:17px;border:1px solid #e0ebe1;background:#f7faf7;border-radius:13px}
+.discovery-settings label{font:750 9px/1.8 var(--mono);letter-spacing:.8px;color:#779081;display:flex;flex-direction:column;gap:7px;min-width:205px}
+.discovery-settings select{appearance:auto;border:1px solid #d7e6d9;border-radius:8px;background:#fff;color:#2a4a37;padding:10px 13px;font:600 12px/1.5 var(--sans);min-height:42px}
+.discovery-settings select:focus-visible{outline:2px solid #3d996d;outline-offset:2px}
+.discovery-settings p{flex:1 1 270px;margin:0;font-size:11px;line-height:1.7;color:#7e9286}
+.discovery-settings p strong{color:#435e4a}
+.discovery-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:23px}
+.discovery-stats>div{border:1px solid #e5ebe5;background:white;border-radius:11px;padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.discovery-stats span{font:720 9px var(--mono);letter-spacing:.75px;color:#86968b}
+.discovery-stats strong{font:750 23px var(--sans);color:#214936;letter-spacing:-.6px}
+.discovery-section-label{display:flex;justify-content:space-between;align-items:center;margin:23px 0 13px;gap:12px}
+.discovery-section-label strong{font-size:15px;color:#253d30}
+.discovery-section-label span{font:640 10px var(--mono);color:#8a9b90}
+.discovery-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.discovery-empty{grid-column:1/-1;border:1px dashed #d8e5d9;background:#f9fbf8;color:#819789;text-align:center;border-radius:12px;padding:36px 18px;font-size:13px}
+.discovery-empty strong{color:#2e8156}
+.discovery-candidate{border:1px solid #dae6dc;background:#fff;border-radius:13px;padding:20px;display:flex;flex-direction:column;gap:13px;transition:border-color .15s,transform .15s}
+.discovery-candidate:hover{transform:translateY(-2px);border-color:#a9cdbc}
+.discovery-name{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.discovery-name strong{font-size:19px;letter-spacing:-.55px;color:#234a36}
+.discovery-name small{display:block;margin-top:3px;font-size:10px;color:#849488}
+.discovery-rank{border-radius:20px;border:1px solid #cbe3d0;background:#eff8ef;color:#438966;padding:7px 10px;font:740 10px var(--mono);white-space:nowrap}
+.discovery-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;border-top:1px solid #edf2ee;border-bottom:1px solid #edf2ee;padding:13px 0}
+.discovery-metrics div{display:flex;flex-direction:column;gap:6px}
+.discovery-metrics span{font:700 9px var(--mono);color:#97a39a}
+.discovery-metrics b{font-size:13px;color:#385d46;white-space:nowrap}
+.discovery-scenario{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.discovery-scenario .scenario-label{font-size:10px;color:#8a9c8e}
+.discovery-scenario strong{font-size:14px;color:#236e49}
+.discovery-ai-result{font-size:11px;color:#5d7b68;display:flex;justify-content:space-between;gap:12px}
+.discovery-ai-result a{font-weight:720;color:#237b55;text-decoration:underline;text-underline-offset:3px}
+.discovery-progress{border:1px solid #b7d8c4;border-radius:11px;background:#eaf6ee;padding:15px;margin-bottom:19px}
+.discovery-progress[hidden]{display:none}
+.discovery-progress.failed{border-color:#dab5ac;background:#fff1ed}
+.discovery-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.discovery-progress-head strong{font:720 10px var(--mono);color:#2b7954;letter-spacing:.8px}
+.discovery-progress.failed strong{color:#a1554d}
+.discovery-progress pre{overflow:auto;max-height:210px;white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0 0;padding:14px;background:#142e21;color:#d8e9dc;border-radius:8px;font:11px/1.6 var(--mono);user-select:text}
+.discovery-disclaimer{margin-top:23px;border-top:1px solid #e3eae2;padding-top:17px;color:#86968a;font-size:11px;line-height:1.7}
+.discovery-disclaimer span{font:740 10px var(--mono);letter-spacing:.5px;color:#477f60;margin-right:6px}
+@media(max-width:950px){.discovery-header{align-items:start;flex-direction:column}.discovery-header-right{align-items:center;flex-direction:row;flex-wrap:wrap}.discovery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.discovery-panel{padding:23px 16px}.discovery-results{grid-template-columns:1fr}.discovery-settings{gap:12px}.discovery-settings label{width:100%}.discovery-settings select{width:100%}.discovery-header h2{font-size:28px}.discovery-stats strong{font-size:19px}.discovery-header-right{width:100%;justify-content:space-between}.discovery-start{width:100%;justify-content:center}}
