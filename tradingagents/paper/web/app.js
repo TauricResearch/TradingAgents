@@ -337,10 +337,15 @@
         const bull = scenarios.bull?.illustrative_equity_multiple;
         const base = scenarios.base?.illustrative_equity_multiple;
         const report = reports.get(company.ticker);
-        const reportLink = report?.report_url && /^\/discovery\/reports\/[0-9TZ]+\/[A-Z0-9.-]+\/complete_report\.html$/.test(report.report_url) ?
+        const reportValid=report?.report_url && /^\/discovery\/reports\/[0-9]{8}T[0-9]{6}Z\/[A-Z0-9.-]+\/complete_report\.html$/.test(report.report_url);
+        const memoValid=report?.memo_url && /^\/discovery\/reports\/[0-9]{8}T[0-9]{6}Z\/[A-Z0-9.-]+\/compounder_memo\.md$/.test(report.memo_url);
+        const reportLink = reportValid ?
           '<a href="' + escapeHtml(report.report_url) +
-          '" target="_blank" rel="noopener noreferrer">Read AI report ↗</a>' :
+          '" target="_blank" rel="noopener noreferrer">AI committee ↗</a>' :
           (report?.status === 'failed' ? 'AI research unavailable' : 'No AI report yet');
+        const memoLink = memoValid ?
+          ' · <a href="' + escapeHtml(report.memo_url) +
+          '" target="_blank" rel="noopener noreferrer">Five-year thesis ↗</a>' : '';
         return '<article class="discovery-candidate">' +
           '<div class="discovery-name"><div><strong>' + escapeHtml(company.ticker) + '</strong>' +
           '<small>' + escapeHtml(company.company || 'Listed company') + '</small></div>' +
@@ -354,7 +359,7 @@
           escapeHtml(bull == null ? '—' : bull + '×') + '</strong></div>' +
           '<div class="discovery-ai-result"><span>' + escapeHtml(company.sector || 'Sector unverified') +
           (report?.rating ? ' · ' + escapeHtml(report.rating) : ' · Research only') +
-          '</span>' + reportLink + '</div>' +
+          '</span><span>' + reportLink + memoLink + '</span></div>' +
           '</article>';
       }).join('');
     } catch(error) {
