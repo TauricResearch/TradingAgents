@@ -148,6 +148,11 @@ class Book:
     def _buy(self, order: dict, usd_open: float, fx: float, day: str):
         rules = self.settings
         ticker = order["ticker"]
+        # Additional limits may only tighten, never relax, portfolio risk limits.
+        allocation_cap = order.get("allocation_cap_fraction", rules.max_name_fraction)
+        if not isfinite(allocation_cap) or not 0 < allocation_cap <= rules.max_name_fraction:
+            self._event(day, "ORDER_REJECTED", id=order["id"], reason="invalid_allocation_cap")
+            return
         if self.halted or len(self.positions) >= rules.max_positions:
             self._event(day, "ORDER_REJECTED", id=order["id"], reason="halt_or_position_limit")
             return
@@ -164,8 +169,20 @@ class Book:
         risk_budget = min(equity_open * rules.risk_fraction, room_gbp)
         existing_value = sum(p["shares"] * p["mark_usd"] * fx
                              for p in self.positions.values())
-        spend_budget = min(self.cash_gbp, equity_open * rules.max_name_fraction,
+        spend_budget = min(self.cash_gbp, equity_open * min(rules.max_name_fraction, allocation_cap),
                            equity_open * rules.max_exposure_fraction - existing_value)
+        # Optional verified-sector information tightens the cash budget; old
+        # rating-only orders with no sector keep the original research baseline.
+        sector = order.get("sector")
+        if sector is not None:
+            if not isinstance(sector, str) or not sector.strip():
+                self._event(day, "ORDER_REJECTED", id=order["id"], reason="invalid_sector")
+                return
+            sector_used = sum(
+                p["shares"] * p["mark_usd"] * fx for p in self.positions.values()
+                if p.get("sector") == sector
+            )
+            spend_budget = min(spend_budget, max(0.0, equity_open * 0.40 - sector_used))
         qty = floor(min(risk_budget / risk_per_share, spend_budget / entry_cost_per_share))
         if qty < 1:
             self._event(day, "ORDER_REJECTED", id=order["id"], reason="insufficient_cash_or_risk")
@@ -177,6 +194,8 @@ class Book:
             "entry_usd": execution_usd, "cost_gbp": cost, "stop_usd": stop_usd,
             "mark_usd": usd_open, "mark_gbp_per_usd": fx,
             "held_sessions": 0, "planned_risk_gbp": qty * risk_per_share,
+            "max_holding_sessions": order.get("max_holding_sessions", rules.max_holding_sessions),
+            "sector": sector,
         }
         self._event(day, "BUY_FILLED", id=order["id"], ticker=ticker, shares=qty,
                     usd_price=execution_usd, stop_usd=stop_usd,
@@ -233,7 +252,7 @@ class Book:
             p["mark_usd"] = bar.close
             p["mark_gbp_per_usd"] = gbp_per_usd_close
             p["held_sessions"] += 1
-            if p["held_sessions"] >= b.settings.max_holding_sessions:
+            if p["held_sessions"] >= p.get("max_holding_sessions", b.settings.max_holding_sessions):
                 if not any(o["ticker"] == ticker for o in b.orders):
                     order = {"id": b._id(), "ticker": ticker, "side": "SELL",
                              "created": session, "rating": "TIME_EXIT"}

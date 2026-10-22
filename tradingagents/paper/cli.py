@@ -229,8 +229,12 @@ def run_agents(book: Book, quotes: dict[str, dict[str, Bar]], tickers: list[str]
             print(f"Agent failed for {ticker}: {type(exc).__name__}: {exc}", file=sys.stderr)
             continue
         book._event(day, "AGENT_RATING", ticker=ticker, rating=rating, reference_close_usd=bar.close)
-        book.submit_signal(ticker, rating, bar.close, day, stop_fraction=stop_pct / 100)
-        print(f"{ticker}: {rating}")
+        # The original manager can recommend conditional entry in prose. A rating
+        # does NOT provide a machine-verified entry trigger, exit or allocation.
+        # V1 remains research-only; no new rating-only market orders may be queued.
+        book._event(day, "V1_UNSTRUCTURED_ENTRY_BLOCKED", ticker=ticker, rating=rating,
+                    reason="machine_verifiable_execution_instructions_missing")
+        print(f"{ticker}: {rating} | RESEARCH ONLY; no new paper order")
         done += 1
     return book, done
 
@@ -323,7 +327,7 @@ def main(argv: list[str] | None = None):
                 done = 0
             write_book(path, book)
             report(book)
-            print(f"Completed {done} AI analyses. Queued orders fill no earlier than the next session.")
+            print(f"Completed {done} AI analyses. New V1 rating-only orders DISABLED.")
             return 0
     except (FileExistsError, FileNotFoundError, ValueError, RuntimeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

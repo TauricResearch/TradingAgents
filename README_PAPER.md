@@ -102,3 +102,10 @@ If a research report has **conditional** instructions that are not supported by 
 **Caution:** The original `run` command still translates simple `Buy`/`Overweight` ratings into market-at-next-open orders without enforcing the report's conditions. Do not reactivate the strategy without an approved structured execution bridge. This cancellation command is a manual safety tool, not that bridge.
 
 **Backwards compatibility:** The original `tradingagents` and `tradingagents-paper` console commands remain installed as internal compatibility aliases, but new user-facing commands use Koral Equities names.
+
+
+## Critical V1 safety freeze after first-cycle audit
+
+The 21 October NVIDIA and Meta Portfolio Manager reports demanded *conditional* entries, but the old Buy/Overweight bridge previously created unconditional next-session paper orders. **This interface is now RESEARCH-ONLY by default:** future scans record ratings, model reports and `V1_UNSTRUCTURED_ENTRY_BLOCKED` events but queue **no new BUY or SELL orders**. Previously queued legacy orders (if any) may still be processed by the original ledger; manually review or use `koral-equities-paper cancel-pending` before the next run. The original £10,000 journal is not cleared.
+
+A separate [V2 conditional engine](README_V2_CONDITIONAL.md) exists for **isolated offline research** only. Do not mistake it for a live market-data adapter or an autonomous AI execution pipeline. The V2 engine will not read/write V1.
