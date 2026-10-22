@@ -27,8 +27,7 @@ import pytz
 
 from .cli import DEFAULT_PATH, DEFAULT_TICKERS, last_safe_session, read_book
 from .engine import Book
-from .v3.state import read as read_v3, STATE as V3_STATE
-from .v3.performance import scorecard as v3_scorecard
+from .auto_v3 import DEFAULT_HOME as V3_HOME, read as read_v3, verify as verify_v3
 from .discovery_web import DiscoveryRuntime, latest as discovery_latest, safe_report as safe_discovery_report
 
 STATIC = Path(__file__).with_name("web")
@@ -249,38 +248,42 @@ def make_handler(state_path: Path, runtime: ScanRuntime, discovery: DiscoveryRun
                 return
             if path == "/api/v3/state":
                 try:
-                    account = read_v3(V3_STATE)
-                    book = account.portfolio.book
-                    from datetime import timezone
-                    heartbeat = V3_STATE.parent / "service_heartbeat.json"
-                    process_recent = False
-                    if heartbeat.is_file():
-                        data = json.loads(heartbeat.read_text(encoding="utf-8"))
-                        observed = datetime.fromisoformat(data["last_pulse_utc"])
-                        age = datetime.now(timezone.utc) - observed
-                        process_recent = bool(0 <= age.total_seconds() <= 180 and data.get("mode") == "PAPER_ONLY")
+                    verify_v3(V3_HOME)
+                    account = read_v3(V3_HOME)
+                    book = account.book
+                    last = book.equity_history[-1] if book.equity_history else {}
+                    journal = V3_HOME / "journal.jsonl"
+                    events = [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines()
+                              if line.strip()][-10:]
                     self.respond_json({
-                        "status": "paper_ready", "scheduler_heartbeat_recent":process_recent,
-                        "enabled":account.auto_paper_enabled, "paused":account.paused,
-                        "last_session":book.last_session,"started":book.started,
-                        "equity_gbp":round(book.equity(),2),
-                        "cash_gbp":round(book.cash_gbp,2),
-                        "positions":[{"ticker":p["ticker"],"shares":p["shares"],
-                                      "stop_usd":p["stop_usd"],"entry_usd":p["entry_usd"]}
-                                     for p in book.positions.values()],
-                        "queued":len(book.orders),"halted":book.halted,
-                        "watchlist":account.watchlist, "receipts_count":len(account.ai_receipts),
-                        "intents": [{"ticker":v["plan"]["ticker"],"status":v["status"],
-                                     "confirmations":v["consecutive"]} for v in account.portfolio.intents.values()],
-                        "recent_audit":[{"utc":e["utc"],"kind":e["kind"]}
-                                        for e in account.audit[-10:]],
-                        "performance":v3_scorecard(book),
-                        "broker_connected":False
+                        "status": "paper_ready",
+                        "mode": "STAGING_ONLY",
+                        "scheduler_heartbeat_recent": False,
+                        "enabled": False,
+                        "paused": False,
+                        "last_session": book.last_session,
+                        "started": book.started,
+                        "equity_gbp": round(book.equity(), 2),
+                        "cash_gbp": round(book.cash_gbp, 2),
+                        "positions": [{"ticker": p["ticker"], "shares": p["shares"],
+                                       "stop_usd": p["stop_usd"], "entry_usd": p["entry_usd"]}
+                                      for p in book.positions.values()],
+                        "queued": len(book.orders), "halted": book.halted,
+                        "watchlist": sorted({v["plan"]["ticker"] for v in account.intents.values()}),
+                        "receipts_count": 0,
+                        "intents": [{"ticker": v["plan"]["ticker"], "status": v["status"],
+                                     "confirmations": v["consecutive"]}
+                                    for v in account.intents.values()],
+                        "recent_audit": [{"day": e.get("day", ""), "kind": e.get("kind", e.get("mode", ""))}
+                                         for e in events],
+                        "performance": {"spy_benchmark_gbp": last.get("spy_benchmark_gbp"),
+                                        "closed_trades": len(book.completed)},
+                        "broker_connected": False
                     })
-                except FileNotFoundError:
-                    self.respond_json({"status":"not_initialized","broker_connected":False})
+                except (FileNotFoundError, OSError):
+                    self.respond_json({"status": "not_initialized", "broker_connected": False})
                 except (ValueError, KeyError, TypeError, json.JSONDecodeError):
-                    self.respond_json({"status":"invalid_state","broker_connected":False},
+                    self.respond_json({"status": "invalid_state", "broker_connected": False},
                                       HTTPStatus.SERVICE_UNAVAILABLE)
                 return
             if path == "/api/scan-status":
