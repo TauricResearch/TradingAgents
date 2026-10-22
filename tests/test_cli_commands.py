@@ -6,6 +6,8 @@ has to stay the default action while a second command exists alongside it.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from typer.testing import CliRunner
 
@@ -87,8 +89,15 @@ def test_every_command_is_registered_when_run_as_a_module():
     import subprocess
     import sys
 
+    # The child's help panel contains UTF-8 box-drawing characters. On Windows
+    # with a cp1252 locale, a text=True subprocess without an explicit encoding
+    # decodes them as cp1252 and crashes in the reader thread (GH #1506), so
+    # pin both sides: the child writes UTF-8 (PYTHONIOENCODING) and the parent
+    # decodes UTF-8 with errors="replace" (never a hard crash on odd bytes).
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     out = subprocess.run([sys.executable, "-m", "cli.main", "backtest", "--help"],
-                         capture_output=True, text=True, timeout=120)
+                         capture_output=True, text=True, timeout=120,
+                         encoding="utf-8", errors="replace", env=env)
     assert out.returncode == 0, out.stderr[-400:]
     # Where the terminal takes colour, help styles each option and splits
     # "--start" across escape sequences, so read the text without them.
