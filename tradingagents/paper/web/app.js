@@ -449,11 +449,11 @@
         return;
       }
       byId('v3-mode',v.halted ? 'RISK HALT' : v.paused ? 'PAUSED' :
-        v.enabled ? 'PAPER AUTONOMY ENABLED' : 'PAPER AUTONOMY DISABLED');
+        v.enabled ? 'PAPER AUTONOMY ENABLED' : 'OFFLINE PAPER STAGING');
       byId('v3-equity',money(v.equity_gbp));
       byId('v3-benchmark',v.performance?.spy_benchmark_gbp != null ? money(v.performance.spy_benchmark_gbp) : '—');
       byId('v3-exposure',(v.positions?.length ?? 0) + ' / ' + (v.queued ?? 0));
-      byId('v3-scheduler',v.scheduler_heartbeat_recent ? 'PULSE RECENT' : 'NOT RUNNING / STALE');
+      byId('v3-scheduler',v.scheduler_heartbeat_recent ? 'PULSE RECENT' : 'NOT CONNECTED');
       byId('v3-state-description','Last verified session: '+escapeHtml(v.last_session || 'none')+
            ' · Watchlist: '+(v.watchlist || []).map(escapeHtml).join(', ') +
            ' · AI receipts: '+(v.receipts_count || 0)+
@@ -475,7 +475,7 @@
         log.replaceChildren();
         for (const event of (v.recent_audit || []).slice().reverse()) {
           const div = document.createElement('div');
-          div.textContent = String(event.utc || '').slice(0,16).replace('T',' ')+' UTC · '+event.kind;
+          div.textContent = (event.day || 'UNDATED')+' · '+event.kind;
           log.appendChild(div);
         }
         if (!log.childNodes.length) log.textContent = 'No V3 events.';
