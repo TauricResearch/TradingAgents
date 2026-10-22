@@ -137,3 +137,46 @@ def test_rating_only_cannot_be_submitted_as_an_approved_trade(tmp_path):
         approve_plan(home,plan,report,operator_approved=True)
     assert read(home).book.orders==[]
     assert read(home).intents=={}
+
+
+def test_inbox_sync_is_idempotent_across_restart(tmp_path):
+    from tradingagents.paper.auto_v3 import process_inbox
+    home=tmp_path/"account"
+    init(home,"2026-10-22")
+    inbox=tmp_path/"inbox"
+    inbox.mkdir()
+    for name in ("2026-10-23","2026-10-26"):
+        (inbox/(name+".json")).write_text(json.dumps(day(name)))
+    first=process_inbox(home,inbox)
+    assert first["sessions_processed"]==2
+    assert first["last_session"]=="2026-10-26"
+    count=len(read(home).book.events)
+    again=process_inbox(home,inbox)
+    assert again["sessions_processed"]==0
+    assert len(read(home).book.events)==count
+
+
+def test_inbox_rejects_filename_payload_mismatch_before_account_change(tmp_path):
+    from tradingagents.paper.auto_v3 import process_inbox
+    home=tmp_path/"account"
+    init(home,"2026-10-22")
+    inbox=tmp_path/"inbox"
+    inbox.mkdir()
+    (inbox/"2026-10-23.json").write_text(json.dumps(day("2026-10-26")))
+    before=(home/"portfolio.json").read_bytes()
+    with pytest.raises(ValueError,match="filename"):
+        process_inbox(home,inbox)
+    assert (home/"portfolio.json").read_bytes()==before
+
+
+def test_inbox_preview_rejects_two_sessions_without_silent_state_skips(tmp_path):
+    from tradingagents.paper.auto_v3 import process_inbox
+    home=tmp_path/"account"
+    init(home,"2026-10-22")
+    inbox=tmp_path/"inbox"
+    inbox.mkdir()
+    for name in ("2026-10-23","2026-10-26"):
+        (inbox/(name+".json")).write_text(json.dumps(day(name)))
+    with pytest.raises(ValueError,match="Multi-day inbox preview"):
+        process_inbox(home,inbox,preview=True)
+    assert read(home).book.last_session is None
