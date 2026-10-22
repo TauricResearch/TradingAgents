@@ -32,5 +32,7 @@ jobs:
         run: python -m pytest -q tests/test_auto_v3.py tests/test_conditional_v2.py tests/test_v1_research_gate.py tests/test_paper_engine.py
       - name: Discovery source / finance safety tests
         run: python -m pytest -q tests/test_discovery.py tests/test_underwriting.py tests/test_filings.py
+      - name: Dashboard loopback integration (no external networks)
+        run: python -m pytest -q -m integration tests/test_paper_dashboard.py
       - name: CLI launch smoke test
         run: python -m tradingagents.paper.auto_v3 --help

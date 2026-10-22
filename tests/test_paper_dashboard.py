@@ -58,6 +58,7 @@ def test_scan_rejects_invalid_tickers_without_starting_process(tmp_path):
     assert runtime.process is None
 
 
+@pytest.mark.integration
 def test_read_only_http_api_and_scan_origin_guard(tmp_path):
     state = tmp_path / "portfolio.json"
     write_book(state, Book.new("2026-10-21"))
