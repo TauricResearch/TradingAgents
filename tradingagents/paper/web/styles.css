@@ -86,3 +86,11 @@ main{max-width:1510px;margin:auto;padding:0 40px}.welcome{display:flex;justify-c
 .discovery-disclaimer span{font:740 10px var(--mono);letter-spacing:.5px;color:#477f60;margin-right:6px}
 @media(max-width:950px){.discovery-header{align-items:start;flex-direction:column}.discovery-header-right{align-items:center;flex-direction:row;flex-wrap:wrap}.discovery-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.discovery-panel{padding:23px 16px}.discovery-results{grid-template-columns:1fr}.discovery-settings{gap:12px}.discovery-settings label{width:100%}.discovery-settings select{width:100%}.discovery-header h2{font-size:28px}.discovery-stats strong{font-size:19px}.discovery-header-right{width:100%;justify-content:space-between}.discovery-start{width:100%;justify-content:center}}
+
+
+/* Discovery V2: disclose underwriting gaps rather than synthetic return forecasts. */
+.discovery-underwriting{border:1px solid #e6ede6;background:#f8fbf8;border-radius:10px;padding:12px 13px;display:flex;flex-direction:column;gap:8px}
+.discovery-underwriting>div{display:flex;flex-direction:column;gap:3px}
+.discovery-underwriting b{font:740 9px var(--mono);letter-spacing:.6px;color:#8a9b90}
+.discovery-underwriting span{font:500 11px/1.5 var(--sans);color:#375f46;overflow-wrap:anywhere}
+.discovery-underwriting a{color:#217b55;text-decoration:underline;text-underline-offset:2px}

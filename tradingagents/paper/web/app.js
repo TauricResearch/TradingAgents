@@ -333,9 +333,18 @@
         return;
       }
       place.innerHTML = candidates.map((company) => {
-        const scenarios = company.scenarios_5y || {};
-        const bull = scenarios.bull?.illustrative_equity_multiple;
-        const base = scenarios.base?.illustrative_equity_multiple;
+        const diligence = company.valuation_v2 || null;
+        const hurdle = diligence?.ten_x?.annualised_shareholder_return_hurdle_pct;
+        const method = diligence?.valuation_method || 'Older snapshot — rerun Discovery for V2';
+        const filings = diligence?.source?.primary_filing_lookup;
+        const filingNote = filings?.status === 'AVAILABLE' ?
+          'SEC metadata linked; numbers not reconciled' : 'Primary filing verification unavailable';
+        const firstGap = diligence?.required_primary_evidence?.[0] || 'Audit company filings and assumptions';
+        const firstRisk = diligence?.risk_flags?.[0] || '';
+        const secUrl = filings?.filings?.[0]?.url || '';
+        const secValid = /^https:\/\/www\.sec\.gov\/Archives\/edgar\/data\/[0-9]+\/[0-9]+\/[A-Za-z0-9._-]+$/.test(secUrl);
+        const secLink = secValid ?
+          ' · <a href="' + escapeHtml(secUrl) + '" target="_blank" rel="noopener noreferrer">SEC filing ↗</a>' : '';
         const report = reports.get(company.ticker);
         const reportValid=report?.report_url && /^\/discovery\/reports\/[0-9]{8}T[0-9]{6}Z\/[A-Z0-9.-]+\/complete_report\.html$/.test(report.report_url);
         const memoValid=report?.memo_url && /^\/discovery\/reports\/[0-9]{8}T[0-9]{6}Z\/[A-Z0-9.-]+\/compounder_memo\.md$/.test(report.memo_url);
@@ -354,9 +363,15 @@
           '<div><span>MARKET CAP</span><b>' + escapeHtml(moneyUS(company.market_cap_usd)) + '</b></div>' +
           '<div><span>VENDOR SALES GROWTH</span><b>' + escapeHtml(percentUS(company.revenue_growth_vendor)) + '</b></div>' +
           '<div><span>CASH FLOW</span><b>' + escapeHtml(moneyUS(company.free_cash_flow_usd)) + '</b></div></div>' +
-          '<div class="discovery-scenario"><span class="scenario-label">5Y HYPOTHETICAL MULTIPLES · BASE / BULL</span>' +
-          '<strong>' + escapeHtml(base == null ? '—' : base + '×') + ' / ' +
-          escapeHtml(bull == null ? '—' : bull + '×') + '</strong></div>' +
+           '<div class="discovery-scenario"><span class="scenario-label">FIVE-YEAR 10× HURDLE · NOT A FORECAST</span>' +
+           '<strong>' + escapeHtml(hurdle == null ? '—' : hurdle + '% PER YEAR') + '</strong></div>' +
+           '<div class="discovery-underwriting">' +
+           '<div><b>APPROPRIATE VALUATION METHOD</b><span>' + escapeHtml(method) + '</span></div>' +
+           '<div><b>TENFOLD THESIS</b><span>' + escapeHtml(diligence?.rating || 'OLDER SCAN — RERUN') + '</span></div>' +
+           '<div><b>REGULATORY SOURCES</b><span>' + escapeHtml(filingNote) + secLink + '</span></div>' +
+           '<div><b>REQUIRED DILIGENCE</b><span>' + escapeHtml(firstGap) + '</span></div>' +
+           (firstRisk ? '<div><b>RISK FLAG</b><span>' + escapeHtml(firstRisk) + '</span></div>' : '') +
+           '</div>' +
           '<div class="discovery-ai-result"><span>' + escapeHtml(company.sector || 'Sector unverified') +
           (report?.rating ? ' · ' + escapeHtml(report.rating) : ' · Research only') +
           '</span><span>' + reportLink + memoLink + '</span></div>' +
