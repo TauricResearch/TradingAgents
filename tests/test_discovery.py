@@ -130,7 +130,7 @@ def test_research_snapshot_cannot_mutate_paper_book(tmp_path,monkeypatch):
     monkeypatch.setattr(discovery,"source_universe",lambda:(universe,["offline mock"]))
     monkeypatch.setattr(discovery,"batch_prices",lambda symbols,end:[
         ("ABCD",[
-            ((datetime(2025,12,1,tzinfo=timezone.utc)+timedelta(days=i)).date().isoformat(),
+            ((datetime(2026,10,21,tzinfo=timezone.utc)-timedelta(days=249-i)).date().isoformat(),
               10+i*.12,2_000_000) for i in range(250)
         ]),
     ])
