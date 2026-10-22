@@ -115,3 +115,8 @@ main{max-width:1510px;margin:auto;padding:0 40px}.welcome{display:flex;justify-c
 .v3-disclaimer{color:#7d9385;font-size:11px;line-height:1.65;margin-top:17px;border-top:1px solid #e0ebe2;padding-top:17px}
 @media(max-width:850px){.v3-stats{grid-template-columns:repeat(2,1fr)}.v3-details{grid-template-columns:1fr}}
 @media(max-width:610px){.v3-panel{padding:22px 16px}.v3-head{flex-direction:column}.v3-stats{grid-template-columns:1fr 1fr}}
+
+/* V3.1 experimental Autopilot: adjacent, clearly separated from staging account. */
+.v31-panel{border-color:#bad7c5;background:#f5faf5}
+.v31-panel .v3-mode{background:#e1f0e6;border-color:#b2d6be}
+.v31-panel .v3-details>div{background:#fff}
