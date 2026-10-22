@@ -149,6 +149,7 @@
     ORDER_QUEUED:['ORDER QUEUED','neutral','+'],ORDER_REJECTED:['ORDER REJECTED','failure','!'],
     AGENT_RATING:['AI DECISION','neutral','◈'],AGENT_ERROR:['MODEL ERROR','failure','!'],
     DRAWDOWN_HALT:['RISK HALT','failure','!'],IGNORED_DUPLICATE:['DUPLICATE IGNORED','warning','·'],
+    V1_UNSTRUCTURED_ENTRY_BLOCKED:['RESEARCH ONLY','warning','!'],
     SESSION_MARK:['MARK TO MARKET','neutral','◌'],NO_ORDER:['NO TRADE','neutral','–']
   };
   function renderActivity(data) {

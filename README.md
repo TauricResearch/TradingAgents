@@ -28,7 +28,8 @@ The simulator keeps its data in `~/.tradingagents/paper/portfolio.json`. **Never
 | Premium research desk | Koral Equities dashboard, account metrics, AI ratings, journals and scan logs |
 | Analyst team | Market, news, sentiment and fundamentals research |
 | Investment committee | Bull/bear debate, risk discussion and portfolio review |
-| Paper engine | £10,000 starting cash; 2% intended stop-risk budget; 6% aggregate planned risk; next-session simulation |
+| V1 paper journal | £10,000 starting cash, existing trades and research. New unstructured rating-only orders disabled. |
+| V2 conditional simulator | Separately isolated offline trade-contract replay, with verified-timestamp earnings gates and explicit plan approval. |
 | Research screener | Offline momentum and liquidity screening prototype with point-in-time validation rules |
 | Experiments | Independent comparison against simple quantitative portfolios and an investable benchmark (in development) |
 
@@ -47,6 +48,7 @@ Availability depends on the account's supported plan and permissions. Never comm
 ## Documents
 
 - [Paper trading setup and risk assumptions](README_PAPER.md)
+- [V2 structured conditional execution (offline)](README_V2_CONDITIONAL.md)
 - [Dashboard and controls](README_DASHBOARD.md)
 - [Research mandate](RESEARCH_CHARTER.md)
 - [First-cycle execution audit](AUDIT_FIRST_RESEARCH_CYCLE.md)

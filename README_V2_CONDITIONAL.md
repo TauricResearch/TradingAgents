@@ -55,7 +55,7 @@ The CLI explicitly refuses to write to the V1 state file, refuses to overwrite a
 .\.venv\Scripts\python.exe -m pytest -q tests/test_conditional_v2.py tests/test_v1_research_gate.py tests/test_paper_engine.py
 ```
 
-The local developer test passed **33 assertions/tests** against these three test modules before this code was committed. Live Windows/Python installation and remote service integrations remain unverified until run on that machine.
+The local developer test passed **34 tests** against these three test modules before this code was committed. Live Windows/Python installation and remote service integrations remain unverified until run on that machine.
 
 ## Still to build before autonomous forward trading
 

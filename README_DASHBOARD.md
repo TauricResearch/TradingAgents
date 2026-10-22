@@ -25,7 +25,7 @@ If you receive "not recognized" when launching, rerun the `pip install -e .` com
 - **Portfolio:** open positions, pending orders, exits and downloadable trade-history CSV files. Position P&L uses the last saved marks, before a hypothetical exit fee.
 - **Journal:** locally saved HTML reports from completed analyses.
 
-Click **Run AI scan** after 5:30 p.m. in New York on a trading day. It launches the existing paper CLI as a local subprocess, reading your `.env` or previously authorised ChatGPT provider. You can change the watchlist before submitting. A running-scan banner shows the log and the dashboard refreshes automatically. If it fails, the error log is shown; no trade is invented.
+Click **Run AI scan** after 5:30 p.m. in New York on a trading day. It launches the existing paper CLI as a local subprocess, reading your `.env` or previously authorised ChatGPT provider. New ratings are **research only**, and cannot queue new paper orders. You can change the watchlist before submitting. A running-scan banner shows the log and the dashboard refreshes automatically. If it fails, the error log is shown; no trade is invented.
 
 **Important:** analysis is user-initiated while the dashboard is running, not scheduled. The 2% risk figure is a *planned stop-loss budget*, not a guaranteed maximum loss. Prices, USD/GBP, stop fills and spreads are simulated by the underlying daily-bar paper engine. The broker connection and all real ISA holdings remain completely outside this application.
 
