@@ -285,9 +285,156 @@
       await updateScan();
     }catch(err){notify(err.message,true)}finally{$('confirm-scan').disabled=false;}
   }
+
+  /* Independent market discovery: no paper orders, position changes or signals. */
+  let discoveryWasRunning = false;
+  let discoveryAcknowledged = null;
+  let discoveryCurrentId = null;
+  try { discoveryAcknowledged = sessionStorage.getItem('koral-discovery-ack'); }
+  catch (_) { /* Storage may be blocked in private windows. */ }
+  const moneyUS = (value) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || value === null || value === undefined) return '—';
+    if (amount >= 1e9) return '$' + (amount / 1e9).toFixed(2) + 'B';
+    if (amount >= 1e6) return '$' + (amount / 1e6).toFixed(0) + 'M';
+    return '$' + Math.round(amount).toLocaleString('en-US');
+  };
+  const percentUS = (value) =>
+    value == null || !Number.isFinite(Number(value)) ? '—' :
+    (100 * Number(value)).toFixed(1) + '%';
+
+  async function refreshDiscovery() {
+    try {
+      const response = await fetch('/api/discovery/state', {cache:'no-store'});
+      if (!response.ok) throw new Error('Discovery snapshot unavailable');
+      const view = await response.json();
+      const candidates = Array.isArray(view.candidates) ? view.candidates : [];
+      const reports = new Map((view.ai_reports || []).map(report => [report.ticker, report]));
+      byId('discovery-coverage', view.universe_scanned != null ?
+        Number(view.universe_scanned).toLocaleString('en-GB') + ' / ' +
+        Number(view.universe_total).toLocaleString('en-GB') : '—');
+      byId('discovery-count', view.candidates ? String(candidates.length) : '—');
+      byId('discovery-analysed',
+        String((view.ai_reports || []).filter(report => report.status === 'completed').length));
+      byId('discovery-date', view.generated_at_utc ?
+        String(view.generated_at_utc).slice(0, 10) : '—');
+      byId('discovery-asof', view.generated_at_utc ?
+        (view.sampled_not_exhaustive ? 'SAMPLED · ' : '') + 'SNAPSHOT ' +
+        String(view.generated_at_utc).slice(0, 16).replace('T', ' ') + ' UTC' :
+        'No scan recorded');
+      const place = $('discovery-results');
+      if (!place) return;
+      if (!candidates.length) {
+        place.innerHTML = '<div class="discovery-empty">' +
+          (view.generated_at_utc ?
+          'No stocks passed this particular sample. Try another or a larger universe. This does not prove no opportunities exist.' :
+          'No companies shortlisted yet. Select a scan depth and choose <strong>Discover stocks</strong>.') +
+          '</div>';
+        return;
+      }
+      place.innerHTML = candidates.map((company) => {
+        const scenarios = company.scenarios_5y || {};
+        const bull = scenarios.bull?.illustrative_equity_multiple;
+        const base = scenarios.base?.illustrative_equity_multiple;
+        const report = reports.get(company.ticker);
+        const reportLink = report?.report_url && /^\/discovery\/reports\/[0-9TZ]+\/[A-Z0-9.-]+\/complete_report\.html$/.test(report.report_url) ?
+          '<a href="' + escapeHtml(report.report_url) +
+          '" target="_blank" rel="noopener noreferrer">Read AI report ↗</a>' :
+          (report?.status === 'failed' ? 'AI research unavailable' : 'No AI report yet');
+        return '<article class="discovery-candidate">' +
+          '<div class="discovery-name"><div><strong>' + escapeHtml(company.ticker) + '</strong>' +
+          '<small>' + escapeHtml(company.company || 'Listed company') + '</small></div>' +
+          '<span class="discovery-rank">SCORE ' + escapeHtml(company.research_score) + '</span></div>' +
+          '<div class="discovery-metrics">' +
+          '<div><span>MARKET CAP</span><b>' + escapeHtml(moneyUS(company.market_cap_usd)) + '</b></div>' +
+          '<div><span>VENDOR SALES GROWTH</span><b>' + escapeHtml(percentUS(company.revenue_growth_vendor)) + '</b></div>' +
+          '<div><span>CASH FLOW</span><b>' + escapeHtml(moneyUS(company.free_cash_flow_usd)) + '</b></div></div>' +
+          '<div class="discovery-scenario"><span class="scenario-label">5Y HYPOTHETICAL MULTIPLES · BASE / BULL</span>' +
+          '<strong>' + escapeHtml(base == null ? '—' : base + '×') + ' / ' +
+          escapeHtml(bull == null ? '—' : bull + '×') + '</strong></div>' +
+          '<div class="discovery-ai-result"><span>' + escapeHtml(company.sector || 'Sector unverified') +
+          (report?.rating ? ' · ' + escapeHtml(report.rating) : ' · Research only') +
+          '</span>' + reportLink + '</div>' +
+          '</article>';
+      }).join('');
+    } catch(error) {
+      console.warn('Discovery snapshot:', error);
+    }
+  }
+
+  async function updateDiscoveryStatus() {
+    try {
+      const response = await fetch('/api/discovery/status', {cache:'no-store'});
+      if (!response.ok) throw new Error('Discovery status unavailable');
+      const data = await response.json();
+      const panel = $('discovery-progress');
+      discoveryCurrentId = data.started_at || null;
+      const acknowledged = Boolean(discoveryCurrentId && discoveryCurrentId === discoveryAcknowledged);
+      const showing = Boolean(data.running || (data.finished && !acknowledged));
+      panel.hidden = !showing;
+      panel.classList.toggle('failed', Boolean(data.finished && data.returncode !== 0 && !acknowledged));
+      $('discovery-dismiss').hidden = Boolean(data.running) || !showing;
+      byId('discovery-log', data.log || (data.running ? 'Research starting…' : 'No scan log recorded'));
+      byId('discovery-stage', data.running ? 'DISCOVERY IN PROGRESS' :
+        data.returncode === 0 ? 'DISCOVERY FINISHED — REVIEW RESULTS' : 'DISCOVERY ERROR — REVIEW LOG');
+      $('discover-btn').disabled = Boolean(data.running);
+      if (data.running) discoveryWasRunning = true;
+      if (discoveryWasRunning && data.finished) {
+        discoveryWasRunning = false;
+        await refreshDiscovery();
+        if (data.returncode !== 0) notify('Discovery stopped. Check the persistent log.', true);
+      }
+    } catch(error) {
+      console.warn('Discovery status:', error);
+      notify('Discovery status unavailable. Check the local Koral Equities server.', true);
+    }
+  }
+
+  async function beginDiscovery() {
+    const max_symbols = Number($('discovery-size').value);
+    const ai = Number($('discovery-ai').value);
+    if (![200, 350, 800, 1500].includes(max_symbols) || ![0, 1, 2, 3].includes(ai)) {
+      notify('Choose a supported discovery configuration.', true);
+      return;
+    }
+    $('discover-btn').disabled = true;
+    try {
+      const response = await fetch('/api/discovery/start', {
+        method:'POST',
+        headers:{'Content-Type':'application/json', 'X-Koral-Action':'discovery'},
+        body:JSON.stringify({max_symbols, ai})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Discovery failed to start');
+      discoveryAcknowledged = null;
+      discoveryWasRunning = true;
+      notify('Independent stock discovery started. No trades will be placed.');
+      await updateDiscoveryStatus();
+    } catch(error) {
+      notify('Discovery could not start: ' + error.message, true);
+      $('discover-btn').disabled = false;
+    }
+  }
+
   function init() {
     clock();setInterval(clock,30000);
     $('refresh-btn').addEventListener('click',()=>refresh());
+    $('discover-btn').addEventListener('click', beginDiscovery);
+    $('discovery-dismiss').addEventListener('click', () => {
+      discoveryAcknowledged = discoveryCurrentId;
+      try { sessionStorage.setItem('koral-discovery-ack', discoveryCurrentId || ''); }
+      catch (_) { /* Dismissed for current session anyway. */ }
+      $('discovery-progress').hidden = true;
+    });
+    $('discovery-copy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText($('discovery-log').textContent);
+        notify('Discovery log copied.');
+      } catch (_) {
+        notify('Select the discovery log and press Ctrl+C to copy.', true);
+      }
+    });
+
     $('scan-btn').addEventListener('click',()=>$('scan-dialog').showModal());
     $('close-dialog').addEventListener('click',()=>$('scan-dialog').close());
     $('cancel-scan').addEventListener('click',()=>$('scan-dialog').close());
@@ -315,9 +462,11 @@
     document.querySelectorAll('.nav-links a').forEach(link=>link.addEventListener('click',()=>{
       document.querySelectorAll('.nav-links a').forEach(x=>x.classList.remove('active'));link.classList.add('active');
     }));
-    refresh(true);updateScan();
+    refresh(true);updateScan();refreshDiscovery();updateDiscoveryStatus();
     setInterval(()=>refresh(true),20000);
     setInterval(updateScan,2500);
+    setInterval(refreshDiscovery,25000);
+    setInterval(updateDiscoveryStatus,3000);
   }
   document.addEventListener('DOMContentLoaded',init);
 })();
