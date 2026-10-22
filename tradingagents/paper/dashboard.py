@@ -120,6 +120,55 @@ def snapshot(book: Book, state_path: Path) -> dict:
     }
 
 
+def autopilot_paper_snapshot(path: Path) -> dict:
+    """Read-only status of the *separate* V3.1 Autopilot paper account.
+
+    Never initialise, enable, submit or modify orders from the HTTP handler.
+    Tampered market-evidence or journal files produce an explicit safe error.
+    """
+    from datetime import timezone
+    from tradingagents.paper.autopilot.state import read as read_autopilot
+    if not path.is_file():
+        return {"status": "not_initialized", "broker_connected": False,
+                "mode": "EXPERIMENTAL_PAPER_ONLY"}
+    try:
+        state = read_autopilot(path)
+        book = state.portfolio.book
+        heartbeat = path.parent / "service_heartbeat.json"
+        pulse_recent = False
+        if heartbeat.is_file():
+            pulse = json.loads(heartbeat.read_text(encoding="utf-8"))
+            when = datetime.fromisoformat(pulse["last_pulse_utc"])
+            if when.tzinfo is not None and when.utcoffset() is not None:
+                age = (datetime.now(timezone.utc) - when).total_seconds()
+                pulse_recent = bool(0 <= age <= 180 and pulse.get("mode") == "PAPER_ONLY")
+        return {
+            "status": "paper_ready",
+            "mode": "EXPERIMENTAL_PAPER_ONLY",
+            "enabled": state.auto_paper_enabled,
+            "paused": state.paused,
+            "heartbeat_recent": pulse_recent,
+            "last_session": book.last_session,
+            "equity_gbp": round(book.equity(), 2),
+            "cash_gbp": round(book.cash_gbp, 2),
+            "positions": len(book.positions),
+            "queued": len(book.orders),
+            "closed_trades": len(book.completed),
+            "halted": book.halted,
+            "watchlist": list(state.watchlist),
+            "ai_receipts": len(state.ai_receipts),
+            "intents": [{"ticker": x["plan"]["ticker"], "status": x["status"],
+                         "confirmations": x["consecutive"]}
+                        for x in list(state.portfolio.intents.values())[-8:]],
+            "recent_audit": [{"utc": x["utc"], "kind": x["kind"]}
+                             for x in state.audit[-8:]],
+            "broker_connected": False,
+        }
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return {"status": "invalid_state", "broker_connected": False,
+                "mode": "SAFE_HALT_RECONCILIATION_REQUIRED"}
+
+
 def _csv_bytes(records: list[dict], fields: list[str]) -> bytes:
     output = io.StringIO(newline="")
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
@@ -285,6 +334,10 @@ def make_handler(state_path: Path, runtime: ScanRuntime, discovery: DiscoveryRun
                 except (ValueError, KeyError, TypeError, json.JSONDecodeError):
                     self.respond_json({"status": "invalid_state", "broker_connected": False},
                                       HTTPStatus.SERVICE_UNAVAILABLE)
+                return
+            if path == "/api/v3/autopilot-state":
+                from tradingagents.paper.autopilot.state import STATE as AUTO_STATE
+                self.respond_json(autopilot_paper_snapshot(AUTO_STATE))
                 return
             if path == "/api/scan-status":
                 self.respond_json(runtime.status())
