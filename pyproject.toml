@@ -50,6 +50,7 @@ koral-equities-paper = "tradingagents.paper.cli:main"
 koral-equities-research = "cli.main:app"
 koral-equities-rebrand-reports = "tradingagents.paper.rebrand_archives:main"
 koral-equities-v2-replay = "tradingagents.paper.conditional_cli:main"
+koral-equities-v3 = "tradingagents.paper.auto_v3:main"
 koral-equities-discover = "tradingagents.paper.discovery:main"
 
 [tool.setuptools.dynamic]
