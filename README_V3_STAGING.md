@@ -36,6 +36,39 @@ Simulate a day using an independent, complete, date-stamped data JSON fixture:
 
 A fixture is a test input, not a verified actual stock-market quote. **Never invent one to infer investment performance.** No such feed fixture is supplied in this release. The JSON schema requires exactly `day`, `source`, `captured_at_utc`, `bars` (ticker to Bar with open/high/low/close), `gbp_per_usd_open`, `gbp_per_usd_close`, `spy_close_usd`, `earnings_preopen` and `earnings_afterclose`.
 
+## Structured paper intents and chronological inbox
+
+A source-bound, manually approved conditional plan can be added after an
+existing V3 account has processed its decision-date trading session:
+
+```powershell
+.\.venv\Scripts\python.exe -m tradingagents.paper.auto_v3 approve-plan --plan "APPROVED_INTENT.json" --report "EXACT_ORIGINAL_REPORT.txt" --approve
+```
+
+The plan must be a complete `TradeIntent` with a cryptographic SHA-256
+matching the exact research report. The program refuses a bare Buy/Overweight
+label, missing executable stop, malformed ticker, stale date, too-large
+allocation or duplicate intent. Without `--approve` it makes no changes.
+This is operator approval for **experimental paper trading only** and is not
+an authorisation to trade a brokerage account.
+
+For staged files produced by a future independent price/earnings adapter,
+the engine can process completed daily sessions in order and skip days it
+already processed:
+
+```powershell
+.\.venv\Scripts\python.exe -m tradingagents.paper.auto_v3 sync-inbox --dir "PATH_TO_DATED_FEEDS"
+```
+
+Files must be named `YYYY-MM-DD.json`, with a matching payload session.
+A missing, malformed or out-of-order required price/earnings input blocks
+the pipeline; original files remain for audit. **The inbox cannot independently
+prove that a trading day is missing or that third-party feed timestamps are
+authentic.** An actual exchange calendar and verified vendor adapter remain
+requirements before unattended autonomous forwarding. Multi-session preview
+is rejected because showing future days without committing intervening state
+would be misleading.
+
 ## What still blocks authentic autonomous AI forward-paper trading
 
 **Gate A — independent as-of data:** Implement an exchange-calendar-aware adapter with actual vendor timestamps, corporate action/split/ADR currency normalization, per-session OHLC validation, audited SPY total return and FX, and source-backed issuer earnings schedules. Avoid using after-close news as if it was available before the market open. Failed or stale data cannot permit a fill.
