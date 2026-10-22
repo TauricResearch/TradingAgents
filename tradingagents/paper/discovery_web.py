@@ -14,11 +14,13 @@ _RUN=re.compile(r"^\d{8}T\d{6}Z$")
 _TICKER=re.compile(r"^[A-Z0-9.-]{1,12}$")
 
 
-def safe_report(home: Path, run_id: str, ticker: str) -> Path | None:
+def safe_report(home: Path, run_id: str, ticker: str, filename: str="complete_report.html") -> Path | None:
+    if filename not in ("complete_report.html","compounder_memo.md"):
+        return None
     if not _RUN.fullmatch(run_id) or not _TICKER.fullmatch(ticker):
         return None
     root=(home/"runs").resolve()
-    report=(root/run_id/"reports"/ticker/"complete_report.html").resolve()
+    report=(root/run_id/"reports"/ticker/filename).resolve()
     return report if report.is_relative_to(root) and report.is_file() else None
 
 
@@ -39,6 +41,8 @@ def latest(home: Path=DEFAULT_HOME) -> dict:
             ticker=item.get("ticker","")
             if safe_report(home,run,ticker):
                 visible["report_url"]=f"/discovery/reports/{run}/{ticker}/complete_report.html"
+            if item.get("memo_status")=="completed" and safe_report(home,run,ticker,"compounder_memo.md"):
+                visible["memo_url"]=f"/discovery/reports/{run}/{ticker}/compounder_memo.md"
             reports.append(visible)
         record["ai_reports"]=reports
         record.pop("profile_exclusions",None)
