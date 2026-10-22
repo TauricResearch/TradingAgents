@@ -320,6 +320,27 @@ def save_scan(home: Path, record: dict):
     atomic_json(home/"latest.json", record)
 
 
+def analyst_asof_date(company: dict, end_exclusive: str) -> str:
+    """Pin a discovery AI report to the last *completed* screening candle.
+
+    IMPORTANT: this is a PRICE-analysis date, not a claim that all company
+    profiles/news share the same publication timestamp. Intraday mode must
+    never label a partial NY trading session as the completed daily close.
+    """
+    raw = company.get("price_asof")
+    if not isinstance(raw, str):
+        raise ValueError("Candidate has no source-dated completed market candle")
+    try:
+        asof = date.fromisoformat(raw)
+        cutoff = date.fromisoformat(end_exclusive)
+    except ValueError as exc:
+        raise ValueError("Invalid as-of date for research candle") from exc
+    lag = (cutoff - asof).days
+    if not 1 <= lag <= 6:
+        raise ValueError("Candidate price is unfinished, future-dated or stale")
+    return asof.isoformat()
+
+
 def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=20261022,
                 top: int=12, profile_limit: int=40, ai: int=2,
                 universe_csv: Path | None=None, now: datetime | None=None) -> dict:
@@ -362,7 +383,7 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
         "schema":"koral_equities_discovery_v1","run_id":run_id,
         "generated_at_utc":now.isoformat(timespec="seconds"),
         "requested_end_exclusive":end,
-        "asof_note":"Live research snapshot. Company financial profiles may include news more recent than the last completed daily price bar; NOT a historical backtest.",
+        "asof_note":"Price and technical AI analysis must use the most recent completed daily price candle (separate from the UTC research timestamp). Live fundamental profiles and news may have later publication times. This is NOT point-in-time backtest data.",
         "source_notes":notes,"universe_total":len(universe),"universe_scanned":len(sample),
         "sampled_not_exhaustive":sampled,"sample_seed":seed,
         "price_screen_passed":len(price),"profiles_requested":len(leaders),
@@ -384,8 +405,11 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
             ticker=c["ticker"]
             print(f"AI INVESTMENT COMMITTEE {n}/{min(ai,len(candidates))}: {ticker}",flush=True)
             try:
+                price_analysis_date = analyst_asof_date(c, end)
+                print(f"AI PRICE AS-OF {ticker}: {price_analysis_date} (UTC research run {run_id}); "
+                      "not the current intraday candle",flush=True)
                 state,rating=graph.propagate(
-                    ticker, now.astimezone(ZoneInfo("America/New_York")).date().isoformat(),
+                    ticker, price_analysis_date,
                     portfolio=PortfolioContext(positions=[]))
                 report_dir=home/"runs"/run_id/"reports"/ticker
                 graph.save_reports(state,ticker,save_path=report_dir)
@@ -403,6 +427,7 @@ def scan_market(*, home: Path=DEFAULT_HOME, max_symbols: int=350, seed: int=2026
                     "report_path":str(report_dir/"complete_report.html"),
                     "memo_status":memo_status,
                     "research_at_utc":datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    "price_analysis_date":price_analysis_date,
                     "execution_status":"RESEARCH_ONLY",
                 })
             except Exception as exc:

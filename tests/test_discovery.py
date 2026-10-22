@@ -174,3 +174,57 @@ def test_scan_default_has_no_automatic_paper_orders(monkeypatch,tmp_path):
     nextbook,n=cli.run_agents(book,quotes,["ABCD"],tmp_path/"portfolio.json",8.0)
     assert n==1 and nextbook.orders==[] and not nextbook.positions
     assert any(e["type"]=="AGENT_RATING" for e in nextbook.events)
+
+@pytest.mark.parametrize("company,end_exclusive,expected", [
+    ({"price_asof":"2026-10-21"}, "2026-10-22", "2026-10-21"),
+    ({"price_asof":"2026-10-22"}, "2026-10-23", "2026-10-22"),
+    ({"price_asof":"2026-10-16"}, "2026-10-20", "2026-10-16"),
+])
+def test_ai_price_date_is_last_completed_candle(company,end_exclusive,expected):
+    assert discovery.analyst_asof_date(company,end_exclusive)==expected
+
+
+@pytest.mark.parametrize("company,end_exclusive",[
+    ({"price_asof":"2026-10-22"}, "2026-10-22"), # current NY day before close
+    ({"price_asof":"2026-10-23"}, "2026-10-22"), # future
+    ({"price_asof":"2026-10-01"}, "2026-10-22"), # stale
+    ({}, "2026-10-22"),
+    ({"price_asof":"not a date"}, "2026-10-22"),
+])
+def test_ai_price_date_rejects_intraday_future_and_missing(company,end_exclusive):
+    with pytest.raises(ValueError):
+        discovery.analyst_asof_date(company,end_exclusive)
+
+
+def test_preclose_ai_uses_prior_session_even_when_research_is_today(monkeypatch,tmp_path):
+    """Integration guard: stop the real graph receiving an unfinished daily bar."""
+    monkeypatch.setattr(discovery,"source_universe",lambda:(["ABCD"],["offline fake"]))
+    def bars(_symbols,_end):
+        start=datetime(2026,2,14,tzinfo=timezone.utc)
+        return [("ABCD",[
+            ((start+timedelta(days=i)).date().isoformat(),10+i*.12,2_000_000)
+            for i in range(250)
+        ])]
+    # 250 days through 2026-10-21 (not Oct 22).
+    monkeypatch.setattr(discovery,"batch_prices",bars)
+    info={"quoteType":"EQUITY","marketCap":900e6,"totalRevenue":300e6,
+          "revenueGrowth":.34,"longName":"Example Public Co","sector":"Software"}
+    import sys
+    monkeypatch.setitem(sys.modules,"yfinance",SimpleNamespace(
+        Ticker=lambda ticker:SimpleNamespace(info=info)))
+    from tradingagents.graph import trading_graph
+    seen=[]
+    class Agent:
+        def propagate(self,ticker,asof,**_kwargs):
+            seen.append((ticker,asof))
+            return {"trade_date":asof,"final_trade_decision":"**Rating**: Hold"}, "Hold"
+        def save_reports(self,*_args,**_kwargs):
+            return None
+    monkeypatch.setattr(trading_graph,"TradingAgentsGraph",lambda config:Agent())
+    monkeypatch.setattr(discovery,"write_compounder_memo",lambda *a,**k:True)
+    result=discovery.scan_market(home=tmp_path/"discovery", max_symbols=0,
+          top=1, profile_limit=1, ai=1,
+          now=datetime(2026,10,22,14,39,tzinfo=timezone.utc))
+    assert seen==[("ABCD","2026-10-21")]
+    assert result["ai_reports"][0]["price_analysis_date"]=="2026-10-21"
+    assert result["ai_reports"][0]["execution_status"]=="RESEARCH_ONLY"

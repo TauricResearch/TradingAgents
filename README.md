@@ -78,3 +78,5 @@ You can also run research directly in PowerShell:
 ```
 
 Saved results: `%USERPROFILE%\\.tradingagents\\discovery\\latest.json` and per-run reports. A broader scan costs additional market-data requests and AI usage. **Never connect this discovery mode to broker execution based only on research scores or a multibagger scenario.**
+
+**Price-data cutoff:** The AI's market analysis is dated to the last completed screened session, not to an unfinished intraday bar. The separate UTC research timestamp may be later; vendor fundamental profiles can also be fresher. See [the Discovery timestamp audit](README_DISCOVERY.md#critical-timestamp-correction--22-october-2026).

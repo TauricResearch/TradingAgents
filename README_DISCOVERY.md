@@ -25,3 +25,11 @@ The default source is the current Nasdaq Trader Nasdaq- and other-listed symbol 
 **Research heuristics, not edge claims:** current filters favour $200m–$30bn capitalisation, at least $20m reported revenue, 12% vendor-reported revenue growth, liquid share turnover, momentum and positive business quality proxies. Scores are screening priorities, not calibrated likelihoods of 10× returns. Bear/base/bull five-year revenue-growth, sales-multiple and dilution assumptions illustrate mathematical possibilities; they require independent scrutiny and can produce losses or implausible outcomes.
 
 **Safety boundaries:** no access to `portfolio.json`, the V2 offline ledger, Trading 212, or any brokerage API. The AI can only generate research; it cannot queue an order. Earnings/SEC filings, dilution, financial series and sector classifications need independent source verification before capital decisions. Discovery runs are user initiated, not continuously scheduled.
+
+## Critical timestamp correction — 22 October 2026
+
+An initial ERO research report generated at **15:43 UK / 10:43 New York** mistakenly called an **intraday** October 22 price the October 22 daily **close**. The discovery price shortlist already excluded unfinished bars; the AI research call independently supplied the *calendar date of the research run* instead of the candidate's completed price date. This caused the market analyst to describe partial-session candles as completed daily data.
+
+**Fix:** the AI analyst now receives `price_asof` from the candidate's most recent completed screening candle, after validation against the scan's exclusive market-data cutoff. The run log and AI report index explicitly record that completed `price_analysis_date` separately from `research_at_utc`. During a US trading day, this may deliberately result in a report dated the **prior market session** even though the research runs right now. This is expected and avoids mislabelling partial bars.
+
+**Remaining limitation:** the externally supplied company profiles and any live news may be updated at times that differ from the screened market close. This is an on-demand research product, NOT a backtest or a fully point-in-time-audited investment dataset. Re-running research is required to obtain a corrected report. Historical AI reports and the existing V1/V2 paper ledgers are not modified.
