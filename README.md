@@ -64,3 +64,17 @@ Koral Equities includes modified, Apache-2.0-licensed software based on the open
 ### Archive existing research under the Koral identity
 
 After installing the update, run `koral-equities-rebrand-reports` to preview older saved HTML reports, then `koral-equities-rebrand-reports --apply` to make **backed-up presentation-only** updates. The initial 21 October research and portfolio ledger are unchanged. See [the dashboard guide](README_DASHBOARD.md).
+
+## On-demand stock discovery
+
+Open the local Koral Equities dashboard and select **Discovery → Discover stocks** during the day. This is wholly independent of both V1 and V2 trading accounts. It draws a current set of U.S. exchange-listed symbols, excludes evident non-common-share instruments, screens up to the requested sample size for liquid price histories, and verifies selected company fundamentals before creating a ranked shortlist. A bounded number of candidates can receive multi-agent research and an independent five-year compounder memo.
+
+**Important limitations:** This is a research shortlist, not a calibrated ranking of tenfold-return probabilities. It is not an exhaustive listing search by default: the smaller modes use a disclosed random sample, not all stocks. Five-year bear/base/bull projections are hypothetical sensitivity illustrations, not predictions. Yahoo data may be incomplete, delayed or revised; current profiles must not be used as point-in-time historical backtests. No simulated or real orders are made.
+
+You can also run research directly in PowerShell:
+
+```powershell
+.\\.venv\\Scripts\\koral-equities-discover.exe --max-symbols 350 --ai 2
+```
+
+Saved results: `%USERPROFILE%\\.tradingagents\\discovery\\latest.json` and per-run reports. A broader scan costs additional market-data requests and AI usage. **Never connect this discovery mode to broker execution based only on research scores or a multibagger scenario.**
