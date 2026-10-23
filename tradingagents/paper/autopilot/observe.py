@@ -99,9 +99,24 @@ def capture(
     else:
         target = home / "market" / (day + ".json")
     if target.exists():
-        # Source evidence is immutable even if vendors revise or data changes.
+        # A saved phase never silently satisfies a DIFFERENT watchlist.
         if not target.is_file():
             raise ValueError("Observation target is not a regular file")
+        prior = json.loads(target.read_text(encoding="utf-8"))
+        if not isinstance(prior, dict) or prior.get("session") != day:
+            raise ValueError("Invalid archived observation")
+        if phase in ("preopen", "preclose"):
+            expected = set(tickers)
+            observed = prior.get("earnings")
+            if (prior.get("phase") != phase or not isinstance(observed, dict)
+                    or set(observed) != expected):
+                raise ValueError("Archived earnings observation has a different symbol set")
+        else:
+            expected = set(tickers) | {"SPY"}
+            observed = prior.get("ohlc_usd")
+            if (prior.get("phase") != "close" or prior.get("mode") != "OBSERVE_ONLY"
+                    or not isinstance(observed, dict) or set(observed) != expected):
+                raise ValueError("Archived market observation has a different symbol set")
         return {"status": "ALREADY_CAPTURED", "mode": "OBSERVE_ONLY",
                 "phase": phase, "session": day, "sha256": _sha(target),
                 "orders": 0}
@@ -150,14 +165,24 @@ def capture(
         "notice": "Source observation, not a trade or an authorised paper fill.",
         "orders": [],
     }
-    # Exclusive create, not a rewrite of previously observed prices.
+    # Publish a completely written snapshot without replacing evidence.
+    # os.link is an exclusive same-volume create on Windows NTFS and POSIX.
     target.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(
+        prefix=".market-observe-", suffix=".tmp", dir=target.parent,
+    )
     try:
-        with target.open("x", encoding="utf-8") as output:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
             json.dump(payload, output, sort_keys=True, indent=2, allow_nan=False)
             output.write("\n")
-    except FileExistsError:
-        raise ValueError("Concurrent observation already exists") from None
+            output.flush()
+            os.fsync(output.fileno())
+        try:
+            os.link(temporary, target)
+        except FileExistsError:
+            raise ValueError("Concurrent observation already exists") from None
+    finally:
+        Path(temporary).unlink(missing_ok=True)
     return {"status": "CAPTURED", "mode": "OBSERVE_ONLY",
             "phase": phase, "session": day, "sha256": _sha(target),
             "symbols": sorted(needed), "orders": 0}
