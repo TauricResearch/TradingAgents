@@ -15,7 +15,7 @@ from pathlib import Path
 from tradingagents.paper.autopilot.performance import scorecard
 
 from tradingagents.paper.cli import exclusive
-from tradingagents.paper.autopilot import feeds, runner
+from tradingagents.paper.autopilot import feeds, observe, runner
 from tradingagents.paper.autopilot.state import STATE, atomic_write, create_new, read
 
 
@@ -115,9 +115,23 @@ def main(argv=None) -> int:
     cancel.add_argument("id")
     service = commands.add_parser("serve", help="Run local NY-time scheduler while this PC is on")
     service.add_argument("--poll-seconds", type=int, default=60)
+    watcher = commands.add_parser("observe", help="Collect research-only feeds; cannot modify any paper portfolio")
+    watcher.add_argument("--dir", type=Path, default=observe.DEFAULT_OBSERVATION_HOME)
+    watcher.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA"])
+    watcher.add_argument("--poll-seconds", type=int, default=60)
+    watcher.add_argument("--once", action="store_true", help="Probe the current NY window once, then exit")
     args = parser.parse_args(argv)
     try:
         path = args.state.expanduser().resolve()
+        if args.command == "observe":
+            result = observe.monitor(
+                args.dir, args.tickers,
+                poll_seconds=args.poll_seconds,
+                once=args.once,
+            )
+            if result is not None:
+                print(json.dumps(result, indent=2, sort_keys=True))
+            return 0
         if args.command == "serve":
             read(path)  # Preflight: refuse missing ledger, never auto-init.
             serve(path, args.poll_seconds)
