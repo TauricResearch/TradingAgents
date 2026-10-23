@@ -37,6 +37,8 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "nvidia":     "NVIDIA_API_KEY",
     # A ChatGPT plan authenticates with the person's sign-in, not a key.
     "chatgpt":    None,
+    # Claude Code signs in with its own account.
+    "claude_code": None,
     # Local runtimes do not authenticate.
     "ollama":     None,
     # Generic OpenAI-compatible endpoint: the client reads this when set (keyed
