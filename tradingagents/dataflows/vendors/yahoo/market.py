@@ -48,12 +48,7 @@ def get_YFin_data_online(
     # turns into one clear unavailable signal (#1021).
     _assert_ohlcv_not_stale(data, end_date, symbol, canonical)
 
-    # Round numerical values to 2 decimal places for cleaner display
-    numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
-    for col in numeric_columns:
-        if col in data.columns:
-            data[col] = data[col].round(2)
-
+    # Preserve vendor precision: rounding to cents turns small quotes into zero.
     csv_string = data.to_csv()
 
     # Name the resolved symbol when it differs, so the reader sees which

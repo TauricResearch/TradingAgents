@@ -59,6 +59,10 @@ def _fmt(value) -> str:
     if isinstance(value, (int,)):
         return str(value)
     if isinstance(value, float):
+        # Small prices and signed indicators need significant digits rather
+        # than a fixed cent precision, which can erase their magnitude/sign.
+        if 0 < abs(value) < 1:
+            return f"{value:.6g}"
         return f"{value:.2f}"
     return str(value)
 
