@@ -120,9 +120,10 @@ def capture(
     guard = corporate_guard or feeds.reject_unmodelled_corporate_actions
     quotes, fx_converter = load(set(tickers), day, day)
     needed = set(tickers) | {"SPY"}
-    if not isinstance(quotes, dict) or missing := (
-        needed - set(quotes)
-    ):
+    if not isinstance(quotes, dict):
+        raise ValueError("Market-data feed returned an invalid response")
+    missing = needed - set(quotes)
+    if missing:
         raise ValueError(f"Missing mandatory source: {sorted(missing)}")
     bars = {}
     for ticker in sorted(needed):
