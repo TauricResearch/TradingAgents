@@ -12,10 +12,16 @@ provider must not turn subscription calls into billed ones.
 
 The CLI runs isolated from the person's Claude Code setup (no settings,
 CLAUDE.md, hooks, MCP servers, skills or built-in tools), with the system
-messages as its system prompt and the rest of the conversation on stdin. Tool
+messages as its system prompt, passed in a temporary file so its length is not
+bound by the argument size limit, and the rest of the conversation on stdin. Tool
 calls and structured output come back through ``--json-schema``, which the CLI
 validates: bound tools become an envelope whose ``tool_calls`` items are one
 schema branch per tool, so LangGraph's ToolNode still runs the tools in Python.
+
+The CLI reports its run as a stream of JSON events. Assistant text written
+outside the structured response does not reach the caller; it is kept in the
+message's ``response_metadata`` and logged as a warning whose record carries
+``claude_code_outside_text`` (its length), so a caller can count such calls.
 
 Limits: no token streaming, no async calls, no sampling or length settings,
 and Claude Code adds the real current date to every call, so a run for a past
@@ -26,6 +32,7 @@ import json
 import logging
 import os
 import subprocess
+import tempfile
 import uuid
 from typing import Any, Sequence
 
@@ -207,38 +214,59 @@ class ChatClaudeCode(BaseChatModel):
 
         return bound | RunnableLambda(parse)
 
-    def _argv(self, system: str) -> list[str]:
+    def _argv(self, system_file: str) -> list[str]:
         argv = [self.executable, "-p", "--model", self.model]
         if self.effort:
             argv += ["--effort", self.effort]
-        argv += [*_ISOLATION, "--system-prompt", system, "--output-format", "json"]
+        argv += [*_ISOLATION, "--system-prompt-file", system_file, "--output-format", "stream-json", "--verbose"]
         schema = self.response_schema or self.tool_envelope
         if schema is not None:
             argv += ["--json-schema", json.dumps(schema)]
         return argv
 
-    def _run(self, system: str, transcript: str) -> dict:
-        """Run the CLI once and return its JSON result, or raise ClaudeCodeError."""
-        argv = self._argv(system)
+    def _run(self, system: str, transcript: str) -> tuple[dict, str]:
+        """Run the CLI once; return its result event and the assistant's text, or raise ClaudeCodeError."""
         env = {k: v for k, v in os.environ.items()
                if k not in _ROUTING_ENV and not k.startswith(_ROUTING_ENV_PREFIX)}
+        with tempfile.TemporaryDirectory(prefix="claude-code-") as directory:
+            system_file = os.path.join(directory, "system-prompt.txt")
+            with open(system_file, "w", encoding="utf-8") as f:
+                f.write(system)
+            try:
+                done = subprocess.run(self._argv(system_file), input=transcript,
+                                      capture_output=True, text=True, env=env)
+            except FileNotFoundError as exc:
+                raise ClaudeCodeError(
+                    f"Claude Code CLI not found at {self.executable!r}; install it and sign in "
+                    "with `claude`, or set claude_code_path") from exc
         try:
-            done = subprocess.run(argv, input=transcript, capture_output=True, text=True, env=env)
-        except FileNotFoundError as exc:
-            raise ClaudeCodeError(
-                f"Claude Code CLI not found at {self.executable!r}; install it and sign in "
-                "with `claude`, or set claude_code_path") from exc
-        try:
-            result = json.loads(done.stdout)
+            events = [json.loads(line) for line in done.stdout.splitlines() if line.strip()]
         except json.JSONDecodeError:
+            events = None
+        if events is None or not all(isinstance(event, dict) for event in events):
             raise ClaudeCodeError(
-                f"Claude Code exited {done.returncode} without a JSON result: "
-                f"{(done.stderr or done.stdout).strip()[-2000:]}") from None
+                f"Claude Code exited {done.returncode} without a JSON event stream: "
+                f"{(done.stderr or done.stdout).strip()[-2000:]}")
+        results = [event for event in events if event.get("type") == "result"]
+        if len(results) != 1:
+            raise ClaudeCodeError(
+                f"Claude Code exited {done.returncode} with {len(results)} results instead of one: "
+                f"{(done.stderr or done.stdout).strip()[-2000:]}")
+        (result,) = results
         if done.returncode != 0 or result.get("is_error"):
             raise ClaudeCodeError(
                 f"Claude Code call failed (exit {done.returncode}): "
                 f"{result.get('result') or done.stderr.strip()[-2000:]}")
-        return result
+        texts = []
+        for event in events:
+            message = event.get("message") if event.get("type") == "assistant" else None
+            content = message.get("content") if isinstance(message, dict) else None
+            for block in content if isinstance(content, list) else []:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text = block.get("text")
+                    if isinstance(text, str) and text.strip():
+                        texts.append(text)
+        return result, "\n\n".join(texts)
 
     def _generate(self, messages: list[BaseMessage], stop: list[str] | None = None,
                   run_manager: Any = None, **kwargs: Any) -> ChatResult:
@@ -248,13 +276,20 @@ class ChatClaudeCode(BaseChatModel):
         if self.tool_envelope is not None and self.response_schema is None:
             system = f"{system}\n\n{_TOOL_INSTRUCTIONS}".strip()
         transcript = _render([m for m in messages if not isinstance(m, SystemMessage)])
-        result = self._run(system, transcript)
+        result, text = self._run(system, transcript)
 
         metadata = {
             "model_name": self.model,
             # Reported by the CLI; a subscription is not billed per call.
             "claude_code": {key: result.get(key) for key in ("total_cost_usd", "usage", "num_turns")},
         }
+        if text and (self.response_schema is not None or self.tool_envelope is not None):
+            # With a schema only the structured response is the answer; the CLI
+            # runs no tools of its own, so all of this text is outside it.
+            metadata["claude_code"]["outside_text"] = text
+            logger.warning("Claude Code wrote %d characters outside the structured response; "
+                           "they do not reach the caller", len(text),
+                           extra={"claude_code_outside_text": len(text)})
         if self.response_schema is not None:
             message = AIMessage(content=json.dumps(self._structured(result)),
                                 response_metadata=metadata)

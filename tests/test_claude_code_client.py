@@ -1,7 +1,7 @@
 """Tests for the claude_code provider, which runs each call through ``claude -p``.
 
 A fake ``claude`` executable records its argv and stdin and prints a canned
-JSON result, so the tests pin the exact CLI contract without a subscription.
+stream of JSON events, so the tests pin the exact CLI contract without a subscription.
 """
 
 import json
@@ -35,8 +35,10 @@ ISOLATION = [
 
 FAKE = f"""#!{sys.executable}
 import json, os, sys
+argv = sys.argv[1:]
+system = open(argv[argv.index("--system-prompt-file") + 1]).read()
 with open(os.environ["FAKE_CLAUDE_RECORD"], "a") as f:
-    f.write(json.dumps({{"argv": sys.argv[1:], "stdin": sys.stdin.read(),
+    f.write(json.dumps({{"argv": argv, "system": system, "stdin": sys.stdin.read(),
                         "env": sorted(k for k in os.environ if k.startswith(("ANTHROPIC", "CLAUDE_CODE")))}}) + "\\n")
 sys.stdout.write(open(os.environ["FAKE_CLAUDE_RESPONSE"]).read())
 sys.exit(int(os.environ.get("FAKE_CLAUDE_EXIT", "0")))
@@ -81,10 +83,18 @@ def fake(tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_CLAUDE_RECORD", str(record))
     monkeypatch.setenv("FAKE_CLAUDE_RESPONSE", str(response))
 
-    def respond(exit_code=0, raw=None, **result):
+    def respond(exit_code=0, raw=None, blocks=(), **result):
+        """Answer with assistant events of ``blocks``, then one result event."""
         payload = {"type": "result", "is_error": False, "result": "", "num_turns": 1,
                    "total_cost_usd": 0.01, "usage": {"input_tokens": 3}, **result}
-        response.write_text(raw if raw is not None else json.dumps(payload))
+        events = [{"type": "system", "subtype": "init"}]
+        events += [{"type": "assistant", "message": {"content": [block]}} for block in blocks]
+        if "structured_output" in result:
+            events.append({"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "name": "StructuredOutput", "input": result["structured_output"]}]}})
+        events.append(payload)
+        stream = "".join(json.dumps(event) + "\n" for event in events)
+        response.write_text(raw if raw is not None else stream)
         monkeypatch.setenv("FAKE_CLAUDE_EXIT", str(exit_code))
 
     def calls():
@@ -114,10 +124,20 @@ class TestPlainCalls:
             "total_cost_usd": 0.01, "usage": {"input_tokens": 3}, "num_turns": 1}
         assert out.usage_metadata == {"input_tokens": 3, "output_tokens": 0, "total_tokens": 3}
         (call,) = calls()
+        system_file = flag(call["argv"], "--system-prompt-file")
         assert call["argv"] == [
             "-p", "--model", "claude-opus-5-5", "--effort", "medium", *ISOLATION,
-            "--system-prompt", "Be terse.\n\nUse English.", "--output-format", "json"]
+            "--system-prompt-file", system_file, "--output-format", "stream-json", "--verbose"]
+        assert call["system"] == "Be terse.\n\nUse English."
         assert call["stdin"] == "[user]\nHi"
+        assert not os.path.exists(system_file)
+
+    def test_a_system_prompt_beyond_the_argument_limit_is_passed(self, fake):
+        exe, respond, calls = fake
+        respond(result="ok")
+        system = "ż" * (os.sysconf("SC_ARG_MAX") + 1)
+        model(exe).invoke([SystemMessage(system), HumanMessage("Hi")])
+        assert calls()[0]["system"] == system
 
     def test_settings_that_route_away_from_the_sign_in_do_not_reach_the_cli(self, fake, monkeypatch):
         exe, respond, calls = fake
@@ -173,7 +193,7 @@ class TestTools:
         assert branches[0]["description"] == "Closing price of a ticker on a date."
         assert all(b["additionalProperties"] is False and b["required"] == ["name", "args"]
                    for b in branches)
-        assert "tool_calls" in flag(argv, "--system-prompt")
+        assert "tool_calls" in calls()[0]["system"]
 
     def test_tool_calls_get_ids_that_the_next_turn_replays(self, fake):
         exe, respond, calls = fake
@@ -238,7 +258,7 @@ class TestStructuredOutput:
         assert out == Decision(rating="Buy", reason="cheap")
         argv = calls()[0]["argv"]
         assert json.loads(flag(argv, "--json-schema")) == Decision.model_json_schema()
-        assert "tool_calls" not in flag(argv, "--system-prompt")
+        assert "tool_calls" not in calls()[0]["system"]
 
     def test_dict_schema_returns_a_dict(self, fake):
         exe, respond, _ = fake
@@ -292,6 +312,79 @@ class TestFailures:
         with pytest.raises(ClaudeCodeError, match="exited 2"):
             model(exe).invoke("Hi")
 
+    @pytest.mark.parametrize("raw", ['{"type": "system"}\n{"type": "assist', '{"type": "system"}\nnull\n'])
+    def test_a_stream_of_other_than_events(self, fake, raw):
+        exe, respond, _ = fake
+        respond(raw=raw)
+        with pytest.raises(ClaudeCodeError, match="event stream"):
+            model(exe).invoke("Hi")
+
+    @pytest.mark.parametrize("count", [0, 2])
+    def test_exactly_one_result(self, fake, count):
+        exe, respond, _ = fake
+        result = json.dumps({"type": "result", "is_error": False, "result": "ok"}) + "\n"
+        respond(raw='{"type": "system"}\n' + result * count)
+        with pytest.raises(ClaudeCodeError, match=f"{count} results instead of one: .*system"):
+            model(exe).invoke("Hi")
+
+
+REPORT = "A long report on the company, written as plain text."
+OUTSIDE = [{"type": "thinking", "thinking": "plan"}, {"type": "text", "text": REPORT},
+           {"type": "text", "text": "  "}]
+
+
+@pytest.mark.unit
+class TestOutsideText:
+    def test_tool_envelope_keeps_its_content_and_records_the_text(self, fake, caplog):
+        exe, respond, _ = fake
+        respond(blocks=OUTSIDE, structured_output={"content": "See the report above.", "tool_calls": []})
+        with caplog.at_level(logging.WARNING):
+            out = model(exe).bind_tools([get_price]).invoke("Report")
+
+        assert out.content == "See the report above."
+        assert out.response_metadata["claude_code"]["outside_text"] == REPORT
+        (record,) = [r for r in caplog.records if hasattr(r, "claude_code_outside_text")]
+        assert record.claude_code_outside_text == len(REPORT)
+
+    def test_structured_output_records_the_text(self, fake):
+        exe, respond, _ = fake
+        respond(blocks=OUTSIDE, structured_output={"rating": "Buy", "reason": "cheap"})
+        out = model(exe).with_structured_output(Decision).first.invoke("Decide")
+        assert out.response_metadata["claude_code"]["outside_text"] == REPORT
+
+    def test_texts_of_several_turns_are_joined(self, fake):
+        exe, respond, _ = fake
+        respond(blocks=[{"type": "text", "text": "one"}, {"type": "text", "text": "two"}],
+                structured_output={"content": "", "tool_calls": []})
+        out = model(exe).bind_tools([get_price]).invoke("Hi")
+        assert out.response_metadata["claude_code"]["outside_text"] == "one\n\ntwo"
+
+    @pytest.mark.parametrize("blocks", [[], [{"type": "thinking", "thinking": "x"}, {"type": "text", "text": "\n"}]])
+    def test_nothing_is_recorded_without_outside_text(self, fake, caplog, blocks):
+        exe, respond, _ = fake
+        respond(blocks=blocks, structured_output={"content": "done", "tool_calls": []})
+        with caplog.at_level(logging.WARNING):
+            out = model(exe).bind_tools([get_price]).invoke("Hi")
+        assert "outside_text" not in out.response_metadata["claude_code"]
+        assert not [r for r in caplog.records if hasattr(r, "claude_code_outside_text")]
+
+    def test_a_plain_answer_is_its_text(self, fake, caplog):
+        exe, respond, _ = fake
+        respond(blocks=[{"type": "text", "text": "Hello"}], result="Hello")
+        with caplog.at_level(logging.WARNING):
+            out = model(exe).invoke("Hi")
+        assert out.content == "Hello" and "outside_text" not in out.response_metadata["claude_code"]
+        assert not [r for r in caplog.records if hasattr(r, "claude_code_outside_text")]
+
+    def test_odd_assistant_events_are_skipped(self, fake):
+        exe, respond, _ = fake
+        stream = [{"type": "assistant", "message": "text"}, {"type": "assistant", "message": {"content": "x"}},
+                  {"type": "assistant", "message": {"content": [{"type": "text", "text": 3}]}},
+                  {"type": "result", "is_error": False, "structured_output": {"content": "ok", "tool_calls": []}}]
+        respond(raw="".join(json.dumps(event) + "\n" for event in stream))
+        out = model(exe).bind_tools([get_price]).invoke("Hi")
+        assert out.content == "ok" and "outside_text" not in out.response_metadata["claude_code"]
+
 
 @pytest.mark.unit
 class TestWiring:
@@ -323,5 +416,7 @@ def test_real_cli_answers_and_calls_a_tool():
     """Runs on the signed-in subscription: pytest -m integration."""
     llm = ChatClaudeCode(model=os.environ.get("CLAUDE_CODE_SMOKE_MODEL", "claude-haiku-5-5"))
     assert llm.invoke("Reply with the single word OK.").content.strip()
+    answer = llm.invoke([SystemMessage("Reply with only the word PINEAPPLE."), HumanMessage("Hi")])
+    assert "PINEAPPLE" in answer.content
     out = llm.bind_tools([get_price]).invoke("What did AAPL close at on 2026-08-07? Use the tool.")
     assert [c["name"] for c in out.tool_calls] == ["get_price"]
