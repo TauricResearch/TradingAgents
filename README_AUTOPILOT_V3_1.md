@@ -67,6 +67,54 @@ The `serve` terminal must remain active; press `Ctrl+C` to stop. Pause or disabl
 
 Do not activate this pilot for real capital. It is an **unproven experimental PAPER service**.
 
+
+## Independent observation-only pilot (new, safe first step)
+
+**We should test real data before enabling automatic paper execution.** The
+`observe` command is a completely separate local process. It does **not**
+read or write any of the V1/V2/V3/V3.1 portfolio files, call an LLM, create
+a `TradeIntent`, queue simulated orders or connect to a broker.
+
+Use your existing `.venv` and project directory; **do not run `init` again**.
+
+Inspect whether the present time is within a valid New York observation window:
+
+```powershell
+.\\.venv\\Scripts\\python.exe -m tradingagents.paper.autopilot.cli observe --once
+```
+
+Run source observation continuously while the PC is awake:
+
+```powershell
+.\\.venv\\Scripts\\python.exe -m tradingagents.paper.autopilot.cli observe --tickers AAPL MSFT NVDA --poll-seconds 60
+```
+
+The observation process runs independently of `enable-paper`; Autopilot V3.1
+remains **disabled**, and observation does not enable it. Use **Ctrl+C** to stop.
+
+The separate observation folder is
+`%USERPROFILE%\\.tradingagents\\observations\\koral_v3`. It contains:
+
+- `calendar/YYYY-MM-DD/preopen.json`: Yahoo + Nasdaq upcoming/previous
+  earnings observations captured 08:45–09:25 New York time
+- `calendar/YYYY-MM-DD/preclose.json`: evening earnings observations from
+  17:00–17:25 New York time (the existing V3 historical phase name)
+- `market/YYYY-MM-DD.json`: validated post-close OHLC for the exact requested
+  tickers and SPY, GBP conversion and split/dividend veto, starting 17:40 NY
+- `heartbeat.json`: last observer pulse; `errors.jsonl`: collection errors
+
+Saved daily evidence is not overwritten after its first successful capture.
+An existing snapshot for a *different watchlist* is rejected. Source failure,
+missing prices, implausible FX, split/dividend events and incomplete candles
+block capture. There is no retroactive evidence fabrication: if the PC was
+off during the morning collection, that observation stays missing.
+
+**Limitations:** This does not prove that Yahoo or Nasdaq data are
+exchange-certified, nor that every US exchange holiday or half-day is
+covered. The observer requires a running PC, a working network and vendor
+service. Its snapshots cannot authorise trades and are not treated as
+validated past execution fills.
+
 ## Required acceptance gates before calling it ready
 
 - Live provider smoke test on Windows through all three cutoff phases **without creating spurious fills**, including US exchange holidays, DST transitions, calendar-source outages and Yahoo bad candles.
