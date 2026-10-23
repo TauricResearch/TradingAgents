@@ -197,3 +197,51 @@ def test_observation_rejects_invalid_universe(tmp_path, invalid):
         observe.capture(tmp_path / "research", invalid,
                         now=when("2026-10-23", 9, 10),
                         earnings_source=earnings)
+
+
+def test_saved_calendar_for_different_tickers_does_not_satisfy_new_watchlist(tmp_path):
+    home = tmp_path / "research"
+    observe.capture(
+        home, ["AAPL"], now=when("2026-10-23", 9, 10),
+        earnings_source=earnings,
+    )
+    with pytest.raises(ValueError, match="different symbol set"):
+        observe.capture(
+            home, ["MSFT"], now=when("2026-10-23", 9, 15),
+            earnings_source=earnings,
+        )
+
+
+def test_saved_market_for_different_tickers_is_not_considered_complete(tmp_path):
+    home = tmp_path / "research"
+    def aapl_only(symbols, start, end):
+        assert symbols == {"AAPL"}
+        data = market_data(end)
+        return data, lambda *_: (0.75, 0.75)
+    observe.capture(
+        home, ["AAPL"], now=when("2026-10-23", 18, 0),
+        prices_source=aapl_only, corporate_guard=lambda *_: None,
+    )
+    with pytest.raises(ValueError, match="different symbol set"):
+        observe.capture(
+            home, ["AAPL", "MSFT"], now=when("2026-10-23", 18, 10),
+            prices_source=prices, corporate_guard=lambda *_: None,
+        )
+
+
+def test_observation_cannot_be_forced_before_safe_us_close(tmp_path):
+    assert observe.active_phase(when("2026-10-23", 16, 0)) is None
+    assert observe.active_phase(when("2026-10-24", 18, 0)) is None
+    assert observe.active_phase(when("2026-10-23", 18, 0)) == "close"
+
+
+def test_bad_fx_does_not_create_a_market_snapshot(tmp_path):
+    home = tmp_path / "research"
+    def invalid_fx(*_):
+        return market_data("2026-10-23"), lambda *_: (50.0, 50.0)
+    with pytest.raises(ValueError, match="GBP conversion"):
+        observe.capture(
+            home, ["AAPL"], now=when("2026-10-23", 18, 5),
+            prices_source=invalid_fx, corporate_guard=lambda *_: None,
+        )
+    assert not (home / "market" / "2026-10-23.json").exists()
