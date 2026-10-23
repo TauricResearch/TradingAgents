@@ -1,13 +1,15 @@
 name: Koral Equities V3 Staging Regression
 
 on:
-  pull_request:
+  push:
+    branches:
+      - feature/gbp-paper-equities-v1
   workflow_dispatch:
 
-# One regression per PR head. Older builds are automatically cancelled when
-# later corrections arrive; never run duplicate PR + push matrices.
+# One branch regression per commit; superseded runs are cancelled.
+# Only push events are enabled, avoiding duplicate push + PR matrices.
 concurrency:
-  group: koral-v3-${{ github.event.pull_request.number || github.ref }}
+  group: koral-v3-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
