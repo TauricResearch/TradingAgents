@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Koral Equities — Trading Desk</title>
+  <meta name="description" content="Koral Equities local AI stock research and simulated portfolio dashboard.">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" class="svg-defs" aria-hidden="true">
+    <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-5L4 8m0-5v5h5m-5 5a8 8 0 0 0 14 5l2-2m0 5v-5h-5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 6 10 6-10 6V6Z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 10-12h-7l1-8Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 19V5m0 14h18M6 15l5-5 4 3 5-7"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 8 4v6c0 5-3.7 8-8 10-4.3-2-8-5-8-10V6l8-4Z"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-13 6h18"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="m6 8 4 4-4 4m7 0h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#overview" aria-label="Koral Equities — top">
+        <span class="brand-symbol" aria-hidden="true"><span class="brand-mark">K</span></span>
+        <span class="brand-name">KORAL <span>EQUITIES</span><small>INTELLIGENT CAPITAL RESEARCH</small></span>
+      </a>
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a class="active" href="#overview">Overview</a>
+        <a href="#intelligence">Intelligence</a>
+        <a href="#portfolio">Portfolio</a>
+        <a href="#discovery">Discovery</a>
+        <a href="#autopilot">V3 Paper Lab</a>
+        <a href="#autopilot31">Autopilot</a>
+        <a href="#journal">Journal</a>
+      </nav>
+      <div class="nav-tools">
+        <div class="market-time" id="market-clock"><span class="tiny-dot"></span><span>NEW YORK · —</span></div>
+        <button class="icon-button" id="refresh-btn" aria-label="Refresh portfolio" title="Refresh portfolio"><svg><use href="#i-refresh"/></svg></button>
+        <button class="button button-primary top-scan" id="scan-btn"><svg><use href="#i-play"/></svg> Run AI scan</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="welcome" id="overview">
+        <div class="welcome-copy">
+          <div class="eyebrow"><span class="eyebrow-rule"></span> THE EQUITY INTELLIGENCE DESK <span class="eyebrow-index">/ 01</span></div>
+          <h1>Markets, through <em>a sharper lens.</em></h1>
+          <p>Independent AI research. Disciplined risk. Every decision accounted for.</p>
+        </div>
+        <div class="mode-panel"><div class="mode-icon"><svg><use href="#i-shield"/></svg></div><div><div class="mode-name"><span class="live-dot"></span> PAPER ENVIRONMENT</div><div class="mode-sub">100% simulated · No broker connected</div></div></div>
+      </section>
+
+      <section class="scan-progress" id="scan-progress" aria-labelledby="scan-progress-status">
+        <div class="scan-progress-head">
+          <span id="scan-progress-status">AGENTS ANALYSING</span>
+          <strong id="scan-progress-description">Reviewing your watchlist · simulated research only</strong>
+          <div class="scan-progress-actions">
+            <button type="button" class="scan-control" id="copy-scan-log">Copy log</button>
+            <button type="button" class="scan-control scan-control-primary" id="ack-scan" hidden>OK · Dismiss</button>
+          </div>
+        </div>
+        <p class="scan-progress-guide" id="scan-progress-guide" hidden></p>
+        <pre id="scan-progress-log" tabindex="0">Loading agents…</pre>
+      </section>
+
+      <div class="section-intro first-intro"><div><div class="section-kicker">01 / ACCOUNT OVERVIEW</div><h2>Portfolio at a glance</h2></div><div class="asof"><svg><use href="#i-calendar"/></svg><span id="asof-label">Awaiting first session</span></div></div>
+      <section class="stat-grid" aria-label="Portfolio statistics">
+        <article class="stat-card stat-featured"><div class="stat-top"><span>PORTFOLIO EQUITY</span><div class="mini-symbol">↗</div></div><div class="stat-value" id="equity-value">£10,000.00</div><div class="stat-bottom"><span class="stat-sub" id="equity-sub">Simulated GBP balance</span><span class="tag tag-neutral">PAPER</span></div><div class="card-glow"></div></article>
+        <article class="stat-card"><div class="stat-top"><span>NET RETURN</span><svg><use href="#i-chart"/></svg></div><div class="stat-value" id="return-value">£0.00</div><div class="stat-bottom"><span id="return-percent" class="delta delta-flat">0.00%</span><span class="stat-sub">Since inception</span></div></article>
+        <article class="stat-card"><div class="stat-top"><span>AVAILABLE CASH</span><svg><use href="#i-briefcase"/></svg></div><div class="stat-value" id="cash-value">£10,000.00</div><div class="stat-bottom"><span id="cash-share" class="stat-sub">100% of equity</span><span class="stat-sub">GBP</span></div></article>
+        <article class="stat-card"><div class="stat-top"><span>CLOSED TRADE WIN RATE</span><svg><use href="#i-bolt"/></svg></div><div class="stat-value" id="win-value">—</div><div class="stat-bottom"><span id="win-count" class="stat-sub">No closed trades</span><span class="tag tag-muted">TRACKING</span></div></article>
+      </section>
+
+      <section class="risk-strip" aria-label="Risk summary">
+        <div class="risk-item"><div class="risk-icon"><svg><use href="#i-shield"/></svg></div><div><span class="risk-caption">RISK / TRADE</span><strong id="risk-value">2.0%</strong></div></div>
+        <div class="strip-separator"></div>
+        <div class="risk-item"><div><span class="risk-caption">DRAWDOWN</span><strong id="drawdown-value">0.00%</strong></div></div>
+        <div class="strip-separator"></div>
+        <div class="risk-item"><div><span class="risk-caption">OPEN POSITIONS</span><strong id="positions-value">0 / 5</strong></div></div>
+        <div class="strip-separator"></div>
+        <div class="risk-item"><div><span class="risk-caption">ORDERS QUEUED</span><strong id="orders-value">0</strong></div></div>
+        <div class="strip-separator"></div>
+        <div class="risk-item risk-status"><span class="risk-caption">RISK ENGINE</span><strong id="risk-status"><span class="tiny-dot"></span> Operational</strong></div>
+      </section>
+
+      <div class="main-panels">
+        <section class="panel chart-panel" aria-labelledby="performance-heading">
+          <div class="panel-head"><div><div class="section-kicker">PERFORMANCE / GBP</div><h3 id="performance-heading">Equity performance</h3></div><div class="chart-actions"><div class="legend"><span class="legend-dot legend-green"></span> Portfolio <span class="legend-dot legend-slate"></span> SPY benchmark</div><div class="period-switch" aria-label="Performance period"><button data-period="ALL" class="selected">All</button><button data-period="30D">30D</button><button data-period="90D">90D</button></div></div></div>
+          <div class="chart-main" id="chart-container"><div class="chart-empty"><span class="chart-empty-symbol">◌</span><strong>Performance begins here.</strong><p>Your equity curve will appear after the first completed market session.</p></div></div>
+          <div class="chart-foot"><span><span class="tiny-dot"></span> POINT-IN-TIME SIMULATION</span><span id="chart-range">NO SESSIONS PROCESSED</span></div>
+        </section>
+        <section class="panel activity-panel" aria-labelledby="activity-heading">
+          <div class="panel-head"><div><div class="section-kicker">EXECUTION / AUDIT TRAIL</div><h3 id="activity-heading">Activity log</h3></div><span class="activity-head-dot"><span class="tiny-dot"></span> LEDGER</span></div>
+          <div class="activity-list" id="activity-list"><div class="list-empty"><svg><use href="#i-terminal"/></svg><strong>No activity recorded yet</strong><p>Signals and simulated executions will appear here after a scan.</p></div></div>
+          <div class="panel-foot"><span>Recorded simulation event history</span><span id="event-count">0 EVENTS</span></div>
+        </section>
+      </div>
+
+      <section class="agents-section" id="intelligence">
+        <div class="section-intro"><div><div class="section-kicker">02 / INTELLIGENCE NETWORK</div><h2>The research collective</h2><p>Specialised agents examine the same market from different angles.</p></div><span class="agents-meta"><span class="tiny-dot"></span> AGENT FRAMEWORK · 06 ROLES</span></div>
+        <div class="agents-grid">
+          <article class="agent-card agent-sage"><div class="agent-number">01 <span class="agent-corner">↗</span></div><div class="agent-orb"><span>⌁</span></div><strong>MARKET</strong><span class="agent-description">Price & technicals</span><span class="agent-state">ANALYSIS ROLE</span></article>
+          <article class="agent-card agent-blue"><div class="agent-number">02 <span class="agent-corner">↗</span></div><div class="agent-orb"><span>≋</span></div><strong>NEWS</strong><span class="agent-description">Events & catalysts</span><span class="agent-state">ANALYSIS ROLE</span></article>
+          <article class="agent-card agent-amber"><div class="agent-number">03 <span class="agent-corner">↗</span></div><div class="agent-orb"><span>◈</span></div><strong>SENTIMENT</strong><span class="agent-description">Market participation</span><span class="agent-state">ANALYSIS ROLE</span></article>
+          <article class="agent-card agent-lilac"><div class="agent-number">04 <span class="agent-corner">↗</span></div><div class="agent-orb"><span>∑</span></div><strong>FUNDAMENTALS</strong><span class="agent-description">Company quality</span><span class="agent-state">ANALYSIS ROLE</span></article>
+          <article class="agent-card agent-peach"><div class="agent-number">05 <span class="agent-corner">↗</span></div><div class="agent-orb"><span>⇄</span></div><strong>RESEARCH</strong><span class="agent-description">Bull & bear debate</span><span class="agent-state">DECISION ROLE</span></article>
+          <article class="agent-card agent-mint"><div class="agent-number">06 <span class="agent-corner">↗</span></div><div class="agent-orb"><span>⬡</span></div><strong>RISK DESK</strong><span class="agent-description">Portfolio oversight</span><span class="agent-state">DECISION ROLE</span></article>
+        </div>
+      </section>
+
+      <div class="lower-grid">
+        <section class="panel signals-panel" aria-labelledby="signals-heading"><div class="panel-head"><div><div class="section-kicker">03 / STOCK RESEARCH</div><h3 id="signals-heading">Latest AI ratings</h3></div><span class="panel-aside" id="ratings-count">0 RATINGS</span></div><div id="ratings-list" class="ratings-list"><div class="list-empty compact"><svg><use href="#i-search"/></svg><strong>No stock ratings yet</strong><p>Run the first AI scan after the US market session completes.</p></div></div><div class="panel-foot"><span>Model opinions are not executed trades</span><span>RESEARCH ONLY</span></div></section>
+        <section class="panel guard-panel" aria-labelledby="guard-heading"><div class="panel-head"><div><div class="section-kicker">04 / CAPITAL PROTECTION</div><h3 id="guard-heading">Risk mandate</h3></div><span class="green-medallion"><svg><use href="#i-shield"/></svg></span></div><p class="guard-description">The AI can recommend positions. Only the deterministic execution engine decides what the paper account is allowed to do.</p><div class="mandate-list"><div><span>Single-trade risk budget</span><strong id="mandate-single">2.0%</strong></div><div><span>Aggregate planned stop risk</span><strong id="mandate-aggregate">6.0%</strong></div><div><span>Max. position allocation</span><strong id="mandate-alloc">30.0%</strong></div><div><span>Portfolio drawdown halt</span><strong id="mandate-halt">10.0%</strong></div></div><div class="guard-note"><svg><use href="#i-shield"/></svg><span>Long only · No leverage · Simulated execution</span></div></section>
+      </div>
+
+      <section class="panel portfolio-panel" id="portfolio" aria-labelledby="portfolio-heading"><div class="portfolio-head"><div><div class="section-kicker">05 / POSITION MANAGEMENT</div><h2 id="portfolio-heading">Your paper portfolio</h2></div><div class="portfolio-controls"><div class="tabs" role="tablist" aria-label="Portfolio view"><button class="selected" id="tab-positions" data-tab="positions" role="tab" aria-selected="true">Open positions</button><button id="tab-orders" data-tab="orders" role="tab" aria-selected="false">Pending orders</button><button id="tab-closed" data-tab="closed" role="tab" aria-selected="false">Trade history</button></div><a class="button button-outline button-small" id="export-link" href="/api/export/positions"><svg><use href="#i-download"/></svg> Export CSV</a></div></div><div class="table-scroll" id="portfolio-table"></div></section>
+
+
+      <section class="panel discovery-panel" id="discovery" aria-labelledby="discovery-heading">
+        <div class="discovery-header">
+          <div>
+            <div class="section-kicker">06 / INVESTMENT OPPORTUNITY LAB</div>
+            <h2 id="discovery-heading">Find tomorrow's <em>exceptional companies.</em></h2>
+            <p>Search US-listed equities for growth, cash generation and overlooked potential.
+              The investment committee researches the strongest candidates. No orders. No guesswork disguised as certainty.</p>
+          </div>
+          <div class="discovery-header-right">
+            <span class="discovery-safe"><span class="tiny-dot"></span> 100% INDEPENDENT RESEARCH</span>
+            <button id="discover-btn" type="button" class="button button-primary discovery-start">
+              <svg><use href="#i-search"/></svg> Discover stocks
+            </button>
+          </div>
+        </div>
+        <div class="discovery-settings">
+          <label for="discovery-size">MARKET COVERAGE
+            <select id="discovery-size">
+              <option value="200">Quick · 200 sampled symbols</option>
+              <option value="350" selected>Standard · 350 sampled symbols</option>
+              <option value="800">Extended · 800 sampled symbols</option>
+              <option value="1500">Deep screen · 1,500 sampled symbols</option>
+            </select>
+          </label>
+          <label for="discovery-ai">AI DUE DILIGENCE
+            <select id="discovery-ai">
+              <option value="0">Screen only · no AI calls</option>
+              <option value="1">Research top 1 candidate</option>
+              <option value="2" selected>Research top 2 candidates</option>
+              <option value="3">Research top 3 candidates</option>
+            </select>
+          </label>
+          <p>Scans use the latest <strong>completed</strong> daily price data, but current company profiles and news.
+            Sampled results are <strong>not an exhaustive US market ranking</strong>. AI usage may be metered.</p>
+        </div>
+        <div class="discovery-stats">
+          <div><span>UNIVERSE COVERED</span><strong id="discovery-coverage">—</strong></div>
+          <div><span>QUALIFIED CANDIDATES</span><strong id="discovery-count">—</strong></div>
+          <div><span>AI RESEARCH REPORTS</span><strong id="discovery-analysed">—</strong></div>
+          <div><span>DATA AS OF</span><strong id="discovery-date">—</strong></div>
+        </div>
+        <div id="discovery-progress" class="discovery-progress" hidden>
+          <div class="discovery-progress-head"><strong id="discovery-stage">RESEARCH IN PROGRESS</strong>
+            <div class="scan-progress-actions">
+              <button type="button" class="scan-control" id="discovery-copy">Copy log</button>
+              <button type="button" class="scan-control scan-control-primary" id="discovery-dismiss" hidden>OK · Dismiss</button>
+            </div>
+          </div>
+          <pre tabindex="0" id="discovery-log">Starting discovery...</pre>
+        </div>
+        <div class="discovery-section-label"><strong>Ranked research shortlist</strong>
+          <span id="discovery-asof">No snapshot recorded</span></div>
+        <div id="discovery-results" class="discovery-results">
+          <div class="discovery-empty">No companies shortlisted yet. Select a scan depth and choose <strong>Discover stocks</strong>.</div>
+        </div>
+        <div class="discovery-disclaimer">
+          <span>FIVE-YEAR GROWTH SCENARIOS, NOT PREDICTIONS.</span>
+          The five-year 10× figure is a required 58.49% annualised shareholder-return hurdle, NOT a projection. Industry valuation still requires verified filings, dilution and business economics.
+          Research only; no trades are placed or approved here.
+        </div>
+      </section>
+
+      <section class="v3-panel" id="autopilot" aria-label="V3 isolated conditional paper portfolio">
+        <div class="v3-head">
+          <div>
+            <div class="section-kicker">05 / ISOLATED AUTONOMOUS PAPER DESK</div>
+            <h2>Koral Equities <em>Paper Lab V3.</em></h2>
+            <p>Independent GBP paper portfolio. Rule-verified conditional orders only. No broker connectivity or real-money permissions.</p>
+          </div>
+          <span class="v3-mode" id="v3-mode">NOT INITIALISED</span>
+        </div>
+        <div class="v3-stats" id="v3-stats">
+          <div><span>V3 EQUITY</span><strong id="v3-equity">—</strong></div>
+          <div><span>VERSUS SPY · PRICE ONLY</span><strong id="v3-benchmark">—</strong></div>
+          <div><span>OPEN / QUEUED</span><strong id="v3-exposure">—</strong></div>
+          <div><span>ENGINE / SCHEDULER</span><strong id="v3-scheduler">NOT STARTED</strong></div>
+        </div>
+        <div class="v3-details">
+          <div><h3>Verified decision pipeline</h3>
+            <p id="v3-state-description">Create V3 as a separate £10,000 paper account. It will not change your existing V1 or V2 portfolio.</p>
+            <div id="v3-intents" class="v3-intents">No conditional instructions yet.</div>
+          </div>
+          <div><h3>Latest recorded activity</h3><div id="v3-audit" class="v3-audit">No V3 audit events yet.</div></div>
+        </div>
+        <p class="v3-disclaimer">STAGING ONLY · No live-data scheduler, automatic model authorisation or brokerage access. Only explicitly approved structured paper plans and dated test feeds can affect this separate portfolio. A rating alone never authorises an order.</p>
+      </section>
+      <section class="v3-panel v31-panel" id="autopilot31" aria-label="V3.1 separate autonomous experimental paper simulator">
+        <div class="v3-head">
+          <div>
+            <div class="section-kicker">06 / AUTOPILOT CANDIDATE · SIMULATION</div>
+            <h2>Koral Equities <em>Autopilot V3.1.</em></h2>
+            <p>Read-only supervision for the separate locally scheduled AI paper experiment. No brokerage access, no proven edge, no automatic activation.</p>
+          </div>
+          <span class="v3-mode" id="v31-mode">NOT INITIALISED</span>
+        </div>
+        <div class="v3-stats">
+          <div><span>V3.1 SIMULATED EQUITY</span><strong id="v31-equity">—</strong></div>
+          <div><span>OPEN / QUEUED</span><strong id="v31-exposure">—</strong></div>
+          <div><span>AI RESEARCH RECEIPTS</span><strong id="v31-receipts">—</strong></div>
+          <div><span>LOCAL SCHEDULER</span><strong id="v31-scheduler">NOT CONNECTED</strong></div>
+        </div>
+        <div class="v3-details">
+          <div><h3>Paper policy &amp; conditional plans</h3>
+            <p id="v31-description">This is a different account from the V3 Paper Lab above. The CLI must initialise it explicitly; it never copies a portfolio.</p>
+            <div id="v31-intents" class="v3-intents">No validated conditional plans.</div>
+          </div>
+          <div><h3>Evidence journal</h3><div id="v31-audit" class="v3-audit">No audit records.</div></div>
+        </div>
+        <p class="v3-disclaimer">PAPER EXPERIMENT ONLY · A local scheduler works only while the PC and Python process are running. Calendar and share-price providers are secondary sources and may be incomplete. The system can correctly record NO TRADE. Approval in this interface is impossible; all controls remain explicit local commands.</p>
+      </section>
+      <section class="bottom-bar" id="journal"><div><span class="bottom-dot"></span><strong>Research journal</strong><p id="journal-description">Saved analyst reports appear here after a completed AI scan.</p></div><div class="report-links" id="report-links"><span class="muted">No reports yet</span></div></section>
+      <footer class="footer"><span>© KORAL EQUITIES <span class="footer-divider">/</span> RESEARCH SYSTEM V1.0</span><span>SIMULATED TRADES ONLY. CAPITAL PRESERVATION FIRST.</span><span id="footer-sync">LEDGER NOT YET SYNCED</span></footer>
+    </main>
+  </div>
+
+  <dialog id="scan-dialog" class="scan-dialog"><form method="dialog" id="scan-form"><div class="dialog-header"><div class="section-kicker">START RESEARCH CYCLE</div><button class="icon-button" type="button" id="close-dialog" aria-label="Close"><svg><use href="#i-close"/></svg></button></div><h2>Launch AI analysis</h2><p>The agents will review your watchlist and save ratings and reports. Automatic rating-only paper orders are disabled pending V2 execution validation. No real broker trades.</p><label for="scan-tickers">WATCHLIST · SPACE SEPARATED</label><input id="scan-tickers" value="AAPL MSFT NVDA AMZN GOOGL META JPM COST" autocomplete="off" spellcheck="false"><div class="scan-warning"><svg><use href="#i-clock"/></svg><span>Historical data is processed only after 5:30pm New York. AI model usage may be metered or subject to plan limits.</span></div><div class="dialog-actions"><button class="button button-outline" type="button" id="cancel-scan">Cancel</button><button class="button button-primary" type="submit" id="confirm-scan"><svg><use href="#i-play"/></svg> Start paper scan</button></div></form></dialog>
+  <div role="status" aria-live="polite" class="toast" id="toast"><span id="toast-message"></span><button type="button" id="toast-ok" hidden>OK</button></div>
+</body>
+</html>

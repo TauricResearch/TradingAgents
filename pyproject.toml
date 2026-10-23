@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tradingagents"
 dynamic = ["version"]
-description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+description = "Koral Equities: AI equity research and simulated portfolio framework"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -44,6 +44,14 @@ bedrock = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-paper = "tradingagents.paper.cli:main"
+koral-equities = "tradingagents.paper.dashboard:main"
+koral-equities-paper = "tradingagents.paper.cli:main"
+koral-equities-research = "cli.main:app"
+koral-equities-rebrand-reports = "tradingagents.paper.rebrand_archives:main"
+koral-equities-v2-replay = "tradingagents.paper.conditional_cli:main"
+koral-equities-v3 = "tradingagents.paper.auto_v3:main"
+koral-equities-discover = "tradingagents.paper.discovery:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}
@@ -53,7 +61,7 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
-tradingagents = ["assets/*.svg"]
+tradingagents = ["assets/*.svg", "paper/web/*.html", "paper/web/*.css", "paper/web/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

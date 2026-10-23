@@ -1,0 +1,51 @@
+name: Koral Equities V3 Staging Regression
+
+on:
+  push:
+    branches:
+      - feature/gbp-paper-equities-v1
+  workflow_dispatch:
+
+# One branch regression per commit; superseded runs are cancelled.
+# Only push events are enabled, avoiding duplicate push + PR matrices.
+concurrency:
+  group: koral-v3-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  focused-paper-test:
+    name: "Paper safety / ${{ matrix.os }} / Python ${{ matrix.python-version }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install research package and developer tools
+        run: python -m pip install -e ".[dev]"
+      - name: V3 and existing V2 paper regression tests
+        run: python -m pytest -q tests/test_auto_v3.py tests/test_conditional_v2.py tests/test_v1_research_gate.py tests/test_paper_engine.py
+      - name: Discovery source / finance safety tests
+        run: python -m pytest -q tests/test_discovery.py tests/test_underwriting.py tests/test_filings.py
+      - name: Dashboard loopback integration (no external networks)
+        run: python -m pytest -q -m integration tests/test_paper_dashboard.py
+      - name: V3.1 isolated Autopilot paper safety tests
+        run: python -m pytest -q tests/test_autopilot_state.py tests/test_autopilot_decision.py tests/test_autopilot_feeds.py tests/test_autopilot_runner.py tests/test_autopilot_performance.py tests/test_autopilot_dashboard.py
+      - name: Independent observation-only source validation
+        run: python -m pytest -q tests/test_autopilot_observe.py
+      - name: V3.1 local scheduler CLI import smoke test
+        run: python -m tradingagents.paper.autopilot.cli --help
+      - name: Dashboard JavaScript syntax
+        run: node --check tradingagents/paper/web/app.js
+      - name: CLI launch smoke test
+        run: python -m tradingagents.paper.auto_v3 --help

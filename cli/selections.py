@@ -8,7 +8,7 @@ import typer
 from rich.align import Align
 from rich.panel import Panel
 
-from cli import updates
+from cli import updates  # Legacy API kept for test compatibility; not shown or refreshed.
 from cli.display import (
     console,
 )
@@ -118,29 +118,21 @@ def _prompt_selections(prefs, flags):
         welcome_ascii = f.read()
 
     welcome_content = f"{welcome_ascii}\n"
-    welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
+    welcome_content += "[bold green]KORAL EQUITIES | AI EQUITY RESEARCH DESK[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
     welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
-    welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
-    )
+    welcome_content += "[dim]Koral Equities · Research only · Paper execution[/dim]"
 
     welcome_box = Panel(
         welcome_content,
         border_style="green",
         padding=(1, 2),
-        title="Welcome to TradingAgents",
-        subtitle="Multi-Agents LLM Financial Trading Framework",
+        title="Welcome to Koral Equities",
+        subtitle="Independent AI Equity Research",
     )
     console.print(Align.center(welcome_box))
     console.print()
-    console.print()  # Add vertical space before announcements
-
-    # What's new comes from a cache refreshed in the background, and only for
-    # someone at a terminal: a run never waits on it and unattended runs skip it.
-    if updates.enabled():
-        updates.show(console)
-        updates.start_background_refresh()
+    console.print()  # A clean Koral Equities launch, no upstream announcements.
 
     def create_question_box(title, prompt, default=None):
         box_content = f"[bold]{title}[/bold]\n"
