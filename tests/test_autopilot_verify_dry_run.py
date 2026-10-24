@@ -147,9 +147,19 @@ def test_rejects_forged_plan_report_digest(tmp_path):
         verify_dry_run.audit(out)
 
 
-def test_rejects_symlink_archives(tmp_path):
+def test_rejects_symlink_archives(tmp_path, monkeypatch):
     out=research_output(tmp_path)
-    (out/"source_alias.json").symlink_to(out/"original_sources"/"market.json")
+    alias=out/"source_alias.json"
+    try:
+        alias.symlink_to(out/"original_sources"/"market.json")
+    except OSError:
+        # Non-elevated Windows users may not have permission to create a
+        # real symlink. Exercise the same fail-closed branch without admin.
+        alias.write_bytes(b"NOT_AUTHORISED")
+        old_is_symlink=Path.is_symlink
+        monkeypatch.setattr(Path, "is_symlink", lambda path: (
+            path == alias or old_is_symlink(path)
+        ))
     with pytest.raises(ValueError,match="Symlink"):
         verify_dry_run.audit(out)
 
