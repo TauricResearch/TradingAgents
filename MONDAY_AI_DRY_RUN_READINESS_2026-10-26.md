@@ -98,7 +98,7 @@ Only when its `can_request_one_real_ai_now` field is true may the same-session
 call (with provider charges):
 
 \`\`\`powershell
-.\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.live_dry_run --session 2026-10-26 --tickers COST JPM WMT --ai 1 --output ".\Koral_AI_Dry_Run_CJW_20261026"
+.\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.live_dry_run --session 2026-10-26 --tickers COST JPM WMT --ai 1 --output ".\Koral_AI_Dry_Run_20261026_COST_JPM_WMT"
 \`\`\`
 
 The output directory must not exist. Keep the requested tickers **identical**
@@ -108,7 +108,7 @@ evidence to force an apparent eligibility pass.
 Independently verify the output folder:
 
 \`\`\`powershell
-.\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.verify_dry_run --folder ".\Koral_AI_Dry_Run_CJW_20261026"
+.\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.verify_dry_run --folder ".\Koral_AI_Dry_Run_20261026_COST_JPM_WMT"
 \`\`\`
 
 ## Acceptance / rejection
