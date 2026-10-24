@@ -108,8 +108,11 @@ def read_observation(observer: Path, session: str, tickers: list[str], now: date
                     c.get("phase") != "preclose" or
                     c.get("source_policy") != "TWO_SECONDARY_FEEDS_MUST_AGREE_OR_BLOCK"):
                 raise ValueError("Unexpected earnings-calendar provenance")
-            observed = _utc(c.get("observed_utc")).astimezone(NY)
-            if observed.date() != day or not time(17, 0) <= observed.time() <= time(17, 25):
+            envelope_utc = _utc(c.get("observed_utc"))
+            observed = envelope_utc.astimezone(NY)
+            if (observed.date() != day or
+                    not time(17, 0) <= observed.time() <= time(17, 25) or
+                    envelope_utc > now or envelope_utc > start):
                 raise ValueError("Calendar was captured outside its original cutoff")
         except (TypeError, ValueError, KeyError, json.JSONDecodeError):
             c = None
@@ -126,6 +129,11 @@ def read_observation(observer: Path, session: str, tickers: list[str], now: date
             }:
                 raise ValueError("Missing earnings timestamp or exact source fields")
             earnings = EarningsSnapshot(**raw)
+            # A report cannot contain observations made AFTER the file claims
+            # it was captured. safe() checks the phase cutoff, not this earlier
+            # immutable snapshot boundary.
+            if _utc(earnings.observed_at_utc) > envelope_utc:
+                raise ValueError("Earnings observation postdates its archived snapshot")
             if (earnings.verified is not True or
                     earnings.source != "YAHOO+NASDAQ_CONSENSUS_SECONDARY"):
                 raise ValueError("Earnings sources did not agree")
