@@ -94,3 +94,49 @@ def test_missing_corporate_action_fields_fail_closed():
     with pytest.raises(ValueError,match="Corporate action fields unavailable"):
         feeds.reject_unmodelled_corporate_actions({"NVDA"},"2026-10-22","2026-10-22",
             history_provider=lambda *a:empty_frame)
+
+
+@pytest.mark.parametrize("ny_day,hour,minute,phase,uk_clock", [
+    ("2026-10-26", 8, 45, "preopen", "12:45 GMT"),
+    ("2026-10-26", 17, 10, "preclose", "21:10 GMT"),
+    ("2026-10-26", 17, 40, "close", "21:40 GMT"),
+    ("2026-11-02", 8, 45, "preopen", "13:45 GMT"),
+    ("2026-11-02", 17, 40, "close", "22:40 GMT"),
+])
+def test_october_november_2026_uk_us_dst_asymmetry(ny_day,hour,minute,phase,uk_clock):
+    """UK and New York clocks change on DIFFERENT Sundays; never hardcode an offset."""
+    local_ny=when(ny_day,hour,minute)
+    actual_uk=local_ny.astimezone(ZoneInfo("Europe/London"))
+    assert actual_uk.strftime("%H:%M %Z")==uk_clock
+    assert feeds.session_cutoff(actual_uk,phase)==ny_day
+
+
+@pytest.mark.parametrize("ticker,previous,next_release,permitted", [
+    ("AAPL","2026-07-30","2026-11-02",False),
+    ("MSFT","2026-07-29","2026-10-28",False),
+    ("COST","2026-09-24","2026-12-10",True),
+    ("JPM","2026-10-13","2027-01-14",True),
+    ("WMT","2026-08-20","2026-11-19",True),
+])
+def test_monday_research_date_policy_only_not_real_source_approval(
+    ticker,previous,next_release,permitted,
+):
+    """A mocked verified calendar tests date arithmetic, NOT actual vendor agreement."""
+    clock=when("2026-10-26",17,10)
+    fake=EarningsSnapshot(
+        "2026-10-26",next_release,previous,
+        "SYNTHETIC_DATE_MATH_TEST_NOT_A_VERIFIED_SOURCE",True,
+        clock.astimezone(timezone.utc).isoformat(),
+    )
+    assert fake.safe("2026-10-26","afterclose") is permitted
+
+
+def test_monday_without_verified_earnings_remains_blocked():
+    """Official investor calendar alone cannot bypass dual-secondary validation."""
+    clock=when("2026-10-26",17,10)
+    fake=EarningsSnapshot(
+        "2026-10-26","2026-12-10","2026-09-24",
+        "UNVERIFIED_SECONDARY_FEEDS",False,
+        clock.astimezone(timezone.utc).isoformat(),
+    )
+    assert not fake.safe("2026-10-26","afterclose")
