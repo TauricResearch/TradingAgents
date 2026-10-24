@@ -338,7 +338,10 @@ def afterclose_research(state_path: Path, *, now: datetime | None = None,
             receipt = {"decision":"NO_TRADE", "session":target,
                        "reason":f"AI_OR_DATA_FAILED_{type(exc).__name__}"}
         state.ai_receipts[key] = receipt
-        state.event("AI_RESEARCH_RECEIPT", date=target, ticker=ticker, **receipt)
+        # Store the full receipt as a nested, source-backed record. The model's
+        # receipt may itself contain ticker/date; unpacking would duplicate
+        # explicit keyword args and abort a valid research cycle.
+        state.event("AI_RESEARCH_RECEIPT", date=target, ticker=ticker, receipt=receipt)
         atomic_write(state_path, state)
         reviewed += 1
     return {"status":"research_complete", "session":target,
