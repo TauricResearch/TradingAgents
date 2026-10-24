@@ -159,8 +159,12 @@ def capture(
     finished = (completion_clock or (lambda: datetime.now(timezone.utc)))()
     if finished.tzinfo is None or finished.utcoffset() is None:
         raise ValueError("Market collection completion clock must be timezone aware")
+    try:
+        completed_session = feeds.session_cutoff(finished, "close")
+    except ValueError as exc:
+        raise ValueError("Market source fetch finished outside its completed NY session") from exc
     if (finished.astimezone(timezone.utc) < current.astimezone(timezone.utc) or
-            feeds.session_cutoff(finished, "close") != day):
+            completed_session != day):
         raise ValueError("Market source fetch finished outside its completed NY session")
     payload = {
         "schema": "koral-observation-v1", "mode": "OBSERVE_ONLY",
