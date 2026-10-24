@@ -56,22 +56,34 @@ def calendar():
     }
 
 
-def saved(tmp_path, *, m=None, c=None):
+def saved(tmp_path, *, m=None, c=None, tickers=None):
+    # Each immutable observer capture belongs to exactly one ticker universe.
+    selected = set(tickers if tickers is not None else ["AAPL"])
     root = tmp_path / "observations"
     (root / "market").mkdir(parents=True)
     (root / "calendar" / DAY).mkdir(parents=True)
+    m = m if m is not None else market()
+    m["ohlc_usd"] = {
+        ticker: bar for ticker, bar in m["ohlc_usd"].items()
+        if ticker in selected | {"SPY"}
+    }
     (root / "market" / (DAY + ".json")).write_bytes(
-        (json.dumps(m if m is not None else market(), sort_keys=True) + "\n").encode()
+        (json.dumps(m, sort_keys=True) + "\n").encode()
     )
     if c is not False:
+        c = c if c is not None else calendar()
+        c["earnings"] = {
+            ticker: record for ticker, record in c["earnings"].items()
+            if ticker in selected
+        }
         (root / "calendar" / DAY / "preclose.json").write_bytes(
-            (json.dumps(c if c is not None else calendar(), sort_keys=True) + "\n").encode()
+            (json.dumps(c, sort_keys=True) + "\n").encode()
         )
     return root
 
 
 def test_real_source_audit_is_retroactive_and_never_trades(tmp_path):
-    home = saved(tmp_path)
+    home = saved(tmp_path, tickers=["AAPL", "MSFT", "NVDA"])
     result = dry.run_dry_run(tmp_path / "review", home, DAY, ["AAPL", "MSFT", "NVDA"],
                              now=datetime(2026,10,24,12,0,tzinfo=timezone.utc))
     assert result["classification"] == "RETROSPECTIVE_SOURCE_AUDIT_NOT_FORWARD_RESEARCH"
@@ -152,7 +164,7 @@ def test_output_never_overwrites_rehearsal_or_paper_state(tmp_path):
 
 
 def test_ai_receipt_from_real_call_is_report_hash_bound_but_never_submitted(tmp_path):
-    home = saved(tmp_path)
+    home = saved(tmp_path, tickers=["AAPL", "MSFT", "NVDA"])
     pm = ("Rating: Overweight. Initiate after TWO consecutive closes above $205.00. "
           "Use a firm stop-loss at $190.00 for the paper trade.")
     trader = "**Stop Loss**: $190.00"
@@ -227,3 +239,22 @@ def test_rejects_calendar_claiming_capture_after_market_observation(tmp_path):
     home = saved(tmp_path, c=c)
     result = dry.read_observation(home, DAY, ["AAPL"], at(18, 5).astimezone(timezone.utc))
     assert result["tickers"]["AAPL"]["eligible_for_research"] is False
+
+
+def test_wrong_watchlist_cannot_reuse_an_existing_market_archive(tmp_path):
+    home = saved(tmp_path, tickers=["AAPL", "MSFT", "NVDA"])
+    with pytest.raises(ValueError, match="market watchlist"):
+        dry.read_observation(home, DAY, ["AAPL"], at(18, 5).astimezone(timezone.utc))
+
+
+def test_partial_earnings_watchlist_blocks_every_research_candidate(tmp_path):
+    c = calendar()
+    del c["earnings"]["MSFT"]
+    home = saved(tmp_path, c=c, tickers=["AAPL", "MSFT", "NVDA"])
+    result = dry.read_observation(
+        home, DAY, ["AAPL", "MSFT", "NVDA"], at(18, 5).astimezone(timezone.utc)
+    )
+    assert all(
+        row["eligible_for_research"] is False
+        for row in result["tickers"].values()
+    )
