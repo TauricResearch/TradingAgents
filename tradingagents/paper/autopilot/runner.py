@@ -28,13 +28,14 @@ def _required(state: V3State) -> set[str]:
 
 
 def snapshot_phase(state_path: Path, *, phase: str, now: datetime | None = None,
-                   fetcher=feeds.earnings_for) -> dict:
+                   fetcher=feeds.earnings_for, completion_clock=None) -> dict:
     now = now or datetime.now(timezone.utc)
     day = feeds.session_cutoff(now, phase)
     state = read(state_path)
     symbols = sorted(set(state.watchlist) | _required(state))
     home = state_path.expanduser().resolve().parent
-    path = feeds.capture_earnings(home, day, phase, symbols, now, source=fetcher)
+    path = feeds.capture_earnings(home, day, phase, symbols, now,
+                                  source=fetcher, completion_clock=completion_clock)
     file_sha = hashlib.sha256(path.read_bytes()).hexdigest()
     # A later edited earnings file must not silently grant permission to buy.
     # The write follows the immutable snapshot, under the V3 CLI lock.
