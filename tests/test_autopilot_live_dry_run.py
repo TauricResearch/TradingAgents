@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from tradingagents.paper.autopilot import live_dry_run as dry
+from tradingagents.paper.autopilot import live_dry_run as dry, preflight_dry_run
 from tradingagents.paper.autopilot.decision import AIExecutionProposal, policy_intent
 from tradingagents.paper.conditional import evidence_hash
 
@@ -258,3 +258,52 @@ def test_partial_earnings_watchlist_blocks_every_research_candidate(tmp_path):
         row["eligible_for_research"] is False
         for row in result["tickers"].values()
     )
+
+
+def test_preflight_reports_real_ai_readiness_without_any_writes(tmp_path):
+    home = saved(tmp_path)
+    before = {p.relative_to(home).as_posix(): p.read_bytes()
+              for p in home.rglob("*") if p.is_file()}
+    report = preflight_dry_run.inspect(home, DAY, ["AAPL"], now=at(18, 5))
+    after = {p.relative_to(home).as_posix(): p.read_bytes()
+             for p in home.rglob("*") if p.is_file()}
+    assert report["status"] == "READ_ONLY_PREFLIGHT_AI_CANDIDATE_AVAILABLE"
+    assert report["can_request_one_real_ai_now"] is True
+    assert report["ai_eligible_tickers"] == ["AAPL"]
+    assert report["account_reads"] == report["account_writes"] == 0
+    assert report["broker_connected"] is False
+    assert before == after
+    assert not any(p.name == "portfolio.json" for p in tmp_path.rglob("*"))
+
+
+def test_preflight_never_backdates_an_ai_call(tmp_path):
+    home = saved(tmp_path)
+    result = preflight_dry_run.inspect(
+        home, DAY, ["AAPL"], now=datetime(2026, 10, 24, 12, tzinfo=timezone.utc),
+    )
+    assert result["status"] == "READ_ONLY_PREFLIGHT_HISTORICAL_AI_FORBIDDEN"
+    assert result["can_request_one_real_ai_now"] is False
+
+
+def test_preflight_accepts_legitimate_no_trade_due_to_missing_calendar(tmp_path):
+    home = saved(tmp_path, c=False)
+    result = preflight_dry_run.inspect(home, DAY, ["AAPL"], now=at(18, 5))
+    assert result["status"] == "READ_ONLY_PREFLIGHT_NO_ELIGIBLE_AI"
+    assert result["ai_eligible_tickers"] == []
+    assert result["can_request_one_real_ai_now"] is False
+
+
+def test_preflight_rejects_unmatched_archived_universe(tmp_path):
+    home = saved(tmp_path, tickers=["AAPL", "MSFT", "NVDA"])
+    with pytest.raises(ValueError, match="market watchlist"):
+        preflight_dry_run.inspect(home, DAY, ["AAPL"], now=at(18, 5))
+
+
+def test_preflight_cli_is_read_only_on_historical_archive(tmp_path, capsys):
+    home = saved(tmp_path)
+    output = tmp_path / "would_be_ai_output"
+    assert preflight_dry_run.main([
+        "--observer", str(home), "--session", DAY, "--tickers", "AAPL",
+    ]) == 0
+    assert "READ_ONLY_PREFLIGHT_HISTORICAL_AI_FORBIDDEN" in capsys.readouterr().out
+    assert not output.exists()
