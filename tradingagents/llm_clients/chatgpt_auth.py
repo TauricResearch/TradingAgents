@@ -67,6 +67,19 @@ def _read() -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _restrict_to_owner(path: Path) -> None:
+    """On Windows the POSIX mode bits do nothing, so drop the inherited access entries
+    (administrators, the profile's other grants) and keep only the current user.
+    A failure raises: a token file that others can read must not be written quietly."""
+    if os.name != "nt":
+        return
+    import getpass
+    import subprocess
+
+    subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r", f"{getpass.getuser()}:F"],
+                   check=True, capture_output=True, text=True)
+
+
 def _write(data: dict) -> None:
     """Write the auth file whole, readable only by its owner. Unlike a cache, a failed
     write must surface: losing a rotated refresh token would end the sign-in."""
@@ -75,6 +88,7 @@ def _write(data: dict) -> None:
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            _restrict_to_owner(temp)
             json.dump(data, handle)
         os.replace(temp, AUTH_FILE)
     except BaseException:

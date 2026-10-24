@@ -39,7 +39,9 @@ def test_yfinance_keeps_its_cache_out_of_the_users_home():
 
     from yfinance.cache import _TzDBManager
 
-    assert not Path(_TzDBManager.get_location()).is_relative_to(Path.home())
+    # conftest points yfinance at a directory of its own. On Windows the temp
+    # directory sits under the user's profile, so check that directory, not the home.
+    assert Path(_TzDBManager.get_location()).name.startswith("tradingagents-tests-yf-")
 
 
 @pytest.mark.unit

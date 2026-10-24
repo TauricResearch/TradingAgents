@@ -6,6 +6,7 @@ check of the sign-in (signature, issuer, audience, nonce, plan scope) runs for r
 
 import base64
 import json
+import os
 import socket
 import stat
 import threading
@@ -150,6 +151,19 @@ def test_nobody_signed_in_is_told_how_to_sign_in(home, openai):
 
 
 @pytest.mark.unit
+@pytest.mark.skipif(os.name != "nt", reason="Windows access entries")
+def test_on_windows_only_the_owner_is_granted_the_sign_in(home, openai):
+    import getpass
+    import subprocess
+
+    _signed_in(expires_at=time.time() + 3000)
+    listed = subprocess.run(["icacls", str(auth.AUTH_FILE)], capture_output=True, text=True, check=True).stdout
+    # "(I)" marks an entry inherited from the folder; a locale-independent check.
+    assert "(I)" not in listed
+    assert listed.count(":(") == 1 and getpass.getuser() in listed
+
+
+@pytest.mark.unit
 def test_a_fresh_token_is_used_without_asking_openai(home, openai):
     _signed_in(expires_at=time.time() + 3000)
     assert auth.credential()() == "a1"
@@ -165,7 +179,8 @@ def test_a_token_near_expiry_is_renewed_with_the_stored_refresh_token(home, open
     assert url == auth.TOKEN_URL and sent["refresh_token"] == "r1" and sent["client_id"] == CLIENT
     stored = json.loads(auth.AUTH_FILE.read_text())
     assert stored["tokens"]["refresh_token"] == "r2" and stored["account"]["subject"] == SUBJECT
-    assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
+    if os.name != "nt":  # Windows has no POSIX mode bits; the file is private through the profile's ACLs
+        assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
 
 
 @pytest.mark.unit
@@ -245,7 +260,8 @@ def test_signing_in_by_pasting_the_redirect_saves_a_private_sign_in(home, openai
     stored = json.loads(auth.AUTH_FILE.read_text())
     assert stored["account"] == {"client_id": CLIENT, "email": "a@example.com", "subject": SUBJECT}
     assert stored["host_id"].startswith("urn:uuid:")
-    assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
+    if os.name != "nt":  # Windows has no POSIX mode bits; the file is private through the profile's ACLs
+        assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
     asked = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(printed[1]).query))
     assert asked["client_id"] == auth.DYNAMIC_CLIENT_ID and asked["agent_name_hint"] == "TradingAgents"
     assert asked["code_challenge_method"] == "S256" and asked["redirect_uri"].startswith("http://127.0.0.1:")
