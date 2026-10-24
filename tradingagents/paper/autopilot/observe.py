@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from tradingagents.paper.autopilot import feeds
+from tradingagents.paper.autopilot.observer_lock import observer_instance_lock
 from tradingagents.paper.autopilot.state import normalize_tickers
 
 DEFAULT_OBSERVATION_HOME = Path.home() / ".tradingagents" / "observations" / "koral_v3"
@@ -212,6 +213,14 @@ def monitor(
         raise ValueError("Poll must be 30–3600 seconds")
     home = observation_home(directory)
     tickers = normalize_tickers(symbols)
+    # The OS releases the lock even after an unclean process exit. Its
+    # persistent file must never be deleted to "recover" an old observer.
+    with observer_instance_lock(home):
+        return _monitor_locked(home, tickers, poll_seconds=poll_seconds, once=once)
+
+
+def _monitor_locked(home: Path, tickers: list[str], *,
+                    poll_seconds: int, once: bool) -> dict | None:
     if once:
         return capture(home, tickers)
     print("KORAL OBSERVER ACTIVE: source snapshots only; NO PAPER OR REAL ORDERS.",
