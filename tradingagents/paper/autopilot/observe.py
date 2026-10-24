@@ -156,10 +156,16 @@ def capture(
         raise ValueError("Invalid GBP conversion from vendor")
     # Not a modelling shortcut: source actions must be independently provided.
     guard(set(tickers), day, day)
+    finished = (completion_clock or (lambda: datetime.now(timezone.utc)))()
+    if finished.tzinfo is None or finished.utcoffset() is None:
+        raise ValueError("Market collection completion clock must be timezone aware")
+    if (finished.astimezone(timezone.utc) < current.astimezone(timezone.utc) or
+            feeds.session_cutoff(finished, "close") != day):
+        raise ValueError("Market source fetch finished outside its completed NY session")
     payload = {
         "schema": "koral-observation-v1", "mode": "OBSERVE_ONLY",
         "session": day, "phase": "close", "capture_started_utc": _utc(current),
-        "capture_completed_utc": _utc(datetime.now(timezone.utc)),
+        "capture_completed_utc": _utc(finished),
         "source": "YAHOO_SECONDARY_NOT_EXCHANGE_CERTIFIED",
         "ohlc_usd": bars, "fx_gbp_per_usd_open": gbp_open,
         "fx_gbp_per_usd_close": gbp_close,
