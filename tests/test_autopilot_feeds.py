@@ -147,7 +147,8 @@ def test_future_earnings_row_cannot_be_used_as_preclose_snapshot(tmp_path):
     later = when("2026-10-22", 17, 20)
     feeds.capture_earnings(
         tmp_path, "2026-10-22", "preclose", ["NVDA"], recorded_at,
-        source=lambda t , d, n: snapshot(t, d, later, completion_clock=lambda: recorded_at,
+        source=lambda t, d, n: snapshot(t, d, later),
+        completion_clock=lambda: recorded_at,
     )
     result = feeds.read_earnings(
         tmp_path, "2026-10-22", "preclose", {"NVDA"},
@@ -161,7 +162,8 @@ def test_future_or_wrong_window_calendar_envelope_fails_closed(tmp_path):
     recorded_at = when("2026-10-22", 17, 10)
     file = feeds.capture_earnings(
         tmp_path, "2026-10-22", "preclose", ["NVDA"], recorded_at,
-        source=lambda t , d, n: snapshot(t, d, n, completion_clock=lambda: recorded_at,
+        source=lambda t, d, n: snapshot(t, d, n),
+        completion_clock=lambda: recorded_at,
     )
     actual = json.loads(file.read_text())
     actual["observed_utc"] = when("2026-10-22", 9, 10).astimezone(timezone.utc).isoformat()
@@ -177,7 +179,8 @@ def test_calendar_envelope_from_the_future_is_not_verified(tmp_path):
     recorded_at = when("2026-10-22", 9, 15)
     feeds.capture_earnings(
         tmp_path, "2026-10-22", "preopen", ["NVDA"], recorded_at,
-        source=lambda t , d, n: snapshot(t, d, n, completion_clock=lambda: recorded_at,
+        source=lambda t, d, n: snapshot(t, d, n),
+        completion_clock=lambda: recorded_at,
     )
     result = feeds.read_earnings(
         tmp_path, "2026-10-22", "preopen", {"NVDA"},
