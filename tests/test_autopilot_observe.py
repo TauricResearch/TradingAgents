@@ -60,7 +60,7 @@ def test_preopen_earnings_capture_is_immutable_and_brokerless(tmp_path):
     root = tmp_path / "research"
     result = observe.capture(
         root, ["AAPL", "MSFT"], now=when("2026-10-23", 9, 10),
-        earnings_source=earnings,
+        earnings_source=earnings, completion_clock=lambda: when("2026-10-23", 9, 11),
     )
     assert result["phase"] == "preopen"
     assert result["verified"] == ["AAPL", "MSFT"]
@@ -79,7 +79,7 @@ def test_evening_earnings_records_do_not_authorise_orders(tmp_path):
     root = tmp_path / "research"
     result = observe.capture(
         root, ["AAPL"], now=when("2026-10-23", 17, 12),
-        earnings_source=earnings,
+        earnings_source=earnings, completion_clock=lambda: when("2026-10-23", 17, 13),
     )
     assert result["phase"] == "preclose"
     assert result["orders"] == 0
@@ -168,7 +168,7 @@ def test_account_state_bytes_remain_identical_after_full_observation(tmp_path):
     observation = tmp_path / "research"
     observe.capture(
         observation, ["AAPL"], now=when("2026-10-23", 17, 10),
-        earnings_source=earnings,
+        earnings_source=earnings, completion_clock=lambda: when("2026-10-23", 17, 11),
     )
     assert book.read_bytes() == b"SIGNED_AND_IMMUTABLE_FAKE_LEDGER"
     assert not any(p.name == "portfolio.json" for p in observation.rglob("*"))
@@ -202,7 +202,7 @@ def test_saved_calendar_for_different_tickers_does_not_satisfy_new_watchlist(tmp
     home = tmp_path / "research"
     observe.capture(
         home, ["AAPL"], now=when("2026-10-23", 9, 10),
-        earnings_source=earnings,
+        earnings_source=earnings, completion_clock=lambda: when("2026-10-23", 9, 11),
     )
     with pytest.raises(ValueError, match="different symbol set"):
         observe.capture(
@@ -244,3 +244,27 @@ def test_bad_fx_does_not_create_a_market_snapshot(tmp_path):
             prices_source=invalid_fx, corporate_guard=lambda *_: None,
         )
     assert not (home / "market" / "2026-10-23.json").exists()
+
+
+def test_slow_earnings_provider_must_not_backdate_post_cutoff_results(tmp_path):
+    home = tmp_path / "research"
+    with pytest.raises(ValueError, match="finished outside"):
+        observe.capture(
+            home, ["AAPL"], now=when("2026-10-23", 17, 24),
+            earnings_source=earnings,
+            completion_clock=lambda: when("2026-10-23", 17, 26),
+        )
+    assert not (home / "calendar" / "2026-10-23" / "preclose.json").exists()
+
+
+def test_archived_earnings_timestamp_marks_completion_not_request_start(tmp_path):
+    home = tmp_path / "research"
+    done = when("2026-10-23", 17, 22)
+    observe.capture(
+        home, ["AAPL"], now=when("2026-10-23", 17, 10),
+        earnings_source=earnings, completion_clock=lambda: done,
+    )
+    data = json.loads((home / "calendar" / "2026-10-23" / "preclose.json").read_text())
+    assert data["observed_utc"] == done.astimezone(timezone.utc).isoformat()
+    assert (data["earnings"]["AAPL"]["observed_at_utc"]
+            != data["observed_utc"])
