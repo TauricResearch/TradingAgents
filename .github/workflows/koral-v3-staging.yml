@@ -47,6 +47,10 @@ jobs:
         run: python -m pytest -q tests/test_autopilot_rehearsal.py
       - name: Real-market source audit and same-session AI dry-run safety
         run: python -m pytest -q tests/test_autopilot_live_dry_run.py
+      - name: Independent full dry-run source integrity and no-order verifier
+        run: python -m pytest -q tests/test_autopilot_verify_dry_run.py
+      - name: Independent audit CLI smoke
+        run: python -m tradingagents.paper.autopilot.verify_dry_run --help
       - name: Real-source dry-run CLI smoke
         run: python -m tradingagents.paper.autopilot.live_dry_run --help
       - name: V3.1 local scheduler CLI import smoke test

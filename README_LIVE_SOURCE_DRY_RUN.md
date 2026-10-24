@@ -105,3 +105,37 @@ fundamental data from current profiles are not fully point-in-time certified.
 
 Source code in tradingagents/paper/autopilot/live_dry_run.py. Existing V1,
 V2, V3 staging and V3.1 Autopilot accounts remain separate and untouched.
+
+## Independently re-verify the archived dry-run evidence (24 October 2026)
+
+The original dry run creates a `DRY_RUN_MANIFEST.json` describing the exact
+market observation, earnings calendar and any AI report evidence. A separate
+read-only program can now **recheck every byte** without accessing a paper
+account, market data, a model, or a broker:
+
+```powershell
+.\\.venv\\Scripts\\python.exe -m tradingagents.paper.autopilot.verify_dry_run --folder ".\\Koral_Live_Data_Audit_20261023"
+```
+
+For Monday's future live-source AI dry run, use the same independent verifier
+after the AI command finishes, replacing the folder with
+`".\\Koral_AI_Dry_Run_20261026"`.
+
+The verifier fails closed on missing/unexpected files; altered source,
+earnings and model-report hashes; unsafe paths and symlinks; a forged approved
+or submitted plan flag; a report hash different from the conditional
+instruction; and any claim that the dry run accessed portfolios or created
+orders. The audit prints a count of checked files, preserved model receipts,
+and unapproved diagnostic plans. Neither original source observations nor
+any research manifest is modified.
+
+**Scope limitation:** SHA-256 consistency within a local folder is not
+cryptographic authentication: someone able to modify the evidence AND all
+matching manifest hashes could forge a self-consistent archive. Official data
+origin/accuracy and issuer-event completeness require additional independent
+verification. Do not count the source-integrity pass as an investable trading
+signal or proof of a profitable edge.
+
+The verifier and eleven offline regression tests are part of the separate
+Windows/Linux paper safety matrix. **Do not approve paper entry based solely
+on this verifier's success.**
