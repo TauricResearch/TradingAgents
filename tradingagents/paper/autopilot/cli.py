@@ -15,7 +15,7 @@ from pathlib import Path
 from tradingagents.paper.autopilot.performance import scorecard
 
 from tradingagents.paper.cli import exclusive
-from tradingagents.paper.autopilot import feeds, observe, runner
+from tradingagents.paper.autopilot import feeds, observe, rehearsal, runner
 from tradingagents.paper.autopilot.state import STATE, atomic_write, create_new, read
 
 
@@ -120,9 +120,13 @@ def main(argv=None) -> int:
     watcher.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA"])
     watcher.add_argument("--poll-seconds", type=int, default=60)
     watcher.add_argument("--once", action="store_true", help="Probe the current NY window once, then exit")
+    demo = commands.add_parser("rehearse", help="Run a SYNTHETIC complete paper trade; no real market data")
+    demo.add_argument("--output", type=Path, required=True, help="A NEW folder for audit evidence")
     args = parser.parse_args(argv)
     try:
         path = args.state.expanduser().resolve()
+        if args.command == "rehearse":
+            return rehearsal.main(["--output", str(args.output)])
         if args.command == "observe":
             result = observe.monitor(
                 args.dir, args.tickers,
