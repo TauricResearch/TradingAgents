@@ -2,7 +2,7 @@
 
 **Scope: observation-only, no account reads, no model calls, no orders.**
 The observer stores source snapshots in
-`%USERPROFILE%\\.tradingagents\\observations\\koral_v3`, not in a V1/V2/V3/V3.1 portfolio.
+`%USERPROFILE%\.tradingagents\observations\koral_v3`, not in a V1/V2/V3/V3.1 portfolio.
 
 ## What a restart may and may not do
 
@@ -54,7 +54,7 @@ The focused repository command, after a separately verified pinned install,
 is:
 
 ```powershell
-.\\.venv\\Scripts\\python.exe -m pytest -q tests/test_autopilot_observe.py tests/test_autopilot_feeds.py tests/test_autopilot_live_dry_run.py tests/test_autopilot_verify_dry_run.py
+.\.venv\Scripts\python.exe -m pytest -q tests/test_autopilot_observe.py tests/test_autopilot_feeds.py tests/test_autopilot_live_dry_run.py tests/test_autopilot_verify_dry_run.py
 ```
 
 The command never needs an open market, market API keys, AI credits, or an
