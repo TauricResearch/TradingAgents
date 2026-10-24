@@ -140,3 +140,47 @@ def test_monday_without_verified_earnings_remains_blocked():
         clock.astimezone(timezone.utc).isoformat(),
     )
     assert not fake.safe("2026-10-26","afterclose")
+
+
+def test_future_earnings_row_cannot_be_used_as_preclose_snapshot(tmp_path):
+    recorded_at = when("2026-10-22", 17, 10)
+    later = when("2026-10-22", 17, 20)
+    feeds.capture_earnings(
+        tmp_path, "2026-10-22", "preclose", ["NVDA"], recorded_at,
+        source=lambda t, d, n: snapshot(t, d, later),
+    )
+    result = feeds.read_earnings(
+        tmp_path, "2026-10-22", "preclose", {"NVDA"},
+        when("2026-10-22", 18, 10),
+    )
+    assert result["NVDA"].verified is False
+    assert result["NVDA"].safe("2026-10-22", "afterclose") is False
+
+
+def test_future_or_wrong_window_calendar_envelope_fails_closed(tmp_path):
+    recorded_at = when("2026-10-22", 17, 10)
+    file = feeds.capture_earnings(
+        tmp_path, "2026-10-22", "preclose", ["NVDA"], recorded_at,
+        source=lambda t, d, n: snapshot(t, d, n),
+    )
+    actual = json.loads(file.read_text())
+    actual["observed_utc"] = when("2026-10-22", 9, 10).astimezone(timezone.utc).isoformat()
+    file.write_text(json.dumps(actual))
+    result = feeds.read_earnings(
+        tmp_path, "2026-10-22", "preclose", {"NVDA"},
+        when("2026-10-22", 18, 10),
+    )
+    assert result["NVDA"].verified is False
+
+
+def test_calendar_envelope_from_the_future_is_not_verified(tmp_path):
+    recorded_at = when("2026-10-22", 9, 15)
+    feeds.capture_earnings(
+        tmp_path, "2026-10-22", "preopen", ["NVDA"], recorded_at,
+        source=lambda t, d, n: snapshot(t, d, n),
+    )
+    result = feeds.read_earnings(
+        tmp_path, "2026-10-22", "preopen", {"NVDA"},
+        when("2026-10-22", 9, 10),
+    )
+    assert result["NVDA"].verified is False
