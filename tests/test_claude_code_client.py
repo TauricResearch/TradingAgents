@@ -444,4 +444,6 @@ def test_real_cli_answers_and_calls_a_tool():
     answer = llm.invoke([SystemMessage("Reply with only the word PINEAPPLE."), HumanMessage("Hi")])
     assert "PINEAPPLE" in answer.content
     out = llm.bind_tools([get_price]).invoke("What did AAPL close at on 2026-08-07? Use the tool.")
-    assert [c["name"] for c in out.tool_calls] == ["get_price"]
+    # About one run in ten Haiku answers without the tool; show what it said.
+    assert [c["name"] for c in out.tool_calls] == ["get_price"], (
+        out.content, out.response_metadata["claude_code"].get("outside_text"))
