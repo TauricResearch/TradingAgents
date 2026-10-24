@@ -80,6 +80,7 @@ def capture(
     earnings_source=None,
     prices_source=None,
     corporate_guard=None,
+    completion_clock=None,
 ) -> dict:
     """Capture a single due phase; never read or write V1/V2/V3 paper files.
 
@@ -122,7 +123,8 @@ def capture(
                 "orders": 0}
     if phase in ("preopen", "preclose"):
         source = earnings_source or feeds.earnings_for
-        saved = feeds.capture_earnings(home, day, phase, tickers, current, source=source)
+        saved = feeds.capture_earnings(home, day, phase, tickers, current,
+                                       source=source, completion_clock=completion_clock)
         record = json.loads(saved.read_text(encoding="utf-8"))
         observations = record["earnings"]
         verified = sorted(t for t, v in observations.items() if v.get("verified") is True)
