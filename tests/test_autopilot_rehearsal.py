@@ -1,5 +1,6 @@
 """Full trade-cycle rehearsal: mock AI and prices, not an investable result."""
 import hashlib
+from pathlib import Path
 
 import pytest
 
@@ -91,3 +92,25 @@ def test_source_report_is_exact_canonical_utf8_on_every_platform(tmp_path):
     record = state.ai_receipts["2026-10-21:KXDEMO"]
     assert record["source_sha256"] == hashlib.sha256(raw).hexdigest()
 
+
+
+def test_sha_survives_emulated_windows_crlf_text_mode(tmp_path, monkeypatch):
+    """Force Windows newline conversion on a Linux test runner.
+
+    A regression back to Path.write_text(source) must now fail on ALL OSes,
+    because it writes different bytes from those hashed in TradeIntent.
+    """
+    write_text = Path.write_text
+
+    def translate_on_text_write(path, text, *args, **kwargs):
+        if path.name == "source.json":
+            text = text.replace("\\n", "\\r\\n")
+        return write_text(path, text, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", translate_on_text_write)
+    root = tmp_path / "cross_platform_source"
+    result = rehearsal.run_rehearsal(root)
+    source = root / "reports" / "2026-10-21" / "KXDEMO" / "source.json"
+    raw = source.read_bytes()
+    assert b"\\r\\n" not in raw
+    assert hashlib.sha256(raw).hexdigest() == result["source_sha256"]
