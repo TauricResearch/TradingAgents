@@ -74,13 +74,26 @@ def _apply_env_overrides(config: dict) -> dict:
     return config
 
 
+def _apply_vendor_env(config: dict) -> dict:
+    """TRADINGAGENTS_VENDOR_<CATEGORY> sets that category's vendor chain.
+
+    e.g. TRADINGAGENTS_VENDOR_CORE_STOCK_APIS=cryptocom,fmp,yfinance. The value
+    is the same comma-separated chain ``data_vendors`` takes.
+    """
+    for category in config["data_vendors"]:
+        raw = os.environ.get(f"TRADINGAGENTS_VENDOR_{category.upper()}")
+        if raw and raw.strip():
+            config["data_vendors"][category] = raw.strip()
+    return config
+
+
 def build_default_config() -> dict:
     """The built-in defaults with the TRADINGAGENTS_* environment folded in.
 
     Read when the package is imported, as DEFAULT_CONFIG; call it again to see
     the environment as it is now.
     """
-    return _apply_env_overrides({
+    return _apply_vendor_env(_apply_env_overrides({
         "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR") or os.path.join(_TRADINGAGENTS_HOME, "logs"),
         "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR") or os.path.join(_TRADINGAGENTS_HOME, "cache"),
         "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md"),
@@ -156,8 +169,8 @@ def build_default_config() -> dict:
         # routed to vendors you didn't choose. For ordered fallback, list several,
         # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
         "data_vendors": {
-            "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-            "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
+            "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, fmp, cryptocom
+            "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance, fmp, cryptocom
             # Statements come from SEC EDGAR as filed (US filers), then Yahoo; the
         # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
         "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
@@ -203,7 +216,7 @@ def build_default_config() -> dict:
             "":     "SPY",         # default for US-listed tickers (no suffix)
         },
 
-    })
+    }))
 
 
 DEFAULT_CONFIG = build_default_config()

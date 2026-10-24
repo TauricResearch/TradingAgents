@@ -17,6 +17,14 @@ from tradingagents.dataflows.vendors.alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from tradingagents.dataflows.vendors.cryptocom import (
+    get_indicators as get_cryptocom_indicators,
+    get_stock_data as get_cryptocom_stock,
+)
+from tradingagents.dataflows.vendors.fmp import (
+    get_indicators as get_fmp_indicators,
+    get_stock_data as get_fmp_stock,
+)
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
 from tradingagents.dataflows.vendors.polymarket import (
     get_prediction_markets as get_polymarket_prediction_markets,
@@ -99,11 +107,15 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "fmp": get_fmp_stock,
+        "cryptocom": get_cryptocom_stock,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "fmp": get_fmp_indicators,
+        "cryptocom": get_cryptocom_indicators,
     },
     # fundamental_data
     "get_fundamentals": {
