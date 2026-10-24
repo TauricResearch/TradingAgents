@@ -89,6 +89,42 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
     return parts
 
 
+def _managed_files(parts) -> set[tuple[str, str]]:
+    """Every (folder, filename) this report tree layout owns, present or not."""
+    managed = set()
+    for _heading, folder, agents in _SECTIONS:
+        for _agent, filename, _path in agents:
+            managed.add((folder, filename))
+    # parts is unused for ownership; kept for signature symmetry with callers.
+    _ = parts
+    return managed
+
+
+def _reconcile_stale_sections(save_path: Path, parts) -> None:
+    """Remove report-owned section files the new run did not produce (#1566).
+
+    Only files under the five report folders (``1_analysts`` … ``5_portfolio``)
+    with names this writer itself produces are considered; anything else in
+    those directories, and everything outside them, is the caller's.
+    """
+    for folder, _filename in _managed_files(parts):
+        section_dir = save_path / folder
+        if not section_dir.is_dir():
+            continue
+        produced = {
+            filename
+            for _heading, part_folder, written in parts
+            if part_folder == folder
+            for _agent, filename, _text in written
+        }
+        owned = {
+            name for _f, name in _managed_files(parts) if _f == folder
+        }
+        for existing in section_dir.iterdir():
+            if existing.is_file() and existing.name in owned and existing.name not in produced:
+                existing.unlink()
+
+
 def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict | None = None,
                       html: bool = True) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path.
@@ -96,10 +132,16 @@ def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict 
     ``settings`` (``TradingAgentsGraph.run_settings()``) adds what produced the run
     to the report's header. ``html`` also writes ``complete_report.html``, one
     self-contained page of the same report (#1419).
+
+    Reusing an existing ``save_path`` reconciles the tree: section files the new
+    run did not produce are removed so no stale file from an earlier run
+    outlives its consolidated report (#1566). Files the report never manages
+    (caller files, unrelated directories) are left untouched.
     """
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
     parts = _report_parts(final_state)
+    _reconcile_stale_sections(save_path, parts)
     sections = []
     for heading, folder, written in parts:
         (save_path / folder).mkdir(exist_ok=True)
