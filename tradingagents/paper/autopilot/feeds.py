@@ -127,8 +127,12 @@ def capture_earnings(home: Path, session: str, phase: str,
     finished = (completion_clock or (lambda: datetime.now(timezone.utc)))()
     if finished.tzinfo is None or finished.utcoffset() is None:
         raise ValueError("Earnings collection completion clock must be timezone aware")
+    try:
+        completed_session = session_cutoff(finished, phase)
+    except ValueError as exc:
+        raise ValueError("Earnings fetch finished outside its permitted observation window") from exc
     if (finished.astimezone(timezone.utc) < now.astimezone(timezone.utc) or
-            session_cutoff(finished, phase) != session):
+            completed_session != session):
         raise ValueError("Earnings fetch finished outside its permitted observation window")
     data = {
         "session": session, "phase": phase,
