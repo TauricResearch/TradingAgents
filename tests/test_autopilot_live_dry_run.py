@@ -209,3 +209,21 @@ def test_dry_run_is_restricted_to_at_most_three_stocks(tmp_path):
     home=saved(tmp_path)
     with pytest.raises(ValueError,match="1-8|1-3"):
         dry.run_dry_run(tmp_path/"too_many",home,DAY,["AAPL","MSFT","NVDA","COST"],now=at(18,5))
+
+
+def test_rejects_earnings_from_after_immutable_calendar_capture(tmp_path):
+    """A 17:20 source cannot appear in evidence captured at 17:10."""
+    c = calendar()
+    c["earnings"]["AAPL"]["observed_at_utc"] = at(17, 20).astimezone(timezone.utc).isoformat()
+    home = saved(tmp_path, c=c)
+    result = dry.read_observation(home, DAY, ["AAPL"], at(18, 5).astimezone(timezone.utc))
+    assert result["tickers"]["AAPL"]["eligible_for_research"] is False
+    assert result["tickers"]["AAPL"]["reason"] == "EARNINGS_EVIDENCE_MISSING_OR_INVALID"
+
+
+def test_rejects_calendar_claiming_capture_after_market_observation(tmp_path):
+    c = calendar()
+    c["observed_utc"] = at(17, 50).astimezone(timezone.utc).isoformat()
+    home = saved(tmp_path, c=c)
+    result = dry.read_observation(home, DAY, ["AAPL"], at(18, 5).astimezone(timezone.utc))
+    assert result["tickers"]["AAPL"]["eligible_for_research"] is False
