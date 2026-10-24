@@ -59,6 +59,18 @@ class FmpVendorTests(unittest.TestCase):
             fmp.get_stock_data("^STI", "2026-10-01", "2026-10-23")
         self.assertIn("higher plan", str(ctx.exception))
 
+    def test_plan_gated_plain_text_body_is_no_data(self):
+        # What FMP really sends for a symbol outside the plan: 402, labelled JSON, plain text.
+        r = mock.Mock(status_code=402, content=b"x", text="Premium Query Parameter: not available under your current subscription")
+        r.json.side_effect = ValueError("Expecting value")
+        with (
+            mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}),
+            mock.patch("tradingagents.dataflows.vendors.fmp.get_scrubbed", return_value=r),
+            self.assertRaises(NoMarketDataError) as ctx,
+        ):
+            fmp.get_stock_data("^STI", "2026-10-01", "2026-10-23")
+        self.assertIn("current subscription", str(ctx.exception))
+
     def test_rate_limit_is_unavailable(self):
         with (
             mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}),

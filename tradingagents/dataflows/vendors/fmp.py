@@ -74,10 +74,15 @@ def load_daily(symbol: str, as_of_date: str | None = None) -> tuple[pd.DataFrame
         raise VendorUnavailableError("FMP rate limit reached")
     if resp.status_code == 401:
         raise FMPNotConfiguredError("FMP rejected the API key (401)")
-    body = resp.json() if resp.content else []
-    if resp.status_code in (402, 403) or isinstance(body, dict):
-        msg = (body.get("Error Message") or body.get("message")) if isinstance(body, dict) else ""
-        raise NoMarketDataError(symbol, canonical, f"FMP did not serve this symbol: {msg or resp.status_code}")
+    # A symbol outside the caller's plan comes back as 402 with a plain-text message,
+    # though the response is labelled JSON; read the body only after checking the status.
+    try:
+        body = resp.json() if resp.content else []
+    except ValueError:
+        body = resp.text.strip()
+    if resp.status_code in (402, 403) or not isinstance(body, list):
+        msg = (body.get("Error Message") or body.get("message")) if isinstance(body, dict) else body
+        raise NoMarketDataError(symbol, canonical, f"FMP did not serve this symbol: {str(msg)[:160] or resp.status_code}")
     if not body:
         raise NoMarketDataError(symbol, canonical, "FMP returned no rows")
     df = pd.DataFrame(body).rename(columns={
