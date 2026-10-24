@@ -99,6 +99,11 @@ def audit(folder: Path) -> dict:
         if not isinstance(expected, str) or listed.get(name) != expected:
             raise ValueError(f"Original source does not match archive: {name}")
 
+    attempted = man.get("real_ai_attempted")
+    if type(attempted) is not bool:
+        raise ValueError("Missing or invalid AI-attempt evidence")
+    if (man["classification"] == "SAME_SESSION_REAL_AI_DRY_RUN_NOT_FORWARD_TRADE") != attempted:
+        raise ValueError("AI attempt contradicts run classification")
     research = man.get("research")
     if not isinstance(research, dict):
         raise ValueError("No research results in dry-run manifest")
@@ -118,6 +123,9 @@ def audit(folder: Path) -> dict:
             digest = receipt.get("source_sha256")
             if not isinstance(saved, str) or not isinstance(digest, str):
                 raise ValueError("Model source receipt missing hash or file")
+            expected_path = f"reports/{man.get('session')}/{ticker}/source.json"
+            if saved.replace("\\", "/") != expected_path:
+                raise ValueError(f"Model receipt points to another ticker/session: {ticker}")
             source = _relative(saved.replace("\\", "/"), root)
             if (saved.replace("\\", "/") not in listed or
                     not _SHA256.fullmatch(digest) or not source.is_file() or
