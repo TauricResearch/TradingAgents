@@ -438,12 +438,18 @@ class TestWiring:
 @pytest.mark.integration
 @pytest.mark.skipif(shutil.which("claude") is None, reason="Claude Code CLI not installed")
 def test_real_cli_answers_and_calls_a_tool():
-    """Runs on the signed-in subscription: pytest -m integration."""
-    llm = ChatClaudeCode(model=os.environ.get("CLAUDE_CODE_SMOKE_MODEL", "claude-haiku-5-5"))
+    """Runs on the signed-in subscription: pytest -m integration.
+
+    Defaults to the model and effort a TradingAgents run with this provider is
+    likely to use, so the check covers its effort flag and thinking blocks;
+    CLAUDE_CODE_SMOKE_MODEL and CLAUDE_CODE_SMOKE_EFFORT choose others.
+    """
+    llm = ChatClaudeCode(model=os.environ.get("CLAUDE_CODE_SMOKE_MODEL", "claude-opus-5-5"),
+                         effort=os.environ.get("CLAUDE_CODE_SMOKE_EFFORT", "medium") or None)
     assert llm.invoke("Reply with the single word OK.").content.strip()
     answer = llm.invoke([SystemMessage("Reply with only the word PINEAPPLE."), HumanMessage("Hi")])
     assert "PINEAPPLE" in answer.content
-    out = llm.bind_tools([get_price]).invoke("What did AAPL close at on 2026-08-07? Use the tool.")
-    # About one run in ten Haiku answers without the tool; show what it said.
+    # A ticker no model knows, so only the tool can answer.
+    out = llm.bind_tools([get_price]).invoke("What did XYZZQ close at on 2026-08-07? Use the tool.")
     assert [c["name"] for c in out.tool_calls] == ["get_price"], (
         out.content, out.response_metadata["claude_code"].get("outside_text"))
