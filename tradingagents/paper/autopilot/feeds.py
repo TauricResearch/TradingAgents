@@ -7,7 +7,9 @@ respective cutoffs. Never turn data fetched late into alleged earlier evidence.
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 import time
 from datetime import date, datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
@@ -104,8 +106,14 @@ def unknown_earnings(session: str, now: datetime, why: str = "NOT_CAPTURED_AT_CU
 
 def capture_earnings(home: Path, session: str, phase: str,
                      symbols: list[str], now: datetime,
-                     source=earnings_for) -> Path:
-    """Immutable per-day per-phase snapshots; never overwrite original evidence."""
+                     source=earnings_for, *, completion_clock=None) -> Path:
+    """Archive a completed, in-window earnings fetch without partial files.
+
+    The supplied `now` is the capture START. The archived envelope timestamp
+    must be taken only AFTER all vendor requests have finished; otherwise a
+    slow provider can launder post-cutoff data into pre-cutoff evidence.
+    `completion_clock` is exclusively a dependency-injection seam for tests.
+    """
     if phase not in ("preopen", "preclose"):
         raise ValueError("Unknown earnings phase")
     if session != session_cutoff(now, phase):
@@ -114,18 +122,37 @@ def capture_earnings(home: Path, session: str, phase: str,
     if path.exists():
         raise ValueError("Earnings snapshot already captured; no retroactive revisions")
     from dataclasses import asdict
-    observations = {ticker: asdict(source(ticker, session, now)) for ticker in sorted(set(symbols))}
-    data = {"session": session, "phase": phase, "observed_utc": now.astimezone(timezone.utc).isoformat(),
-            "earnings": observations, "source_policy": "TWO_SECONDARY_FEEDS_MUST_AGREE_OR_BLOCK"}
+    observations = {ticker: asdict(source(ticker, session, now))
+                    for ticker in sorted(set(symbols))}
+    finished = (completion_clock or (lambda: datetime.now(timezone.utc)))()
+    if finished.tzinfo is None or finished.utcoffset() is None:
+        raise ValueError("Earnings collection completion clock must be timezone aware")
+    if (finished.astimezone(timezone.utc) < now.astimezone(timezone.utc) or
+            session_cutoff(finished, phase) != session):
+        raise ValueError("Earnings fetch finished outside its permitted observation window")
+    data = {
+        "session": session, "phase": phase,
+        "observed_utc": finished.astimezone(timezone.utc).isoformat(),
+        "earnings": observations,
+        "source_policy": "TWO_SECONDARY_FEEDS_MUST_AGREE_OR_BLOCK",
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
-    from tradingagents.paper.autopilot.state import fingerprint
-    payload = json.dumps(data, sort_keys=True, indent=2, allow_nan=False)
-    # Exclusive creation makes it impossible for two simultaneous runs to overwrite evidence.
+    payload = (json.dumps(data, sort_keys=True, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    # Write and sync a temporary file, then atomically publish a hard link
+    # ONLY if the final filename is unclaimed. A crash leaves no truncated
+    # published snapshot; retries cannot overwrite genuine saved evidence.
+    fd, temp_path = tempfile.mkstemp(prefix=".earnings-observe-", suffix=".tmp", dir=path.parent)
     try:
-        with path.open("x", encoding="utf-8") as handle:
-            handle.write(payload + "\n")
-    except FileExistsError:
-        raise ValueError("Concurrent earnings snapshot exists") from None
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.link(temp_path, path)
+        except FileExistsError:
+            raise ValueError("Concurrent earnings snapshot exists") from None
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
     return path
 
 
