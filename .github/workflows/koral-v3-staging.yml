@@ -53,6 +53,8 @@ jobs:
         run: python -m tradingagents.paper.autopilot.verify_dry_run --help
       - name: Real-source dry-run CLI smoke
         run: python -m tradingagents.paper.autopilot.live_dry_run --help
+      - name: Read-only source preflight CLI smoke
+        run: python -m tradingagents.paper.autopilot.preflight_dry_run --help
       - name: V3.1 local scheduler CLI import smoke test
         run: python -m tradingagents.paper.autopilot.cli --help
       - name: Dashboard JavaScript syntax
