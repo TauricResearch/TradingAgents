@@ -175,3 +175,26 @@ def test_cli_exit_code_validated(tmp_path,capsys):
     out=research_output(tmp_path)
     assert verify_dry_run.main(["--folder",str(out)])==0
     assert "SOURCE_INTEGRITY_AUDIT_PASSED" in capsys.readouterr().out
+
+
+def test_rejects_model_receipt_claiming_another_ticker_or_session(tmp_path):
+    out = research_output(tmp_path, model=True)
+    modify_manifest(out, lambda m: m["research"]["AAPL"]["ai_receipt"].__setitem__(
+        "source_file", "reports/2026-10-22/MSFT/source.json"))
+    with pytest.raises(ValueError, match="another ticker/session"):
+        verify_dry_run.audit(out)
+
+
+def test_rejects_false_ai_classification(tmp_path):
+    out = research_output(tmp_path)
+    modify_manifest(out, lambda m: m.__setitem__(
+        "classification", "SAME_SESSION_REAL_AI_DRY_RUN_NOT_FORWARD_TRADE"))
+    with pytest.raises(ValueError, match="AI attempt contradicts"):
+        verify_dry_run.audit(out)
+
+
+def test_rejects_forged_ai_attempt_field(tmp_path):
+    out = research_output(tmp_path, model=True)
+    modify_manifest(out, lambda m: m.__setitem__("real_ai_attempted", False))
+    with pytest.raises(ValueError, match="AI attempt contradicts"):
+        verify_dry_run.audit(out)
