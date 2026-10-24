@@ -125,3 +125,7 @@ validated past execution fills.
 - **Do not merge Discovery's speculative 3–10 year 10× watchlist into this 2–60-session Swing Alpha execution sleeve**. Long-horizon holdings need independent mandates and exit rules.
 
 Original TradingAgents framework authors and Apache 2.0 license continue to be acknowledged in `UPSTREAM_ATTRIBUTION.md` and `LICENSE`.
+
+## Live-Source Dry Run 001 (no order permissions)
+
+The isolated `tradingagents.paper.autopilot.live_dry_run` command now audits actual previously collected observer OHLC/FX and secondary earnings snapshots. It may invoke a genuine AI investment committee and validate its conditional plan **only during the same New York after-close session**. Historical research cannot be backdated and no existing portfolio files are read or written. There is **no simulated order or fill**; even a syntactically valid proposed instruction is only diagnostic. See [the exact Windows commands and acceptance rules](README_LIVE_SOURCE_DRY_RUN.md). The next milestone remains a genuine *future* end-to-end simulated trade, not a rewrite of historical observations.

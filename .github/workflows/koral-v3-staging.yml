@@ -45,6 +45,10 @@ jobs:
         run: python -m pytest -q tests/test_autopilot_observe.py
       - name: Fully source-hashed mock-AI trade lifecycle and adverse gap stop
         run: python -m pytest -q tests/test_autopilot_rehearsal.py
+      - name: Real-market source audit and same-session AI dry-run safety
+        run: python -m pytest -q tests/test_autopilot_live_dry_run.py
+      - name: Real-source dry-run CLI smoke
+        run: python -m tradingagents.paper.autopilot.live_dry_run --help
       - name: V3.1 local scheduler CLI import smoke test
         run: python -m tradingagents.paper.autopilot.cli --help
       - name: Dashboard JavaScript syntax
