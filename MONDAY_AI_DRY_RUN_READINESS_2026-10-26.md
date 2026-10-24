@@ -79,8 +79,23 @@ if (Test-Path "$root\errors.jsonl") {
 }
 \`\`\`
 
-If all relevant files exist, the same-session **read-only** AI test may
-be tried, explicitly permitting up to ONE real LLM call (with provider charges):
+If all relevant files exist, run the **read-only, zero-AI preflight first**
+using the CURRENT development version, never a stale local copy:
+
+```powershell
+.\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.preflight_dry_run --session 2026-10-26 --tickers COST JPM WMT
+```
+
+The preflight reads only the captured source files, verifies the exact
+watchlist and cutoff, reports source hashes, eligible tickers and whether
+the current NY time permits one model call. It creates NO output directory,
+does not read accounts and makes no AI/vendor requests. If it reports
+`READ_ONLY_PREFLIGHT_NO_ELIGIBLE_AI`, the correct decision is to record
+a blocked research day; don't manufacture a trade.
+
+Only when its `can_request_one_real_ai_now` field is true may the same-session
+**read-only** AI test be tried, explicitly permitting up to ONE real LLM
+call (with provider charges):
 
 \`\`\`powershell
 .\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.live_dry_run --session 2026-10-26 --tickers COST JPM WMT --ai 1 --output ".\Koral_AI_Dry_Run_CJW_20261026"
