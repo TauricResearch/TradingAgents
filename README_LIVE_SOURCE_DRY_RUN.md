@@ -8,7 +8,7 @@ and the first genuine, dated AI-generated investment decision.
 
 - Previously saved *real* source observations made by the independent observer under
   %USERPROFILE%\.tradingagents\observations\koral_v3
-- Validated, completed share OHLC for AAPL / MSFT / NVDA and SPY, plus GBP/USD
+- Validated, completed share OHLC for the EXACT requested watchlist and SPY, plus GBP/USD
   conversion and a positive independent corporate-action-check field
 - A separate, time-stamped Yahoo + Nasdaq earnings consensus snapshot, if present
 - The existing TradingAgents AI investment committee and strict Koral TradeIntent
@@ -59,13 +59,19 @@ After observing a valid completed market session, and still on 26 October in
 New York local time, operators may explicitly choose up to three paid AI
 analyses. For example:
 
-    .\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.live_dry_run --session 2026-10-26 --tickers AAPL MSFT NVDA --ai 1 --output ".\Koral_AI_Dry_Run_20261026"
+    .\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.preflight_dry_run --session 2026-10-26 --tickers COST JPM WMT
+    .\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.live_dry_run --session 2026-10-26 --tickers COST JPM WMT --ai 1 --output ".\Koral_AI_Dry_Run_20261026_COST_JPM_WMT"
 
-The program automatically skips companies with missing/unverified earnings
-sources or a seven-day pre-earnings blackout. With the initial watchlist,
-**zero eligible real AI calls is an entirely valid outcome**. Microsoft is
-close to the 28 October earnings date, Apple to the 2 November earnings date,
-and NVIDIA had an unresolved calendar in the first real observation.
+Run the preflight first. It makes no model calls, creates no output files and
+does not open any paper account. It reports whether the current NY date, completed
+price capture, EXACT requested ticker universe and verified earnings evidence
+permit one genuine same-session AI research attempt. A no-eligible-research
+result is a valid fail-closed outcome, NOT a reason to force an AI call.
+
+The active observer was most recently configured for COST / JPM / WMT. This
+supersedes the earlier AAPL / MSFT / NVDA Monday example. **Do not silently
+substitute saved observations from a different watchlist.** The old AAPL/MSFT/NVDA
+October 23 data remain available for retrospective, read-only audits.
 
 Change or expand the future observer watchlist through a deliberate
 operator update **before** the relevant session, never by altering an existing
@@ -102,6 +108,7 @@ fundamental data from current profiles are not fully point-in-time certified.
 
     .\.venv\Scripts\python.exe -m pytest -q tests/test_autopilot_live_dry_run.py
     .\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.live_dry_run --help
+    .\.venv\Scripts\python.exe -m tradingagents.paper.autopilot.preflight_dry_run --help
 
 Source code in tradingagents/paper/autopilot/live_dry_run.py. Existing V1,
 V2, V3 staging and V3.1 Autopilot accounts remain separate and untouched.
@@ -119,7 +126,7 @@ account, market data, a model, or a broker:
 
 For Monday's future live-source AI dry run, use the same independent verifier
 after the AI command finishes, replacing the folder with
-`".\\Koral_AI_Dry_Run_20261026"`.
+`".\\Koral_AI_Dry_Run_20261026_COST_JPM_WMT"`.
 
 The verifier fails closed on missing/unexpected files; altered source,
 earnings and model-report hashes; unsafe paths and symlinks; a forged approved
@@ -136,6 +143,6 @@ origin/accuracy and issuer-event completeness require additional independent
 verification. Do not count the source-integrity pass as an investable trading
 signal or proof of a profitable edge.
 
-The verifier and eleven offline regression tests are part of the separate
+The verifier and its offline regression tests are part of the separate
 Windows/Linux paper safety matrix. **Do not approve paper entry based solely
 on this verifier's success.**
