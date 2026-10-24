@@ -134,14 +134,24 @@ def read_earnings(home: Path, session: str, phase: str,
     """Missing or corrupt observation => explicit block; never infer no earnings."""
     file = home / "calendar" / session / (phase + ".json")
     raw = {}
+    captured = None
     try:
         snapshot = json.loads(file.read_text(encoding="utf-8"))
-        if (snapshot.get("session") != session or snapshot.get("phase") != phase or
+        if (not isinstance(snapshot, dict) or
+                snapshot.get("session") != session or snapshot.get("phase") != phase or
                 snapshot.get("source_policy") != "TWO_SECONDARY_FEEDS_MUST_AGREE_OR_BLOCK"):
             raise ValueError("Wrong session snapshot")
-        raw = snapshot.get("earnings") or {}
+        captured = datetime.fromisoformat(snapshot["observed_utc"])
+        if (captured.tzinfo is None or captured.utcoffset() != timedelta(0) or
+                captured > ny_now(now).astimezone(timezone.utc) or
+                session_cutoff(captured, phase) != session):
+            raise ValueError("Future, premature or non-UTC calendar snapshot")
+        raw = snapshot.get("earnings")
+        if not isinstance(raw, dict):
+            raise ValueError("Missing earnings observations")
     except (OSError, KeyError, ValueError, TypeError, json.JSONDecodeError):
-        pass
+        captured = None
+        raw = {}
     output = {}
     for ticker in tickers:
         try:
@@ -149,8 +159,11 @@ def read_earnings(home: Path, session: str, phase: str,
             if set(x) != {"asof_date", "next_earnings_date", "last_earnings_date", "source", "verified", "observed_at_utc"}:
                 raise ValueError("Unexpected earnings schema")
             obs = EarningsSnapshot(**x)
-            if obs.asof_date != session or obs.verified not in (True, False):
-                raise ValueError("Invalid calendar evidence")
+            observed = datetime.fromisoformat(obs.observed_at_utc)
+            if (obs.asof_date != session or type(obs.verified) is not bool or
+                    observed.tzinfo is None or observed.utcoffset() != timedelta(0) or
+                    captured is None or observed > captured):
+                raise ValueError("Invalid or future-dated calendar evidence")
         except (KeyError, TypeError, ValueError):
             obs = unknown_earnings(session, now)
         output[ticker] = obs
