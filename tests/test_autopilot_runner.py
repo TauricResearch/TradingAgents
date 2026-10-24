@@ -64,7 +64,8 @@ def source(ticker,session,now):
 
 def capture(path,day,phase):
     now=when(day,9,15) if phase=="preopen" else when(day,17,10)
-    return runner.snapshot_phase(path,phase=phase,now=now,fetcher=source)
+    return runner.snapshot_phase(path,phase=phase,now=now,fetcher=source,
+                                 completion_clock=lambda: now)
 
 
 def initial_plan(path):
