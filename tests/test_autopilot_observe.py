@@ -6,12 +6,17 @@ AI models, or an actual broker.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
 
 from tradingagents.paper.autopilot import cli, observe
+from tradingagents.paper.autopilot.observer_lock import observer_instance_lock
 from tradingagents.paper.conditional import EarningsSnapshot
 from tradingagents.paper.engine import Bar
 
@@ -298,3 +303,50 @@ def test_market_capture_completion_time_is_not_request_start(tmp_path):
     data = json.loads((home / "market" / "2026-10-23.json").read_text())
     assert data["capture_completed_utc"] == done.astimezone(timezone.utc).isoformat()
     assert data["capture_started_utc"] != data["capture_completed_utc"]
+
+
+def test_second_observer_refuses_same_directory_without_touching_ledger(tmp_path):
+    home = tmp_path / "source_observations"
+    paper = tmp_path / "paper" / "portfolio.json"
+    paper.parent.mkdir()
+    paper.write_bytes(b"NO_ACCOUNT_WRITES")
+    with observer_instance_lock(home) as lockfile:
+        assert lockfile.exists()
+        with pytest.raises(RuntimeError, match="Another Koral Observer"):
+            observe.monitor(home, ["AAPL"], once=True)
+        assert paper.read_bytes() == b"NO_ACCOUNT_WRITES"
+    # A persistent lock FILE is not a dead observer; OS ownership has ended.
+    with observer_instance_lock(home):
+        assert lockfile.read_bytes() == b"0"
+
+
+def test_observer_lock_is_automatically_released_after_crash(tmp_path):
+    home = tmp_path / "observations"
+    code = (
+        "import os\n"
+        "from pathlib import Path\n"
+        "from tradingagents.paper.autopilot.observer_lock import observer_instance_lock\n"
+        "with observer_instance_lock(Path(" + repr(str(home)) + ")):\n"
+        "    os._exit(23)\n"
+    )
+    child = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=Path(__file__).resolve().parents[1],
+        env=os.environ.copy(),
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    assert child.returncode == 23, child.stderr
+    with observer_instance_lock(home):
+        assert (home / ".observer.lock").is_file()
+
+
+def test_cli_second_observer_fails_closed_without_portfolio(tmp_path, capsys):
+    home = tmp_path / "observations"
+    with observer_instance_lock(home):
+        code = cli.main([
+            "--state", str(tmp_path / "nonexistent.json"),
+            "observe", "--once", "--dir", str(home), "--tickers", "COST", "JPM", "WMT",
+        ])
+    assert code == 2
+    assert "Another Koral Observer" in capsys.readouterr().err
+    assert not (tmp_path / "nonexistent.json").exists()
