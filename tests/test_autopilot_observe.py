@@ -92,6 +92,7 @@ def test_completed_market_snapshot_is_source_labelled_and_immutable(tmp_path):
     result = observe.capture(
         root, ["MSFT", "AAPL"], now=when("2026-10-23", 18, 10),
         prices_source=prices, corporate_guard=lambda names, start, end: None,
+        completion_clock=lambda: when("2026-10-23", 18, 11),
     )
     assert result["phase"] == "close"
     assert result["orders"] == 0
@@ -220,6 +221,7 @@ def test_saved_market_for_different_tickers_is_not_considered_complete(tmp_path)
     observe.capture(
         home, ["AAPL"], now=when("2026-10-23", 18, 0),
         prices_source=aapl_only, corporate_guard=lambda *_: None,
+        completion_clock=lambda: when("2026-10-23", 18, 1),
     )
     with pytest.raises(ValueError, match="different symbol set"):
         observe.capture(
@@ -268,3 +270,31 @@ def test_archived_earnings_timestamp_marks_completion_not_request_start(tmp_path
     assert data["observed_utc"] == done.astimezone(timezone.utc).isoformat()
     assert (data["earnings"]["AAPL"]["observed_at_utc"]
             != data["observed_utc"])
+
+
+def test_slow_market_fetch_cannot_publish_next_day_prices(tmp_path):
+    home = tmp_path / "research"
+    def filled(*_):
+        return market_data("2026-10-23"), lambda *_: (0.75, 0.75)
+    with pytest.raises(ValueError, match="finished outside"):
+        observe.capture(
+            home, ["AAPL"], now=when("2026-10-23", 23, 58),
+            prices_source=filled, corporate_guard=lambda *_: None,
+            completion_clock=lambda: when("2026-10-24", 0, 1),
+        )
+    assert not (home / "market" / "2026-10-23.json").exists()
+
+
+def test_market_capture_completion_time_is_not_request_start(tmp_path):
+    home = tmp_path / "research"
+    def filled(*_):
+        return market_data("2026-10-23"), lambda *_: (0.75, 0.75)
+    done = when("2026-10-23", 18, 20)
+    observe.capture(
+        home, ["AAPL"], now=when("2026-10-23", 18, 10),
+        prices_source=filled, corporate_guard=lambda *_: None,
+        completion_clock=lambda: done,
+    )
+    data = json.loads((home / "market" / "2026-10-23.json").read_text())
+    assert data["capture_completed_utc"] == done.astimezone(timezone.utc).isoformat()
+    assert data["capture_started_utc"] != data["capture_completed_utc"]
