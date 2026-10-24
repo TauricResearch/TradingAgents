@@ -92,6 +92,8 @@ def read_observation(observer: Path, session: str, tickers: list[str], now: date
     required = set(names) | {"SPY"}
     if not required.issubset(bars):
         raise ValueError(f"Missing mandatory market instruments: {sorted(required - set(bars))}")
+    if set(bars) != required:
+        raise ValueError("Archived market watchlist does not exactly match requested tickers")
     parsed = {symbol: _strict_bar(bars[symbol], symbol) for symbol in sorted(required)}
     fx0, fx1 = m.get("fx_gbp_per_usd_open"), m.get("fx_gbp_per_usd_close")
     if (type(fx0) not in (int, float) or type(fx1) not in (int, float) or
@@ -108,6 +110,9 @@ def read_observation(observer: Path, session: str, tickers: list[str], now: date
                     c.get("phase") != "preclose" or
                     c.get("source_policy") != "TWO_SECONDARY_FEEDS_MUST_AGREE_OR_BLOCK"):
                 raise ValueError("Unexpected earnings-calendar provenance")
+            if (not isinstance(c.get("earnings"), dict) or
+                    set(c["earnings"]) != set(names)):
+                raise ValueError("Archived earnings watchlist mismatch")
             envelope_utc = _utc(c.get("observed_utc"))
             observed = envelope_utc.astimezone(NY)
             if (observed.date() != day or
