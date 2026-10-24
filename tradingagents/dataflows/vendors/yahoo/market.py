@@ -15,6 +15,20 @@ from tradingagents.dataflows.vendors.yahoo.ohlcv import _assert_ohlcv_not_stale,
 logger = logging.getLogger(__name__)
 
 
+def _render_price_precision(value: float) -> float:
+    """2 decimals for normal prices, 4 significant digits below 1.0 (#1567).
+
+    A flat ``round(2)`` maps every positive sub-cent quote to 0.0; for
+    magnitudes below 1 the extra digits are what keep the price distinguishable
+    from zero (and from its neighbors) in the rendered CSV.
+    """
+    if pd.isna(value):
+        return value
+    if abs(value) >= 1:
+        return round(value, 2)
+    return float(f"{value:.4g}")
+
+
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -48,11 +62,14 @@ def get_YFin_data_online(
     # turns into one clear unavailable signal (#1021).
     _assert_ohlcv_not_stale(data, end_date, symbol, canonical)
 
-    # Round numerical values to 2 decimal places for cleaner display
+    # Keep enough significant digits to distinguish prices: a flat 2-decimal
+    # round turns any positive sub-cent quote into 0.0 and erases the move
+    # from the report (#1567). Values >= 1 keep 2 decimals for readability;
+    # smaller magnitudes keep 4 significant digits instead.
     numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
     for col in numeric_columns:
         if col in data.columns:
-            data[col] = data[col].round(2)
+            data[col] = data[col].map(_render_price_precision)
 
     csv_string = data.to_csv()
 

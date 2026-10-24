@@ -59,6 +59,10 @@ def _fmt(value) -> str:
     if isinstance(value, (int,)):
         return str(value)
     if isinstance(value, float):
+        # 4 significant digits below 1.0 keep sub-cent quotes distinguishable;
+        # a flat ".2f" would render them all as 0.00 (#1567).
+        if 0 < abs(value) < 1:
+            return f"{value:.4g}"
         return f"{value:.2f}"
     return str(value)
 
