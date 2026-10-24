@@ -67,3 +67,14 @@ regression requires the complete synthetic decision to be retained.
 The existing V3.1 paper account remains DISABLED by default. This rehearsal
 never enables it. The system does not connect to a brokerage or put real
 funds at risk.
+
+## Windows source-hash fix (24 October 2026)
+
+The first local installation blocked after tests failed to match the original AI
+report's expected SHA-256. Root cause: `Path.write_text` on Windows converted
+LF line endings into CRLF, while the report's SHA-256 was computed from the
+original LF text. Both the mock-AI rehearsal and the real AI research archive now
+use `Path.write_bytes(text.encode("utf-8"))`, preserving the exact hashed bytes
+on Windows, Linux and macOS. A dedicated regression verifies the saved file's
+byte digest and rejects CRLF translation. The original failed installation
+rolled back source files and did not modify user paper ledgers.

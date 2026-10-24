@@ -76,3 +76,18 @@ def test_rehearsal_inside_real_paper_tree_is_forbidden(monkeypatch,tmp_path):
     real=tmp_path/".tradingagents"/"paper"/"v3_autopilot"/"test"
     with pytest.raises(ValueError,match="must not access actual paper accounts"):
         rehearsal.safe_output(real)
+
+
+def test_source_report_is_exact_canonical_utf8_on_every_platform(tmp_path):
+    """Windows previously wrote CRLF, invalidating the SHA of the LLM report."""
+    folder = tmp_path / "canonical_source"
+    manifest = rehearsal.run_rehearsal(folder)
+    source = folder / "reports" / "2026-10-21" / "KXDEMO" / "source.json"
+    raw = source.read_bytes()
+    assert raw.endswith(b"\n")
+    assert b"\r\n" not in raw
+    assert hashlib.sha256(raw).hexdigest() == manifest["source_sha256"]
+    state = read(folder / "portfolio.json")
+    record = state.ai_receipts["2026-10-21:KXDEMO"]
+    assert record["source_sha256"] == hashlib.sha256(raw).hexdigest()
+

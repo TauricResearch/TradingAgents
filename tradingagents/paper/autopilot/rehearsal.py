@@ -70,7 +70,10 @@ def mock_ai(_model, *, ticker, session, bar, root, state):
     }, sort_keys=True, indent=2) + "\n"
     location = root / "reports" / session / ticker
     location.mkdir(parents=True, exist_ok=False)
-    (location / "source.json").write_text(report, encoding="utf-8")
+    # Store exactly the UTF-8 bytes hashed by evidence_hash(). Path.write_text()
+    # uses platform newline translation on Windows (LF -> CRLF), which made
+    # provenance fail despite identical JSON text.
+    (location / "source.json").write_bytes(report.encode("utf-8"))
     proposal = AIExecutionProposal(
         action="CONDITIONAL_LONG", rating="Overweight",
         entry_quote="TWO consecutive closes above $102.00",

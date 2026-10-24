@@ -272,7 +272,9 @@ def _research_one(graph, *, ticker: str, session: str, bar,
     src = dir_ / "source.json"
     if src.exists():
         raise ValueError("Immutable source receipt already exists; refusing to overwrite")
-    src.write_text(research + "\n", encoding="utf-8")
+    # Bytes are the provenance contract. Windows text-mode newline conversion
+    # otherwise changes the archived SHA-256 compared with evidence_hash().
+    src.write_bytes((research + "\n").encode("utf-8"))
     # A complete archived research report is required before any automated
     # policy approval. If the report writer fails, fail closed on this ticker.
     graph.save_reports(final_state, ticker, save_path=dir_)
