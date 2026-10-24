@@ -187,3 +187,19 @@ def test_calendar_envelope_from_the_future_is_not_verified(tmp_path):
         when("2026-10-22", 9, 10),
     )
     assert result["NVDA"].verified is False
+
+
+def test_failed_atomic_calendar_publish_does_not_leave_partial_evidence(tmp_path, monkeypatch):
+    now = when("2026-10-22", 17, 10)
+    def interrupted_link(*_):
+        raise OSError("Simulated disk/link failure")
+    monkeypatch.setattr(feeds.os, "link", interrupted_link)
+    with pytest.raises(OSError, match="Simulated disk/link failure"):
+        feeds.capture_earnings(
+            tmp_path, "2026-10-22", "preclose", ["NVDA"], now,
+            source=lambda t, d, n: snapshot(t, d, n),
+            completion_clock=lambda: now,
+        )
+    calendar = tmp_path / "calendar" / "2026-10-22"
+    assert not (calendar / "preclose.json").exists()
+    assert list(calendar.iterdir()) == []
