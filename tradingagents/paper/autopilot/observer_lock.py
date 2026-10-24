@@ -24,7 +24,7 @@ def observer_instance_lock(home: Path) -> Iterator[Path]:
         # Windows byte-range locking needs an actual byte to lock. Leave the
         # file permanently present; its existence alone has no active meaning.
         if stream.seek(0, os.SEEK_END) == 0:
-            stream.write(b"\\x00")
+            stream.write(b"0")
             stream.flush()
             os.fsync(stream.fileno())
         stream.seek(0)
