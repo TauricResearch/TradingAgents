@@ -21,7 +21,12 @@ schema branch per tool, so LangGraph's ToolNode still runs the tools in Python.
 The CLI reports its run as a stream of JSON events. Assistant text written
 outside the structured response does not reach the caller; it is kept in the
 message's ``response_metadata`` and logged as a warning whose record carries
-``claude_code_outside_text`` (its length), so a caller can count such calls.
+``claude_code_outside_text`` (its length), ``claude_code_final`` (whether the
+response is a final answer rather than tool calls; None when the response was
+unusable) and ``claude_code_content_length`` (the length of the response's
+content, the JSON text for structured output), so a
+caller can count such calls and spot a final answer that only points to text
+it never received.
 
 Limits: no token streaming, no async calls, no sampling or length settings,
 and Claude Code adds the real current date to every call, so a run for a past
@@ -287,18 +292,37 @@ class ChatClaudeCode(BaseChatModel):
             # With a schema only the structured response is the answer; the CLI
             # runs no tools of its own, so all of this text is outside it.
             metadata["claude_code"]["outside_text"] = text
-            logger.warning("Claude Code wrote %d characters outside the structured response; "
-                           "they do not reach the caller", len(text),
-                           extra={"claude_code_outside_text": len(text)})
-        if self.response_schema is not None:
-            message = AIMessage(content=json.dumps(self._structured(result)),
-                                response_metadata=metadata)
-        elif self.tool_envelope is not None:
-            message = self._tool_message(self._structured(result), metadata)
-        else:
-            message = AIMessage(content=result.get("result") or "", response_metadata=metadata)
+        message = None
+        try:
+            if self.response_schema is not None:
+                message = AIMessage(content=json.dumps(self._structured(result)),
+                                    response_metadata=metadata)
+            elif self.tool_envelope is not None:
+                message = self._tool_message(self._structured(result), metadata)
+            else:
+                message = AIMessage(content=result.get("result") or "", response_metadata=metadata)
+        finally:
+            if "outside_text" in metadata["claude_code"]:
+                self._warn_outside_text(text, message)
         message.usage_metadata = _usage(result.get("usage"))
         return ChatResult(generations=[ChatGeneration(message=message)])
+
+    @staticmethod
+    def _warn_outside_text(text: str, message: AIMessage | None) -> None:
+        """Log text that did not reach the caller, also when the response was unusable.
+
+        Text beside tool calls is usually narration; beside a final answer it may
+        be the answer itself, with content only pointing to it. Without a usable
+        response (``message`` is None) whether it was final is unknown (None).
+        """
+        final = None if message is None else not message.tool_calls
+        inside = 0 if message is None else len(message.content)
+        kind = {None: "no usable response", True: "final answer", False: "tool calls"}[final]
+        logger.warning("Claude Code wrote %d characters outside the structured response "
+                       "(%s, %d characters inside); they do not reach the caller",
+                       len(text), kind, inside,
+                       extra={"claude_code_outside_text": len(text), "claude_code_final": final,
+                              "claude_code_content_length": inside})
 
     @staticmethod
     def _structured(result: dict) -> dict:

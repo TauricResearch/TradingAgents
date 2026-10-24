@@ -345,12 +345,37 @@ class TestOutsideText:
         assert out.response_metadata["claude_code"]["outside_text"] == REPORT
         (record,) = [r for r in caplog.records if hasattr(r, "claude_code_outside_text")]
         assert record.claude_code_outside_text == len(REPORT)
+        assert record.claude_code_final is True
+        assert record.claude_code_content_length == len("See the report above.")
 
-    def test_structured_output_records_the_text(self, fake):
+    def test_text_beside_tool_calls_is_not_a_final_answer(self, fake, caplog):
+        exe, respond, _ = fake
+        respond(blocks=[{"type": "text", "text": "Let me fetch the price."}],
+                structured_output={"content": "", "tool_calls": [
+                    {"name": "get_price", "args": {"ticker": "AAPL", "date": "2026-08-07"}}]})
+        with caplog.at_level(logging.WARNING):
+            out = model(exe).bind_tools([get_price]).invoke("Price?")
+        assert [c["name"] for c in out.tool_calls] == ["get_price"]
+        (record,) = [r for r in caplog.records if hasattr(r, "claude_code_outside_text")]
+        assert (record.claude_code_final, record.claude_code_content_length) == (False, 0)
+
+    def test_structured_output_records_the_text(self, fake, caplog):
         exe, respond, _ = fake
         respond(blocks=OUTSIDE, structured_output={"rating": "Buy", "reason": "cheap"})
-        out = model(exe).with_structured_output(Decision).first.invoke("Decide")
+        with caplog.at_level(logging.WARNING):
+            out = model(exe).with_structured_output(Decision).first.invoke("Decide")
         assert out.response_metadata["claude_code"]["outside_text"] == REPORT
+        (record,) = [r for r in caplog.records if hasattr(r, "claude_code_outside_text")]
+        assert record.claude_code_final is True
+        assert record.claude_code_content_length == len(out.content)
+
+    def test_text_beside_an_unusable_response_is_still_logged(self, fake, caplog):
+        exe, respond, _ = fake
+        respond(blocks=OUTSIDE, result="no structured output")
+        with caplog.at_level(logging.WARNING), pytest.raises(ClaudeCodeError):
+            model(exe).bind_tools([get_price]).invoke("Report")
+        (record,) = [r for r in caplog.records if hasattr(r, "claude_code_outside_text")]
+        assert (record.claude_code_outside_text, record.claude_code_final) == (len(REPORT), None)
 
     def test_texts_of_several_turns_are_joined(self, fake):
         exe, respond, _ = fake
