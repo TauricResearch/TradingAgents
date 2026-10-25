@@ -8,6 +8,8 @@ WRAP_UP = (
     "You have used every tool round this report allows. Write your final report "
     "now from the tool results above, and say which data you could not retrieve."
 )
+_MAX_WRAP_UP_HISTORY_CHARS = 48_000
+_TRUNCATED = "\n[Earlier tool output truncated to keep this final report within the model context.]\n"
 
 
 def take_turn(prompt, llm, tools, messages):
@@ -39,4 +41,27 @@ def _as_text(messages):
             written.append(HumanMessage(content=f"[{message.name or 'Tool'} returned]\n{message.content}"))
         else:
             written.append(message)
-    return written
+    return _trim_history(written)
+
+
+def _trim_history(messages):
+    """Keep recent tool results when a long tool loop would exceed model context."""
+    excess = sum(len(str(message.content)) for message in messages) - _MAX_WRAP_UP_HISTORY_CHARS
+    if excess <= 0:
+        return messages
+
+    for message in messages:
+        if excess <= 0:
+            break
+        if (not isinstance(message, HumanMessage) or not isinstance(message.content, str)
+                or not message.content.startswith("[")):
+            continue
+        content = message.content
+        minimum = len(_TRUNCATED) + 1
+        removable = max(0, len(content) - minimum)
+        removed = min(excess, removable)
+        if removed:
+            keep = len(content) - removed - len(_TRUNCATED)
+            message.content = content[:keep] + _TRUNCATED
+            excess -= removed
+    return messages

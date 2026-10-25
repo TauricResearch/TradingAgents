@@ -20,6 +20,7 @@ from pydantic import Field
 
 from tradingagents.agents import context, schemas
 from tradingagents.agents.analysts import sentiment_analyst
+from tradingagents.agents.analysts.turn import _MAX_WRAP_UP_HISTORY_CHARS, _as_text
 from tradingagents.dataflows import router
 from tradingagents.dataflows.vendors.yahoo import market as yahoo_market, snapshot
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -282,6 +283,22 @@ def test_the_last_turn_is_offered_no_tools_and_reads_its_tool_results_as_text(tm
         assert not any(isinstance(m, ToolMessage) or getattr(m, "tool_calls", None) for m in history)
         assert any("returned]" in str(m.content) for m in history)
         assert "tool rounds are spent" in history[0].content   # the system prompt lists no tools
+
+
+@pytest.mark.unit
+def test_wrap_up_history_is_bounded_after_large_tool_results():
+    """A local model must not receive every megabyte returned across tool rounds (#1492)."""
+    history = [
+        HumanMessage(content="NVDA"),
+        ToolMessage(content="old result " + "x" * _MAX_WRAP_UP_HISTORY_CHARS, tool_call_id="old"),
+        ToolMessage(content="latest result", tool_call_id="latest"),
+    ]
+
+    text_history = _as_text(history)
+
+    assert sum(len(str(message.content)) for message in text_history) <= _MAX_WRAP_UP_HISTORY_CHARS
+    assert "latest result" in text_history[-1].content
+    assert "truncated" in text_history[1].content
 
 
 @pytest.mark.unit
