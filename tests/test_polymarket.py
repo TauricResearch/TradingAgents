@@ -56,6 +56,20 @@ class PolymarketFilterTests(unittest.TestCase):
         self.assertNotIn("Resolved already?", out)  # closed
         self.assertNotIn("Past event?", out)         # endDate in the past
 
+    def test_a_date_without_a_timezone_does_not_drop_the_search(self):
+        """Gamma sometimes sends a date-only or naive endDate. Comparing that
+        to an aware clock raises, and the whole search was lost."""
+        payload = {"events": [{"markets": [
+            _market("Date only future?", 0.55, volume=2_000_000, end_date="2030-12-31"),
+            _market("Date only past?", 0.40, volume=3_000_000, end_date="2020-01-01"),
+            _market("Naive future?", 0.20, volume=500_000, end_date="2030-06-01T00:00:00"),
+        ]}]}
+        with mock.patch.object(polymarket, "_request", return_value=payload):
+            out = polymarket.get_prediction_markets("anything", limit=10)
+        self.assertIn("Date only future?", out)
+        self.assertIn("Naive future?", out)
+        self.assertNotIn("Date only past?", out)
+
     def test_ranked_by_volume(self):
         with mock.patch.object(polymarket, "_request", return_value=_SEARCH):
             out = polymarket.get_prediction_markets("anything", limit=10)

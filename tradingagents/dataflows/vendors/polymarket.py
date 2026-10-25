@@ -58,9 +58,14 @@ def _is_forward_looking(market: dict, now: datetime) -> bool:
     end_date = market.get("endDate")
     if end_date:
         try:
-            if datetime.fromisoformat(end_date.replace("Z", "+00:00")) < now:
+            # A date-only or naive endDate has no offset. Comparing it with the
+            # aware clock raises TypeError and drops the whole search.
+            parsed = datetime.fromisoformat(str(end_date).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=UTC)
+            if parsed < now:
                 return False
-        except ValueError:
+        except (ValueError, TypeError):
             pass
     return bool(_parse_json_list(market.get("outcomePrices"))) and bool(
         _parse_json_list(market.get("outcomes"))
