@@ -98,6 +98,8 @@ def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, 
     start, old_end = _parse(start_date), _parse(end_date)
     if start is None:
         raise ValueError(f"start_date {start_date!r} is not a date; give it as YYYY-MM-DD")
+    if old_end is not None and start > old_end:
+        raise ValueError("start_date must be on or before end_date")
     end = as_of(end_date, trade_date)
     if end == end_date or start <= _parse(end):
         return start_date, end

@@ -152,6 +152,14 @@ def test_a_window_whose_start_is_not_a_date_is_refused():
         as_of_window("2026-09-26\u0629", "2026-10-03", "2026-10-03")
 
 
+@pytest.mark.unit
+def test_an_inverted_window_is_refused_instead_of_becoming_one_day():
+    """A reversed range silently became a one-day window at its end, so the
+    caller got unrelated prices instead of being told to correct the dates."""
+    with pytest.raises(ValueError, match="before end_date"):
+        as_of_window("2026-08-12", "2026-08-01", TRADE_DATE)
+
+
 # --- the run date itself (#1319) -------------------------------------------------
 
 @pytest.mark.unit
