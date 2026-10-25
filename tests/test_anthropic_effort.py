@@ -68,6 +68,22 @@ class TestEffortGate:
         mod.AnthropicClient(model=model, effort="high", api_key="x").get_llm()
         assert captured["kwargs"]["effort"] == "high"
 
+    @pytest.mark.parametrize(
+        "model",
+        ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-sonnet-4-5-20250929"],
+    )
+    def test_dated_snapshot_of_an_unsupported_model_does_not_receive_effort(self, monkeypatch, model):
+        """A snapshot date is not a minor version: Sonnet 4 is not Sonnet 4.20250514."""
+        captured = _capture_kwargs(monkeypatch)
+        mod.AnthropicClient(model=model, effort="high", api_key="x").get_llm()
+        assert "effort" not in captured["kwargs"]
+
+    @pytest.mark.parametrize("model", ["claude-opus-4-5-20251101", "claude-opus-4-1-20250805"])
+    def test_dated_snapshot_is_gated_by_its_own_version(self, monkeypatch, model):
+        captured = _capture_kwargs(monkeypatch)
+        mod.AnthropicClient(model=model, effort="high", api_key="x").get_llm()
+        assert ("effort" in captured["kwargs"]) == (model == "claude-opus-4-5-20251101")
+
     def test_mythos_preview_receives_effort(self, monkeypatch):
         captured = _capture_kwargs(monkeypatch)
         mod.AnthropicClient(

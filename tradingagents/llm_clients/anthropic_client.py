@@ -20,7 +20,8 @@ _EFFORT_EXACT = {
     "claude-mythos-preview",  # non-standard preview name; effort-capable
     "claude-mythos-5",        # Fable 5 twin (Project Glasswing); effort-capable
 }
-_EFFORT_MODEL = re.compile(r"^claude-(opus|sonnet|fable)-(\d+)(?:-(\d+))?$")
+# A dated snapshot (``claude-sonnet-4-20250514``) ends in an 8-digit date, not a minor version.
+_EFFORT_MODEL = re.compile(r"^claude-(opus|sonnet|fable)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?$")
 _EFFORT_MIN_VERSION = {"opus": (4, 5), "sonnet": (4, 6), "fable": (5, 0)}
 
 
