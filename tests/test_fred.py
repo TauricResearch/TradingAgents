@@ -214,6 +214,24 @@ class FredFormattingTests(unittest.TestCase):
         # the observation window still tracks as_of_date, not the clamped vintage
         self.assertEqual(captured["series/observations"]["observation_end"], "2026-09-01")
 
+    def test_an_unpadded_date_does_not_select_a_later_vintage(self):
+        """strptime accepts 2026-9-30, but lexical min treated it as later than
+        2026-10-01 and leaked the October vintage into September's table."""
+        captured = {}
+
+        def _capture(path, params):
+            captured[path] = params
+            return _META if path == "series" else _OBS
+
+        with mock.patch.object(fred, "_fred_today", return_value="2026-10-01"), \
+                mock.patch.object(fred, "_request", side_effect=_capture):
+            out = fred.get_macro_data("cpi", "2026-9-30", 90)
+
+        for path in ("series", "series/observations"):
+            self.assertEqual(captured[path]["realtime_start"], "2026-09-30", path)
+            self.assertEqual(captured[path]["realtime_end"], "2026-09-30", path)
+        self.assertIn("Window: 2026-07-02 to 2026-09-30", out)
+
 
 @pytest.mark.unit
 class FredRoutingTests(unittest.TestCase):
