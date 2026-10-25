@@ -10,6 +10,7 @@ free-text generation and the rating is read from that text.
 
 from __future__ import annotations
 
+from tradingagents.agents.consistency import decision_level_warnings, trader_entry_price
 from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
@@ -79,7 +80,8 @@ Write these sections, in this order, starting with the rating on its own line:
         # Read back from text, a rating the thesis quotes could replace it.
         decision = invoke_structured(structured_llm, prompt, "Portfolio Manager")
         if decision is not None:
-            final_trade_decision = render_pm_decision(decision)
+            warnings = decision_level_warnings(decision, trader_entry_price(trader_plan))
+            final_trade_decision = render_pm_decision(decision, warnings)
             final_rating = decision.rating.value
         else:
             final_trade_decision = llm.invoke(prompt).content

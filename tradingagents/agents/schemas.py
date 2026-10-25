@@ -18,6 +18,7 @@ so that:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import StrEnum
 from typing import Literal
 
@@ -188,7 +189,7 @@ class TraderProposal(BaseModel):
         return _coerce_optional_float(v)
 
 
-def render_trader_proposal(proposal: TraderProposal) -> str:
+def render_trader_proposal(proposal: TraderProposal, warnings: Sequence[str] = ()) -> str:
     """Render a TraderProposal to markdown.
 
     The trailing ``FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**`` line is
@@ -206,6 +207,8 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
                          ("Stop Loss", proposal.stop_loss),
                          ("Position Sizing", proposal.position_sizing)):
         parts.extend(["", f"**{label}**: {value if value is not None and value != '' else 'not provided'}"])
+    for warning in warnings:
+        parts.extend(["", f"**Level Check**: {warning}"])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
@@ -265,7 +268,7 @@ class PortfolioDecision(BaseModel):
         return _coerce_optional_float(v)
 
 
-def render_pm_decision(decision: PortfolioDecision) -> str:
+def render_pm_decision(decision: PortfolioDecision, warnings: Sequence[str] = ()) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
 
     Memory log, CLI display, and saved report files all read this markdown,
@@ -285,6 +288,8 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     target = decision.price_target if decision.price_target is not None else "not provided"
     parts.extend(["", f"**Price Target**: {target}"])
     parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'not provided'}"])
+    for warning in warnings:
+        parts.extend(["", f"**Level Check**: {warning}"])
     return "\n".join(parts)
 
 
