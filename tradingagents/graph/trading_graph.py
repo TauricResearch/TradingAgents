@@ -288,7 +288,14 @@ class TradingAgentsGraph:
     def default_report_path(self, ticker) -> Path:
         """Where a run's reports go unless told otherwise: under results_dir, stamped now."""
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return Path(self.config["results_dir"]) / "reports" / f"{safe_ticker_component(ticker)}_{stamp}"
+        reports_dir = Path(self.config["results_dir"]) / "reports"
+        stem = f"{safe_ticker_component(ticker)}_{stamp}"
+        path = reports_dir / stem
+        suffix = 2
+        while path.exists():
+            path = reports_dir / f"{stem}_{suffix}"
+            suffix += 1
+        return path
 
     def create_run_state(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
         """Build a run's initial state; propagate() and the CLI both start here.

@@ -133,3 +133,23 @@ def test_the_header_names_the_analysts_as_users_select_them(tmp_path):
     page = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
     fields = re.findall(r'<span class="field">([^<]*)</span>', page)
     assert {"market", "sentiment", "news"} <= set(fields) and "social" not in page
+
+@pytest.mark.unit
+def test_two_reports_for_same_ticker_in_one_second_use_distinct_paths(tmp_path, monkeypatch):
+    """Second-resolution names otherwise overwrite a completed report."""
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path)}
+    graph.run_settings = lambda: SETTINGS
+
+    class FixedDateTime:
+        @classmethod
+        def now(cls):
+            return __import__("datetime").datetime(2026, 10, 25, 12, 0, 0)
+
+    monkeypatch.setattr("tradingagents.graph.trading_graph.datetime", FixedDateTime)
+    first = graph.save_reports(dict(_state(), market_report="first"), "AAPL")
+    second = graph.save_reports(dict(_state(), market_report="second"), "AAPL")
+
+    assert first != second
+    assert "first" in first.read_text(encoding="utf-8")
+    assert "second" in second.read_text(encoding="utf-8")
