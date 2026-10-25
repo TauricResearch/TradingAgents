@@ -19,6 +19,7 @@ from __future__ import annotations
 import html
 import http.client
 import logging
+import math
 import random
 import re
 import time
@@ -160,7 +161,10 @@ def _retry_after_seconds(exc: HTTPError) -> float | None:
     """
     try:
         val = exc.headers.get("Retry-After") if getattr(exc, "headers", None) else None
-        return min(float(val), 60.0) if val is not None else None
+        seconds = float(val) if val is not None else None
+        if seconds is None or not math.isfinite(seconds) or seconds < 0:
+            return None
+        return min(seconds, 60.0)
     except (ValueError, TypeError, AttributeError):
         return None
 

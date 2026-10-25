@@ -124,6 +124,18 @@ class TestRss429Backoff:
             reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
         slept.assert_called_once_with(0.0)
 
+    @pytest.mark.parametrize("value", ["-1", "nan"])
+    def test_invalid_retry_after_uses_the_safe_fallback(self, value):
+        """A negative or non-finite retry delay is invalid. Passing it to
+        sleep raised ValueError and turned a rate limit into a failed fetch."""
+        err = HTTPError("url", 429, "Too Many Requests", {"Retry-After": value}, None)
+        with patch.object(reddit, "urlopen", side_effect=[err, _atom_resp()]), \
+             patch.object(reddit.time, "sleep") as slept:
+            posts = reddit._fetch_subreddit_rss("NVDA", "stocks", 5, 5.0)
+        assert len(posts) == 2
+        (wait,), _ = slept.call_args
+        assert 48.0 <= wait <= 72.0
+
     def test_headerless_429_fallback_is_jittered(self):
         # No Retry-After -> our own ~5s fallback, jittered so concurrent runs
         # don't retry in lockstep (kept within a tight band).
