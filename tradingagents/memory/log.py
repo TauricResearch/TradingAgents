@@ -107,9 +107,16 @@ class TradingMemoryLog:
             entries = [e for e in entries if e.get("resolved") and e["resolved"] <= as_of]
         if not entries:
             return ""
+        # Decision date is recency. A later rerun of an older date is appended
+        # last, and file order would otherwise present it as the newest lesson.
+        entries = [
+            entry for _, entry in sorted(
+                enumerate(entries), key=lambda item: (item[1]["date"], item[0]), reverse=True
+            )
+        ]
 
         same, cross = [], []
-        for e in reversed(entries):
+        for e in entries:
             if len(same) >= n_same and len(cross) >= n_cross:
                 break
             if e["ticker"] == ticker and len(same) < n_same:

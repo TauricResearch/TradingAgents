@@ -841,6 +841,21 @@ class TestPortfolioManagerInjection:
         assert "Overvalued correction." in result
         assert "Exit position immediately." not in result
 
+    def test_an_older_rerun_does_not_displace_the_newest_lesson(self, tmp_path):
+        """Recency is the decision date, so a later backfill cannot hide it."""
+        log = make_log(tmp_path)
+        _resolve_entry(log, "NVDA", "2026-06-01", "June decision", "June lesson.")
+        for day in range(1, 6):
+            _resolve_entry(log, "NVDA", f"2026-01-{day:02d}", f"January {day}", f"January lesson {day}.")
+
+        captured = {}
+        create_portfolio_manager(_structured_pm_llm(captured))(
+            _make_pm_state(log.get_past_context("NVDA"))
+        )
+
+        assert "June lesson." in captured["prompt"]
+        assert "January lesson 1." not in captured["prompt"]
+
     def test_n_same_limit_respected(self, tmp_path):
         """More than 5 same-ticker completed entries → only 5 injected."""
         log = make_log(tmp_path)
