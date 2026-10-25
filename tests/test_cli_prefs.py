@@ -102,8 +102,8 @@ def _answer_every_prompt(monkeypatch):
     monkeypatch.setattr(cli_selections, "select_analysts", lambda asset_type, default=None: [AnalystType.MARKET])
     monkeypatch.setattr(cli_selections, "select_research_depth", lambda default=None: 3)
     monkeypatch.setattr(cli_selections, "select_llm_provider", lambda default=None: ("openai", None))
-    monkeypatch.setattr(cli_selections, "select_shallow_thinking_agent", lambda p, default=None: "gpt-5.6-mini")
-    monkeypatch.setattr(cli_selections, "select_deep_thinking_agent", lambda p, default=None: "gpt-5.6")
+    monkeypatch.setattr(cli_selections, "select_shallow_thinking_agent", lambda p, default=None, backend_url=None: "gpt-5.6-mini")
+    monkeypatch.setattr(cli_selections, "select_deep_thinking_agent", lambda p, default=None, backend_url=None: "gpt-5.6")
     monkeypatch.setattr(cli_selections, "ask_openai_reasoning_effort", lambda: "medium")
     return m
 
@@ -153,8 +153,8 @@ def test_a_remembered_endpoint_is_offered_back(monkeypatch):
     monkeypatch.setattr(cli_selections, "ask_output_language", lambda default=None: "English")
     monkeypatch.setattr(cli_selections, "select_analysts", lambda asset_type, default=None: [AnalystType.MARKET])
     monkeypatch.setattr(cli_selections, "select_research_depth", lambda default=None: 1)
-    monkeypatch.setattr(cli_selections, "select_shallow_thinking_agent", lambda p, default=None: "local-model")
-    monkeypatch.setattr(cli_selections, "select_deep_thinking_agent", lambda p, default=None: "local-model")
+    monkeypatch.setattr(cli_selections, "select_shallow_thinking_agent", lambda p, default=None, backend_url=None: "local-model")
+    monkeypatch.setattr(cli_selections, "select_deep_thinking_agent", lambda p, default=None, backend_url=None: "local-model")
 
     cli_selections.get_user_selections()
 

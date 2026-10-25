@@ -315,10 +315,10 @@ def _prompt_selections(prefs, flags):
         )
         remembered = prefs if prefs.get("llm_provider") == selected_llm_provider else {}
         selected_shallow_thinker = select_shallow_thinking_agent(
-            selected_llm_provider, remembered.get("quick_think_llm")
+            selected_llm_provider, remembered.get("quick_think_llm"), backend_url
         )
         selected_deep_thinker = select_deep_thinking_agent(
-            selected_llm_provider, remembered.get("deep_think_llm")
+            selected_llm_provider, remembered.get("deep_think_llm"), backend_url
         )
 
     # Step 8: Provider-specific reasoning/thinking configuration. Each knob is

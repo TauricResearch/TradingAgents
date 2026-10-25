@@ -1,4 +1,5 @@
 import datetime
+import functools
 import os
 import subprocess
 import sys
@@ -319,17 +320,50 @@ def select_openrouter_model(mode: str, default=None) -> str:
 # Providers whose models are listed live, with the menu that offers them.
 LISTED_LIVE = {"openrouter": select_openrouter_model, "chatgpt": select_chatgpt_model}
 
+# Local servers (Ollama, LM Studio, vLLM, llama.cpp) list the models they serve
+# at <base_url>/models, so the model can be picked rather than typed.
+LISTED_BY_SERVER = ("ollama", "openai_compatible")
+
+
+@functools.cache
+def _fetch_server_models(base_url: str, provider: str) -> tuple[tuple[str, str], ...]:
+    """The models an OpenAI-compatible server lists; empty when it cannot be asked.
+
+    Cached so the quick and deep prompts ask the server, and warn, once.
+    """
+    import requests
+    key_env = get_api_key_env(provider)
+    key = os.environ.get(key_env) if key_env else None
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    try:
+        resp = requests.get(f"{base_url.rstrip('/')}/models", headers=headers, timeout=5)
+        resp.raise_for_status()
+        ids = sorted({m["id"] for m in resp.json().get("data", []) if m.get("id")})
+        return tuple((mid, mid) for mid in ids)
+    except Exception as e:
+        console.print(f"\n[yellow]Could not list the models at {escape(base_url)}: "
+                      f"{escape(str(e))}[/yellow]")
+        return ()
+
 
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
     return _require_text("Enter model ID:", "Please enter a model ID.")
 
 
-def _select_model(provider: str, mode: str, default=None) -> str:
+def _select_model(provider: str, mode: str, default=None, backend_url=None) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     listed = LISTED_LIVE.get(provider.lower())
     if listed is not None:
         return listed(mode, default)
+
+    # A server that cannot be asked falls through to the menu below.
+    if provider.lower() in LISTED_BY_SERVER and backend_url:
+        served = _fetch_server_models(backend_url, provider.lower())
+        if served:
+            return _select_listed_model(
+                f"Select Your [{mode.title()}-Thinking] Model (served at {backend_url}):",
+                served, default, _prompt_custom_model_id)
 
     if provider.lower() == "azure":
         return _require_text(
@@ -358,14 +392,14 @@ def _select_model(provider: str, mode: str, default=None) -> str:
     return choice
 
 
-def select_shallow_thinking_agent(provider, default=None) -> str:
+def select_shallow_thinking_agent(provider, default=None, backend_url=None) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
-    return _select_model(provider, "quick", default)
+    return _select_model(provider, "quick", default, backend_url)
 
 
-def select_deep_thinking_agent(provider, default=None) -> str:
+def select_deep_thinking_agent(provider, default=None, backend_url=None) -> str:
     """Select deep thinking llm engine using an interactive selection."""
-    return _select_model(provider, "deep", default)
+    return _select_model(provider, "deep", default, backend_url)
 
 
 def _llm_provider_table() -> list[tuple[str, str, str | None]]:
