@@ -141,6 +141,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
 
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
+        func = getattr(func, "_tradingagents_original", func)
 
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -149,10 +150,12 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             content = content.replace("\n", " ")  # Replace newlines with spaces
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
+        wrapper._tradingagents_original = func
         return wrapper
 
     def save_tool_call_decorator(obj, func_name):
         func = getattr(obj, func_name)
+        func = getattr(func, "_tradingagents_original", func)
 
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -161,10 +164,12 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+        wrapper._tradingagents_original = func
         return wrapper
 
     def save_report_section_decorator(obj, func_name):
         func = getattr(obj, func_name)
+        func = getattr(func, "_tradingagents_original", func)
 
         @wraps(func)
         def wrapper(section_name, content):
@@ -176,6 +181,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
                     text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
                     with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(text)
+        wrapper._tradingagents_original = func
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")

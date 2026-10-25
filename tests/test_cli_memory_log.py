@@ -116,12 +116,12 @@ class _FakeBuffer:
         self.agent_status[agent] = status
 
 
-def _run_cli(monkeypatch, tmp_path, fake):
+def _run_cli(monkeypatch, tmp_path, fake, buffer=None):
     """Drive run_analysis against ``fake``; returns the message buffer."""
     import cli.main as m
     from cli.models import AnalystType
 
-    buffer = _FakeBuffer()
+    buffer = buffer or _FakeBuffer()
     monkeypatch.setattr(cli_run, "TradingAgentsGraph", lambda *a, **k: fake)
     monkeypatch.setattr(cli_run, "message_buffer", buffer)
     monkeypatch.setattr(cli_run, "create_layout", lambda: None)
@@ -167,6 +167,17 @@ def test_a_run_without_checkpointing_says_nothing_about_resuming(tmp_path, monke
     buffer = _run_cli(monkeypatch, tmp_path, _FakeGraph())
 
     assert not any("resum" in text.lower() or "fresh" in text.lower() for _, _, text in buffer.messages)
+
+
+@pytest.mark.unit
+def test_a_second_run_does_not_append_to_the_first_runs_message_log(tmp_path, monkeypatch):
+    buffer = _run_cli(monkeypatch, tmp_path / "first", _FakeGraph())
+    first_log = tmp_path / "first" / "results" / "NVDA" / "2026-01-10" / "message_tool.log"
+    first_contents = first_log.read_text(encoding="utf-8")
+
+    _run_cli(monkeypatch, tmp_path / "second", _FakeGraph(), buffer)
+
+    assert first_log.read_text(encoding="utf-8") == first_contents
 
 
 @pytest.mark.unit
