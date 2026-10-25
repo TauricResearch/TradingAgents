@@ -138,7 +138,7 @@ def get_prediction_markets(topic: str, limit: int | None = None, as_of_date: str
         wk = m.get("oneWeekPriceChange")
         wk_str = (
             f", 1-week {wk * 100:+.1f}pp"
-            if isinstance(wk, (int, float)) and wk
+            if isinstance(wk, (int, float))
             else ""
         )
         lines.append(

@@ -85,6 +85,16 @@ class PolymarketFormatTests(unittest.TestCase):
         small_line = next(ln for ln in out.splitlines() if "Open small?" in ln)
         self.assertNotIn("1-week", small_line)
 
+    def test_zero_weekly_change_is_reported_not_omitted(self):
+        """A reported zero means the odds were unchanged. Omitting it makes a
+        known zero indistinguishable from a feed that gave no weekly value."""
+        payload = {"events": [{"markets": [
+            _market("Unchanged?", 0.50, volume=1_000, end_date="2030-12-31T00:00:00Z", wk=0),
+        ]}]}
+        with mock.patch.object(polymarket, "_request", return_value=payload):
+            out = polymarket.get_prediction_markets("anything", limit=10)
+        self.assertIn("1-week +0.0pp", out)
+
     def test_no_matches_reports_clearly(self):
         with mock.patch.object(polymarket, "_request", return_value={"events": []}):
             out = polymarket.get_prediction_markets("obscure ticker", limit=6)
