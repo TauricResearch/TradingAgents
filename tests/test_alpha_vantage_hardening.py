@@ -219,6 +219,45 @@ def test_an_indicator_this_vendor_lacks_lets_the_next_one_serve_it(indicator):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("body", [
+    "time,SMA\n",
+    "time,OTHER\n2024-05-10,1\n",
+    "time,SMA\n2020-01-02,1.5\n",
+])
+def test_an_empty_indicator_answer_is_no_data(monkeypatch, body):
+    """A header, a missing value column, or rows outside the window used to
+    come back as prose. The router treats any string as success, so yfinance
+    never got to compute the indicator."""
+    from tradingagents.dataflows.errors import NoMarketDataError
+    from tradingagents.dataflows.vendors.alpha_vantage import indicator as avi
+
+    monkeypatch.setattr(avi, "_make_api_request", lambda *a, **k: body)
+    with pytest.raises(NoMarketDataError):
+        avi.get_indicator("AAPL", "close_50_sma", "2024-05-10", 5)
+
+
+@pytest.mark.unit
+def test_an_empty_indicator_does_not_stop_the_vendor_chain(monkeypatch):
+    from tradingagents.dataflows import router
+    from tradingagents.dataflows.config import set_config
+    from tradingagents.dataflows.vendors.alpha_vantage import indicator as avi
+
+    monkeypatch.setattr(avi, "_make_api_request", lambda *a, **k: "time,RSI\n")
+    monkeypatch.setitem(router.VENDOR_METHODS["get_indicators"], "yfinance", lambda *a, **k: "YF_RSI")
+    set_config({"data_vendors": {"technical_indicators": "alpha_vantage,yfinance"}})
+    assert router.route_to_vendor("get_indicators", "AAPL", "rsi", "2024-05-10", 30) == "YF_RSI"
+
+
+@pytest.mark.unit
+def test_an_indicator_row_inside_the_window_is_served(monkeypatch):
+    from tradingagents.dataflows.vendors.alpha_vantage import indicator as avi
+
+    monkeypatch.setattr(avi, "_make_api_request", lambda *a, **k: "time,SMA\n2024-05-10,12.5\n")
+    out = avi.get_indicator("AAPL", "close_50_sma", "2024-05-10", 30)
+    assert "2024-05-10: 12.5" in out
+
+
+@pytest.mark.unit
 def test_ticker_news_asks_for_only_as_many_articles_as_configured(monkeypatch):
     """The endpoint returns 50 articles with per-article sentiment arrays by
     default, and the whole payload went into the prompt."""

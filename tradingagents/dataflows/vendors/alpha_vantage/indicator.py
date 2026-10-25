@@ -147,13 +147,16 @@ def get_indicator(
 
         lines = data.strip().split('\n')
         if len(lines) < 2:
-            return f"Error: No data returned for {indicator}"
+            # Prose would count as a successful answer and stop the vendor chain.
+            raise NoMarketDataError(symbol, symbol, f"no {indicator} rows")
 
         header = [col.strip() for col in lines[0].split(',')]
         try:
             date_col_idx = header.index('time')
         except ValueError:
-            return f"Error: 'time' column not found in data for {indicator}. Available columns: {header}"
+            raise NoMarketDataError(
+                symbol, symbol, f"{indicator} answer has no time column ({header})"
+            ) from None
 
         # Map internal indicator names to expected CSV column names from Alpha Vantage
         col_name_map = {
@@ -172,7 +175,10 @@ def get_indicator(
             try:
                 value_col_idx = header.index(target_col_name)
             except ValueError:
-                return f"Error: Column '{target_col_name}' not found for indicator '{indicator}'. Available columns: {header}"
+                raise NoMarketDataError(
+                    symbol, symbol,
+                    f"{indicator} answer has no {target_col_name!r} column ({header})",
+                ) from None
 
         result_data = []
         for line in lines[1:]:
@@ -193,12 +199,15 @@ def get_indicator(
         # Sort by date and format output
         result_data.sort(key=lambda x: x[0])
 
+        if not result_data:
+            raise NoMarketDataError(
+                symbol, symbol,
+                f"no {indicator} rows from {before:%Y-%m-%d} to {as_of_date}",
+            )
+
         ind_string = ""
         for date_dt, value in result_data:
             ind_string += f"{date_dt.strftime('%Y-%m-%d')}: {value}\n"
-
-        if not ind_string:
-            ind_string = "No data available for the specified date range.\n"
 
         result_str = (
             f"## {indicator.upper()} values from {before.strftime('%Y-%m-%d')} to {as_of_date}:\n\n"
