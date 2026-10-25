@@ -46,6 +46,15 @@ class TestStockTwitsResilience:
         assert "unavailable" in out.lower()
         assert out.startswith("<stocktwits unavailable")
 
+    def test_unknown_symbol_is_no_messages_not_an_outage(self):
+        """StockTwits answers an unknown symbol with HTTP 404. That is an
+        OSError, so it was reported as the service being down."""
+        exc = HTTPError("url", 404, "not found", {}, None)
+        with patch.object(stocktwits, "urlopen", return_value=_raise(exc)):
+            out = stocktwits.fetch_stocktwits_messages("NOTREAL")
+        assert out == "<no StockTwits messages found for $NOTREAL>"
+        assert "unavailable" not in out
+
 
 @pytest.mark.unit
 class TestStockTwitsCryptoSymbols:

@@ -20,6 +20,7 @@ import http.client
 import json
 import logging
 from datetime import datetime
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from tradingagents.dataflows.date_window import coverage_gap, in_window
@@ -99,6 +100,14 @@ def fetch_stocktwits_messages(
     try:
         with urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read())
+    except HTTPError as exc:
+        # 404 is the symbol, not an outage. HTTPError is an OSError, so it has
+        # to be handled before the transport handler below.
+        if exc.code == 404:
+            logger.warning("StockTwits has no symbol %s", ticker)
+            return f"<no StockTwits messages found for ${ticker.upper()}>"
+        logger.warning("StockTwits fetch failed for %s: %s", ticker, exc)
+        return f"<stocktwits unavailable: {type(exc).__name__}>"
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).
