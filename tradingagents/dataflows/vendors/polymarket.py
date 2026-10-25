@@ -136,13 +136,16 @@ def get_prediction_markets(topic: str, limit: int | None = None, as_of_date: str
         volume = m.get("volumeNum") or 0
         end_date = (m.get("endDate") or "")[:10]
         wk = m.get("oneWeekPriceChange")
+        probability = f"{prob:.0%}"
+        if probability == "0%" and prob != 0:
+            probability = f"{prob:.1%}"
         wk_str = (
             f", 1-week {wk * 100:+.1f}pp"
             if isinstance(wk, (int, float)) and wk
             else ""
         )
         lines.append(
-            f"- **{m.get('question')}** — {label} {prob:.0%} "
+            f"- **{m.get('question')}** — {label} {probability} "
             f"(${volume:,.0f} volume, resolves {end_date}{wk_str})"
         )
 

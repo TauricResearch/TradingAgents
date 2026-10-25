@@ -85,6 +85,16 @@ class PolymarketFormatTests(unittest.TestCase):
         small_line = next(ln for ln in out.splitlines() if "Open small?" in ln)
         self.assertNotIn("1-week", small_line)
 
+    def test_a_small_nonzero_probability_is_not_printed_as_zero(self):
+        """A 0.4% contract was formatted as 0%, changing a non-zero market
+        price into an impossible one."""
+        payload = {"events": [{"markets": [
+            _market("Long shot?", 0.004, volume=1_000, end_date="2030-12-31T00:00:00Z"),
+        ]}]}
+        with mock.patch.object(polymarket, "_request", return_value=payload):
+            out = polymarket.get_prediction_markets("anything", limit=10)
+        self.assertIn("Yes 0.4%", out)
+
     def test_no_matches_reports_clearly(self):
         with mock.patch.object(polymarket, "_request", return_value={"events": []}):
             out = polymarket.get_prediction_markets("obscure ticker", limit=6)
