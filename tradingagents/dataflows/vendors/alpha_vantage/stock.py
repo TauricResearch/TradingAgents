@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.vendors.alpha_vantage.common import (
     _filter_csv_by_date_range,
     _make_api_request,
@@ -39,4 +40,11 @@ def get_stock(
 
     response = _make_api_request("TIME_SERIES_DAILY_ADJUSTED", params)
 
-    return _filter_csv_by_date_range(response, start_date, end_date)
+    filtered = _filter_csv_by_date_range(response, start_date, end_date)
+    # A header with no rows is an empty answer. Returning it counted as success,
+    # so the next vendor never ran and the analyst got a blank price table.
+    if not filtered or "\n" not in filtered.strip():
+        raise NoMarketDataError(
+            symbol, symbol, f"no price rows between {start_date} and {end_date}"
+        )
+    return filtered

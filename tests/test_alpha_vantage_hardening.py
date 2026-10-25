@@ -154,9 +154,30 @@ def test_unparseable_body_is_never_served_untrimmed(monkeypatch):
 
 
 @pytest.mark.unit
-def test_empty_body_still_passes_through(monkeypatch):
+def test_an_empty_price_body_is_no_data(monkeypatch):
+    """An empty body used to pass through as a successful CSV, so the next
+    vendor was never asked."""
+    from tradingagents.dataflows.errors import NoMarketDataError
+
     monkeypatch.setattr(avs, "_make_api_request", lambda *a, **k: "")
-    assert avs.get_stock("IBM", "2024-05-09", "2024-05-10") == ""
+    with pytest.raises(NoMarketDataError):
+        avs.get_stock("IBM", "2024-05-09", "2024-05-10")
+
+
+@pytest.mark.unit
+def test_a_price_window_with_no_rows_is_no_data(monkeypatch):
+    from tradingagents.dataflows import router
+    from tradingagents.dataflows.config import set_config
+    from tradingagents.dataflows.errors import NoMarketDataError
+
+    csv = "timestamp,open,high,low,close,volume\n2020-01-02,1,1,1,1,10\n"
+    monkeypatch.setattr(avs, "_make_api_request", lambda *a, **k: csv)
+    with pytest.raises(NoMarketDataError):
+        avs.get_stock("IBM", "2024-05-09", "2024-05-10")
+
+    monkeypatch.setitem(router.VENDOR_METHODS["get_stock_data"], "yfinance", lambda *a, **k: "YF_PRICES")
+    set_config({"data_vendors": {"core_stock_apis": "alpha_vantage,yfinance"}})
+    assert router.route_to_vendor("get_stock_data", "IBM", "2024-05-09", "2024-05-10") == "YF_PRICES"
 
 
 def test_request_error_message_carries_no_key(monkeypatch):
