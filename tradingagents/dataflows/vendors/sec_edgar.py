@@ -187,6 +187,15 @@ def _as_of(facts: dict, tags: tuple[str, ...], as_of_date: str, spans: tuple[tup
     return dict(sorted(values.items())), chosen_unit
 
 
+def _usd_millions(value: float) -> str:
+    """USD in millions. A non-zero amount that rounds to 0 must not read as zero."""
+    scaled = value / 1e6
+    text = f"{scaled:.0f}"
+    if text in {"0", "-0"} and scaled != 0:
+        return f"{scaled:.6f}".rstrip("0").rstrip(".")
+    return text
+
+
 def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -> str:
     as_of_date = as_of_date or datetime.now().strftime("%Y-%m-%d")
     cik = cik_for(ticker)
@@ -232,7 +241,12 @@ def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -
         cells = []
         for end, index in periods:
             value = values.get((end, index)) if chosen[label].get(end) == index else None
-            cells.append("" if value is None else f"{value / 1e6:.0f}" if unit == "USD" else f"{value:.2f}")
+            if value is None:
+                cells.append("")
+            elif unit == "USD":
+                cells.append(_usd_millions(value))
+            else:
+                cells.append(f"{value:.2f}")
         rows.append(",".join([name] + cells))
     return header + "\n".join(rows) + "\n"
 

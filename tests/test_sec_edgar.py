@@ -240,6 +240,25 @@ def test_capital_expenditure_is_found_under_either_tag_filers_use(monkeypatch):
     assert [r for r in out.splitlines() if r.startswith("Capital Expenditure")] == ["Capital Expenditure,70"]
 
 
+@pytest.mark.unit
+def test_a_sub_million_figure_is_not_printed_as_zero(monkeypatch):
+    """USD is shown in millions. A non-zero amount under about $500k rounded to
+    0 (and a negative one to -0), so the model read a real figure as nothing.
+    Half a million is the tie that banker's rounding sends to 0."""
+    facts = {"facts": {"us-gaap": {"NetCashProvidedByUsedInOperatingActivities": {"units": {"USD": [
+        _fact("2021-12-31", 70_000_000, "2022-02-10", start="2021-01-01"),
+        _fact("2022-12-31", 0, "2023-02-10", start="2022-01-01"),
+        _fact("2023-12-31", -400_000, "2024-02-10", start="2023-01-01"),
+        _fact("2024-12-31", 500_000, "2025-02-10", start="2024-01-01"),
+    ]}}}}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+    out = sec_edgar.get_cashflow("AAPL", "annual", "2025-03-01")
+    assert [r for r in out.splitlines() if r.startswith("Operating Cash Flow")] == [
+        "Operating Cash Flow,70,0,-0.4,0.5"
+    ]
+
+
 def _columns(out):
     return [line for line in out.splitlines() if line.startswith(",")][0].split(",")[1:]
 
