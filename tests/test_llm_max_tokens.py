@@ -115,3 +115,14 @@ def test_env_override_sets_config(monkeypatch):
     config = _config_with_env(monkeypatch, TRADINGAGENTS_MAX_TOKENS="8192")
     assert config["max_tokens"] == "8192"
     assert _coerce_max_tokens(config["max_tokens"]) == 8192
+
+
+@pytest.mark.unit
+def test_azure_client_forwards_max_tokens(monkeypatch):
+    from tradingagents.llm_clients.azure_client import AzureOpenAIClient
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com/")
+    monkeypatch.setenv("OPENAI_API_VERSION", "2025-03-01-preview")
+    monkeypatch.delenv("AZURE_OPENAI_DEPLOYMENT_NAME", raising=False)
+    kwargs = build_llm_kwargs({"llm_provider": "azure", "max_tokens": 8192})
+    llm = AzureOpenAIClient("gpt-6-sol", api_key="x", **kwargs).get_llm()
+    assert llm.max_tokens == 8192
