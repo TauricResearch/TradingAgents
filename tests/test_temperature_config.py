@@ -38,6 +38,13 @@ class TestTemperatureForwarding:
         # langchain's default is unset/None, not 0.0
         assert llm.temperature is None
 
+    def test_reasoning_model_drops_non_default_temperature(self):
+        llm = create_llm_client(
+            provider="openai", model="gpt-5.5", temperature=0.2, api_key="placeholder"
+        ).get_llm()
+
+        assert llm.temperature is None
+
 
 @pytest.mark.unit
 class TestTemperatureEnvOverlay:

@@ -226,6 +226,11 @@ def _supports_reasoning_effort(model: str) -> bool:
     return bool(_OPENAI_REASONING_MODEL.match(model.lower().strip()))
 
 
+def _supports_temperature(model: str) -> bool:
+    """Whether a native OpenAI model accepts a non-default temperature."""
+    return not _supports_reasoning_effort(model)
+
+
 @dataclass(frozen=True)
 class ProviderSpec:
     """Declarative config for one OpenAI-compatible provider.
@@ -400,6 +405,10 @@ class OpenAIClient(BaseLLMClient):
             if key not in self.kwargs:
                 continue
             if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+                continue
+            if (key == "temperature" and self.provider == "openai"
+                    and _is_native_openai_base_url(base_url)
+                    and not _supports_temperature(self.model)):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
