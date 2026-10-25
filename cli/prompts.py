@@ -11,6 +11,7 @@ from rich.markup import escape
 
 from cli.display import console
 from cli.models import AnalystType, AssetType
+from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS, SIGNED_IN_PROVIDERS
@@ -36,22 +37,35 @@ _MENU_STYLE = questionary.Style([
 
 
 def is_valid_ticker_input(value: str) -> bool:
-    """Whether a ticker entry is acceptable (charset + length).
+    """Whether a ticker entry is one the run can actually be given.
 
-    Allows the characters Yahoo symbols use, including ``=`` for futures/forex
-    like ``GC=F`` and ``EURUSD=X`` (#980), and ``^`` for indices. Empty input is
-    allowed (it defaults to SPY downstream).
+    The charset is not restated here: the entry is first resolved to its
+    canonical Yahoo symbol (``normalize_ticker_symbol``) — the same value the
+    run passes downstream — and that symbol is checked against
+    ``safe_ticker_component``, the guard the data layer applies before a symbol
+    becomes part of a cache, checkpoint or results path. So the prompt refuses
+    what the run would refuse anyway (full-width ``ＡＡＰＬ``, ``..``, and the
+    CFD markers ``+``/``.+``/``..+``, which resolve to an empty or all-dots
+    symbol) instead of letting the graph be built first, and accepts what the
+    data layer is built to price (``XAUUSD+``, which ``symbols.py`` maps to
+    ``GC=F``). Empty input is allowed (it defaults to SPY downstream).
     """
     v = value.strip()
-    return not v or (all(ch.isalnum() or ch in "._-^=" for ch in v) and len(v) <= 32)
+    if not v:
+        return True
+    try:
+        safe_ticker_component(normalize_ticker_symbol(v))
+    except ValueError:
+        return False
+    return True
 
 
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol, preserving exchange suffixes.
 
     Uses questionary.text (not typer.prompt, which strips trailing dot-suffixes
-    like ``000404.SH`` on some shells) and validates the symbol charset so an
-    obvious typo is caught before the run starts.
+    like ``000404.SH`` on some shells) and applies the same check the run does
+    so an obvious typo is caught before the run starts.
     """
     ticker = questionary.text(
         f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",

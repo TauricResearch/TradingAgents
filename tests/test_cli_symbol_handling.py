@@ -8,7 +8,7 @@ import pytest
 import cli.run as cli_run
 from cli.models import AssetType
 from cli.prompts import detect_asset_type, is_valid_ticker_input, normalize_ticker_symbol
-from tradingagents.dataflows.symbols import normalize_symbol
+from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
 
 
 # --- #982: stablecoin-quoted crypto normalizes to Yahoo's -USD pair ---
@@ -41,6 +41,44 @@ def test_normalize_symbol_crypto_and_passthrough(raw, expected):
 ])
 def test_ticker_input_validation(value, ok):
     assert is_valid_ticker_input(value) is ok
+
+
+# --- the prompt's answer must be the path guard's answer, not a second charset ---
+@pytest.mark.parametrize("value", [
+    # what the existing test pins
+    "GC=F", "EURUSD=X", "AAPL", "0700.HK", "^GSPC",
+    "", "bad symbol!", "A" * 40,
+    # the gaps a restated charset left: accepted here, refused after the graph
+    # was already built
+    "ＡＡＰＬ", "..", ".",
+    # refused here, although symbols.py prices it as GC=F
+    "XAUUSD+",
+    # a trailing '+' is a broker CFD marker that normalize_symbol strips, so
+    # these resolve to an empty / all-dots symbol the path guard refuses
+    "+", ".+", "..+",
+])
+def test_ticker_input_validation_agrees_with_the_path_guard(value):
+    """The CLI validator must delegate to ``safe_ticker_component``.
+
+    A charset restated in the prompt is laxer than the boundary the data layer
+    enforces on the same value: full-width ``ＡＡＰＬ`` and ``..`` passed the
+    prompt and then raised once the graph existed, while ``XAUUSD+`` — mapped to
+    ``GC=F`` by the data layer — could not be entered at all. The oracle is
+    therefore the guard applied to the *canonical* symbol, the value the run
+    actually receives, so a marker like ``+`` that ``normalize_symbol`` strips
+    to the empty string is caught here too. Empty input is the one deliberate
+    difference: the prompt allows it because it defaults to SPY downstream,
+    whereas the guard cannot (it would be an empty path component).
+    """
+    try:
+        safe_ticker_component(normalize_symbol(value))
+    except ValueError:
+        guard_accepts = False
+    else:
+        guard_accepts = True
+
+    expected = guard_accepts or value.strip() == ""
+    assert is_valid_ticker_input(value) is expected
 
 
 # --- #981/#982: asset-type classified on the canonical symbol ---
