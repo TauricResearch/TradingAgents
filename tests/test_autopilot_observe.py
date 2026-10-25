@@ -316,8 +316,12 @@ def test_second_observer_refuses_same_directory_without_touching_ledger(tmp_path
             observe.monitor(home, ["AAPL"], once=True)
         assert paper.read_bytes() == b"NO_ACCOUNT_WRITES"
     # A persistent lock FILE is not a dead observer; OS ownership has ended.
+    # Windows denies reading the locked byte while another handle owns it.
+    # Verify reacquisition INSIDE the context, then inspect bytes AFTER release.
     with observer_instance_lock(home):
-        assert lockfile.read_bytes() == b"0"
+        assert lockfile.exists()
+        assert paper.read_bytes() == b"NO_ACCOUNT_WRITES"
+    assert lockfile.read_bytes() == b"0"
 
 
 def test_observer_lock_is_automatically_released_after_crash(tmp_path):
