@@ -3,6 +3,7 @@ from typing import Annotated
 import yfinance as yf
 
 from tradingagents.dataflows.date_window import (
+    statement_frequency,
     withhold_live_profile,
     withhold_undated_statements,
     withhold_undisclosed_trades,
@@ -110,12 +111,18 @@ def _statement(ticker, freq, as_of_date, title, quarterly_attr, annual_attr) -> 
     withheld = withhold_undated_statements(as_of_date, canonical, title)
     if withheld:
         return withheld
+    kind = statement_frequency(freq)
+    if kind is None:
+        return (
+            f"# {title} data for {canonical}\n\n"
+            f"'{freq}' is not a statement frequency. Use 'quarterly' or 'annual'."
+        )
     what = title.lower()
-    attr = quarterly_attr if freq.lower() == "quarterly" else annual_attr
+    attr = quarterly_attr if kind == "quarterly" else annual_attr
     data = yf_retry(lambda: getattr(yf.Ticker(canonical), attr))
     if data is None or data.empty:
         raise_for_empty(ticker, canonical, f"{what} data")
-    return f"# {title} data for {canonical} ({freq})\n" + data.to_csv()
+    return f"# {title} data for {canonical} ({kind})\n" + data.to_csv()
 
 
 def get_balance_sheet(

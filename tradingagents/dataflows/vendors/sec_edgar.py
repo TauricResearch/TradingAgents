@@ -28,6 +28,7 @@ import requests
 
 from tradingagents import __version__
 from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.date_window import statement_frequency
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.files import replace_file
 
@@ -188,6 +189,12 @@ def _as_of(facts: dict, tags: tuple[str, ...], as_of_date: str, spans: tuple[tup
 
 
 def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -> str:
+    period = statement_frequency(freq)
+    if period is None:
+        return (
+            f"# {title} for {ticker.upper()}\n\n"
+            f"'{freq}' is not a statement frequency. Use 'quarterly' or 'annual'."
+        )
     as_of_date = as_of_date or datetime.now().strftime("%Y-%m-%d")
     cik = cik_for(ticker)
     if cik is None:
@@ -198,7 +205,7 @@ def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -
     if not us_gaap:
         raise NoMarketDataError(ticker, ticker, "US filer with no us-gaap facts")
 
-    quarterly = freq.lower() == "quarterly"
+    quarterly = period == "quarterly"
     if quarterly:
         spans = (_SPANS["quarterly"], *((low, high) for low, high, _ in _YEAR_TO_DATE))
         names = ["", *(f" ({months} months)" for _, _, months in _YEAR_TO_DATE)]
@@ -215,10 +222,10 @@ def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -
             chosen[label][end] = min(index, chosen[label].get(end, index))
     periods = sorted({(end, index) for spans_of in chosen.values() for end, index in spans_of.items()})
     if not periods:
-        raise NoMarketDataError(ticker, ticker, f"no {freq} {title.lower()} filed by {as_of_date}")
+        raise NoMarketDataError(ticker, ticker, f"no {period} {title.lower()} filed by {as_of_date}")
 
     header = (
-        f"# {title} for {ticker.upper()} ({freq}), USD in millions unless the row says otherwise\n"
+        f"# {title} for {ticker.upper()} ({period}), USD in millions unless the row says otherwise\n"
         f"# SEC EDGAR facts filed on or before {as_of_date}, at the values filed then\n\n"
     )
     rows = [",".join([""] + [end + names[index] for end, index in periods])]

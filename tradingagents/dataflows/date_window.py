@@ -168,3 +168,18 @@ def withhold_undated_statements(as_of_date: str | None, label: str, title: str) 
         f"the period it covers and reports no filing date, so it cannot show which "
         f"figures were public on {as_of_date}. SEC EDGAR serves US filers as filed."
     )
+
+
+def statement_frequency(freq: str | None) -> str | None:
+    """``quarterly`` or ``annual``, or None when ``freq`` names neither.
+
+    Anything other than the exact word "quarterly" was read as annual, and the
+    report header repeated the caller's word, so "quarter" served a year of
+    figures under a quarterly title.
+    """
+    key = ("quarterly" if freq is None else freq).strip().lower()
+    if key in {"quarterly", "quarter", "qtr"}:
+        return "quarterly"
+    if key in {"annual", "annually", "yearly", "year"}:
+        return "annual"
+    return None

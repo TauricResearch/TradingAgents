@@ -254,6 +254,18 @@ def test_an_annual_balance_sheet_has_no_quarter_end_columns():
 
 
 @pytest.mark.unit
+def test_quarter_is_the_quarterly_statement_not_the_annual_one():
+    """Any frequency other than the exact word "quarterly" was served as the
+    annual statement, while the header repeated the caller's word."""
+    quarter = sec_edgar.get_balance_sheet("AAPL", " quarter ", "2024-11-15")
+    assert "2022-03-26" in quarter
+    yearly = sec_edgar.get_balance_sheet("AAPL", "yearly", "2024-11-15")
+    assert "2022-03-26" not in yearly and "2024-09-28" in yearly
+    refused = sec_edgar.get_balance_sheet("AAPL", "ttm", "2024-11-15")
+    assert "not a statement frequency" in refused and "364980" not in refused
+
+
+@pytest.mark.unit
 def test_a_twelve_month_total_from_a_quarterly_report_is_not_a_fiscal_year(monkeypatch):
     """Amazon's 10-Qs report trailing twelve months, which passed the annual span
     check and read as fiscal years overlapping the real ones."""

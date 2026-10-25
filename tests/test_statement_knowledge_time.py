@@ -50,6 +50,36 @@ def test_a_current_run_is_still_served_yahoo_statements():
 
 
 @pytest.mark.unit
+def test_quarter_is_not_served_as_the_annual_statement(monkeypatch):
+    """Anything other than the exact word "quarterly" selected the annual
+    statement and the header still said what the caller asked for."""
+    import pandas as pd
+
+    from tradingagents.dataflows.date_window import get_current_date
+
+    quarterly = pd.DataFrame({pd.Timestamp("2026-03-31"): [1.0]}, index=["Total Assets"])
+    annual = pd.DataFrame({pd.Timestamp("2025-12-31"): [9.0]}, index=["Total Assets"])
+
+    class _Ticker:
+        def __init__(self, symbol):
+            self.quarterly_balance_sheet = quarterly
+            self.balance_sheet = annual
+
+    monkeypatch.setattr(yahoo.yf, "Ticker", _Ticker)
+    monkeypatch.setattr(yahoo, "yf_retry", lambda fn: fn())
+    today = get_current_date()
+    quarter = yahoo.get_balance_sheet("AAPL", "quarter", today)
+    assert "2026-03-31" in quarter and "2025-12-31" not in quarter
+    yearly = yahoo.get_balance_sheet("AAPL", "yearly", today)
+    assert "2025-12-31" in yearly and "2026-03-31" not in yearly
+    refused = yahoo.get_balance_sheet("AAPL", "ttm", today)
+    assert "not a statement frequency" in refused
+    assert "2025-12-31" not in refused and "2026-03-31" not in refused
+    withheld = yahoo.get_balance_sheet("AAPL", "ttm", PAST)
+    assert "withheld" in withheld
+
+
+@pytest.mark.unit
 def test_statements_come_from_sec_edgar_first_by_default():
     set_config(copy.deepcopy(default_config.DEFAULT_CONFIG))
     served = []
