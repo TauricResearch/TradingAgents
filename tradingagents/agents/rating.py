@@ -109,7 +109,10 @@ def run_rating(final_state: dict) -> str:
     The fallback serves a state without ``final_rating``, such as a run an older
     version completed and a checkpoint hands back unchanged.
     """
-    return final_state.get("final_rating") or parse_rating(final_state.get("final_trade_decision", ""))
+    rating = final_state.get("final_rating")
+    if rating in (*RATINGS_5_TIER, RATING_REVIEW):
+        return rating
+    return parse_rating(final_state.get("final_trade_decision", ""))
 
 
 def is_review(signal: str) -> bool:

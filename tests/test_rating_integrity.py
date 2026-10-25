@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 import cli.run as cli_run
-from tradingagents.agents.rating import RATING_REVIEW, extract_rating, parse_rating
+from tradingagents.agents.rating import RATING_REVIEW, extract_rating, parse_rating, run_rating
 
 INVERTED = ("The aggressive analyst pushed hard for a Buy on the AI backlog, but the "
             "conservative case on margin compression carried the debate. "
@@ -65,6 +65,17 @@ def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
     text = ("**Rating Scale**: Buy, Overweight, Hold, Underweight, Sell.\n\n"
             "**Rating**: Sell\n\nExit the position.")
     assert extract_rating(text) == "Sell"
+
+
+@pytest.mark.unit
+def test_run_rating_rejects_an_invalid_structured_value():
+    """A malformed structured response must not become a non-standard signal."""
+    state = {
+        "final_rating": "Bullish",
+        "final_trade_decision": "Rating: Sell\n\nThe downside case won.",
+    }
+
+    assert run_rating(state) == "Sell"
 
 
 # --- the readers agree ------------------------------------------------------
