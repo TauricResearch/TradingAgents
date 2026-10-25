@@ -65,6 +65,24 @@ def test_a_us_filer_resolves_to_its_cik():
 
 
 @pytest.mark.unit
+def test_a_class_share_dotted_ticker_matches_the_sec_hyphen(monkeypatch):
+    """EDGAR spells Berkshire as BRK-B. Callers and Yahoo spell it BRK.B, so
+    the filer was reported as not a US filer and a past run got no statements."""
+    table = {
+        "0": {"cik_str": 1067983, "ticker": "BRK-B", "title": "BERKSHIRE HATHAWAY INC"},
+        "1": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."},
+    }
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: table if "company_tickers" in url else FACTS)
+    assert sec_edgar.cik_for("BRK.B") == "0001067983"
+    assert sec_edgar.cik_for("brk.b") == "0001067983"
+    assert sec_edgar.cik_for("BRK-B") == "0001067983"
+    assert "364980" in sec_edgar.get_balance_sheet("BRK.B", "annual", "2024-11-15")
+    with pytest.raises(NoMarketDataError, match="not a US SEC filer"):
+        sec_edgar.get_balance_sheet("0700.HK", "annual", "2026-01-01")
+
+
+@pytest.mark.unit
 def test_a_non_filer_is_reported_as_such_not_as_missing_data():
     with pytest.raises(NoMarketDataError, match="not a US SEC filer"):
         sec_edgar.get_balance_sheet("0700.HK", "annual", "2026-01-01")

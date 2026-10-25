@@ -136,8 +136,10 @@ def cik_for(ticker: str) -> str | None:
     """The filer's CIK, or None when the ticker is not a US filer."""
     table = _cached_json(_TICKERS_URL, "company_tickers.json")
     wanted = ticker.strip().upper()
+    # EDGAR spells a class share with a hyphen (BRK-B). Callers and Yahoo use a dot (BRK.B).
+    forms = {wanted, wanted.replace(".", "-"), wanted.replace("-", ".")}
     for entry in table.values():
-        if entry.get("ticker", "").upper() == wanted:
+        if entry.get("ticker", "").upper() in forms:
             return f"{int(entry['cik_str']):010d}"
     return None
 
