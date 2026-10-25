@@ -57,16 +57,20 @@ def fmp_symbol(symbol: str) -> str:
     return canonical
 
 
-def load_daily(symbol: str, as_of_date: str | None = None) -> tuple[pd.DataFrame, str]:
-    """Daily bars, oldest first, through ``as_of_date`` (or today)."""
+BASE_URL = "https://financialmodelingprep.com/stable/"
+
+
+def fetch(endpoint: str, params: dict, symbol: str, canonical: str) -> list[dict]:
+    """GET one FMP endpoint and return its rows, mapping FMP's failures onto the router's errors.
+
+    A symbol or parameter outside the caller's plan comes back as 402 with a
+    plain-text message, though the response is labelled JSON; the body is read
+    only after the status is checked.
+    """
     key = _api_key()
-    canonical = fmp_symbol(symbol)
-    end = pd.Timestamp(as_of_date) if as_of_date else pd.Timestamp.today().normalize()
-    start = end - pd.DateOffset(years=HISTORY_YEARS)
-    params = {"symbol": canonical, "from": start.strftime("%Y-%m-%d"),
-              "to": end.strftime("%Y-%m-%d"), "apikey": key}
+    url = endpoint if endpoint.startswith("http") else BASE_URL + endpoint
     try:
-        resp = get_scrubbed(API_URL, params=params, timeout=REQUEST_TIMEOUT, secret=key,
+        resp = get_scrubbed(url, params={**params, "apikey": key}, timeout=REQUEST_TIMEOUT, secret=key,
                             passthrough=(401, 402, 403, 429))
     except requests.RequestException as exc:
         raise VendorUnavailableError(f"FMP request failed: {exc}") from None
@@ -74,15 +78,23 @@ def load_daily(symbol: str, as_of_date: str | None = None) -> tuple[pd.DataFrame
         raise VendorUnavailableError("FMP rate limit reached")
     if resp.status_code == 401:
         raise FMPNotConfiguredError("FMP rejected the API key (401)")
-    # A symbol outside the caller's plan comes back as 402 with a plain-text message,
-    # though the response is labelled JSON; read the body only after checking the status.
     try:
         body = resp.json() if resp.content else []
     except ValueError:
         body = resp.text.strip()
     if resp.status_code in (402, 403) or not isinstance(body, list):
         msg = (body.get("Error Message") or body.get("message")) if isinstance(body, dict) else body
-        raise NoMarketDataError(symbol, canonical, f"FMP did not serve this symbol: {str(msg)[:160] or resp.status_code}")
+        raise NoMarketDataError(symbol, canonical, f"FMP did not serve this request: {str(msg)[:160] or resp.status_code}")
+    return body
+
+
+def load_daily(symbol: str, as_of_date: str | None = None) -> tuple[pd.DataFrame, str]:
+    """Daily bars, oldest first, through ``as_of_date`` (or today)."""
+    canonical = fmp_symbol(symbol)
+    end = pd.Timestamp(as_of_date) if as_of_date else pd.Timestamp.today().normalize()
+    start = end - pd.DateOffset(years=HISTORY_YEARS)
+    body = fetch(API_URL, {"symbol": canonical, "from": start.strftime("%Y-%m-%d"),
+                           "to": end.strftime("%Y-%m-%d")}, symbol, canonical)
     if not body:
         raise NoMarketDataError(symbol, canonical, "FMP returned no rows")
     df = pd.DataFrame(body).rename(columns={

@@ -25,6 +25,12 @@ from tradingagents.dataflows.vendors.fmp import (
     get_indicators as get_fmp_indicators,
     get_stock_data as get_fmp_stock,
 )
+from tradingagents.dataflows.vendors.fmp_fundamentals import (
+    get_balance_sheet as get_fmp_balance_sheet,
+    get_cashflow as get_fmp_cashflow,
+    get_fundamentals as get_fmp_fundamentals,
+    get_income_statement as get_fmp_income_statement,
+)
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
 from tradingagents.dataflows.vendors.polymarket import (
     get_prediction_markets as get_polymarket_prediction_markets,
@@ -121,21 +127,25 @@ VENDOR_METHODS = {
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "fmp": get_fmp_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "sec_edgar": get_sec_edgar_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "fmp": get_fmp_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "sec_edgar": get_sec_edgar_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "fmp": get_fmp_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "sec_edgar": get_sec_edgar_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "fmp": get_fmp_income_statement,
     },
     # news_data
     "get_news": {
