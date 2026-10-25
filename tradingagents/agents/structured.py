@@ -69,9 +69,16 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
         result = structured_llm.invoke(prompt)
         if result is None:
             # A thinking model can answer in plain text instead of calling
-            # the tool, leaving the parser with nothing to return. Treat it
-            # as a structured miss and fall back, with a clear reason.
-            raise ValueError("structured output returned no parsed result")
+            # the tool, leaving the parser with nothing to return. This is a
+            # sampling miss, not a provider error, so retry the schema once
+            # before using unvalidated free text (#1390).
+            logger.warning(
+                "%s: structured output returned no parsed result; retrying once",
+                agent_name,
+            )
+            result = structured_llm.invoke(prompt)
+            if result is None:
+                raise ValueError("structured output returned no parsed result after retry")
         return result
     except Exception as exc:
         logger.warning(

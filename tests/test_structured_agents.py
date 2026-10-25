@@ -545,3 +545,20 @@ def test_the_trader_names_the_levels_it_did_not_give():
     for field in ("Entry Price", "Stop Loss", "Position Sizing"):
         assert field in rendered
     assert rendered.lower().count("not provided") == 3
+
+@pytest.mark.unit
+def test_structured_miss_retries_once_before_falling_back():
+    """Thinking-model parser misses should get one more schema attempt (#1390)."""
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = [None, MagicMock(rating="Buy")]
+    plain = MagicMock()
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda result: result.rating, agent_name="Trader"
+    )
+
+    assert out == "Buy"
+    assert structured.invoke.call_count == 2
+    plain.invoke.assert_not_called()
