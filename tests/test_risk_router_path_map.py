@@ -79,3 +79,18 @@ def test_debate_path_map_covers_full_router_range():
     }
     assert returns <= set(DEBATE_PATH_MAP)
     assert "Research Manager" in returns  # terminal reachable
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("kwargs", "setting"),
+    [
+        ({"max_debate_rounds": 0}, "max_debate_rounds"),
+        ({"max_risk_discuss_rounds": 0}, "max_risk_discuss_rounds"),
+        ({"max_debate_rounds": -1}, "max_debate_rounds"),
+        ({"max_risk_discuss_rounds": -1}, "max_risk_discuss_rounds"),
+    ],
+)
+def test_nonpositive_round_counts_are_rejected(kwargs, setting):
+    """Zero rounds currently still runs one debater before stopping."""
+    with pytest.raises(ValueError, match=setting):
+        ConditionalLogic(**kwargs)
