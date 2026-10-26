@@ -387,3 +387,35 @@ def test_the_memory_step_reads_lessons_as_of_the_trade_date_and_settles_once(tmp
 
     assert asked == ["2026-01-20", "2026-01-20"]
     assert (tmp_path / "log.md").read_text() == log_after_first
+
+
+@pytest.mark.unit
+def test_the_mcp_runner_drives_the_same_graph(tmp_path, monkeypatch, offline):
+    """The MCP analysis job uses the real graph, streaming and saving like the CLI."""
+    pytest.importorskip("mcp")
+    from tradingagents.mcp import runners
+    from tradingagents.mcp.jobs import JobManager
+
+    def fake_graph(analysts, config=None, debug=False):
+        return _graph(tmp_path, monkeypatch, ScriptedModel(structured=False))
+
+    monkeypatch.setattr(runners, "TradingAgentsGraph", fake_graph)
+    manager = JobManager(max_workers=1, max_jobs=3)
+    job = manager.submit(
+        "analysis",
+        runners.run_analysis_job,
+        ticker="NVDA",
+        trade_date=TRADE_DATE,
+        asset_type="stock",
+        analysts=["market", "social", "news", "fundamentals"],
+        portfolio=None,
+        config=None,
+        save_reports=True,
+        html=False,
+    )
+
+    assert manager.wait(job.id, 120), "the MCP analysis did not finish"
+    assert job.status == "succeeded", job.error
+    assert job.result["rating"] == "Overweight"
+    assert job.result["reports"]["market"]
+    assert job.result["report_path"].endswith("complete_report.md")

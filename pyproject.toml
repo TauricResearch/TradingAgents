@@ -32,9 +32,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "mcp>=1.9.0",
     "ruff>=0.16",
     "pytest>=8.0",
     "pytest-subtests>=0.13",
+]
+mcp = [
+    "mcp>=1.9.0",
 ]
 # Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
 # stays lean: pip install "tradingagents[bedrock]".
@@ -44,6 +48,7 @@ bedrock = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-mcp = "tradingagents.mcp:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}
