@@ -87,6 +87,19 @@ def _coerce_max_tokens(value):
     return n
 
 
+_SERVICE_TIERS = ("auto", "default", "flex", "priority")
+
+
+def _coerce_service_tier(value):
+    """Normalise an OpenAI ``service_tier`` value, failing at startup on a typo."""
+    if value is None or str(value).strip() == "":
+        return None
+    tier = str(value).strip().lower()
+    if tier not in _SERVICE_TIERS:
+        raise ValueError(f"openai_service_tier must be one of {_SERVICE_TIERS}, got {value!r}")
+    return tier
+
+
 # Providers that take OpenAI's ``openai_reasoning_effort``.
 REASONING_EFFORT_PROVIDERS = ("openai", "chatgpt")
 
@@ -105,6 +118,11 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         reasoning_effort = config.get("openai_reasoning_effort")
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
+        # Flex is an API-billing tier; the ChatGPT plan has no such choice.
+        if provider == "openai":
+            service_tier = _coerce_service_tier(config.get("openai_service_tier"))
+            if service_tier:
+                kwargs["service_tier"] = service_tier
 
     elif provider == "anthropic":
         effort = config.get("anthropic_effort")
