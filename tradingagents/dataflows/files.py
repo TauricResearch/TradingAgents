@@ -43,7 +43,11 @@ def locked(path, wait: bool = True) -> Iterator[bool]:
     held: with ``wait=False`` a lock someone else holds is not waited for, and
     the block runs holding nothing.
     """
-    with open(f"{path}.lock", "a+b") as handle:
+    path = Path(path)
+    if ".." in path.parts:
+        raise ValueError(f"Refusing to lock path with traversal segments: {path}")
+    lock_path = path.with_name(f"{path.name}.lock")
+    with open(lock_path, "a+b") as handle:
         hold = _hold_windows if os.name == "nt" else _hold_posix
         with hold(handle, wait) as acquired:
             yield acquired
