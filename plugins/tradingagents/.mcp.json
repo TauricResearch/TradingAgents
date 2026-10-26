@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "tradingagents": {
+      "command": "sh",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/tradingagents-mcp"
+      ]
+    }
+  }
+}

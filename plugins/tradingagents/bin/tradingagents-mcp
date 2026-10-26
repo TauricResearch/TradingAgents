@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+if [ -n "${TRADINGAGENTS_MCP_BIN:-}" ]; then
+  exec "$TRADINGAGENTS_MCP_BIN" "$@"
+fi
+
+if command -v tradingagents-mcp >/dev/null 2>&1; then
+  exec tradingagents-mcp "$@"
+fi
+
+source_spec="${TRADINGAGENTS_MCP_SOURCE:-tradingagents[mcp] @ git+https://github.com/TauricResearch/TradingAgents.git}"
+
+if command -v uvx >/dev/null 2>&1; then
+  exec uvx --from "$source_spec" tradingagents-mcp "$@"
+fi
+
+if command -v pipx >/dev/null 2>&1; then
+  exec pipx run --spec "$source_spec" tradingagents-mcp "$@"
+fi
+
+printf '%s\n' \
+  "TradingAgents MCP server is not installed." \
+  "Install uv (https://docs.astral.sh/uv/) or run:" \
+  "  pipx install \"$source_spec\"" >&2
+exit 1

@@ -1,0 +1,19 @@
+{
+  "name": "tradingagents",
+  "displayName": "TradingAgents",
+  "version": "0.7.0",
+  "description": "Multi-agent stock and crypto research, plus live market data tools.",
+  "author": {
+    "name": "Tauric Research"
+  },
+  "homepage": "https://github.com/TauricResearch/TradingAgents",
+  "repository": "https://github.com/TauricResearch/TradingAgents",
+  "license": "Apache-2.0",
+  "keywords": [
+    "finance",
+    "stocks",
+    "crypto",
+    "research",
+    "mcp"
+  ]
+}

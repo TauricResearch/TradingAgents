@@ -1,0 +1,22 @@
+{
+  "name": "tradingagents",
+  "description": "TradingAgents plugins for Claude Code.",
+  "owner": {
+    "name": "Tauric Research"
+  },
+  "plugins": [
+    {
+      "name": "tradingagents",
+      "source": "./plugins/tradingagents",
+      "description": "Multi-agent stock and crypto research, plus live market data tools.",
+      "category": "finance",
+      "tags": [
+        "finance",
+        "stocks",
+        "crypto",
+        "research",
+        "mcp"
+      ]
+    }
+  ]
+}
