@@ -407,6 +407,16 @@ Backtest results are not guaranteed to match any published figure. Returns depen
 
 Contributions are welcome: bug fixes, documentation, and feature ideas; past contributions are credited per release in [`CHANGELOG.md`](CHANGELOG.md).
 
+Install the development extras in an active virtual environment before running the local checks:
+
+```sh
+python -m pip install -e ".[dev]"
+python -m pytest -q
+python -m ruff check .
+```
+
+The default pytest configuration excludes tests marked `integration`. The suite blocks network calls and isolates generated results, caches, and CLI preferences; API credentials are not needed for these checks. To include the optional Bedrock adapter tests, install `.[dev,bedrock]` and run `python -m pytest -q tests/test_bedrock_provider.py`. Native Windows locking is simulated in portable unit tests, so those checks also run on macOS and Linux; they do not replace testing on Windows itself.
+
 ## Citation
 
 Please reference our work if you find *TradingAgents* provides you with some help :)
