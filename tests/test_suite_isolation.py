@@ -34,12 +34,24 @@ def test_a_test_saves_cli_selections_to_its_own_directory(tmp_path):
 
 @pytest.mark.unit
 def test_yfinance_keeps_its_cache_out_of_the_users_home():
-    """yfinance caches each symbol's time zone on disk, in the home directory by default."""
+    """yfinance caches each symbol's time zone on disk. conftest redirects the
+    cache into tempfile.mkdtemp(...) so tests never touch a user's real cache.
+
+    We assert the cache lives inside tempfile.gettempdir() rather than checking
+    it is not inside Path.home(): on Windows the system temp dir is
+    ``C:\\Users\\<user>\\AppData\\Local\\Temp\\`` which IS inside the user home,
+    so the old assertion was fundamentally platform-dependent (Issue #1485).
+    """
+    import tempfile
     from pathlib import Path
 
     from yfinance.cache import _TzDBManager
 
-    assert not Path(_TzDBManager.get_location()).is_relative_to(Path.home())
+    cache_location = Path(_TzDBManager.get_location()).resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    assert cache_location.is_relative_to(temp_root), (
+        f"yfinance cache at {cache_location} is not under temp dir {temp_root}"
+    )
 
 
 @pytest.mark.unit
