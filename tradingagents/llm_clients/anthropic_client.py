@@ -39,8 +39,30 @@ def _supports_effort(model: str) -> bool:
     return (major, minor) >= _EFFORT_MIN_VERSION[family]
 
 
+# langchain-anthropic's default structured-output method is forced tool calling,
+# which Claude 5.5-era models (Opus 5.5, Sonnet 5.5, Fable 5.1) reject outright
+# and every thinking-enabled model treats as optional. The structured call then
+# returns nothing and the agent pays for a free-text retry. Models with native
+# structured outputs (``output_config.format``) use that instead: the Claude 5
+# family, plus Opus 4.1 / 4.5 / 4.8 and Haiku 4.5. Opus 4.6 / 4.7 and Sonnet
+# 4.5 / 4.6 are not on Anthropic's supported list, so they keep tool calling.
+_JSON_SCHEMA_4X = {"opus-4-1", "opus-4-5", "opus-4-8", "haiku-4-5"}
+_CLAUDE_MODEL = re.compile(r"^claude-(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d+))?(?:-\d{8})?$")
+
+
+def _supports_json_schema(model: str) -> bool:
+    """Whether the model supports Anthropic's native structured outputs."""
+    match = _CLAUDE_MODEL.match(model.lower())
+    if not match:
+        return False
+    family, major, minor = match.group(1), int(match.group(2)), match.group(3) or "0"
+    if major >= 5:
+        return True
+    return f"{family}-{major}-{minor}" in _JSON_SCHEMA_4X
+
+
 class NormalizedChatAnthropic(ChatAnthropic):
-    """ChatAnthropic with normalized content output.
+    """ChatAnthropic with normalized content output and model-aware structured output.
 
     Claude models with extended thinking or tool use return content as a
     list of typed blocks. This normalizes to string for consistent
@@ -49,6 +71,11 @@ class NormalizedChatAnthropic(ChatAnthropic):
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
+
+    def with_structured_output(self, schema, *, method=None, **kwargs):
+        if method is None:
+            method = "json_schema" if _supports_json_schema(self.model) else "function_calling"
+        return super().with_structured_output(schema, method=method, **kwargs)
 
 
 class AnthropicClient(BaseLLMClient):
