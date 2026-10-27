@@ -160,6 +160,15 @@ def test_a_start_date_that_is_not_a_date_is_sent_back_to_the_model(tool):
 
 
 @pytest.mark.unit
+def test_a_window_that_ends_before_it_starts_is_sent_back_to_the_model():
+    # A reversed window reached the vendor, which then reported no data for it.
+    with mock.patch.object(tools, "route_to_vendor", return_value="ok") as routed:
+        out = tools.get_stock_data.func("NVDA", "2026-08-12", "2026-08-01", trade_date=TRADE_DATE)
+    assert not routed.called
+    assert "start_date" in out and "end_date" in out
+
+
+@pytest.mark.unit
 def test_a_window_whose_start_is_not_a_date_is_refused():
     with pytest.raises(ValueError, match="start_date"):
         as_of_window("2026-09-26\u0629", "2026-10-03", "2026-10-03")
