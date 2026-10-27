@@ -142,6 +142,14 @@ def test_an_unpadded_date_reaches_the_vendor_in_canonical_form():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("tool", [tools.get_balance_sheet, tools.get_cashflow, tools.get_income_statement])
+def test_a_statement_frequency_is_one_the_vendors_serve(tool):
+    # Any other word was served annual figures under the word asked for.
+    schema = tool.tool_call_schema.model_json_schema()["properties"]["freq"]
+    assert schema["enum"] == ["annual", "quarterly"]
+
+
+@pytest.mark.unit
 def test_direct_call_without_state_is_unchanged():
     with mock.patch.object(tools, "route_to_vendor", return_value="ok") as routed:
         tools.get_news.func("AAPL", "2026-09-01", "2026-09-08")
