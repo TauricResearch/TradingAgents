@@ -38,6 +38,9 @@ def test_normalize_symbol_crypto_and_passthrough(raw, expected):
     ("", True),                 # empty -> defaults to SPY downstream
     ("bad symbol!", False),     # space + '!' rejected
     ("A" * 40, False),          # too long
+    ("XAUUSD+", True),          # a broker's CFD spelling of gold, priced as GC=F
+    ("..", False),              # names a directory, not an instrument
+    ("\uff21\uff21\uff30\uff2c", False),  # full-width letters
 ])
 def test_ticker_input_validation(value, ok):
     assert is_valid_ticker_input(value) is ok

@@ -11,6 +11,7 @@ from rich.markup import escape
 
 from cli.display import console
 from cli.models import AnalystType, AssetType
+from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS, SIGNED_IN_PROVIDERS
@@ -36,14 +37,19 @@ _MENU_STYLE = questionary.Style([
 
 
 def is_valid_ticker_input(value: str) -> bool:
-    """Whether a ticker entry is acceptable (charset + length).
+    """Whether a ticker entry names a symbol the run can use.
 
-    Allows the characters Yahoo symbols use, including ``=`` for futures/forex
-    like ``GC=F`` and ``EURUSD=X`` (#980), and ``^`` for indices. Empty input is
-    allowed (it defaults to SPY downstream).
+    The symbol it resolves to (``XAUUSD+`` -> ``GC=F``) must pass the data
+    layer's own check, so the prompt refuses exactly what the run would.
+    Empty input is allowed (it defaults to SPY downstream).
     """
-    v = value.strip()
-    return not v or (all(ch.isalnum() or ch in "._-^=" for ch in v) and len(v) <= 32)
+    if not value.strip():
+        return True
+    try:
+        safe_ticker_component(normalize_ticker_symbol(value))
+    except ValueError:
+        return False
+    return True
 
 
 def get_ticker() -> str:
