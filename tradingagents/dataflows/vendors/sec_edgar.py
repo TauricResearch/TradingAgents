@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import time
 from datetime import date, datetime
@@ -232,9 +233,20 @@ def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -
         cells = []
         for end, index in periods:
             value = values.get((end, index)) if chosen[label].get(end) == index else None
-            cells.append("" if value is None else f"{value / 1e6:.0f}" if unit == "USD" else f"{value:.2f}")
+            cells.append("" if value is None else _millions(value) if unit == "USD" else f"{value:.2f}")
         rows.append(",".join([name] + cells))
     return header + "\n".join(rows) + "\n"
+
+
+def _millions(value: float) -> str:
+    """USD in millions; under a million, three significant digits, so it is not printed as 0.
+
+    Plain numbers: a thousands separator would split the CSV field.
+    """
+    millions = value / 1e6
+    if millions == 0 or abs(millions) >= 1:
+        return f"{millions:.0f}"
+    return f"{millions:.{2 - math.floor(math.log10(abs(millions)))}f}"
 
 
 def get_balance_sheet(ticker: str, freq: str = "quarterly", as_of_date: str | None = None) -> str:

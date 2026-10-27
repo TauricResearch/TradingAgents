@@ -321,3 +321,15 @@ def test_a_row_filed_only_year_to_date_keeps_its_figure_beside_a_row_filed_by_qu
     rows = {r.split(",")[0]: r.split(",")[1:] for r in out.splitlines()[3:]}
     assert rows["Operating Cash Flow"] == ["", "120"]
     assert rows["Capital Expenditure"] == ["10", ""]
+
+
+@pytest.mark.unit
+def test_a_figure_under_a_million_is_not_printed_as_zero(monkeypatch):
+    facts = {"facts": {"us-gaap": {"Revenues": {"units": {"USD": [
+        _fact("2025-12-31", 303_300, "2026-02-20", start="2025-01-01"),
+        _fact("2024-12-31", -25_000, "2025-02-20", start="2024-01-01")]}}}}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+
+    out = sec_edgar.get_income_statement("AAPL", "annual", "2026-03-01")
+    assert [r for r in out.splitlines() if r.startswith("Revenue,")] == ["Revenue,-0.0250,0.303"]
