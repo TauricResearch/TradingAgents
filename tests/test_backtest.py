@@ -156,6 +156,23 @@ def test_the_analyst_set_under_test_is_the_one_that_runs(tmp_path):
 
 
 @pytest.mark.unit
+def test_sweeps_started_in_the_same_second_get_their_own_runs(tmp_path, monkeypatch):
+    import tradingagents.backtest as backtest
+
+    class _Frozen(backtest.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 1, 20, 9, 30, 0)
+
+    monkeypatch.setattr(backtest, "datetime", _Frozen)
+    first = run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path))
+    second = run_backtest(["NVDA"], ["2026-01-05"], _config(tmp_path))
+
+    assert first.run_id == "20260120_093000" and second.run_id == "20260120_093000_2"
+    assert first.cells_run == second.cells_run == 1
+
+
+@pytest.mark.unit
 def test_a_run_id_cannot_escape_the_results_directory(tmp_path):
     """run_id becomes a path segment, so it is validated like a ticker is."""
     with pytest.raises(ValueError):
