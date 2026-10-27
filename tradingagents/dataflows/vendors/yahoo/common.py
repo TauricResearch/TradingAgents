@@ -1,6 +1,8 @@
-"""What every Yahoo request shares: its retry, and how a failure or an empty answer is reported."""
+"""What every Yahoo request shares: its retry, how a failure or an empty answer is
+reported, and how a price is written out."""
 
 import logging
+import math
 import time
 
 import yfinance as yf
@@ -12,6 +14,19 @@ from tradingagents.dataflows.net import vendor_reachable
 logger = logging.getLogger(__name__)
 
 YAHOO_HOST = "https://query2.finance.yahoo.com"
+
+
+def price_text(value: float) -> str:
+    """A price with six significant digits and at least two decimals.
+
+    Fixed decimals print a sub-cent coin as 0.00 and a currency pair without its
+    pips; this keeps both readable.
+    """
+    if not math.isfinite(value):
+        return str(value)
+    decimals = 2 if value == 0 else max(2, 5 - math.floor(math.log10(abs(value))))
+    whole, _, fraction = f"{value:.{decimals}f}".partition(".")
+    return f"{whole}.{fraction.rstrip('0').ljust(2, '0')}"
 
 
 def raise_for_empty(symbol: str, canonical: str, what: str) -> None:
