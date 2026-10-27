@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradingAgents</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --text: #e7eef7;
+      --muted: #8b9bb0;
+      --accent: #3d9cf0;
+      --ok: #3ecf8e;
+      --bad: #f07178;
+      --line: #2a3542;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1b2a3d, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1.5rem 2rem 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+    }
+    h1 { margin: 0; font-size: 1.6rem; letter-spacing: 0.02em; }
+    h1 span { color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.9rem; }
+    main {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 1rem;
+      padding: 1rem 2rem 2rem;
+    }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+    section {
+      background: color-mix(in srgb, var(--panel) 92%, black);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem 1.1rem 1.2rem;
+    }
+    h2 { margin: 0 0 0.8rem; font-size: 1rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.6rem 0 0.25rem; }
+    select, input, button, textarea {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #121820;
+      color: var(--text);
+      padding: 0.55rem 0.7rem;
+      font: inherit;
+    }
+    button {
+      margin-top: 1rem;
+      background: linear-gradient(180deg, #4aa3f5, #2f7fd0);
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.35rem 0.25rem; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.75rem; }
+    .paper { background: #1e3a2f; color: var(--ok); }
+    .live { background: #3a2428; color: var(--bad); }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0c1117;
+      border-radius: 8px;
+      padding: 0.75rem;
+      max-height: 320px;
+      overflow: auto;
+      font-size: 0.8rem;
+      color: #c5d0dc;
+    }
+    .err { color: var(--bad); }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1><span>TradingAgents</span></h1>
+      <div class="meta">Multi-agent LLM trading · agentRobin paper &amp; live books</div>
+    </div>
+    <div class="meta" id="viewer">…</div>
+  </header>
+  <main>
+    <section>
+      <h2>Run analysis</h2>
+      <label for="account">Account</label>
+      <select id="account"></select>
+      <label for="ticker">Ticker</label>
+      <input id="ticker" value="AAPL" />
+      <label for="analysts">Analysts</label>
+      <input id="analysts" value="market,news,fundamentals" />
+      <button id="runBtn">Analyze</button>
+      <p class="meta" id="runStatus"></p>
+      <h2 style="margin-top:1.2rem">Portfolio snapshot</h2>
+      <pre id="portfolio">Select an account…</pre>
+    </section>
+    <section>
+      <h2>Recent runs</h2>
+      <div id="runs"></div>
+      <h2 style="margin-top:1.2rem">Log</h2>
+      <pre id="log">—</pre>
+      <p class="meta"><a href="/logout">Sign out</a></p>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    async function api(path, opts) {
+      const res = await fetch(path, opts);
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 && data.login) {
+        location.href = data.login;
+        throw new Error('login');
+      }
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      return data;
+    }
+    function renderAccounts(accounts) {
+      const sel = $('account');
+      sel.innerHTML = accounts.map(a =>
+        `<option value="${a.account}">${a.label || a.account} ${a.paper ? '(paper)' : '(live)'}</option>`
+      ).join('');
+      if (accounts.length) loadPortfolio();
+    }
+    async function loadPortfolio() {
+      const account = $('account').value;
+      $('portfolio').textContent = 'Loading…';
+      try {
+        const data = await api('/api/portfolio?account=' + encodeURIComponent(account));
+        const p = data.portfolio;
+        const lines = [
+          `cash: ${p.cash} ${p.currency || ''}`,
+          `positions: ${p.positions.length}`,
+          ...p.positions.slice(0, 40).map(x =>
+            `${x.ticker.padEnd(10)} qty=${x.quantity} avg=${x.average_price ?? '—'}`
+          )
+        ];
+        if (p.positions.length > 40) lines.push(`… +${p.positions.length - 40} more`);
+        $('portfolio').textContent = lines.join('\n');
+      } catch (e) {
+        $('portfolio').innerHTML = `<span class="err">${e.message}</span>`;
+      }
+    }
+    async function loadRuns() {
+      const data = await api('/api/runs');
+      const rows = (data.runs || []).map(r => `
+        <tr data-id="${r.id}" style="cursor:pointer">
+          <td>${r.created_at || ''}</td>
+          <td>${r.ticker || ''}</td>
+          <td>${r.account || '—'}</td>
+          <td><span class="pill ${r.status === 'ok' ? 'paper' : 'live'}">${r.status}</span></td>
+        </tr>`).join('');
+      $('runs').innerHTML = `<table><thead><tr><th>When</th><th>Ticker</th><th>Account</th><th>Status</th></tr></thead><tbody>${rows || '<tr><td colspan=4>No runs yet</td></tr>'}</tbody></table>`;
+      $('runs').querySelectorAll('tr[data-id]').forEach(tr => {
+        tr.onclick = async () => {
+          const detail = await api('/api/runs/' + tr.dataset.id);
+          $('log').textContent = detail.log || detail.error || JSON.stringify(detail, null, 2);
+        };
+      });
+    }
+    $('account').onchange = loadPortfolio;
+    $('runBtn').onclick = async () => {
+      $('runBtn').disabled = true;
+      $('runStatus').textContent = 'Queued…';
+      try {
+        const data = await api('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticker: $('ticker').value,
+            account: $('account').value,
+            analysts: $('analysts').value
+          })
+        });
+        $('runStatus').textContent = `Run ${data.run.id} ${data.run.status}`;
+        const poll = setInterval(async () => {
+          const d = await api('/api/runs/' + data.run.id);
+          $('runStatus').textContent = `Run ${d.id}: ${d.status}`;
+          if (d.status === 'ok' || d.status === 'failed') {
+            clearInterval(poll);
+            $('runBtn').disabled = false;
+            $('log').textContent = d.log || d.error || '';
+            loadRuns();
+          }
+        }, 4000);
+      } catch (e) {
+        $('runStatus').innerHTML = `<span class="err">${e.message}</span>`;
+        $('runBtn').disabled = false;
+      }
+    };
+    (async () => {
+      const data = await api('/api/accounts');
+      $('viewer').textContent = (data.viewer && data.viewer.email) || '';
+      renderAccounts(data.accounts || []);
+      await loadRuns();
+    })().catch(e => {
+      if (e.message !== 'login') $('viewer').textContent = e.message;
+    });
+  </script>
+</body>
+</html>
