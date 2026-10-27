@@ -294,6 +294,28 @@ def test_declining_the_html_page_saves_only_the_markdown(monkeypatch, tmp_path):
 
 
 @pytest.mark.unit
+def test_a_failed_save_shows_the_error_and_its_traceback(monkeypatch, tmp_path, capsys):
+    asked = _answer(monkeypatch, {"Save report": "Y", "Save path": None, "HTML": "Y",
+                                  "Display full report": "N"})
+    traced = []
+    monkeypatch.setattr(run.console, "print_exception", lambda **kwargs: traced.append(kwargs))
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("boom while saving")
+
+    graph = _report_graph(tmp_path)
+    graph.save_reports = _boom
+
+    run._offer_reports(STATE, graph, "NVDA")
+
+    # The one-line message still names the error; the traceback makes the
+    # failing step reportable instead of lost to the scrollback (#1609).
+    assert "Error saving report: boom while saving" in capsys.readouterr().out
+    assert traced
+    assert not [q for q in asked if "browser" in q]
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("env, browser, offered", [
     ({}, "background", True),
     ({"SSH_CONNECTION": "10.0.0.1 22 10.0.0.2 22"}, "background", False),   # the page is on the remote
