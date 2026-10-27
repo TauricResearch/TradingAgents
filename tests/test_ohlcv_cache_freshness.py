@@ -94,6 +94,30 @@ def test_load_ohlcv_reuses_fresh_same_day_cache(tmp_path, monkeypatch):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("contents", ["", "\n", " \n\t\n"])
+@pytest.mark.parametrize("age_seconds", [0, 2 * 24 * 3600])
+def test_load_ohlcv_refetches_columnless_cache(tmp_path, monkeypatch, contents, age_seconds):
+    cache = tmp_path / "AAPL-YFin-data.csv"
+    cache.write_text(contents, encoding="utf-8")
+    _stamp(cache, NOW - pd.Timedelta(seconds=age_seconds))
+    downloads = []
+    frame = pd.DataFrame({"Date": pd.to_datetime(["2026-07-18"]), "Close": [222.0]})
+
+    def download(**kwargs):
+        downloads.append(kwargs)
+        return frame.set_index("Date")
+
+    out = _load(tmp_path, monkeypatch, "2026-07-18", download)
+
+    assert len(downloads) == 1
+    assert out["Close"].tolist() == [222.0]
+    assert pd.read_csv(cache)["Close"].tolist() == [222.0]
+    # The replacement is usable on the next request, without another download.
+    _stamp(cache, NOW)
+    _load(tmp_path, monkeypatch, "2026-07-18", _fail_download)
+
+
+@pytest.mark.unit
 def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
     """A later day's download replaces the symbol's file instead of adding one (#1330)."""
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
