@@ -50,6 +50,46 @@ def test_window_keeps_undated_in_live_window():
 
 
 @pytest.mark.unit
+def test_undated_item_stays_in_a_live_window_after_utc_rolls(monkeypatch):
+    """The run date is a local calendar date. After UTC midnight (a US evening)
+    a window ending on local today was treated as already over, so undated
+    news and posts dropped out of a live run."""
+    import tradingagents.dataflows.date_window as date_window
+
+    class _Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 26, 2, tzinfo=UTC)
+
+    monkeypatch.setattr(date_window, "datetime", _Clock)
+    monkeypatch.setattr(date_window, "get_current_date", lambda: "2026-10-25")
+    assert in_window(None, datetime(2026, 10, 1), datetime(2026, 10, 25)) is True
+
+
+@pytest.mark.unit
+def test_a_window_ending_on_local_today_is_not_past_today(monkeypatch):
+    """In the hours local midnight is ahead of UTC, a window dated today was
+    reported as extending past today."""
+    import tradingagents.dataflows.date_window as date_window
+
+    class _Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 25, 23, tzinfo=UTC)
+
+    monkeypatch.setattr(date_window, "datetime", _Clock)
+    monkeypatch.setattr(date_window, "get_current_date", lambda: "2026-10-26")
+    out = date_window.coverage_gap(
+        [datetime(2026, 10, 20, tzinfo=UTC)],
+        "2026-10-20",
+        "2026-10-26",
+        "Feed",
+        "items",
+    )
+    assert out is None
+
+
+@pytest.mark.unit
 def test_upper_bound_is_exclusive():
     # #1126: an article stamped exactly midnight AFTER end_date leaked in under
     # the old inclusive bound; the whole of end_date itself must still be kept.

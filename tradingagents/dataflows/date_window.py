@@ -21,15 +21,28 @@ def to_utc(dt: datetime) -> datetime:
     return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
+def _calendar_day(dt: datetime) -> date:
+    """The calendar day a bound names, on the same clock as ``get_current_date``.
+
+    A naive value is a date the caller wrote. An aware value is that instant's
+    local day, so a live window still reaches today after UTC has rolled past
+    local midnight.
+    """
+    if dt.tzinfo is None:
+        return dt.date()
+    return dt.astimezone().date()
+
+
 def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> bool:
     """Whether an item belongs in the half-open window ``[start, end + 1 day)``.
 
-    ``pub_dt`` None means undated: kept only when the window reaches the present.
+    ``pub_dt`` None means undated: kept only when the window's end is today or
+    later on the local calendar, the same clock ``is_historical`` uses.
     """
     end = to_utc(end_dt)
     if pub_dt is not None:
         return to_utc(start_dt) <= to_utc(pub_dt) < end + timedelta(days=1)
-    return end >= datetime.now(UTC) - timedelta(days=1)
+    return _calendar_day(end_dt).isoformat() >= get_current_date()
 
 
 def get_current_date() -> str:
@@ -60,7 +73,10 @@ def coverage_gap(
     """
     now = datetime.now(UTC)
     oldest = min((to_utc(d) for d in dates if d is not None), default=now)
-    if datetime.strptime(end_date, "%Y-%m-%d").date() > now.date():
+    # "Today" is the local calendar date a run is dated with, not UTC's date.
+    # In the hours local midnight is ahead of UTC those two disagree.
+    end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    if end.isoformat() > get_current_date():
         reason = "the window extends past today"
     elif oldest.date() > datetime.strptime(start_date, "%Y-%m-%d").date():
         reason = "it only serves recent items"
