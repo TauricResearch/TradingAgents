@@ -97,15 +97,21 @@
   <main>
     <section>
       <h2>Run analysis</h2>
+      <p class="meta" style="margin:0 0 0.8rem">
+        Pick a brokerage/paper account (loads its whole book as context), then enter
+        <strong>one symbol to decide on</strong> — e.g. a holding like <code>VOO</code>,
+        or a candidate like <code>SPY</code>. This does <em>not</em> rebalance the whole
+        portfolio in one click; it produces a Buy/Hold/Sell recommendation for that ticker.
+      </p>
       <label for="account">Account</label>
       <select id="account"></select>
-      <label for="ticker">Ticker</label>
-      <input id="ticker" value="AAPL" />
+      <label for="ticker">Ticker (symbol under review)</label>
+      <input id="ticker" value="AAPL" placeholder="e.g. SPY, VOO, AAPL, NVDA" />
       <label for="analysts">Analysts</label>
       <input id="analysts" value="market,news,fundamentals" />
       <button id="runBtn">Analyze</button>
       <p class="meta" id="runStatus"></p>
-      <h2 style="margin-top:1.2rem">Portfolio snapshot</h2>
+      <h2 style="margin-top:1.2rem">Portfolio snapshot (context for the agents)</h2>
       <pre id="portfolio">Select an account…</pre>
     </section>
     <section>

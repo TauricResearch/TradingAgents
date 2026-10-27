@@ -342,24 +342,47 @@ class Handler(BaseHTTPRequestHandler):
             run["status"] = "running"
             run["started_at"] = iso_now()
             run_path.write_text(json.dumps(run, indent=2) + "\n", encoding="utf-8")
+            analysis_date = str(body.get("date") or datetime.now(timezone.utc).strftime("%Y-%m-%d"))
             cmd = [
                 str(ROOT / ".venv" / "bin" / "tradingagents")
                 if (ROOT / ".venv" / "bin" / "tradingagents").is_file()
                 else "tradingagents",
                 "--ticker",
                 ticker,
+                "--date",
+                analysis_date,
                 "--analysts",
                 analysts,
                 "--no-checkpoint",
                 "--save",
                 "--no-show",
+                "--html",
             ]
             if account:
                 cmd.extend(["--account", account])
             env = os.environ.copy()
+            # Load private .env (systemd EnvironmentFile is incomplete for quoted values).
+            env_file = ROOT / ".env"
+            if env_file.is_file():
+                for line in env_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                    s = line.strip()
+                    if not s or s.startswith("#") or "=" not in s:
+                        continue
+                    k, v = s.split("=", 1)
+                    k, v = k.strip(), v.strip().strip('"').strip("'")
+                    if k and k not in env:
+                        env[k] = v
             env["AGENTROBIN_ROOT"] = str(AGENTROBIN_ROOT)
             env["TRADINGAGENTS_ROOT"] = str(ROOT)
-            # Non-interactive: prefer env provider already in .env
+            # Unattended defaults so the CLI never prompts (site has no TTY).
+            env.setdefault("TRADINGAGENTS_OUTPUT_LANGUAGE", "English")
+            env.setdefault("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "1")
+            env.setdefault("TRADINGAGENTS_MAX_RISK_ROUNDS", "1")
+            env.setdefault("TRADINGAGENTS_LLM_PROVIDER", "openai")
+            env.setdefault("TRADINGAGENTS_DEEP_THINK_LLM", "gpt-4o")
+            env.setdefault("TRADINGAGENTS_QUICK_THINK_LLM", "gpt-4o-mini")
+            env.setdefault("TRADINGAGENTS_NO_UPDATE_CHECK", "1")
+            run["date"] = analysis_date
             try:
                 proc = subprocess.run(
                     cmd,
