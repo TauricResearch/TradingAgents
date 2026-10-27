@@ -97,6 +97,20 @@ def test_a_holding_keeps_the_instrument_it_was_listed_as():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("book", [
+    '{"cash": NaN}',
+    '{"positions": [{"ticker": "AAPL", "quantity": Infinity}]}',
+    '{"positions": [{"ticker": "AAPL", "quantity": 1, "average_price": "nan"}]}',
+])
+def test_load_rejects_a_number_that_is_not_finite(tmp_path, book):
+    # Python's json writes NaN and Infinity, and they would reach the agents as "nan units".
+    bad = tmp_path / "p.json"
+    bad.write_text(book)
+    with pytest.raises(ValueError, match="portfolio"):
+        load_portfolio(bad)
+
+
+@pytest.mark.unit
 def test_load_reads_a_valid_file(tmp_path):
     good = tmp_path / "p.json"
     good.write_text(json.dumps(HOLDING))

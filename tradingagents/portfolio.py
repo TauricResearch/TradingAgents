@@ -17,18 +17,22 @@ import hashlib
 import json
 from pathlib import Path
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from tradingagents.dataflows.symbols import normalize_symbol
 
 
 class Position(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     ticker: str = Field(description="Instrument symbol, e.g. AAPL")
     quantity: float = Field(description="Signed units held; negative is short")
     average_price: float | None = Field(default=None, description="Average entry price per unit")
 
 
 class PortfolioContext(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     cash: float | None = Field(default=None, description="Free cash available")
     currency: str | None = Field(default=None, description="Currency label for cash and prices")
     positions: list[Position] = Field(default_factory=list)
