@@ -12,6 +12,7 @@ import pytest
 
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.memory import TradingMemoryLog
+from tradingagents.memory.settlement import Settlement
 
 DECISION = "Rating: Buy\n\nbuy it"
 
@@ -58,6 +59,7 @@ class _FakeGraph:
 
     def settle_pending(self, ticker):
         self.settled.append(ticker)
+        return Settlement()
 
 
 @pytest.fixture(autouse=True)
@@ -172,6 +174,7 @@ def test_a_failed_settlement_does_not_lose_the_remaining_tickers(tmp_path, monke
         if ticker == "NVDA":
             raise RuntimeError("reflector timed out")
         settled.append(ticker)
+        return Settlement()
 
     monkeypatch.setattr(_FakeGraph, "settle_pending", _settle, raising=False)
     result = run_backtest(["NVDA", "AAPL"], ["2026-01-05"], _config(tmp_path))
@@ -179,6 +182,46 @@ def test_a_failed_settlement_does_not_lose_the_remaining_tickers(tmp_path, monke
     assert result.cells_run == 2
     assert settled == ["AAPL"]
     assert result.settlement_failures == [("NVDA", "reflector timed out")]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("failure", ["prices", "reflection"])
+def test_handled_settlement_failures_reach_the_backtest_result(tmp_path, monkeypatch, failure):
+    from types import SimpleNamespace
+
+    from tradingagents.memory import settlement
+
+    def returns(ticker, *args, **kwargs):
+        if ticker == "AAPL":
+            return None, None, None, None  # an incomplete window is not a failure
+        if failure == "prices":
+            raise RuntimeError("vendor unavailable")
+        return 0.1, 0.02, 5, "2026-02-01"
+
+    def reflect(**kwargs):
+        raise RuntimeError("reflector timed out")
+
+    def settle(self, ticker):
+        self.settled.append(ticker)
+        return settlement.settle_pending(
+            ticker, self.memory_log, SimpleNamespace(reflect_on_final_decision=reflect), self.config,
+        )
+
+    monkeypatch.setattr(settlement, "fetch_returns", returns)
+    monkeypatch.setattr(_FakeGraph, "settle_pending", settle)
+    result = run_backtest(
+        ["NVDA", "AAPL"], ["2026-01-05", "2026-01-12"], _config(tmp_path),
+    )
+
+    reason = ("prices unavailable: vendor unavailable" if failure == "prices"
+              else "reflection failed: reflector timed out")
+    assert result.settlement_failures == [
+        ("NVDA", f"2026-01-05: {reason}"),
+        ("NVDA", f"2026-01-12: {reason}"),
+    ]
+    assert _FakeGraph.instances[-1].settled == ["NVDA", "AAPL"]
+    assert result.cells_run == 4 and not result.failures
+    assert len(_FakeGraph.instances[-1].memory_log.get_pending_entries()) == 4
 
 
 @pytest.mark.unit
