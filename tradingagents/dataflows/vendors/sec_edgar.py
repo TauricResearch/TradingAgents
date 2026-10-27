@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import time
 from datetime import date, datetime
@@ -216,25 +217,37 @@ def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -
     periods = sorted({(end, index) for spans_of in chosen.values() for end, index in spans_of.items()})
     if not periods:
         raise NoMarketDataError(ticker, ticker, f"no {freq} {title.lower()} filed by {as_of_date}")
-
+    tagged = {label: line for label, line in lines.items() if line[0]}
+    untagged = [label for label in lines if label not in tagged]
     header = (
-        f"# {title} for {ticker.upper()} ({freq}), USD in millions unless the row says otherwise\n"
-        f"# SEC EDGAR facts filed on or before {as_of_date}, at the values filed then\n\n"
+        f"# {title} for {ticker.upper()} ({freq}), USD in millions unless the column says otherwise\n"
+        f"# SEC EDGAR facts filed on or before {as_of_date}, at the values filed then\n"
+        + (f"# Not tagged by this filer: {', '.join(untagged)}\n" if untagged else "")
+        + "\n"
     )
-    rows = [",".join([""] + [end + names[index] for end, index in periods])]
-    for label, (values, unit) in lines.items():
-        # Every row spans the same columns, or a reader lines the table up wrong.
-        if not values:
-            rows.append(",".join([label] + ["unavailable (not tagged by this filer)"] * len(periods)))
-            continue
-        name = label if unit == "USD" else f"{label} ({unit})"
-        # Plain numbers: a thousands separator would split the CSV field.
+    # One row per period, so every figure sits beside its own date: across a
+    # filer's whole history a row per line item ran to dozens of columns and was
+    # read a column off (#1517).
+    rows = [",".join(["Period"] + [label if unit == "USD" else f"{label} ({unit})"
+                                   for label, (_, unit) in tagged.items()])]
+    for end, index in periods:
         cells = []
-        for end, index in periods:
+        for label, (values, unit) in tagged.items():
             value = values.get((end, index)) if chosen[label].get(end) == index else None
-            cells.append("" if value is None else f"{value / 1e6:.0f}" if unit == "USD" else f"{value:.2f}")
-        rows.append(",".join([name] + cells))
+            cells.append("" if value is None else _millions(value) if unit == "USD" else f"{value:.2f}")
+        rows.append(",".join([end + names[index]] + cells))
     return header + "\n".join(rows) + "\n"
+
+
+def _millions(value: float) -> str:
+    """USD in millions; under a million, three significant digits, so it is not printed as 0.
+
+    Plain numbers: a thousands separator would split the CSV field.
+    """
+    millions = value / 1e6
+    if millions == 0 or abs(millions) >= 1:
+        return f"{millions:.0f}"
+    return f"{millions:.{2 - math.floor(math.log10(abs(millions)))}f}"
 
 
 def get_balance_sheet(ticker: str, freq: str = "quarterly", as_of_date: str | None = None) -> str:

@@ -17,35 +17,52 @@ import hashlib
 import json
 from pathlib import Path
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from tradingagents.dataflows.symbols import normalize_symbol
 
 
 class Position(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     ticker: str = Field(description="Instrument symbol, e.g. AAPL")
     quantity: float = Field(description="Signed units held; negative is short")
     average_price: float | None = Field(default=None, description="Average entry price per unit")
 
 
 class PortfolioContext(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     cash: float | None = Field(default=None, description="Free cash available")
     currency: str | None = Field(default=None, description="Currency label for cash and prices")
     positions: list[Position] = Field(default_factory=list)
 
+    def positions_in(self, ticker: str) -> list[Position]:
+        """The holdings of the instrument the run prices for ``ticker``, under any
+        broker spelling (BTCUSDT, 700.HK). Holdings keep the spelling they were
+        given: a symbol can also name another instrument (WTI the stock)."""
+        symbol = normalize_symbol(ticker)
+        return [p for p in self.positions if normalize_symbol(p.ticker) == symbol]
+
     def position_in(self, ticker: str) -> Position | None:
-        return next((p for p in self.positions if p.ticker.upper() == ticker.strip().upper()), None)
+        held = self.positions_in(ticker)
+        return held[0] if held else None
 
     def render(self, ticker: str) -> str:
         """The portfolio block for the decision agents, led by the analyzed instrument."""
-        symbol = ticker.strip().upper()
-        held = self.position_in(symbol)
-        if held is None:
-            lines = [f"- No current position in {symbol}"]
-        else:
-            price = f", average price {held.average_price:,.2f}" if held.average_price is not None else ""
-            lines = [f"- Current position in {symbol}: {held.quantity:,.4g} units{price}"]
+        symbol = normalize_symbol(ticker)
+        held = self.positions_in(symbol)
+        lines = []
+        for position in held:
+            price = f", average price {position.average_price:,.2f}" if position.average_price is not None else ""
+            spelled = position.ticker.strip().upper()
+            listed = f" (listed as {position.ticker})" if spelled != symbol else ""
+            lines.append(f"- Current position in {symbol}: {position.quantity:,.4g} units{price}{listed}")
+        if not held:
+            lines.append(f"- No current position in {symbol}")
         if self.cash is not None:
             lines.append(f"- Cash available: {self.cash:,.2f}{' ' + self.currency if self.currency else ''}")
-        others = [p for p in self.positions if p is not held]
+        others = [p for p in self.positions if all(p is not h for h in held)]
         if others:
             lines.append("- Other positions: " + ", ".join(f"{p.ticker.upper()} {p.quantity:,.4g}" for p in others))
         return "Portfolio at the analysis date:\n" + "\n".join(lines)

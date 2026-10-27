@@ -221,6 +221,8 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "nvidia": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
+    # The plan's models are listed live from OpenAI once signed in.
+    "chatgpt": _CUSTOM_ONLY,
 }
 
 

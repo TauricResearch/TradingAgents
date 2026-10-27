@@ -87,6 +87,10 @@ def _coerce_max_tokens(value):
     return n
 
 
+# Providers that take OpenAI's ``openai_reasoning_effort``.
+REASONING_EFFORT_PROVIDERS = ("openai", "chatgpt")
+
+
 def build_llm_kwargs(config: dict) -> dict[str, Any]:
     """Keyword arguments for ``create_llm_client`` from a TradingAgents config."""
     kwargs = {}
@@ -97,7 +101,7 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         if thinking_level:
             kwargs["thinking_level"] = thinking_level
 
-    elif provider == "openai":
+    elif provider in REASONING_EFFORT_PROVIDERS:
         reasoning_effort = config.get("openai_reasoning_effort")
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort

@@ -8,7 +8,7 @@ import typer
 from rich.align import Align
 from rich.panel import Panel
 
-from cli.announcements import display_announcements, fetch_announcements
+from cli import updates
 from cli.display import (
     console,
 )
@@ -24,6 +24,7 @@ from cli.prompts import (
     confirm_ollama_endpoint,
     detect_asset_type,
     ensure_api_key,
+    ensure_signed_in,
     get_ticker,
     parse_analysis_date,
     parse_analysts,
@@ -37,6 +38,8 @@ from cli.prompts import (
     select_shallow_thinking_agent,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients.factory import REASONING_EFFORT_PROVIDERS
+from tradingagents.llm_clients.openai_client import check_endpoint
 
 
 def get_user_selections(flags=None):
@@ -68,26 +71,35 @@ def unattended_gaps(flags) -> list[str]:
     return gaps
 
 
-def _check_tier_providers(main_provider: str) -> None:
+def _check_tier_providers(main_provider: str, backend_url: str | None = None) -> None:
     """Check each provider the model tiers use (#1440) before the run.
 
     A tier on another provider needs its model from its variable, since the
     model question offers the main provider's models. Each provider a tier uses
-    has its key checked now, prompting for a missing one, rather than at its
-    first call, which for the deep tier comes after everything else has been
-    paid for; a provider no tier uses needs no key.
+    has its endpoint, sign-in and key checked now, prompting for a missing key,
+    rather than at its first call, which for the deep tier comes after everything
+    else has been paid for; a provider no tier uses needs no key.
     """
     used = []
     for tier in ("quick", "deep"):
         provider = (DEFAULT_CONFIG.get(f"{tier}_think_provider") or main_provider).lower()
-        if provider != main_provider.lower():
+        on_main = provider == main_provider.lower()
+        if not on_main:
             variable = f"TRADINGAGENTS_{tier.upper()}_THINK_LLM"
             if not os.environ.get(variable):
                 console.print(f"[red]The {tier} tier runs on {provider}; set {variable} to one of its models.[/red]")
                 raise typer.Exit(code=1)
+        # The tier's endpoint, as create_tier_client resolves it.
+        url = DEFAULT_CONFIG.get(f"{tier}_think_backend_url") or (backend_url if on_main else None)
+        try:
+            check_endpoint(provider, url)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=1) from None
         if provider not in used:
             used.append(provider)
     for provider in used:
+        ensure_signed_in(provider)
         ensure_api_key(provider)
 
 
@@ -124,9 +136,11 @@ def _prompt_selections(prefs, flags):
     console.print()
     console.print()  # Add vertical space before announcements
 
-    # Fetch and display announcements (silent on failure)
-    announcements = fetch_announcements()
-    display_announcements(console, announcements)
+    # What's new comes from a cache refreshed in the background, and only for
+    # someone at a terminal: a run never waits on it and unattended runs skip it.
+    if updates.enabled():
+        updates.show(console)
+        updates.start_background_refresh()
 
     def create_question_box(title, prompt, default=None):
         box_content = f"[bold]{title}[/bold]\n"
@@ -283,7 +297,7 @@ def _prompt_selections(prefs, flags):
             confirm_ollama_endpoint(backend_url)
 
 
-    _check_tier_providers(selected_llm_provider)
+    _check_tier_providers(selected_llm_provider, backend_url)
 
     # Step 7: Thinking agents (skipped when either model is set via environment)
     if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
@@ -327,7 +341,7 @@ def _prompt_selections(prefs, flags):
             "Gemini thinking mode", "Step 8: Thinking Mode",
             "Configure Gemini thinking mode", ask_gemini_thinking_config,
         )
-    elif provider_lower == "openai":
+    elif provider_lower in REASONING_EFFORT_PROVIDERS:
         reasoning_effort = thinking_value_or_prompt(
             "TRADINGAGENTS_OPENAI_REASONING_EFFORT", "openai_reasoning_effort",
             "Reasoning effort", "Step 8: Reasoning Effort",

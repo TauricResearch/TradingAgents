@@ -78,6 +78,19 @@ class PolymarketFormatTests(unittest.TestCase):
         self.assertIn("resolves 2030-12-31", out)
         self.assertIn("1-week -4.5pp", out)  # -0.045 -> -4.5pp
 
+    def test_a_long_shot_is_not_shown_as_impossible_or_certain(self):
+        search = {"events": [{"markets": [
+            _market("Long shot?", 0.003, volume=2_000, end_date="2030-12-31T00:00:00Z"),
+            _market("Near certain?", 0.997, volume=1_000, end_date="2030-12-31T00:00:00Z"),
+            _market("Tick from zero?", 0.0005, volume=900, end_date="2030-12-31T00:00:00Z"),
+            _market("Tick from one?", 0.9995, volume=800, end_date="2030-12-31T00:00:00Z"),
+            _market("All but settled?", 0.9999999, volume=700, end_date="2030-12-31T00:00:00Z"),
+        ]}]}
+        with mock.patch.object(polymarket, "_request", return_value=search):
+            out = polymarket.get_prediction_markets("anything", limit=10)
+        for odds in ("Yes 0.3%", "Yes 99.7%", "Yes 0.05%", "Yes 99.95%", "Yes 99.99999%"):
+            self.assertIn(odds, out)
+
     def test_weekly_change_omitted_when_absent(self):
         # "Open small?" has wk=None -> no 1-week clause on its line.
         with mock.patch.object(polymarket, "_request", return_value=_SEARCH):

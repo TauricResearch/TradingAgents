@@ -95,8 +95,7 @@ def _answer_every_prompt(monkeypatch):
     """Drive the real selection flow, answering each prompt with a fixed value."""
     import cli.main as m
 
-    monkeypatch.setattr(cli_selections, "fetch_announcements", lambda: [])
-    monkeypatch.setattr(cli_selections, "display_announcements", lambda *a: None)
+    monkeypatch.setattr(cli_selections.updates, "enabled", lambda: False)
     monkeypatch.setattr(cli_selections, "get_ticker", lambda: "NVDA")
     monkeypatch.setattr(cli_selections, "get_analysis_date", lambda: "2026-09-01")
     monkeypatch.setattr(cli_selections, "ask_output_language", lambda default=None: "English")
@@ -148,8 +147,7 @@ def test_a_remembered_endpoint_is_offered_back(monkeypatch):
     monkeypatch.setattr(cli_selections, "select_llm_provider", lambda default=None: ("openai_compatible", None))
     monkeypatch.setattr(cli_selections, "prompt_openai_compatible_url",
                         lambda default=None: offered.setdefault("default", default) or "http://x/v1")
-    monkeypatch.setattr(cli_selections, "fetch_announcements", lambda: [])
-    monkeypatch.setattr(cli_selections, "display_announcements", lambda *a: None)
+    monkeypatch.setattr(cli_selections.updates, "enabled", lambda: False)
     monkeypatch.setattr(cli_selections, "get_ticker", lambda: "NVDA")
     monkeypatch.setattr(cli_selections, "get_analysis_date", lambda: "2026-09-01")
     monkeypatch.setattr(cli_selections, "ask_output_language", lambda default=None: "English")

@@ -28,6 +28,7 @@ TRADE_DATE = "2026-08-14"
     (None, TRADE_DATE),             # omitted
     ("Sept 1", TRADE_DATE),         # unparseable
     ("", TRADE_DATE),
+    ("2026-8-1", "2026-08-01"),     # unpadded: served in its canonical form
 ])
 def test_as_of_takes_the_earlier_date(requested, expected):
     assert as_of(requested, TRADE_DATE) == expected
@@ -36,6 +37,7 @@ def test_as_of_takes_the_earlier_date(requested, expected):
 @pytest.mark.unit
 def test_as_of_without_a_trade_date_passes_the_request_through():
     assert as_of("2026-09-14", "") == "2026-09-14"
+    assert as_of("2026-9-14", "") == "2026-09-14"
 
 
 @pytest.mark.unit
@@ -43,6 +45,7 @@ def test_as_of_without_a_trade_date_passes_the_request_through():
     ("2026-08-01", "2026-09-14", ("2026-08-01", TRADE_DATE)),  # end clamped
     ("2026-08-01", "2026-08-10", ("2026-08-01", "2026-08-10")),  # inside: unchanged
     ("2026-09-01", "2026-09-08", ("2026-08-07", TRADE_DATE)),  # wholly later: span kept, moved back
+    ("2026-8-1", "2026-8-10", ("2026-08-01", "2026-08-10")),  # unpadded: canonical
 ])
 def test_as_of_window(start, end, expected):
     assert as_of_window(start, end, TRADE_DATE) == expected
@@ -129,6 +132,24 @@ def test_future_window_from_the_model_is_clamped():
 
 
 @pytest.mark.unit
+def test_an_unpadded_date_reaches_the_vendor_in_canonical_form():
+    # Vendors compare dates as YYYY-MM-DD text: "2026-07-23" > "2026-7-3" is False,
+    # so an unpadded date would let a filing made after it through.
+    args = _run(tools.get_income_statement, {"curr_date": "2026-7-3"}, tools)
+    assert args[-1] == "2026-07-03"
+    args = _run(tools.get_news, {"start_date": "2026-7-1", "end_date": "2026-7-3"}, tools)
+    assert args[-2:] == ("2026-07-01", "2026-07-03")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("tool", [tools.get_balance_sheet, tools.get_cashflow, tools.get_income_statement])
+def test_a_statement_frequency_is_one_the_vendors_serve(tool):
+    # Any other word was served annual figures under the word asked for.
+    schema = tool.tool_call_schema.model_json_schema()["properties"]["freq"]
+    assert schema["enum"] == ["annual", "quarterly"]
+
+
+@pytest.mark.unit
 def test_direct_call_without_state_is_unchanged():
     with mock.patch.object(tools, "route_to_vendor", return_value="ok") as routed:
         tools.get_news.func("AAPL", "2026-09-01", "2026-09-08")
@@ -147,6 +168,15 @@ def test_a_start_date_that_is_not_a_date_is_sent_back_to_the_model(tool):
 
 
 @pytest.mark.unit
+def test_a_window_that_ends_before_it_starts_is_sent_back_to_the_model():
+    # A reversed window reached the vendor, which then reported no data for it.
+    with mock.patch.object(tools, "route_to_vendor", return_value="ok") as routed:
+        out = tools.get_stock_data.func("NVDA", "2026-08-12", "2026-08-01", trade_date=TRADE_DATE)
+    assert not routed.called
+    assert "start_date" in out and "end_date" in out
+
+
+@pytest.mark.unit
 def test_a_window_whose_start_is_not_a_date_is_refused():
     with pytest.raises(ValueError, match="start_date"):
         as_of_window("2026-09-26\u0629", "2026-10-03", "2026-10-03")
@@ -161,6 +191,8 @@ def test_propagate_rejects_a_non_canonical_date(bad):
 
     with pytest.raises(ValueError, match="YYYY-MM-DD"):
         object.__new__(TradingAgentsGraph).propagate("AAPL", bad)
+    with pytest.raises(ValueError, match="YYYY-MM-DD"):  # the CLI starts a run here
+        object.__new__(TradingAgentsGraph).create_run_state("AAPL", bad)
 
 
 @pytest.mark.unit

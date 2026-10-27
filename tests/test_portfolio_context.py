@@ -46,6 +46,20 @@ def test_a_ticker_held_under_another_spelling_is_matched():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("held, analyzed, canonical", [
+    ("BTCUSDT", "BTC-USD", "BTC-USD"),
+    ("XAUUSD+", "GC=F", "GC=F"),
+    ("700.HK", "0700.HK", "0700.HK"),
+    ("0700.HK", "700.HK", "0700.HK"),
+])
+def test_a_holding_under_a_broker_alias_is_the_analyzed_instrument(held, analyzed, canonical):
+    book = PortfolioContext.model_validate({"positions": [{"ticker": held, "quantity": 2}, {"ticker": "ethusdt", "quantity": 1}]})
+    text = book.render(analyzed)
+    assert f"Current position in {canonical}: 2 units" in text
+    assert "Other positions: ETHUSDT 1" in text   # as listed
+
+
+@pytest.mark.unit
 def test_absent_context_is_reported_as_not_provided():
     notice = get_portfolio_context_from_state({"company_of_interest": "AAPL"})
     assert "not provided" in notice.lower()
@@ -62,6 +76,36 @@ def test_rendered_context_reaches_the_agents_from_state():
 def test_load_rejects_a_malformed_file_with_a_clear_error(tmp_path):
     bad = tmp_path / "p.json"
     bad.write_text(json.dumps({"positions": [{"quantity": 5}]}))
+    with pytest.raises(ValueError, match="portfolio"):
+        load_portfolio(bad)
+
+
+@pytest.mark.unit
+def test_one_instrument_held_under_two_spellings_shows_both_holdings():
+    book = PortfolioContext.model_validate({"positions": [
+        {"ticker": "BTCUSDT", "quantity": 1}, {"ticker": "BTC-USD", "quantity": 2}]})
+    text = book.render("BTC-USD")
+    assert "Current position in BTC-USD: 1 units (listed as BTCUSDT)" in text
+    assert "Current position in BTC-USD: 2 units" in text and "Other positions" not in text
+
+
+@pytest.mark.unit
+def test_a_holding_keeps_the_instrument_it_was_listed_as():
+    # WTI is also an alias of crude oil futures; listed beside AAPL it is the stock as written.
+    text = PortfolioContext.model_validate({"positions": [{"ticker": "WTI", "quantity": 100}]}).render("AAPL")
+    assert "Other positions: WTI 100" in text and "CL=F" not in text
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("book", [
+    '{"cash": NaN}',
+    '{"positions": [{"ticker": "AAPL", "quantity": Infinity}]}',
+    '{"positions": [{"ticker": "AAPL", "quantity": 1, "average_price": "nan"}]}',
+])
+def test_load_rejects_a_number_that_is_not_finite(tmp_path, book):
+    # Python's json writes NaN and Infinity, and they would reach the agents as "nan units".
+    bad = tmp_path / "p.json"
+    bad.write_text(book)
     with pytest.raises(ValueError, match="portfolio"):
         load_portfolio(bad)
 

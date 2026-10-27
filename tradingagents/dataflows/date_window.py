@@ -1,7 +1,8 @@
 """Point-in-time rules shared by every dated path: data is served as of the run's date.
 
 - ``as_of`` / ``as_of_window`` clamp a date or window the model asks for to the
-  trade date, so no tool reaches a vendor with a later one.
+  trade date, so no tool reaches a vendor with a later one, and always hand it
+  over as ``YYYY-MM-DD``: vendors compare dates as text.
 - ``in_window`` trims dated items (news, StockTwits, Reddit) to the analysis
   window: timestamps normalized to UTC, the upper bound exclusive at midnight
   after ``end``, and an undated item kept only when the window reaches the
@@ -79,13 +80,14 @@ def as_of(requested: str | None, trade_date: str) -> str | None:
     """The date a tool serves: the model's date, but never later than the run's.
 
     A model can omit the date or pass today's instead of the analysis date, which
-    would walk past every point-in-time guard behind the tool. An empty
+    would walk past every point-in-time guard behind the tool. A date is served in
+    its canonical form: "2026-7-3" compares as later than "2026-07-23". An empty
     ``trade_date`` (a direct call outside a graph run) passes the request through.
     """
-    if not trade_date:
-        return requested
     parsed = _parse(requested)
-    return requested if parsed is not None and parsed <= _parse(trade_date) else trade_date
+    if not trade_date:
+        return requested if parsed is None else f"{parsed:%Y-%m-%d}"
+    return f"{parsed:%Y-%m-%d}" if parsed is not None and parsed <= _parse(trade_date) else trade_date
 
 
 def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, str]:
@@ -93,16 +95,20 @@ def as_of_window(start_date: str, end_date: str, trade_date: str) -> tuple[str, 
 
     A window wholly after the run date keeps its length and moves back to end there.
     An unreadable end reads as the run date, but no window can be guessed from an
-    unreadable start, so it raises ValueError for the caller to send back (#1476).
+    unreadable start or from a start after the end, so those raise ValueError for
+    the caller to send back (#1476).
     """
     start, old_end = _parse(start_date), _parse(end_date)
     if start is None:
         raise ValueError(f"start_date {start_date!r} is not a date; give it as YYYY-MM-DD")
+    if old_end is not None and start > old_end:
+        raise ValueError(f"start_date {start_date} is after end_date {end_date}; give the earlier date first")
     end = as_of(end_date, trade_date)
-    if end == end_date or start <= _parse(end):
-        return start_date, end
+    end_dt = _parse(end)
+    if end_dt is None or end_dt == old_end or start <= end_dt:
+        return f"{start:%Y-%m-%d}", end
     span = (old_end - start) if old_end is not None and old_end >= start else timedelta(0)
-    return f"{_parse(end) - span:%Y-%m-%d}", end
+    return f"{end_dt - span:%Y-%m-%d}", end
 
 
 def withhold_live_profile(as_of_date: str | None, label: str) -> str | None:

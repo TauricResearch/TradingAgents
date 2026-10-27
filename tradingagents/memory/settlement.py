@@ -5,6 +5,8 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+import pandas as pd
+
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes
 
@@ -35,25 +37,34 @@ def resolve_benchmark(ticker: str, config: dict) -> str:
     return benchmark_map.get("", "SPY")
 
 
+def _now() -> pd.Timestamp:
+    return pd.Timestamp.now(tz="UTC")
+
+
 def _by_day(closes):
-    """Closes keyed by the calendar day of their bar, missing closes dropped.
+    """Final closes keyed by the calendar day of their bar, missing closes dropped.
 
     Yahoo stamps a daily bar at midnight in its market's time zone (UTC for a
     coin, New York for SPY), so two series meet on their dates, not their
     instants. A missing or non-positive close is no price at all, not a bar to
-    score on.
+    score on. Today's bar, in its market's time zone, is the session still
+    trading: its close is the live price, so it is not scored.
     """
     closes = closes[closes > 0]
-    if getattr(closes.index, "tz", None) is not None:
-        closes = closes.tz_localize(None)
-    return closes
+    tz = getattr(closes.index, "tz", None)
+    if not closes.empty:
+        closes = closes[closes.index.date < _now().tz_convert(tz).date()]
+    return closes if tz is None else closes.tz_localize(None)
 
 
 def fetch_returns(
     ticker: str, trade_date: str, holding_days: int = 5,
     benchmark: str = "SPY",
 ) -> tuple[float | None, float | None, int | None, str | None]:
-    """Fetch raw and alpha return for ticker over holding_days from trade_date.
+    """Fetch raw and alpha return for ticker over holding_days after trade_date.
+
+    The position is entered at the first close after ``trade_date``: a run dated
+    ``trade_date`` reads news published after that day's close (#1518).
 
     ``benchmark`` is the index used as the alpha baseline (resolved by the
     caller via ``resolve_benchmark``). Returns ``(raw_return, alpha_return,
@@ -64,16 +75,32 @@ def fetch_returns(
     to report.
     """
     start = datetime.strptime(trade_date, "%Y-%m-%d")
-    # holding_days counts trading days, so ask for the calendar span they
-    # occupy (about 7 for every 5) plus a week for holidays.
-    end = start + timedelta(days=round(holding_days * 7 / 5) + 7)
-    end_str = end.strftime("%Y-%m-%d")
-
-    # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984).
-    stock = _by_day(get_closes(ticker, trade_date, end_str))
+    today = _now().tz_localize(None).normalize()
+    # The entry and holding_days more sessions all close after the decision date
+    # and before today, with a day's slack for markets east of UTC: until then
+    # the window cannot have traded and no prices are asked for.
+    if (today - start).days < holding_days + 1:
+        return None, None, None, None
+    # holding_days counts trading days after the entry session, so ask for the
+    # calendar span they occupy (about 7 for every 5) plus a week for holidays.
+    end = start + timedelta(days=round((holding_days + 1) * 7 / 5) + 7)
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
-    bench = _by_day(get_closes(benchmark, bench_start, end_str))
+
+    def closes(until):
+        # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984),
+        # from the first session after the decision date.
+        stock = _by_day(get_closes(ticker, trade_date, until.strftime("%Y-%m-%d")))
+        return stock[stock.index > start], _by_day(get_closes(benchmark, bench_start, until.strftime("%Y-%m-%d")))
+
+    def traded(stock, bench):
+        return len(stock) > holding_days and not bench.empty and bench.index[-1] >= stock.index[holding_days]
+
+    stock, bench = closes(end)
+    # A window that has passed without trading through spans a closure longer than
+    # the week allowed for holidays (a national holiday, a halt): ask through today.
+    if not traded(stock, bench) and end < today:
+        stock, bench = closes(today + timedelta(days=1))
 
     # Require the full holding window to have traded. A rerun before it has
     # leaves the entry pending to retry next run, rather than settling on a

@@ -297,6 +297,7 @@ class TradingAgentsGraph:
         memory log's lessons are not here: the graph's Memory Log step settles
         and loads them alongside the analysts (see ``_memory_step``).
         """
+        trade_date = _validate_trade_date(trade_date)
         return self.propagator.create_initial_state(
             company_name,
             trade_date,

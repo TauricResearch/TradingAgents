@@ -1,16 +1,20 @@
 import datetime
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 import questionary
 import typer
 from dotenv import find_dotenv, set_key
+from rich.markup import escape
 
 from cli.display import console
 from cli.models import AnalystType, AssetType
+from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS, SIGNED_IN_PROVIDERS
 
 TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
@@ -24,15 +28,28 @@ ANALYST_CHOICES = [
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
 
 
-def is_valid_ticker_input(value: str) -> bool:
-    """Whether a ticker entry is acceptable (charset + length).
+# The style of every selection menu.
+_MENU_STYLE = questionary.Style([
+    ("selected", "fg:magenta noinherit"),
+    ("highlighted", "fg:magenta noinherit"),
+    ("pointer", "fg:magenta noinherit"),
+])
 
-    Allows the characters Yahoo symbols use, including ``=`` for futures/forex
-    like ``GC=F`` and ``EURUSD=X`` (#980), and ``^`` for indices. Empty input is
-    allowed (it defaults to SPY downstream).
+
+def is_valid_ticker_input(value: str) -> bool:
+    """Whether a ticker entry names a symbol the run can use.
+
+    The symbol it resolves to (``XAUUSD+`` -> ``GC=F``) must pass the data
+    layer's own check, so the prompt refuses exactly what the run would.
+    Empty input is allowed (it defaults to SPY downstream).
     """
-    v = value.strip()
-    return not v or (all(ch.isalnum() or ch in "._-^=" for ch in v) and len(v) <= 32)
+    if not value.strip():
+        return True
+    try:
+        safe_ticker_component(normalize_ticker_symbol(value))
+    except ValueError:
+        return False
+    return True
 
 
 def get_ticker() -> str:
@@ -238,6 +255,35 @@ def _fetch_openrouter_models() -> list[tuple[str, str]]:
         return []
 
 
+def select_chatgpt_model(mode: str, default=None) -> str:
+    """Select one of the ChatGPT plan's models, or enter a model ID."""
+    from tradingagents.llm_clients import chatgpt_auth
+    try:
+        models = chatgpt_auth.list_models()
+    except Exception as e:
+        console.print(f"\n[yellow]Could not list your ChatGPT plan's models: {escape(str(e))}[/yellow]")
+        models = []
+    return _select_listed_model(f"Select Your [{mode.title()}-Thinking] ChatGPT Plan Model:",
+                                models, default, _prompt_custom_model_id)
+
+
+def _select_listed_model(title: str, models, default, custom) -> str:
+    """Select from ``models`` ((name, model ID) pairs, listed live) or enter one with ``custom``."""
+    choices = [questionary.Choice(name, value=mid) for name, mid in models]
+    choices.append(questionary.Choice("Custom model ID", value="custom"))
+    choice = questionary.select(
+        title,
+        choices=choices,
+        default=default if any(c.value == default for c in choices) else None,
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=_MENU_STYLE,
+    ).ask()
+    if choice is None:
+        console.print("\n[red]No model selected. Exiting...[/red]")
+        exit(1)
+    return custom() if choice == "custom" else choice
+
+
 def _require_text(message: str, hint: str) -> str:
     """Prompt for a required value; exit cleanly if the user cancels.
 
@@ -255,7 +301,7 @@ def _require_text(message: str, hint: str) -> str:
     return response.strip()
 
 
-def select_openrouter_model(mode: str) -> str:
+def select_openrouter_model(mode: str, default=None) -> str:
     """Select an OpenRouter model from the newest available, or enter a custom ID.
 
     ``mode`` ("quick"/"deep") labels the prompt so the two consecutive
@@ -270,30 +316,14 @@ def select_openrouter_model(mode: str) -> str:
         and mid.split("/", 1)[0] in _OPENROUTER_MAINSTREAM
     ]
     top = (mainstream or models)[:5]
+    return _select_listed_model(
+        f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):", top, default,
+        lambda: _require_text("Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
+                              "Please enter a model ID."))
 
-    choices = [questionary.Choice(name, value=mid) for name, mid in top]
-    choices.append(questionary.Choice("Custom model ID", value="custom"))
 
-    choice = questionary.select(
-        f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):",
-        choices=choices,
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style([
-            ("selected", "fg:magenta noinherit"),
-            ("highlighted", "fg:magenta noinherit"),
-            ("pointer", "fg:magenta noinherit"),
-        ]),
-    ).ask()
-
-    if choice is None:
-        console.print("\n[red]No model selected. Exiting...[/red]")
-        exit(1)
-    if choice == "custom":
-        return _require_text(
-            "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
-            "Please enter a model ID.",
-        )
-    return choice
+# Providers whose models are listed live, with the menu that offers them.
+LISTED_LIVE = {"openrouter": select_openrouter_model, "chatgpt": select_chatgpt_model}
 
 
 def _prompt_custom_model_id() -> str:
@@ -303,8 +333,9 @@ def _prompt_custom_model_id() -> str:
 
 def _select_model(provider: str, mode: str, default=None) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
-    if provider.lower() == "openrouter":
-        return select_openrouter_model(mode)
+    listed = LISTED_LIVE.get(provider.lower())
+    if listed is not None:
+        return listed(mode, default)
 
     if provider.lower() == "azure":
         return _require_text(
@@ -320,13 +351,7 @@ def _select_model(provider: str, mode: str, default=None) -> str:
         ],
         default=_matching_choice(get_model_options(provider, mode), default),
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
-            ]
-        ),
+        style=_MENU_STYLE,
     ).ask()
 
     if choice is None:
@@ -363,6 +388,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+        ("ChatGPT (Plus or Pro plan)", "chatgpt", "https://api.openai.com/v1"),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
@@ -419,36 +445,49 @@ def prompt_openai_compatible_url(default=None) -> str:
     return url.strip()
 
 
+# The menu entry that groups the providers used through a personal plan.
+_SUBSCRIPTION = ("subscription", None)
+
+
 def select_llm_provider(default=None) -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
     PROVIDERS = _llm_provider_table()
     # A region-specific key (qwen-cn) is chosen in a later prompt; the menu
     # lists the base provider.
     base = (default or "").split("-cn")[0]
-    preselected = next(
+    choices = []
+    for display, provider_key, url in PROVIDERS:
+        if provider_key in SIGNED_IN_PROVIDERS:
+            continue
+        choices.append(questionary.Choice(display, value=(provider_key, url)))
+        if provider_key == "anthropic":
+            choices.append(questionary.Choice("Subscription (use your ChatGPT plan)", value=_SUBSCRIPTION))
+    preselected = _SUBSCRIPTION if base in SIGNED_IN_PROVIDERS else next(
         ((key, url) for _, key, url in PROVIDERS if key == base), None
     )
 
     choice = questionary.select(
         "Select your LLM Provider:",
-        choices=[
-            questionary.Choice(display, value=(provider_key, url))
-            for display, provider_key, url in PROVIDERS
-        ],
+        choices=choices,
         default=preselected,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
-            ]
-        ),
+        style=_MENU_STYLE,
     ).ask()
 
     if choice is None:
         console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
+
+    if choice == _SUBSCRIPTION:
+        choice = questionary.select(
+            "Select your subscription:",
+            choices=[questionary.Choice(display, value=(key, url))
+                     for display, key, url in PROVIDERS if key in SIGNED_IN_PROVIDERS],
+            style=_MENU_STYLE,
+        ).ask()
+        if choice is None:
+            console.print("\n[red]No subscription selected. Exiting...[/red]")
+            exit(1)
 
     provider, url = choice
     return provider, url
@@ -624,6 +663,32 @@ def confirm_ollama_endpoint(url: str) -> None:
         )
 
 
+def ensure_signed_in(provider: str) -> None:
+    """Make sure a plan provider's sign-in works before the run, offering to sign in now.
+
+    Signing in runs as its own process (``tradingagents login chatgpt``), so its
+    read of a pasted address ends with it and never takes a later answer."""
+    if provider.lower() not in SIGNED_IN_PROVIDERS:
+        return
+    from tradingagents.llm_clients import chatgpt_auth  # the one signed-in provider
+
+    try:
+        chatgpt_auth.access_token()
+    except chatgpt_auth.ChatGPTUnreachable as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+    except chatgpt_auth.ChatGPTAuthError as exc:
+        if not sys.stdin.isatty():
+            console.print(f"[red]{escape(str(exc))}[/red]")
+            raise typer.Exit(code=1) from None
+        console.print(f"\n[yellow]{escape(str(exc))}[/yellow]")
+        # -P keeps a cli/ package in the working directory from shadowing ours.
+        login = [sys.executable, "-P", "-m", "cli.main", "login", "chatgpt"]
+        if subprocess.run(login).returncode != 0:
+            raise typer.Exit(code=1) from None
+    console.print(f"[green]✓ Using your ChatGPT plan:[/green] {escape(chatgpt_auth.signed_in_as() or '')}")
+
+
 def ensure_api_key(provider: str) -> str | None:
     """Make sure the API key for `provider` is available in the environment.
 
@@ -641,7 +706,6 @@ def ensure_api_key(provider: str) -> str | None:
 
     # Key-optional providers (generic OpenAI-compatible / local servers) read the
     # key when present but must never force an interactive prompt.
-    from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
     spec = OPENAI_COMPATIBLE_PROVIDERS.get(provider.lower())
     if spec is not None and spec.key_optional:
         return os.environ.get(env_var)
