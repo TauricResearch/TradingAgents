@@ -8,9 +8,13 @@ simulate a portfolio, so there is no execution, no fees and no equity curve.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.memory import TradingMemoryLog
 
 DECISION = "Rating: Buy\n\nbuy it"
@@ -59,6 +63,11 @@ class _FakeGraph:
     def settle_pending(self, ticker):
         self.settled.append(ticker)
 
+    def _run_signature(self, asset_type, portfolio=None):
+        context = SimpleNamespace(config={**DEFAULT_CONFIG, **self.config},
+                                  selected_analysts=self.analysts or [])
+        return TradingAgentsGraph._run_signature(context, asset_type, portfolio)
+
 
 @pytest.fixture(autouse=True)
 def _fake_graph(monkeypatch, tmp_path):
@@ -93,6 +102,43 @@ def test_a_cell_already_in_the_log_is_not_run_again(tmp_path):
 
     assert again.cells_run == 1 and again.skipped == 1
     assert _FakeGraph.instances[-1].calls == [("NVDA", "2026-01-12")]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("change", ["model", "analysts", "asset", "portfolio", "holdings"])
+def test_resume_rejects_changed_decision_inputs(tmp_path, change):
+    config = _config(tmp_path)
+    initial = {"portfolio": SimpleNamespace(fingerprint=lambda: "original-book")} if change == "holdings" else {}
+    first = run_backtest(["NVDA"], ["2026-01-05"], config, **initial)
+    kwargs = {}
+    if change == "model":
+        config = {**config, "deep_think_llm": "another-model"}
+    elif change == "analysts":
+        kwargs["selected_analysts"] = ["market"]
+    elif change == "asset":
+        kwargs["asset_type"] = "crypto"
+    else:
+        kwargs["portfolio"] = SimpleNamespace(fingerprint=lambda: "another-book")
+    with pytest.raises(ValueError, match="different run inputs"):
+        run_backtest(["NVDA"], ["2026-01-05"], config, run_id=first.run_id, **kwargs)
+    assert _FakeGraph.instances[-1].calls == []
+
+
+@pytest.mark.unit
+def test_retry_settings_do_not_invalidate_a_resume(tmp_path):
+    config = _config(tmp_path)
+    first = run_backtest(["NVDA"], ["2026-01-05"], config)
+    again = run_backtest(["NVDA"], ["2026-01-05"], {**config, "llm_max_retries": 50}, run_id=first.run_id)
+    assert again.cells_run == 0 and again.skipped == 1
+
+
+@pytest.mark.unit
+def test_resume_refuses_to_guess_the_inputs_of_a_legacy_log(tmp_path):
+    config = _config(tmp_path)
+    log_path = tmp_path / "results" / "backtest" / "legacy" / "trading_memory.md"
+    TradingMemoryLog({"memory_log_path": str(log_path)}).store_decision("NVDA", "2026-01-05", DECISION)
+    with pytest.raises(ValueError, match="no input signature"):
+        run_backtest(["NVDA"], ["2026-01-05"], config, run_id="legacy")
 
 
 @pytest.mark.unit
