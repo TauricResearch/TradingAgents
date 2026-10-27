@@ -16,6 +16,7 @@ cell rather than a position carried forward.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -24,6 +25,7 @@ from pathlib import Path
 
 from tradingagents.agents.rating import RATING_REVIEW
 from tradingagents.dataflows.date_window import get_current_date
+from tradingagents.dataflows.files import locked
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.memory import TradingMemoryLog
@@ -142,6 +144,9 @@ def run_backtest(
     real runs read back. Cells already in this run's log are skipped, so an
     interrupted sweep resumes by being run again. ``progress(done, total,
     ticker, date)`` is called before each cell that runs.
+
+    A run ID binds the decision inputs. Changed settings or a legacy run with
+    no recorded input signature require a new ID instead of reusing old cells.
     """
     # run_id becomes a path segment, so it is validated like a ticker: an
     # absolute or dotted value would otherwise place the run outside results_dir.
@@ -152,6 +157,18 @@ def run_backtest(
                   "memory_log_path": str(run_dir / "trading_memory.md")}
 
     graph = TradingAgentsGraph(selected_analysts, config=run_config)
+    signature_path = run_dir / "run_signature.json"
+    signature = {"version": 1, "signature": graph._run_signature(asset_type, portfolio)}
+    with locked(signature_path):
+        if signature_path.exists():
+            recorded = json.loads(signature_path.read_text(encoding="utf-8"))
+            if recorded != signature:
+                raise ValueError("Backtest run_id has different run inputs; use a new run_id")
+        else:
+            log_path = Path(run_config["memory_log_path"])
+            if log_path.exists() and log_path.stat().st_size:
+                raise ValueError("Backtest has no input signature; use a new run_id")
+            signature_path.write_text(json.dumps(signature) + "\n", encoding="utf-8")
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
     done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}
 
