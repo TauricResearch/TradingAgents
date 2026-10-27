@@ -163,6 +163,20 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length)
         return json.loads(raw.decode("utf-8") or "{}")
 
+    def do_HEAD(self) -> None:  # noqa: N802
+        path = urllib.parse.urlparse(self.path).path
+        if path == "/healthz":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            return
+        self.send_response(302)
+        self.send_header(
+            "Location",
+            f"{SSO_URL}?return_to={urllib.parse.quote(PUBLIC_URL + '/', safe='')}",
+        )
+        self.end_headers()
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
