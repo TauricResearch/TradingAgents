@@ -1139,6 +1139,75 @@ class TestSettlementWindow:
 
 
 @pytest.mark.unit
+class TestSettlementUsesFinalCloses:
+    """A decision settles on closes that are final, whenever the pass runs."""
+
+    def test_a_bar_of_a_session_still_trading_is_not_scored(self, monkeypatch):
+        # 09:12 in Shanghai on Tue 13: Yahoo already serves that day's bar at the live price.
+        days = pd.bdate_range("2026-01-02", "2026-01-13", tz="Asia/Shanghai")
+        stock = pd.Series([100.0 + i for i in range(len(days))], index=days)
+        index = pd.Series([3000.0] * len(days), index=days)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"600519.SS": stock, "000001.SS": index}))
+        monkeypatch.setattr(settlement, "_now", lambda: pd.Timestamp("2026-01-13 01:12", tz="UTC"))
+
+        # Decided Mon 5: entry Tue 6, exit five sessions later on Tue 13, today.
+        assert settlement.fetch_returns("600519.SS", "2026-01-05", 5, "000001.SS") == (None, None, None, None)
+
+        monkeypatch.setattr(settlement, "_now", lambda: pd.Timestamp("2026-01-14 01:12", tz="UTC"))
+        assert settlement.fetch_returns("600519.SS", "2026-01-05", 5, "000001.SS")[3] == "2026-01-13"
+
+    def test_a_decision_before_a_long_market_closure_settles(self, monkeypatch):
+        # The exchange is shut Thu 1 to Wed 7 October.
+        days = pd.bdate_range("2026-09-21", "2026-10-30")
+        days = days[(days < "2026-10-01") | (days > "2026-10-07")]
+        stock = pd.Series([100.0 + i for i in range(len(days))], index=days)
+        index = pd.Series([3000.0 + i for i in range(len(days))], index=days)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"600519.SS": stock, "000001.SS": index}))
+        monkeypatch.setattr(settlement, "_now", lambda: pd.Timestamp("2026-11-02 08:00", tz="UTC"))
+
+        raw, alpha, days_held, resolved = settlement.fetch_returns("600519.SS", "2026-09-29", 5, "000001.SS")
+
+        # Entry Wed 30 September, then five sessions from Thu 8 October.
+        assert resolved == "2026-10-14" and days_held == 5
+
+    def test_a_market_whose_clocks_skip_midnight_still_settles(self, monkeypatch):
+        # Santiago springs forward at midnight: 2026-09-06 has no 00:00.
+        days = pd.bdate_range("2026-08-21", "2026-09-04", tz="America/Santiago")
+        stock = pd.Series([100.0 + i for i in range(len(days))], index=days)
+        index = pd.Series([6000.0 + i for i in range(len(days))], index=days)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"SQM-B.SN": stock, "^IPSA": index}))
+        monkeypatch.setattr(settlement, "_now", lambda: pd.Timestamp("2026-09-06 15:00", tz="UTC"))
+
+        assert settlement.fetch_returns("SQM-B.SN", "2026-08-24", 5, "^IPSA")[3] == "2026-09-01"
+
+    def test_a_benchmark_shut_past_the_window_is_fetched_again(self, monkeypatch):
+        days = pd.bdate_range("2026-09-14", "2026-10-30")
+        stock = pd.Series([100.0 + i for i in range(len(days))], index=days)
+        shut = days[(days < "2026-09-30") | (days > "2026-10-20")]
+        index = pd.Series([3000.0 + i for i in range(len(shut))], index=shut)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"AAPL": stock, "000001.SS": index}))
+        monkeypatch.setattr(settlement, "_now", lambda: pd.Timestamp("2026-11-02 08:00", tz="UTC"))
+
+        assert settlement.fetch_returns("AAPL", "2026-09-29", 5, "000001.SS")[3] == "2026-10-07"
+
+    def test_a_series_with_no_usable_close_stays_pending(self, monkeypatch):
+        # Yahoo can answer with a dated, time-zoned frame whose closes are all missing.
+        days = pd.bdate_range("2026-01-02", "2026-01-30", tz="America/New_York")
+        empty = pd.Series([float("nan")] * len(days), index=days)
+        index = pd.Series([400.0 + i for i in range(len(days))], index=days)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": empty, "SPY": index}))
+        monkeypatch.setattr(settlement, "_now", lambda: pd.Timestamp("2026-02-02 12:00", tz="UTC"))
+
+        assert settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY") == (None, None, None, None)
+
+    def test_a_window_that_cannot_have_traded_asks_for_no_prices(self, monkeypatch):
+        monkeypatch.setattr(settlement, "_now", lambda: pd.Timestamp("2026-01-08 22:00", tz="UTC"))
+        monkeypatch.setattr(settlement, "get_closes", lambda *a: pytest.fail("fetched prices"))
+
+        assert settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY") == (None, None, None, None)
+
+
+@pytest.mark.unit
 def test_a_close_that_is_not_a_price_is_skipped_not_scored(monkeypatch):
     """A zero close would score as an infinite return and be written to the memory log."""
     idx = pd.bdate_range("2026-01-05", periods=8)
