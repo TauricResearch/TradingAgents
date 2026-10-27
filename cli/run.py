@@ -452,6 +452,10 @@ def _offer_reports(final_state, graph, ticker, save=None, show=None, html=None):
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
+            # Without a traceback the failure stays undiagnosable: the Markdown
+            # is written before the HTML, and a one-line message cannot say
+            # which step died (#1609 arrived with no error output at all).
+            console.print_exception()
         if saved and html:
             page = (save_path / "complete_report.html").resolve()
             console.print(f"  [dim]HTML report:[/dim] {page.name}")
