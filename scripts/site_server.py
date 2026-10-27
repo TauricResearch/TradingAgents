@@ -51,12 +51,13 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def canonical_public_host(host: str | None) -> str:
-    """Keep TradingAgents.quiltyapp.com when the browser asked for it."""
+    """Always brand as TradingAgents.quiltyapp.com (DNS/TLS are case-insensitive).
+
+    Clients and HTTP/2 usually lowercase the Host header, so we must not echo
+    that casing back into SSO return_to / redirects.
+    """
     h = (host or "").split(":")[0].strip()
-    if h in ALLOWED_PUBLIC_HOSTS:
-        # Preserve exact casing from the request Host header.
-        return h
-    if h.lower() == "tradingagents.quiltyapp.com":
+    if h.lower() == "tradingagents.quiltyapp.com" or h in ALLOWED_PUBLIC_HOSTS:
         return "TradingAgents.quiltyapp.com"
     return urllib.parse.urlparse(PUBLIC_URL).hostname or "TradingAgents.quiltyapp.com"
 
