@@ -242,6 +242,7 @@ def _dist(direct=None, installer="pip"):
 
 
 @pytest.mark.unit
+@pytest.mark.skipif(os.name == "nt", reason="the upgrade commands are POSIX shell")
 def test_the_upgrade_command_follows_the_install(tmp_path, monkeypatch):
     clone = tmp_path / "TradingAgents"
     (clone / ".git").mkdir(parents=True)
@@ -314,6 +315,7 @@ def test_remote_text_cannot_carry_c1_or_direction_controls():
 
 
 @pytest.mark.unit
+@pytest.mark.skipif(os.name == "nt", reason="the upgrade commands are POSIX shell")
 def test_a_uv_git_install_is_upgraded_with_uv(monkeypatch):
     monkeypatch.delenv("TRADINGAGENTS_IN_DOCKER", raising=False)
     monkeypatch.setattr(updates.sys, "executable", "/venv/bin/python")

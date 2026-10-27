@@ -1,6 +1,6 @@
 .git
 .venv
-.env
+**/.env*
 .claude
 .idea
 .vscode
