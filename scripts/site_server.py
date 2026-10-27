@@ -29,8 +29,13 @@ AGENTROBIN_ROOT = Path(
 PORT = int(os.environ.get("TRADINGAGENTS_SITE_PORT", "8794"))
 BIND = os.environ.get("TRADINGAGENTS_SITE_BIND", "127.0.0.1")
 PUBLIC_URL = os.environ.get(
-    "TRADINGAGENTS_PUBLIC_URL", "https://tradingagents.quiltyapp.com"
+    "TRADINGAGENTS_PUBLIC_URL", "https://TradingAgents.quiltyapp.com"
 ).rstrip("/")
+# Prefer branded casing; DNS/TLS treat hostnames case-insensitively.
+ALLOWED_PUBLIC_HOSTS = {
+    "tradingagents.quiltyapp.com",
+    "TradingAgents.quiltyapp.com",
+}
 SSO_URL = os.environ.get(
     "TRADINGAGENTS_SSO_URL",
     "https://webbit.quiltyapp.com/agentrobin/internal/agents_sso",
@@ -43,6 +48,17 @@ RUNS_DIR.mkdir(parents=True, exist_ok=True)
 WEB_HTML = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
 LOG_DIR = ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def canonical_public_host(host: str | None) -> str:
+    """Keep TradingAgents.quiltyapp.com when the browser asked for it."""
+    h = (host or "").split(":")[0].strip()
+    if h in ALLOWED_PUBLIC_HOSTS:
+        # Preserve exact casing from the request Host header.
+        return h
+    if h.lower() == "tradingagents.quiltyapp.com":
+        return "TradingAgents.quiltyapp.com"
+    return urllib.parse.urlparse(PUBLIC_URL).hostname or "TradingAgents.quiltyapp.com"
 
 
 def _b64url(data: bytes) -> str:
@@ -134,6 +150,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Location", location)
         self.end_headers()
 
+    def _public_base(self) -> str:
+        host = canonical_public_host(self.headers.get("Host"))
+        return f"https://{host}"
+
     def _session_user(self) -> dict | None:
         if AUTH == "disabled":
             return {"email": "local-dev"}
@@ -149,7 +169,9 @@ class Handler(BaseHTTPRequestHandler):
         user = self._session_user()
         if user:
             return user
-        login = f"{SSO_URL}?return_to={urllib.parse.quote(PUBLIC_URL + self.path, safe='')}"
+        base = self._public_base()
+        path = self.path if self.path.startswith("/") else "/"
+        login = f"{SSO_URL}?return_to={urllib.parse.quote(base + path, safe='')}"
         if api:
             self._json({"error": "login required", "login": login}, status=401)
         else:
@@ -170,10 +192,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             return
+        base = self._public_base()
         self.send_response(302)
         self.send_header(
             "Location",
-            f"{SSO_URL}?return_to={urllib.parse.quote(PUBLIC_URL + '/', safe='')}",
+            f"{SSO_URL}?return_to={urllib.parse.quote(base + '/', safe='')}",
         )
         self.end_headers()
 
@@ -207,7 +230,7 @@ class Handler(BaseHTTPRequestHandler):
             ret = (qs.get("return_to") or ["/"])[0]
             if not ret.startswith("/") or ret.startswith("//"):
                 ret = "/"
-            self.send_header("Location", PUBLIC_URL + ret)
+            self.send_header("Location", self._public_base() + ret)
             self.end_headers()
             return
 

@@ -109,7 +109,7 @@ WorkingDirectory=$ROOT
 Environment=TRADINGAGENTS_ROOT=$ROOT
 Environment=AGENTROBIN_ROOT=${AGENTROBIN_ROOT:-/home/marckoby/dev/agentRobin}
 Environment=TRADINGAGENTS_SITE_PORT=$PORT
-Environment=TRADINGAGENTS_PUBLIC_URL=https://$SITE
+Environment=TRADINGAGENTS_PUBLIC_URL=https://TradingAgents.quiltyapp.com
 Environment=TRADINGAGENTS_SITE_AUTH=sso
 Environment=PYTHONUNBUFFERED=1
 # Load LLM keys without printing them
