@@ -169,7 +169,7 @@ def get_stock_stats_indicators_window(
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
             else:
-                indicator_value = "N/A: Not a trading day (weekend or holiday)"
+                indicator_value = "N/A: No usable price row for this date"
 
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
@@ -291,4 +291,4 @@ def get_stock_stats(
         indicator_value = matching_rows[indicator].values[0]
         return indicator_value
     else:
-        return "N/A: Not a trading day (weekend or holiday)"
+        return "N/A: No usable price row for this date"
