@@ -77,3 +77,24 @@ def test_income_figures_without_a_stated_reporting_currency_are_printed_bare():
     out = _fundamentals({"longName": "X", "currency": "USD", "marketCap": 1000, "totalRevenue": 50})
 
     assert "Market Cap: 1000 USD" in out and "Revenue (TTM): 50\n" in out + "\n"
+
+
+@pytest.mark.unit
+def test_short_interest_fields_are_reported_with_units():
+    """Short interest is a fraction in yfinance but days to cover and share
+    counts are already in their own units (#560)."""
+    out = _fundamentals({"longName": "GameStop Corp.", "shortPercentOfFloat": 0.2073,
+                         "shortRatio": 1.8, "sharesShort": 65123456,
+                         "sharesShortPriorMonth": 58900123})
+
+    assert "Short Interest % Float: 20.73%" in out
+    assert "Days to Cover (Short Ratio): 1.8" in out
+    assert "Shares Short: 65123456" in out
+    assert "Shares Short Prior Month: 58900123" in out
+
+
+@pytest.mark.unit
+def test_absent_short_interest_fields_are_left_out():
+    out = _fundamentals({"longName": "Apple Inc.", "trailingPE": 28.5})
+
+    assert "Short Interest" not in out and "Shares Short" not in out
