@@ -53,6 +53,12 @@ def analyze(
         help="JSON file with current holdings and cash, so the trader, risk and "
         "portfolio agents size against your actual position.",
     ),
+    account: str = typer.Option(
+        None,
+        "--account",
+        help="agentRobin account id (e.g. FakeAcct.01 or SCHWAB_…) — loads portfolio "
+        "via the agentRobin bridge (overrides --portfolio when both are set).",
+    ),
     ticker: str = typer.Option(None, "--ticker", help="Ticker to analyze, e.g. NVDA or 0700.HK; skips the prompt"),
     date: str = typer.Option(None, "--date", help="Analysis date, YYYY-MM-DD; skips the prompt"),
     analysts: str = typer.Option(
@@ -81,7 +87,23 @@ def analyze(
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     portfolio_context = None
-    if portfolio:
+    if account:
+        try:
+            from tradingagents.brokerages.agentrobin import (
+                AgentRobinBridgeError,
+                fetch_portfolio,
+            )
+
+            portfolio_context = fetch_portfolio(account)
+            console.print(
+                f"[green]Loaded agentRobin portfolio for {escape(account)} "
+                f"({len(portfolio_context.positions)} positions, "
+                f"cash={portfolio_context.cash}).[/green]"
+            )
+        except AgentRobinBridgeError as exc:
+            console.print(f"[red]agentRobin bridge: {exc}[/red]")
+            raise typer.Exit(code=1) from None
+    elif portfolio:
         try:
             portfolio_context = load_portfolio(portfolio)
         except ValueError as exc:
