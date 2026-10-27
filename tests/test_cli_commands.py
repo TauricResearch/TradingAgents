@@ -83,12 +83,15 @@ class _Summary:
 def test_every_command_is_registered_when_run_as_a_module():
     """README documents `python -m cli.main`, which executes the file top to
     bottom, so a command defined after the __main__ block would not exist."""
+    import os
     import re
     import subprocess
     import sys
 
+    # Help draws boxes in UTF-8; read it as such whatever the locale (cp1252 on Windows).
     out = subprocess.run([sys.executable, "-m", "cli.main", "backtest", "--help"],
-                         capture_output=True, text=True, timeout=120)
+                         capture_output=True, text=True, encoding="utf-8", errors="replace",
+                         env={**os.environ, "PYTHONIOENCODING": "utf-8"}, timeout=120)
     assert out.returncode == 0, out.stderr[-400:]
     # Where the terminal takes colour, help styles each option and splits
     # "--start" across escape sequences, so read the text without them.

@@ -6,6 +6,7 @@ check of the sign-in (signature, issuer, audience, nonce, plan scope) runs for r
 
 import base64
 import json
+import os
 import socket
 import stat
 import threading
@@ -165,7 +166,8 @@ def test_a_token_near_expiry_is_renewed_with_the_stored_refresh_token(home, open
     assert url == auth.TOKEN_URL and sent["refresh_token"] == "r1" and sent["client_id"] == CLIENT
     stored = json.loads(auth.AUTH_FILE.read_text())
     assert stored["tokens"]["refresh_token"] == "r2" and stored["account"]["subject"] == SUBJECT
-    assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
+    if os.name != "nt":   # Windows keeps no POSIX mode; the profile's ACL guards it
+        assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
 
 
 @pytest.mark.unit
@@ -245,7 +247,8 @@ def test_signing_in_by_pasting_the_redirect_saves_a_private_sign_in(home, openai
     stored = json.loads(auth.AUTH_FILE.read_text())
     assert stored["account"] == {"client_id": CLIENT, "email": "a@example.com", "subject": SUBJECT}
     assert stored["host_id"].startswith("urn:uuid:")
-    assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
+    if os.name != "nt":   # Windows keeps no POSIX mode; the profile's ACL guards it
+        assert stat.S_IMODE(auth.AUTH_FILE.stat().st_mode) == 0o600
     asked = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(printed[1]).query))
     assert asked["client_id"] == auth.DYNAMIC_CLIENT_ID and asked["agent_name_hint"] == "TradingAgents"
     assert asked["code_challenge_method"] == "S256" and asked["redirect_uri"].startswith("http://127.0.0.1:")
