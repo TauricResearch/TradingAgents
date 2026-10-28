@@ -25,7 +25,8 @@ from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from zoneinfo import ZoneInfo
+
+from tradingagents.market_time import market_today_iso
 
 ROOT = Path(os.environ.get("TRADINGAGENTS_ROOT", Path(__file__).resolve().parents[1]))
 AGENTROBIN_ROOT = Path(
@@ -59,7 +60,6 @@ RESULTS_DIR = Path(
         Path.home() / ".tradingagents" / "logs",
     )
 )
-MARKET_TZ = ZoneInfo(os.environ.get("TRADINGAGENTS_MARKET_TZ", "America/New_York"))
 
 _RATING_RE = re.compile(
     r"(?<![a-z])rating\b[^:\-\u2010-\u2015]*[:\-\u2010-\u2015][\s*]*(\w+)",
@@ -135,8 +135,8 @@ def iso_now() -> str:
 
 
 def analysis_date_today() -> str:
-    """US equity calendar date (not UTC) so CLI never rejects 'tomorrow' near midnight UTC."""
-    return datetime.now(MARKET_TZ).date().isoformat()
+    """US equity calendar date (not host-local) so CLI accepts site --date near midnight ET."""
+    return market_today_iso()
 
 
 def web_text(name: str) -> str:
@@ -287,7 +287,12 @@ def enrich_run_artifacts(run: dict, *, started_monotonic: float | None = None) -
         run["conclusion"] = str(run["error"])[:500]
 
 
+def _env_blank(env: dict[str, str], key: str) -> bool:
+    return not str(env.get(key, "")).strip()
+
+
 def load_site_env() -> dict[str, str]:
+    """Process env + .env, filling blank unattended CLI knobs the site requires."""
     env = os.environ.copy()
     env_file = ROOT / ".env"
     if env_file.is_file():
@@ -297,17 +302,23 @@ def load_site_env() -> dict[str, str]:
                 continue
             k, v = s.split("=", 1)
             k, v = k.strip(), v.strip().strip('"').strip("'")
-            if k and k not in env:
+            # Fill missing or empty keys from .env (empty systemd values used to
+            # block setdefault and trip unattended_gaps).
+            if k and _env_blank(env, k):
                 env[k] = v
     env["AGENTROBIN_ROOT"] = str(AGENTROBIN_ROOT)
     env["TRADINGAGENTS_ROOT"] = str(ROOT)
-    env.setdefault("TRADINGAGENTS_OUTPUT_LANGUAGE", "English")
-    env.setdefault("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "1")
-    env.setdefault("TRADINGAGENTS_MAX_RISK_ROUNDS", "1")
-    env.setdefault("TRADINGAGENTS_LLM_PROVIDER", "openai")
-    env.setdefault("TRADINGAGENTS_DEEP_THINK_LLM", "gpt-4o")
-    env.setdefault("TRADINGAGENTS_QUICK_THINK_LLM", "gpt-4o-mini")
-    env.setdefault("TRADINGAGENTS_NO_UPDATE_CHECK", "1")
+    for key, value in (
+        ("TRADINGAGENTS_OUTPUT_LANGUAGE", "English"),
+        ("TRADINGAGENTS_MAX_DEBATE_ROUNDS", "1"),
+        ("TRADINGAGENTS_MAX_RISK_ROUNDS", "1"),
+        ("TRADINGAGENTS_LLM_PROVIDER", "openai"),
+        ("TRADINGAGENTS_DEEP_THINK_LLM", "gpt-4o"),
+        ("TRADINGAGENTS_QUICK_THINK_LLM", "gpt-4o-mini"),
+        ("TRADINGAGENTS_NO_UPDATE_CHECK", "1"),
+    ):
+        if _env_blank(env, key):
+            env[key] = value
     return env
 
 

@@ -29,8 +29,12 @@ class TestFlagValues:
             prompts.parse_ticker("NV DA")
 
     def test_a_date_must_be_a_past_or_present_day(self):
+        from tradingagents.market_time import market_today
+
         assert prompts.parse_analysis_date("2026-09-23") == "2026-09-23"
-        tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+        # Market calendar (not host date.today) — site --date uses America/New_York.
+        assert prompts.parse_analysis_date(market_today().isoformat()) == market_today().isoformat()
+        tomorrow = (market_today() + datetime.timedelta(days=1)).isoformat()
         with pytest.raises(ValueError, match="future"):
             prompts.parse_analysis_date(tomorrow)
         with pytest.raises(ValueError, match="YYYY-MM-DD"):

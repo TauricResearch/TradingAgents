@@ -88,12 +88,19 @@ def parse_ticker(value: str) -> str:
 
 
 def parse_analysis_date(value: str) -> str:
-    """An analysis date as YYYY-MM-DD, today or earlier."""
+    """An analysis date as YYYY-MM-DD, market-today or earlier.
+
+    "Today" follows ``TRADINGAGENTS_MARKET_TZ`` (default America/New_York), not
+    the host's ``date.today()``, so site Analyze near midnight UTC/ET is not
+    rejected when the machine is still on the previous calendar day in PT.
+    """
+    from tradingagents.market_time import market_today
+
     try:
         day = datetime.datetime.strptime(value.strip(), "%Y-%m-%d").date()
     except ValueError:
         raise ValueError(f"not a date: {value!r}; use YYYY-MM-DD") from None
-    if day > datetime.date.today():
+    if day > market_today():
         raise ValueError(f"{value} is in the future")
     return day.isoformat()
 

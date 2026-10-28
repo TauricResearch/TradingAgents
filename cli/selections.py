@@ -189,7 +189,9 @@ def _prompt_selections(prefs, flags):
         analysis_date = _from_flag(parse_analysis_date, flags["date"])
         console.print(f"[green]✓ Analysis date from --date:[/green] {analysis_date}")
     else:
-        default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        from tradingagents.market_time import market_today_iso
+
+        default_date = market_today_iso()
         console.print(
             create_question_box(
                 "Step 2: Analysis Date",
