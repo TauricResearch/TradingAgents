@@ -112,7 +112,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "anthropic": {
         "quick": [
             ("Claude Sonnet 5 - Best speed and intelligence balance", "claude-sonnet-5"),
-            ("Claude Haiku 4.5 - Fastest with near-frontier intelligence", "claude-haiku-4-5"),
+            ("Claude Haiku 5.5 - Fastest and lowest cost, 1M context", "claude-haiku-5-5"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
@@ -240,7 +240,7 @@ LEGACY_MODELS: dict[str, list[str]] = {
             "grok-4.20-multi-agent-0309"],
     "deepseek": ["deepseek-v4-flash"],
     "qwen": ["qwen3.7-max", "qwen3.7-plus", "qwen3.6-max", "qwen3.6-plus"],
-    "anthropic": ["claude-opus-5", "claude-fable-5", "claude-opus-4-8", "claude-opus-4-7"],
+    "anthropic": ["claude-opus-5", "claude-fable-5", "claude-opus-4-8", "claude-opus-4-7", "claude-haiku-4-5"],
 }
 
 

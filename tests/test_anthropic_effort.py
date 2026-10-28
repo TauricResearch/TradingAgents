@@ -63,7 +63,7 @@ class TestEffortGate:
         "model",
         # Claude 5 family uses single-number version IDs; all are effort-capable.
         ["claude-sonnet-5", "claude-fable-5", "claude-mythos-5", "claude-opus-5", "claude-opus-5-5",
-         "claude-fable-5-1"],
+         "claude-fable-5-1", "claude-haiku-5-5"],
     )
     def test_claude_5_family_receives_effort(self, monkeypatch, model):
         captured = _capture_kwargs(monkeypatch)
